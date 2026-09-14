@@ -1,36 +1,159 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Compass — MVP
 
-## Getting Started
+Персональное портфолио и professional networking. Не QR-визитка, а экосистема для identity, бизнеса и конференций.
 
-First, run the development server:
+## Структура проекта
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+src/
+├── app/                    # Next.js маршруты (страницы)
+├── features/               # Модули по функциям
+│   ├── portfolio/          # Портфолио, QR, inline-edit, слоты
+│   ├── people/             # Полученные / переданные контакты
+│   ├── events/             # Event Space, конференции
+│   ├── matching/           # Professional matching (demo)
+│   ├── analytics/          # Analytics (demo)
+│   ├── ai/                 # AI Summary, voice notes (demo)
+│   ├── subscription/       # Тарифы и лимиты
+│   └── exchange/           # Share, onboarding, сохранение
+└── shared/                 # UI, store, types, constants
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Запуск для друзей (без домена)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Проект не работает «сам по себе» на вашем Mac — нужен публичный URL на Render (бесплатно). Инструкция ниже в разделе **Деплой на Render**.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Установка на iPhone (PWA)
 
-To learn more about Next.js, take a look at the following resources:
+1. Задеплойте проект на Render и скопируйте URL вида `https://compass-xxxx.onrender.com`
+2. На iPhone откройте этот URL в **Safari** (не Chrome)
+3. Нажмите кнопку **«Поделиться»** (квадрат со стрелкой вверх)
+4. Прокрутите вниз → **«На экран Домой»**
+5. Нажмите **«Добавить»**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Приложение появится как иконка на домашнем экране.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Деплой на Render (бесплатно)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Шаг 1 — GitHub
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Создайте репозиторий на GitHub: https://github.com/new
+2. Назовите, например: `compass`
+3. В терминале:
+
+```bash
+cd /Users/antonaverkin/Documents/Cursor/compass
+git add -A
+git commit -m "Compass MVP"
+git remote add origin https://github.com/ВАШ_ЛОГИН/compass.git
+git push -u origin main
+```
+
+### Шаг 2 — Render
+
+1. Зайдите на https://render.com и войдите через GitHub
+2. Нажмите **New +** → **Web Service**
+3. Выберите репозиторий `compass`
+4. Настройки:
+   - **Runtime:** Node
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+   - **Plan:** Free
+5. Нажмите **Create Web Service**
+6. Дождитесь деплоя (~3–5 минут)
+7. Скопируйте URL вида `https://compass-xxxx.onrender.com`
+
+### Шаг 3 — Поделиться с друзьями
+
+Отправьте им URL. Они открывают в Safari → «На экран Домой».
+
+---
+
+## Как тестировать MVP
+
+### Создание портфолио
+
+1. Откройте приложение → введите имя → **Создать профиль**
+2. Вкладка **Portfolio** (нижнее меню)
+3. Нажмите на имя / описание / фото — редактируется inline
+4. Внизу — **универсальные строки**. Нажмите строку → выберите тип (ссылка, PDF, фото, текст)
+5. Кнопка **«Добавить»** на строке — мгновенно включает материал в карточку и QR
+
+### Несколько портфолио
+
+- Кнопка **+** справа вверху — новое портфолио
+- Точки под заголовком — переключение
+- Свайп влево/вправо по карточке
+
+### Share и QR
+
+- **Share** — отправить ссылку через мессенджер / email
+- **QR** — показать другому человеку для сканирования
+- Получатель открывает ссылку → **Сохранить как Person**
+
+### People
+
+- **Полученные** — кто передал вам портфолио
+- **Переданные** — кому вы передали
+- **Добавить demo-контакт** — для теста без второго телефона
+- Откройте контакт → заметки, selfie, AI Summary, voice note
+
+### Events
+
+- Коды для теста: **WS2026** или **SLUSH26**
+- Event Space → matching, batch summary, organizer analytics (demo)
+
+### Matching
+
+- Вкладка **Match** → опишите запрос → demo-результаты
+
+### Тарифы
+
+- **More (Settings)** → смените тариф Free / Business / Professional / Conference
+- Лимиты портфолио и строк меняются сразу
+
+---
+
+## Что работает реально
+
+- Создание профиля и портфолио
+- Inline editing
+- Универсальные строки (ссылка, PDF, фото, текст)
+- Мгновенное добавление в карточку
+- QR + Share через API
+- Сохранение полученного портфолио
+- People (received / sent)
+- Заметки, selfie, Event Space
+- Тарифные лимиты
+
+## Что пока demo (заглушки)
+
+- AI Summary
+- Voice transcription
+- Matching engine
+- Analytics dashboards
+- Organizer analytics
+
+---
+
+## Следующие шаги
+
+1. Подключить базу данных (PostgreSQL на Render)
+2. Интегрировать ваш код matching из другого проекта
+3. Подключить OpenAI для AI Summary и transcription
+4. Auth (логин через email / Google)
+
+---
+
+## Локальная разработка (только для вас, не для друзей)
+
+```bash
+npm install
+npm run dev
+```
+
+После работы остановите сервер: `Ctrl+C` в терминале. Пока `npm run dev` запущен — проект «висит» на вашем Mac.
