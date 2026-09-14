@@ -22,33 +22,29 @@ body {
 
 .compass-main {
   overscroll-behavior: none;
+  touch-action: none;
 }
 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.compass-main input,
+.compass-main textarea,
+.compass-main [data-wheel-scroll] {
+  touch-action: manipulation;
 }
 
 @keyframes qr-flash {
   0% {
-    opacity: 1;
     filter: brightness(1);
   }
   40% {
-    opacity: 1;
-    filter: brightness(1.35);
+    filter: brightness(1.8);
   }
   100% {
-    opacity: 1;
     filter: brightness(1);
   }
 }
 
 .qr-flash {
-  animation: qr-flash 0.4s ease-out;
+  animation: qr-flash 0.35s ease-out;
 }
 
 @media print {

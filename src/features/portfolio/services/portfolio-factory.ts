@@ -5,7 +5,7 @@ import { isSlotFilled } from "./content-detector";
 export function createEmptySlot(order: number): ContentSlot {
   return {
     id: nanoid(),
-    label: "Add anything...",
+    label: "",
     type: "empty",
     value: "",
     order,
@@ -64,4 +64,11 @@ export function buildPortfolioSnapshot(
     description: portfolio.description,
     slots: getActiveSlots(portfolio, library),
   };
+}
+
+export function emptyFieldPlaceholder(isFirstEmpty: boolean, totalEmpty: number): string {
+  if (isFirstEmpty && totalEmpty === 1) {
+    return "Add file, link or social profile";
+  }
+  return "";
 }

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAppStore } from "@/shared/store/app-store";
-import { TIER_LIMITS } from "@/shared/constants/tiers";
 import {
   buildPortfolioSnapshot,
   isQrReady,
@@ -19,9 +18,8 @@ export function PortfolioScreen() {
   const qrFlashKey = useAppStore((s) => s.qrFlashKey);
 
   const setCurrentPortfolioIndex = useAppStore((s) => s.setCurrentPortfolioIndex);
-  const addPortfolio = useAppStore((s) => s.addPortfolio);
-  const updatePortfolio = useAppStore((s) => s.updatePortfolio);
   const addLibrarySlot = useAppStore((s) => s.addLibrarySlot);
+  const updatePortfolio = useAppStore((s) => s.updatePortfolio);
   const updateLibrarySlot = useAppStore((s) => s.updateLibrarySlot);
   const deleteLibrarySlot = useAppStore((s) => s.deleteLibrarySlot);
   const addSlotToPortfolio = useAppStore((s) => s.addSlotToPortfolio);
@@ -29,10 +27,9 @@ export function PortfolioScreen() {
   const triggerQrFlash = useAppStore((s) => s.triggerQrFlash);
 
   const [shareTokens, setShareTokens] = useState<Record<string, string>>({});
-  const [limitHint, setLimitHint] = useState(false);
+  const [cardExpanded, setCardExpanded] = useState(false);
 
   const portfolio = portfolios[currentIndex];
-  const limits = TIER_LIMITS[user.tier];
   const qrVisible = portfolio ? isQrReady(portfolio) : false;
 
   const syncShareToken = useCallback(async () => {
@@ -47,18 +44,11 @@ export function PortfolioScreen() {
     setShareTokens((prev) => ({ ...prev, [portfolio.id]: token }));
   }, [portfolio, contentLibrary, qrVisible, user.name]);
 
-  const libraryFingerprint = contentLibrary
-    .map((s) => `${s.id}:${s.value}:${s.type}`)
-    .join("|");
+  const libraryFingerprint = contentLibrary.map((s) => `${s.id}:${s.value}:${s.type}`).join("|");
 
   useEffect(() => {
     syncShareToken();
-  }, [
-    syncShareToken,
-    portfolio?.updatedAt,
-    portfolio?.activeSlotIds.join(","),
-    libraryFingerprint,
-  ]);
+  }, [syncShareToken, portfolio?.updatedAt, portfolio?.activeSlotIds.join(","), libraryFingerprint]);
 
   useEffect(() => {
     if (portfolio && qrVisible) triggerQrFlash();
@@ -77,7 +67,6 @@ export function PortfolioScreen() {
         await navigator.share({ title, text: portfolio.description, url: linkShareUrl });
       } else {
         await navigator.clipboard.writeText(linkShareUrl);
-        alert("Link copied");
       }
     } catch {
       /* cancelled */
@@ -97,12 +86,10 @@ export function PortfolioScreen() {
 
   return (
     <div className="compass-main mx-auto flex h-[calc(100dvh-5rem)] max-w-lg flex-col overflow-hidden bg-[#faf9f7]">
-      {/* Zone 1 — QR (fixed, no scroll) */}
       <section className="shrink-0 touch-none border-b border-[#1a1a1a]/10">
         <PortfolioQR url={pdfShareUrl} visible={qrVisible} flashKey={qrFlashKey} />
       </section>
 
-      {/* Zone 2 — Preview (fixed height, swipe only — no scroll drag) */}
       <section className="shrink-0 touch-none">
         <PortfolioPreview
           portfolios={portfolios}
@@ -110,40 +97,27 @@ export function PortfolioScreen() {
           library={contentLibrary}
           onIndexChange={setCurrentPortfolioIndex}
           onUpdate={updatePortfolio}
-          onAddPortfolio={() => {
-            if (!addPortfolio()) setLimitHint(true);
-          }}
+          onExpandedChange={setCardExpanded}
           onShare={handleShare}
           shareReady={Boolean(linkShareUrl)}
         />
       </section>
 
-      {/* Zone 3 — Content wheel (only inner list scrolls) */}
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[#1a1a1a]/10">
-        <ContentWheel
-          portfolio={portfolio}
-          library={contentLibrary}
-          onAddSlot={() => {
-            if (!addLibrarySlot()) setLimitHint(true);
-          }}
-          onUpdateSlot={(id, data) => {
-            updateLibrarySlot(id, data);
-            updatePortfolio(portfolio.id, { updatedAt: new Date().toISOString() });
-            triggerQrFlash();
-          }}
-          onDeleteSlot={deleteLibrarySlot}
-          onToggleActive={handleToggleActive}
-          slotLimitReached={contentLibrary.length >= limits.maxSlots}
-        />
-      </section>
-
-      {limitHint && (
-        <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 border border-[#1a1a1a]/10 bg-[#faf9f7] px-4 py-2 text-[12px] text-[#666]">
-          {limits.label} limit reached — change tier in Settings
-          <button type="button" className="ml-2 underline" onClick={() => setLimitHint(false)}>
-            OK
-          </button>
-        </div>
+      {!cardExpanded && (
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[#1a1a1a]/10">
+          <ContentWheel
+            portfolio={portfolio}
+            library={contentLibrary}
+            onAddSlot={() => addLibrarySlot()}
+            onUpdateSlot={(id, data) => {
+              updateLibrarySlot(id, data);
+              updatePortfolio(portfolio.id, { updatedAt: new Date().toISOString() });
+              triggerQrFlash();
+            }}
+            onDeleteSlot={deleteLibrarySlot}
+            onToggleActive={handleToggleActive}
+          />
+        </section>
       )}
     </div>
   );

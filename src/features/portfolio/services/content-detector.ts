@@ -39,9 +39,7 @@ export function detectContentType(input: string, mimeType?: string): ContentType
 }
 
 export function deriveLabel(value: string, type: ContentType, existingLabel?: string): string {
-  if (existingLabel && existingLabel !== "Add anything..." && !existingLabel.startsWith("Add file")) {
-    return existingLabel;
-  }
+  if (existingLabel?.trim()) return existingLabel.trim();
 
   if (type === "link") {
     try {
@@ -53,17 +51,27 @@ export function deriveLabel(value: string, type: ContentType, existingLabel?: st
       }
       return host;
     } catch {
-      return "Link";
+      return value.replace(/^https?:\/\//, "").slice(0, 40);
     }
   }
 
   if (type === "pdf") return "PDF";
   if (type === "image") return "Photo";
-  if (type === "text") return value.slice(0, 32) + (value.length > 32 ? "…" : "");
+  if (type === "text") return value.slice(0, 40) + (value.length > 40 ? "…" : "");
 
-  return existingLabel || "Add anything...";
+  return "";
 }
 
 export function isSlotFilled(slot: { type: ContentType; value: string }): boolean {
   return slot.type !== "empty" && slot.value.trim().length > 0;
+}
+
+export function slotDisplayLabel(
+  slot: { label: string; type: ContentType; value: string },
+  placeholder: string,
+): string {
+  if (isSlotFilled(slot)) {
+    return slot.label.trim() || deriveLabel(slot.value, slot.type);
+  }
+  return placeholder;
 }

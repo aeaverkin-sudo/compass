@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { ContentSlot, Portfolio } from "@/shared/types";
-import { sortLibrarySlots } from "@/features/portfolio/services/portfolio-factory";
+import { emptyFieldPlaceholder, sortLibrarySlots } from "@/features/portfolio/services/portfolio-factory";
 import { isSlotFilled } from "@/features/portfolio/services/content-detector";
 import { ContentFieldRow } from "./content-field-row";
-import { FieldEditPanel } from "./field-edit-panel";
+
+const ROW_H = 44;
 
 interface ContentWheelProps {
   portfolio: Portfolio;
@@ -14,7 +15,6 @@ interface ContentWheelProps {
   onUpdateSlot: (slotId: string, data: Partial<ContentSlot>) => void;
   onDeleteSlot: (slotId: string) => void;
   onToggleActive: (slotId: string) => void;
-  slotLimitReached: boolean;
 }
 
 export function ContentWheel({
@@ -24,71 +24,95 @@ export function ContentWheel({
   onUpdateSlot,
   onDeleteSlot,
   onToggleActive,
-  slotLimitReached,
 }: ContentWheelProps) {
-  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
-
+  const scrollRef = useRef<HTMLDivElement>(null);
   const sorted = useMemo(
     () => sortLibrarySlots(library, portfolio.activeSlotIds),
     [library, portfolio.activeSlotIds],
   );
 
-  const editingSlot = editingSlotId ? library.find((s) => s.id === editingSlotId) : null;
-  const manyItems = sorted.length > 4;
+  const emptyCount = sorted.filter((s) => !isSlotFilled(s)).length;
+  const firstEmptyId = sorted.find((s) => !isSlotFilled(s))?.id;
+  const useWheel = sorted.length > 5;
 
-  return (
-    <div className="flex h-full items-center justify-center overflow-hidden px-6 py-4">
-      <div
-        className={`flex w-full max-w-md flex-col items-center ${
-          manyItems ? "max-h-full overflow-y-auto overscroll-contain scrollbar-hide" : "justify-center"
-        }`}
-        style={
-          manyItems
-            ? {
-                maskImage: "linear-gradient(to bottom, transparent, black 6%, black 94%, transparent)",
-                WebkitMaskImage: "linear-gradient(to bottom, transparent, black 6%, black 94%, transparent)",
-                touchAction: "pan-y",
-              }
-            : undefined
-        }
-      >
-        {sorted.map((slot) => {
-          const isActive = portfolio.activeSlotIds.includes(slot.id);
-          const isEmpty = !isSlotFilled(slot);
-          return (
-            <ContentFieldRow
-              key={slot.id}
-              slot={slot}
-              isActive={isActive}
-              isEmpty={isEmpty}
-              onToggleActive={() => onToggleActive(slot.id)}
-              onEdit={() => setEditingSlotId(slot.id)}
-              onDelete={() => onDeleteSlot(slot.id)}
-              onFill={() => setEditingSlotId(slot.id)}
-            />
-          );
-        })}
+  const wheelItems = useMemo(() => {
+    if (!useWheel) return sorted;
+    return [...sorted, ...sorted, ...sorted];
+  }, [sorted, useWheel]);
 
+  useEffect(() => {
+    if (!useWheel || !scrollRef.current || sorted.length === 0) return;
+    scrollRef.current.scrollTop = sorted.length * ROW_H;
+  }, [useWheel, sorted.length, portfolio.id]);
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el || !useWheel || sorted.length === 0) return;
+    const n = sorted.length;
+    const max = n * ROW_H * 2;
+    const min = n * ROW_H * 0.5;
+    if (el.scrollTop <= min) el.scrollTop += n * ROW_H;
+    else if (el.scrollTop >= max) el.scrollTop -= n * ROW_H;
+  };
+
+  const getPlaceholder = (slot: ContentSlot) => {
+    if (isSlotFilled(slot)) return "";
+    if (slot.id === firstEmptyId) return emptyFieldPlaceholder(true, emptyCount);
+    return "";
+  };
+
+  const renderRow = (slot: ContentSlot, key: string) => (
+    <ContentFieldRow
+      key={key}
+      slot={slot}
+      isActive={portfolio.activeSlotIds.includes(slot.id)}
+      isEmpty={!isSlotFilled(slot)}
+      placeholder={getPlaceholder(slot)}
+      onUpdate={(data) => onUpdateSlot(slot.id, data)}
+      onDelete={() => onDeleteSlot(slot.id)}
+      onToggleActive={() => onToggleActive(slot.id)}
+    />
+  );
+
+  if (sorted.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center">
         <button
           type="button"
-          onClick={() => {
-            if (!slotLimitReached) onAddSlot();
-          }}
-          className="mt-1 shrink-0 touch-none py-2 text-[22px] font-light leading-none text-[#1a1a1a]"
+          onClick={onAddSlot}
+          className="text-[22px] font-light leading-none text-[#1a1a1a]"
           style={{ textShadow: "0 1px 2px rgba(0,0,0,0.06)" }}
-          aria-label="Add new field"
         >
           +
         </button>
       </div>
+    );
+  }
 
-      {editingSlot && (
-        <FieldEditPanel
-          slot={editingSlot}
-          onSave={(data) => onUpdateSlot(editingSlot.id, data)}
-          onClose={() => setEditingSlotId(null)}
-        />
-      )}
+  return (
+    <div className="flex h-full flex-col items-center justify-center overflow-hidden px-6">
+      <div
+        ref={useWheel ? scrollRef : undefined}
+        onScroll={useWheel ? handleScroll : undefined}
+        data-wheel-scroll
+        className={
+          useWheel
+            ? "max-h-[220px] w-full max-w-md overflow-y-auto overscroll-none scrollbar-hide"
+            : "flex w-full max-w-md flex-col items-center"
+        }
+        style={useWheel ? { touchAction: "pan-y" } : undefined}
+      >
+        {wheelItems.map((slot, i) => renderRow(slot, `${slot.id}-${i}`))}
+      </div>
+
+      <button
+        type="button"
+        onClick={onAddSlot}
+        className="mt-1 shrink-0 py-2 text-[22px] font-light leading-none text-[#1a1a1a]"
+        style={{ textShadow: "0 1px 2px rgba(0,0,0.06)" }}
+      >
+        +
+      </button>
     </div>
   );
 }
