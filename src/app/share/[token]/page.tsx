@@ -5,9 +5,11 @@ export default async function SharePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ print?: string }>;
+  searchParams: Promise<{ print?: string; pdf?: string }>;
 }) {
   const { token } = await params;
-  const { print } = await searchParams;
-  return <ShareView token={token} printMode={print === "1"} />;
+  const { print, pdf } = await searchParams;
+  return (
+    <ShareView token={token} printMode={print === "1"} pdfMode={pdf === "1"} />
+  );
 }

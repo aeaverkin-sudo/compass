@@ -34,47 +34,53 @@ export function ContentWheel({
   );
 
   const editingSlot = editingSlotId ? library.find((s) => s.id === editingSlotId) : null;
+  const manyItems = sorted.length > 4;
 
   return (
-    <div className="flex flex-1 flex-col items-center overflow-hidden px-6 pt-4 pb-8">
+    <div className="flex h-full items-center justify-center overflow-hidden px-6 py-4">
       <div
-        className="flex max-h-[280px] w-full max-w-md flex-col items-center overflow-y-auto scrollbar-hide"
-        style={{
-          maskImage: "linear-gradient(to bottom, transparent, black 8%, black 92%, transparent)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent, black 8%, black 92%, transparent)",
-        }}
+        className={`flex w-full max-w-md flex-col items-center ${
+          manyItems ? "max-h-full overflow-y-auto overscroll-contain scrollbar-hide" : "justify-center"
+        }`}
+        style={
+          manyItems
+            ? {
+                maskImage: "linear-gradient(to bottom, transparent, black 6%, black 94%, transparent)",
+                WebkitMaskImage: "linear-gradient(to bottom, transparent, black 6%, black 94%, transparent)",
+                touchAction: "pan-y",
+              }
+            : undefined
+        }
       >
-        <div className="flex w-full flex-col items-center py-4">
-          {sorted.map((slot) => {
-            const isActive = portfolio.activeSlotIds.includes(slot.id);
-            const isEmpty = !isSlotFilled(slot);
-            return (
-              <ContentFieldRow
-                key={slot.id}
-                slot={slot}
-                isActive={isActive}
-                isEmpty={isEmpty}
-                onToggleActive={() => onToggleActive(slot.id)}
-                onEdit={() => setEditingSlotId(slot.id)}
-                onDelete={() => onDeleteSlot(slot.id)}
-                onFill={() => setEditingSlotId(slot.id)}
-              />
-            );
-          })}
-        </div>
-      </div>
+        {sorted.map((slot) => {
+          const isActive = portfolio.activeSlotIds.includes(slot.id);
+          const isEmpty = !isSlotFilled(slot);
+          return (
+            <ContentFieldRow
+              key={slot.id}
+              slot={slot}
+              isActive={isActive}
+              isEmpty={isEmpty}
+              onToggleActive={() => onToggleActive(slot.id)}
+              onEdit={() => setEditingSlotId(slot.id)}
+              onDelete={() => onDeleteSlot(slot.id)}
+              onFill={() => setEditingSlotId(slot.id)}
+            />
+          );
+        })}
 
-      <button
-        type="button"
-        onClick={() => {
-          if (!slotLimitReached) onAddSlot();
-        }}
-        className="mt-auto text-[22px] font-light leading-none text-[#1a1a1a]"
-        style={{ textShadow: "0 1px 2px rgba(0,0,0,0.06)" }}
-        aria-label="Add new field"
-      >
-        +
-      </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!slotLimitReached) onAddSlot();
+          }}
+          className="mt-1 shrink-0 touch-none py-2 text-[22px] font-light leading-none text-[#1a1a1a]"
+          style={{ textShadow: "0 1px 2px rgba(0,0,0,0.06)" }}
+          aria-label="Add new field"
+        >
+          +
+        </button>
+      </div>
 
       {editingSlot && (
         <FieldEditPanel

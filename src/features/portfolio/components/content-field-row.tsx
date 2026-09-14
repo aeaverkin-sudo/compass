@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { ContentSlot } from "@/shared/types";
 import { isSlotFilled } from "@/features/portfolio/services/content-detector";
 
@@ -24,21 +24,17 @@ export function ContentFieldRow({
   onFill,
 }: ContentFieldRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const filled = isSlotFilled(slot);
 
-  const handlePointerDown = () => {
-    if (isEmpty) return;
-    timerRef.current = setTimeout(() => setMenuOpen(true), 500);
-  };
+  const label = isEmpty ? "Add file, link or social profile" : slot.label;
 
-  const handlePointerUp = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+  const handleRowTap = () => {
+    if (isEmpty) {
+      onFill();
+      return;
+    }
+    setMenuOpen((v) => !v);
   };
-
-  const label = isEmpty
-    ? "Add file, link or social profile"
-    : slot.label;
 
   return (
     <div className="relative flex w-full max-w-md items-center justify-between gap-4 py-2.5">
@@ -47,10 +43,7 @@ export function ContentFieldRow({
         className={`min-w-0 flex-1 text-left text-[14px] ${
           isActive && filled ? "font-semibold text-[#1a1a1a]" : "font-normal text-[#888]"
         } ${isEmpty ? "text-[#aaa]" : ""}`}
-        onClick={isEmpty ? onFill : undefined}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
+        onClick={handleRowTap}
       >
         {label}
         {filled && slot.type === "link" && (
@@ -63,7 +56,10 @@ export function ContentFieldRow({
       {filled && (
         <button
           type="button"
-          onClick={onToggleActive}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleActive();
+          }}
           className="shrink-0 px-2 text-[18px] font-light leading-none text-[#1a1a1a]"
           aria-label={isActive ? "Remove from card" : "Add to card"}
         >
@@ -71,7 +67,7 @@ export function ContentFieldRow({
         </button>
       )}
 
-      {menuOpen && (
+      {menuOpen && filled && (
         <>
           <button
             type="button"
@@ -79,12 +75,12 @@ export function ContentFieldRow({
             onClick={() => setMenuOpen(false)}
           />
           <div
-            className="absolute left-0 top-full z-50 mt-1 border border-[#1a1a1a]/10 bg-[#faf9f7] py-1"
+            className="absolute left-1/2 top-full z-50 mt-1 -translate-x-1/2 border border-[#1a1a1a]/10 bg-[#faf9f7] py-1"
             style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
           >
             <button
               type="button"
-              className="block w-full px-6 py-2 text-left text-[13px] hover:bg-[#f0efed]"
+              className="block w-full px-8 py-2 text-left text-[13px] hover:bg-[#f0efed]"
               onClick={() => {
                 setMenuOpen(false);
                 onEdit();
@@ -94,7 +90,7 @@ export function ContentFieldRow({
             </button>
             <button
               type="button"
-              className="block w-full px-6 py-2 text-left text-[13px] text-[#888] hover:bg-[#f0efed]"
+              className="block w-full px-8 py-2 text-left text-[13px] text-[#888] hover:bg-[#f0efed]"
               onClick={() => {
                 setMenuOpen(false);
                 onDelete();

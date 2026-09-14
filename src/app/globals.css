@@ -17,6 +17,11 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+.compass-main {
+  overscroll-behavior: none;
 }
 
 .scrollbar-hide {

@@ -3,15 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SharedPortfolioView } from "@/features/portfolio/components/shared-portfolio-view";
+import { downloadPortfolioPdf } from "@/features/portfolio/services/portfolio-pdf";
 import { useAppStore } from "@/shared/store/app-store";
 import type { PortfolioSnapshot } from "@/shared/types";
 
 interface ShareViewProps {
   token: string;
   printMode?: boolean;
+  pdfMode?: boolean;
 }
 
-export function ShareView({ token, printMode }: ShareViewProps) {
+export function ShareView({ token, printMode, pdfMode }: ShareViewProps) {
   const router = useRouter();
   const addPerson = useAppStore((s) => s.addPerson);
   const user = useAppStore((s) => s.user);
@@ -20,6 +22,7 @@ export function ShareView({ token, printMode }: ShareViewProps) {
   const [privateSave, setPrivateSave] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/share/${token}`)
@@ -37,6 +40,16 @@ export function ShareView({ token, printMode }: ShareViewProps) {
   useEffect(() => {
     if (printMode) setTimeout(() => window.print(), 500);
   }, [printMode, snapshot]);
+
+  const handlePdfSave = async () => {
+    if (!snapshot) return;
+    setPdfLoading(true);
+    try {
+      await downloadPortfolioPdf(snapshot);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   const handleSave = () => {
     if (!snapshot) return;
@@ -93,8 +106,52 @@ export function ShareView({ token, printMode }: ShareViewProps) {
 
       <SharedPortfolioView snapshot={snapshot} />
 
-      {!printMode && !saved && user.onboarded && (
+      {!printMode && pdfMode && (
+        <div className="mt-6 space-y-3 px-6">
+          <p className="text-center text-[12px] text-[#888]">
+            Save this portfolio to your device
+          </p>
+          <button
+            type="button"
+            onClick={handlePdfSave}
+            disabled={pdfLoading}
+            className="w-full border border-[#1a1a1a] py-3.5 text-[13px] tracking-wide uppercase"
+          >
+            {pdfLoading ? "Preparing…" : "Save to Files (PDF)"}
+          </button>
+          {user.onboarded && !saved && (
+            <>
+              <div className="my-2 border-t border-[#e8e8e8]" />
+              <label className="flex items-center gap-2 text-[13px] text-[#666]">
+                <input
+                  type="checkbox"
+                  checked={privateSave}
+                  onChange={(e) => setPrivateSave(e.target.checked)}
+                />
+                Private Save
+              </label>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="w-full border border-[#ccc] py-2.5 text-[12px] tracking-wide uppercase text-[#666]"
+              >
+                Save in Compass
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {!printMode && !pdfMode && !saved && user.onboarded && (
         <div className="mt-6 space-y-4 px-6">
+          <button
+            type="button"
+            onClick={handlePdfSave}
+            disabled={pdfLoading}
+            className="w-full border border-[#1a1a1a] py-3 text-[13px] tracking-wide uppercase"
+          >
+            {pdfLoading ? "Preparing…" : "Save to Files (PDF)"}
+          </button>
           <label className="flex items-center gap-2 text-[13px] text-[#666]">
             <input
               type="checkbox"
@@ -106,9 +163,9 @@ export function ShareView({ token, printMode }: ShareViewProps) {
           <button
             type="button"
             onClick={handleSave}
-            className="w-full border border-[#1a1a1a] py-3 text-[13px] tracking-wide uppercase"
+            className="w-full border border-[#ccc] py-2.5 text-[12px] tracking-wide uppercase"
           >
-            Save as Person
+            Save in Compass
           </button>
         </div>
       )}
@@ -127,9 +184,19 @@ export function ShareView({ token, printMode }: ShareViewProps) {
       )}
 
       {!user.onboarded && !printMode && (
-        <div className="mt-6 px-6 text-center">
+        <div className="mt-6 space-y-3 px-6 text-center">
+          {!pdfMode && (
+            <button
+              type="button"
+              onClick={handlePdfSave}
+              disabled={pdfLoading}
+              className="block w-full border border-[#1a1a1a] py-3 text-[13px] tracking-wide uppercase"
+            >
+              {pdfLoading ? "Preparing…" : "Save to Files (PDF)"}
+            </button>
+          )}
           <button type="button" onClick={() => router.push("/onboarding")} className="text-[13px] underline">
-            Get started
+            Get started with Compass
           </button>
         </div>
       )}

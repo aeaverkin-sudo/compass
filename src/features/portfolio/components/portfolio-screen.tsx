@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Share2 } from "lucide-react";
 import { useAppStore } from "@/shared/store/app-store";
 import { TIER_LIMITS } from "@/shared/constants/tiers";
 import {
@@ -65,22 +64,19 @@ export function PortfolioScreen() {
     if (portfolio && qrVisible) triggerQrFlash();
   }, [currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shareUrl =
-    portfolio && shareTokens[portfolio.id]
-      ? `${typeof window !== "undefined" ? window.location.origin : ""}/share/${shareTokens[portfolio.id]}`
-      : "";
+  const shareToken = portfolio ? shareTokens[portfolio.id] : "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const pdfShareUrl = shareToken ? `${origin}/share/${shareToken}?pdf=1` : "";
+  const linkShareUrl = shareToken ? `${origin}/share/${shareToken}` : "";
 
   const handleShare = async () => {
-    if (!portfolio || !shareUrl) return;
+    if (!portfolio || !linkShareUrl) return;
     try {
+      const title = [portfolio.firstName, portfolio.lastName].filter(Boolean).join(" ");
       if (navigator.share) {
-        await navigator.share({
-          title: portfolio.name,
-          text: [portfolio.firstName, portfolio.lastName].filter(Boolean).join(" "),
-          url: shareUrl,
-        });
+        await navigator.share({ title, text: portfolio.description, url: linkShareUrl });
       } else {
-        await navigator.clipboard.writeText(shareUrl);
+        await navigator.clipboard.writeText(linkShareUrl);
         alert("Link copied");
       }
     } catch {
@@ -100,26 +96,14 @@ export function PortfolioScreen() {
   if (!portfolio) return null;
 
   return (
-    <div className="compass-main mx-auto flex min-h-[calc(100vh-5rem)] max-w-lg flex-col bg-[#faf9f7]">
-      {/* Zone 1 — QR */}
-      <section className="shrink-0 border-b border-[#1a1a1a]/10">
-        <PortfolioQR url={shareUrl} visible={qrVisible} flashKey={qrFlashKey} />
-        {qrVisible && (
-          <div className="flex justify-center gap-4 pb-3">
-            <button
-              type="button"
-              onClick={handleShare}
-              className="flex items-center gap-1.5 text-[11px] tracking-wide text-[#666] uppercase"
-            >
-              <Share2 className="h-3.5 w-3.5" />
-              Share
-            </button>
-          </div>
-        )}
+    <div className="compass-main mx-auto flex h-[calc(100dvh-5rem)] max-w-lg flex-col overflow-hidden bg-[#faf9f7]">
+      {/* Zone 1 — QR (fixed, no scroll) */}
+      <section className="shrink-0 touch-none border-b border-[#1a1a1a]/10">
+        <PortfolioQR url={pdfShareUrl} visible={qrVisible} flashKey={qrFlashKey} />
       </section>
 
-      {/* Zone 2 — Preview (horizontal swipe) */}
-      <section className="shrink-0">
+      {/* Zone 2 — Preview (fixed height, swipe only — no scroll drag) */}
+      <section className="shrink-0 touch-none">
         <PortfolioPreview
           portfolios={portfolios}
           currentIndex={currentIndex}
@@ -129,11 +113,13 @@ export function PortfolioScreen() {
           onAddPortfolio={() => {
             if (!addPortfolio()) setLimitHint(true);
           }}
+          onShare={handleShare}
+          shareReady={Boolean(linkShareUrl)}
         />
       </section>
 
-      {/* Zone 3 — Content wheel (global library) */}
-      <section className="flex min-h-0 flex-1 flex-col border-t border-[#1a1a1a]/10">
+      {/* Zone 3 — Content wheel (only inner list scrolls) */}
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[#1a1a1a]/10">
         <ContentWheel
           portfolio={portfolio}
           library={contentLibrary}
@@ -142,7 +128,7 @@ export function PortfolioScreen() {
           }}
           onUpdateSlot={(id, data) => {
             updateLibrarySlot(id, data);
-            updatePortfolio(portfolio.id, {});
+            updatePortfolio(portfolio.id, { updatedAt: new Date().toISOString() });
             triggerQrFlash();
           }}
           onDeleteSlot={deleteLibrarySlot}
