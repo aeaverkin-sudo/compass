@@ -47,6 +47,15 @@ body {
   animation: qr-flash 0.35s ease-out;
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 @media print {
   nav,
   button,

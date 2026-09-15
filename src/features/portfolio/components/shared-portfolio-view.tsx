@@ -1,13 +1,21 @@
 "use client";
 
-import type { PortfolioSnapshot } from "@/shared/types";
+import type { CardSnapshot } from "@/shared/types";
+import {
+  getSnapshotDisplayName,
+  getSnapshotItems,
+  typeLabel,
+} from "@/features/portfolio/services/contact-item";
+import { ContactIcon } from "./contact-icon";
+import { MapPin } from "lucide-react";
 
 interface SharedPortfolioViewProps {
-  snapshot: PortfolioSnapshot;
+  snapshot: CardSnapshot;
 }
 
 export function SharedPortfolioView({ snapshot }: SharedPortfolioViewProps) {
-  const fullName = [snapshot.firstName, snapshot.lastName].filter(Boolean).join(" ");
+  const displayName = getSnapshotDisplayName(snapshot);
+  const items = getSnapshotItems(snapshot);
 
   return (
     <div className="bg-[#faf9f7] px-6 py-8" style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
@@ -16,34 +24,43 @@ export function SharedPortfolioView({ snapshot }: SharedPortfolioViewProps) {
           <img
             src={snapshot.photo}
             alt=""
-            className="mb-4 h-20 w-20 object-cover"
+            className="mb-4 h-20 w-20 rounded-full object-cover"
             style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
           />
         )}
-        <h2 className="text-lg text-[#1a1a1a]">{fullName || snapshot.name}</h2>
+        <h2 className="text-lg font-semibold text-[#1a1a1a]">{displayName}</h2>
+        {snapshot.title && <p className="mt-1 text-[13px] text-[#666]">{snapshot.title}</p>}
+        {snapshot.subtitle && <p className="text-[12px] text-[#888]">{snapshot.subtitle}</p>}
         {snapshot.description && (
-          <p className="mt-2 text-[13px] text-[#666]">{snapshot.description}</p>
+          <p className="mt-1 text-[11px] text-[#aaa]">{snapshot.description}</p>
         )}
-        {snapshot.slots.length > 0 && (
-          <div className="mt-6 w-full max-w-xs space-y-2 border-t border-[#e8e8e8] pt-4 text-left">
-            {snapshot.slots.map((slot) => (
-              <div key={slot.id} className="text-[13px]">
-                <p className="text-[#1a1a1a]">{slot.label}</p>
-                {slot.type === "link" && (
-                  <a
-                    href={slot.value.startsWith("http") ? slot.value : `https://${slot.value}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] text-[#888] underline"
-                  >
-                    {slot.value.replace(/^https?:\/\//, "")}
-                  </a>
-                )}
-                {slot.type === "text" && (
-                  <p className="text-[11px] text-[#888]">{slot.value}</p>
-                )}
-              </div>
+
+        {items.length > 0 && (
+          <div className="mt-6 grid w-full max-w-xs grid-cols-2 gap-2 border-t border-[#e8e8e8] pt-4">
+            {items.map((item) => (
+              <a
+                key={item.id}
+                href={item.url || undefined}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-2 rounded-xl bg-[#f7f7f7] p-3 text-left"
+              >
+                <ContactIcon type={item.type} size={16} className="mt-0.5 text-[#555]" />
+                <div className="min-w-0">
+                  <p className="text-[10px] text-[#888]">{typeLabel(item.type)}</p>
+                  <p className="truncate text-[12px] font-medium text-[#1a1a1a]">
+                    {item.label || item.value.replace(/^https?:\/\//, "")}
+                  </p>
+                </div>
+              </a>
             ))}
+          </div>
+        )}
+
+        {snapshot.location && (
+          <div className="mt-4 flex items-center gap-1 text-[11px] text-[#aaa]">
+            <MapPin size={12} strokeWidth={1.5} />
+            {snapshot.location}
           </div>
         )}
       </div>

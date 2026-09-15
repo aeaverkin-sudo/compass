@@ -1,5 +1,10 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import type { PortfolioSnapshot } from "@/shared/types";
+import type { CardSnapshot } from "@/shared/types";
+import {
+  getSnapshotDisplayName,
+  getSnapshotItems,
+  typeLabel,
+} from "@/features/portfolio/services/contact-item";
 
 async function embedPhoto(pdfDoc: PDFDocument, dataUrl: string) {
   const base64 = dataUrl.split(",")[1];
@@ -8,13 +13,14 @@ async function embedPhoto(pdfDoc: PDFDocument, dataUrl: string) {
   return pdfDoc.embedJpg(bytes);
 }
 
-export async function downloadPortfolioPdf(snapshot: PortfolioSnapshot) {
+export async function downloadPortfolioPdf(snapshot: CardSnapshot) {
   const pdfDoc = await PDFDocument.create();
   let currentPage = pdfDoc.addPage([595, 842]);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const fullName = [snapshot.firstName, snapshot.lastName].filter(Boolean).join(" ");
+  const fullName = getSnapshotDisplayName(snapshot);
+  const items = getSnapshotItems(snapshot);
   let y = 780;
 
   if (snapshot.photo) {
@@ -33,7 +39,7 @@ export async function downloadPortfolioPdf(snapshot: PortfolioSnapshot) {
     }
   }
 
-  currentPage.drawText(fullName || snapshot.name, {
+  currentPage.drawText(fullName || snapshot.label, {
     x: 50,
     y,
     size: 22,
@@ -43,8 +49,11 @@ export async function downloadPortfolioPdf(snapshot: PortfolioSnapshot) {
   });
   y -= 28;
 
-  if (snapshot.description) {
-    currentPage.drawText(snapshot.description.slice(0, 500), {
+  const subtitle = [snapshot.title, snapshot.subtitle, snapshot.description]
+    .filter(Boolean)
+    .join(" · ");
+  if (subtitle) {
+    currentPage.drawText(subtitle.slice(0, 500), {
       x: 50,
       y,
       size: 11,
@@ -64,12 +73,12 @@ export async function downloadPortfolioPdf(snapshot: PortfolioSnapshot) {
   });
   y -= 24;
 
-  for (const slot of snapshot.slots) {
+  for (const item of items) {
     if (y < 80) {
       y = 780;
       currentPage = pdfDoc.addPage([595, 842]);
     }
-    currentPage.drawText(slot.label, {
+    currentPage.drawText(typeLabel(item.type), {
       x: 50,
       y,
       size: 12,
@@ -78,43 +87,21 @@ export async function downloadPortfolioPdf(snapshot: PortfolioSnapshot) {
     });
     y -= 16;
 
-    if (slot.type === "link") {
-      currentPage.drawText(slot.value, {
-        x: 50,
-        y,
-        size: 10,
-        font,
-        color: rgb(0.2, 0.35, 0.7),
-        maxWidth: 495,
-      });
-      y -= 20;
-    } else if (slot.type === "text") {
-      currentPage.drawText(slot.value.slice(0, 400), {
-        x: 50,
-        y,
-        size: 10,
-        font,
-        color: rgb(0.35, 0.35, 0.35),
-        maxWidth: 495,
-      });
-      y -= 28;
-    } else {
-      currentPage.drawText(`[${slot.type}]`, {
-        x: 50,
-        y,
-        size: 10,
-        font,
-        color: rgb(0.5, 0.5, 0.5),
-      });
-      y -= 20;
-    }
-    y -= 8;
+    currentPage.drawText(item.value.slice(0, 400), {
+      x: 50,
+      y,
+      size: 10,
+      font,
+      color: rgb(0.2, 0.35, 0.7),
+      maxWidth: 495,
+    });
+    y -= 28;
   }
 
   const pdfBytes = await pdfDoc.save();
   const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
-  const safeName = (fullName || snapshot.name || "portfolio").replace(/[^\w\s-]/g, "").trim();
+  const safeName = (fullName || snapshot.label || "portfolio").replace(/[^\w\s-]/g, "").trim();
   const a = document.createElement("a");
   a.href = url;
   a.download = `${safeName || "portfolio"}.pdf`;

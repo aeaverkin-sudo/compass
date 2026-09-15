@@ -3,68 +3,72 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAppStore } from "@/shared/store/app-store";
 import {
-  buildPortfolioSnapshot,
-  isQrReady,
-} from "@/features/portfolio/services/portfolio-factory";
-import { PortfolioQR } from "./portfolio-qr";
-import { PortfolioPreview } from "./portfolio-preview";
-import { ContentWheel } from "./content-wheel";
+  buildCardSnapshot,
+  isCardReady,
+} from "@/features/portfolio/services/contact-item";
+import { QrZone } from "./qr-zone";
+import { CardCarousel } from "./card-carousel";
+import { EditorSheet } from "./editor-sheet";
 
 export function PortfolioScreen() {
-  const portfolios = useAppStore((s) => s.portfolios);
-  const contentLibrary = useAppStore((s) => s.contentLibrary);
-  const currentIndex = useAppStore((s) => s.currentPortfolioIndex);
+  const cards = useAppStore((s) => s.cards);
+  const contactItems = useAppStore((s) => s.contactItems);
+  const currentIndex = useAppStore((s) => s.currentCardIndex);
   const user = useAppStore((s) => s.user);
   const qrFlashKey = useAppStore((s) => s.qrFlashKey);
 
-  const setCurrentPortfolioIndex = useAppStore((s) => s.setCurrentPortfolioIndex);
-  const addLibrarySlot = useAppStore((s) => s.addLibrarySlot);
-  const updatePortfolio = useAppStore((s) => s.updatePortfolio);
-  const updateLibrarySlot = useAppStore((s) => s.updateLibrarySlot);
-  const deleteLibrarySlot = useAppStore((s) => s.deleteLibrarySlot);
-  const addSlotToPortfolio = useAppStore((s) => s.addSlotToPortfolio);
-  const removeSlotFromPortfolio = useAppStore((s) => s.removeSlotFromPortfolio);
+  const setCurrentCardIndex = useAppStore((s) => s.setCurrentCardIndex);
+  const addContactItem = useAppStore((s) => s.addContactItem);
+  const updateCard = useAppStore((s) => s.updateCard);
+  const updateContactItem = useAppStore((s) => s.updateContactItem);
+  const addItemToCard = useAppStore((s) => s.addItemToCard);
+  const removeItemFromCard = useAppStore((s) => s.removeItemFromCard);
   const triggerQrFlash = useAppStore((s) => s.triggerQrFlash);
 
   const [shareTokens, setShareTokens] = useState<Record<string, string>>({});
   const [cardExpanded, setCardExpanded] = useState(false);
 
-  const portfolio = portfolios[currentIndex];
-  const qrVisible = portfolio ? isQrReady(portfolio) : false;
+  const card = cards[currentIndex];
+  const qrVisible = card ? isCardReady(card) : false;
 
   const syncShareToken = useCallback(async () => {
-    if (!portfolio || !qrVisible) return;
-    const snapshot = buildPortfolioSnapshot(portfolio, contentLibrary);
+    if (!card || !qrVisible) return;
+    const snapshot = buildCardSnapshot(card, contactItems);
     const res = await fetch("/api/share", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ portfolio: snapshot, ownerName: user.name }),
     });
     const { token } = await res.json();
-    setShareTokens((prev) => ({ ...prev, [portfolio.id]: token }));
-  }, [portfolio, contentLibrary, qrVisible, user.name]);
+    setShareTokens((prev) => ({ ...prev, [card.id]: token }));
+  }, [card, contactItems, qrVisible, user.name]);
 
-  const libraryFingerprint = contentLibrary.map((s) => `${s.id}:${s.value}:${s.type}`).join("|");
+  const libraryFingerprint = contactItems
+    .map((i) => `${i.id}:${i.value}:${i.type}`)
+    .join("|");
 
   useEffect(() => {
     syncShareToken();
-  }, [syncShareToken, portfolio?.updatedAt, portfolio?.activeSlotIds.join(","), libraryFingerprint]);
+  }, [syncShareToken, card?.updatedAt, card?.contactItemIds.join(","), libraryFingerprint]);
 
   useEffect(() => {
-    if (portfolio && qrVisible) triggerQrFlash();
+    if (card && qrVisible) triggerQrFlash();
   }, [currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shareToken = portfolio ? shareTokens[portfolio.id] : "";
+  const shareToken = card ? shareTokens[card.id] : "";
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const pdfShareUrl = shareToken ? `${origin}/share/${shareToken}?pdf=1` : "";
   const linkShareUrl = shareToken ? `${origin}/share/${shareToken}` : "";
 
   const handleShare = async () => {
-    if (!portfolio || !linkShareUrl) return;
+    if (!card || !linkShareUrl) return;
     try {
-      const title = [portfolio.firstName, portfolio.lastName].filter(Boolean).join(" ");
       if (navigator.share) {
-        await navigator.share({ title, text: portfolio.description, url: linkShareUrl });
+        await navigator.share({
+          title: card.displayName,
+          text: card.title || card.description,
+          url: linkShareUrl,
+        });
       } else {
         await navigator.clipboard.writeText(linkShareUrl);
       }
@@ -73,52 +77,51 @@ export function PortfolioScreen() {
     }
   };
 
-  const handleToggleActive = (slotId: string) => {
-    if (!portfolio) return;
-    if (portfolio.activeSlotIds.includes(slotId)) {
-      removeSlotFromPortfolio(portfolio.id, slotId);
+  const handleToggleActive = (itemId: string) => {
+    if (!card) return;
+    if (card.contactItemIds.includes(itemId)) {
+      removeItemFromCard(card.id, itemId);
     } else {
-      addSlotToPortfolio(portfolio.id, slotId);
+      addItemToCard(card.id, itemId);
     }
   };
 
-  if (!portfolio) return null;
+  if (!card) return null;
 
   return (
-    <div className="compass-main mx-auto flex h-[calc(100dvh-5rem)] max-w-lg flex-col overflow-hidden bg-[#faf9f7]">
-      <section className="shrink-0 touch-none border-b border-[#1a1a1a]/10">
-        <PortfolioQR url={pdfShareUrl} visible={qrVisible} flashKey={qrFlashKey} />
-      </section>
+    <div className="compass-main relative mx-auto flex h-[100dvh] max-w-lg flex-col overflow-hidden bg-[#faf9f7]">
+      <QrZone
+        url={pdfShareUrl}
+        visible={qrVisible}
+        flashKey={qrFlashKey}
+        onShare={handleShare}
+        shareReady={Boolean(linkShareUrl)}
+      />
 
-      <section className="shrink-0 touch-none">
-        <PortfolioPreview
-          portfolios={portfolios}
-          currentIndex={currentIndex}
-          library={contentLibrary}
-          onIndexChange={setCurrentPortfolioIndex}
-          onUpdate={updatePortfolio}
-          onExpandedChange={setCardExpanded}
-          onShare={handleShare}
-          shareReady={Boolean(linkShareUrl)}
-        />
-      </section>
+      <CardCarousel
+        cards={cards}
+        currentIndex={currentIndex}
+        library={contactItems}
+        expanded={cardExpanded}
+        onIndexChange={setCurrentCardIndex}
+        onExpand={() => setCardExpanded(true)}
+        onCollapse={() => setCardExpanded(false)}
+        onUpdate={updateCard}
+        onRemoveItem={removeItemFromCard}
+      />
 
-      {!cardExpanded && (
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[#1a1a1a]/10">
-          <ContentWheel
-            portfolio={portfolio}
-            library={contentLibrary}
-            onAddSlot={() => addLibrarySlot()}
-            onUpdateSlot={(id, data) => {
-              updateLibrarySlot(id, data);
-              updatePortfolio(portfolio.id, { updatedAt: new Date().toISOString() });
-              triggerQrFlash();
-            }}
-            onDeleteSlot={deleteLibrarySlot}
-            onToggleActive={handleToggleActive}
-          />
-        </section>
-      )}
+      <EditorSheet
+        card={card}
+        library={contactItems}
+        expandedCard={cardExpanded}
+        onAddItem={() => addContactItem()}
+        onUpdateItem={(id, data) => {
+          updateContactItem(id, data);
+          updateCard(card.id, { updatedAt: new Date().toISOString() });
+          triggerQrFlash();
+        }}
+        onToggleActive={handleToggleActive}
+      />
     </div>
   );
 }

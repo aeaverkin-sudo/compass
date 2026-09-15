@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { SharedPortfolioView } from "@/features/portfolio/components/shared-portfolio-view";
 import { downloadPortfolioPdf } from "@/features/portfolio/services/portfolio-pdf";
 import { useAppStore } from "@/shared/store/app-store";
-import type { PortfolioSnapshot } from "@/shared/types";
+import type { CardSnapshot, ContentSlot } from "@/shared/types";
+import {
+  getSnapshotDisplayName,
+  getSnapshotItems,
+} from "@/features/portfolio/services/contact-item";
 
 interface ShareViewProps {
   token: string;
@@ -17,7 +21,7 @@ export function ShareView({ token, printMode, pdfMode }: ShareViewProps) {
   const router = useRouter();
   const addPerson = useAppStore((s) => s.addPerson);
   const user = useAppStore((s) => s.user);
-  const [snapshot, setSnapshot] = useState<PortfolioSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<CardSnapshot | null>(null);
   const [ownerName, setOwnerName] = useState("");
   const [privateSave, setPrivateSave] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -53,16 +57,23 @@ export function ShareView({ token, printMode, pdfMode }: ShareViewProps) {
 
   const handleSave = () => {
     if (!snapshot) return;
-    const fullName = [snapshot.firstName, snapshot.lastName].filter(Boolean).join(" ");
+    const fullName = getSnapshotDisplayName(snapshot);
+    const slots: ContentSlot[] = getSnapshotItems(snapshot).map((item, order) => ({
+      id: item.id,
+      label: item.label,
+      type: item.type === "pdf" ? "pdf" : item.type === "custom" ? "text" : "link",
+      value: item.value,
+      order,
+    }));
     addPerson({
       direction: "received",
       name: fullName || ownerName || "Unknown",
-      headline: snapshot.name,
+      headline: snapshot.title || snapshot.label,
       description: snapshot.description,
       photo: snapshot.photo,
       selfiePhoto: undefined,
       showSelfie: false,
-      slots: snapshot.slots,
+      slots,
       context: {
         date: new Date().toISOString(),
         location: "Shared remotely",
@@ -94,7 +105,7 @@ export function ShareView({ token, printMode, pdfMode }: ShareViewProps) {
     );
   }
 
-  const fullName = [snapshot.firstName, snapshot.lastName].filter(Boolean).join(" ");
+  const fullName = getSnapshotDisplayName(snapshot);
 
   return (
     <div className={`mx-auto max-w-lg bg-[#faf9f7] ${printMode ? "print:p-0" : "py-8"}`}>

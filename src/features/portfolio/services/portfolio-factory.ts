@@ -56,12 +56,19 @@ export function buildPortfolioSnapshot(
   portfolio: Portfolio,
   library: ContentSlot[],
 ): PortfolioSnapshot {
+  const displayName = getFullName(portfolio);
   return {
+    label: portfolio.name,
+    displayName,
+    photo: portfolio.photo,
+    title: "",
+    subtitle: "",
+    description: portfolio.description,
+    location: "",
+    items: [],
     name: portfolio.name,
     firstName: portfolio.firstName,
     lastName: portfolio.lastName,
-    photo: portfolio.photo,
-    description: portfolio.description,
     slots: getActiveSlots(portfolio, library),
   };
 }

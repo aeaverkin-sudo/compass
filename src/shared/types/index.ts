@@ -1,7 +1,19 @@
 export type SubscriptionTier = "free" | "business" | "professional" | "conference";
 
+export type ContactType =
+  | "instagram"
+  | "linkedin"
+  | "website"
+  | "email"
+  | "phone"
+  | "pdf"
+  | "link"
+  | "custom";
+
+/** @deprecated use ContactItem — kept for Person / migration */
 export type ContentType = "link" | "pdf" | "image" | "text" | "empty";
 
+/** @deprecated use ContactItem */
 export interface ContentSlot {
   id: string;
   label: string;
@@ -10,6 +22,32 @@ export interface ContentSlot {
   order: number;
 }
 
+export interface ContactItem {
+  id: string;
+  type: ContactType;
+  label: string;
+  value: string;
+  url: string;
+  order: number;
+  createdAt: string;
+}
+
+export interface Card {
+  id: string;
+  label: string;
+  displayName: string;
+  photo?: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  location: string;
+  contactItemIds: string[];
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** @deprecated use Card */
 export interface Portfolio {
   id: string;
   name: string;
@@ -45,15 +83,24 @@ export interface PersonContext {
   metAt?: string;
 }
 
-/** Snapshot used when sharing / viewing a saved person */
-export interface PortfolioSnapshot {
-  name: string;
-  firstName: string;
-  lastName: string;
+export interface CardSnapshot {
+  label: string;
+  displayName: string;
   photo?: string;
+  title: string;
+  subtitle: string;
   description: string;
-  slots: ContentSlot[];
+  location: string;
+  items: ContactItem[];
+  /** @deprecated legacy share payloads */
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  slots?: ContentSlot[];
 }
+
+/** @deprecated */
+export type PortfolioSnapshot = CardSnapshot;
 
 export interface Person {
   id: string;

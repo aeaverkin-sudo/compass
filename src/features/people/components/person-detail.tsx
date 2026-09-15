@@ -37,11 +37,17 @@ export function PersonDetail({ personId }: PersonDetailProps) {
 
   const nameParts = person.name.split(" ");
   const snapshot: PortfolioSnapshot = {
+    label: person.headline || "Contact",
+    displayName: person.name,
+    photo: person.photo,
+    title: person.headline,
+    subtitle: "",
+    description: person.description,
+    location: person.context.location ?? "",
+    items: [],
     name: person.headline,
     firstName: nameParts[0] ?? person.name,
     lastName: nameParts.slice(1).join(" "),
-    photo: person.photo,
-    description: person.description,
     slots: person.slots,
   };
 

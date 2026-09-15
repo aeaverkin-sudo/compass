@@ -14,7 +14,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const onboarded = useAppStore((s) => s.user.onboarded);
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
-  const showNav = !isPublic && onboarded;
+  const isMainCard = pathname === "/portfolio";
+  const showNav = !isPublic && onboarded && !isMainCard;
 
   useEffect(() => {
     if (!hydrated) return;

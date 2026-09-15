@@ -4,6 +4,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import type {
+  Card,
+  ContactItem,
   ContentSlot,
   EventSpace,
   Person,
@@ -14,13 +16,16 @@ import type {
 } from "@/shared/types";
 import { TIER_LIMITS } from "@/shared/constants/tiers";
 import { DEMO_EVENTS } from "@/shared/constants/mock-data";
-import { createEmptySlot, createPortfolio } from "@/features/portfolio/services/portfolio-factory";
-
+import {
+  buildContactItem,
+  createCard,
+  createEmptyContactItem,
+} from "@/features/portfolio/services/contact-item";
 interface PersistedState {
   user: User;
-  portfolios: Portfolio[];
-  contentLibrary: ContentSlot[];
-  currentPortfolioIndex: number;
+  cards: Card[];
+  contactItems: ContactItem[];
+  currentCardIndex: number;
   people: Person[];
   events: EventSpace[];
 }
@@ -34,16 +39,16 @@ interface AppState extends PersistedState {
   onboard: () => void;
   setTier: (tier: SubscriptionTier) => void;
 
-  setCurrentPortfolioIndex: (index: number) => void;
-  addPortfolio: () => boolean;
-  updatePortfolio: (id: string, data: Partial<Portfolio>) => void;
+  setCurrentCardIndex: (index: number) => void;
+  addCard: () => boolean;
+  updateCard: (id: string, data: Partial<Card>) => void;
 
-  addLibrarySlot: () => boolean;
-  updateLibrarySlot: (slotId: string, data: Partial<ContentSlot>) => void;
-  deleteLibrarySlot: (slotId: string) => void;
+  addContactItem: () => boolean;
+  updateContactItem: (itemId: string, data: Partial<ContactItem>) => void;
+  deleteContactItem: (itemId: string) => void;
 
-  addSlotToPortfolio: (portfolioId: string, slotId: string) => void;
-  removeSlotFromPortfolio: (portfolioId: string, slotId: string) => void;
+  addItemToCard: (cardId: string, itemId: string) => void;
+  removeItemFromCard: (cardId: string, itemId: string) => void;
 
   addPerson: (person: Omit<Person, "id" | "createdAt">) => void;
   updatePerson: (id: string, data: Partial<Person>) => void;
@@ -53,67 +58,77 @@ interface AppState extends PersistedState {
   setEventMatchingQuery: (eventId: string, query: string) => void;
 }
 
-function migratePersistedState(raw: Partial<PersistedState>): PersistedState {
-  const user = raw.user ?? {
+function slotToContactItem(slot: ContentSlot, order: number): ContactItem {
+  const value = slot.value.trim();
+  const base = value ? buildContactItem(value) : createEmptyContactItem(order);
+  return {
+    ...base,
+    id: slot.id,
+    label: slot.label || base.label,
+    order,
+    createdAt: base.createdAt,
+  };
+}
+
+function portfolioToCard(p: Portfolio, sortOrder: number): Card {
+  return {
+    id: p.id,
+    label: p.name,
+    displayName: [p.firstName, p.lastName].filter(Boolean).join(" "),
+    photo: p.photo,
+    title: "",
+    subtitle: "",
+    description: p.description ?? "",
+    location: "",
+    contactItemIds: p.activeSlotIds ?? [],
+    sortOrder,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+  };
+}
+
+function migratePersistedState(raw: Record<string, unknown>): PersistedState {
+  const user = (raw.user as User) ?? {
     id: nanoid(),
     name: "",
     tier: "free" as SubscriptionTier,
     onboarded: false,
   };
 
-  let contentLibrary = raw.contentLibrary ?? [];
-  let portfolios = raw.portfolios ?? [createPortfolio("PERSONAL")];
+  let cards = raw.cards as Card[] | undefined;
+  let contactItems = raw.contactItems as ContactItem[] | undefined;
+  let currentCardIndex = raw.currentCardIndex as number | undefined;
 
-  // Migrate legacy portfolios that had embedded slots
-  if (contentLibrary.length === 0 && portfolios.some((p) => "slots" in p)) {
-    const legacyPortfolios = portfolios as Array<
-      Portfolio & { slots?: ContentSlot[]; headline?: string }
-    >;
-    const allSlots: ContentSlot[] = [];
-    portfolios = legacyPortfolios.map((p) => {
-      const slots = p.slots ?? [];
-      slots.forEach((s) => {
-        if (!allSlots.find((x) => x.id === s.id)) {
-          allSlots.push({
-            id: s.id,
-            label: s.label,
-            type: s.type,
-            value: s.value,
-            order: allSlots.length,
-          });
-        }
-      });
-      const activeSlotIds = slots
-        .filter((s) => "inCurrentCard" in s && s.inCurrentCard && s.type !== "empty")
-        .map((s) => s.id);
-      const headline = p.headline ?? "";
-      const parts = headline.split(" ");
-      return {
-        id: p.id,
-        name: p.name,
-        firstName: p.firstName || parts[0] || "",
-        lastName: p.lastName || parts.slice(1).join(" ") || "",
-        photo: p.photo,
-        description: p.description ?? "",
-        activeSlotIds: p.activeSlotIds ?? activeSlotIds,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-      };
-    });
-    contentLibrary = allSlots;
+  if (!cards || !contactItems) {
+    const legacyPortfolios = (raw.portfolios as Portfolio[]) ?? [];
+    const legacyLibrary = (raw.contentLibrary as ContentSlot[]) ?? [];
+
+    if (legacyPortfolios.length > 0 || legacyLibrary.length > 0) {
+      contactItems = legacyLibrary.map((s, i) => slotToContactItem(s, i));
+      cards = legacyPortfolios.map((p, i) => portfolioToCard(p, i));
+      currentCardIndex = (raw.currentPortfolioIndex as number) ?? 0;
+    }
   }
 
-  if (portfolios.length === 0) {
-    portfolios = [createPortfolio("PERSONAL")];
+  if (!cards || cards.length === 0) {
+    cards = [createCard("Personal")];
   }
+  if (!contactItems) {
+    contactItems = [];
+  }
+  if (currentCardIndex === undefined) {
+    currentCardIndex = 0;
+  }
+
+  currentCardIndex = Math.min(Math.max(0, currentCardIndex), cards.length - 1);
 
   return {
     user,
-    portfolios,
-    contentLibrary,
-    currentPortfolioIndex: raw.currentPortfolioIndex ?? 0,
-    people: raw.people ?? [],
-    events: raw.events ?? [],
+    cards,
+    contactItems,
+    currentCardIndex,
+    people: (raw.people as Person[]) ?? [],
+    events: (raw.events as EventSpace[]) ?? [],
   };
 }
 
@@ -134,62 +149,67 @@ export const useAppStore = create<AppState>()(
 
       setTier: (tier) => set((s) => ({ user: { ...s.user, tier } })),
 
-      setCurrentPortfolioIndex: (index) => set({ currentPortfolioIndex: index }),
+      setCurrentCardIndex: (index) => set({ currentCardIndex: index }),
 
-      addPortfolio: () => {
-        const { user, portfolios } = get();
-        if (portfolios.length >= TIER_LIMITS[user.tier].maxPortfolios) return false;
-        const p = createPortfolio(`PORTFOLIO ${portfolios.length + 1}`);
-        set({ portfolios: [...portfolios, p], currentPortfolioIndex: portfolios.length });
+      addCard: () => {
+        const { user, cards } = get();
+        if (cards.length >= TIER_LIMITS[user.tier].maxPortfolios) return false;
+        const card = createCard(`Card ${cards.length + 1}`, { sortOrder: cards.length });
+        set({ cards: [...cards, card], currentCardIndex: cards.length });
         get().triggerQrFlash();
         return true;
       },
 
-      updatePortfolio: (id, data) =>
+      updateCard: (id, data) =>
         set((s) => ({
-          portfolios: s.portfolios.map((p) =>
-            p.id === id ? { ...p, ...data, updatedAt: new Date().toISOString() } : p,
+          cards: s.cards.map((c) =>
+            c.id === id ? { ...c, ...data, updatedAt: new Date().toISOString() } : c,
           ),
         })),
 
-      addLibrarySlot: () => {
-        const { user, contentLibrary } = get();
-        if (contentLibrary.length >= TIER_LIMITS[user.tier].maxSlots) return false;
+      addContactItem: () => {
+        const { user, contactItems } = get();
+        if (contactItems.length >= TIER_LIMITS[user.tier].maxSlots) return false;
         set({
-          contentLibrary: [
-            ...contentLibrary,
-            createEmptySlot(contentLibrary.length),
-          ],
+          contactItems: [...contactItems, createEmptyContactItem(contactItems.length)],
         });
         return true;
       },
 
-      updateLibrarySlot: (slotId, data) =>
+      updateContactItem: (itemId, data) =>
         set((s) => ({
-          contentLibrary: s.contentLibrary.map((slot) =>
-            slot.id === slotId ? { ...slot, ...data } : slot,
-          ),
+          contactItems: s.contactItems.map((item) => {
+            if (item.id !== itemId) return item;
+            const merged = { ...item, ...data };
+            if (data.value !== undefined) {
+              const detected = buildContactItem(data.value);
+              merged.type = detected.type;
+              merged.url = detected.url;
+              if (!data.label && !item.label) merged.label = detected.label;
+            }
+            return merged;
+          }),
         })),
 
-      deleteLibrarySlot: (slotId) =>
+      deleteContactItem: (itemId) =>
         set((s) => ({
-          contentLibrary: s.contentLibrary
-            .filter((slot) => slot.id !== slotId)
-            .map((slot, order) => ({ ...slot, order })),
-          portfolios: s.portfolios.map((p) => ({
-            ...p,
-            activeSlotIds: p.activeSlotIds.filter((id) => id !== slotId),
+          contactItems: s.contactItems
+            .filter((item) => item.id !== itemId)
+            .map((item, order) => ({ ...item, order })),
+          cards: s.cards.map((c) => ({
+            ...c,
+            contactItemIds: c.contactItemIds.filter((id) => id !== itemId),
             updatedAt: new Date().toISOString(),
           })),
         })),
 
-      addSlotToPortfolio: (portfolioId, slotId) => {
+      addItemToCard: (cardId, itemId) => {
         set((s) => ({
-          portfolios: s.portfolios.map((p) => {
-            if (p.id !== portfolioId || p.activeSlotIds.includes(slotId)) return p;
+          cards: s.cards.map((c) => {
+            if (c.id !== cardId || c.contactItemIds.includes(itemId)) return c;
             return {
-              ...p,
-              activeSlotIds: [slotId, ...p.activeSlotIds],
+              ...c,
+              contactItemIds: [itemId, ...c.contactItemIds],
               updatedAt: new Date().toISOString(),
             };
           }),
@@ -197,13 +217,13 @@ export const useAppStore = create<AppState>()(
         get().triggerQrFlash();
       },
 
-      removeSlotFromPortfolio: (portfolioId, slotId) => {
+      removeItemFromCard: (cardId, itemId) => {
         set((s) => ({
-          portfolios: s.portfolios.map((p) => {
-            if (p.id !== portfolioId) return p;
+          cards: s.cards.map((c) => {
+            if (c.id !== cardId) return c;
             return {
-              ...p,
-              activeSlotIds: p.activeSlotIds.filter((id) => id !== slotId),
+              ...c,
+              contactItemIds: c.contactItemIds.filter((id) => id !== itemId),
               updatedAt: new Date().toISOString(),
             };
           }),
@@ -252,19 +272,19 @@ export const useAppStore = create<AppState>()(
         })),
     }),
     {
-      name: "compass-storage-v2",
+      name: "compass-storage-v3",
       onRehydrateStorage: () => (state, raw) => {
         if (raw && state) {
-          const migrated = migratePersistedState(raw as Partial<PersistedState>);
+          const migrated = migratePersistedState(raw as Record<string, unknown>);
           Object.assign(state, migrated);
         }
         state?.setHydrated(true);
       },
       partialize: (s) => ({
         user: s.user,
-        portfolios: s.portfolios,
-        contentLibrary: s.contentLibrary,
-        currentPortfolioIndex: s.currentPortfolioIndex,
+        cards: s.cards,
+        contactItems: s.contactItems,
+        currentCardIndex: s.currentCardIndex,
         people: s.people,
         events: s.events,
       }),
