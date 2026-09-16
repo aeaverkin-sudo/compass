@@ -1,3 +1,15 @@
+# Agent rules
+
+## Tech stack — do not reinvent
+
+**Mandatory:** Next.js 16 (App Router) · React 19 · **Tailwind CSS v4** · **shadcn/ui** · **Radix UI** (via shadcn) · lucide-react · Zustand · `cn()` from `@/shared/lib/utils`.
+
+1. Reuse `src/shared/components/ui/` before creating anything new.
+2. Missing component → `npx shadcn@latest add <name>` into `src/shared/components/ui/`.
+3. **Never** hand-roll modals, dropdowns, tabs, tooltips, or accessible form primitives — use shadcn/Radix.
+4. Styling via Tailwind v4 only; `oklch` CSS vars allowed for design-spec screens.
+5. Full rule: `.cursor/rules/tech-stack.mdc`.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

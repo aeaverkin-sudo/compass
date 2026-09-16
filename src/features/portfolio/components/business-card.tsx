@@ -60,9 +60,17 @@ function EditableText({
     );
   }
 
+  if (!value.trim()) {
+    return (
+      <span {...press} className={`compass-press block ${className}`} style={{ color: "var(--text-muted)" }}>
+        {placeholder}
+      </span>
+    );
+  }
+
   return (
     <span {...press} className={`compass-press block ${className}`} style={{ color }}>
-      {value || placeholder}
+      {value}
     </span>
   );
 }
@@ -196,9 +204,16 @@ export function BusinessCard({
         }
       }}
       className="compass-card relative w-full cursor-pointer text-left"
-      style={{ background: "var(--sheet)", padding, borderRadius: radius }}
+      style={{
+        background: "var(--sheet)",
+        padding,
+        borderRadius: radius,
+        minHeight: compact ? 112 : undefined,
+      }}
     >
-      <NextScanMenu addons={nextScanAddons} onSetAddons={setNextScanAddons} />
+      {!compact && (
+        <NextScanMenu addons={nextScanAddons} onSetAddons={setNextScanAddons} />
+      )}
       <input
         ref={photoRef}
         type="file"
@@ -223,7 +238,7 @@ export function BusinessCard({
   if (compact) {
     return shell(
       <>
-        <div className="flex items-center pr-9" style={{ gap: 10 }}>
+        <div className="flex items-center" style={{ gap: 10 }}>
           {avatar}
           <div className="min-w-0 flex-1">
             <EditableText
@@ -236,13 +251,18 @@ export function BusinessCard({
             />
             <EditableText
               value={card.title}
-              placeholder="Title"
+              placeholder="Role or title"
               align="left"
               color="var(--text-muted)"
               className="text-[10.5px] leading-snug"
               onChange={(v) => onUpdate({ title: v })}
             />
           </div>
+          <NextScanMenu
+            compact
+            addons={nextScanAddons}
+            onSetAddons={setNextScanAddons}
+          />
         </div>
 
         {items.length > 0 && (
@@ -272,7 +292,7 @@ export function BusinessCard({
         <div style={{ marginTop: 2 }}>
           <EditableText
             value={card.title}
-            placeholder="Title"
+            placeholder="Role or title"
             align="center"
             color="var(--text-muted)"
             className="text-[12px] leading-snug"

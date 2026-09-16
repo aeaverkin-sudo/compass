@@ -19,7 +19,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#faf9f7",
+  themeColor: "#E8E4DF",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="min-h-full bg-[#faf9f7] font-sans antialiased">
+      <body className="min-h-full bg-background font-sans antialiased">
         <AppShell>{children}</AppShell>
       </body>
     </html>

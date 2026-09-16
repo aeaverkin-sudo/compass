@@ -113,14 +113,15 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="relative flex h-8 w-8 items-center justify-center rounded-full bg-[#f0f0f0] text-[#666]"
+        className="relative flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-muted)]"
+        style={{ background: "var(--chip)" }}
         aria-label={count > 0 ? `${count} next scan notes` : "Add next scan note"}
       >
         <Plus size={16} strokeWidth={1.5} />
         {count > 0 && (
           <span
-            className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#E85D04] px-1 text-[11px] font-bold leading-none text-white"
-            style={{ boxShadow: "0 0 0 2px #fff" }}
+            className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none text-white"
+            style={{ background: "var(--accent)", boxShadow: "0 0 0 2px var(--sheet)" }}
           >
             {count}
           </span>

@@ -8,19 +8,15 @@ import {
   isCardReady,
   isContactFilled,
 } from "@/features/portfolio/services/contact-item";
+import {
+  QR_SIZE,
+  QR_TOP,
+  safeTop,
+  SHARE_SIZE,
+  SHARE_TOP,
+} from "@/features/portfolio/constants/layout";
 import { QrZone } from "./qr-zone";
 import { PortfolioStack } from "./portfolio-stack";
-
-/** The QR plate is fixed: same size and position in both states. */
-const HEADER_TOP = 16;
-const SHARE_ICON = 19;
-const QR_TOP = HEADER_TOP + SHARE_ICON + 14;
-const QR_SIZE = 168;
-const GAP_UNDER_QR = 18;
-const CARD_OVERLAP = 112;
-
-const CARD_TOP_BROWSE = QR_TOP + QR_SIZE + GAP_UNDER_QR;
-const CARD_TOP_LIBRARY = QR_TOP + QR_SIZE - CARD_OVERLAP;
 
 export function PortfolioScreen() {
   const cards = useAppStore((s) => s.cards);
@@ -158,7 +154,7 @@ export function PortfolioScreen() {
       <header
         className="absolute inset-x-0 top-0 z-30 flex items-center"
         style={{
-          paddingTop: `calc(env(safe-area-inset-top) + ${HEADER_TOP}px)`,
+          paddingTop: safeTop(SHARE_TOP),
           paddingLeft: 24,
         }}
       >
@@ -170,7 +166,7 @@ export function PortfolioScreen() {
           style={{ color: "oklch(25% 0.01 60)" }}
           aria-label="Share card"
         >
-          <Share size={SHARE_ICON} strokeWidth={1.7} />
+          <Share size={SHARE_SIZE} strokeWidth={1.7} />
         </button>
       </header>
 
@@ -187,7 +183,6 @@ export function PortfolioScreen() {
         currentIndex={currentIndex}
         library={contactItems}
         editing={editing}
-        cardTop={editing ? CARD_TOP_LIBRARY : CARD_TOP_BROWSE}
         onIndexChange={setCurrentCardIndex}
         onToggleEdit={toggleEdit}
         onUpdate={updateCard}

@@ -2,19 +2,25 @@
 
 import type { Card, ContactItem } from "@/shared/types";
 import { useSwipe } from "@/shared/hooks/use-swipe";
+import { useElementHeight } from "@/shared/hooks/use-element-size";
 import { getLibraryItems } from "@/features/portfolio/services/contact-item";
+import {
+  CARD_MARGIN,
+  CARD_TOP_BROWSE,
+  CARD_TOP_LIBRARY,
+  LIBRARY_MARGIN,
+  QR_OVERLAP,
+  safeBottom,
+  safeTop,
+} from "@/features/portfolio/constants/layout";
 import { BusinessCard } from "./business-card";
 import { LibraryPanel } from "./library-panel";
-
-/** Compact card must fully cover the QR overlap zone (lower 2/3 of the code). */
-const QR_OVERLAP = 112;
 
 interface PortfolioStackProps {
   cards: Card[];
   currentIndex: number;
   library: ContactItem[];
   editing: boolean;
-  cardTop: number;
   onIndexChange: (index: number) => void;
   onToggleEdit: () => void;
   onUpdate: (id: string, data: Partial<Card>) => void;
@@ -28,7 +34,6 @@ export function PortfolioStack({
   currentIndex,
   library,
   editing,
-  cardTop,
   onIndexChange,
   onToggleEdit,
   onUpdate,
@@ -39,6 +44,19 @@ export function PortfolioStack({
   const total = cards.length;
   const card = cards[currentIndex];
   const cardItems = card ? getLibraryItems(card, library) : [];
+  const { ref: cardRef, height: cardHeight } = useElementHeight<HTMLDivElement>([
+    editing,
+    card?.id,
+    card?.displayName,
+    card?.contactItemIds.length,
+  ]);
+
+  const cardTop = editing ? CARD_TOP_LIBRARY : CARD_TOP_BROWSE;
+  const cardMargin = editing ? CARD_MARGIN.library : CARD_MARGIN.browse;
+  const libraryOffset = editing
+    ? LIBRARY_MARGIN.library.gap
+    : -LIBRARY_MARGIN.browse.overlap;
+  const libMargin = editing ? LIBRARY_MARGIN.library : LIBRARY_MARGIN.browse;
 
   const swipe = useSwipe({
     onSwipeLeft: () => {
@@ -66,50 +84,50 @@ export function PortfolioStack({
     );
   }
 
+  const libraryTop =
+    cardHeight > 0
+      ? safeTop(cardTop + cardHeight + libraryOffset)
+      : safeTop(
+          cardTop +
+            (editing ? QR_OVERLAP + LIBRARY_MARGIN.library.gap : 120),
+        );
+
   return (
-    <div
-      className="compass-ease absolute inset-x-0 bottom-0 z-20 flex flex-col"
-      style={{
-        top: `calc(env(safe-area-inset-top) + ${cardTop}px)`,
-        background: "var(--background)",
-      }}
-      {...swipe}
-    >
-      {/* Content-height card — never shrink in the flex column. */}
-      <div className="relative z-20 shrink-0">
+    <div className="absolute inset-0 z-20" {...swipe}>
+      {/* Card — absolute, only its top animates between browse and library. */}
+      <div
+        ref={cardRef}
+        className="compass-ease absolute z-20"
+        style={{
+          top: safeTop(cardTop),
+          left: cardMargin.left,
+          right: cardMargin.right,
+        }}
+      >
         {total > 1 && !editing && (
           <div
             aria-hidden
-            className="compass-sheet absolute rounded-[22px]"
+            className="compass-sheet pointer-events-none absolute rounded-[22px]"
             style={{
-              top: 8,
-              bottom: 8,
-              right: 10,
-              width: 64,
+              top: 10,
+              bottom: 10,
+              right: -6,
+              width: 14,
               background: "var(--sheet)",
             }}
           />
         )}
 
-        <div
-          className="relative"
-          style={{
-            marginLeft: editing ? 20 : 10,
-            marginRight: editing ? 20 : 22,
-            minHeight: editing ? QR_OVERLAP : undefined,
-          }}
-        >
-          <BusinessCard
-            card={card}
-            library={library}
-            variant={editing ? "compact" : "full"}
-            onUpdate={(data) => onUpdate(card.id, data)}
-            onToggleEdit={onToggleEdit}
-          />
-        </div>
+        <BusinessCard
+          card={card}
+          library={library}
+          variant={editing ? "compact" : "full"}
+          onUpdate={(data) => onUpdate(card.id, data)}
+          onToggleEdit={onToggleEdit}
+        />
       </div>
 
-      {/* Library sheet: spine peek while browsing, full list when open. */}
+      {/* Library — pinned to the bottom; top follows the measured card edge. */}
       <div
         role="button"
         tabIndex={0}
@@ -122,14 +140,16 @@ export function PortfolioStack({
             onToggleEdit();
           }
         }}
-        className="compass-sheet compass-ease relative z-10 flex min-h-0 flex-1 cursor-pointer flex-col overflow-hidden"
+        className={`compass-ease absolute z-10 flex cursor-pointer flex-col overflow-hidden ${
+          editing ? "compass-sheet" : "compass-sheet compass-sheet-peek"
+        }`}
         style={{
+          top: libraryTop,
+          left: libMargin.left,
+          right: libMargin.right,
+          bottom: safeBottom(libMargin.bottom),
           background: "var(--sheet)",
           borderRadius: 24,
-          marginTop: editing ? 10 : -22,
-          marginLeft: editing ? 14 : 24,
-          marginRight: editing ? 14 : 24,
-          marginBottom: `calc(${editing ? 14 : 18}px + env(safe-area-inset-bottom))`,
         }}
       >
         {editing && (

@@ -29,14 +29,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!hydrated && !isPublic) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#faf9f7]">
-        <div className="h-5 w-5 animate-spin border border-[#1a1a1a] border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-5 w-5 animate-spin border border-foreground border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7]">
+    <div className="min-h-screen bg-background">
       <main className={showNav ? "pb-20" : ""}>{children}</main>
       {showNav && <BottomNav />}
     </div>

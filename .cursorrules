@@ -1,0 +1,12 @@
+# Compass — mandatory stack (always enforce)
+
+Next.js 16 · React 19 · Tailwind CSS v4 · shadcn/ui · Radix UI · lucide-react · Zustand
+
+DO NOT reinvent UI primitives. Before new components:
+1. Reuse src/shared/components/ui/
+2. Add via: npx shadcn@latest add <component>
+3. Use Radix-backed shadcn for Dialog, Dropdown, Tabs, Popover, Select, etc.
+
+Never hand-roll modals, menus, or accessible controls. Use cn() from @/shared/lib/utils.
+
+Details: .cursor/rules/tech-stack.mdc and AGENTS.md

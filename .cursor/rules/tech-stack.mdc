@@ -1,0 +1,44 @@
+---
+description: Mandatory frontend stack — do not reinvent primitives
+alwaysApply: true
+---
+
+# Tech stack (mandatory)
+
+Use **only** this stack. Do not substitute libraries or hand-roll equivalents.
+
+| Layer | Use | Never |
+|-------|-----|-------|
+| Framework | **Next.js 16** (App Router), **React 19** | Pages Router, class components |
+| Styling | **Tailwind CSS v4** (`@import "tailwindcss"`, `@theme inline`) | CSS modules, styled-components, inline styles except design-token vars |
+| UI kit | **shadcn/ui** in `src/shared/components/ui/` | Custom Button, Modal, Dialog, Dropdown, Tabs, Tooltip, etc. |
+| Primitives | **Radix UI** (via shadcn) | Raw `<div onClick>` overlays, home-grown focus traps / aria |
+| Icons | **lucide-react** | Custom SVG icons, other icon packs |
+| State | **Zustand** (`src/shared/store/`) | Redux, Context for global state, new store libs |
+| Utils | `cn()` from `@/shared/lib/utils` (`clsx` + `tailwind-merge`) | Ad-hoc class string concat |
+| IDs | **nanoid** | `Math.random()`, `uuid` |
+
+## Before writing new UI
+
+1. Check `src/shared/components/ui/` — reuse or extend existing components.
+2. Missing shadcn component? Add it: `npx shadcn@latest add <name>` (output → `src/shared/components/ui/`).
+3. Need behaviour Radix already solves (dialog, popover, select, switch)? Use shadcn/Radix — **do not build your own**.
+
+## Forbidden “bicycles”
+
+- Custom modal / sheet / drawer → `Dialog`, `Sheet`, or `Drawer` (shadcn)
+- Custom dropdown / menu → `DropdownMenu` or `Popover`
+- Custom tabs → `Tabs`
+- Custom form controls with a11y → shadcn `Input`, `Select`, `Checkbox`, `RadioGroup`
+- Custom toast system → `Sonner` or shadcn `Toast`
+- Duplicate hooks that mirror Radix/shadcn behaviour
+
+## Allowed custom code
+
+- Domain logic, API routes, Zustand slices, feature-specific layout (e.g. portfolio drum)
+- Small gesture hooks (`useSwipe`, `useLongPress`) when no library primitive fits
+- Design-token CSS vars in `globals.css` and `oklch(...)` for spec-matched screens
+
+## Next.js
+
+Read `node_modules/next/dist/docs/` before using APIs — this repo runs Next 16 with breaking changes vs older versions.
