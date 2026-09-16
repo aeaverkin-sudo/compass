@@ -29,7 +29,7 @@ export function QrZone({ url, visible, flashKey, onShare, shareReady, compact }:
       className={`relative shrink-0 px-4 transition-all duration-300 ${
         compact ? "pt-2 pb-0" : "pt-3 pb-2"
       }`}
-      style={{ minHeight: compact ? "18vh" : "30vh" }}
+      style={{ minHeight: compact ? "16vh" : "26vh" }}
     >
       <div className="flex items-start justify-between">
         <button
@@ -59,9 +59,6 @@ export function QrZone({ url, visible, flashKey, onShare, shareReady, compact }:
           </div>
         ) : (
           <div style={{ height: qrSize }} aria-hidden />
-        )}
-        {visible && !compact && (
-          <p className="mt-2 text-[11px] text-[#999]">Scan to get my contact</p>
         )}
       </div>
     </div>

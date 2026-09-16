@@ -23,6 +23,7 @@ export function PortfolioScreen() {
   const updateContactItem = useAppStore((s) => s.updateContactItem);
   const addItemToCard = useAppStore((s) => s.addItemToCard);
   const removeItemFromCard = useAppStore((s) => s.removeItemFromCard);
+  const purgeEmptyContactItems = useAppStore((s) => s.purgeEmptyContactItems);
   const triggerQrFlash = useAppStore((s) => s.triggerQrFlash);
 
   const [shareTokens, setShareTokens] = useState<Record<string, string>>({});
@@ -137,7 +138,10 @@ export function PortfolioScreen() {
         library={contactItems}
         editing={editing}
         onIndexChange={setCurrentCardIndex}
-        onCloseEdit={() => setEditing(false)}
+        onCloseEdit={() => {
+          purgeEmptyContactItems();
+          setEditing(false);
+        }}
         onUpdate={updateCard}
       />
 
@@ -147,6 +151,7 @@ export function PortfolioScreen() {
         card={card}
         library={contactItems}
         onAddItem={() => addContactItem()}
+        onPurgeEmpty={purgeEmptyContactItems}
         onUpdateItem={(id, data) => {
           updateContactItem(id, data);
           updateCard(card.id, { updatedAt: new Date().toISOString() });

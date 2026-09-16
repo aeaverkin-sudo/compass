@@ -23,6 +23,23 @@ function relativeIndex(i: number, current: number, total: number): number {
   return rel;
 }
 
+function CardPeek({ card, empty }: { card?: Card; empty?: boolean }) {
+  return (
+    <div
+      className="h-[min(58vh,560px)] w-11 overflow-hidden rounded-2xl bg-white"
+      style={{ boxShadow: "0 2px 16px rgba(0,0,0,0.07)" }}
+    >
+      {empty ? (
+        <div className="h-full w-full bg-gradient-to-b from-[#fafafa] to-[#f0f0f0]" />
+      ) : card?.photo ? (
+        <img src={card.photo} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <div className="h-full w-full bg-[#f5f5f5]" />
+      )}
+    </div>
+  );
+}
+
 export function CardCarousel({
   cards,
   currentIndex,
@@ -55,6 +72,10 @@ export function CardCarousel({
     [cards, currentIndex, total],
   );
 
+  const nextRel = positions.find((p) => p.rel === 1);
+  const prevRel = positions.find((p) => p.rel === -1);
+  const showGhostRight = total === 1 && !editing;
+
   if (editing && card) {
     return (
       <div className="relative z-30 shrink-0 pt-1 pb-2">
@@ -70,49 +91,46 @@ export function CardCarousel({
   }
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden py-2 pb-[calc(56px+env(safe-area-inset-bottom))]" {...swipe}>
-      <div className="relative flex w-full flex-1 items-center justify-center">
-        {positions.map(({ card: c, rel }) => {
-          if (Math.abs(rel) > 1) return null;
-          const isCenter = rel === 0;
-          const translateX = rel * 220;
-          const scale = isCenter ? 1 : 0.88;
-          const opacity = isCenter ? 1 : 0.45;
-          const zIndex = isCenter ? 10 : 5 - Math.abs(rel);
+    <div
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden pb-[calc(96px+env(safe-area-inset-bottom))] pt-1"
+      {...swipe}
+    >
+      <div className="relative mx-auto flex h-full w-full max-w-lg flex-1 items-center justify-center px-3">
+        {/* Left peek */}
+        {prevRel && (
+          <div
+            className="pointer-events-none absolute left-1 top-1/2 z-[5] -translate-y-1/2 transition-all duration-300"
+            style={{ opacity: 0.45 }}
+          >
+            <CardPeek card={prevRel.card} />
+          </div>
+        )}
 
-          return (
-            <div
-              key={c.id}
-              className="absolute transition-all duration-300 ease-out"
-              style={{
-                transform: `translateX(${translateX}px) scale(${scale})`,
-                opacity,
-                zIndex,
-                pointerEvents: isCenter ? "auto" : "none",
-              }}
-            >
-              {isCenter ? (
-                <BusinessCard
-                  card={c}
-                  library={library}
-                  variant="full"
-                  onUpdate={(data) => onUpdate(c.id, data)}
-                />
-              ) : (
-                <div
-                  className="h-[220px] w-[52px] overflow-hidden rounded-xl bg-white"
-                  style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}
-                >
-                  {c.photo && <img src={c.photo} alt="" className="h-full w-full object-cover" />}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {/* Center card — shifted slightly left so right peek is visible */}
+        <div className="relative z-10 w-full max-w-[calc(100%-2.5rem)] -translate-x-2 transition-transform duration-300">
+          {card && (
+            <BusinessCard
+              card={card}
+              library={library}
+              variant="full"
+              onUpdate={(data) => onUpdate(card.id, data)}
+            />
+          )}
+        </div>
+
+        {/* Right peek — next card or empty hint */}
+        {(nextRel || showGhostRight) && (
+          <div
+            className="pointer-events-none absolute right-1 top-1/2 z-[5] -translate-y-1/2 transition-all duration-300"
+            style={{ opacity: showGhostRight ? 0.35 : 0.5 }}
+          >
+            <CardPeek card={nextRel?.card} empty={showGhostRight} />
+          </div>
+        )}
       </div>
 
       {total > 1 && (
-        <div className="mt-1 flex shrink-0 gap-1.5 pb-1">
+        <div className="mt-2 flex shrink-0 justify-center gap-1.5 pb-1">
           {cards.map((c, i) => (
             <div
               key={c.id}

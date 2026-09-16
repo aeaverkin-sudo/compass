@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { ChevronUp } from "lucide-react";
 import type { Card, ContactItem } from "@/shared/types";
 import { isContactFilled, sortContactList } from "@/features/portfolio/services/contact-item";
 import { EditorRow } from "./editor-row";
 
-const EDITOR_VH = 40;
+const EDITOR_VH = 42;
 
 interface EditorSheetProps {
   open: boolean;
@@ -16,6 +16,7 @@ interface EditorSheetProps {
   onAddItem: () => void;
   onUpdateItem: (id: string, data: Partial<ContactItem>) => void;
   onToggleActive: (itemId: string) => void;
+  onPurgeEmpty: () => void;
 }
 
 export function EditorSheet({
@@ -26,55 +27,19 @@ export function EditorSheet({
   onAddItem,
   onUpdateItem,
   onToggleActive,
+  onPurgeEmpty,
 }: EditorSheetProps) {
-  const handleRef = useRef<HTMLDivElement>(null);
-  const dragStartY = useRef(0);
-  const dragDelta = useRef(0);
-  const dragging = useRef(false);
-  const didDrag = useRef(false);
+  const filled = useMemo(() => library.filter(isContactFilled), [library]);
+  const draft = useMemo(() => library.find((i) => !isContactFilled(i)), [library]);
 
   const sorted = useMemo(
-    () => sortContactList(library, card.contactItemIds),
-    [library, card.contactItemIds],
+    () => sortContactList(filled, card.contactItemIds),
+    [filled, card.contactItemIds],
   );
 
-  useEffect(() => {
-    const el = handleRef.current;
-    if (!el) return;
-    const blockPull = (e: TouchEvent) => {
-      if (dragging.current) e.preventDefault();
-    };
-    el.addEventListener("touchmove", blockPull, { passive: false });
-    return () => el.removeEventListener("touchmove", blockPull);
-  }, []);
-
-  const snap = (dy: number) => {
-    if (dy > 40) onOpenChange(true);
-    else if (dy < -40) onOpenChange(false);
-  };
-
-  const onDragStart = (clientY: number) => {
-    dragging.current = true;
-    didDrag.current = false;
-    dragStartY.current = clientY;
-    dragDelta.current = 0;
-  };
-
-  const onDragMove = (clientY: number) => {
-    if (!dragging.current) return;
-    dragDelta.current = dragStartY.current - clientY;
-    if (Math.abs(dragDelta.current) > 10) didDrag.current = true;
-  };
-
-  const onDragEnd = () => {
-    if (!dragging.current) return;
-    dragging.current = false;
-    if (didDrag.current) {
-      snap(dragDelta.current);
-    } else {
-      onOpenChange(!open);
-    }
-    dragDelta.current = 0;
+  const handleOpenChange = (next: boolean) => {
+    if (!next) onPurgeEmpty();
+    onOpenChange(next);
   };
 
   return (
@@ -83,67 +48,72 @@ export function EditorSheet({
       style={{ height: open ? `${EDITOR_VH}vh` : "auto" }}
     >
       <div
-        className="flex h-full flex-col rounded-t-2xl bg-white/98 backdrop-blur-sm pb-[env(safe-area-inset-bottom)]"
-        style={{ boxShadow: "0 -4px 24px rgba(0,0,0,0.08)" }}
+        className="flex h-full flex-col rounded-t-2xl bg-white"
+        style={{ boxShadow: "0 -4px 24px rgba(0,0,0,0.1)" }}
       >
-        <div
-          ref={handleRef}
+        <button
+          type="button"
           data-editor-handle
-          role="button"
-          tabIndex={0}
           aria-expanded={open}
           aria-label={open ? "Close editor" : "Open editor"}
-          className="flex min-h-[56px] shrink-0 cursor-pointer flex-col items-center justify-center px-6 pt-3 pb-1"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              onOpenChange(!open);
-            }
+          onClick={() => handleOpenChange(!open)}
+          className="flex w-full shrink-0 flex-col items-center justify-center px-6 pt-5 pb-4"
+          style={{
+            minHeight: "calc(88px + env(safe-area-inset-bottom))",
+            paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
           }}
-          onPointerDown={(e) => {
-            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-            onDragStart(e.clientY);
-          }}
-          onPointerMove={(e) => onDragMove(e.clientY)}
-          onPointerUp={(e) => {
-            (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-            onDragEnd();
-          }}
-          onPointerCancel={onDragEnd}
         >
-          <div className="mb-2 h-1 w-10 rounded-full bg-[#ddd]" />
+          <div className="mb-3 h-1.5 w-12 rounded-full bg-[#ccc]" />
           {!open && (
-            <span className="flex items-center gap-1 text-[11px] text-[#aaa]">
-              <ChevronUp size={14} strokeWidth={1.5} />
+            <span className="flex items-center gap-1.5 text-[13px] text-[#888]">
+              <ChevronUp size={16} strokeWidth={1.5} />
               Tap to edit
             </span>
           )}
-        </div>
+        </button>
 
         {open && (
-          <>
-            <div
-              data-wheel-scroll
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 scrollbar-hide"
-            >
-              {sorted.map((item) => (
-                <EditorRow
-                  key={item.id}
-                  item={item}
-                  isActive={card.contactItemIds.includes(item.id)}
-                  isEmpty={!isContactFilled(item)}
-                  onUpdate={(data) => onUpdateItem(item.id, data)}
-                  onToggleActive={() => onToggleActive(item.id)}
-                />
-              ))}
-            </div>
+          <div
+            data-wheel-scroll
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 scrollbar-hide"
+            style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom))" }}
+          >
+            {sorted.map((item) => (
+              <EditorRow
+                key={item.id}
+                item={item}
+                isActive={card.contactItemIds.includes(item.id)}
+                isEmpty={false}
+                onUpdate={(data) => onUpdateItem(item.id, data)}
+                onToggleActive={() => onToggleActive(item.id)}
+              />
+            ))}
 
-            <div className="flex shrink-0 justify-center border-t border-[#f0f0f0] py-3">
-              <button type="button" onClick={onAddItem} className="text-[13px] text-[#666]">
-                + Add anything
-              </button>
-            </div>
-          </>
+            {draft && (
+              <EditorRow
+                key={draft.id}
+                item={draft}
+                isActive={false}
+                isEmpty
+                autoEdit
+                onUpdate={(data) => onUpdateItem(draft.id, data)}
+                onToggleActive={() => onToggleActive(draft.id)}
+              />
+            )}
+
+            {!draft && (
+              <div className="flex justify-center py-3">
+                <button
+                  type="button"
+                  onClick={onAddItem}
+                  className="text-[22px] font-light leading-none text-[#1a1a1a]"
+                  aria-label="Add new item"
+                >
+                  +
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

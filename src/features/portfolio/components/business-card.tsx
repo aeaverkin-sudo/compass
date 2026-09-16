@@ -40,14 +40,14 @@ function ContactCell({
         e.stopPropagation();
         onOpen();
       }}
-      className={`flex items-start gap-2 rounded-xl border border-[#efefef] bg-white p-3 text-left ${
+      className={`flex min-h-[56px] items-start gap-2 rounded-xl border border-[#efefef] bg-white p-3 text-left ${
         fullWidth ? "col-span-2" : ""
       }`}
     >
       <ContactIcon type={item.type} size={18} className="mt-0.5 shrink-0 text-[#444]" />
       <div className="min-w-0 flex-1">
         <p className="text-[11px] text-[#999]">{typeLabel(item.type)}</p>
-        <p className="truncate text-[13px] font-semibold text-[#1a1a1a]">
+        <p className="line-clamp-2 text-[12px] font-semibold leading-snug text-[#1a1a1a]">
           {itemDisplayValue(item)}
         </p>
       </div>
@@ -85,7 +85,7 @@ export function BusinessCard({
   const nextScanAddons = getNextScanAddons(card);
 
   const setNextScanAddons = (addons: NextScanAddon[]) => {
-    onUpdate({ nextScanAddons: addons });
+    onUpdate({ nextScanAddons: addons, updatedAt: new Date().toISOString() });
   };
 
   const renderEditable = (
@@ -177,8 +177,12 @@ export function BusinessCard({
 
   return (
     <div
-      className="relative mx-auto flex w-[min(340px,calc(100%-2rem))] max-h-[min(52vh,520px)] flex-col overflow-y-auto rounded-2xl bg-white px-5 py-5"
-      style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}
+      className="relative flex w-full flex-col overflow-y-auto rounded-2xl bg-white px-5 py-6"
+      style={{
+        boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+        minHeight: "min(58vh, 560px)",
+        maxHeight: "min(62vh, 600px)",
+      }}
     >
       <NextScanMenu addons={nextScanAddons} onSetAddons={setNextScanAddons} />
 
@@ -191,7 +195,7 @@ export function BusinessCard({
         <img
           src={card.photo}
           alt=""
-          className="h-20 w-20 rounded-full object-cover"
+          className="h-24 w-24 rounded-full object-cover"
           style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
         />
       </button>

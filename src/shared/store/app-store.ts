@@ -21,6 +21,7 @@ import {
   createCard,
   createEmptyContactItem,
   getNextScanAddons,
+  isContactFilled,
 } from "@/features/portfolio/services/contact-item";
 interface PersistedState {
   user: User;
@@ -47,6 +48,7 @@ interface AppState extends PersistedState {
   addContactItem: () => boolean;
   updateContactItem: (itemId: string, data: Partial<ContactItem>) => void;
   deleteContactItem: (itemId: string) => void;
+  purgeEmptyContactItems: () => void;
 
   addItemToCard: (cardId: string, itemId: string) => void;
   removeItemFromCard: (cardId: string, itemId: string) => void;
@@ -176,12 +178,30 @@ export const useAppStore = create<AppState>()(
 
       addContactItem: () => {
         const { user, contactItems } = get();
+        if (contactItems.some((i) => !isContactFilled(i))) return false;
         if (contactItems.length >= TIER_LIMITS[user.tier].maxSlots) return false;
         set({
           contactItems: [...contactItems, createEmptyContactItem(contactItems.length)],
         });
         return true;
       },
+
+      purgeEmptyContactItems: () =>
+        set((s) => {
+          const emptyIds = new Set(
+            s.contactItems.filter((i) => !isContactFilled(i)).map((i) => i.id),
+          );
+          if (emptyIds.size === 0) return s;
+          return {
+            contactItems: s.contactItems
+              .filter((i) => isContactFilled(i))
+              .map((item, order) => ({ ...item, order })),
+            cards: s.cards.map((c) => ({
+              ...c,
+              contactItemIds: c.contactItemIds.filter((id) => !emptyIds.has(id)),
+            })),
+          };
+        }),
 
       updateContactItem: (itemId, data) =>
         set((s) => ({
