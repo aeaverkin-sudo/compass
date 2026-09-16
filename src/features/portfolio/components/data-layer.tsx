@@ -2,11 +2,7 @@
 
 import { useMemo } from "react";
 import type { Card, ContactItem } from "@/shared/types";
-import {
-  isContactFilled,
-  sortContactList,
-  typeLabel,
-} from "@/features/portfolio/services/contact-item";
+import { isContactFilled, sortContactList } from "@/features/portfolio/services/contact-item";
 import { ContactIcon } from "./contact-icon";
 import { EditorRow } from "./editor-row";
 
@@ -23,31 +19,22 @@ function PeekRow({ item, isActive }: { item: ContactItem; isActive: boolean }) {
   const displayValue = item.value.replace(/^https?:\/\//, "").replace(/^www\./, "");
 
   return (
-    <div className="flex h-[52px] shrink-0 items-center gap-2.5 border-b border-[#f4f4f2]">
+    <div className="flex h-12 shrink-0 items-center gap-2.5 border-b border-[#f2f0ec]">
       <ContactIcon
         type={item.type}
-        size={15}
-        className={`shrink-0 ${isActive ? "text-[#4a4a4a]" : "text-[#c9c9c9]"}`}
+        size={14}
+        className={`shrink-0 ${isActive ? "text-[#8d867b]" : "text-[#cdc7bd]"}`}
       />
-      <span className="min-w-0 flex-1">
-        <span
-          className={`block text-[10px] leading-none ${
-            isActive ? "text-[#a3a3a3]" : "text-[#c9c9c9]"
-          }`}
-        >
-          {typeLabel(item.type)}
-        </span>
-        <span
-          className={`mt-1 block truncate text-[14px] leading-snug ${
-            isActive ? "font-semibold text-[#1a1a1a]" : "text-[#b4b4b4]"
-          }`}
-        >
-          {displayValue}
-        </span>
+      <span
+        className={`min-w-0 flex-1 truncate text-[13.5px] leading-snug ${
+          isActive ? "text-[#2b2620]" : "text-[#bdb7ad]"
+        }`}
+      >
+        {displayValue}
       </span>
       <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[17px] font-light leading-none ${
-          isActive ? "bg-[#f4f4f2] text-[#1a1a1a]" : "text-[#c4c4c4]"
+        className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[15px] font-light leading-none ring-1 ${
+          isActive ? "text-[#8d867b] ring-[#e9e6e0]" : "text-[#c0b9ae] ring-[#f0ede8]"
         }`}
       >
         {isActive ? "−" : "+"}
@@ -70,31 +57,6 @@ export function DataLayer({
   const sorted = useMemo(
     () => sortContactList(filled, card.contactItemIds),
     [filled, card.contactItemIds],
-  );
-
-  const addRow = editing ? (
-    <button
-      type="button"
-      data-no-toggle
-      aria-label="Add a new field"
-      onClick={(e) => {
-        e.stopPropagation();
-        onAddItem();
-      }}
-      className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2] text-left"
-    >
-      <span className="min-w-0 flex-1 text-[14px] text-[#c9c9c9]">Add anything</span>
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[19px] font-light leading-none text-[#1a1a1a]">
-        +
-      </span>
-    </button>
-  ) : (
-    <div className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2]">
-      <span className="min-w-0 flex-1 text-[14px] text-[#c9c9c9]">Add anything</span>
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[19px] font-light leading-none text-[#c4c4c4]">
-        +
-      </span>
-    </div>
   );
 
   return (
@@ -135,7 +97,29 @@ export function DataLayer({
         />
       )}
 
-      {!draft && addRow}
+      {!draft && (
+        <div className="flex shrink-0 flex-col items-center gap-1.5 pt-4 pb-2">
+          {editing ? (
+            <button
+              type="button"
+              data-no-toggle
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddItem();
+              }}
+              aria-label="Add a new field"
+              className="text-[20px] font-light leading-none text-[#3a3530]"
+            >
+              +
+            </button>
+          ) : (
+            <span className="text-[20px] font-light leading-none text-[#c0b9ae]">+</span>
+          )}
+          <span className="text-[10.5px] leading-none text-[#bdb7ad]">
+            link, email, phone, file…
+          </span>
+        </div>
+      )}
     </div>
   );
 }

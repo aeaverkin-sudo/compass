@@ -3,18 +3,15 @@
 import { useRef, useState } from "react";
 import type { Card, ContactItem, NextScanAddon } from "@/shared/types";
 import {
-  CONTACT_GROUP_LABELS,
   getCardItems,
   getNextScanAddons,
-  groupContactItems,
   itemDisplayValue,
-  typeLabel,
 } from "@/features/portfolio/services/contact-item";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { ContactIcon } from "./contact-icon";
 import { NextScanMenu } from "./next-scan-menu";
 import { fileToDataUrl } from "@/shared/lib/utils";
-import { MapPin } from "lucide-react";
+import { MapPin, User } from "lucide-react";
 
 interface BusinessCardProps {
   card: Card;
@@ -67,6 +64,25 @@ function EditableText({
   );
 }
 
+function ContactPill({ item, small }: { item: ContactItem; small?: boolean }) {
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1.5 rounded-full bg-white ring-1 ring-[#e9e6e0] ${
+        small ? "px-2 py-1 text-[10.5px]" : "px-2.5 py-1.5 text-[12px]"
+      }`}
+    >
+      <ContactIcon
+        type={item.type}
+        size={small ? 11 : 13}
+        className="shrink-0 text-[#a09a90]"
+      />
+      <span className="min-w-0 break-all leading-none text-[#2b2620]">
+        {itemDisplayValue(item)}
+      </span>
+    </span>
+  );
+}
+
 export function BusinessCard({
   card,
   library,
@@ -78,7 +94,6 @@ export function BusinessCard({
   const compact = variant === "preview";
 
   const items = getCardItems(card, library);
-  const groups = groupContactItems(items);
   const nextScanAddons = getNextScanAddons(card);
 
   const photoPress = useLongPress(() => photoRef.current?.click());
@@ -112,8 +127,8 @@ export function BusinessCard({
           onToggleEdit?.();
         }
       }}
-      className={`compass-card relative w-full cursor-pointer rounded-[26px] bg-white text-left ${
-        compact ? "px-4 py-4" : "px-5 py-5"
+      className={`compass-card relative w-full cursor-pointer rounded-[24px] bg-white text-left ${
+        compact ? "px-4 py-4" : "px-5 py-7"
       }`}
     >
       <NextScanMenu addons={nextScanAddons} onSetAddons={setNextScanAddons} />
@@ -128,38 +143,29 @@ export function BusinessCard({
     </div>
   );
 
-  if (!card.photo) {
+  if (!card.displayName.trim()) {
     return shell(
-      <div className="flex min-h-[180px] flex-col items-center justify-center gap-3">
-        <EditableText
-          value={card.displayName}
-          placeholder="Hold to add your name"
-          className="text-lg font-semibold text-[#1a1a1a]"
-          onChange={(v) => onUpdate({ displayName: v })}
-        />
-        <button
-          type="button"
-          data-no-toggle
-          onClick={(e) => {
-            e.stopPropagation();
-            photoRef.current?.click();
-          }}
-          className="rounded-full bg-[#f4f4f2] px-4 py-2 text-[13px] text-[#555]"
-        >
-          Add photo
-        </button>
+      <div
+        className="flex min-h-[120px] flex-col items-center justify-center gap-4"
+        data-no-toggle
+      >
+        <NameSetup onChange={(v) => onUpdate({ displayName: v })} />
       </div>,
     );
   }
 
-  const photo = (
+  const avatar = (
     <span
       {...photoPress}
-      className={`compass-press block overflow-hidden rounded-full ring-1 ring-black/5 ${
-        compact ? "h-[62px] w-[62px] shrink-0" : "mx-auto h-[92px] w-[92px]"
+      className={`compass-press flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f1efea] ${
+        compact ? "h-[52px] w-[52px]" : "mx-auto h-[76px] w-[76px]"
       }`}
     >
-      <img src={card.photo} alt="" className="h-full w-full object-cover" />
+      {card.photo ? (
+        <img src={card.photo} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <User size={compact ? 24 : 34} strokeWidth={1.4} className="text-[#b8b2a8]" />
+      )}
     </span>
   );
 
@@ -167,54 +173,30 @@ export function BusinessCard({
     return shell(
       <>
         <div className="flex items-center gap-3 pr-9">
-          {photo}
+          {avatar}
           <div className="min-w-0 flex-1">
             <EditableText
               value={card.displayName}
               placeholder="Name"
               align="left"
-              className="text-[17px] font-bold leading-tight tracking-tight text-[#1a1a1a]"
+              className="text-[16px] font-bold leading-tight tracking-tight text-[#1f1a14]"
               onChange={(v) => onUpdate({ displayName: v })}
             />
             <EditableText
               value={card.title}
               placeholder="Title"
               align="left"
-              className="mt-0.5 text-[12.5px] leading-snug text-[#5a5a5a]"
+              className="mt-0.5 text-[11.5px] leading-snug text-[#8d867b]"
               onChange={(v) => onUpdate({ title: v })}
-            />
-            <EditableText
-              value={card.subtitle}
-              placeholder="Subtitle"
-              align="left"
-              className="text-[11.5px] leading-snug text-[#8a8a8a]"
-              onChange={(v) => onUpdate({ subtitle: v })}
             />
           </div>
         </div>
 
         {items.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-[#f1f1f1] pt-3">
+          <div className="mt-3 flex flex-wrap justify-center gap-1.5">
             {items.map((item) => (
-              <span
-                key={item.id}
-                className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#f6f6f4] px-3 py-1.5 text-[12.5px] font-medium leading-snug text-[#1a1a1a]"
-              >
-                <ContactIcon
-                  type={item.type}
-                  size={13}
-                  className="shrink-0 text-[#8a8a8a]"
-                />
-                <span className="min-w-0 break-all">{itemDisplayValue(item)}</span>
-              </span>
+              <ContactPill key={item.id} item={item} small />
             ))}
-          </div>
-        )}
-
-        {card.location && (
-          <div className="mt-2.5 flex items-center gap-1 text-[10.5px] text-[#aaa]">
-            <MapPin size={11} strokeWidth={1.5} />
-            {card.location}
           </div>
         )}
       </>,
@@ -223,82 +205,72 @@ export function BusinessCard({
 
   return shell(
     <>
-      {photo}
+      {avatar}
 
-      <div className="mt-3 text-center">
+      <div className="mt-3.5 text-center">
         <EditableText
           value={card.displayName}
           placeholder="Name"
-          className="text-[22px] font-bold leading-tight tracking-tight text-[#1a1a1a]"
+          className="text-[20px] font-bold leading-tight tracking-tight text-[#1f1a14]"
           onChange={(v) => onUpdate({ displayName: v })}
         />
         <EditableText
           value={card.title}
           placeholder="Title"
-          className="mt-1 text-[14px] leading-snug text-[#5a5a5a]"
+          className="mt-1 text-[12px] leading-snug text-[#8d867b]"
           onChange={(v) => onUpdate({ title: v })}
         />
-        <EditableText
-          value={card.subtitle}
-          placeholder="Subtitle"
-          className="text-[12.5px] leading-snug text-[#8a8a8a]"
-          onChange={(v) => onUpdate({ subtitle: v })}
-        />
-        <EditableText
-          value={card.description}
-          placeholder="Tagline"
-          className="text-[11px] leading-snug text-[#b0b0b0]"
-          onChange={(v) => onUpdate({ description: v })}
-        />
+        {card.subtitle && (
+          <EditableText
+            value={card.subtitle}
+            placeholder="Subtitle"
+            className="text-[11px] leading-snug text-[#a8a29a]"
+            onChange={(v) => onUpdate({ subtitle: v })}
+          />
+        )}
       </div>
 
-      {groups.length > 0 && (
-        <div className="mt-4 space-y-3">
-          {groups.map((group) => (
-            <div key={group.key}>
-              <p className="mb-1.5 px-1 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-[#bcbcbc]">
-                {CONTACT_GROUP_LABELS[group.key]}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {group.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`flex items-start gap-2.5 rounded-2xl bg-[#faf9f7] px-3 py-2.5 ring-1 ring-[#f0efec] ${
-                      group.key === "files" || group.items.length === 1
-                        ? "col-span-2"
-                        : ""
-                    }`}
-                  >
-                    <ContactIcon
-                      type={item.type}
-                      size={16}
-                      className="mt-[3px] shrink-0 text-[#4a4a4a]"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[9.5px] leading-none text-[#a8a8a8]">
-                        {typeLabel(item.type)}
-                      </span>
-                      <span className="mt-1 block break-words text-[13px] font-semibold leading-snug text-[#1a1a1a]">
-                        {itemDisplayValue(item)}
-                      </span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {items.length > 0 && (
+        <div className="mt-5 flex flex-wrap justify-center gap-1.5">
+          {items.map((item) => (
+            <ContactPill key={item.id} item={item} />
           ))}
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-center gap-1 text-[11px] text-[#b0b0b0]">
-        <MapPin size={12} strokeWidth={1.5} />
-        <EditableText
-          value={card.location}
-          placeholder="Add location"
-          className="text-[11px] text-[#b0b0b0]"
-          onChange={(v) => onUpdate({ location: v })}
-        />
-      </div>
+      {card.location && (
+        <div className="mt-5 flex items-center justify-center gap-1 text-[11px] text-[#b0aaa0]">
+          <MapPin size={12} strokeWidth={1.5} />
+          <EditableText
+            value={card.location}
+            placeholder="Add location"
+            className="text-[11px] text-[#b0aaa0]"
+            onChange={(v) => onUpdate({ location: v })}
+          />
+        </div>
+      )}
     </>,
+  );
+}
+
+function NameSetup({ onChange }: { onChange: (v: string) => void }) {
+  const [value, setValue] = useState("");
+
+  return (
+    <div className="w-full px-2">
+      <input
+        value={value}
+        placeholder="Add your first and last name"
+        onChange={(e) => setValue(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && value.trim()) onChange(value.trim());
+        }}
+        onBlur={() => {
+          if (value.trim()) onChange(value.trim());
+        }}
+        className="w-full border-b border-[#e3dfd8] bg-transparent pb-2 text-center text-[14px] text-[#2b2620] outline-none placeholder:text-[#a8a29a]"
+      />
+    </div>
   );
 }

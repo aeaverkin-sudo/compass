@@ -18,9 +18,9 @@ interface PortfolioStackProps {
   onToggleActive: (itemId: string) => void;
 }
 
-const CARD_TOP_BROWSE = "24vh";
+const CARD_TOP_BROWSE = "26vh";
 const CARD_TOP_EDIT = "10vh";
-const FIELDS_PEEK = "calc(112px + env(safe-area-inset-bottom))";
+const FIELDS_PEEK = "calc(104px + env(safe-area-inset-bottom))";
 
 export function PortfolioStack({
   cards,
@@ -50,9 +50,23 @@ export function PortfolioStack({
 
   if (!card) return null;
 
+  // Before the card has a name there is nothing to scan or list yet.
+  if (!card.displayName.trim()) {
+    return (
+      <div className="absolute inset-0 z-20 flex items-center px-6">
+        <BusinessCard
+          card={card}
+          library={library}
+          variant="full"
+          onUpdate={(data) => onUpdate(card.id, data)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
-      className="absolute inset-x-0 bottom-0 z-20 flex flex-col px-4 compass-ease"
+      className="compass-ease absolute inset-x-0 bottom-0 z-20 flex flex-col px-4"
       style={{ top: editing ? CARD_TOP_EDIT : CARD_TOP_BROWSE }}
       {...swipe}
     >
@@ -78,7 +92,7 @@ export function PortfolioStack({
             <span
               key={c.id}
               className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === currentIndex ? "w-4 bg-[#9a9a9a]" : "w-1.5 bg-[#dcdcdc]"
+                i === currentIndex ? "w-4 bg-[#a09a90]" : "w-1.5 bg-[#d8d3cb]"
               }`}
             />
           ))}
@@ -97,7 +111,7 @@ export function PortfolioStack({
             onToggleEdit();
           }
         }}
-        className={`compass-fields compass-ease relative z-10 flex cursor-pointer flex-col overflow-hidden rounded-t-[26px] bg-white ${
+        className={`compass-fields compass-ease relative z-10 flex cursor-pointer flex-col overflow-hidden rounded-t-[24px] bg-white pt-4 ${
           editing ? "min-h-0 flex-1" : "shrink-0"
         } ${total > 1 ? "" : "mt-2.5"}`}
         style={{
@@ -105,10 +119,6 @@ export function PortfolioStack({
           paddingBottom: "calc(6px + env(safe-area-inset-bottom))",
         }}
       >
-        <div className="flex justify-center pt-2.5 pb-0.5">
-          <span className="h-1 w-9 rounded-full bg-[#e6e6e4]" />
-        </div>
-
         <DataLayer
           card={card}
           library={library}

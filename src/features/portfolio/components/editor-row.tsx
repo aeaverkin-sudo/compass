@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ContactItem } from "@/shared/types";
-import { buildContactItem, typeLabel } from "@/features/portfolio/services/contact-item";
+import { buildContactItem } from "@/features/portfolio/services/contact-item";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { ContactIcon } from "./contact-icon";
 
@@ -38,15 +38,15 @@ export function EditorRow({
   if (editing) {
     return (
       <div
-        className="flex h-[52px] shrink-0 items-center border-b border-[#f4f4f2]"
+        className="flex h-12 shrink-0 items-center border-b border-[#f2f0ec]"
         onClick={(e) => e.stopPropagation()}
       >
         <input
           autoFocus
           type="text"
           defaultValue={isEmpty ? "" : item.value}
-          placeholder="Paste link, email or phone"
-          className="min-w-0 flex-1 bg-transparent text-[14px] text-[#1a1a1a] outline-none placeholder:text-[#c4c4c4]"
+          placeholder="link, email, phone, file…"
+          className="min-w-0 flex-1 bg-transparent text-[13.5px] text-[#2b2620] outline-none placeholder:text-[#c0b9ae]"
           onChange={(e) => {
             if (e.target.value.trim()) pushValue(e.target.value);
           }}
@@ -66,28 +66,19 @@ export function EditorRow({
   }
 
   return (
-    <div className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2]">
+    <div className="flex h-12 shrink-0 items-center gap-3 border-b border-[#f2f0ec]">
       <span {...press} className="compass-press flex min-w-0 flex-1 items-center gap-2.5">
         <ContactIcon
           type={item.type}
-          size={15}
-          className={`shrink-0 ${isActive ? "text-[#4a4a4a]" : "text-[#c9c9c9]"}`}
+          size={14}
+          className={`shrink-0 ${isActive ? "text-[#8d867b]" : "text-[#cdc7bd]"}`}
         />
-        <span className="min-w-0 flex-1">
-          <span
-            className={`block text-[9.5px] leading-none ${
-              isActive ? "text-[#a8a8a8]" : "text-[#cdcdcd]"
-            }`}
-          >
-            {typeLabel(item.type)}
-          </span>
-          <span
-            className={`mt-1 block truncate text-[14px] leading-snug ${
-              isActive ? "font-semibold text-[#1a1a1a]" : "text-[#b4b4b4]"
-            }`}
-          >
-            {displayValue}
-          </span>
+        <span
+          className={`min-w-0 flex-1 truncate text-[13.5px] leading-snug ${
+            isActive ? "text-[#2b2620]" : "text-[#bdb7ad]"
+          }`}
+        >
+          {displayValue}
         </span>
       </span>
 
@@ -99,8 +90,10 @@ export function EditorRow({
           onToggleActive();
         }}
         aria-label={isActive ? "Remove from card" : "Add to card"}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[17px] font-light leading-none ${
-          isActive ? "bg-[#f4f4f2] text-[#1a1a1a]" : "text-[#c4c4c4]"
+        className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-[15px] font-light leading-none ring-1 ${
+          isActive
+            ? "text-[#8d867b] ring-[#e9e6e0]"
+            : "text-[#c0b9ae] ring-[#f0ede8]"
         }`}
       >
         {isActive ? "−" : "+"}

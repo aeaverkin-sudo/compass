@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #faf9f7;
+  --background: #ece9e3;
   --foreground: #1a1a1a;
   --compass-orange: #e85d04;
 }
@@ -44,12 +44,12 @@ body {
 
 .compass-card {
   box-shadow:
-    0 1px 2px rgba(20, 16, 10, 0.04),
-    0 12px 32px -8px rgba(20, 16, 10, 0.14);
+    0 1px 2px rgba(30, 24, 14, 0.04),
+    0 14px 34px -10px rgba(30, 24, 14, 0.16);
 }
 
 .compass-fields {
-  box-shadow: 0 -8px 28px -12px rgba(20, 16, 10, 0.12);
+  box-shadow: 0 -8px 26px -14px rgba(30, 24, 14, 0.14);
 }
 
 /* Long-press targets must not trigger iOS text selection or callout menus. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Share, MoreHorizontal } from "lucide-react";
+import { Share } from "lucide-react";
 import { useAppStore } from "@/shared/store/app-store";
 import {
   buildCardSnapshot,
@@ -127,22 +127,19 @@ export function PortfolioScreen() {
   if (!card) return null;
 
   return (
-    <div className="compass-main relative mx-auto h-[100dvh] max-w-lg overflow-hidden bg-[#faf9f7]">
+    <div className="compass-main relative mx-auto h-[100dvh] max-w-lg overflow-hidden bg-[#ece9e3]">
       <header
-        className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4"
+        className="absolute inset-x-0 top-0 z-30 flex items-center px-4"
         style={{ paddingTop: "calc(10px + env(safe-area-inset-top))" }}
       >
         <button
           type="button"
           onClick={handleShare}
           disabled={!linkShareUrl}
-          className="p-1.5 text-[#1a1a1a] disabled:opacity-25"
+          className="p-1.5 text-[#3a3530] disabled:opacity-25"
           aria-label="Share card"
         >
-          <Share size={20} strokeWidth={1.5} />
-        </button>
-        <button type="button" className="p-1.5 text-[#1a1a1a]/50" aria-label="More">
-          <MoreHorizontal size={20} strokeWidth={1.5} />
+          <Share size={19} strokeWidth={1.6} />
         </button>
       </header>
 
