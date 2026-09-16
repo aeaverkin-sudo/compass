@@ -2,17 +2,44 @@ import { nanoid } from "nanoid";
 import type { Card, CardSnapshot, ContactItem, ContactType, NextScanAddon } from "@/shared/types";
 
 const SOCIAL: Record<string, ContactType> = {
-  "instagram.com": "instagram",
   "linkedin.com": "linkedin",
   "t.me": "telegram",
   "telegram.me": "telegram",
   "spotify.com": "audio",
 };
 
+const IG_HANDLE = /^[a-zA-Z0-9._]{1,30}$/;
+const IG_RESERVED = new Set(["p", "reel", "reels", "stories", "explore", "accounts"]);
+
 /** Only a value that is entirely a domain counts as a link. */
 const DOMAIN = /^(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const PHONE = /^\+?[\d\s()-]{7,}$/;
+
+/** @handle or instagram.com/handle → canonical display + URL. */
+export function parseInstagram(raw: string): { display: string; url: string } | null {
+  const v = raw.trim();
+  if (!v) return null;
+
+  if (v.startsWith("@")) {
+    const handle = v.slice(1).split(/[/?#]/)[0];
+    if (IG_HANDLE.test(handle)) {
+      return { display: `@${handle}`, url: `https://instagram.com/${handle}` };
+    }
+    return null;
+  }
+
+  try {
+    const url = new URL(v.startsWith("http") ? v : `https://${v}`);
+    const host = url.hostname.replace(/^www\./, "");
+    if (host !== "instagram.com") return null;
+    const handle = url.pathname.split("/").filter(Boolean)[0];
+    if (!handle || !IG_HANDLE.test(handle) || IG_RESERVED.has(handle.toLowerCase())) return null;
+    return { display: `@${handle}`, url: `https://instagram.com/${handle}` };
+  } catch {
+    return null;
+  }
+}
 
 export function detectContactType(raw: string, mime?: string): ContactType {
   const v = raw.trim();
@@ -20,6 +47,7 @@ export function detectContactType(raw: string, mime?: string): ContactType {
   if (mime === "application/pdf" || v.startsWith("data:application/pdf")) return "pdf";
   if (EMAIL.test(v)) return "email";
   if (PHONE.test(v)) return "phone";
+  if (parseInstagram(v)) return "instagram";
 
   // A domain mentioned inside a sentence stays plain text, never a link.
   if (!DOMAIN.test(v)) return "text";
@@ -59,17 +87,23 @@ export function typeLabel(type: ContactType): string {
 export function buildContactItem(value: string, mime?: string, label?: string): ContactItem {
   const type = detectContactType(value, mime);
   const now = new Date().toISOString();
-  let url = value;
+
+  const ig = type === "instagram" ? parseInstagram(value) : null;
+  const normalizedValue = ig?.display ?? value;
+
+  let url = normalizedValue;
   if (type === "text") url = "";
-  else if (type === "email") url = `mailto:${value}`;
-  else if (type === "phone") url = `tel:${value.replace(/\s/g, "")}`;
-  else if (!value.startsWith("http") && !value.startsWith("data:")) url = `https://${value}`;
+  else if (type === "email") url = `mailto:${normalizedValue}`;
+  else if (type === "phone") url = `tel:${normalizedValue.replace(/\s/g, "")}`;
+  else if (ig) url = ig.url;
+  else if (!normalizedValue.startsWith("http") && !normalizedValue.startsWith("data:"))
+    url = `https://${normalizedValue}`;
 
   return {
     id: nanoid(),
     type,
     label: label?.trim() || typeLabel(type),
-    value,
+    value: normalizedValue,
     url,
     order: 0,
     createdAt: now,
@@ -147,14 +181,6 @@ function bareDomain(raw: string): string {
     .replace(/\/$/, "");
 }
 
-/** Social profiles read as handles rather than full URLs. */
-function socialHandle(raw: string): string {
-  if (raw.startsWith("@")) return raw;
-  const segments = bareDomain(raw).split("/");
-  const handle = segments[1]?.replace(/\/$/, "");
-  return handle ? `@${handle}` : bareDomain(raw);
-}
-
 export function itemDisplayValue(item: ContactItem): string {
   const raw = (item.value.trim() || item.label).trim();
   if (!raw) return "";
@@ -164,7 +190,10 @@ export function itemDisplayValue(item: ContactItem): string {
     const name = raw.split("?")[0].split("/").pop();
     return name || raw;
   }
-  if (item.type === "instagram") return socialHandle(raw);
+  if (item.type === "instagram") {
+    const ig = parseInstagram(raw);
+    return ig?.display ?? (raw.startsWith("@") ? raw : `@${raw}`);
+  }
   if (item.type === "text") return raw;
   return bareDomain(raw);
 }

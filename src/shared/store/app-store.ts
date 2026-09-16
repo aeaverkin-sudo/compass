@@ -218,6 +218,7 @@ export const useAppStore = create<AppState>()(
             if (data.value !== undefined) {
               const detected = buildContactItem(data.value);
               merged.type = detected.type;
+              merged.value = detected.value;
               merged.url = detected.url;
               if (!data.label && !item.label) merged.label = detected.label;
             }

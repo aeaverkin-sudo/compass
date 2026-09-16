@@ -7,6 +7,7 @@ import {
   buildCardSnapshot,
   isCardReady,
   isContactFilled,
+  parseInstagram,
 } from "@/features/portfolio/services/contact-item";
 import {
   QR_SIZE,
@@ -76,10 +77,13 @@ export function PortfolioScreen() {
     ?.map((a) => `${a.id}:${a.type}:${a.content.slice(0, 24)}`)
     .join("|") ?? "";
 
-  // Backfill: filled library rows belong on the card chips too.
+  // Backfill: sync card chips + normalize instagram handles/urls.
   useEffect(() => {
     if (!card) return;
     contactItems.filter(isContactFilled).forEach((item) => {
+      if (parseInstagram(item.value) && item.type !== "instagram") {
+        updateContactItem(item.id, { value: item.value });
+      }
       if (!card.contactItemIds.includes(item.id)) {
         addItemToCard(card.id, item.id);
       }
