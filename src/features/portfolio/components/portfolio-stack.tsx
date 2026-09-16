@@ -11,13 +11,15 @@ interface PortfolioStackProps {
   library: ContactItem[];
   editing: boolean;
   onIndexChange: (index: number) => void;
-  onEnterEdit: () => void;
-  onExitEdit: () => void;
+  onToggleEdit: () => void;
   onUpdate: (id: string, data: Partial<Card>) => void;
   onAddItem: () => void;
   onUpdateItem: (id: string, data: Partial<ContactItem>) => void;
   onToggleActive: (itemId: string) => void;
 }
+
+const CARD_TOP_BROWSE = "31vh";
+const CARD_TOP_EDIT = "14vh";
 
 export function PortfolioStack({
   cards,
@@ -25,8 +27,7 @@ export function PortfolioStack({
   library,
   editing,
   onIndexChange,
-  onEnterEdit,
-  onExitEdit,
+  onToggleEdit,
   onUpdate,
   onAddItem,
   onUpdateItem,
@@ -35,7 +36,7 @@ export function PortfolioStack({
   const total = cards.length;
   const card = cards[currentIndex];
 
-  const horizontalSwipe = useSwipe({
+  const swipe = useSwipe({
     onSwipeLeft: () => {
       if (editing || total <= 1) return;
       onIndexChange((currentIndex + 1) % total);
@@ -46,61 +47,67 @@ export function PortfolioStack({
     },
   });
 
-  const cardSwipe = useSwipe({
-    onSwipeUp: () => {
-      if (!editing) onEnterEdit();
-    },
-    onSwipeDown: () => {
-      if (editing) onExitEdit();
-    },
-  });
-
   if (!card) return null;
 
   return (
     <div
-      className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
-      {...horizontalSwipe}
+      className="absolute inset-x-0 bottom-0 z-20 flex flex-col px-4 compass-ease"
+      style={{ top: editing ? CARD_TOP_EDIT : CARD_TOP_BROWSE }}
+      {...swipe}
     >
-      {/* Floating card layer */}
       <div
-        className="relative z-20 shrink-0 px-3 transition-all duration-[400ms] ease-out"
-        style={{
-          marginTop: editing ? "-10vh" : "4px",
-          transform: editing ? "scale(0.94)" : "scale(1)",
-          transformOrigin: "top center",
-        }}
-        {...cardSwipe}
+        className={`flex min-h-0 ${
+          editing ? "shrink-0" : "flex-1 items-start overflow-hidden"
+        }`}
       >
-        <BusinessCard
-          card={card}
-          library={library}
-          variant={editing ? "preview" : "full"}
-          onUpdate={(data) => onUpdate(card.id, data)}
-          onCloseEdit={onExitEdit}
-          onBlankAreaTap={!editing ? onEnterEdit : undefined}
-        />
+        <div className={editing ? "w-full" : "max-h-full w-full overflow-y-auto scrollbar-hide"}>
+          <BusinessCard
+            card={card}
+            library={library}
+            variant={editing ? "preview" : "full"}
+            onUpdate={(data) => onUpdate(card.id, data)}
+            onToggleEdit={onToggleEdit}
+          />
+        </div>
       </div>
 
-      {/* Data layer — always visible, expands in edit mode */}
+      {total > 1 && (
+        <div className="flex shrink-0 justify-center gap-1.5 py-2.5">
+          {cards.map((c, i) => (
+            <span
+              key={c.id}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                i === currentIndex ? "w-4 bg-[#9a9a9a]" : "w-1.5 bg-[#dcdcdc]"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+
       <div
-        className={`relative z-10 mx-3 flex min-h-0 flex-col rounded-t-2xl bg-white transition-all duration-[400ms] ease-out ${
-          editing ? "mt-1 flex-1 shadow-none" : "-mt-3 flex-shrink-0 shadow-[0_-2px_20px_rgba(0,0,0,0.06)]"
-        }`}
-        style={{
-          paddingBottom: editing ? 0 : "calc(8px + env(safe-area-inset-bottom))",
+        role="button"
+        tabIndex={0}
+        aria-expanded={editing}
+        aria-label={editing ? "Collapse fields" : "Open fields"}
+        onClick={onToggleEdit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggleEdit();
+          }
         }}
-        role={!editing ? "button" : undefined}
-        tabIndex={!editing ? 0 : undefined}
-        onClick={!editing ? onEnterEdit : undefined}
-        onKeyDown={
-          !editing
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") onEnterEdit();
-              }
-            : undefined
-        }
+        className={`compass-fields compass-ease relative z-10 flex cursor-pointer flex-col overflow-hidden rounded-t-[26px] bg-white ${
+          editing ? "min-h-0 flex-1" : "shrink-0"
+        } ${total > 1 ? "" : "mt-2.5"}`}
+        style={{
+          height: editing ? undefined : "calc(148px + env(safe-area-inset-bottom))",
+          paddingBottom: "calc(6px + env(safe-area-inset-bottom))",
+        }}
       >
+        <div className="flex justify-center pt-2.5 pb-0.5">
+          <span className="h-1 w-9 rounded-full bg-[#e6e6e4]" />
+        </div>
+
         <DataLayer
           card={card}
           library={library}
@@ -110,19 +117,6 @@ export function PortfolioStack({
           onToggleActive={onToggleActive}
         />
       </div>
-
-      {total > 1 && !editing && (
-        <div className="flex shrink-0 justify-center gap-1.5 py-2">
-          {cards.map((c, i) => (
-            <div
-              key={c.id}
-              className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                i === currentIndex ? "bg-[#666]" : "bg-[#ddd]"
-              }`}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

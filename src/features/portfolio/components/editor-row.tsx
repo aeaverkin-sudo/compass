@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { ContactItem } from "@/shared/types";
 import { buildContactItem, typeLabel } from "@/features/portfolio/services/contact-item";
-import { fileToDataUrl } from "@/shared/lib/utils";
+import { ContactIcon } from "./contact-icon";
 
 interface EditorRowProps {
   item: ContactItem;
@@ -23,63 +23,45 @@ export function EditorRow({
   onToggleActive,
 }: EditorRowProps) {
   const [editing, setEditing] = useState(Boolean(autoEdit && isEmpty));
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  const applyValue = async (raw: string, mime?: string) => {
-    const value = raw.trim();
-    if (!value) return;
-    const built = buildContactItem(value, mime);
+  const pushValue = (raw: string) => {
+    const built = buildContactItem(raw);
     onUpdate({
-      value: built.value,
+      value: raw,
       type: built.type,
       url: built.url,
       label: item.label || built.label,
     });
-    setEditing(false);
   };
 
-  const displayType = typeLabel(item.type);
-  const displayValue = item.value || item.label;
+  const displayValue = (item.value || item.label)
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "");
 
-  if (isEmpty && (editing || autoEdit)) {
+  if (editing) {
     return (
-      <div className="flex h-11 shrink-0 items-center border-b border-[#f5f5f5] py-1">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="*/*"
-          className="hidden"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            await applyValue(await fileToDataUrl(file), file.type);
-            e.target.value = "";
-          }}
-        />
+      <div
+        className="flex h-[52px] shrink-0 items-center border-b border-[#f4f4f2]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <input
           autoFocus
           type="text"
-          placeholder="Paste link, email, phone…"
-          className="min-w-0 flex-1 bg-transparent py-1 text-[14px] text-[#1a1a1a] outline-none placeholder:text-[#bbb]"
+          defaultValue={isEmpty ? "" : displayValue}
+          placeholder="Paste link, email or phone"
+          className="min-w-0 flex-1 bg-transparent text-[14px] text-[#1a1a1a] outline-none placeholder:text-[#c4c4c4]"
           onChange={(e) => {
-            const v = e.target.value;
-            if (v.trim()) {
-              const built = buildContactItem(v);
-              onUpdate({
-                value: v,
-                type: built.type,
-                url: built.url,
-                label: item.label || built.label,
-              });
-            }
+            if (e.target.value.trim()) pushValue(e.target.value);
           }}
           onPaste={(e) => {
             const text = e.clipboardData.getData("text");
-            if (text) applyValue(text);
+            if (text.trim()) pushValue(text.trim());
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") setEditing(false);
           }}
           onBlur={() => {
-            if (!item.value.trim()) setEditing(true);
-            else setEditing(false);
+            if (!isEmpty || item.value.trim()) setEditing(false);
           }}
         />
       </div>
@@ -87,80 +69,51 @@ export function EditorRow({
   }
 
   return (
-    <div className="flex h-11 shrink-0 items-center gap-3 border-b border-[#f5f5f5] py-1">
-      <input
-        ref={fileRef}
-        type="file"
-        accept="*/*"
-        className="hidden"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          if (!file) return;
-          await applyValue(await fileToDataUrl(file), file.type);
-          e.target.value = "";
-        }}
-      />
-
-      {editing ? (
-        <input
-          autoFocus
-          type="text"
-          defaultValue={displayValue}
-          placeholder="Paste link, email, phone…"
-          className="min-w-0 flex-1 border-b border-[#1a1a1a]/20 bg-transparent py-1 text-[14px] outline-none"
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v.trim()) {
-              const built = buildContactItem(v);
-              onUpdate({
-                value: v,
-                type: built.type,
-                url: built.url,
-                label: item.label || built.label,
-              });
-            }
-          }}
-          onPaste={(e) => {
-            const text = e.clipboardData.getData("text");
-            if (text) applyValue(text);
-          }}
-          onBlur={() => setEditing(false)}
+    <div
+      className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2]"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+      >
+        <ContactIcon
+          type={item.type}
+          size={15}
+          className={`shrink-0 ${isActive ? "text-[#4a4a4a]" : "text-[#c9c9c9]"}`}
         />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="flex min-w-0 flex-1 items-baseline gap-3 text-left"
-        >
+        <span className="min-w-0 flex-1">
           <span
-            className={`w-[88px] shrink-0 text-[13px] ${
-              isActive ? "font-medium text-[#1a1a1a]" : "text-[#888]"
+            className={`block text-[10px] leading-none ${
+              isActive ? "text-[#a3a3a3]" : "text-[#c9c9c9]"
             }`}
           >
-            {displayType}
+            {typeLabel(item.type)}
           </span>
           <span
-            className={`min-w-0 flex-1 break-words text-[13px] leading-snug ${
-              isActive ? "font-semibold text-[#1a1a1a]" : "text-[#999]"
+            className={`mt-1 block truncate text-[14px] leading-snug ${
+              isActive ? "font-semibold text-[#1a1a1a]" : "text-[#b4b4b4]"
             }`}
           >
-            {displayValue.replace(/^https?:\/\//, "").replace(/^www\./, "")}
+            {displayValue}
           </span>
-        </button>
-      )}
+        </span>
+      </button>
 
-      {!editing && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleActive();
-          }}
-          className="shrink-0 px-1 text-[18px] font-light leading-none text-[#1a1a1a]"
-        >
-          {isActive ? "−" : "+"}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleActive();
+        }}
+        aria-label={isActive ? "Remove from card" : "Add to card"}
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[17px] font-light leading-none transition-colors ${
+          isActive ? "bg-[#f4f4f2] text-[#1a1a1a]" : "text-[#c4c4c4]"
+        }`}
+      >
+        {isActive ? "−" : "+"}
+      </button>
     </div>
   );
 }

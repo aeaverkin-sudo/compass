@@ -133,6 +133,38 @@ export function itemFullLine(item: ContactItem): string {
   return `${typeLabel(item.type)} ${value}`;
 }
 
+export type ContactGroupKey = "direct" | "social" | "web" | "files";
+
+const GROUP_OF: Record<ContactType, ContactGroupKey> = {
+  phone: "direct",
+  email: "direct",
+  instagram: "social",
+  linkedin: "social",
+  telegram: "social",
+  website: "web",
+  link: "web",
+  custom: "web",
+  pdf: "files",
+};
+
+const GROUP_ORDER: ContactGroupKey[] = ["direct", "social", "web", "files"];
+
+export const CONTACT_GROUP_LABELS: Record<ContactGroupKey, string> = {
+  direct: "Contact",
+  social: "Social",
+  web: "Links",
+  files: "Files",
+};
+
+export function groupContactItems(
+  items: ContactItem[],
+): { key: ContactGroupKey; items: ContactItem[] }[] {
+  return GROUP_ORDER.map((key) => ({
+    key,
+    items: items.filter((i) => GROUP_OF[i.type] === key),
+  })).filter((group) => group.items.length > 0);
+}
+
 export function itemCompactLabel(item: ContactItem): string {
   return `${typeLabel(item.type)} · ${itemDisplayValue(item).replace(/^@/, "")}`;
 }

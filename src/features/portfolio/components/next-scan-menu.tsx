@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { FileText, Mic, Camera, Plus, Trash2, Search, ChevronLeft } from "lucide-react";
+import { FileText, Mic, Camera, Plus, ChevronLeft } from "lucide-react";
 import type { NextScanAddon } from "@/shared/types";
 import { MAX_NEXT_SCAN_NOTES } from "@/shared/types";
 import { fileToDataUrl } from "@/shared/lib/utils";
@@ -20,15 +20,16 @@ const TYPE_LABELS: Record<NextScanAddon["type"], string> = {
   voice: "Voice note",
 };
 
+const ADD_ROWS: { type: NextScanAddon["type"]; label: string }[] = [
+  { type: "text", label: "Add a short text" },
+  { type: "selfie", label: "Add a selfie" },
+  { type: "voice", label: "Add a voice note" },
+];
+
 export function NextScanAddonIcon({ type }: { type: NextScanAddon["type"] }) {
   if (type === "text") return <FileText size={16} strokeWidth={1.5} />;
   if (type === "voice") return <Mic size={16} strokeWidth={1.5} />;
   return <Camera size={16} strokeWidth={1.5} />;
-}
-
-function addonPreview(addon: NextScanAddon): string {
-  if (addon.type === "selfie") return "Selfie";
-  return addon.content.slice(0, 40) + (addon.content.length > 40 ? "…" : "");
 }
 
 export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps) {
@@ -51,6 +52,9 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
     setViewingId(null);
   };
 
+  const addonForType = (type: NextScanAddon["type"]) =>
+    addons.find((a) => a.type === type);
+
   const confirmAddon = (type: NextScanAddon["type"], content: string) => {
     const next: NextScanAddon = {
       id: nanoid(),
@@ -68,6 +72,7 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
   };
 
   const handleVoice = () => {
+    if (addonForType("voice") || atMax) return;
     const snapshot = [...addons];
     closeMenu();
     setTimeout(() => {
@@ -84,12 +89,24 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
   };
 
   const openSelfiePicker = () => {
+    if (addonForType("selfie") || atMax) return;
     closeMenu();
     setTimeout(() => selfieRef.current?.click(), 50);
   };
 
+  const handleAddRow = (type: NextScanAddon["type"]) => {
+    if (addonForType(type)) return;
+    if (atMax) return;
+    if (type === "text") setTextMode(true);
+    else if (type === "selfie") openSelfiePicker();
+    else if (type === "voice") handleVoice();
+  };
+
   return (
-    <div className={compact ? "relative shrink-0" : "absolute right-3 top-3 z-10"}>
+    <div
+      data-no-toggle
+      className={compact ? "relative shrink-0" : "absolute right-3 top-3 z-10"}
+    >
       <button
         type="button"
         onClick={(e) => {
@@ -148,7 +165,7 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
                   }}
                   className="mt-4 w-full border-t border-[#eee] pt-3 text-[12px] text-[#888]"
                 >
-                  Remove
+                  Delete
                 </button>
               </div>
             ) : textMode ? (
@@ -179,98 +196,64 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
                   Add
                 </button>
               </div>
-            ) : atMax ? (
-              <>
-                {addons.map((addon, index) => (
-                  <div
-                    key={addon.id}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2.5 hover:bg-[#f7f7f7]"
-                  >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E85D04] text-[10px] font-semibold text-white">
-                      {index + 1}
-                    </span>
-                    <NextScanAddonIcon type={addon.type} />
-                    <span className="min-w-0 flex-1 truncate text-[13px] text-[#1a1a1a]">
-                      {TYPE_LABELS[addon.type]}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setViewingId(addon.id)}
-                      className="shrink-0 p-1.5 text-[#888] hover:text-[#1a1a1a]"
-                      aria-label="View note"
-                    >
-                      <Search size={15} strokeWidth={1.5} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeAddon(addon.id)}
-                      className="shrink-0 p-1.5 text-[#888] hover:text-[#c00]"
-                      aria-label="Delete note"
-                    >
-                      <Trash2 size={15} strokeWidth={1.5} />
-                    </button>
-                  </div>
-                ))}
-              </>
             ) : (
               <>
-                {addons.map((addon, index) => (
-                  <div
-                    key={addon.id}
-                    className="flex items-center gap-2 rounded-lg px-3 py-1.5 hover:bg-[#fafafa]"
-                  >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E85D04] text-[10px] font-semibold text-white">
-                      {index + 1}
-                    </span>
-                    <NextScanAddonIcon type={addon.type} />
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-[#666]">
-                      {addonPreview(addon)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setViewingId(addon.id)}
-                      className="shrink-0 p-1 text-[#888] hover:text-[#1a1a1a]"
-                      aria-label="View note"
-                    >
-                      <Search size={14} strokeWidth={1.5} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeAddon(addon.id)}
-                      className="shrink-0 p-1 text-[#888] hover:text-[#c00]"
-                      aria-label="Delete note"
-                    >
-                      <Trash2 size={14} strokeWidth={1.5} />
-                    </button>
-                  </div>
-                ))}
+                {ADD_ROWS.map(({ type, label }) => {
+                  const addon = addonForType(type);
+                  const canAdd = !addon && !atMax;
 
-                {addons.length > 0 && <div className="my-1 border-t border-[#f0f0f0]" />}
-
-                <button
-                  type="button"
-                  onClick={() => setTextMode(true)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] hover:bg-[#f7f7f7]"
-                >
-                  <FileText size={16} strokeWidth={1.5} />
-                  Add a short text
-                </button>
-                <button
-                  type="button"
-                  onClick={openSelfiePicker}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] hover:bg-[#f7f7f7]"
-                >
-                  <Camera size={16} strokeWidth={1.5} />
-                  Add a selfie
-                </button>
-                <button
-                  type="button"
-                  onClick={handleVoice}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] hover:bg-[#f7f7f7]"
-                >
-                  <Mic size={16} strokeWidth={1.5} />
-                  Add a voice note
-                </button>
+                  return (
+                    <div
+                      key={type}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${
+                        canAdd ? "cursor-pointer hover:bg-[#f7f7f7]" : ""
+                      }`}
+                      role={canAdd ? "button" : undefined}
+                      tabIndex={canAdd ? 0 : undefined}
+                      onClick={canAdd ? () => handleAddRow(type) : undefined}
+                      onKeyDown={
+                        canAdd
+                          ? (e) => {
+                              if (e.key === "Enter" || e.key === " ") handleAddRow(type);
+                            }
+                          : undefined
+                      }
+                    >
+                      <NextScanAddonIcon type={type} />
+                      <span
+                        className={`min-w-0 flex-1 text-[13px] ${
+                          addon ? "text-[#1a1a1a]" : "text-[#1a1a1a]"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                      {addon && (
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewingId(addon.id);
+                            }}
+                            className="text-[12px] text-[#666] hover:text-[#1a1a1a]"
+                          >
+                            Open
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeAddon(addon.id);
+                            }}
+                            className="text-[12px] text-[#888] hover:text-[#c00]"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 {addons.length === 0 && (
                   <p className="px-3 py-2 text-[10px] text-[#aaa]">For the next scan only.</p>
                 )}

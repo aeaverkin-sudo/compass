@@ -2,7 +2,12 @@
 
 import { useMemo } from "react";
 import type { Card, ContactItem } from "@/shared/types";
-import { isContactFilled, sortContactList, typeLabel } from "@/features/portfolio/services/contact-item";
+import {
+  isContactFilled,
+  sortContactList,
+  typeLabel,
+} from "@/features/portfolio/services/contact-item";
+import { ContactIcon } from "./contact-icon";
 import { EditorRow } from "./editor-row";
 
 interface DataLayerProps {
@@ -14,34 +19,35 @@ interface DataLayerProps {
   onToggleActive: (itemId: string) => void;
 }
 
-function PeekRow({
-  item,
-  isActive,
-}: {
-  item: ContactItem;
-  isActive: boolean;
-}) {
+function PeekRow({ item, isActive }: { item: ContactItem; isActive: boolean }) {
   const displayValue = item.value.replace(/^https?:\/\//, "").replace(/^www\./, "");
 
   return (
-    <div className="flex min-h-[44px] items-center gap-3 border-b border-[#f0f0f0] py-2">
-      <span
-        className={`w-[88px] shrink-0 text-[13px] ${
-          isActive ? "font-medium text-[#1a1a1a]" : "text-[#aaa]"
-        }`}
-      >
-        {typeLabel(item.type)}
+    <div className="flex h-[52px] shrink-0 items-center gap-2.5 border-b border-[#f4f4f2]">
+      <ContactIcon
+        type={item.type}
+        size={15}
+        className={`shrink-0 ${isActive ? "text-[#4a4a4a]" : "text-[#c9c9c9]"}`}
+      />
+      <span className="min-w-0 flex-1">
+        <span
+          className={`block text-[10px] leading-none ${
+            isActive ? "text-[#a3a3a3]" : "text-[#c9c9c9]"
+          }`}
+        >
+          {typeLabel(item.type)}
+        </span>
+        <span
+          className={`mt-1 block truncate text-[14px] leading-snug ${
+            isActive ? "font-semibold text-[#1a1a1a]" : "text-[#b4b4b4]"
+          }`}
+        >
+          {displayValue}
+        </span>
       </span>
       <span
-        className={`min-w-0 flex-1 break-words text-[13px] leading-snug ${
-          isActive ? "font-semibold text-[#1a1a1a]" : "text-[#bbb]"
-        }`}
-      >
-        {displayValue}
-      </span>
-      <span
-        className={`shrink-0 text-[18px] font-light leading-none ${
-          isActive ? "text-[#1a1a1a]" : "text-[#ccc]"
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[17px] font-light leading-none ${
+          isActive ? "bg-[#f4f4f2] text-[#1a1a1a]" : "text-[#c4c4c4]"
         }`}
       >
         {isActive ? "−" : "+"}
@@ -66,66 +72,78 @@ export function DataLayer({
     [filled, card.contactItemIds],
   );
 
-  if (editing) {
-    return (
-      <div
-        data-wheel-scroll
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 scrollbar-hide"
-        style={{ paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}
-      >
-        {sorted.map((item) => (
-          <EditorRow
-            key={item.id}
-            item={item}
-            isActive={card.contactItemIds.includes(item.id)}
-            isEmpty={false}
-            onUpdate={(data) => onUpdateItem(item.id, data)}
-            onToggleActive={() => onToggleActive(item.id)}
-          />
-        ))}
-
-        {draft && (
-          <EditorRow
-            key={draft.id}
-            item={draft}
-            isActive={false}
-            isEmpty
-            autoEdit
-            onUpdate={(data) => onUpdateItem(draft.id, data)}
-            onToggleActive={() => onToggleActive(draft.id)}
-          />
-        )}
-
-        {!draft && (
-          <div className="flex justify-center py-4">
-            <button
-              type="button"
-              onClick={onAddItem}
-              className="text-[24px] font-light leading-none text-[#1a1a1a]"
-              aria-label="Add new item"
-            >
-              +
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
+  const addRow = (
+    <div
+      role={editing ? "button" : undefined}
+      tabIndex={editing ? 0 : undefined}
+      aria-label="Add a new field"
+      onClick={
+        editing
+          ? (e) => {
+              e.stopPropagation();
+              onAddItem();
+            }
+          : undefined
+      }
+      onKeyDown={
+        editing
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onAddItem();
+              }
+            }
+          : undefined
+      }
+      className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2]"
+    >
+      <span className="min-w-0 flex-1 text-[14px] text-[#c9c9c9]">Add anything</span>
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[19px] font-light leading-none text-[#1a1a1a]">
+        +
+      </span>
+    </div>
+  );
 
   return (
-    <div className="px-5 pb-3 pt-1">
-      {sorted.map((item) => (
-        <PeekRow
-          key={item.id}
-          item={item}
-          isActive={card.contactItemIds.includes(item.id)}
+    <div
+      data-wheel-scroll={editing ? "" : undefined}
+      className={`flex min-h-0 flex-col px-5 ${
+        editing ? "flex-1 overflow-y-auto overscroll-contain scrollbar-hide" : "overflow-hidden"
+      }`}
+    >
+      {editing
+        ? sorted.map((item) => (
+            <EditorRow
+              key={item.id}
+              item={item}
+              isActive={card.contactItemIds.includes(item.id)}
+              isEmpty={false}
+              onUpdate={(data) => onUpdateItem(item.id, data)}
+              onToggleActive={() => onToggleActive(item.id)}
+            />
+          ))
+        : sorted.map((item) => (
+            <PeekRow
+              key={item.id}
+              item={item}
+              isActive={card.contactItemIds.includes(item.id)}
+            />
+          ))}
+
+      {editing && draft && (
+        <EditorRow
+          key={draft.id}
+          item={draft}
+          isActive={false}
+          isEmpty
+          autoEdit
+          onUpdate={(data) => onUpdateItem(draft.id, data)}
+          onToggleActive={() => onToggleActive(draft.id)}
         />
-      ))}
-      {!draft && (
-        <div className="flex justify-center py-3">
-          <span className="text-[22px] font-light leading-none text-[#ccc]">+</span>
-        </div>
       )}
+
+      {!draft && addRow}
     </div>
   );
 }

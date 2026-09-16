@@ -1,20 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Share, MoreHorizontal } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 interface QrZoneProps {
   url: string;
   visible: boolean;
   flashKey: number;
-  onShare: () => void;
-  shareReady: boolean;
 }
 
-export function QrZone({ url, visible, flashKey, onShare, shareReady }: QrZoneProps) {
+export function QrZone({ url, visible, flashKey }: QrZoneProps) {
   const [flashing, setFlashing] = useState(false);
-  const qrSize = 168;
 
   useEffect(() => {
     if (!visible || flashKey === 0) return;
@@ -25,37 +21,30 @@ export function QrZone({ url, visible, flashKey, onShare, shareReady }: QrZonePr
 
   return (
     <div
-      className="relative z-0 shrink-0 px-4 pt-3 pb-1"
-      style={{ minHeight: "24vh" }}
+      className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center"
+      style={{ paddingTop: "calc(7vh + env(safe-area-inset-top))" }}
+      aria-hidden={!visible}
     >
-      <div className="flex items-start justify-between">
-        <button
-          type="button"
-          onClick={onShare}
-          disabled={!shareReady}
-          className="p-1 text-[#1a1a1a] disabled:opacity-30"
-          aria-label="Share card"
-        >
-          <Share size={20} strokeWidth={1.5} />
-        </button>
-        <button type="button" className="p-1 text-[#1a1a1a]/60" aria-label="More">
-          <MoreHorizontal size={20} strokeWidth={1.5} />
-        </button>
-      </div>
-
-      <div className="flex flex-col items-center justify-center">
+      <div className="relative">
+        <div
+          className="absolute -inset-8 rounded-full opacity-60 blur-2xl"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(232,93,4,0.16) 0%, rgba(232,93,4,0) 70%)",
+          }}
+        />
         {visible ? (
-          <div className={`transition-all duration-300 ${flashing ? "qr-flash" : ""}`}>
+          <div className={`relative ${flashing ? "qr-flash" : ""}`}>
             <QRCodeSVG
               value={url}
-              size={qrSize}
+              size={184}
               level="M"
               fgColor="#E85D04"
               bgColor="transparent"
             />
           </div>
         ) : (
-          <div style={{ height: qrSize }} aria-hidden />
+          <div style={{ height: 184, width: 184 }} />
         )}
       </div>
     </div>

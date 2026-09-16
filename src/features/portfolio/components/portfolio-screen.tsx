@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Share, MoreHorizontal } from "lucide-react";
 import { useAppStore } from "@/shared/store/app-store";
 import {
   buildCardSnapshot,
@@ -31,9 +32,9 @@ export function PortfolioScreen() {
   const card = cards[currentIndex];
   const qrVisible = card ? isCardReady(card) : false;
 
-  const exitEdit = () => {
-    purgeEmptyContactItems();
-    setEditing(false);
+  const toggleEdit = () => {
+    if (editing) purgeEmptyContactItems();
+    setEditing((v) => !v);
   };
 
   const syncShareToken = useCallback(async () => {
@@ -126,14 +127,26 @@ export function PortfolioScreen() {
   if (!card) return null;
 
   return (
-    <div className="compass-main relative mx-auto flex h-[100dvh] max-w-lg flex-col overflow-hidden bg-[#faf9f7]">
-      <QrZone
-        url={pdfShareUrl}
-        visible={qrVisible}
-        flashKey={qrFlashKey}
-        onShare={handleShare}
-        shareReady={Boolean(linkShareUrl)}
-      />
+    <div className="compass-main relative mx-auto h-[100dvh] max-w-lg overflow-hidden bg-[#faf9f7]">
+      <header
+        className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4"
+        style={{ paddingTop: "calc(10px + env(safe-area-inset-top))" }}
+      >
+        <button
+          type="button"
+          onClick={handleShare}
+          disabled={!linkShareUrl}
+          className="p-1.5 text-[#1a1a1a] disabled:opacity-25"
+          aria-label="Share card"
+        >
+          <Share size={20} strokeWidth={1.5} />
+        </button>
+        <button type="button" className="p-1.5 text-[#1a1a1a]/50" aria-label="More">
+          <MoreHorizontal size={20} strokeWidth={1.5} />
+        </button>
+      </header>
+
+      <QrZone url={pdfShareUrl} visible={qrVisible} flashKey={qrFlashKey} />
 
       <PortfolioStack
         cards={cards}
@@ -141,8 +154,7 @@ export function PortfolioScreen() {
         library={contactItems}
         editing={editing}
         onIndexChange={setCurrentCardIndex}
-        onEnterEdit={() => setEditing(true)}
-        onExitEdit={exitEdit}
+        onToggleEdit={toggleEdit}
         onUpdate={updateCard}
         onAddItem={() => addContactItem()}
         onUpdateItem={(id, data) => {
