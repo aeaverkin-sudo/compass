@@ -5,13 +5,12 @@ import { useSwipe } from "@/shared/hooks/use-swipe";
 import { useElementHeight } from "@/shared/hooks/use-element-size";
 import { getLibraryItems } from "@/features/portfolio/services/contact-item";
 import {
-  CARD_MARGIN,
   CARD_TOP_BROWSE,
   CARD_TOP_LIBRARY,
-  LIBRARY_MARGIN,
   QR_OVERLAP,
   safeBottom,
   safeTop,
+  SHEET_INSET,
 } from "@/features/portfolio/constants/layout";
 import { BusinessCard } from "./business-card";
 import { LibraryPanel } from "./library-panel";
@@ -51,12 +50,11 @@ export function PortfolioStack({
     card?.contactItemIds.length,
   ]);
 
+  const inset = editing ? SHEET_INSET.library : SHEET_INSET.browse;
   const cardTop = editing ? CARD_TOP_LIBRARY : CARD_TOP_BROWSE;
-  const cardMargin = editing ? CARD_MARGIN.library : CARD_MARGIN.browse;
   const libraryOffset = editing
-    ? LIBRARY_MARGIN.library.gap
-    : -LIBRARY_MARGIN.browse.overlap;
-  const libMargin = editing ? LIBRARY_MARGIN.library : LIBRARY_MARGIN.browse;
+    ? SHEET_INSET.library.gap
+    : -SHEET_INSET.browse.overlap;
 
   const swipe = useSwipe({
     onSwipeLeft: () => {
@@ -87,21 +85,17 @@ export function PortfolioStack({
   const libraryTop =
     cardHeight > 0
       ? safeTop(cardTop + cardHeight + libraryOffset)
-      : safeTop(
-          cardTop +
-            (editing ? QR_OVERLAP + LIBRARY_MARGIN.library.gap : 120),
-        );
+      : safeTop(cardTop + (editing ? QR_OVERLAP + SHEET_INSET.library.gap : 120));
 
   return (
     <div className="absolute inset-0 z-20" {...swipe}>
-      {/* Card — absolute, only its top animates between browse and library. */}
       <div
         ref={cardRef}
         className="compass-ease absolute z-20"
         style={{
           top: safeTop(cardTop),
-          left: cardMargin.left,
-          right: cardMargin.right,
+          left: inset.left,
+          right: inset.right,
         }}
       >
         {total > 1 && !editing && (
@@ -111,8 +105,8 @@ export function PortfolioStack({
             style={{
               top: 10,
               bottom: 10,
-              right: -6,
-              width: 14,
+              right: -8,
+              width: 12,
               background: "var(--sheet)",
             }}
           />
@@ -127,7 +121,6 @@ export function PortfolioStack({
         />
       </div>
 
-      {/* Library — pinned to the bottom; top follows the measured card edge. */}
       <div
         role="button"
         tabIndex={0}
@@ -145,21 +138,20 @@ export function PortfolioStack({
         }`}
         style={{
           top: libraryTop,
-          left: libMargin.left,
-          right: libMargin.right,
-          bottom: safeBottom(libMargin.bottom),
+          left: inset.left,
+          right: inset.right,
+          bottom: safeBottom(inset.bottom),
           background: "var(--sheet)",
           borderRadius: 24,
         }}
       >
-        {editing && (
-          <LibraryPanel
-            items={cardItems}
-            onAddItem={onAddItem}
-            onUpdateItem={onUpdateItem}
-            onDeleteItem={onDeleteItem}
-          />
-        )}
+        <LibraryPanel
+          items={cardItems}
+          mode={editing ? "edit" : "peek"}
+          onAddItem={onAddItem}
+          onUpdateItem={onUpdateItem}
+          onDeleteItem={onDeleteItem}
+        />
       </div>
     </div>
   );

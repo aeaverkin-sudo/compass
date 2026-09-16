@@ -12,12 +12,8 @@ export const QR_OVERLAP = 112;
 export const CARD_TOP_BROWSE = QR_TOP + QR_SIZE + GAP_UNDER_QR;
 export const CARD_TOP_LIBRARY = QR_TOP + QR_SIZE - QR_OVERLAP;
 
-export const CARD_MARGIN = {
-  browse: { left: 10, right: 22 },
-  library: { left: 20, right: 20 },
-} as const;
-
-export const LIBRARY_MARGIN = {
+/** Card and library share the same horizontal grid in each state. */
+export const SHEET_INSET = {
   browse: { left: 20, right: 20, bottom: 18, overlap: 22 },
   library: { left: 14, right: 14, bottom: 14, gap: 10 },
 } as const;

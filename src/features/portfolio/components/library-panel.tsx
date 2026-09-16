@@ -2,12 +2,17 @@
 
 import { useMemo, useState } from "react";
 import type { ContactItem } from "@/shared/types";
-import { buildContactItem, isContactFilled, itemDisplayValue } from "@/features/portfolio/services/contact-item";
+import {
+  buildContactItem,
+  isContactFilled,
+  itemDisplayValue,
+} from "@/features/portfolio/services/contact-item";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { ContactIcon } from "./contact-icon";
 
 interface LibraryPanelProps {
   items: ContactItem[];
+  mode: "peek" | "edit";
   onAddItem: () => void;
   onUpdateItem: (id: string, data: Partial<ContactItem>) => void;
   onDeleteItem: (id: string) => void;
@@ -34,7 +39,6 @@ function MinusButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-/** Two thin crossing lines — no circle, no label. */
 function PlusGlyph() {
   const bar = {
     position: "absolute" as const,
@@ -51,17 +55,21 @@ function PlusGlyph() {
 
 function LibraryRow({
   item,
-  last,
+  showDivider,
+  mode,
   onUpdate,
   onDelete,
 }: {
   item: ContactItem;
-  last: boolean;
+  showDivider: boolean;
+  mode: "peek" | "edit";
   onUpdate: (data: Partial<ContactItem>) => void;
   onDelete: () => void;
 }) {
-  const [editing, setEditing] = useState(!isContactFilled(item));
-  const press = useLongPress(() => setEditing(true));
+  const [editing, setEditing] = useState(mode === "edit" && !isContactFilled(item));
+  const press = useLongPress(() => {
+    if (mode === "edit") setEditing(true);
+  });
 
   const pushValue = (raw: string) => {
     const built = buildContactItem(raw);
@@ -70,10 +78,10 @@ function LibraryRow({
 
   const rowStyle = {
     paddingBlock: 11,
-    borderBottom: last ? "none" : "1px solid var(--hairline)",
+    borderBottom: showDivider ? "1px solid var(--hairline)" : "none",
   };
 
-  if (editing) {
+  if (mode === "edit" && editing) {
     return (
       <div
         className="flex items-center"
@@ -105,9 +113,14 @@ function LibraryRow({
     );
   }
 
+  if (!isContactFilled(item)) return null;
+
   return (
     <div className="flex items-center gap-2.5" style={rowStyle}>
-      <span {...press} className="compass-press flex min-w-0 flex-1 items-center gap-2.5">
+      <span
+        {...(mode === "edit" ? press : {})}
+        className={`flex min-w-0 flex-1 items-center gap-2.5 ${mode === "edit" ? "compass-press" : ""}`}
+      >
         <ContactIcon type={item.type} size={15} style={{ color: "var(--glyph)" }} />
         <span
           className="min-w-0 flex-1 truncate text-[13.5px] leading-snug"
@@ -116,37 +129,54 @@ function LibraryRow({
           {itemDisplayValue(item)}
         </span>
       </span>
-      <MinusButton onClick={onDelete} />
+      {mode === "edit" && <MinusButton onClick={onDelete} />}
     </div>
   );
 }
 
 export function LibraryPanel({
   items,
+  mode,
   onAddItem,
   onUpdateItem,
   onDeleteItem,
 }: LibraryPanelProps) {
   const sorted = useMemo(() => [...items].sort((a, b) => a.order - b.order), [items]);
+  const filled = sorted.filter(isContactFilled);
   const hasDraft = sorted.some((i) => !isContactFilled(i));
 
   return (
     <div
       data-wheel-scroll
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain scrollbar-hide"
+      className={`flex min-h-0 flex-1 flex-col overscroll-contain scrollbar-hide ${
+        mode === "peek" ? "overflow-hidden" : "overflow-y-auto"
+      }`}
       style={{ padding: "18px 20px 16px" }}
     >
-      {sorted.map((item, index) => (
-        <LibraryRow
-          key={item.id}
-          item={item}
-          last={index === sorted.length - 1}
-          onUpdate={(data) => onUpdateItem(item.id, data)}
-          onDelete={() => onDeleteItem(item.id)}
-        />
-      ))}
+      {sorted.map((item, index) => {
+        const filledAfter = sorted.slice(index + 1).some(isContactFilled);
+        return (
+          <LibraryRow
+            key={item.id}
+            item={item}
+            mode={mode}
+            showDivider={isContactFilled(item) && filledAfter}
+            onUpdate={(data) => onUpdateItem(item.id, data)}
+            onDelete={() => onDeleteItem(item.id)}
+          />
+        );
+      })}
 
-      {!hasDraft && (
+      {filled.length === 0 && mode === "peek" && (
+        <p
+          className="pt-1 text-center text-[12px]"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Tap to add links, email, phone…
+        </p>
+      )}
+
+      {mode === "edit" && !hasDraft && (
         <div className="flex shrink-0 flex-col items-center" style={{ paddingTop: 16, gap: 6 }}>
           <button
             type="button"
