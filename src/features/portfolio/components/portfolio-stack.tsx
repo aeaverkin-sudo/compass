@@ -3,7 +3,10 @@
 import type { Card, ContactItem } from "@/shared/types";
 import { useSwipe } from "@/shared/hooks/use-swipe";
 import { useElementHeight } from "@/shared/hooks/use-element-size";
-import { getLibraryItems } from "@/features/portfolio/services/contact-item";
+import {
+  getCardItems,
+  sortContactList,
+} from "@/features/portfolio/services/contact-item";
 import {
   CARD_TOP_BROWSE,
   CARD_TOP_LIBRARY,
@@ -20,13 +23,29 @@ interface PortfolioStackProps {
   currentIndex: number;
   library: ContactItem[];
   editing: boolean;
+  canAddCard: boolean;
   onIndexChange: (index: number) => void;
   onToggleEdit: () => void;
+  onAddCard: () => void;
   onUpdate: (id: string, data: Partial<Card>) => void;
   onAddItem: () => void;
   onAttachFile: (file: File, itemId?: string) => void | Promise<void>;
   onUpdateItem: (id: string, data: Partial<ContactItem>) => void;
-  onDeleteItem: (id: string) => void;
+  onToggleOnCard: (itemId: string) => void;
+}
+
+function PlusGlyph({ size = 15 }: { size?: number }) {
+  const bar = {
+    position: "absolute" as const,
+    borderRadius: 2,
+    background: "var(--glyph)",
+  };
+  return (
+    <span className="relative block" style={{ width: size, height: size }}>
+      <span style={{ ...bar, left: 0, right: 0, top: size * 0.45, height: 1.6 }} />
+      <span style={{ ...bar, top: 0, bottom: 0, left: size * 0.45, width: 1.6 }} />
+    </span>
+  );
 }
 
 export function PortfolioStack({
@@ -34,22 +53,28 @@ export function PortfolioStack({
   currentIndex,
   library,
   editing,
+  canAddCard,
   onIndexChange,
   onToggleEdit,
+  onAddCard,
   onUpdate,
   onAddItem,
   onAttachFile,
   onUpdateItem,
-  onDeleteItem,
+  onToggleOnCard,
 }: PortfolioStackProps) {
   const total = cards.length;
   const card = cards[currentIndex];
-  const cardItems = card ? getLibraryItems(card, library) : [];
+  const activeIds = card?.contactItemIds ?? [];
+  const peekItems = card ? getCardItems(card, library) : [];
+  const editItems = card ? sortContactList(library, activeIds) : [];
+
   const { ref: cardRef, height: cardHeight } = useElementHeight<HTMLDivElement>([
     editing,
     card?.id,
     card?.displayName,
     card?.contactItemIds.length,
+    library.length,
   ]);
 
   const inset = editing ? SHEET_INSET.library : SHEET_INSET.browse;
@@ -89,6 +114,9 @@ export function PortfolioStack({
       ? safeTop(cardTop + cardHeight + libraryOffset)
       : safeTop(cardTop + (editing ? QR_OVERLAP + SHEET_INSET.library.gap : 120));
 
+  const showNextSliver = total > 1 && !editing;
+  const showAddCard = canAddCard && !editing;
+
   return (
     <div className="absolute inset-0 z-20" {...swipe}>
       <div
@@ -100,7 +128,7 @@ export function PortfolioStack({
           right: inset.right,
         }}
       >
-        {total > 1 && !editing && (
+        {showNextSliver && (
           <div
             aria-hidden
             className="compass-sheet pointer-events-none absolute rounded-[22px]"
@@ -112,6 +140,28 @@ export function PortfolioStack({
               background: "var(--sheet)",
             }}
           />
+        )}
+
+        {showAddCard && (
+          <button
+            type="button"
+            data-no-toggle
+            aria-label="Add another card"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddCard();
+            }}
+            className="compass-sheet absolute flex items-center justify-center rounded-[22px]"
+            style={{
+              top: 10,
+              bottom: 10,
+              right: showNextSliver ? 4 : -6,
+              width: showNextSliver ? 40 : 44,
+              background: "var(--sheet)",
+            }}
+          >
+            <PlusGlyph size={showNextSliver ? 13 : 15} />
+          </button>
         )}
 
         <BusinessCard
@@ -148,12 +198,13 @@ export function PortfolioStack({
         }}
       >
         <LibraryPanel
-          items={cardItems}
+          items={editing ? editItems : peekItems}
           mode={editing ? "edit" : "peek"}
+          activeIds={activeIds}
           onAddItem={onAddItem}
           onAttachFile={onAttachFile}
           onUpdateItem={onUpdateItem}
-          onDeleteItem={onDeleteItem}
+          onToggleOnCard={onToggleOnCard}
         />
       </div>
     </div>

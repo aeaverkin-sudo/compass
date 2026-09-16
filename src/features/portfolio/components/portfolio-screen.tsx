@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Share } from "lucide-react";
 import { useAppStore } from "@/shared/store/app-store";
+import { TIER_LIMITS } from "@/shared/constants/tiers";
 import {
   buildCardSnapshot,
   buildContactItem,
-  getLibraryItems,
   isCardReady,
   isContactFilled,
   parseInstagram,
@@ -30,11 +30,12 @@ export function PortfolioScreen() {
   const qrFlashKey = useAppStore((s) => s.qrFlashKey);
 
   const setCurrentCardIndex = useAppStore((s) => s.setCurrentCardIndex);
+  const addCard = useAppStore((s) => s.addCard);
   const addContactItem = useAppStore((s) => s.addContactItem);
   const updateCard = useAppStore((s) => s.updateCard);
   const updateContactItem = useAppStore((s) => s.updateContactItem);
   const addItemToCard = useAppStore((s) => s.addItemToCard);
-  const deleteContactItem = useAppStore((s) => s.deleteContactItem);
+  const removeItemFromCard = useAppStore((s) => s.removeItemFromCard);
   const purgeEmptyContactItems = useAppStore((s) => s.purgeEmptyContactItems);
   const triggerQrFlash = useAppStore((s) => s.triggerQrFlash);
 
@@ -43,20 +44,10 @@ export function PortfolioScreen() {
 
   const card = cards[currentIndex];
   const qrVisible = card ? isCardReady(card) : false;
+  const canAddCard = cards.length < TIER_LIMITS[user.tier].maxPortfolios;
 
   const toggleEdit = () => {
-    if (editing) {
-      purgeEmptyContactItems();
-    } else if (card) {
-      // Keep card chips in sync with filled library rows.
-      contactItems
-        .filter(isContactFilled)
-        .forEach((item) => {
-          if (!card.contactItemIds.includes(item.id)) {
-            addItemToCard(card.id, item.id);
-          }
-        });
-    }
+    if (editing) purgeEmptyContactItems();
     setEditing((v) => !v);
   };
 
@@ -80,18 +71,14 @@ export function PortfolioScreen() {
     ?.map((a) => `${a.id}:${a.type}:${a.content.slice(0, 24)}`)
     .join("|") ?? "";
 
-  // Backfill: sync card chips + normalize instagram handles/urls.
+  // Normalize legacy instagram rows on load.
   useEffect(() => {
-    if (!card) return;
     contactItems.filter(isContactFilled).forEach((item) => {
       if (parseInstagram(item.value) && item.type !== "instagram") {
         updateContactItem(item.id, { value: item.value });
       }
-      if (!card.contactItemIds.includes(item.id)) {
-        addItemToCard(card.id, item.id);
-      }
     });
-  }, [card?.id, libraryFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [libraryFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     syncShareToken();
@@ -156,16 +143,18 @@ export function PortfolioScreen() {
     const dataUrl = await fileToDataUrl(file);
     const built = buildContactItem(dataUrl, file.type, file.name);
 
-    const cardItems = getLibraryItems(card, contactItems);
-    const draft = itemId ? cardItems.find((i) => i.id === itemId) : undefined;
-    let targetId =
-      draft && !isContactFilled(draft) ? draft.id : cardItems.find((i) => !isContactFilled(i))?.id;
+    let targetId = itemId;
+    const draft = targetId
+      ? contactItems.find((i) => i.id === targetId && !isContactFilled(i))
+      : undefined;
+
+    if (!draft) {
+      targetId = contactItems.find((i) => !isContactFilled(i))?.id;
+    }
 
     if (!targetId) {
-      if (!addContactItem(card.id)) return;
-      targetId = getLibraryItems(card, useAppStore.getState().contactItems).find(
-        (i) => !isContactFilled(i),
-      )?.id;
+      if (!addContactItem()) return;
+      targetId = useAppStore.getState().contactItems.find((i) => !isContactFilled(i))?.id;
     }
     if (!targetId) return;
 
@@ -175,11 +164,17 @@ export function PortfolioScreen() {
       url: built.url,
       label: built.label,
     });
-    if (!card.contactItemIds.includes(targetId)) {
-      addItemToCard(card.id, targetId);
+    triggerQrFlash();
+  };
+
+  const handleToggleOnCard = (itemId: string) => {
+    if (!card) return;
+    if (card.contactItemIds.includes(itemId)) {
+      removeItemFromCard(card.id, itemId);
+    } else {
+      addItemToCard(card.id, itemId);
     }
     updateCard(card.id, { updatedAt: new Date().toISOString() });
-    triggerQrFlash();
   };
 
   if (!card) return null;
@@ -221,21 +216,19 @@ export function PortfolioScreen() {
         currentIndex={currentIndex}
         library={contactItems}
         editing={editing}
+        canAddCard={canAddCard}
         onIndexChange={setCurrentCardIndex}
         onToggleEdit={toggleEdit}
+        onAddCard={() => addCard()}
         onUpdate={updateCard}
-        onAddItem={() => addContactItem(card.id)}
+        onAddItem={() => addContactItem()}
         onAttachFile={handleAttachFile}
         onUpdateItem={(id, data) => {
           updateContactItem(id, data);
-          // A filled item belongs on the card right away.
-          if (data.value?.trim() && !card.contactItemIds.includes(id)) {
-            addItemToCard(card.id, id);
-          }
           updateCard(card.id, { updatedAt: new Date().toISOString() });
           triggerQrFlash();
         }}
-        onDeleteItem={deleteContactItem}
+        onToggleOnCard={handleToggleOnCard}
       />
     </div>
   );

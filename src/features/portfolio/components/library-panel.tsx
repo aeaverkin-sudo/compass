@@ -15,29 +15,33 @@ const MAX_PDF_BYTES = 4 * 1024 * 1024;
 interface LibraryPanelProps {
   items: ContactItem[];
   mode: "peek" | "edit";
+  /** Item ids currently shown on this card's chips. */
+  activeIds: string[];
   onAddItem: () => void;
   onAttachFile: (file: File, itemId?: string) => void | Promise<void>;
   onUpdateItem: (id: string, data: Partial<ContactItem>) => void;
-  onDeleteItem: (id: string) => void;
+  onToggleOnCard: (itemId: string) => void;
 }
 
-function MinusButton({ onClick }: { onClick: () => void }) {
+function CardToggleButton({ onCard, onClick }: { onCard: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       data-no-toggle
-      aria-label="Delete item"
+      aria-label={onCard ? "Remove from card" : "Add to card"}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
-      className="flex shrink-0 items-center justify-center rounded-full"
-      style={{ width: 24, height: 24, background: "var(--hairline)" }}
+      className="flex shrink-0 items-center justify-center rounded-full text-[18px] font-light leading-none"
+      style={{
+        width: 24,
+        height: 24,
+        background: onCard ? "var(--hairline)" : "transparent",
+        color: "var(--foreground)",
+      }}
     >
-      <span
-        className="block rounded-full"
-        style={{ width: 9, height: 1.6, background: "var(--text-muted)" }}
-      />
+      {onCard ? "−" : "+"}
     </button>
   );
 }
@@ -60,16 +64,18 @@ function LibraryRow({
   item,
   showDivider,
   mode,
+  onCard,
   onAttachFile,
   onUpdate,
-  onDelete,
+  onToggleOnCard,
 }: {
   item: ContactItem;
   showDivider: boolean;
   mode: "peek" | "edit";
+  onCard: boolean;
   onAttachFile: (file: File, itemId?: string) => void | Promise<void>;
   onUpdate: (data: Partial<ContactItem>) => void;
-  onDelete: () => void;
+  onToggleOnCard: () => void;
 }) {
   const [editing, setEditing] = useState(mode === "edit" && !isContactFilled(item));
   const press = useLongPress(() => {
@@ -145,12 +151,17 @@ function LibraryRow({
         <ContactIcon type={item.type} size={15} style={{ color: "var(--glyph)" }} />
         <span
           className="min-w-0 flex-1 truncate text-[13.5px] leading-snug"
-          style={{ color: "var(--foreground)" }}
+          style={{
+            color: onCard ? "var(--foreground)" : "var(--text-muted)",
+            fontWeight: onCard ? 500 : 400,
+          }}
         >
           {itemDisplayValue(item)}
         </span>
       </span>
-      {mode === "edit" && <MinusButton onClick={onDelete} />}
+      {mode === "edit" && (
+        <CardToggleButton onCard={onCard} onClick={onToggleOnCard} />
+      )}
     </div>
   );
 }
@@ -158,18 +169,19 @@ function LibraryRow({
 export function LibraryPanel({
   items,
   mode,
+  activeIds,
   onAddItem,
   onAttachFile,
   onUpdateItem,
-  onDeleteItem,
+  onToggleOnCard,
 }: LibraryPanelProps) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const active = useMemo(() => new Set(activeIds), [activeIds]);
   const sorted = useMemo(() => [...items].sort((a, b) => a.order - b.order), [items]);
   const filled = sorted.filter(isContactFilled);
   const hasDraft = sorted.some((i) => !isContactFilled(i));
 
   const openFilePicker = () => fileRef.current?.click();
-
   const plusPress = useLongPress(openFilePicker);
 
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,10 +222,11 @@ export function LibraryPanel({
             key={item.id}
             item={item}
             mode={mode}
+            onCard={active.has(item.id)}
             showDivider={isContactFilled(item) && filledAfter}
             onAttachFile={onAttachFile}
             onUpdate={(data) => onUpdateItem(item.id, data)}
-            onDelete={() => onDeleteItem(item.id)}
+            onToggleOnCard={() => onToggleOnCard(item.id)}
           />
         );
       })}
@@ -223,7 +236,7 @@ export function LibraryPanel({
           className="pt-1 text-center text-[12px]"
           style={{ color: "var(--text-muted)" }}
         >
-          Tap to add links, email, phone…
+          Tap to open library and add items
         </p>
       )}
 
@@ -232,7 +245,7 @@ export function LibraryPanel({
           <button
             type="button"
             data-no-toggle
-            aria-label="Add an item"
+            aria-label="Add library item"
             className="flex items-center justify-center p-1"
             onClick={(e) => {
               plusPress.onClick(e);
