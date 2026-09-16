@@ -5,10 +5,13 @@ import { Share } from "lucide-react";
 import { useAppStore } from "@/shared/store/app-store";
 import {
   buildCardSnapshot,
+  buildContactItem,
+  getLibraryItems,
   isCardReady,
   isContactFilled,
   parseInstagram,
 } from "@/features/portfolio/services/contact-item";
+import { fileToDataUrl } from "@/shared/lib/utils";
 import {
   QR_SIZE,
   QR_TOP,
@@ -148,6 +151,37 @@ export function PortfolioScreen() {
     }
   };
 
+  const handleAttachFile = async (file: File, itemId?: string) => {
+    if (!card) return;
+    const dataUrl = await fileToDataUrl(file);
+    const built = buildContactItem(dataUrl, file.type, file.name);
+
+    const cardItems = getLibraryItems(card, contactItems);
+    const draft = itemId ? cardItems.find((i) => i.id === itemId) : undefined;
+    let targetId =
+      draft && !isContactFilled(draft) ? draft.id : cardItems.find((i) => !isContactFilled(i))?.id;
+
+    if (!targetId) {
+      if (!addContactItem(card.id)) return;
+      targetId = getLibraryItems(card, useAppStore.getState().contactItems).find(
+        (i) => !isContactFilled(i),
+      )?.id;
+    }
+    if (!targetId) return;
+
+    updateContactItem(targetId, {
+      value: built.value,
+      type: built.type,
+      url: built.url,
+      label: built.label,
+    });
+    if (!card.contactItemIds.includes(targetId)) {
+      addItemToCard(card.id, targetId);
+    }
+    updateCard(card.id, { updatedAt: new Date().toISOString() });
+    triggerQrFlash();
+  };
+
   if (!card) return null;
 
   return (
@@ -191,6 +225,7 @@ export function PortfolioScreen() {
         onToggleEdit={toggleEdit}
         onUpdate={updateCard}
         onAddItem={() => addContactItem(card.id)}
+        onAttachFile={handleAttachFile}
         onUpdateItem={(id, data) => {
           updateContactItem(id, data);
           // A filled item belongs on the card right away.

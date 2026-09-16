@@ -24,6 +24,7 @@ interface PortfolioStackProps {
   onToggleEdit: () => void;
   onUpdate: (id: string, data: Partial<Card>) => void;
   onAddItem: () => void;
+  onAttachFile: (file: File, itemId?: string) => void | Promise<void>;
   onUpdateItem: (id: string, data: Partial<ContactItem>) => void;
   onDeleteItem: (id: string) => void;
 }
@@ -37,6 +38,7 @@ export function PortfolioStack({
   onToggleEdit,
   onUpdate,
   onAddItem,
+  onAttachFile,
   onUpdateItem,
   onDeleteItem,
 }: PortfolioStackProps) {
@@ -149,6 +151,7 @@ export function PortfolioStack({
           items={cardItems}
           mode={editing ? "edit" : "peek"}
           onAddItem={onAddItem}
+          onAttachFile={onAttachFile}
           onUpdateItem={onUpdateItem}
           onDeleteItem={onDeleteItem}
         />

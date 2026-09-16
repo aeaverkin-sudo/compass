@@ -1,6 +1,6 @@
 import type { ContactType } from "@/shared/types";
 import { cn } from "@/shared/lib/utils";
-import { Globe, Mail, Phone, FileText, StickyNote, Music, Link2, Send } from "lucide-react";
+import { Globe, Mail, Phone, FileText, StickyNote, Music, Link2, Send, MessageCircle } from "lucide-react";
 
 interface ContactIconProps {
   type: ContactType;
@@ -75,6 +75,8 @@ export function ContactIcon({ type, size = 15, className, style }: ContactIconPr
       return <FileText {...props} />;
     case "telegram":
       return <Send {...props} />;
+    case "whatsapp":
+      return <MessageCircle {...props} />;
     case "audio":
       return <Music {...props} />;
     case "text":

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { ContactItem } from "@/shared/types";
 import {
   buildContactItem,
@@ -10,10 +10,13 @@ import {
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { ContactIcon } from "./contact-icon";
 
+const MAX_PDF_BYTES = 4 * 1024 * 1024;
+
 interface LibraryPanelProps {
   items: ContactItem[];
   mode: "peek" | "edit";
   onAddItem: () => void;
+  onAttachFile: (file: File, itemId?: string) => void | Promise<void>;
   onUpdateItem: (id: string, data: Partial<ContactItem>) => void;
   onDeleteItem: (id: string) => void;
 }
@@ -57,12 +60,14 @@ function LibraryRow({
   item,
   showDivider,
   mode,
+  onAttachFile,
   onUpdate,
   onDelete,
 }: {
   item: ContactItem;
   showDivider: boolean;
   mode: "peek" | "edit";
+  onAttachFile: (file: File, itemId?: string) => void | Promise<void>;
   onUpdate: (data: Partial<ContactItem>) => void;
   onDelete: () => void;
 }) {
@@ -73,7 +78,17 @@ function LibraryRow({
 
   const pushValue = (raw: string) => {
     const built = buildContactItem(raw);
-    onUpdate({ value: raw, type: built.type, url: built.url, label: built.label });
+    onUpdate({ value: built.value, type: built.type, url: built.url, label: built.label });
+  };
+
+  const attachPdf = async (file: File) => {
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) return;
+    if (file.size > MAX_PDF_BYTES) {
+      window.alert("PDF must be under 4 MB.");
+      return;
+    }
+    await onAttachFile(file, item.id);
+    setEditing(false);
   };
 
   const rowStyle = {
@@ -91,7 +106,7 @@ function LibraryRow({
         <input
           autoFocus
           type="text"
-          defaultValue={item.value}
+          defaultValue={item.value.startsWith("data:") ? item.label : item.value}
           placeholder="link, email, phone, file…"
           className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none"
           style={{ color: "var(--foreground)" }}
@@ -99,6 +114,12 @@ function LibraryRow({
             if (e.target.value.trim()) pushValue(e.target.value);
           }}
           onPaste={(e) => {
+            const file = e.clipboardData.files[0];
+            if (file) {
+              e.preventDefault();
+              void attachPdf(file);
+              return;
+            }
             const text = e.clipboardData.getData("text");
             if (text.trim()) pushValue(text.trim());
           }}
@@ -138,12 +159,33 @@ export function LibraryPanel({
   items,
   mode,
   onAddItem,
+  onAttachFile,
   onUpdateItem,
   onDeleteItem,
 }: LibraryPanelProps) {
+  const fileRef = useRef<HTMLInputElement>(null);
   const sorted = useMemo(() => [...items].sort((a, b) => a.order - b.order), [items]);
   const filled = sorted.filter(isContactFilled);
   const hasDraft = sorted.some((i) => !isContactFilled(i));
+
+  const openFilePicker = () => fileRef.current?.click();
+
+  const plusPress = useLongPress(openFilePicker);
+
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      window.alert("Only PDF files are supported.");
+      return;
+    }
+    if (file.size > MAX_PDF_BYTES) {
+      window.alert("PDF must be under 4 MB.");
+      return;
+    }
+    await onAttachFile(file);
+  };
 
   return (
     <div
@@ -153,6 +195,14 @@ export function LibraryPanel({
       }`}
       style={{ padding: "18px 20px 16px" }}
     >
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="hidden"
+        onChange={handleFileInput}
+      />
+
       {sorted.map((item, index) => {
         const filledAfter = sorted.slice(index + 1).some(isContactFilled);
         return (
@@ -161,6 +211,7 @@ export function LibraryPanel({
             item={item}
             mode={mode}
             showDivider={isContactFilled(item) && filledAfter}
+            onAttachFile={onAttachFile}
             onUpdate={(data) => onUpdateItem(item.id, data)}
             onDelete={() => onDeleteItem(item.id)}
           />
@@ -182,11 +233,19 @@ export function LibraryPanel({
             type="button"
             data-no-toggle
             aria-label="Add an item"
+            className="flex items-center justify-center p-1"
             onClick={(e) => {
+              plusPress.onClick(e);
+              if (e.defaultPrevented) return;
               e.stopPropagation();
               onAddItem();
             }}
-            className="flex items-center justify-center p-1"
+            onPointerDown={plusPress.onPointerDown}
+            onPointerMove={plusPress.onPointerMove}
+            onPointerUp={plusPress.onPointerUp}
+            onPointerCancel={plusPress.onPointerCancel}
+            onPointerLeave={plusPress.onPointerLeave}
+            onContextMenu={plusPress.onContextMenu}
           >
             <PlusGlyph />
           </button>

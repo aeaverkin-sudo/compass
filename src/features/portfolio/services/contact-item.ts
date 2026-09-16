@@ -1,10 +1,9 @@
 import { nanoid } from "nanoid";
 import type { Card, CardSnapshot, ContactItem, ContactType, NextScanAddon } from "@/shared/types";
+import { parseTelegram, parseWhatsApp } from "@/features/portfolio/services/messenger-parse";
 
 const SOCIAL: Record<string, ContactType> = {
   "linkedin.com": "linkedin",
-  "t.me": "telegram",
-  "telegram.me": "telegram",
   "spotify.com": "audio",
 };
 
@@ -46,7 +45,9 @@ export function detectContactType(raw: string, mime?: string): ContactType {
   if (!v) return "text";
   if (mime === "application/pdf" || v.startsWith("data:application/pdf")) return "pdf";
   if (EMAIL.test(v)) return "email";
+  if (parseWhatsApp(v)) return "whatsapp";
   if (PHONE.test(v)) return "phone";
+  if (parseTelegram(v)) return "telegram";
   if (parseInstagram(v)) return "instagram";
 
   // A domain mentioned inside a sentence stays plain text, never a link.
@@ -76,6 +77,7 @@ export function typeLabel(type: ContactType): string {
     phone: "Phone",
     pdf: "Pitch Deck",
     telegram: "Telegram",
+    whatsapp: "WhatsApp",
     audio: "Audio",
     text: "Note",
     link: "Link",
@@ -89,20 +91,34 @@ export function buildContactItem(value: string, mime?: string, label?: string): 
   const now = new Date().toISOString();
 
   const ig = type === "instagram" ? parseInstagram(value) : null;
-  const normalizedValue = ig?.display ?? value;
+  const tg = type === "telegram" ? parseTelegram(value) : null;
+  const wa = type === "whatsapp" ? parseWhatsApp(value) : null;
+  const normalizedValue = ig?.display ?? tg?.display ?? wa?.display ?? value;
 
   let url = normalizedValue;
   if (type === "text") url = "";
   else if (type === "email") url = `mailto:${normalizedValue}`;
   else if (type === "phone") url = `tel:${normalizedValue.replace(/\s/g, "")}`;
   else if (ig) url = ig.url;
+  else if (tg) url = tg.url;
+  else if (wa) url = wa.url;
+  else if (type === "pdf") url = normalizedValue;
   else if (!normalizedValue.startsWith("http") && !normalizedValue.startsWith("data:"))
     url = `https://${normalizedValue}`;
+
+  let itemLabel = label?.trim() || typeLabel(type);
+  if (type === "pdf") {
+    itemLabel =
+      label?.trim() ||
+      (normalizedValue.startsWith("data:")
+        ? "Document.pdf"
+        : normalizedValue.split("?")[0].split("/").pop() || "Document.pdf");
+  }
 
   return {
     id: nanoid(),
     type,
-    label: label?.trim() || typeLabel(type),
+    label: itemLabel,
     value: normalizedValue,
     url,
     order: 0,
@@ -194,6 +210,8 @@ export function itemDisplayValue(item: ContactItem): string {
     const ig = parseInstagram(raw);
     return ig?.display ?? (raw.startsWith("@") ? raw : `@${raw}`);
   }
+  if (item.type === "telegram") return parseTelegram(raw)?.display ?? raw;
+  if (item.type === "whatsapp") return parseWhatsApp(raw)?.display ?? raw;
   if (item.type === "text") return raw;
   return bareDomain(raw);
 }
@@ -203,6 +221,7 @@ export type ContactGroupKey = "contact" | "social" | "files" | "site" | "other";
 const GROUP_OF: Record<ContactType, ContactGroupKey> = {
   phone: "contact",
   email: "contact",
+  whatsapp: "contact",
   instagram: "social",
   telegram: "social",
   linkedin: "social",

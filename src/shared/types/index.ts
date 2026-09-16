@@ -8,6 +8,7 @@ export type ContactType =
   | "phone"
   | "pdf"
   | "telegram"
+  | "whatsapp"
   | "audio"
   | "text"
   | "link"

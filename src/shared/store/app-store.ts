@@ -216,11 +216,11 @@ export const useAppStore = create<AppState>()(
             if (item.id !== itemId) return item;
             const merged = { ...item, ...data };
             if (data.value !== undefined) {
-              const detected = buildContactItem(data.value);
+              const detected = buildContactItem(data.value, undefined, data.label ?? item.label);
               merged.type = detected.type;
               merged.value = detected.value;
               merged.url = detected.url;
-              if (!data.label && !item.label) merged.label = detected.label;
+              merged.label = data.label?.trim() || item.label || detected.label;
             }
             return merged;
           }),
