@@ -118,6 +118,14 @@ export function getCardItems(card: Card, library: ContactItem[]): ContactItem[] 
     .filter((i): i is ContactItem => Boolean(i && isContactFilled(i)));
 }
 
+/** Rows shown in the library editor — card-linked items only, drafts included. */
+export function getLibraryItems(card: Card, library: ContactItem[]): ContactItem[] {
+  const map = new Map(library.map((i) => [i.id, i]));
+  return card.contactItemIds
+    .map((id) => map.get(id))
+    .filter((i): i is ContactItem => Boolean(i));
+}
+
 export function sortContactList(library: ContactItem[], activeIds: string[]): ContactItem[] {
   const active = new Set(activeIds);
   return [...library].sort((a, b) => {

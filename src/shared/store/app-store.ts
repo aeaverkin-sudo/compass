@@ -45,7 +45,7 @@ interface AppState extends PersistedState {
   addCard: () => boolean;
   updateCard: (id: string, data: Partial<Card>) => void;
 
-  addContactItem: () => boolean;
+  addContactItem: (cardId: string) => boolean;
   updateContactItem: (itemId: string, data: Partial<ContactItem>) => void;
   deleteContactItem: (itemId: string) => void;
   purgeEmptyContactItems: () => void;
@@ -176,13 +176,20 @@ export const useAppStore = create<AppState>()(
           ),
         })),
 
-      addContactItem: () => {
+      addContactItem: (cardId) => {
         const { user, contactItems } = get();
         if (contactItems.some((i) => !isContactFilled(i))) return false;
         if (contactItems.length >= TIER_LIMITS[user.tier].maxSlots) return false;
-        set({
-          contactItems: [...contactItems, createEmptyContactItem(contactItems.length)],
-        });
+        const item = createEmptyContactItem(contactItems.length);
+        const now = new Date().toISOString();
+        set((s) => ({
+          contactItems: [...s.contactItems, item],
+          cards: s.cards.map((c) =>
+            c.id === cardId
+              ? { ...c, contactItemIds: [...c.contactItemIds, item.id], updatedAt: now }
+              : c,
+          ),
+        }));
         return true;
       },
 

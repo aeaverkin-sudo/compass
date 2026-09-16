@@ -2,8 +2,12 @@
 
 import type { Card, ContactItem } from "@/shared/types";
 import { useSwipe } from "@/shared/hooks/use-swipe";
+import { getLibraryItems } from "@/features/portfolio/services/contact-item";
 import { BusinessCard } from "./business-card";
 import { LibraryPanel } from "./library-panel";
+
+/** Compact card must fully cover the QR overlap zone (lower 2/3 of the code). */
+const QR_OVERLAP = 112;
 
 interface PortfolioStackProps {
   cards: Card[];
@@ -34,6 +38,7 @@ export function PortfolioStack({
 }: PortfolioStackProps) {
   const total = cards.length;
   const card = cards[currentIndex];
+  const cardItems = card ? getLibraryItems(card, library) : [];
 
   const swipe = useSwipe({
     onSwipeLeft: () => {
@@ -48,7 +53,6 @@ export function PortfolioStack({
 
   if (!card) return null;
 
-  // Nothing to scan or list until the card has a name.
   if (!card.displayName.trim()) {
     return (
       <div className="absolute inset-0 z-20 flex items-center px-6">
@@ -65,11 +69,14 @@ export function PortfolioStack({
   return (
     <div
       className="compass-ease absolute inset-x-0 bottom-0 z-20 flex flex-col"
-      style={{ top: `calc(env(safe-area-inset-top) + ${cardTop}px)` }}
+      style={{
+        top: `calc(env(safe-area-inset-top) + ${cardTop}px)`,
+        background: "var(--background)",
+      }}
       {...swipe}
     >
-      {/* Card keeps its content height and only scrolls if it cannot fit. */}
-      <div className="relative z-20 min-h-0 shrink overflow-y-auto scrollbar-hide">
+      {/* Content-height card — never shrink in the flex column. */}
+      <div className="relative z-20 shrink-0">
         {total > 1 && !editing && (
           <div
             aria-hidden
@@ -89,6 +96,7 @@ export function PortfolioStack({
           style={{
             marginLeft: editing ? 20 : 10,
             marginRight: editing ? 20 : 22,
+            minHeight: editing ? QR_OVERLAP : undefined,
           }}
         >
           <BusinessCard
@@ -101,7 +109,7 @@ export function PortfolioStack({
         </div>
       </div>
 
-      {/* Library sheet: a visible spine while browsing, the full list when open. */}
+      {/* Library sheet: spine peek while browsing, full list when open. */}
       <div
         role="button"
         tabIndex={0}
@@ -118,7 +126,6 @@ export function PortfolioStack({
         style={{
           background: "var(--sheet)",
           borderRadius: 24,
-          minHeight: editing ? 140 : 72,
           marginTop: editing ? 10 : -22,
           marginLeft: editing ? 14 : 24,
           marginRight: editing ? 14 : 24,
@@ -127,7 +134,7 @@ export function PortfolioStack({
       >
         {editing && (
           <LibraryPanel
-            library={library}
+            items={cardItems}
             onAddItem={onAddItem}
             onUpdateItem={onUpdateItem}
             onDeleteItem={onDeleteItem}

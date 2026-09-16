@@ -7,7 +7,7 @@ import { useLongPress } from "@/shared/hooks/use-long-press";
 import { ContactIcon } from "./contact-icon";
 
 interface LibraryPanelProps {
-  library: ContactItem[];
+  items: ContactItem[];
   onAddItem: () => void;
   onUpdateItem: (id: string, data: Partial<ContactItem>) => void;
   onDeleteItem: (id: string) => void;
@@ -122,12 +122,12 @@ function LibraryRow({
 }
 
 export function LibraryPanel({
-  library,
+  items,
   onAddItem,
   onUpdateItem,
   onDeleteItem,
 }: LibraryPanelProps) {
-  const sorted = useMemo(() => [...library].sort((a, b) => a.order - b.order), [library]);
+  const sorted = useMemo(() => [...items].sort((a, b) => a.order - b.order), [items]);
   const hasDraft = sorted.some((i) => !isContactFilled(i));
 
   return (

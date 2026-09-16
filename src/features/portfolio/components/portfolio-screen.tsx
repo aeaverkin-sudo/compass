@@ -6,6 +6,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import {
   buildCardSnapshot,
   isCardReady,
+  isContactFilled,
 } from "@/features/portfolio/services/contact-item";
 import { QrZone } from "./qr-zone";
 import { PortfolioStack } from "./portfolio-stack";
@@ -44,7 +45,18 @@ export function PortfolioScreen() {
   const qrVisible = card ? isCardReady(card) : false;
 
   const toggleEdit = () => {
-    if (editing) purgeEmptyContactItems();
+    if (editing) {
+      purgeEmptyContactItems();
+    } else if (card) {
+      // Keep card chips in sync with filled library rows.
+      contactItems
+        .filter(isContactFilled)
+        .forEach((item) => {
+          if (!card.contactItemIds.includes(item.id)) {
+            addItemToCard(card.id, item.id);
+          }
+        });
+    }
     setEditing((v) => !v);
   };
 
@@ -67,6 +79,16 @@ export function PortfolioScreen() {
   const addonFingerprint = card?.nextScanAddons
     ?.map((a) => `${a.id}:${a.type}:${a.content.slice(0, 24)}`)
     .join("|") ?? "";
+
+  // Backfill: filled library rows belong on the card chips too.
+  useEffect(() => {
+    if (!card) return;
+    contactItems.filter(isContactFilled).forEach((item) => {
+      if (!card.contactItemIds.includes(item.id)) {
+        addItemToCard(card.id, item.id);
+      }
+    });
+  }, [card?.id, libraryFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     syncShareToken();
@@ -169,7 +191,7 @@ export function PortfolioScreen() {
         onIndexChange={setCurrentCardIndex}
         onToggleEdit={toggleEdit}
         onUpdate={updateCard}
-        onAddItem={() => addContactItem()}
+        onAddItem={() => addContactItem(card.id)}
         onUpdateItem={(id, data) => {
           updateContactItem(id, data);
           // A filled item belongs on the card right away.
