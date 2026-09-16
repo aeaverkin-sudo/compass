@@ -8,14 +8,21 @@ import {
 } from "@/features/portfolio/services/contact-item";
 import { ContactIcon } from "./contact-icon";
 import { MapPin } from "lucide-react";
+import type { NextScanAddon } from "@/shared/types";
 
 interface SharedPortfolioViewProps {
   snapshot: CardSnapshot;
 }
 
+function snapshotNotes(snapshot: CardSnapshot): NextScanAddon[] {
+  if (snapshot.nextScanAddons?.length) return snapshot.nextScanAddons;
+  return snapshot.nextScanAddon ? [snapshot.nextScanAddon] : [];
+}
+
 export function SharedPortfolioView({ snapshot }: SharedPortfolioViewProps) {
   const displayName = getSnapshotDisplayName(snapshot);
   const items = getSnapshotItems(snapshot);
+  const notes = snapshotNotes(snapshot);
 
   return (
     <div className="bg-[#faf9f7] px-6 py-8" style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
@@ -64,21 +71,26 @@ export function SharedPortfolioView({ snapshot }: SharedPortfolioViewProps) {
           </div>
         )}
 
-        {snapshot.nextScanAddon && (
-          <div className="mt-6 w-full max-w-xs rounded-xl border border-[#eee] bg-white p-4 text-left">
-            {snapshot.nextScanAddon.type === "text" && (
-              <p className="text-[13px] text-[#1a1a1a]">{snapshot.nextScanAddon.content}</p>
-            )}
-            {snapshot.nextScanAddon.type === "voice" && (
-              <p className="text-[13px] italic text-[#666]">{snapshot.nextScanAddon.content}</p>
-            )}
-            {snapshot.nextScanAddon.type === "selfie" && (
-              <img
-                src={snapshot.nextScanAddon.content}
-                alt=""
-                className="mx-auto max-h-48 rounded-lg object-cover"
-              />
-            )}
+        {notes.length > 0 && (
+          <div className="mt-6 w-full max-w-xs space-y-2 border-t border-[#e8e8e8] pt-4 text-left">
+            {notes.map((note, index) => (
+              <div key={note.id ?? index} className="rounded-xl border border-[#eee] bg-white p-4">
+                <p className="mb-1 text-[10px] font-medium text-[#E85D04]">Note {index + 1}</p>
+                {note.type === "text" && (
+                  <p className="text-[13px] text-[#1a1a1a]">{note.content}</p>
+                )}
+                {note.type === "voice" && (
+                  <p className="text-[13px] italic text-[#666]">{note.content}</p>
+                )}
+                {note.type === "selfie" && (
+                  <img
+                    src={note.content}
+                    alt=""
+                    className="mx-auto max-h-48 rounded-lg object-cover"
+                  />
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

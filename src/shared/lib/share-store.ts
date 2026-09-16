@@ -16,13 +16,20 @@ if (!globalForShare.shareStore) {
   globalForShare.shareStore = shareStore;
 }
 
+function snapshotAddons(snapshot: CardSnapshot) {
+  if (snapshot.nextScanAddons?.length) return snapshot.nextScanAddons;
+  const legacy = snapshot.nextScanAddon;
+  return legacy ? [legacy] : [];
+}
+
 export function getSharePayload(entry: ShareEntry) {
-  const includeAddon =
-    entry.portfolio.nextScanAddon && !entry.nextScanDelivered;
+  const addons = snapshotAddons(entry.portfolio);
+  const include = addons.length > 0 && !entry.nextScanDelivered;
   return {
     portfolio: {
       ...entry.portfolio,
-      nextScanAddon: includeAddon ? entry.portfolio.nextScanAddon : null,
+      nextScanAddons: include ? addons : [],
+      nextScanAddon: null,
     },
     ownerName: entry.ownerName,
     createdAt: entry.createdAt,
@@ -33,7 +40,7 @@ export function markShareViewed(token: string): ShareEntry | null {
   const entry = shareStore.get(token);
   if (!entry) return null;
   entry.viewCount += 1;
-  if (entry.portfolio.nextScanAddon && !entry.nextScanDelivered) {
+  if (snapshotAddons(entry.portfolio).length > 0 && !entry.nextScanDelivered) {
     entry.nextScanDelivered = true;
   }
   shareStore.set(token, entry);

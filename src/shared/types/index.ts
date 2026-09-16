@@ -14,10 +14,13 @@ export type ContactType =
 export type NextScanAddonType = "text" | "voice" | "selfie";
 
 export interface NextScanAddon {
+  id: string;
   type: NextScanAddonType;
   content: string;
   createdAt: string;
 }
+
+export const MAX_NEXT_SCAN_NOTES = 3;
 
 /** @deprecated use ContactItem — kept for Person / migration */
 export type ContentType = "link" | "pdf" | "image" | "text" | "empty";
@@ -51,6 +54,8 @@ export interface Card {
   description: string;
   location: string;
   contactItemIds: string[];
+  nextScanAddons: NextScanAddon[];
+  /** @deprecated migrated to nextScanAddons */
   nextScanAddon?: NextScanAddon | null;
   sortOrder: number;
   createdAt: string;
@@ -102,6 +107,8 @@ export interface CardSnapshot {
   description: string;
   location: string;
   items: ContactItem[];
+  nextScanAddons?: NextScanAddon[];
+  /** @deprecated legacy single note */
   nextScanAddon?: NextScanAddon | null;
   /** @deprecated legacy share payloads */
   firstName?: string;

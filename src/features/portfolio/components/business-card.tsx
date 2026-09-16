@@ -10,7 +10,8 @@ import {
   typeLabel,
 } from "@/features/portfolio/services/contact-item";
 import { ContactIcon } from "./contact-icon";
-import { NextScanMenu, NextScanAddonIcon } from "./next-scan-menu";
+import { getNextScanAddons } from "@/features/portfolio/services/contact-item";
+import { NextScanMenu } from "./next-scan-menu";
 import { fileToDataUrl } from "@/shared/lib/utils";
 import { MapPin, ChevronRight, ChevronDown } from "lucide-react";
 
@@ -81,8 +82,10 @@ export function BusinessCard({
     if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
   };
 
-  const setNextScanAddon = (addon: NextScanAddon | null) => {
-    onUpdate({ nextScanAddon: addon });
+  const nextScanAddons = getNextScanAddons(card);
+
+  const setNextScanAddons = (addons: NextScanAddon[]) => {
+    onUpdate({ nextScanAddons: addons });
   };
 
   const renderEditable = (
@@ -154,7 +157,7 @@ export function BusinessCard({
             <p className="truncate text-[15px] font-semibold text-[#1a1a1a]">{card.displayName}</p>
             {card.title && <p className="truncate text-[12px] text-[#888]">{card.title}</p>}
           </div>
-          <NextScanMenu addon={card.nextScanAddon} onSetAddon={setNextScanAddon} compact />
+          <NextScanMenu addons={nextScanAddons} onSetAddons={setNextScanAddons} compact />
           <ChevronDown size={18} className="shrink-0 text-[#bbb]" />
         </div>
 
@@ -177,7 +180,7 @@ export function BusinessCard({
       className="relative mx-auto flex w-[min(340px,calc(100%-2rem))] max-h-[min(52vh,520px)] flex-col overflow-y-auto rounded-2xl bg-white px-5 py-5"
       style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}
     >
-      <NextScanMenu addon={card.nextScanAddon} onSetAddon={setNextScanAddon} />
+      <NextScanMenu addons={nextScanAddons} onSetAddons={setNextScanAddons} />
 
       <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
       <button

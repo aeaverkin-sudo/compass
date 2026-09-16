@@ -22,13 +22,18 @@ body {
 
 .compass-main {
   overscroll-behavior: none;
-  touch-action: none;
 }
 
 .compass-main input,
 .compass-main textarea,
 .compass-main [data-wheel-scroll] {
   touch-action: manipulation;
+}
+
+.compass-main [data-editor-handle] {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 @keyframes qr-flash {

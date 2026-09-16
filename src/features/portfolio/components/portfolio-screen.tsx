@@ -47,9 +47,9 @@ export function PortfolioScreen() {
     .map((i) => `${i.id}:${i.value}:${i.type}`)
     .join("|");
 
-  const addonFingerprint = card?.nextScanAddon
-    ? `${card.nextScanAddon.type}:${card.nextScanAddon.content.slice(0, 32)}`
-    : "";
+  const addonFingerprint = card?.nextScanAddons
+    ?.map((a) => `${a.id}:${a.type}:${a.content.slice(0, 24)}`)
+    .join("|") ?? "";
 
   useEffect(() => {
     syncShareToken();
@@ -68,7 +68,7 @@ export function PortfolioScreen() {
   const shareToken = card ? shareTokens[card.id] : "";
 
   useEffect(() => {
-    if (!card?.nextScanAddon || !shareToken) return;
+    if (!card?.nextScanAddons?.length || !shareToken) return;
 
     const poll = async () => {
       try {
@@ -76,7 +76,7 @@ export function PortfolioScreen() {
         if (!res.ok) return;
         const { nextScanDelivered } = await res.json();
         if (nextScanDelivered) {
-          updateCard(card.id, { nextScanAddon: null });
+          updateCard(card.id, { nextScanAddons: [] });
         }
       } catch {
         /* ignore */
@@ -86,7 +86,7 @@ export function PortfolioScreen() {
     poll();
     const id = setInterval(poll, 3000);
     return () => clearInterval(id);
-  }, [card?.id, card?.nextScanAddon, shareToken, updateCard]);
+  }, [card?.id, card?.nextScanAddons, shareToken, updateCard]);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const pdfShareUrl = shareToken ? `${origin}/share/${shareToken}?pdf=1` : "";

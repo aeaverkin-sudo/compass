@@ -20,6 +20,7 @@ import {
   buildContactItem,
   createCard,
   createEmptyContactItem,
+  getNextScanAddons,
 } from "@/features/portfolio/services/contact-item";
 interface PersistedState {
   user: User;
@@ -81,6 +82,7 @@ function portfolioToCard(p: Portfolio, sortOrder: number): Card {
     description: p.description ?? "",
     location: "",
     contactItemIds: p.activeSlotIds ?? [],
+    nextScanAddons: [],
     sortOrder,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
@@ -121,6 +123,11 @@ function migratePersistedState(raw: Record<string, unknown>): PersistedState {
   }
 
   currentCardIndex = Math.min(Math.max(0, currentCardIndex), cards.length - 1);
+
+  cards = cards.map((c) => ({
+    ...c,
+    nextScanAddons: getNextScanAddons(c),
+  }));
 
   return {
     user,

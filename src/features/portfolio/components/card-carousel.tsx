@@ -70,7 +70,7 @@ export function CardCarousel({
   }
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden py-2 pb-[8vh]" {...swipe}>
+    <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden py-2 pb-[calc(56px+env(safe-area-inset-bottom))]" {...swipe}>
       <div className="relative flex w-full flex-1 items-center justify-center">
         {positions.map(({ card: c, rel }) => {
           if (Math.abs(rel) > 1) return null;

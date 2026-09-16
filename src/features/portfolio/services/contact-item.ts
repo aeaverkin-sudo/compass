@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import type { Card, CardSnapshot, ContactItem, ContactType } from "@/shared/types";
+import type { Card, CardSnapshot, ContactItem, ContactType, NextScanAddon } from "@/shared/types";
 
 const SOCIAL: Record<string, ContactType> = {
   "instagram.com": "instagram",
@@ -85,6 +85,7 @@ export function createCard(label = "Personal", overrides?: Partial<Card>): Card 
     description: "",
     location: "",
     contactItemIds: [],
+    nextScanAddons: [],
     sortOrder: 0,
     createdAt: now,
     updatedAt: now,
@@ -126,7 +127,15 @@ export function itemCompactLabel(item: ContactItem): string {
   return `${typeLabel(item.type)} · ${itemDisplayValue(item).replace(/^@/, "")}`;
 }
 
+export function getNextScanAddons(card: Card): NextScanAddon[] {
+  if (card.nextScanAddons?.length) return card.nextScanAddons;
+  const legacy = card.nextScanAddon as NextScanAddon | null | undefined;
+  if (!legacy) return [];
+  return [{ ...legacy, id: legacy.id ?? nanoid() }];
+}
+
 export function buildCardSnapshot(card: Card, library: ContactItem[]): CardSnapshot {
+  const nextScanAddons = getNextScanAddons(card);
   return {
     label: card.label,
     displayName: card.displayName,
@@ -136,7 +145,7 @@ export function buildCardSnapshot(card: Card, library: ContactItem[]): CardSnaps
     description: card.description,
     location: card.location,
     items: getCardItems(card, library),
-    nextScanAddon: card.nextScanAddon ?? null,
+    nextScanAddons,
   };
 }
 
