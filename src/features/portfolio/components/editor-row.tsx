@@ -133,18 +133,18 @@ export function EditorRow({
           className="flex min-w-0 flex-1 items-baseline gap-3 text-left"
         >
           <span
-            className={`w-[72px] shrink-0 truncate text-[13px] ${
+            className={`w-[88px] shrink-0 text-[13px] ${
               isActive ? "font-medium text-[#1a1a1a]" : "text-[#888]"
             }`}
           >
             {displayType}
           </span>
           <span
-            className={`min-w-0 flex-1 truncate text-[14px] ${
+            className={`min-w-0 flex-1 break-words text-[13px] leading-snug ${
               isActive ? "font-semibold text-[#1a1a1a]" : "text-[#999]"
             }`}
           >
-            {displayValue.replace(/^https?:\/\//, "")}
+            {displayValue.replace(/^https?:\/\//, "").replace(/^www\./, "")}
           </span>
         </button>
       )}

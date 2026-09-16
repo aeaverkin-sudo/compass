@@ -7,8 +7,7 @@ import {
   isCardReady,
 } from "@/features/portfolio/services/contact-item";
 import { QrZone } from "./qr-zone";
-import { CardCarousel } from "./card-carousel";
-import { EditorSheet } from "./editor-sheet";
+import { PortfolioStack } from "./portfolio-stack";
 
 export function PortfolioScreen() {
   const cards = useAppStore((s) => s.cards);
@@ -31,6 +30,11 @@ export function PortfolioScreen() {
 
   const card = cards[currentIndex];
   const qrVisible = card ? isCardReady(card) : false;
+
+  const exitEdit = () => {
+    purgeEmptyContactItems();
+    setEditing(false);
+  };
 
   const syncShareToken = useCallback(async () => {
     if (!card || !qrVisible) return;
@@ -129,29 +133,18 @@ export function PortfolioScreen() {
         flashKey={qrFlashKey}
         onShare={handleShare}
         shareReady={Boolean(linkShareUrl)}
-        compact={editing}
       />
 
-      <CardCarousel
+      <PortfolioStack
         cards={cards}
         currentIndex={currentIndex}
         library={contactItems}
         editing={editing}
         onIndexChange={setCurrentCardIndex}
-        onCloseEdit={() => {
-          purgeEmptyContactItems();
-          setEditing(false);
-        }}
+        onEnterEdit={() => setEditing(true)}
+        onExitEdit={exitEdit}
         onUpdate={updateCard}
-      />
-
-      <EditorSheet
-        open={editing}
-        onOpenChange={setEditing}
-        card={card}
-        library={contactItems}
         onAddItem={() => addContactItem()}
-        onPurgeEmpty={purgeEmptyContactItems}
         onUpdateItem={(id, data) => {
           updateContactItem(id, data);
           updateCard(card.id, { updatedAt: new Date().toISOString() });

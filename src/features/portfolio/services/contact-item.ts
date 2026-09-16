@@ -120,7 +120,17 @@ export function isCardReady(card: Card): boolean {
 
 export function itemDisplayValue(item: ContactItem): string {
   const raw = item.label || item.value;
-  return raw.replace(/^https?:\/\//, "").replace(/^@/, "@");
+  return raw.replace(/^https?:\/\//, "").replace(/^www\./, "");
+}
+
+/** Full readable line for preview/editor — no truncation. */
+export function itemFullLine(item: ContactItem): string {
+  const value = itemDisplayValue(item);
+  if (item.type === "pdf") {
+    const name = value.split("/").pop() || value;
+    return `${typeLabel(item.type)} ${name}`;
+  }
+  return `${typeLabel(item.type)} ${value}`;
 }
 
 export function itemCompactLabel(item: ContactItem): string {

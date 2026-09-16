@@ -10,12 +10,11 @@ interface QrZoneProps {
   flashKey: number;
   onShare: () => void;
   shareReady: boolean;
-  compact?: boolean;
 }
 
-export function QrZone({ url, visible, flashKey, onShare, shareReady, compact }: QrZoneProps) {
+export function QrZone({ url, visible, flashKey, onShare, shareReady }: QrZoneProps) {
   const [flashing, setFlashing] = useState(false);
-  const qrSize = compact ? 100 : 168;
+  const qrSize = 168;
 
   useEffect(() => {
     if (!visible || flashKey === 0) return;
@@ -26,10 +25,8 @@ export function QrZone({ url, visible, flashKey, onShare, shareReady, compact }:
 
   return (
     <div
-      className={`relative shrink-0 px-4 transition-all duration-300 ${
-        compact ? "pt-2 pb-0" : "pt-3 pb-2"
-      }`}
-      style={{ minHeight: compact ? "16vh" : "26vh" }}
+      className="relative z-0 shrink-0 px-4 pt-3 pb-1"
+      style={{ minHeight: "24vh" }}
     >
       <div className="flex items-start justify-between">
         <button

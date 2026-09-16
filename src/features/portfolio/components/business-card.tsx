@@ -4,23 +4,24 @@ import { useRef, useState } from "react";
 import type { Card, ContactItem, NextScanAddon } from "@/shared/types";
 import {
   getCardItems,
+  getNextScanAddons,
   isCardReady,
   itemDisplayValue,
-  itemCompactLabel,
+  itemFullLine,
   typeLabel,
 } from "@/features/portfolio/services/contact-item";
 import { ContactIcon } from "./contact-icon";
-import { getNextScanAddons } from "@/features/portfolio/services/contact-item";
 import { NextScanMenu } from "./next-scan-menu";
 import { fileToDataUrl } from "@/shared/lib/utils";
-import { MapPin, ChevronRight, ChevronDown } from "lucide-react";
+import { MapPin, ChevronDown } from "lucide-react";
 
 interface BusinessCardProps {
   card: Card;
   library: ContactItem[];
-  variant: "full" | "compact";
+  variant: "full" | "preview";
   onUpdate: (data: Partial<Card>) => void;
   onCloseEdit?: () => void;
+  onBlankAreaTap?: () => void;
 }
 
 function ContactCell({
@@ -40,18 +41,17 @@ function ContactCell({
         e.stopPropagation();
         onOpen();
       }}
-      className={`flex min-h-[56px] items-start gap-2 rounded-xl border border-[#efefef] bg-white p-3 text-left ${
+      className={`flex min-h-[52px] items-start gap-2 rounded-xl border border-[#efefef] bg-white p-2.5 text-left ${
         fullWidth ? "col-span-2" : ""
       }`}
     >
-      <ContactIcon type={item.type} size={18} className="mt-0.5 shrink-0 text-[#444]" />
+      <ContactIcon type={item.type} size={16} className="mt-0.5 shrink-0 text-[#444]" />
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] text-[#999]">{typeLabel(item.type)}</p>
-        <p className="line-clamp-2 text-[12px] font-semibold leading-snug text-[#1a1a1a]">
+        <p className="text-[10px] text-[#999]">{typeLabel(item.type)}</p>
+        <p className="break-words text-[12px] font-semibold leading-snug text-[#1a1a1a]">
           {itemDisplayValue(item)}
         </p>
       </div>
-      <ChevronRight size={14} className="mt-1 shrink-0 text-[#ccc]" />
     </button>
   );
 }
@@ -62,6 +62,7 @@ export function BusinessCard({
   variant,
   onUpdate,
   onCloseEdit,
+  onBlankAreaTap,
 }: BusinessCardProps) {
   const photoRef = useRef<HTMLInputElement>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -86,6 +87,19 @@ export function BusinessCard({
 
   const setNextScanAddons = (addons: NextScanAddon[]) => {
     onUpdate({ nextScanAddons: addons, updatedAt: new Date().toISOString() });
+  };
+
+  const handleBlankTap = (e: React.MouseEvent) => {
+    const t = e.target as HTMLElement;
+    if (
+      t.closest("[data-editable]") ||
+      t.closest("[data-contact-item]") ||
+      t.closest("button") ||
+      t.closest("input")
+    ) {
+      return;
+    }
+    onBlankAreaTap?.();
   };
 
   const renderEditable = (
@@ -125,7 +139,11 @@ export function BusinessCard({
 
   if (!card.displayName.trim() && !card.photo) {
     return (
-      <div className="flex min-h-[200px] items-center justify-center px-6">
+      <div
+        className="flex min-h-[180px] items-center justify-center rounded-2xl bg-white px-6"
+        style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}
+        onClick={handleBlankTap}
+      >
         {renderEditable("displayName", card.displayName, "text-[15px] text-[#1a1a1a]", "Add your name")}
       </div>
     );
@@ -133,7 +151,11 @@ export function BusinessCard({
 
   if (card.displayName.trim() && !card.photo) {
     return (
-      <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 px-6">
+      <div
+        className="flex min-h-[180px] flex-col items-center justify-center gap-3 rounded-2xl bg-white px-6"
+        style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}
+        onClick={handleBlankTap}
+      >
         <input ref={photoRef} type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhoto} />
         {renderEditable("displayName", card.displayName, "text-lg font-semibold text-[#1a1a1a]", "Name")}
         <button type="button" onClick={() => photoRef.current?.click()} className="text-[13px] text-[#666]">
@@ -143,32 +165,42 @@ export function BusinessCard({
     );
   }
 
-  if (variant === "compact") {
+  if (variant === "preview") {
     return (
       <button
         type="button"
         onClick={onCloseEdit}
-        className="mx-4 flex w-[calc(100%-2rem)] max-w-lg flex-col rounded-2xl bg-white px-4 py-3 text-left transition-all duration-300"
-        style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
+        className="flex w-full flex-col rounded-2xl bg-white px-4 py-3 text-left"
+        style={{ boxShadow: "0 6px 28px rgba(0,0,0,0.12)" }}
       >
-        <div className="flex items-center gap-3">
-          <img src={card.photo} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+        <div className="flex items-start gap-3">
+          <img src={card.photo} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold text-[#1a1a1a]">{card.displayName}</p>
-            {card.title && <p className="truncate text-[12px] text-[#888]">{card.title}</p>}
+            <p className="text-[14px] font-bold leading-tight text-[#1a1a1a]">{card.displayName}</p>
+            {card.title && <p className="text-[11px] text-[#666]">{card.title}</p>}
+            {card.subtitle && <p className="text-[10px] text-[#999]">{card.subtitle}</p>}
           </div>
           <NextScanMenu addons={nextScanAddons} onSetAddons={setNextScanAddons} compact />
-          <ChevronDown size={18} className="shrink-0 text-[#bbb]" />
+          <ChevronDown size={16} className="mt-0.5 shrink-0 text-[#bbb]" />
         </div>
 
         {items.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-[#f0f0f0] pt-2">
+          <div className="mt-2.5 space-y-1.5 border-t border-[#f0f0f0] pt-2.5">
             {items.map((item) => (
-              <span key={item.id} className="flex items-center gap-1 text-[11px] text-[#666]">
-                <ContactIcon type={item.type} size={12} />
-                {itemCompactLabel(item)}
-              </span>
+              <div key={item.id} className="flex items-start gap-2">
+                <ContactIcon type={item.type} size={12} className="mt-0.5 shrink-0 text-[#666]" />
+                <p className="min-w-0 flex-1 break-words text-[11px] leading-snug text-[#444]">
+                  {itemFullLine(item)}
+                </p>
+              </div>
             ))}
+          </div>
+        )}
+
+        {card.location && (
+          <div className="mt-2 flex items-center gap-1 text-[10px] text-[#aaa]">
+            <MapPin size={10} strokeWidth={1.5} />
+            {card.location}
           </div>
         )}
       </button>
@@ -177,12 +209,9 @@ export function BusinessCard({
 
   return (
     <div
-      className="relative flex w-full flex-col overflow-y-auto rounded-2xl bg-white px-5 py-6"
-      style={{
-        boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
-        minHeight: "min(58vh, 560px)",
-        maxHeight: "min(62vh, 600px)",
-      }}
+      className="relative flex w-full flex-col rounded-2xl bg-white px-5 py-5"
+      style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}
+      onClick={handleBlankTap}
     >
       <NextScanMenu addons={nextScanAddons} onSetAddons={setNextScanAddons} />
 
@@ -190,25 +219,25 @@ export function BusinessCard({
       <button
         type="button"
         onClick={() => photoRef.current?.click()}
-        className="mx-auto mb-3 block"
+        className="mx-auto mb-2 block"
       >
         <img
           src={card.photo}
           alt=""
-          className="h-24 w-24 rounded-full object-cover"
+          className="h-[72px] w-[72px] rounded-full object-cover"
           style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
         />
       </button>
 
       <div className="text-center">
-        {renderEditable("displayName", card.displayName, "text-xl font-bold text-[#1a1a1a]", "Name")}
-        {renderEditable("title", card.title, "mt-1 block text-[13px] text-[#666]", "Title")}
-        {renderEditable("subtitle", card.subtitle, "block text-[12px] text-[#888]", "Subtitle")}
-        {renderEditable("description", card.description, "block text-[11px] text-[#aaa]", "Tagline")}
+        {renderEditable("displayName", card.displayName, "text-lg font-bold text-[#1a1a1a]", "Name")}
+        {renderEditable("title", card.title, "mt-0.5 block text-[12px] text-[#666]", "Title")}
+        {renderEditable("subtitle", card.subtitle, "block text-[11px] text-[#888]", "Subtitle")}
+        {renderEditable("description", card.description, "block text-[10px] text-[#aaa]", "Tagline")}
       </div>
 
       {items.length > 0 && (
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
           {gridItems.map((item) => (
             <ContactCell key={item.id} item={item} onOpen={() => openContact(item)} />
           ))}
@@ -219,9 +248,9 @@ export function BusinessCard({
       )}
 
       {(card.location || ready) && (
-        <div className="mt-4 flex items-center justify-center gap-1 text-[11px] text-[#aaa]">
-          <MapPin size={12} strokeWidth={1.5} />
-          {renderEditable("location", card.location, "text-[11px] text-[#aaa]", "Add location")}
+        <div className="mt-3 flex items-center justify-center gap-1 text-[10px] text-[#aaa]">
+          <MapPin size={11} strokeWidth={1.5} />
+          {renderEditable("location", card.location, "text-[10px] text-[#aaa]", "Add location")}
         </div>
       )}
     </div>

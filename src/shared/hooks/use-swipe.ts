@@ -5,9 +5,16 @@ import { useRef } from "react";
 interface SwipeHandlers {
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
+  onSwipeUp?: () => void;
+  onSwipeDown?: () => void;
 }
 
-export function useSwipe({ onSwipeLeft, onSwipeRight }: SwipeHandlers) {
+export function useSwipe({
+  onSwipeLeft,
+  onSwipeRight,
+  onSwipeUp,
+  onSwipeDown,
+}: SwipeHandlers) {
   const startX = useRef(0);
   const startY = useRef(0);
   const tracking = useRef(false);
@@ -18,20 +25,28 @@ export function useSwipe({ onSwipeLeft, onSwipeRight }: SwipeHandlers) {
       startY.current = e.touches[0].clientY;
       tracking.current = true;
     },
-    onTouchMove: (e: React.TouchEvent) => {
-      if (!tracking.current) return;
-      const dx = Math.abs(e.touches[0].clientX - startX.current);
-      const dy = Math.abs(e.touches[0].clientY - startY.current);
-      if (dy > dx && dy > 10) tracking.current = false;
+    onTouchMove: () => {
+      /* keep tracking until touchend */
     },
     onTouchEnd: (e: React.TouchEvent) => {
       if (!tracking.current) return;
       tracking.current = false;
       const endX = e.changedTouches[0].clientX;
-      const diff = endX - startX.current;
-      if (Math.abs(diff) < 60) return;
-      if (diff < 0) onSwipeLeft?.();
-      else onSwipeRight?.();
+      const endY = e.changedTouches[0].clientY;
+      const dx = endX - startX.current;
+      const dy = endY - startY.current;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+      if (absDx < 50 && absDy < 50) return;
+      if (absDx > absDy) {
+        if (absDx < 60) return;
+        if (dx < 0) onSwipeLeft?.();
+        else onSwipeRight?.();
+      } else {
+        if (absDy < 60) return;
+        if (dy < 0) onSwipeUp?.();
+        else onSwipeDown?.();
+      }
     },
   };
 }
