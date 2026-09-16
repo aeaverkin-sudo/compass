@@ -6,24 +6,36 @@ const SOCIAL: Record<string, ContactType> = {
   "linkedin.com": "linkedin",
   "t.me": "telegram",
   "telegram.me": "telegram",
+  "spotify.com": "audio",
 };
+
+/** Only a value that is entirely a domain counts as a link. */
+const DOMAIN = /^(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?$/i;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
+const PHONE = /^\+?[\d\s()-]{7,}$/;
 
 export function detectContactType(raw: string, mime?: string): ContactType {
   const v = raw.trim();
-  if (!v) return "custom";
-  if (mime === "application/pdf" || v.includes(".pdf") || v.startsWith("data:application/pdf"))
-    return "pdf";
-  if (v.includes("@") && !v.includes(" ")) return "email";
-  if (/^\+?[\d\s()-]{7,}$/.test(v)) return "phone";
+  if (!v) return "text";
+  if (mime === "application/pdf" || v.startsWith("data:application/pdf")) return "pdf";
+  if (EMAIL.test(v)) return "email";
+  if (PHONE.test(v)) return "phone";
+
+  // A domain mentioned inside a sentence stays plain text, never a link.
+  if (!DOMAIN.test(v)) return "text";
+  if (/\.pdf(?:$|\?)/i.test(v)) return "pdf";
+
   try {
-    const url = new URL(v.startsWith("http") ? v : `https://${v}`);
-    const host = url.hostname.replace("www.", "");
-    for (const [h, t] of Object.entries(SOCIAL)) {
-      if (host.includes(h)) return t;
+    const host = new URL(v.startsWith("http") ? v : `https://${v}`).hostname.replace(
+      /^www\./,
+      "",
+    );
+    for (const [domain, type] of Object.entries(SOCIAL)) {
+      if (host === domain || host.endsWith(`.${domain}`)) return type;
     }
     return "website";
   } catch {
-    return "custom";
+    return "text";
   }
 }
 
@@ -36,6 +48,8 @@ export function typeLabel(type: ContactType): string {
     phone: "Phone",
     pdf: "Pitch Deck",
     telegram: "Telegram",
+    audio: "Audio",
+    text: "Note",
     link: "Link",
     custom: "Link",
   };
@@ -46,10 +60,10 @@ export function buildContactItem(value: string, mime?: string, label?: string): 
   const type = detectContactType(value, mime);
   const now = new Date().toISOString();
   let url = value;
-  if (type === "email") url = `mailto:${value}`;
+  if (type === "text") url = "";
+  else if (type === "email") url = `mailto:${value}`;
   else if (type === "phone") url = `tel:${value.replace(/\s/g, "")}`;
-  else if (!value.startsWith("http") && (type === "website" || type === "instagram" || type === "linkedin"))
-    url = `https://${value}`;
+  else if (!value.startsWith("http") && !value.startsWith("data:")) url = `https://${value}`;
 
   return {
     id: nanoid(),
@@ -65,7 +79,7 @@ export function buildContactItem(value: string, mime?: string, label?: string): 
 export function createEmptyContactItem(order: number): ContactItem {
   return {
     id: nanoid(),
-    type: "custom",
+    type: "text",
     label: "",
     value: "",
     url: "",
@@ -118,35 +132,52 @@ export function isCardReady(card: Card): boolean {
   return Boolean(card.displayName.trim() && card.photo);
 }
 
-export function itemDisplayValue(item: ContactItem): string {
-  const raw = item.value.trim() || item.label;
-  const clean = raw.replace(/^https?:\/\//, "").replace(/^www\./, "");
-  if (item.type === "pdf") return clean.split("/").pop() || clean;
-  return clean;
+function bareDomain(raw: string): string {
+  return raw
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/$/, "");
 }
 
-export type ContactGroupKey = "direct" | "social" | "web" | "files";
+/** Social profiles read as handles rather than full URLs. */
+function socialHandle(raw: string): string {
+  if (raw.startsWith("@")) return raw;
+  const segments = bareDomain(raw).split("/");
+  const handle = segments[1]?.replace(/\/$/, "");
+  return handle ? `@${handle}` : bareDomain(raw);
+}
+
+export function itemDisplayValue(item: ContactItem): string {
+  const raw = (item.value.trim() || item.label).trim();
+  if (!raw) return "";
+
+  if (item.type === "pdf") {
+    if (raw.startsWith("data:")) return item.label || "Document";
+    const name = raw.split("?")[0].split("/").pop();
+    return name || raw;
+  }
+  if (item.type === "instagram") return socialHandle(raw);
+  if (item.type === "text") return raw;
+  return bareDomain(raw);
+}
+
+export type ContactGroupKey = "contact" | "social" | "files" | "site" | "other";
 
 const GROUP_OF: Record<ContactType, ContactGroupKey> = {
-  phone: "direct",
-  email: "direct",
+  phone: "contact",
+  email: "contact",
   instagram: "social",
-  linkedin: "social",
   telegram: "social",
-  website: "web",
-  link: "web",
-  custom: "web",
+  linkedin: "social",
   pdf: "files",
+  website: "site",
+  audio: "other",
+  text: "other",
+  link: "other",
+  custom: "other",
 };
 
-const GROUP_ORDER: ContactGroupKey[] = ["direct", "social", "web", "files"];
-
-export const CONTACT_GROUP_LABELS: Record<ContactGroupKey, string> = {
-  direct: "Contact",
-  social: "Social",
-  web: "Links",
-  files: "Files",
-};
+const GROUP_ORDER: ContactGroupKey[] = ["contact", "social", "files", "site", "other"];
 
 export function groupContactItems(
   items: ContactItem[],

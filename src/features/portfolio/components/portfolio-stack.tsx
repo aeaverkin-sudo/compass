@@ -3,36 +3,34 @@
 import type { Card, ContactItem } from "@/shared/types";
 import { useSwipe } from "@/shared/hooks/use-swipe";
 import { BusinessCard } from "./business-card";
-import { DataLayer } from "./data-layer";
+import { LibraryPanel } from "./library-panel";
 
 interface PortfolioStackProps {
   cards: Card[];
   currentIndex: number;
   library: ContactItem[];
   editing: boolean;
+  cardTop: number;
   onIndexChange: (index: number) => void;
   onToggleEdit: () => void;
   onUpdate: (id: string, data: Partial<Card>) => void;
   onAddItem: () => void;
   onUpdateItem: (id: string, data: Partial<ContactItem>) => void;
-  onToggleActive: (itemId: string) => void;
+  onDeleteItem: (id: string) => void;
 }
-
-const CARD_TOP_BROWSE = "26vh";
-const CARD_TOP_EDIT = "10vh";
-const FIELDS_PEEK = "calc(104px + env(safe-area-inset-bottom))";
 
 export function PortfolioStack({
   cards,
   currentIndex,
   library,
   editing,
+  cardTop,
   onIndexChange,
   onToggleEdit,
   onUpdate,
   onAddItem,
   onUpdateItem,
-  onToggleActive,
+  onDeleteItem,
 }: PortfolioStackProps) {
   const total = cards.length;
   const card = cards[currentIndex];
@@ -50,7 +48,7 @@ export function PortfolioStack({
 
   if (!card) return null;
 
-  // Before the card has a name there is nothing to scan or list yet.
+  // Nothing to scan or list until the card has a name.
   if (!card.displayName.trim()) {
     return (
       <div className="absolute inset-0 z-20 flex items-center px-6">
@@ -66,44 +64,49 @@ export function PortfolioStack({
 
   return (
     <div
-      className="compass-ease absolute inset-x-0 bottom-0 z-20 flex flex-col px-4"
-      style={{ top: editing ? CARD_TOP_EDIT : CARD_TOP_BROWSE }}
+      className="compass-ease absolute inset-x-0 bottom-0 z-20 flex flex-col"
+      style={{ top: `calc(env(safe-area-inset-top) + ${cardTop}px)` }}
       {...swipe}
     >
-      <div
-        className={`flex min-h-0 ${
-          editing ? "shrink-0" : "flex-1 items-start overflow-hidden"
-        }`}
-      >
-        <div className={editing ? "w-full" : "max-h-full w-full overflow-y-auto scrollbar-hide"}>
+      {/* Card keeps its content height and only scrolls if it cannot fit. */}
+      <div className="relative z-20 min-h-0 shrink overflow-y-auto scrollbar-hide">
+        {total > 1 && !editing && (
+          <div
+            aria-hidden
+            className="compass-sheet absolute rounded-[22px]"
+            style={{
+              top: 8,
+              bottom: 8,
+              right: 10,
+              width: 64,
+              background: "var(--sheet)",
+            }}
+          />
+        )}
+
+        <div
+          className="relative"
+          style={{
+            marginLeft: editing ? 20 : 10,
+            marginRight: editing ? 20 : 22,
+          }}
+        >
           <BusinessCard
             card={card}
             library={library}
-            variant={editing ? "preview" : "full"}
+            variant={editing ? "compact" : "full"}
             onUpdate={(data) => onUpdate(card.id, data)}
             onToggleEdit={onToggleEdit}
           />
         </div>
       </div>
 
-      {total > 1 && (
-        <div className="flex shrink-0 justify-center gap-1.5 py-2.5">
-          {cards.map((c, i) => (
-            <span
-              key={c.id}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === currentIndex ? "w-4 bg-[#a09a90]" : "w-1.5 bg-[#d8d3cb]"
-              }`}
-            />
-          ))}
-        </div>
-      )}
-
+      {/* Library sheet: a visible spine while browsing, the full list when open. */}
       <div
         role="button"
         tabIndex={0}
         aria-expanded={editing}
-        aria-label={editing ? "Collapse fields" : "Open fields"}
+        aria-label={editing ? "Close library" : "Open library"}
         onClick={onToggleEdit}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -111,22 +114,25 @@ export function PortfolioStack({
             onToggleEdit();
           }
         }}
-        className={`compass-fields compass-ease relative z-10 flex cursor-pointer flex-col overflow-hidden rounded-t-[24px] bg-white pt-4 ${
-          editing ? "min-h-0 flex-1" : "shrink-0"
-        } ${total > 1 ? "" : "mt-2.5"}`}
+        className="compass-sheet compass-ease relative z-10 flex min-h-0 flex-1 cursor-pointer flex-col overflow-hidden"
         style={{
-          height: editing ? undefined : FIELDS_PEEK,
-          paddingBottom: "calc(6px + env(safe-area-inset-bottom))",
+          background: "var(--sheet)",
+          borderRadius: 24,
+          minHeight: editing ? 140 : 72,
+          marginTop: editing ? 10 : -22,
+          marginLeft: editing ? 14 : 24,
+          marginRight: editing ? 14 : 24,
+          marginBottom: `calc(${editing ? 14 : 18}px + env(safe-area-inset-bottom))`,
         }}
       >
-        <DataLayer
-          card={card}
-          library={library}
-          editing={editing}
-          onAddItem={onAddItem}
-          onUpdateItem={onUpdateItem}
-          onToggleActive={onToggleActive}
-        />
+        {editing && (
+          <LibraryPanel
+            library={library}
+            onAddItem={onAddItem}
+            onUpdateItem={onUpdateItem}
+            onDeleteItem={onDeleteItem}
+          />
+        )}
       </div>
     </div>
   );

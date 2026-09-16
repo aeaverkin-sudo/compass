@@ -1,14 +1,19 @@
 import type { ContactType } from "@/shared/types";
 import { cn } from "@/shared/lib/utils";
-import { Globe, Mail, Phone, FileText, Link2, Send } from "lucide-react";
+import { Globe, Mail, Phone, FileText, StickyNote, Music, Link2, Send } from "lucide-react";
 
 interface ContactIconProps {
   type: ContactType;
   size?: number;
   className?: string;
+  style?: React.CSSProperties;
 }
 
-function InstagramIcon({ size, className }: { size: number; className?: string }) {
+const STROKE = 1.85;
+
+type GlyphProps = { size: number; className?: string; style?: React.CSSProperties };
+
+function InstagramIcon({ size, className, style }: GlyphProps) {
   return (
     <svg
       width={size}
@@ -16,8 +21,10 @@ function InstagramIcon({ size, className }: { size: number; className?: string }
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth={STROKE}
+      strokeLinecap="round"
       className={className}
+      style={style}
     >
       <rect x="3" y="3" width="18" height="18" rx="5" />
       <circle cx="12" cy="12" r="4" />
@@ -26,7 +33,7 @@ function InstagramIcon({ size, className }: { size: number; className?: string }
   );
 }
 
-function LinkedInIcon({ size, className }: { size: number; className?: string }) {
+function LinkedInIcon({ size, className, style }: GlyphProps) {
   return (
     <svg
       width={size}
@@ -34,34 +41,45 @@ function LinkedInIcon({ size, className }: { size: number; className?: string })
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.5"
+      strokeWidth={STROKE}
+      strokeLinecap="round"
       className={className}
+      style={style}
     >
-      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <rect x="3" y="3" width="18" height="18" rx="3" />
       <path d="M8 11v5M8 8v.01M12 16v-5c0-1 1-2 2-2s2 1 2 2v5" />
     </svg>
   );
 }
 
-export function ContactIcon({ type, size = 16, className }: ContactIconProps) {
-  const props = { size, className: cn("shrink-0", className) };
+export function ContactIcon({ type, size = 15, className, style }: ContactIconProps) {
+  const props = {
+    size,
+    strokeWidth: STROKE,
+    className: cn("shrink-0", className),
+    style,
+  };
 
   switch (type) {
     case "instagram":
-      return <InstagramIcon size={size} className={props.className} />;
+      return <InstagramIcon size={size} className={props.className} style={style} />;
     case "linkedin":
-      return <LinkedInIcon size={size} className={props.className} />;
+      return <LinkedInIcon size={size} className={props.className} style={style} />;
     case "website":
-      return <Globe {...props} strokeWidth={1.5} />;
+      return <Globe {...props} />;
     case "email":
-      return <Mail {...props} strokeWidth={1.5} />;
+      return <Mail {...props} />;
     case "phone":
-      return <Phone {...props} strokeWidth={1.5} />;
+      return <Phone {...props} />;
     case "pdf":
-      return <FileText {...props} strokeWidth={1.5} />;
+      return <FileText {...props} />;
     case "telegram":
-      return <Send {...props} strokeWidth={1.5} />;
+      return <Send {...props} />;
+    case "audio":
+      return <Music {...props} />;
+    case "text":
+      return <StickyNote {...props} />;
     default:
-      return <Link2 {...props} strokeWidth={1.5} />;
+      return <Link2 {...props} />;
   }
 }

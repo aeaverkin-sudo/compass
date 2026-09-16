@@ -5,34 +5,36 @@ import type { Card, ContactItem, NextScanAddon } from "@/shared/types";
 import {
   getCardItems,
   getNextScanAddons,
+  groupContactItems,
   itemDisplayValue,
 } from "@/features/portfolio/services/contact-item";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { ContactIcon } from "./contact-icon";
 import { NextScanMenu } from "./next-scan-menu";
 import { fileToDataUrl } from "@/shared/lib/utils";
-import { MapPin, User } from "lucide-react";
 
 interface BusinessCardProps {
   card: Card;
   library: ContactItem[];
-  variant: "full" | "preview";
+  variant: "full" | "compact";
   onUpdate: (data: Partial<Card>) => void;
   onToggleEdit?: () => void;
 }
 
-/** Plain tap bubbles up to toggle layers; a 0.7s hold starts editing. */
+/** Plain tap bubbles up to switch layers; a 0.7s hold starts editing. */
 function EditableText({
   value,
   placeholder,
   className,
-  align = "center",
+  align,
+  color,
   onChange,
 }: {
   value: string;
   placeholder: string;
   className: string;
-  align?: "center" | "left";
+  align: "center" | "left";
+  color: string;
   onChange: (next: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -50,36 +52,81 @@ function EditableText({
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === "Escape") setEditing(false);
         }}
-        className={`w-full border-b border-[#1a1a1a]/15 bg-transparent outline-none ${
+        className={`w-full bg-transparent outline-none ${
           align === "center" ? "text-center" : "text-left"
         } ${className}`}
+        style={{ borderBottom: "1px solid var(--hairline)", color }}
       />
     );
   }
 
   return (
-    <span {...press} className={`compass-press block ${className}`}>
+    <span {...press} className={`compass-press block ${className}`} style={{ color }}>
       {value || placeholder}
     </span>
   );
 }
 
-function ContactPill({ item, small }: { item: ContactItem; small?: boolean }) {
+function AvatarSilhouette({ size }: { size: number }) {
+  return (
+    <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 24 24" fill="oklch(88% 0.01 70)">
+      <circle cx="12" cy="8" r="4.1" />
+      <path d="M3.6 21c0-4.3 3.8-6.8 8.4-6.8s8.4 2.5 8.4 6.8z" />
+    </svg>
+  );
+}
+
+function Chip({ item, compact }: { item: ContactItem; compact: boolean }) {
   return (
     <span
-      className={`inline-flex max-w-full items-center gap-1.5 rounded-full bg-white ring-1 ring-[#e9e6e0] ${
-        small ? "px-2 py-1 text-[10.5px]" : "px-2.5 py-1.5 text-[12px]"
-      }`}
+      className="inline-flex max-w-full items-center rounded-[10px]"
+      style={{
+        height: compact ? 25 : 32,
+        paddingInline: compact ? 9 : 12,
+        borderRadius: compact ? 8 : 10,
+        gap: compact ? 5 : 7,
+        background: "var(--chip)",
+      }}
     >
       <ContactIcon
         type={item.type}
-        size={small ? 11 : 13}
-        className="shrink-0 text-[#a09a90]"
+        size={compact ? 11 : 12.5}
+        style={{ color: "var(--glyph)" }}
       />
-      <span className="min-w-0 break-all leading-none text-[#2b2620]">
+      <span
+        className="min-w-0 truncate leading-none"
+        style={{
+          fontSize: compact ? 10.5 : 12.5,
+          color: "var(--foreground)",
+        }}
+      >
         {itemDisplayValue(item)}
       </span>
     </span>
+  );
+}
+
+function ChipGroups({ items, compact }: { items: ContactItem[]; compact: boolean }) {
+  const groups = groupContactItems(items);
+  if (groups.length === 0) return null;
+
+  return (
+    <div
+      className="flex flex-col items-center"
+      style={{ gap: compact ? 7 : 13 }}
+    >
+      {groups.map((group) => (
+        <div
+          key={group.key}
+          className="flex flex-wrap justify-center"
+          style={{ gap: compact ? 5 : 7 }}
+        >
+          {group.items.map((item) => (
+            <Chip key={item.id} item={item} compact={compact} />
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -91,11 +138,10 @@ export function BusinessCard({
   onToggleEdit,
 }: BusinessCardProps) {
   const photoRef = useRef<HTMLInputElement>(null);
-  const compact = variant === "preview";
+  const compact = variant === "compact";
 
   const items = getCardItems(card, library);
   const nextScanAddons = getNextScanAddons(card);
-
   const photoPress = useLongPress(() => photoRef.current?.click());
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,11 +161,33 @@ export function BusinessCard({
     onToggleEdit?.();
   };
 
-  const shell = (children: React.ReactNode) => (
+  const avatarSize = compact ? 38 : 72;
+
+  const avatar = (
+    <span
+      {...photoPress}
+      className="compass-press flex shrink-0 items-center justify-center overflow-hidden rounded-full"
+      style={{
+        width: avatarSize,
+        height: avatarSize,
+        background: card.photo
+          ? undefined
+          : "linear-gradient(155deg, oklch(45% 0.03 60), oklch(28% 0.02 55))",
+      }}
+    >
+      {card.photo ? (
+        <img src={card.photo} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <AvatarSilhouette size={avatarSize} />
+      )}
+    </span>
+  );
+
+  const shell = (children: React.ReactNode, padding: string, radius: string) => (
     <div
       role="button"
       tabIndex={0}
-      aria-label={compact ? "Expand card" : "Show fields"}
+      aria-label={compact ? "Expand card" : "Open library"}
       onClick={handleCardTap}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -127,9 +195,8 @@ export function BusinessCard({
           onToggleEdit?.();
         }
       }}
-      className={`compass-card relative w-full cursor-pointer rounded-[24px] bg-white text-left ${
-        compact ? "px-4 py-4" : "px-5 py-7"
-      }`}
+      className="compass-card relative w-full cursor-pointer text-left"
+      style={{ background: "var(--sheet)", padding, borderRadius: radius }}
     >
       <NextScanMenu addons={nextScanAddons} onSetAddons={setNextScanAddons} />
       <input
@@ -145,132 +212,105 @@ export function BusinessCard({
 
   if (!card.displayName.trim()) {
     return shell(
-      <div
-        className="flex min-h-[120px] flex-col items-center justify-center gap-4"
-        data-no-toggle
-      >
-        <NameSetup onChange={(v) => onUpdate({ displayName: v })} />
+      <div data-no-toggle className="flex min-h-[104px] items-center justify-center px-2">
+        <NameSetup onSubmit={(v) => onUpdate({ displayName: v })} />
       </div>,
+      "18px 20px",
+      "22px",
     );
   }
-
-  const avatar = (
-    <span
-      {...photoPress}
-      className={`compass-press flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#f1efea] ${
-        compact ? "h-[52px] w-[52px]" : "mx-auto h-[76px] w-[76px]"
-      }`}
-    >
-      {card.photo ? (
-        <img src={card.photo} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <User size={compact ? 24 : 34} strokeWidth={1.4} className="text-[#b8b2a8]" />
-      )}
-    </span>
-  );
 
   if (compact) {
     return shell(
       <>
-        <div className="flex items-center gap-3 pr-9">
+        <div className="flex items-center pr-9" style={{ gap: 10 }}>
           {avatar}
           <div className="min-w-0 flex-1">
             <EditableText
               value={card.displayName}
               placeholder="Name"
               align="left"
-              className="text-[16px] font-bold leading-tight tracking-tight text-[#1f1a14]"
+              color="var(--foreground)"
+              className="text-[14.5px] font-semibold leading-tight tracking-[-0.01em]"
               onChange={(v) => onUpdate({ displayName: v })}
             />
             <EditableText
               value={card.title}
               placeholder="Title"
               align="left"
-              className="mt-0.5 text-[11.5px] leading-snug text-[#8d867b]"
+              color="var(--text-muted)"
+              className="text-[10.5px] leading-snug"
               onChange={(v) => onUpdate({ title: v })}
             />
           </div>
         </div>
 
         {items.length > 0 && (
-          <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-            {items.map((item) => (
-              <ContactPill key={item.id} item={item} small />
-            ))}
+          <div style={{ marginTop: 11 }}>
+            <ChipGroups items={items} compact />
           </div>
         )}
       </>,
+      "14px 16px 12px",
+      "22px 22px 14px 14px",
     );
   }
 
   return shell(
     <>
-      {avatar}
+      <div className="flex justify-center">{avatar}</div>
 
-      <div className="mt-3.5 text-center">
+      <div className="text-center" style={{ marginTop: 10 }}>
         <EditableText
           value={card.displayName}
           placeholder="Name"
-          className="text-[20px] font-bold leading-tight tracking-tight text-[#1f1a14]"
+          align="center"
+          color="var(--foreground)"
+          className="text-[18px] font-semibold leading-tight tracking-[-0.01em]"
           onChange={(v) => onUpdate({ displayName: v })}
         />
-        <EditableText
-          value={card.title}
-          placeholder="Title"
-          className="mt-1 text-[12px] leading-snug text-[#8d867b]"
-          onChange={(v) => onUpdate({ title: v })}
-        />
-        {card.subtitle && (
+        <div style={{ marginTop: 2 }}>
           <EditableText
-            value={card.subtitle}
-            placeholder="Subtitle"
-            className="text-[11px] leading-snug text-[#a8a29a]"
-            onChange={(v) => onUpdate({ subtitle: v })}
+            value={card.title}
+            placeholder="Title"
+            align="center"
+            color="var(--text-muted)"
+            className="text-[12px] leading-snug"
+            onChange={(v) => onUpdate({ title: v })}
           />
-        )}
+        </div>
       </div>
 
       {items.length > 0 && (
-        <div className="mt-5 flex flex-wrap justify-center gap-1.5">
-          {items.map((item) => (
-            <ContactPill key={item.id} item={item} />
-          ))}
-        </div>
-      )}
-
-      {card.location && (
-        <div className="mt-5 flex items-center justify-center gap-1 text-[11px] text-[#b0aaa0]">
-          <MapPin size={12} strokeWidth={1.5} />
-          <EditableText
-            value={card.location}
-            placeholder="Add location"
-            className="text-[11px] text-[#b0aaa0]"
-            onChange={(v) => onUpdate({ location: v })}
-          />
+        <div style={{ marginTop: 14 }}>
+          <ChipGroups items={items} compact={false} />
         </div>
       )}
     </>,
+    "18px 20px",
+    "22px",
   );
 }
 
-function NameSetup({ onChange }: { onChange: (v: string) => void }) {
+function NameSetup({ onSubmit }: { onSubmit: (v: string) => void }) {
   const [value, setValue] = useState("");
 
+  const commit = () => {
+    if (value.trim()) onSubmit(value.trim());
+  };
+
   return (
-    <div className="w-full px-2">
-      <input
-        value={value}
-        placeholder="Add your first and last name"
-        onChange={(e) => setValue(e.target.value)}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && value.trim()) onChange(value.trim());
-        }}
-        onBlur={() => {
-          if (value.trim()) onChange(value.trim());
-        }}
-        className="w-full border-b border-[#e3dfd8] bg-transparent pb-2 text-center text-[14px] text-[#2b2620] outline-none placeholder:text-[#a8a29a]"
-      />
-    </div>
+    <input
+      value={value}
+      placeholder="Add your first and last name"
+      onChange={(e) => setValue(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") commit();
+      }}
+      onBlur={commit}
+      className="w-full bg-transparent pb-2 text-center text-[14px] outline-none"
+      style={{ borderBottom: "1px solid var(--hairline)", color: "var(--foreground)" }}
+    />
   );
 }

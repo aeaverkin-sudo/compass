@@ -10,6 +10,17 @@ import {
 import { QrZone } from "./qr-zone";
 import { PortfolioStack } from "./portfolio-stack";
 
+/** The QR plate is fixed: same size and position in both states. */
+const HEADER_TOP = 16;
+const SHARE_ICON = 19;
+const QR_TOP = HEADER_TOP + SHARE_ICON + 14;
+const QR_SIZE = 168;
+const GAP_UNDER_QR = 18;
+const CARD_OVERLAP = 112;
+
+const CARD_TOP_BROWSE = QR_TOP + QR_SIZE + GAP_UNDER_QR;
+const CARD_TOP_LIBRARY = QR_TOP + QR_SIZE - CARD_OVERLAP;
+
 export function PortfolioScreen() {
   const cards = useAppStore((s) => s.cards);
   const contactItems = useAppStore((s) => s.contactItems);
@@ -22,7 +33,7 @@ export function PortfolioScreen() {
   const updateCard = useAppStore((s) => s.updateCard);
   const updateContactItem = useAppStore((s) => s.updateContactItem);
   const addItemToCard = useAppStore((s) => s.addItemToCard);
-  const removeItemFromCard = useAppStore((s) => s.removeItemFromCard);
+  const deleteContactItem = useAppStore((s) => s.deleteContactItem);
   const purgeEmptyContactItems = useAppStore((s) => s.purgeEmptyContactItems);
   const triggerQrFlash = useAppStore((s) => s.triggerQrFlash);
 
@@ -115,51 +126,60 @@ export function PortfolioScreen() {
     }
   };
 
-  const handleToggleActive = (itemId: string) => {
-    if (!card) return;
-    if (card.contactItemIds.includes(itemId)) {
-      removeItemFromCard(card.id, itemId);
-    } else {
-      addItemToCard(card.id, itemId);
-    }
-  };
-
   if (!card) return null;
 
   return (
-    <div className="compass-main relative mx-auto h-[100dvh] max-w-lg overflow-hidden bg-[#ece9e3]">
+    <div
+      className="compass-main relative mx-auto h-[100dvh] max-w-lg overflow-hidden"
+      style={{ background: "var(--background)" }}
+    >
       <header
-        className="absolute inset-x-0 top-0 z-30 flex items-center px-4"
-        style={{ paddingTop: "calc(10px + env(safe-area-inset-top))" }}
+        className="absolute inset-x-0 top-0 z-30 flex items-center"
+        style={{
+          paddingTop: `calc(env(safe-area-inset-top) + ${HEADER_TOP}px)`,
+          paddingLeft: 24,
+        }}
       >
         <button
           type="button"
           onClick={handleShare}
           disabled={!linkShareUrl}
-          className="p-1.5 text-[#3a3530] disabled:opacity-25"
+          className="disabled:opacity-25"
+          style={{ color: "oklch(25% 0.01 60)" }}
           aria-label="Share card"
         >
-          <Share size={19} strokeWidth={1.6} />
+          <Share size={SHARE_ICON} strokeWidth={1.7} />
         </button>
       </header>
 
-      <QrZone url={pdfShareUrl} visible={qrVisible} flashKey={qrFlashKey} />
+      <QrZone
+        url={pdfShareUrl}
+        visible={qrVisible}
+        flashKey={qrFlashKey}
+        top={QR_TOP}
+        size={QR_SIZE}
+      />
 
       <PortfolioStack
         cards={cards}
         currentIndex={currentIndex}
         library={contactItems}
         editing={editing}
+        cardTop={editing ? CARD_TOP_LIBRARY : CARD_TOP_BROWSE}
         onIndexChange={setCurrentCardIndex}
         onToggleEdit={toggleEdit}
         onUpdate={updateCard}
         onAddItem={() => addContactItem()}
         onUpdateItem={(id, data) => {
           updateContactItem(id, data);
+          // A filled item belongs on the card right away.
+          if (data.value?.trim() && !card.contactItemIds.includes(id)) {
+            addItemToCard(card.id, id);
+          }
           updateCard(card.id, { updatedAt: new Date().toISOString() });
           triggerQrFlash();
         }}
-        onToggleActive={handleToggleActive}
+        onDeleteItem={deleteContactItem}
       />
     </div>
   );

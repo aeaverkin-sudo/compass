@@ -7,9 +7,14 @@ interface QrZoneProps {
   url: string;
   visible: boolean;
   flashKey: number;
+  /** Distance from the top of the screen, excluding the safe area. */
+  top: number;
+  size: number;
 }
 
-export function QrZone({ url, visible, flashKey }: QrZoneProps) {
+const PLATE_PADDING = 6;
+
+export function QrZone({ url, visible, flashKey, top, size }: QrZoneProps) {
   const [flashing, setFlashing] = useState(false);
 
   useEffect(() => {
@@ -21,31 +26,35 @@ export function QrZone({ url, visible, flashKey }: QrZoneProps) {
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center"
-      style={{ paddingTop: "calc(5vh + env(safe-area-inset-top))" }}
+      className="pointer-events-none absolute inset-x-0 z-0 flex justify-center"
+      style={{ top: `calc(env(safe-area-inset-top) + ${top}px)` }}
       aria-hidden={!visible}
     >
-      <div className="relative">
+      <div className="relative" style={{ width: size, height: size }}>
         <div
-          className="absolute -inset-8 rounded-full opacity-60 blur-2xl"
+          className="absolute -inset-6 rounded-[32px]"
           style={{
             background:
-              "radial-gradient(circle, rgba(232,93,4,0.16) 0%, rgba(232,93,4,0) 70%)",
+              "radial-gradient(circle at center, oklch(64% 0.19 45 / 0.2) 0%, oklch(64% 0.19 45 / 0) 70%)",
+            filter: "blur(6px)",
           }}
         />
-        {visible ? (
-          <div className={`relative ${flashing ? "qr-flash" : ""}`}>
+        <div
+          className={`relative flex h-full w-full items-center justify-center rounded-[12px] ${
+            flashing ? "qr-flash" : ""
+          }`}
+          style={{ background: "var(--qr-plate)", padding: PLATE_PADDING }}
+        >
+          {visible && (
             <QRCodeSVG
               value={url}
-              size={152}
+              size={size - PLATE_PADDING * 2}
               level="M"
-              fgColor="#E85D04"
+              fgColor="#C1571F"
               bgColor="transparent"
             />
-          </div>
-        ) : (
-          <div style={{ height: 152, width: 152 }} />
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
