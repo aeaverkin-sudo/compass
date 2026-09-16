@@ -52,6 +52,13 @@ body {
   box-shadow: 0 -8px 28px -12px rgba(20, 16, 10, 0.12);
 }
 
+/* Long-press targets must not trigger iOS text selection or callout menus. */
+.compass-press {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 @keyframes qr-flash {
   0% {
     filter: brightness(1);

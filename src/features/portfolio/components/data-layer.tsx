@@ -72,34 +72,26 @@ export function DataLayer({
     [filled, card.contactItemIds],
   );
 
-  const addRow = (
-    <div
-      role={editing ? "button" : undefined}
-      tabIndex={editing ? 0 : undefined}
+  const addRow = editing ? (
+    <button
+      type="button"
+      data-no-toggle
       aria-label="Add a new field"
-      onClick={
-        editing
-          ? (e) => {
-              e.stopPropagation();
-              onAddItem();
-            }
-          : undefined
-      }
-      onKeyDown={
-        editing
-          ? (e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                e.stopPropagation();
-                onAddItem();
-              }
-            }
-          : undefined
-      }
-      className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2]"
+      onClick={(e) => {
+        e.stopPropagation();
+        onAddItem();
+      }}
+      className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2] text-left"
     >
       <span className="min-w-0 flex-1 text-[14px] text-[#c9c9c9]">Add anything</span>
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[19px] font-light leading-none text-[#1a1a1a]">
+        +
+      </span>
+    </button>
+  ) : (
+    <div className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2]">
+      <span className="min-w-0 flex-1 text-[14px] text-[#c9c9c9]">Add anything</span>
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[19px] font-light leading-none text-[#c4c4c4]">
         +
       </span>
     </div>

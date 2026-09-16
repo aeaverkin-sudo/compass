@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ContactItem } from "@/shared/types";
 import { buildContactItem, typeLabel } from "@/features/portfolio/services/contact-item";
+import { useLongPress } from "@/shared/hooks/use-long-press";
 import { ContactIcon } from "./contact-icon";
 
 interface EditorRowProps {
@@ -23,18 +24,14 @@ export function EditorRow({
   onToggleActive,
 }: EditorRowProps) {
   const [editing, setEditing] = useState(Boolean(autoEdit && isEmpty));
+  const press = useLongPress(() => setEditing(true));
 
   const pushValue = (raw: string) => {
     const built = buildContactItem(raw);
-    onUpdate({
-      value: raw,
-      type: built.type,
-      url: built.url,
-      label: item.label || built.label,
-    });
+    onUpdate({ value: raw, type: built.type, url: built.url, label: built.label });
   };
 
-  const displayValue = (item.value || item.label)
+  const displayValue = (item.value.trim() || item.label)
     .replace(/^https?:\/\//, "")
     .replace(/^www\./, "");
 
@@ -47,7 +44,7 @@ export function EditorRow({
         <input
           autoFocus
           type="text"
-          defaultValue={isEmpty ? "" : displayValue}
+          defaultValue={isEmpty ? "" : item.value}
           placeholder="Paste link, email or phone"
           className="min-w-0 flex-1 bg-transparent text-[14px] text-[#1a1a1a] outline-none placeholder:text-[#c4c4c4]"
           onChange={(e) => {
@@ -69,15 +66,8 @@ export function EditorRow({
   }
 
   return (
-    <div
-      className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2]"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-      >
+    <div className="flex h-[52px] shrink-0 items-center gap-3 border-b border-[#f4f4f2]">
+      <span {...press} className="compass-press flex min-w-0 flex-1 items-center gap-2.5">
         <ContactIcon
           type={item.type}
           size={15}
@@ -85,8 +75,8 @@ export function EditorRow({
         />
         <span className="min-w-0 flex-1">
           <span
-            className={`block text-[10px] leading-none ${
-              isActive ? "text-[#a3a3a3]" : "text-[#c9c9c9]"
+            className={`block text-[9.5px] leading-none ${
+              isActive ? "text-[#a8a8a8]" : "text-[#cdcdcd]"
             }`}
           >
             {typeLabel(item.type)}
@@ -99,16 +89,17 @@ export function EditorRow({
             {displayValue}
           </span>
         </span>
-      </button>
+      </span>
 
       <button
         type="button"
+        data-no-toggle
         onClick={(e) => {
           e.stopPropagation();
           onToggleActive();
         }}
         aria-label={isActive ? "Remove from card" : "Add to card"}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[17px] font-light leading-none transition-colors ${
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[17px] font-light leading-none ${
           isActive ? "bg-[#f4f4f2] text-[#1a1a1a]" : "text-[#c4c4c4]"
         }`}
       >

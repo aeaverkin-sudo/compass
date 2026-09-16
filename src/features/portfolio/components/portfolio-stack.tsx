@@ -18,8 +18,9 @@ interface PortfolioStackProps {
   onToggleActive: (itemId: string) => void;
 }
 
-const CARD_TOP_BROWSE = "31vh";
-const CARD_TOP_EDIT = "14vh";
+const CARD_TOP_BROWSE = "24vh";
+const CARD_TOP_EDIT = "10vh";
+const FIELDS_PEEK = "calc(112px + env(safe-area-inset-bottom))";
 
 export function PortfolioStack({
   cards,
@@ -100,7 +101,7 @@ export function PortfolioStack({
           editing ? "min-h-0 flex-1" : "shrink-0"
         } ${total > 1 ? "" : "mt-2.5"}`}
         style={{
-          height: editing ? undefined : "calc(148px + env(safe-area-inset-bottom))",
+          height: editing ? undefined : FIELDS_PEEK,
           paddingBottom: "calc(6px + env(safe-area-inset-bottom))",
         }}
       >

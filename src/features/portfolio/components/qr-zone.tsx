@@ -22,7 +22,7 @@ export function QrZone({ url, visible, flashKey }: QrZoneProps) {
   return (
     <div
       className="pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center"
-      style={{ paddingTop: "calc(7vh + env(safe-area-inset-top))" }}
+      style={{ paddingTop: "calc(5vh + env(safe-area-inset-top))" }}
       aria-hidden={!visible}
     >
       <div className="relative">
@@ -37,14 +37,14 @@ export function QrZone({ url, visible, flashKey }: QrZoneProps) {
           <div className={`relative ${flashing ? "qr-flash" : ""}`}>
             <QRCodeSVG
               value={url}
-              size={184}
+              size={152}
               level="M"
               fgColor="#E85D04"
               bgColor="transparent"
             />
           </div>
         ) : (
-          <div style={{ height: 184, width: 184 }} />
+          <div style={{ height: 152, width: 152 }} />
         )}
       </div>
     </div>
