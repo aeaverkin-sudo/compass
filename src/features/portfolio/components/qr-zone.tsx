@@ -10,10 +10,12 @@ interface QrZoneProps {
   flashKey: number;
   onShare: () => void;
   shareReady: boolean;
+  compact?: boolean;
 }
 
-export function QrZone({ url, visible, flashKey, onShare, shareReady }: QrZoneProps) {
+export function QrZone({ url, visible, flashKey, onShare, shareReady, compact }: QrZoneProps) {
   const [flashing, setFlashing] = useState(false);
+  const qrSize = compact ? 100 : 168;
 
   useEffect(() => {
     if (!visible || flashKey === 0) return;
@@ -23,7 +25,12 @@ export function QrZone({ url, visible, flashKey, onShare, shareReady }: QrZonePr
   }, [flashKey, visible]);
 
   return (
-    <div className="relative shrink-0 px-4 pt-3 pb-2">
+    <div
+      className={`relative shrink-0 px-4 transition-all duration-300 ${
+        compact ? "pt-2 pb-0" : "pt-3 pb-2"
+      }`}
+      style={{ minHeight: compact ? "18vh" : "30vh" }}
+    >
       <div className="flex items-start justify-between">
         <button
           type="button"
@@ -39,16 +46,22 @@ export function QrZone({ url, visible, flashKey, onShare, shareReady }: QrZonePr
         </button>
       </div>
 
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center justify-center">
         {visible ? (
-          <div className={`transition-opacity duration-300 ${flashing ? "qr-flash" : ""}`}>
-            <QRCodeSVG value={url} size={140} level="M" fgColor="#E85D04" bgColor="transparent" />
+          <div className={`transition-all duration-300 ${flashing ? "qr-flash" : ""}`}>
+            <QRCodeSVG
+              value={url}
+              size={qrSize}
+              level="M"
+              fgColor="#E85D04"
+              bgColor="transparent"
+            />
           </div>
         ) : (
-          <div className="h-[140px]" aria-hidden />
+          <div style={{ height: qrSize }} aria-hidden />
         )}
-        {visible && (
-          <p className="mt-1 text-[11px] text-[#999]">Scan to get my contact</p>
+        {visible && !compact && (
+          <p className="mt-2 text-[11px] text-[#999]">Scan to get my contact</p>
         )}
       </div>
     </div>

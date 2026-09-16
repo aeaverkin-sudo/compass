@@ -7,8 +7,17 @@ export type ContactType =
   | "email"
   | "phone"
   | "pdf"
+  | "telegram"
   | "link"
   | "custom";
+
+export type NextScanAddonType = "text" | "voice" | "selfie";
+
+export interface NextScanAddon {
+  type: NextScanAddonType;
+  content: string;
+  createdAt: string;
+}
 
 /** @deprecated use ContactItem — kept for Person / migration */
 export type ContentType = "link" | "pdf" | "image" | "text" | "empty";
@@ -42,6 +51,7 @@ export interface Card {
   description: string;
   location: string;
   contactItemIds: string[];
+  nextScanAddon?: NextScanAddon | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -92,6 +102,7 @@ export interface CardSnapshot {
   description: string;
   location: string;
   items: ContactItem[];
+  nextScanAddon?: NextScanAddon | null;
   /** @deprecated legacy share payloads */
   firstName?: string;
   lastName?: string;

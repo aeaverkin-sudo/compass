@@ -26,7 +26,7 @@ export function PortfolioScreen() {
   const triggerQrFlash = useAppStore((s) => s.triggerQrFlash);
 
   const [shareTokens, setShareTokens] = useState<Record<string, string>>({});
-  const [cardExpanded, setCardExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const card = cards[currentIndex];
   const qrVisible = card ? isCardReady(card) : false;
@@ -47,15 +47,47 @@ export function PortfolioScreen() {
     .map((i) => `${i.id}:${i.value}:${i.type}`)
     .join("|");
 
+  const addonFingerprint = card?.nextScanAddon
+    ? `${card.nextScanAddon.type}:${card.nextScanAddon.content.slice(0, 32)}`
+    : "";
+
   useEffect(() => {
     syncShareToken();
-  }, [syncShareToken, card?.updatedAt, card?.contactItemIds.join(","), libraryFingerprint]);
+  }, [
+    syncShareToken,
+    card?.updatedAt,
+    card?.contactItemIds.join(","),
+    libraryFingerprint,
+    addonFingerprint,
+  ]);
 
   useEffect(() => {
     if (card && qrVisible) triggerQrFlash();
   }, [currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shareToken = card ? shareTokens[card.id] : "";
+
+  useEffect(() => {
+    if (!card?.nextScanAddon || !shareToken) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/share/${shareToken}/status`);
+        if (!res.ok) return;
+        const { nextScanDelivered } = await res.json();
+        if (nextScanDelivered) {
+          updateCard(card.id, { nextScanAddon: null });
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+
+    poll();
+    const id = setInterval(poll, 3000);
+    return () => clearInterval(id);
+  }, [card?.id, card?.nextScanAddon, shareToken, updateCard]);
+
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const pdfShareUrl = shareToken ? `${origin}/share/${shareToken}?pdf=1` : "";
   const linkShareUrl = shareToken ? `${origin}/share/${shareToken}` : "";
@@ -96,24 +128,24 @@ export function PortfolioScreen() {
         flashKey={qrFlashKey}
         onShare={handleShare}
         shareReady={Boolean(linkShareUrl)}
+        compact={editing}
       />
 
       <CardCarousel
         cards={cards}
         currentIndex={currentIndex}
         library={contactItems}
-        expanded={cardExpanded}
+        editing={editing}
         onIndexChange={setCurrentCardIndex}
-        onExpand={() => setCardExpanded(true)}
-        onCollapse={() => setCardExpanded(false)}
+        onCloseEdit={() => setEditing(false)}
         onUpdate={updateCard}
-        onRemoveItem={removeItemFromCard}
       />
 
       <EditorSheet
+        open={editing}
+        onOpenChange={setEditing}
         card={card}
         library={contactItems}
-        expandedCard={cardExpanded}
         onAddItem={() => addContactItem()}
         onUpdateItem={(id, data) => {
           updateContactItem(id, data);

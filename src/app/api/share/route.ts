@@ -9,6 +9,8 @@ export async function POST(request: Request) {
     portfolio: body.portfolio,
     ownerName: body.ownerName || "",
     createdAt: Date.now(),
+    viewCount: 0,
+    nextScanDelivered: false,
   });
   return NextResponse.json({ token });
 }

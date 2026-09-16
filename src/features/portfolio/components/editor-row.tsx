@@ -9,7 +9,6 @@ interface EditorRowProps {
   item: ContactItem;
   isActive: boolean;
   isEmpty: boolean;
-  style?: React.CSSProperties;
   onUpdate: (data: Partial<ContactItem>) => void;
   onToggleActive: () => void;
 }
@@ -18,7 +17,6 @@ export function EditorRow({
   item,
   isActive,
   isEmpty,
-  style,
   onUpdate,
   onToggleActive,
 }: EditorRowProps) {
@@ -42,10 +40,7 @@ export function EditorRow({
   const displayValue = item.value || item.label;
 
   return (
-    <div
-      className="flex h-11 shrink-0 items-center gap-3 px-1 transition-all duration-150"
-      style={style}
-    >
+    <div className="flex h-11 shrink-0 items-center gap-3 border-b border-[#f5f5f5] py-1">
       <input ref={fileRef} type="file" accept="*/*" className="hidden" onChange={async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;

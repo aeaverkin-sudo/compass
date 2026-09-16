@@ -4,6 +4,8 @@ import type { Card, CardSnapshot, ContactItem, ContactType } from "@/shared/type
 const SOCIAL: Record<string, ContactType> = {
   "instagram.com": "instagram",
   "linkedin.com": "linkedin",
+  "t.me": "telegram",
+  "telegram.me": "telegram",
 };
 
 export function detectContactType(raw: string, mime?: string): ContactType {
@@ -33,6 +35,7 @@ export function typeLabel(type: ContactType): string {
     email: "Email",
     phone: "Phone",
     pdf: "Pitch Deck",
+    telegram: "Telegram",
     link: "Link",
     custom: "Link",
   };
@@ -114,6 +117,15 @@ export function isCardReady(card: Card): boolean {
   return Boolean(card.displayName.trim() && card.photo);
 }
 
+export function itemDisplayValue(item: ContactItem): string {
+  const raw = item.label || item.value;
+  return raw.replace(/^https?:\/\//, "").replace(/^@/, "@");
+}
+
+export function itemCompactLabel(item: ContactItem): string {
+  return `${typeLabel(item.type)} · ${itemDisplayValue(item).replace(/^@/, "")}`;
+}
+
 export function buildCardSnapshot(card: Card, library: ContactItem[]): CardSnapshot {
   return {
     label: card.label,
@@ -124,6 +136,7 @@ export function buildCardSnapshot(card: Card, library: ContactItem[]): CardSnaps
     description: card.description,
     location: card.location,
     items: getCardItems(card, library),
+    nextScanAddon: card.nextScanAddon ?? null,
   };
 }
 

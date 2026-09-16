@@ -63,6 +63,24 @@ export function SharedPortfolioView({ snapshot }: SharedPortfolioViewProps) {
             {snapshot.location}
           </div>
         )}
+
+        {snapshot.nextScanAddon && (
+          <div className="mt-6 w-full max-w-xs rounded-xl border border-[#eee] bg-white p-4 text-left">
+            {snapshot.nextScanAddon.type === "text" && (
+              <p className="text-[13px] text-[#1a1a1a]">{snapshot.nextScanAddon.content}</p>
+            )}
+            {snapshot.nextScanAddon.type === "voice" && (
+              <p className="text-[13px] italic text-[#666]">{snapshot.nextScanAddon.content}</p>
+            )}
+            {snapshot.nextScanAddon.type === "selfie" && (
+              <img
+                src={snapshot.nextScanAddon.content}
+                alt=""
+                className="mx-auto max-h-48 rounded-lg object-cover"
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

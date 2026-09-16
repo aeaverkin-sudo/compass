@@ -9,12 +9,10 @@ interface CardCarouselProps {
   cards: Card[];
   currentIndex: number;
   library: ContactItem[];
-  expanded: boolean;
+  editing: boolean;
   onIndexChange: (index: number) => void;
-  onExpand: () => void;
-  onCollapse: () => void;
+  onCloseEdit: () => void;
   onUpdate: (id: string, data: Partial<Card>) => void;
-  onRemoveItem: (cardId: string, itemId: string) => void;
 }
 
 function relativeIndex(i: number, current: number, total: number): number {
@@ -29,59 +27,57 @@ export function CardCarousel({
   cards,
   currentIndex,
   library,
-  expanded,
+  editing,
   onIndexChange,
-  onExpand,
-  onCollapse,
+  onCloseEdit,
   onUpdate,
-  onRemoveItem,
 }: CardCarouselProps) {
   const total = cards.length;
+  const card = cards[currentIndex];
 
   const swipe = useSwipe({
     onSwipeLeft: () => {
-      if (expanded) return;
+      if (editing) return;
       onIndexChange((currentIndex + 1) % total);
     },
     onSwipeRight: () => {
-      if (expanded) return;
+      if (editing) return;
       onIndexChange((currentIndex - 1 + total) % total);
     },
   });
 
-  const card = cards[currentIndex];
+  const positions = useMemo(
+    () =>
+      cards.map((c, i) => ({
+        card: c,
+        rel: relativeIndex(i, currentIndex, total),
+      })),
+    [cards, currentIndex, total],
+  );
 
-  const positions = useMemo(() => {
-    if (expanded) return [];
-    return cards.map((c, i) => {
-      const rel = relativeIndex(i, currentIndex, total);
-      return { card: c, rel };
-    });
-  }, [cards, currentIndex, total, expanded]);
-
-  if (expanded && card) {
+  if (editing && card) {
     return (
-      <BusinessCard
-        card={card}
-        library={library}
-        expanded
-        onExpand={onExpand}
-        onCollapse={onCollapse}
-        onUpdate={(data) => onUpdate(card.id, data)}
-        onRemoveItem={(itemId) => onRemoveItem(card.id, itemId)}
-      />
+      <div className="relative z-30 shrink-0 pt-1 pb-2">
+        <BusinessCard
+          card={card}
+          library={library}
+          variant="compact"
+          onUpdate={(data) => onUpdate(card.id, data)}
+          onCloseEdit={onCloseEdit}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden py-2" {...swipe}>
-      <div className="relative flex h-[240px] w-full items-center justify-center">
+    <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden py-2 pb-[8vh]" {...swipe}>
+      <div className="relative flex w-full flex-1 items-center justify-center">
         {positions.map(({ card: c, rel }) => {
           if (Math.abs(rel) > 1) return null;
           const isCenter = rel === 0;
-          const translateX = rel * 200;
-          const scale = isCenter ? 1 : 0.82;
-          const opacity = isCenter ? 1 : 0.55;
+          const translateX = rel * 220;
+          const scale = isCenter ? 1 : 0.88;
+          const opacity = isCenter ? 1 : 0.45;
           const zIndex = isCenter ? 10 : 5 - Math.abs(rel);
 
           return (
@@ -99,20 +95,15 @@ export function CardCarousel({
                 <BusinessCard
                   card={c}
                   library={library}
-                  expanded={false}
-                  onExpand={onExpand}
-                  onCollapse={onCollapse}
+                  variant="full"
                   onUpdate={(data) => onUpdate(c.id, data)}
-                  onRemoveItem={(itemId) => onRemoveItem(c.id, itemId)}
                 />
               ) : (
                 <div
-                  className="h-[200px] w-[60px] overflow-hidden rounded-xl bg-white"
+                  className="h-[220px] w-[52px] overflow-hidden rounded-xl bg-white"
                   style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}
                 >
-                  {c.photo && (
-                    <img src={c.photo} alt="" className="h-full w-full object-cover" />
-                  )}
+                  {c.photo && <img src={c.photo} alt="" className="h-full w-full object-cover" />}
                 </div>
               )}
             </div>
@@ -121,7 +112,7 @@ export function CardCarousel({
       </div>
 
       {total > 1 && (
-        <div className="mt-2 flex gap-1.5">
+        <div className="mt-1 flex shrink-0 gap-1.5 pb-1">
           {cards.map((c, i) => (
             <div
               key={c.id}

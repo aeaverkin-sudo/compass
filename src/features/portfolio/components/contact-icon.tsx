@@ -1,6 +1,6 @@
 import type { ContactType } from "@/shared/types";
 import { cn } from "@/shared/lib/utils";
-import { Globe, Mail, Phone, FileText, Link2 } from "lucide-react";
+import { Globe, Mail, Phone, FileText, Link2, Send } from "lucide-react";
 
 interface ContactIconProps {
   type: ContactType;
@@ -59,6 +59,8 @@ export function ContactIcon({ type, size = 16, className }: ContactIconProps) {
       return <Phone {...props} strokeWidth={1.5} />;
     case "pdf":
       return <FileText {...props} strokeWidth={1.5} />;
+    case "telegram":
+      return <Send {...props} strokeWidth={1.5} />;
     default:
       return <Link2 {...props} strokeWidth={1.5} />;
   }
