@@ -2,8 +2,8 @@
 
 export const QR_SIZE = 168;
 
-/** QR sits 1 cm below safe-area top (share row not built yet). */
-export const QR_TOP_MARGIN_CM = 1;
+/** QR sits 0.5 cm below safe-area top (share row not built yet). */
+export const QR_TOP_MARGIN_CM = 0.5;
 
 export const GAP_UNDER_QR = 18;
 export const QR_OVERLAP_LIBRARY_PX = 112;
