@@ -1,53 +1,113 @@
 "use client";
 
+import { forwardRef, type MouseEvent } from "react";
+import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import { getCardItems } from "@/shared/services/card-snapshot";
+import type { MainScreenMode } from "../layout";
 
 type BusinessCardProps = {
   card: Card;
   library: ContactItem[];
+  mode: MainScreenMode;
+  onEmptyAreaTap: () => void;
 };
 
-function ContactChip({ item }: { item: ContactItem }) {
+function ContactChip({ item, compact }: { item: ContactItem; compact: boolean }) {
   return (
-    <span className="inline-flex max-w-full items-center rounded-[10px] bg-[oklch(94%_0.008_70)] px-3 py-1.5 text-[13px] leading-none text-foreground">
+    <span
+      data-card-content
+      className={cn(
+        "inline-flex max-w-full items-center rounded-[10px] bg-[oklch(94%_0.008_70)] text-foreground",
+        compact ? "px-2 py-1 text-[11px]" : "px-3 py-1.5 text-[13px] leading-none",
+      )}
+    >
       <span className="truncate">{item.value}</span>
     </span>
   );
 }
 
-export function BusinessCard({ card, library }: BusinessCardProps) {
+export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
+  { card, library, mode, onEmptyAreaTap },
+  ref,
+) {
   const items = getCardItems(card, library);
+  const compact = mode === "library";
+
+  const handleClick = (event: MouseEvent<HTMLElement>) => {
+    if ((event.target as HTMLElement).closest("[data-card-content]")) return;
+    onEmptyAreaTap();
+  };
 
   return (
-    <article className="compass-card w-full px-6 py-5">
-      <div className="flex flex-col items-center">
+    <article
+      ref={ref}
+      role="button"
+      tabIndex={0}
+      aria-label={compact ? "Вернуться к визитке" : "Визитка"}
+      onClick={handleClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onEmptyAreaTap();
+        }
+      }}
+      className={cn(
+        "compass-card compass-layer w-full cursor-default transition-[transform,box-shadow] duration-[460ms] ease-out",
+        compact ? "px-4 py-3" : "px-6 py-5",
+      )}
+    >
+      <div className={cn("flex flex-col items-center", compact && "flex-row items-center gap-3")}>
         {card.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
+            data-card-content
             src={card.photo}
             alt=""
-            className="size-[68px] shrink-0 rounded-full border border-hairline object-cover"
+            className={cn(
+              "shrink-0 rounded-full border border-hairline object-cover",
+              compact ? "size-[44px]" : "size-[68px]",
+            )}
           />
         ) : null}
 
-        <div className="mt-3.5 w-full text-center">
-          <p className="text-[20px] leading-[1.15] text-foreground">{card.displayName}</p>
+        <div className={cn("w-full text-center", compact && "min-w-0 flex-1 text-left")}>
+          <p
+            data-card-content
+            className={cn("leading-[1.15] text-foreground", compact ? "text-[16px]" : "text-[20px]")}
+          >
+            {card.displayName}
+          </p>
           {card.title ? (
-            <p className="mt-1 text-[14px] leading-[1.2] text-hint">{card.title}</p>
+            <p
+              data-card-content
+              className={cn("leading-[1.2] text-hint", compact ? "mt-0.5 text-[12px]" : "mt-1 text-[14px]")}
+            >
+              {card.title}
+            </p>
           ) : (
-            <p className="mt-1 text-[14px] leading-[1.2] text-hint">title</p>
+            <p className={cn("leading-[1.2] text-hint", compact ? "mt-0.5 text-[12px]" : "mt-1 text-[14px]")}>
+              title
+            </p>
           )}
         </div>
 
-        {items.length > 0 ? (
+        {!compact && items.length > 0 ? (
           <div className="mt-4 flex w-full flex-wrap justify-center gap-2">
             {items.map((item) => (
-              <ContactChip key={item.id} item={item} />
+              <ContactChip key={item.id} item={item} compact={false} />
+            ))}
+          </div>
+        ) : null}
+
+        {compact && items.length > 0 ? (
+          <div className="flex max-w-[40%] flex-wrap justify-end gap-1.5">
+            {items.slice(0, 2).map((item) => (
+              <ContactChip key={item.id} item={item} compact />
             ))}
           </div>
         ) : null}
       </div>
     </article>
   );
-}
+});

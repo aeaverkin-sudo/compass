@@ -1,14 +1,13 @@
-/** Main screen proportions — sheet peek is larger than the card body. */
+/** Layer layout — QR background is fixed; card and sheet swap on tap. */
 
-export const QR_ZONE_LVH = 18;
-export const SHEET_PEEK_LVH = 32;
+export const QR_SIZE = 168;
+export const EDGE_INSET = "2.5";
+export const QR_TO_CARD_GAP = "1";
+export const SHEET_PEEK_LVH = 34;
 export const SHEET_OVERLAP_PX = 24;
-export const HORIZONTAL_INSET_PX = 20;
+export const LAYER_TRANSITION_MS = 460;
+export const QR_OVERLAP_LIBRARY_PX = 112;
 
-export function sheetPeekHeight() {
-  return `calc(${SHEET_PEEK_LVH}lvh + env(safe-area-inset-bottom))`;
-}
+export const LIBRARY_SHEET_GAP_PX = 10;
 
-export function cardBottomOffset() {
-  return `calc(${SHEET_PEEK_LVH}lvh - ${SHEET_OVERLAP_PX}px + env(safe-area-inset-bottom))`;
-}
+export type MainScreenMode = "browse" | "library";

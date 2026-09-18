@@ -1,26 +1,34 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
+import type { MainScreenMode } from "../layout";
 
 type ContentSheetPeekProps = {
-  expanded: boolean;
+  mode: MainScreenMode;
+  edgeInsetPx: number;
+  sheetTopLibrary?: number;
   onTap: () => void;
-  style?: CSSProperties;
 };
 
-export function ContentSheetPeek({ expanded, onTap, style }: ContentSheetPeekProps) {
+export function ContentSheetPeek({ mode, edgeInsetPx, sheetTopLibrary, onTap }: ContentSheetPeekProps) {
+  const expanded = mode === "library";
+
   return (
     <button
       type="button"
-      aria-label="Открыть поле наполнения визитки"
+      aria-label={expanded ? "Свернуть поле наполнения" : "Открыть поле наполнения визитки"}
       aria-expanded={expanded}
       onClick={onTap}
       className={cn(
-        "compass-sheet-peek absolute bottom-0 z-10 flex min-h-0 flex-col overflow-hidden rounded-t-[22px] text-left transition-transform duration-300 ease-out active:scale-[0.995]",
-        expanded && "-translate-y-[8lvh]",
+        "compass-sheet-peek compass-layer absolute flex min-h-0 flex-col overflow-hidden rounded-t-[22px] text-left",
+        "transition-[top,height,box-shadow] duration-[460ms] ease-out active:scale-[0.998]",
+        expanded ? "compass-sheet-expanded" : "compass-sheet-collapsed",
       )}
-      style={style}
+      style={{
+        left: edgeInsetPx,
+        right: edgeInsetPx,
+        ...(expanded && sheetTopLibrary !== undefined ? { top: sheetTopLibrary, bottom: 0, height: "auto" } : {}),
+      }}
     >
       <div className="mx-auto mt-3 mb-4 h-[4px] w-10 shrink-0 rounded-full bg-hairline/40" aria-hidden />
 
@@ -31,9 +39,15 @@ export function ContentSheetPeek({ expanded, onTap, style }: ContentSheetPeekPro
 
         <div className="flex flex-col gap-3">
           <div className="h-[14px] rounded-full bg-hairline/12" aria-hidden />
-          <div className="h-[14px] w-[88%] rounded-full bg-hairline/12" aria-hidden />
-          <div className="h-[14px] w-[72%] rounded-full bg-hairline/12" aria-hidden />
-          <div className="h-[14px] w-[94%] rounded-full bg-hairline/10" aria-hidden />
+          <div className="mx-auto h-[14px] w-[88%] rounded-full bg-hairline/12" aria-hidden />
+          <div className="mx-auto h-[14px] w-[72%] rounded-full bg-hairline/12" aria-hidden />
+          <div className="mx-auto h-[14px] w-[94%] rounded-full bg-hairline/10" aria-hidden />
+          {expanded ? (
+            <>
+              <div className="mx-auto h-[14px] w-[80%] rounded-full bg-hairline/10" aria-hidden />
+              <div className="mx-auto h-[14px] w-[65%] rounded-full bg-hairline/8" aria-hidden />
+            </>
+          ) : null}
         </div>
       </div>
     </button>
