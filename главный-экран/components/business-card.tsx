@@ -4,7 +4,7 @@ import { forwardRef, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import { getCardItems } from "@/shared/services/card-snapshot";
-import type { MainScreenMode } from "../layout";
+import { CARD_BOTTOM_EXTENSION_CM, type MainScreenMode } from "../layout";
 
 type BusinessCardProps = {
   card: Card;
@@ -56,8 +56,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }}
       className={cn(
         "compass-card compass-layer w-full cursor-default transition-[transform,box-shadow] duration-[460ms] ease-out",
-        compact ? "px-3.5 py-3" : "px-5 py-10",
+        compact ? "px-3.5 py-3" : "px-5 pt-10",
       )}
+      style={
+        compact
+          ? undefined
+          : { paddingBottom: `calc(2.5rem + ${CARD_BOTTOM_EXTENSION_CM}cm)` }
+      }
     >
       <div className={cn("flex flex-col items-center", compact && "flex-row items-center gap-3")}>
         {card.photo ? (

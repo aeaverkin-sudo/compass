@@ -6,6 +6,9 @@ export const QR_SIZE = 168;
 export const QR_TOP_MARGIN_CM = 0.5;
 
 export const GAP_UNDER_QR = 18;
+
+/** Extra browse card height below content (sheet follows card bottom). */
+export const CARD_BOTTOM_EXTENSION_CM = 1.5;
 export const QR_OVERLAP_LIBRARY_PX = 112;
 
 export const SHEET_INSET = {
