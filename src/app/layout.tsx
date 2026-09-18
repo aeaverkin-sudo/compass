@@ -1,36 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import { AppShell } from "@/shared/components/layout/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Compass",
-  description: "Personal portfolio and professional networking",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Compass",
-  },
+  description: "Compass — landing",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
   themeColor: "#E8E4DF",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full">
-      <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-      </head>
-      <body className="min-h-full bg-background font-sans antialiased">
-        <AppShell>{children}</AppShell>
-      </body>
+    <html lang="ru" className="h-full">
+      <body className="min-h-full bg-background font-sans antialiased">{children}</body>
     </html>
   );
 }

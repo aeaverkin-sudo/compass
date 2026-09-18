@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { LandingPage } from "@landing/components/landing-page";
 
 export default function Home() {
-  redirect("/portfolio");
+  return <LandingPage />;
 }

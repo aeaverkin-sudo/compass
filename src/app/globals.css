@@ -3,19 +3,15 @@
 :root {
   --background: oklch(93% 0.008 70);
   --foreground: oklch(19% 0.01 60);
-
-  --sheet: oklch(99% 0.004 75);
-  --qr-plate: oklch(97% 0.006 75);
-  --accent: oklch(64% 0.19 45);
-  --text-muted: oklch(55% 0.012 60);
-  --chip: oklch(95% 0.006 70);
-  --hairline: oklch(92% 0.006 70);
-  --glyph: oklch(30% 0.015 55);
+  --hairline: oklch(82% 0.006 70);
+  --hint: oklch(72% 0.008 70);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-hairline: var(--hairline);
+  --color-hint: var(--hint);
   --font-sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
 }
 
@@ -24,87 +20,4 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior: none;
-}
-
-.compass-main {
-  overscroll-behavior: none;
-}
-
-.compass-main input,
-.compass-main textarea,
-.compass-main [data-wheel-scroll] {
-  touch-action: manipulation;
-}
-
-.compass-main [data-editor-handle] {
-  touch-action: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.compass-ease {
-  transition-property: top, height, flex, margin, transform, box-shadow;
-  transition-duration: 460ms;
-  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-/* Far diffuse shadow plus a tight one reads as a page floating above the sheet. */
-.compass-card {
-  box-shadow:
-    0 18px 40px -12px rgba(46, 38, 30, 0.18),
-    0 2px 4px -1px rgba(46, 38, 30, 0.07);
-}
-
-.compass-sheet {
-  box-shadow:
-    0 12px 32px -14px rgba(46, 38, 30, 0.14),
-    0 1px 3px -1px rgba(46, 38, 30, 0.06);
-}
-
-/* Visible spine under the card while browsing — subtle top edge, no empty void feel. */
-.compass-sheet-peek {
-  box-shadow:
-    0 10px 28px -16px rgba(46, 38, 30, 0.12),
-    inset 0 1px 0 oklch(91% 0.006 70);
-}
-
-/* Long-press targets must not trigger iOS text selection or callout menus. */
-.compass-press {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-@keyframes qr-flash {
-  0% {
-    filter: brightness(1);
-  }
-  40% {
-    filter: brightness(1.8);
-  }
-  100% {
-    filter: brightness(1);
-  }
-}
-
-.qr-flash {
-  animation: qr-flash 0.35s ease-out;
-}
-
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-@media print {
-  nav,
-  button,
-  .no-print {
-    display: none !important;
-  }
 }

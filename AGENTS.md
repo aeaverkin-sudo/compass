@@ -2,7 +2,7 @@
 
 ## Tech stack — do not reinvent
 
-**Mandatory:** Next.js 16 (App Router) · React 19 · **Tailwind CSS v4** · **shadcn/ui** · **Radix UI** (via shadcn) · lucide-react · Zustand · `cn()` from `@/shared/lib/utils`.
+**Mandatory:** Next.js 16 (App Router) · React 19 · **Tailwind CSS v4** · **shadcn/ui** · **Radix UI** (via shadcn) · lucide-react · Zustand · `cn()` from `@/lib/utils`.
 
 1. Reuse `src/shared/components/ui/` before creating anything new.
 2. Missing component → `npx shadcn@latest add <name>` into `src/shared/components/ui/`.

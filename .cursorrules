@@ -7,6 +7,6 @@ DO NOT reinvent UI primitives. Before new components:
 2. Add via: npx shadcn@latest add <component>
 3. Use Radix-backed shadcn for Dialog, Dropdown, Tabs, Popover, Select, etc.
 
-Never hand-roll modals, menus, or accessible controls. Use cn() from @/shared/lib/utils.
+Never hand-roll modals, menus, or accessible controls. Use cn() from @/lib/utils.
 
 Details: .cursor/rules/tech-stack.mdc and AGENTS.md

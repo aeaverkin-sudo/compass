@@ -15,7 +15,7 @@ Use **only** this stack. Do not substitute libraries or hand-roll equivalents.
 | Primitives | **Radix UI** (via shadcn) | Raw `<div onClick>` overlays, home-grown focus traps / aria |
 | Icons | **lucide-react** | Custom SVG icons, other icon packs |
 | State | **Zustand** (`src/shared/store/`) | Redux, Context for global state, new store libs |
-| Utils | `cn()` from `@/shared/lib/utils` (`clsx` + `tailwind-merge`) | Ad-hoc class string concat |
+| Utils | `cn()` from `@/lib/utils` (`clsx` + `tailwind-merge`) | Ad-hoc class string concat |
 | IDs | **nanoid** | `Math.random()`, `uuid` |
 
 ## Before writing new UI
