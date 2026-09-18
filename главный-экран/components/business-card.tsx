@@ -55,14 +55,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         }
       }}
       className={cn(
-        "compass-card compass-layer w-full cursor-default transition-[transform,box-shadow] duration-[460ms] ease-out",
-        compact ? "px-3.5 py-3" : "px-5 pt-10",
+        "compass-card compass-layer flex w-full cursor-default flex-col transition-[transform,box-shadow] duration-[460ms] ease-out",
+        compact ? "px-3.5 py-3" : "px-5 pb-5 pt-8",
       )}
-      style={
-        compact
-          ? undefined
-          : { paddingBottom: `calc(2.5rem + ${CARD_BOTTOM_EXTENSION_CM}cm)` }
-      }
     >
       <div className={cn("flex flex-col items-center", compact && "flex-row items-center gap-3")}>
         {card.photo ? (
@@ -118,6 +113,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           </div>
         ) : null}
       </div>
+
+      {!compact ? (
+        <div
+          className="mt-6 w-full shrink-0"
+          style={{ height: `${CARD_BOTTOM_EXTENSION_CM}cm` }}
+          aria-hidden
+        />
+      ) : null}
     </article>
   );
 });

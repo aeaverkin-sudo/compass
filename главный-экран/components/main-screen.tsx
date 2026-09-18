@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { safeTop, type MainScreenMode } from "../layout";
+import { layoutTop, type MainScreenMode } from "../layout";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
 import { isCardReady, useAppStore } from "@/shared/store/app-store";
@@ -120,8 +120,8 @@ export function MainScreen() {
           <ContentSheetPeek
             mode={mode}
             edgeInsetPx={mode === "browse" ? layout.edgeInsetBrowse : layout.edgeInsetLibrary}
-            topBrowse={safeTop(layout.sheetTopBrowse)}
-            topLibrary={safeTop(layout.sheetTopLibrary)}
+            topBrowse={layoutTop(layout.sheetTopBrowse)}
+            topLibrary={layoutTop(layout.sheetTopLibrary)}
             onTap={toggleMode}
           />
         </div>
@@ -134,7 +134,7 @@ export function MainScreen() {
           style={{
             left: edgeInset,
             right: edgeInset,
-            top: safeTop(cardTop),
+            top: layoutTop(cardTop),
             zIndex: cardOnTop ? 20 : 25,
           }}
         >

@@ -1,7 +1,7 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
-import { QR_SIZE, safeTop } from "../layout";
+import { QR_SIZE, layoutTop } from "../layout";
 
 type QrZoneProps = {
   url: string;
@@ -18,7 +18,7 @@ export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
   return (
     <div
       className="pointer-events-none absolute inset-x-0 flex justify-center"
-      style={{ top: safeTop(topOffsetPx) }}
+      style={{ top: layoutTop(topOffsetPx) }}
       aria-hidden={!visible}
     >
       <div className="relative flex items-center justify-center" style={{ width: QR_SIZE, height: QR_SIZE }}>
