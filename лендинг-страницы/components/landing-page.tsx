@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useLockedAnchorTop } from "../hooks/use-locked-anchor-top";
-import { useVisualViewportOffset } from "../hooks/use-visual-viewport-offset";
+import { useVisualViewport } from "../hooks/use-visual-viewport";
 import { AvatarPicker } from "./avatar-picker";
 import { ConfirmButton } from "./confirm-button";
 import { NameFields } from "./name-fields";
@@ -12,16 +11,14 @@ function isFilled(value: string) {
   return value.trim().length > 0;
 }
 
-const AVATAR_SIZE_PX = 149.76;
-
 export function LandingPage() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
   const [secondName, setSecondName] = useState("");
+  const [inputFocused, setInputFocused] = useState(false);
 
-  const viewportOffsetTop = useVisualViewportOffset();
-  const keyboardOpen = viewportOffsetTop > 0;
-  const { anchorRef, top: photoTop } = useLockedAnchorTop(keyboardOpen);
+  const { keyboardOpen } = useVisualViewport();
+  const typing = inputFocused || keyboardOpen;
 
   const ready = useMemo(
     () => Boolean(photo) && isFilled(firstName) && isFilled(secondName),
@@ -40,50 +37,39 @@ export function LandingPage() {
     }
   }, [ready]);
 
-  const avatar = <AvatarPicker photo={photo} onPhotoChange={setPhoto} />;
-  const photoPinned = photoTop !== null;
-
   return (
-    <main className="compass-main relative h-lvh overflow-hidden bg-transparent">
-      {photoPinned ? (
-        <div
-          className="pointer-events-none fixed inset-x-0 z-10 flex justify-center"
-          style={{ top: photoTop, transform: `translateY(${viewportOffsetTop}px)` }}
-        >
-          <div className="pointer-events-auto">{avatar}</div>
-        </div>
-      ) : null}
+    <main className="compass-main grid h-lvh grid-rows-[1fr_auto_1fr] overflow-hidden bg-transparent">
+      <div aria-hidden />
 
-      <div className="grid h-full grid-rows-[1fr_auto_1fr]">
-        <div aria-hidden />
-
-        <div className="flex w-full flex-col items-center px-8">
-          <div className="flex w-full max-w-xs flex-col items-center">
-            <div
-              ref={anchorRef}
-              aria-hidden={photoPinned}
-              className={cn(
-                "shrink-0 -translate-y-[2cm]",
-                photoPinned ? "pointer-events-none invisible" : undefined,
-              )}
-              style={{ width: AVATAR_SIZE_PX, height: AVATAR_SIZE_PX }}
-            >
-              {!photoPinned ? avatar : null}
-            </div>
-            <div className="mt-[1.5cm] w-full">
-              <NameFields
-                firstName={firstName}
-                secondName={secondName}
-                onFirstNameChange={setFirstName}
-                onSecondNameChange={setSecondName}
-              />
+      <div className="flex w-full flex-col items-center px-8">
+        <div className="flex w-full max-w-xs flex-col items-center">
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out",
+              typing
+                ? "pointer-events-none mb-0 grid-rows-[0fr] opacity-0"
+                : "-translate-y-[2cm] mb-[1.5cm] grid-rows-[1fr] opacity-100",
+            )}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <AvatarPicker photo={photo} onPhotoChange={setPhoto} />
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center justify-center px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          {ready ? <ConfirmButton /> : null}
+          <div className="w-full">
+            <NameFields
+              firstName={firstName}
+              secondName={secondName}
+              onFirstNameChange={setFirstName}
+              onSecondNameChange={setSecondName}
+              onFocusChange={setInputFocused}
+            />
+          </div>
         </div>
+      </div>
+
+      <div className="flex items-center justify-center px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {ready ? <ConfirmButton /> : null}
       </div>
     </main>
   );
