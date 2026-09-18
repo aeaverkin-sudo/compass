@@ -4,7 +4,13 @@ import { forwardRef, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import { getCardItems } from "@/shared/services/card-snapshot";
-import { browseCardHeight, type MainScreenMode } from "../layout";
+import {
+  browseCardHeight,
+  CARD_PHOTO_RADIUS_PX,
+  CARD_PHOTO_SIZE_PX,
+  CARD_PHOTO_TOP_PX,
+  type MainScreenMode,
+} from "../layout";
 
 type BusinessCardProps = {
   card: Card;
@@ -56,9 +62,16 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }}
       className={cn(
         "compass-card compass-layer flex w-full cursor-default flex-col transition-[transform,box-shadow,height] duration-[460ms] ease-out",
-        compact ? "px-3.5 py-3" : "min-h-0 overflow-hidden px-5 pb-5 pt-8",
+        compact ? "px-3.5 py-3" : "min-h-0 overflow-hidden px-5 pb-5",
       )}
-      style={compact ? undefined : { height: browseCardHeight() }}
+      style={
+        compact
+          ? undefined
+          : {
+              height: browseCardHeight(),
+              paddingTop: CARD_PHOTO_TOP_PX,
+            }
+      }
     >
       <div className={cn("shrink-0 flex flex-col items-center", compact && "flex-row items-center gap-3")}>
         {card.photo ? (
@@ -69,8 +82,15 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             alt=""
             className={cn(
               "shrink-0 border border-hairline object-cover",
-              compact ? "size-11 rounded-[10px]" : "size-[168px] rounded-[18px]",
+              compact
+                ? "size-11 rounded-[10px]"
+                : "rounded-[13px]",
             )}
+            style={
+              compact
+                ? undefined
+                : { width: CARD_PHOTO_SIZE_PX, height: CARD_PHOTO_SIZE_PX, borderRadius: CARD_PHOTO_RADIUS_PX }
+            }
           />
         ) : null}
 

@@ -2,6 +2,11 @@
 
 export const QR_SIZE = 168;
 
+/** Browse card photo — 70% of QR size, ~0.5 cm below card top edge. */
+export const CARD_PHOTO_SIZE_PX = 118;
+export const CARD_PHOTO_TOP_PX = 19;
+export const CARD_PHOTO_RADIUS_PX = 13;
+
 export const QR_TOP_OFFSET_PX = 0;
 export const GAP_UNDER_QR = 18;
 
