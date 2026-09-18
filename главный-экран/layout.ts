@@ -16,6 +16,9 @@ export const SHEET_INSET = {
   library: { horizontal: 14, bottom: 14, gap: 10 },
 } as const;
 
+/** Browse peek: sheet body ≈ 42% of viewport (from mockup). */
+export const SHEET_PEEK_LVH = 42;
+
 export const LAYER_TRANSITION_MS = 460;
 
 export type MainScreenMode = "browse" | "library";

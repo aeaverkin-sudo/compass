@@ -6,6 +6,7 @@ import {
   CARD_TOP_LIBRARY_OFFSET,
   QR_TOP_OFFSET,
   SHEET_INSET,
+  SHEET_PEEK_LVH,
 } from "../layout";
 
 export type MainLayout = {
@@ -30,14 +31,31 @@ function readSafeAreaTop() {
   return top;
 }
 
+function readSafeAreaBottom() {
+  if (typeof document === "undefined") return 0;
+  const probe = document.createElement("div");
+  probe.style.paddingBottom = "env(safe-area-inset-bottom)";
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  document.body.appendChild(probe);
+  const bottom = probe.getBoundingClientRect().height;
+  document.body.removeChild(probe);
+  return bottom;
+}
+
 function computeLayout(cardHeight: number, compactCardHeight: number): MainLayout | null {
   if (typeof window === "undefined" || cardHeight <= 0 || compactCardHeight <= 0) return null;
 
+  const viewportH = window.innerHeight;
   const safeTop = readSafeAreaTop();
+  const safeBottom = readSafeAreaBottom();
   const qrTop = safeTop + QR_TOP_OFFSET;
   const cardTopBrowse = safeTop + CARD_TOP_BROWSE_OFFSET;
   const cardBottomBrowse = cardTopBrowse + cardHeight;
-  const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
+
+  const sheetTopFromCard = cardBottomBrowse - SHEET_INSET.browse.overlap;
+  const minSheetHeight = (viewportH * SHEET_PEEK_LVH) / 100 + safeBottom;
+  const sheetTopBrowse = Math.min(sheetTopFromCard, viewportH - minSheetHeight);
 
   const cardTopLibrary = safeTop + CARD_TOP_LIBRARY_OFFSET;
   const sheetTopLibrary = cardTopLibrary + compactCardHeight + SHEET_INSET.library.gap;

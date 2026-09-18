@@ -11,6 +11,22 @@ type ContentSheetPeekProps = {
   onTap: () => void;
 };
 
+function SkeletonRows({ count }: { count: number }) {
+  const widths = ["92%", "88%", "72%", "94%", "80%", "65%"];
+  return (
+    <div className="flex flex-col gap-3">
+      {widths.slice(0, count).map((width) => (
+        <div
+          key={width}
+          className="mx-auto h-[14px] rounded-full bg-hairline/12"
+          style={{ width }}
+          aria-hidden
+        />
+      ))}
+    </div>
+  );
+}
+
 export function ContentSheetPeek({
   mode,
   edgeInsetPx,
@@ -29,7 +45,7 @@ export function ContentSheetPeek({
       aria-expanded={expanded}
       onClick={onTap}
       className={cn(
-        "compass-sheet-peek compass-layer pointer-events-auto absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-[22px] text-left",
+        "compass-sheet-peek compass-layer pointer-events-auto absolute inset-x-0 bottom-0 flex h-auto flex-col overflow-hidden rounded-t-[22px] text-left",
         "transition-[top,box-shadow] duration-[460ms] ease-out active:scale-[0.998]",
         expanded && "compass-sheet-expanded",
       )}
@@ -40,31 +56,17 @@ export function ContentSheetPeek({
         paddingBottom: `max(${bottomInset}px, env(safe-area-inset-bottom))`,
       }}
     >
-      <div className="mx-auto mt-3 mb-3 h-[4px] w-10 shrink-0 rounded-full bg-hairline/45" aria-hidden />
+      <div className="mx-auto mt-3 mb-2 h-[4px] w-10 shrink-0 rounded-full bg-hairline/45" aria-hidden />
 
-      <div className="min-h-[120px] flex-1 overflow-hidden px-2">
-        <p className="mb-5 text-center text-[13px] leading-[1.25] text-hint">
-          link, email, phone, file…
-        </p>
+      <p className="shrink-0 px-4 pb-3 text-center text-[13px] leading-[1.25] text-hint">
+        link, email, phone, file…
+      </p>
 
-        <div className="flex flex-col gap-3.5">
-          <div className="mx-auto h-[14px] w-full max-w-[92%] rounded-full bg-hairline/14" aria-hidden />
-          <div className="mx-auto h-[14px] w-[88%] rounded-full bg-hairline/14" aria-hidden />
-          <div className="mx-auto h-[14px] w-[72%] rounded-full bg-hairline/12" aria-hidden />
-          <div className="mx-auto h-[14px] w-[94%] rounded-full bg-hairline/10" aria-hidden />
-          {expanded ? (
-            <>
-              <div className="mx-auto h-[14px] w-[80%] rounded-full bg-hairline/10" aria-hidden />
-              <div className="mx-auto h-[14px] w-[65%] rounded-full bg-hairline/8" aria-hidden />
-              <div className="mx-auto h-[14px] w-[76%] rounded-full bg-hairline/8" aria-hidden />
-            </>
-          ) : (
-            <>
-              <div className="mx-auto h-[14px] w-[68%] rounded-full bg-hairline/10" aria-hidden />
-              <div className="mx-auto h-[14px] w-[84%] rounded-full bg-hairline/8" aria-hidden />
-            </>
-          )}
-        </div>
+      {/* Filling zone — the tall body marked green in mockups */}
+      <div className="compass-sheet-body mx-3 mb-3 min-h-0 flex-1 rounded-[14px]" aria-hidden />
+
+      <div className="shrink-0 px-4 pb-2">
+        <SkeletonRows count={expanded ? 6 : 4} />
       </div>
     </button>
   );
