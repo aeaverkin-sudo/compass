@@ -7,9 +7,9 @@ export const CARD_PHOTO_SIZE_PX = 118;
 export const CARD_PHOTO_TOP_PX = 19;
 export const CARD_PHOTO_RADIUS_PX = 13;
 
-/** Browse card name — half previous size, ~0.5 cm below photo. */
+/** Browse card name — half previous size, ~0.2 cm below photo. */
 export const CARD_NAME_SIZE_PX = 22;
-export const CARD_NAME_GAP_PX = 19;
+export const CARD_NAME_GAP_PX = 8;
 
 export const QR_TOP_OFFSET_PX = 0;
 export const GAP_UNDER_QR = 18;
