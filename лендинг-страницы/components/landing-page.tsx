@@ -23,16 +23,13 @@ export function LandingPage() {
   return (
     <main
       className={cn(
-        "compass-main flex min-h-dvh flex-col transition-[background-color] duration-500 ease-out",
+        "compass-main grid min-h-dvh grid-rows-[1fr_auto_1fr] transition-[background-color] duration-500 ease-out",
         ready ? "compass-ready bg-background-ready" : "bg-background",
       )}
     >
-      <div
-        className={cn(
-          "flex w-full flex-col items-center px-8",
-          ready ? "shrink-0 pt-[max(2.5rem,calc(env(safe-area-inset-top)+1rem))]" : "min-h-dvh justify-center",
-        )}
-      >
+      <div aria-hidden />
+
+      <div className="flex w-full flex-col items-center px-8">
         <div className="flex w-full max-w-xs flex-col items-center">
           <AvatarPicker photo={photo} onPhotoChange={setPhoto} />
           <div className="mt-[1.5cm] w-full">
@@ -46,11 +43,9 @@ export function LandingPage() {
         </div>
       </div>
 
-      {ready && (
-        <div className="flex min-h-0 flex-1 items-center justify-center px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          <ConfirmButton />
-        </div>
-      )}
+      <div className="flex items-center justify-center px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        {ready ? <ConfirmButton /> : null}
+      </div>
     </main>
   );
 }
