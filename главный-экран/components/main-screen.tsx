@@ -54,21 +54,8 @@ export function MainScreen() {
     return () => observer.disconnect();
   }, [card, contactItems]);
 
-  useEffect(() => {
-    document.documentElement.classList.add("compass-ready");
-
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) {
-      meta.setAttribute(
-        "content",
-        getComputedStyle(document.documentElement).getPropertyValue("--theme-color-ready").trim() ||
-          "#f9f8f6",
-      );
-    }
-  }, []);
-
   if (!card) {
-    return <div className="h-lvh bg-background" aria-hidden />;
+    return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
   }
 
   const cardOnTop = mode === "browse";
@@ -84,7 +71,7 @@ export function MainScreen() {
     : undefined;
 
   return (
-    <main className="compass-main relative h-lvh overflow-hidden bg-background">
+    <main className="compass-main fixed inset-0 overflow-hidden bg-background-ready">
       {/* Off-screen measurers */}
       <div className="pointer-events-none invisible absolute -left-[9999px] top-0" aria-hidden>
         <div style={{ width: layout ? `calc(100vw - ${layout.edgeInsetBrowse * 2}px)` : "calc(100vw - 40px)" }}>
@@ -108,7 +95,7 @@ export function MainScreen() {
       </div>
 
       {/* Layer 0 — permanent background */}
-      <div className="pointer-events-none absolute inset-0 z-0 bg-background">
+      <div className="pointer-events-none absolute inset-0 z-0 bg-background-ready">
         {layout ? (
           <QrZone url={pdfUrl} visible={isCardReady(card)} topOffsetPx={layout.qrTop} />
         ) : null}

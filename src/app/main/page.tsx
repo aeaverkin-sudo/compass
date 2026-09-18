@@ -6,10 +6,23 @@ import { MainScreen } from "@main/components/main-screen";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
 
+function applyMainChrome() {
+  document.documentElement.classList.add("compass-ready");
+
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute("content", "#f9f8f6");
+  }
+}
+
 export default function MainPage() {
   const router = useRouter();
   const hydrated = useStoreHydrated();
   const onboarded = useAppStore((state) => state.user.onboarded);
+
+  useEffect(() => {
+    applyMainChrome();
+  }, []);
 
   useEffect(() => {
     if (hydrated && !onboarded) {
@@ -18,7 +31,7 @@ export default function MainPage() {
   }, [hydrated, onboarded, router]);
 
   if (!hydrated || !onboarded) {
-    return <div className="h-lvh bg-background" aria-hidden />;
+    return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
   }
 
   return <MainScreen />;

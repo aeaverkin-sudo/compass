@@ -25,6 +25,7 @@ html {
 html.compass-ready {
   --background: var(--background-ready);
   --theme-color: var(--theme-color-ready);
+  background-color: var(--background-ready);
 }
 
 @theme inline {

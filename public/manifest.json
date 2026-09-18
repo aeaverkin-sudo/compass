@@ -3,7 +3,7 @@
   "short_name": "Compass",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#E8E4DF",
-  "theme_color": "#E8E4DF",
+  "background_color": "#F9F8F6",
+  "theme_color": "#F9F8F6",
   "orientation": "portrait"
 }
