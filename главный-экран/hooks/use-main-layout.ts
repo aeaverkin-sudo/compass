@@ -2,13 +2,10 @@
 
 import { useLayoutEffect, useState } from "react";
 import {
-  EDGE_INSET_CM,
-  GAP_CM,
-  LIBRARY_SHEET_GAP_PX,
-  QR_OVERLAP_LIBRARY_PX,
-  QR_SIZE,
-  SHEET_OVERLAP_PX,
-  SHEET_PEEK_MIN_LVH,
+  CARD_TOP_BROWSE_OFFSET,
+  CARD_TOP_LIBRARY_OFFSET,
+  QR_TOP_OFFSET,
+  SHEET_INSET,
 } from "../layout";
 
 export type MainLayout = {
@@ -17,24 +14,9 @@ export type MainLayout = {
   cardTopLibrary: number;
   sheetTopBrowse: number;
   sheetTopLibrary: number;
-  edgeInsetPx: number;
+  edgeInsetBrowse: number;
+  edgeInsetLibrary: number;
 };
-
-let cachedCmPx: number | null = null;
-
-function cmToPx(cm: number) {
-  if (cachedCmPx !== null) return cachedCmPx * cm;
-  if (typeof document === "undefined") return cm * 37.795;
-
-  const probe = document.createElement("div");
-  probe.style.width = "1cm";
-  probe.style.position = "absolute";
-  probe.style.visibility = "hidden";
-  document.body.appendChild(probe);
-  cachedCmPx = probe.getBoundingClientRect().width || 37.795;
-  document.body.removeChild(probe);
-  return cachedCmPx * cm;
-}
 
 function readSafeAreaTop() {
   if (typeof document === "undefined") return 0;
@@ -48,38 +30,17 @@ function readSafeAreaTop() {
   return top;
 }
 
-function readSafeAreaBottom() {
-  if (typeof document === "undefined") return 0;
-  const probe = document.createElement("div");
-  probe.style.paddingBottom = "env(safe-area-inset-bottom)";
-  probe.style.position = "absolute";
-  probe.style.visibility = "hidden";
-  document.body.appendChild(probe);
-  const bottom = probe.getBoundingClientRect().height;
-  document.body.removeChild(probe);
-  return bottom;
-}
-
 function computeLayout(cardHeight: number, compactCardHeight: number): MainLayout | null {
   if (typeof window === "undefined" || cardHeight <= 0 || compactCardHeight <= 0) return null;
 
-  const viewportH = window.innerHeight;
   const safeTop = readSafeAreaTop();
-  const safeBottom = readSafeAreaBottom();
-  const edgeInsetPx = cmToPx(EDGE_INSET_CM);
-  const gapPx = cmToPx(GAP_CM);
-
-  const freeFieldTop = safeTop + gapPx;
-  const qrTop = freeFieldTop;
-  const cardTopBrowse = freeFieldTop + QR_SIZE + gapPx;
+  const qrTop = safeTop + QR_TOP_OFFSET;
+  const cardTopBrowse = safeTop + CARD_TOP_BROWSE_OFFSET;
   const cardBottomBrowse = cardTopBrowse + cardHeight;
+  const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
 
-  const minSheetHeight = (viewportH * SHEET_PEEK_MIN_LVH) / 100 + safeBottom;
-  const maxSheetTop = viewportH - minSheetHeight;
-  const sheetTopBrowse = Math.min(cardBottomBrowse - SHEET_OVERLAP_PX, maxSheetTop);
-
-  const cardTopLibrary = qrTop + QR_SIZE - QR_OVERLAP_LIBRARY_PX;
-  const sheetTopLibrary = cardTopLibrary + compactCardHeight + LIBRARY_SHEET_GAP_PX;
+  const cardTopLibrary = safeTop + CARD_TOP_LIBRARY_OFFSET;
+  const sheetTopLibrary = cardTopLibrary + compactCardHeight + SHEET_INSET.library.gap;
 
   return {
     qrTop,
@@ -87,7 +48,8 @@ function computeLayout(cardHeight: number, compactCardHeight: number): MainLayou
     cardTopLibrary,
     sheetTopBrowse,
     sheetTopLibrary,
-    edgeInsetPx,
+    edgeInsetBrowse: SHEET_INSET.browse.horizontal,
+    edgeInsetLibrary: SHEET_INSET.library.horizontal,
   };
 }
 
