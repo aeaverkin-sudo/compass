@@ -7,12 +7,12 @@ import { cn } from "@/lib/utils";
 type PickerAction = "selfie" | "gallery" | "file";
 
 const ACTIONS: { id: PickerAction; Icon: LucideIcon; label: string }[] = [
-  { id: "file", Icon: FileText, label: "Файл" },
-  { id: "selfie", Icon: Camera, label: "Селфи" },
+  { id: "selfie", Icon: Camera, label: "Фото" },
   { id: "gallery", Icon: ImageIcon, label: "Галерея" },
+  { id: "file", Icon: FileText, label: "Файл" },
 ];
 
-const PICKER_ICON = "size-[17px] text-hairline";
+const PICKER_ICON = "size-[20.4px] text-hairline";
 
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
