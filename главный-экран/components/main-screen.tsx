@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { cardBottomOffset, HORIZONTAL_INSET_PX, sheetPeekHeight } from "../layout";
 import { useShareSync } from "../hooks/use-share-sync";
 import { isCardReady, useAppStore } from "@/shared/store/app-store";
 import { BusinessCard } from "./business-card";
@@ -18,6 +19,7 @@ export function MainScreen() {
   const card = useAppStore((state) => state.card);
   const contactItems = useAppStore((state) => state.contactItems);
   const shareToken = useAppStore((state) => state.user.shareToken);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
 
   useShareSync();
 
@@ -41,14 +43,29 @@ export function MainScreen() {
   }
 
   return (
-    <main className="compass-main grid h-lvh grid-rows-[20fr_65fr_15fr] overflow-hidden bg-background">
+    <main className="compass-main relative h-lvh overflow-hidden bg-background">
       <QrZone url={pdfUrl} visible={isCardReady(card)} />
 
-      <div className="min-h-0">
+      <ContentSheetPeek
+        expanded={sheetExpanded}
+        onTap={() => setSheetExpanded((value) => !value)}
+        style={{
+          height: sheetPeekHeight(),
+          left: HORIZONTAL_INSET_PX,
+          right: HORIZONTAL_INSET_PX,
+        }}
+      />
+
+      <div
+        className="absolute z-20"
+        style={{
+          left: HORIZONTAL_INSET_PX,
+          right: HORIZONTAL_INSET_PX,
+          bottom: cardBottomOffset(),
+        }}
+      >
         <BusinessCard card={card} library={contactItems} />
       </div>
-
-      <ContentSheetPeek />
     </main>
   );
 }

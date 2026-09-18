@@ -1,6 +1,7 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
+import { QR_ZONE_LVH } from "../layout";
 
 type QrZoneProps = {
   url: string;
@@ -15,12 +16,15 @@ export function QrZone({ url, visible }: QrZoneProps) {
   const codeSize = QR_SIZE - PLATE_PADDING * 2;
 
   return (
-    <div className="flex h-full items-end justify-center pb-3 pt-[max(0.5rem,env(safe-area-inset-top))]">
-      <div
-        className="relative flex items-center justify-center"
-        style={{ width: QR_SIZE, height: QR_SIZE }}
-        aria-hidden={!visible}
-      >
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 z-0 flex items-end justify-center pb-2"
+      style={{
+        height: `${QR_ZONE_LVH}lvh`,
+        paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+      }}
+      aria-hidden={!visible}
+    >
+      <div className="relative flex items-center justify-center" style={{ width: QR_SIZE, height: QR_SIZE }}>
         <div
           className="absolute -inset-4 rounded-[28px]"
           style={{
