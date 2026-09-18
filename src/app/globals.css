@@ -21,3 +21,15 @@ body {
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
 }
+
+/* iOS / Safari autofill — keep transparent field look */
+.compass-input:-webkit-autofill,
+.compass-input:-webkit-autofill:hover,
+.compass-input:-webkit-autofill:focus,
+.compass-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--background) inset;
+  box-shadow: 0 0 0 1000px var(--background) inset;
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  transition: background-color 99999s ease-out 0s;
+}

@@ -8,7 +8,7 @@ export function NameFields() {
           name="firstName"
           placeholder="first name"
           autoComplete="given-name"
-          className="w-full bg-transparent text-center text-[17px] text-foreground outline-none placeholder:text-hint"
+          className="compass-input w-full bg-transparent text-center text-[17px] text-foreground outline-none placeholder:text-hint"
         />
       </label>
       <label className="w-full border-b border-hairline pb-2">
@@ -18,7 +18,7 @@ export function NameFields() {
           name="secondName"
           placeholder="second name"
           autoComplete="family-name"
-          className="w-full bg-transparent text-center text-[17px] text-foreground outline-none placeholder:text-hint"
+          className="compass-input w-full bg-transparent text-center text-[17px] text-foreground outline-none placeholder:text-hint"
         />
       </label>
     </div>
