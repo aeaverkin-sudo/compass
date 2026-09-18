@@ -4,7 +4,7 @@ import { forwardRef, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import { getCardItems } from "@/shared/services/card-snapshot";
-import { CARD_BOTTOM_EXTENSION_PX, type MainScreenMode } from "../layout";
+import { browseCardMinHeight, type MainScreenMode } from "../layout";
 
 type BusinessCardProps = {
   card: Card;
@@ -56,9 +56,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }}
       className={cn(
         "compass-card compass-layer flex w-full cursor-default flex-col transition-[transform,box-shadow] duration-[460ms] ease-out",
-        compact ? "px-3.5 py-3" : "px-5 pt-8",
+        compact ? "px-3.5 py-3" : "px-5 pb-5 pt-8",
       )}
-      style={compact ? undefined : { paddingBottom: CARD_BOTTOM_EXTENSION_PX }}
+      style={compact ? undefined : { minHeight: browseCardMinHeight() }}
     >
       <div className={cn("flex flex-col items-center", compact && "flex-row items-center gap-3")}>
         {card.photo ? (
@@ -114,6 +114,16 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           </div>
         ) : null}
       </div>
+
+      {!compact ? (
+        <div className="mt-6 flex min-h-0 flex-1 flex-col">
+          <p className="mb-4 shrink-0 text-center text-[13px] leading-[1.25] text-hint">
+            link, email, phone, file…
+          </p>
+          <div className="compass-sheet-body mx-1 mb-4 min-h-[88px] flex-1 rounded-[14px]" aria-hidden />
+          <div className="mx-auto h-[14px] w-[88%] shrink-0 rounded-full bg-hairline/12" aria-hidden />
+        </div>
+      ) : null}
     </article>
   );
 });

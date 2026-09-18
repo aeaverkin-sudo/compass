@@ -48,6 +48,7 @@ export function ContentSheetPeek({
         "compass-sheet-peek compass-layer pointer-events-auto absolute inset-x-0 bottom-0 flex h-auto flex-col overflow-hidden rounded-t-[22px] text-left",
         "transition-[top,box-shadow] duration-[460ms] ease-out active:scale-[0.998]",
         expanded && "compass-sheet-expanded",
+        !expanded && "compass-sheet-under-card",
       )}
       style={{
         left: edgeInsetPx,
@@ -56,18 +57,22 @@ export function ContentSheetPeek({
         paddingBottom: `max(${bottomInset}px, env(safe-area-inset-bottom))`,
       }}
     >
-      <div className="mx-auto mt-3 mb-2 h-[4px] w-10 shrink-0 rounded-full bg-hairline/45" aria-hidden />
-
-      <p className="shrink-0 px-4 pb-3 text-center text-[13px] leading-[1.25] text-hint">
-        link, email, phone, file…
-      </p>
-
-      {/* Filling zone — the tall body marked green in mockups */}
-      <div className="compass-sheet-body mx-3 mb-3 min-h-0 flex-1 rounded-[14px]" aria-hidden />
-
-      <div className="shrink-0 px-4 pb-2">
-        <SkeletonRows count={expanded ? 6 : 4} />
-      </div>
+      {expanded ? (
+        <>
+          <div className="mx-auto mt-3 mb-2 h-[4px] w-10 shrink-0 rounded-full bg-hairline/45" aria-hidden />
+          <p className="shrink-0 px-4 pb-3 text-center text-[13px] leading-[1.25] text-hint">
+            link, email, phone, file…
+          </p>
+          <div className="compass-sheet-body mx-3 mb-3 min-h-0 flex-1 rounded-[14px]" aria-hidden />
+          <div className="shrink-0 px-4 pb-2">
+            <SkeletonRows count={6} />
+          </div>
+        </>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col px-4 pt-3 pb-2">
+          <SkeletonRows count={3} />
+        </div>
+      )}
     </button>
   );
 }

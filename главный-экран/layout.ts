@@ -5,8 +5,8 @@ export const QR_SIZE = 168;
 export const QR_TOP_OFFSET_PX = 0;
 export const GAP_UNDER_QR = 18;
 
-/** Extra browse card height below content — px (~1.5 cm @ 96 dpi). */
-export const CARD_BOTTOM_EXTENSION_PX = 57;
+/** Browse card bottom ≈ this % of viewport (green mockup outline). */
+export const CARD_BOTTOM_TARGET_LVH = 73;
 
 export const QR_OVERLAP_LIBRARY_PX = 112;
 
@@ -24,4 +24,8 @@ export type MainScreenMode = "browse" | "library";
 
 export function layoutTop(offsetPx: number) {
   return `${offsetPx}px`;
+}
+
+export function browseCardMinHeight() {
+  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - ${CARD_TOP_BROWSE_OFFSET_PX}px)`;
 }
