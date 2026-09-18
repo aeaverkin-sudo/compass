@@ -3,9 +3,21 @@
 :root {
   --background: oklch(93% 0.008 70);
   --background-ready: oklch(97.5% 0.004 75);
+  --theme-color: #e8e4df;
+  --theme-color-ready: #f9f8f6;
   --foreground: oklch(19% 0.01 60);
   --hairline: oklch(54% 0.006 70);
   --hint: oklch(76% 0.008 70);
+}
+
+html {
+  background-color: var(--background);
+  transition: background-color 500ms ease-out;
+}
+
+html.compass-ready {
+  --background: var(--background-ready);
+  --theme-color: var(--theme-color-ready);
 }
 
 @theme inline {
@@ -17,12 +29,8 @@
   --font-sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
 }
 
-.compass-ready {
-  --background: var(--background-ready);
-}
-
 body {
-  background: var(--background);
+  background-color: transparent;
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;

@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
 import { AvatarPicker } from "./avatar-picker";
 import { ConfirmButton } from "./confirm-button";
 import { NameFields } from "./name-fields";
@@ -20,13 +19,20 @@ export function LandingPage() {
     [photo, firstName, secondName],
   );
 
+  useEffect(() => {
+    document.documentElement.classList.toggle("compass-ready", ready);
+
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute(
+        "content",
+        getComputedStyle(document.documentElement).getPropertyValue("--theme-color").trim(),
+      );
+    }
+  }, [ready]);
+
   return (
-    <main
-      className={cn(
-        "compass-main grid min-h-dvh grid-rows-[1fr_auto_1fr] transition-[background-color] duration-500 ease-out",
-        ready ? "compass-ready bg-background-ready" : "bg-background",
-      )}
-    >
+    <main className="compass-main grid min-h-dvh grid-rows-[1fr_auto_1fr] bg-transparent">
       <div aria-hidden />
 
       <div className="flex w-full flex-col items-center px-8">
