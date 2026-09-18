@@ -9,6 +9,8 @@ import {
   CARD_PHOTO_RADIUS_PX,
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
+  CARD_NAME_GAP_PX,
+  CARD_NAME_SIZE_PX,
   type MainScreenMode,
 } from "../layout";
 
@@ -94,13 +96,17 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           />
         ) : null}
 
-        <div className={cn("w-full text-center", compact && "min-w-0 flex-1 text-left")}>
+        <div
+          className={cn("w-full text-center", compact && "min-w-0 flex-1 text-left")}
+          style={compact ? undefined : { marginTop: CARD_NAME_GAP_PX }}
+        >
           <p
             data-card-content
             className={cn(
               "font-normal leading-[1.12] text-foreground",
-              compact ? "text-[16px]" : "text-[44px]",
+              compact ? "text-[16px]" : undefined,
             )}
+            style={compact ? undefined : { fontSize: CARD_NAME_SIZE_PX }}
           >
             {card.displayName}
           </p>
