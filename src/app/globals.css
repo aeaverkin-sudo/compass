@@ -8,11 +8,18 @@
   --foreground: oklch(19% 0.01 60);
   --hairline: oklch(54% 0.006 70);
   --hint: oklch(76% 0.008 70);
+  --sheet: oklch(99% 0.003 75);
+  --qr-plate: oklch(97% 0.006 70);
 }
 
 html {
   background-color: var(--background);
   transition: background-color 500ms ease-out;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 html.compass-ready {
@@ -26,6 +33,7 @@ html.compass-ready {
   --color-foreground: var(--foreground);
   --color-hairline: var(--hairline);
   --color-hint: var(--hint);
+  --color-sheet: var(--sheet);
   --font-sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
 }
 
@@ -48,4 +56,19 @@ body {
   -webkit-text-fill-color: var(--foreground);
   caret-color: var(--foreground);
   transition: background-color 99999s ease-out 0s;
+}
+
+.compass-card {
+  background: var(--sheet);
+  border-radius: 18px;
+  box-shadow:
+    0 1px 2px oklch(0% 0 0 / 0.04),
+    0 10px 28px oklch(0% 0 0 / 0.06);
+}
+
+.compass-sheet-peek {
+  background: var(--sheet);
+  box-shadow:
+    inset 0 1px 0 oklch(100% 0 0 / 0.65),
+    0 -8px 24px oklch(0% 0 0 / 0.05);
 }

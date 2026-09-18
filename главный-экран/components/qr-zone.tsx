@@ -1,0 +1,49 @@
+"use client";
+
+import { QRCodeSVG } from "qrcode.react";
+
+type QrZoneProps = {
+  url: string;
+  visible: boolean;
+};
+
+const QR_COLOR = "#C1571F";
+const PLATE_PADDING = 6;
+const QR_SIZE = 168;
+
+export function QrZone({ url, visible }: QrZoneProps) {
+  const codeSize = QR_SIZE - PLATE_PADDING * 2;
+
+  return (
+    <div className="flex h-full items-end justify-center pb-3 pt-[max(0.5rem,env(safe-area-inset-top))]">
+      <div
+        className="relative flex items-center justify-center"
+        style={{ width: QR_SIZE, height: QR_SIZE }}
+        aria-hidden={!visible}
+      >
+        <div
+          className="absolute -inset-4 rounded-[28px]"
+          style={{
+            background:
+              "radial-gradient(circle at center, oklch(64% 0.19 45 / 0.18) 0%, oklch(64% 0.19 45 / 0) 72%)",
+            filter: "blur(5px)",
+          }}
+        />
+        <div
+          className="relative flex h-full w-full items-center justify-center rounded-[12px]"
+          style={{ background: "var(--qr-plate)", padding: PLATE_PADDING }}
+        >
+          {visible ? (
+            <QRCodeSVG
+              value={url}
+              size={codeSize}
+              level="M"
+              fgColor={QR_COLOR}
+              bgColor="transparent"
+            />
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}

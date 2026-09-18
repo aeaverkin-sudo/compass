@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAppStore } from "@/shared/store/app-store";
 import { useVisualViewport } from "../hooks/use-visual-viewport";
 import { AvatarPicker } from "./avatar-picker";
 import { ConfirmButton } from "./confirm-button";
@@ -11,13 +13,21 @@ function isFilled(value: string) {
   return value.trim().length > 0;
 }
 
+function resetDocumentScroll() {
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
+
 export function LandingPage() {
+  const router = useRouter();
   const [photo, setPhoto] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
   const [secondName, setSecondName] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
 
-  const { keyboardOpen } = useVisualViewport();
+  const completeOnboarding = useAppStore((state) => state.completeOnboarding);
+  const { keyboardOpen, offsetTop } = useVisualViewport();
   const typing = inputFocused || keyboardOpen;
 
   const ready = useMemo(
@@ -37,24 +47,43 @@ export function LandingPage() {
     }
   }, [ready]);
 
-  return (
-    <main className="compass-main grid h-lvh grid-rows-[1fr_auto_1fr] overflow-hidden bg-transparent">
-      <div aria-hidden />
+  useEffect(() => {
+    if (!typing) return;
+    resetDocumentScroll();
+  }, [typing, offsetTop]);
 
-      <div className="flex w-full flex-col items-center px-8">
+  const handleConfirm = () => {
+    if (!photo || !isFilled(firstName) || !isFilled(secondName)) return;
+    completeOnboarding({
+      photo,
+      firstName: firstName.trim(),
+      secondName: secondName.trim(),
+    });
+    router.push("/main");
+  };
+
+  return (
+    <main
+      className={cn(
+        "compass-main h-lvh overflow-hidden bg-transparent",
+        typing ? "flex flex-col" : "grid grid-rows-[1fr_auto_1fr]",
+      )}
+    >
+      {!typing ? <div aria-hidden /> : null}
+
+      <div
+        className={cn(
+          "flex w-full flex-col items-center px-8",
+          typing ? "shrink-0 pt-[max(0.5rem,env(safe-area-inset-top))]" : undefined,
+        )}
+        style={typing ? { transform: `translateY(${offsetTop}px)` } : undefined}
+      >
         <div className="flex w-full max-w-xs flex-col items-center">
-          <div
-            className={cn(
-              "grid transition-[grid-template-rows,opacity,margin] duration-300 ease-out",
-              typing
-                ? "pointer-events-none mb-0 grid-rows-[0fr] opacity-0"
-                : "-translate-y-[2cm] mb-[1.5cm] grid-rows-[1fr] opacity-100",
-            )}
-          >
-            <div className="min-h-0 overflow-hidden">
+          {!typing ? (
+            <div className="-translate-y-[2cm] mb-[1.5cm]">
               <AvatarPicker photo={photo} onPhotoChange={setPhoto} />
             </div>
-          </div>
+          ) : null}
 
           <div className="w-full">
             <NameFields
@@ -68,9 +97,11 @@ export function LandingPage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        {ready ? <ConfirmButton /> : null}
-      </div>
+      {!typing ? (
+        <div className="flex items-center justify-center px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          {ready ? <ConfirmButton onClick={handleConfirm} /> : null}
+        </div>
+      ) : null}
     </main>
   );
 }

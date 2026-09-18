@@ -33,7 +33,10 @@ export function NameFields({
           placeholder="first name"
           autoComplete="given-name"
           onChange={(event) => onFirstNameChange(event.target.value)}
-          onFocus={() => onFocusChange?.(true)}
+          onFocus={() => {
+            window.scrollTo(0, 0);
+            onFocusChange?.(true);
+          }}
           onBlur={() => blurIfOutsideFields(onFocusChange)}
           className="compass-input w-full translate-y-[0.5mm] bg-transparent px-0 py-0 text-center text-[17px] leading-[1.15] text-foreground outline-none placeholder:text-hint"
         />
@@ -47,7 +50,10 @@ export function NameFields({
           placeholder="second name"
           autoComplete="family-name"
           onChange={(event) => onSecondNameChange(event.target.value)}
-          onFocus={() => onFocusChange?.(true)}
+          onFocus={() => {
+            window.scrollTo(0, 0);
+            onFocusChange?.(true);
+          }}
           onBlur={() => blurIfOutsideFields(onFocusChange)}
           className="compass-input w-full translate-y-[0.5mm] bg-transparent px-0 py-0 text-center text-[17px] leading-[1.15] text-foreground outline-none placeholder:text-hint"
         />
