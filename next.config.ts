@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  async redirects() {
+    return [
+      { source: "/portfolio", destination: "/", permanent: false },
+      { source: "/onboarding", destination: "/", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;

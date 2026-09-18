@@ -1,0 +1,9 @@
+{
+  "name": "Compass",
+  "short_name": "Compass",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#E8E4DF",
+  "theme_color": "#E8E4DF",
+  "orientation": "portrait"
+}
