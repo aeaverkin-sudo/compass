@@ -3,8 +3,9 @@
 import { useLayoutEffect, useState } from "react";
 import {
   browseCardHeightPx,
-  CARD_TOP_BROWSE_OFFSET_PX,
-  CARD_TOP_LIBRARY_OFFSET_PX,
+  QR_GAP_SYMMETRIC_PX,
+  QR_OVERLAP_LIBRARY_PX,
+  QR_SIZE,
   SHEET_INSET,
 } from "../layout";
 
@@ -19,21 +20,36 @@ export type MainLayout = {
   browseCardHeight: number;
 };
 
+function readSafeAreaTop() {
+  if (typeof document === "undefined") return 0;
+  const probe = document.createElement("div");
+  probe.style.paddingTop = "env(safe-area-inset-top)";
+  probe.style.position = "fixed";
+  probe.style.visibility = "hidden";
+  probe.style.pointerEvents = "none";
+  document.documentElement.appendChild(probe);
+  const top = probe.getBoundingClientRect().height;
+  document.documentElement.removeChild(probe);
+  return top;
+}
+
 function computeLayout(compactCardHeight: number): MainLayout | null {
   if (typeof window === "undefined") return null;
 
   const viewportH = window.innerHeight;
-  const browseHeight = browseCardHeightPx(viewportH);
-  const cardTopBrowse = CARD_TOP_BROWSE_OFFSET_PX;
+  const safeTop = readSafeAreaTop();
+  const qrTop = safeTop + QR_GAP_SYMMETRIC_PX;
+  const cardTopBrowse = qrTop + QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  const browseHeight = browseCardHeightPx(viewportH, safeTop);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
 
   const compactHeight = compactCardHeight > 0 ? compactCardHeight : 72;
-  const cardTopLibrary = CARD_TOP_LIBRARY_OFFSET_PX;
+  const cardTopLibrary = qrTop + QR_SIZE - QR_OVERLAP_LIBRARY_PX;
   const sheetTopLibrary = cardTopLibrary + compactHeight + SHEET_INSET.library.gap;
 
   return {
-    qrTop: 0,
+    qrTop,
     cardTopBrowse,
     cardTopLibrary,
     sheetTopBrowse,

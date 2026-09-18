@@ -11,8 +11,8 @@ export const CARD_PHOTO_RADIUS_PX = 13;
 export const CARD_NAME_SIZE_PX = 22;
 export const CARD_NAME_GAP_PX = 8;
 
-export const QR_TOP_OFFSET_PX = 0;
-export const GAP_UNDER_QR = 18;
+/** Equal gap: safe-area bottom → QR top, and QR bottom → card top. */
+export const QR_GAP_SYMMETRIC_PX = 18;
 
 /** Browse card bottom ≈ this % of viewport (green mockup outline). */
 export const CARD_BOTTOM_TARGET_LVH = 73;
@@ -21,9 +21,6 @@ export const CARD_BOTTOM_TARGET_LVH = 73;
 export const CARD_BOTTOM_RAISE_PX = -19;
 
 export const QR_OVERLAP_LIBRARY_PX = 112;
-
-export const CARD_TOP_BROWSE_OFFSET_PX = QR_TOP_OFFSET_PX + QR_SIZE + GAP_UNDER_QR;
-export const CARD_TOP_LIBRARY_OFFSET_PX = QR_TOP_OFFSET_PX + QR_SIZE - QR_OVERLAP_LIBRARY_PX;
 
 export const SHEET_INSET = {
   browse: { horizontal: 14, bottom: 18, overlap: 22 },
@@ -38,12 +35,17 @@ export function layoutTop(offsetPx: number) {
   return `${offsetPx}px`;
 }
 
-export function browseCardHeightPx(viewportH: number) {
+export function browseStackTopPx(safeTop: number) {
+  return safeTop + QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
+}
+
+export function browseCardHeightPx(viewportH: number, safeTop: number) {
   return Math.round(
-    (viewportH * CARD_BOTTOM_TARGET_LVH) / 100 - CARD_TOP_BROWSE_OFFSET_PX - CARD_BOTTOM_RAISE_PX,
+    (viewportH * CARD_BOTTOM_TARGET_LVH) / 100 - browseStackTopPx(safeTop) - CARD_BOTTOM_RAISE_PX,
   );
 }
 
 export function browseCardHeight() {
-  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - ${CARD_TOP_BROWSE_OFFSET_PX}px - ${CARD_BOTTOM_RAISE_PX}px)`;
+  const stackBelowSafe = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX - CARD_BOTTOM_RAISE_PX;
+  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackBelowSafe}px)`;
 }
