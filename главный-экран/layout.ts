@@ -5,8 +5,8 @@ export const QR_SIZE = 168;
 export const QR_TOP_OFFSET_PX = 0;
 export const GAP_UNDER_QR = 18;
 
-/** Extra browse card height below content (sheet follows card bottom). */
-export const CARD_BOTTOM_EXTENSION_CM = 1.5;
+/** Extra browse card height below content — px (~1.5 cm @ 96 dpi). */
+export const CARD_BOTTOM_EXTENSION_PX = 57;
 
 export const QR_OVERLAP_LIBRARY_PX = 112;
 
@@ -18,7 +18,6 @@ export const SHEET_INSET = {
   library: { horizontal: 14, bottom: 14, gap: 10 },
 } as const;
 
-export const SHEET_PEEK_LVH = 42;
 export const LAYER_TRANSITION_MS = 460;
 
 export type MainScreenMode = "browse" | "library";

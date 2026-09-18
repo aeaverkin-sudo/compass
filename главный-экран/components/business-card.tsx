@@ -4,7 +4,7 @@ import { forwardRef, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import { getCardItems } from "@/shared/services/card-snapshot";
-import { CARD_BOTTOM_EXTENSION_CM, type MainScreenMode } from "../layout";
+import { CARD_BOTTOM_EXTENSION_PX, type MainScreenMode } from "../layout";
 
 type BusinessCardProps = {
   card: Card;
@@ -56,8 +56,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }}
       className={cn(
         "compass-card compass-layer flex w-full cursor-default flex-col transition-[transform,box-shadow] duration-[460ms] ease-out",
-        compact ? "px-3.5 py-3" : "px-5 pb-5 pt-8",
+        compact ? "px-3.5 py-3" : "px-5 pt-8",
       )}
+      style={compact ? undefined : { paddingBottom: CARD_BOTTOM_EXTENSION_PX }}
     >
       <div className={cn("flex flex-col items-center", compact && "flex-row items-center gap-3")}>
         {card.photo ? (
@@ -113,14 +114,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           </div>
         ) : null}
       </div>
-
-      {!compact ? (
-        <div
-          className="mt-6 w-full shrink-0"
-          style={{ height: `${CARD_BOTTOM_EXTENSION_CM}cm` }}
-          aria-hidden
-        />
-      ) : null}
     </article>
   );
 });
