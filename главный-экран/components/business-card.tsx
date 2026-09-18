@@ -68,8 +68,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             src={card.photo}
             alt=""
             className={cn(
-              "shrink-0 rounded-full border border-hairline object-cover",
-              compact ? "size-11" : "size-[168px]",
+              "shrink-0 border border-hairline object-cover",
+              compact ? "size-11 rounded-[10px]" : "size-[168px] rounded-[18px]",
             )}
           />
         ) : null}
