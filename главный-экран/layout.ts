@@ -8,8 +8,8 @@ export const GAP_UNDER_QR = 18;
 /** Browse card bottom ≈ this % of viewport (green mockup outline). */
 export const CARD_BOTTOM_TARGET_LVH = 73;
 
-/** Trim browse (expanded) card bottom edge upward (~2 cm @ 96 dpi). */
-export const CARD_BOTTOM_RAISE_PX = 76;
+/** Trim browse (expanded) card bottom edge upward (px; negative extends downward). */
+export const CARD_BOTTOM_RAISE_PX = 0;
 
 export const QR_OVERLAP_LIBRARY_PX = 112;
 
