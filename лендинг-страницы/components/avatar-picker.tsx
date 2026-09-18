@@ -6,6 +6,11 @@ import { cn } from "@/lib/utils";
 
 type PickerAction = "gallery" | "file";
 
+type AvatarPickerProps = {
+  photo: string | null;
+  onPhotoChange: (photo: string | null) => void;
+};
+
 const EXTRA_ACTIONS: { id: PickerAction; Icon: LucideIcon; label: string }[] = [
   { id: "gallery", Icon: ImageIcon, label: "Галерея" },
   { id: "file", Icon: FileText, label: "Файл" },
@@ -27,7 +32,7 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-export function AvatarPicker() {
+export function AvatarPicker({ photo, onPhotoChange }: AvatarPickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const selfieRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -35,7 +40,6 @@ export function AvatarPicker() {
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPress = useRef(false);
   const [open, setOpen] = useState(false);
-  const [photo, setPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -69,7 +73,7 @@ export function AvatarPicker() {
 
   const onFile = async (file: File | undefined, input?: HTMLInputElement | null) => {
     if (!file) return;
-    setPhoto(await fileToDataUrl(file));
+    onPhotoChange(await fileToDataUrl(file));
     if (input) input.value = "";
   };
 
