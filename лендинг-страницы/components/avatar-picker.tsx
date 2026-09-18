@@ -80,7 +80,7 @@ export function AvatarPicker() {
         <div
           role="menu"
           aria-label="Выбор фото"
-          className="absolute top-[calc(100%+14px)] left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-4"
+          className="absolute top-[calc(100%+14px)] left-1/2 z-10 flex -translate-x-1/2 items-center gap-5"
         >
           {ACTIONS.map(({ id, Icon, label }) => (
             <button
