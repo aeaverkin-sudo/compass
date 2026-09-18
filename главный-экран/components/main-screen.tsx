@@ -22,33 +22,28 @@ export function MainScreen() {
   const shareToken = useAppStore((state) => state.user.shareToken);
   const [mode, setMode] = useState<MainScreenMode>("browse");
 
-  const fullCardRef = useRef<HTMLElement>(null);
   const compactCardRef = useRef<HTMLElement>(null);
-  const [fullCardHeight, setFullCardHeight] = useState(0);
   const [compactCardHeight, setCompactCardHeight] = useState(0);
 
   useShareSync();
 
   const pdfUrl = useMemo(() => buildPdfUrl(shareToken), [shareToken]);
-  const layout = useMainLayout(fullCardHeight, compactCardHeight);
+  const layout = useMainLayout(compactCardHeight);
 
   const toggleMode = useCallback(() => {
     setMode((current) => (current === "browse" ? "library" : "browse"));
   }, []);
 
   useEffect(() => {
-    const fullNode = fullCardRef.current;
     const compactNode = compactCardRef.current;
-    if (!fullNode || !compactNode) return;
+    if (!compactNode) return;
 
     const sync = () => {
-      setFullCardHeight(fullNode.offsetHeight);
       setCompactCardHeight(compactNode.offsetHeight);
     };
 
     sync();
     const observer = new ResizeObserver(sync);
-    observer.observe(fullNode);
     observer.observe(compactNode);
 
     return () => observer.disconnect();
@@ -72,17 +67,8 @@ export function MainScreen() {
 
   return (
     <main className="compass-main fixed inset-0 overflow-hidden bg-background-ready">
-      {/* Off-screen measurers */}
+      {/* Off-screen measurer — library compact height only */}
       <div className="pointer-events-none invisible absolute -left-[9999px] top-0" aria-hidden>
-        <div style={{ width: layout ? `calc(100vw - ${layout.edgeInsetBrowse * 2}px)` : "calc(100vw - 40px)" }}>
-          <BusinessCard
-            ref={fullCardRef}
-            card={card}
-            library={contactItems}
-            mode="browse"
-            onEmptyAreaTap={() => undefined}
-          />
-        </div>
         <div style={{ width: layout ? `calc(100vw - ${layout.edgeInsetLibrary * 2}px)` : "calc(100vw - 28px)" }}>
           <BusinessCard
             ref={compactCardRef}

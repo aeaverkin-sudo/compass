@@ -29,6 +29,12 @@ export function layoutTop(offsetPx: number) {
   return `${offsetPx}px`;
 }
 
-export function browseCardMinHeight() {
+export function browseCardHeightPx(viewportH: number) {
+  return Math.round(
+    (viewportH * CARD_BOTTOM_TARGET_LVH) / 100 - CARD_TOP_BROWSE_OFFSET_PX - CARD_BOTTOM_RAISE_PX,
+  );
+}
+
+export function browseCardHeight() {
   return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - ${CARD_TOP_BROWSE_OFFSET_PX}px - ${CARD_BOTTOM_RAISE_PX}px)`;
 }
