@@ -2,18 +2,20 @@
 
 import { useLayoutEffect, useState } from "react";
 import {
-  EDGE_INSET,
+  EDGE_INSET_CM,
+  GAP_CM,
   LIBRARY_SHEET_GAP_PX,
+  QR_OVERLAP_LIBRARY_PX,
   QR_SIZE,
-  QR_TO_CARD_GAP,
   SHEET_OVERLAP_PX,
-  SHEET_PEEK_LVH,
+  SHEET_PEEK_MIN_LVH,
 } from "../layout";
 
 export type MainLayout = {
   qrTop: number;
   cardTopBrowse: number;
   cardTopLibrary: number;
+  sheetTopBrowse: number;
   sheetTopLibrary: number;
   edgeInsetPx: number;
 };
@@ -64,27 +66,26 @@ function computeLayout(cardHeight: number, compactCardHeight: number): MainLayou
   const viewportH = window.innerHeight;
   const safeTop = readSafeAreaTop();
   const safeBottom = readSafeAreaBottom();
-  const edgeInsetPx = cmToPx(parseFloat(EDGE_INSET));
-  const gapCm = cmToPx(parseFloat(QR_TO_CARD_GAP));
-  const libraryTopCm = cmToPx(4);
+  const edgeInsetPx = cmToPx(EDGE_INSET_CM);
+  const gapPx = cmToPx(GAP_CM);
 
-  const sheetHeight = (viewportH * SHEET_PEEK_LVH) / 100 + safeBottom;
-  const sheetTop = viewportH - sheetHeight;
-  const cardBottomBrowse = sheetTop + SHEET_OVERLAP_PX;
-  const cardTopBrowse = cardBottomBrowse - cardHeight;
+  const freeFieldTop = safeTop + gapPx;
+  const qrTop = freeFieldTop;
+  const cardTopBrowse = freeFieldTop + QR_SIZE + gapPx;
+  const cardBottomBrowse = cardTopBrowse + cardHeight;
 
-  const freeFieldTop = safeTop + gapCm;
-  const qrFieldBottom = cardTopBrowse - gapCm;
-  const qrCenter = (freeFieldTop + qrFieldBottom) / 2;
-  const qrTop = qrCenter - QR_SIZE / 2;
+  const minSheetHeight = (viewportH * SHEET_PEEK_MIN_LVH) / 100 + safeBottom;
+  const maxSheetTop = viewportH - minSheetHeight;
+  const sheetTopBrowse = Math.min(cardBottomBrowse - SHEET_OVERLAP_PX, maxSheetTop);
 
-  const cardTopLibrary = safeTop + libraryTopCm;
+  const cardTopLibrary = qrTop + QR_SIZE - QR_OVERLAP_LIBRARY_PX;
   const sheetTopLibrary = cardTopLibrary + compactCardHeight + LIBRARY_SHEET_GAP_PX;
 
   return {
     qrTop,
     cardTopBrowse,
     cardTopLibrary,
+    sheetTopBrowse,
     sheetTopLibrary,
     edgeInsetPx,
   };

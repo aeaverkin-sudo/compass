@@ -72,17 +72,20 @@ export function MainScreen() {
   }
 
   const cardOnTop = mode === "browse";
-  const edgeInset = layout?.edgeInsetPx ?? 0;
   const cardTop = layout
     ? mode === "browse"
       ? layout.cardTopBrowse
       : layout.cardTopLibrary
-    : -9999;
+    : undefined;
 
   return (
     <main className="compass-main relative h-lvh overflow-hidden bg-background">
-      {/* Off-screen measurers — drive layout math */}
-      <div className="pointer-events-none invisible absolute -left-[9999px] top-0 w-[min(100vw,480px)]" aria-hidden>
+      {/* Off-screen measurers */}
+      <div
+        className="pointer-events-none invisible absolute -left-[9999px] top-0"
+        style={{ width: layout ? `calc(100vw - ${layout.edgeInsetPx * 2}px)` : "100vw" }}
+        aria-hidden
+      >
         <BusinessCard
           ref={fullCardRef}
           card={card}
@@ -104,25 +107,26 @@ export function MainScreen() {
         {layout ? <QrZone url={pdfUrl} visible={isCardReady(card)} top={layout.qrTop} /> : null}
       </div>
 
-      {/* Layer 1 — content sheet */}
+      {/* Layer 1 — content sheet (always anchored under card) */}
       {layout ? (
         <div className="absolute inset-x-0 bottom-0" style={{ zIndex: cardOnTop ? 10 : 30 }}>
           <ContentSheetPeek
             mode={mode}
             edgeInsetPx={layout.edgeInsetPx}
-            sheetTopLibrary={layout.sheetTopLibrary}
+            topBrowse={layout.sheetTopBrowse}
+            topLibrary={layout.sheetTopLibrary}
             onTap={toggleMode}
           />
         </div>
       ) : null}
 
       {/* Layer 2 — business card */}
-      {layout ? (
+      {layout && cardTop !== undefined ? (
         <div
           className="absolute transition-[top] duration-[460ms] ease-out"
           style={{
-            left: edgeInset,
-            right: edgeInset,
+            left: layout.edgeInsetPx,
+            right: layout.edgeInsetPx,
             top: cardTop,
             zIndex: cardOnTop ? 20 : 25,
           }}

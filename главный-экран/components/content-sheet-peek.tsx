@@ -6,12 +6,20 @@ import type { MainScreenMode } from "../layout";
 type ContentSheetPeekProps = {
   mode: MainScreenMode;
   edgeInsetPx: number;
-  sheetTopLibrary?: number;
+  topBrowse: number;
+  topLibrary: number;
   onTap: () => void;
 };
 
-export function ContentSheetPeek({ mode, edgeInsetPx, sheetTopLibrary, onTap }: ContentSheetPeekProps) {
+export function ContentSheetPeek({
+  mode,
+  edgeInsetPx,
+  topBrowse,
+  topLibrary,
+  onTap,
+}: ContentSheetPeekProps) {
   const expanded = mode === "library";
+  const top = expanded ? topLibrary : topBrowse;
 
   return (
     <button
@@ -20,14 +28,14 @@ export function ContentSheetPeek({ mode, edgeInsetPx, sheetTopLibrary, onTap }: 
       aria-expanded={expanded}
       onClick={onTap}
       className={cn(
-        "compass-sheet-peek compass-layer absolute flex min-h-0 flex-col overflow-hidden rounded-t-[22px] text-left",
-        "transition-[top,height,box-shadow] duration-[460ms] ease-out active:scale-[0.998]",
-        expanded ? "compass-sheet-expanded" : "compass-sheet-collapsed",
+        "compass-sheet-peek compass-layer absolute bottom-0 flex min-h-0 flex-col overflow-hidden rounded-t-[22px] text-left",
+        "transition-[top,box-shadow] duration-[460ms] ease-out active:scale-[0.998]",
+        expanded && "compass-sheet-expanded",
       )}
       style={{
         left: edgeInsetPx,
         right: edgeInsetPx,
-        ...(expanded && sheetTopLibrary !== undefined ? { top: sheetTopLibrary, bottom: 0, height: "auto" } : {}),
+        top,
       }}
     >
       <div className="mx-auto mt-3 mb-4 h-[4px] w-10 shrink-0 rounded-full bg-hairline/40" aria-hidden />
@@ -38,7 +46,7 @@ export function ContentSheetPeek({ mode, edgeInsetPx, sheetTopLibrary, onTap }: 
         </p>
 
         <div className="flex flex-col gap-3">
-          <div className="h-[14px] rounded-full bg-hairline/12" aria-hidden />
+          <div className="mx-auto h-[14px] w-full max-w-[92%] rounded-full bg-hairline/12" aria-hidden />
           <div className="mx-auto h-[14px] w-[88%] rounded-full bg-hairline/12" aria-hidden />
           <div className="mx-auto h-[14px] w-[72%] rounded-full bg-hairline/12" aria-hidden />
           <div className="mx-auto h-[14px] w-[94%] rounded-full bg-hairline/10" aria-hidden />
