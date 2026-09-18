@@ -1,18 +1,21 @@
 "use client";
 
-import { Camera, FileText, ImageIcon, Plus, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { FileText, ImageIcon, Plus, type LucideIcon } from "lucide-react";
+import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-type PickerAction = "selfie" | "gallery" | "file";
+type PickerAction = "gallery" | "file";
 
-const ACTIONS: { id: PickerAction; Icon: LucideIcon; label: string }[] = [
-  { id: "selfie", Icon: Camera, label: "Фото" },
+const EXTRA_ACTIONS: { id: PickerAction; Icon: LucideIcon; label: string }[] = [
   { id: "gallery", Icon: ImageIcon, label: "Галерея" },
   { id: "file", Icon: FileText, label: "Файл" },
 ];
 
 const PICKER_ICON = "size-[20.4px] text-hairline";
+
+/** iOS Safari ignores file inputs with display:none — keep them visually hidden but present. */
+const HIDDEN_INPUT =
+  "pointer-events-none fixed left-0 top-0 h-px w-px overflow-hidden opacity-0";
 
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -24,45 +27,32 @@ async function fileToDataUrl(file: File): Promise<string> {
 }
 
 export function AvatarPicker() {
-  const rootRef = useRef<HTMLDivElement>(null);
   const selfieRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
+  const openSelfie = () => {
+    selfieRef.current?.click();
+  };
 
   const openPicker = (action: PickerAction) => {
-    setOpen(false);
-    if (action === "selfie") selfieRef.current?.click();
     if (action === "gallery") galleryRef.current?.click();
     if (action === "file") fileRef.current?.click();
   };
 
-  const onFile = async (file: File | undefined) => {
+  const onFile = async (file: File | undefined, input?: HTMLInputElement | null) => {
     if (!file) return;
     setPhoto(await fileToDataUrl(file));
+    if (input) input.value = "";
   };
 
   return (
-    <div ref={rootRef} className="relative shrink-0 -translate-y-[2cm]">
+    <div className="relative shrink-0 -translate-y-[2cm]">
       <button
         type="button"
-        aria-label="Добавить фото"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        aria-label="Сделать селфи"
+        onClick={openSelfie}
         className={cn(
           "flex size-[149.76px] items-center justify-center overflow-hidden rounded-full border border-hairline bg-background",
           "transition-opacity active:opacity-80",
@@ -76,48 +66,51 @@ export function AvatarPicker() {
         )}
       </button>
 
-      {open && (
-        <div
-          role="menu"
-          aria-label="Выбор фото"
-          className="absolute top-[calc(100%+14px)] left-1/2 z-10 flex -translate-x-1/2 items-center gap-5"
-        >
-          {ACTIONS.map(({ id, Icon, label }) => (
-            <button
-              key={id}
-              type="button"
-              role="menuitem"
-              aria-label={label}
-              onClick={() => openPicker(id)}
-              className="flex items-center justify-center transition-opacity active:opacity-60"
-            >
-              <Icon className={PICKER_ICON} strokeWidth={1.25} aria-hidden />
-            </button>
-          ))}
-        </div>
-      )}
+      <div
+        role="group"
+        aria-label="Галерея и файл"
+        className="absolute top-[calc(100%+14px)] left-1/2 flex -translate-x-1/2 items-center gap-5"
+      >
+        {EXTRA_ACTIONS.map(({ id, Icon, label }) => (
+          <button
+            key={id}
+            type="button"
+            aria-label={label}
+            onClick={() => openPicker(id)}
+            className="flex items-center justify-center transition-opacity active:opacity-60"
+          >
+            <Icon className={PICKER_ICON} strokeWidth={1.25} aria-hidden />
+          </button>
+        ))}
+      </div>
 
       <input
         ref={selfieRef}
         type="file"
         accept="image/*"
         capture="user"
-        className="hidden"
-        onChange={(event) => onFile(event.target.files?.[0])}
+        className={HIDDEN_INPUT}
+        tabIndex={-1}
+        aria-hidden
+        onChange={(event) => onFile(event.target.files?.[0], event.target)}
       />
       <input
         ref={galleryRef}
         type="file"
         accept="image/*"
-        className="hidden"
-        onChange={(event) => onFile(event.target.files?.[0])}
+        className={HIDDEN_INPUT}
+        tabIndex={-1}
+        aria-hidden
+        onChange={(event) => onFile(event.target.files?.[0], event.target)}
       />
       <input
         ref={fileRef}
         type="file"
         accept="image/*,application/pdf"
-        className="hidden"
-        onChange={(event) => onFile(event.target.files?.[0])}
+        className={HIDDEN_INPUT}
+        tabIndex={-1}
+        aria-hidden
+        onChange={(event) => onFile(event.target.files?.[0], event.target)}
       />
     </div>
   );
