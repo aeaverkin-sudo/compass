@@ -1,3 +1,3 @@
 export { LandingPage } from "./components/landing-page";
-export { AvatarPlaceholder } from "./components/avatar-placeholder";
+export { AvatarPicker } from "./components/avatar-picker";
 export { NameFields } from "./components/name-fields";

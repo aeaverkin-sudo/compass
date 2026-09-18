@@ -1,11 +1,11 @@
-import { AvatarPlaceholder } from "./avatar-placeholder";
+import { AvatarPicker } from "./avatar-picker";
 import { NameFields } from "./name-fields";
 
 export function LandingPage() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-8">
       <div className="flex w-full max-w-xs flex-col items-center">
-        <AvatarPlaceholder />
+        <AvatarPicker />
         <div className="mt-[2cm] w-full">
           <NameFields />
         </div>
