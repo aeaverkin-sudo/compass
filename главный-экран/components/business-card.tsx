@@ -21,7 +21,7 @@ function ContactChip({ item, compact }: { item: ContactItem; compact: boolean })
         "inline-flex max-w-full items-center rounded-[10px] bg-[oklch(94%_0.008_70)] text-foreground",
         compact
           ? "h-[25px] px-2 text-[11px] leading-none"
-          : "h-8 px-3.5 text-[13px] leading-none",
+          : "h-16 px-5 text-[26px] leading-none",
       )}
     >
       <span className="truncate">{item.value}</span>
@@ -56,7 +56,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }}
       className={cn(
         "compass-card compass-layer w-full cursor-default transition-[transform,box-shadow] duration-[460ms] ease-out",
-        compact ? "px-3.5 py-3" : "px-5 py-6",
+        compact ? "px-3.5 py-3" : "px-8 py-12",
       )}
     >
       <div className={cn("flex flex-col items-center", compact && "flex-row items-center gap-3")}>
@@ -68,7 +68,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             alt=""
             className={cn(
               "shrink-0 rounded-full border border-hairline object-cover",
-              compact ? "size-11" : "size-[84px]",
+              compact ? "size-11" : "size-[168px]",
             )}
           />
         ) : null}
@@ -78,7 +78,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             data-card-content
             className={cn(
               "font-normal leading-[1.12] text-foreground",
-              compact ? "text-[16px]" : "text-[22px]",
+              compact ? "text-[16px]" : "text-[44px]",
             )}
           >
             {card.displayName}
@@ -86,19 +86,19 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           {card.title ? (
             <p
               data-card-content
-              className={cn("leading-[1.2] text-hint", compact ? "mt-0.5 text-[12px]" : "mt-1.5 text-[15px]")}
+              className={cn("leading-[1.2] text-hint", compact ? "mt-0.5 text-[12px]" : "mt-3 text-[30px]")}
             >
               {card.title}
             </p>
           ) : (
-            <p className={cn("leading-[1.2] text-hint", compact ? "mt-0.5 text-[12px]" : "mt-1.5 text-[15px]")}>
+            <p className={cn("leading-[1.2] text-hint", compact ? "mt-0.5 text-[12px]" : "mt-3 text-[30px]")}>
               title
             </p>
           )}
         </div>
 
         {!compact && items.length > 0 ? (
-          <div className="mt-5 flex w-full flex-wrap justify-center gap-2">
+          <div className="mt-8 flex w-full flex-wrap justify-center gap-3">
             {items.map((item) => (
               <ContactChip key={item.id} item={item} compact={false} />
             ))}
