@@ -6,8 +6,8 @@ import { SHEET_INSET, type MainScreenMode } from "../layout";
 type ContentSheetPeekProps = {
   mode: MainScreenMode;
   edgeInsetPx: number;
-  topBrowse: number;
-  topLibrary: number;
+  topBrowse: string;
+  topLibrary: string;
   onTap: () => void;
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type MainScreenMode } from "../layout";
+import { safeTop, type MainScreenMode } from "../layout";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
 import { isCardReady, useAppStore } from "@/shared/store/app-store";
@@ -109,7 +109,9 @@ export function MainScreen() {
 
       {/* Layer 0 — permanent background */}
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
-        {layout ? <QrZone url={pdfUrl} visible={isCardReady(card)} top={layout.qrTop} /> : null}
+        {layout ? (
+          <QrZone url={pdfUrl} visible={isCardReady(card)} topOffsetPx={layout.qrTop} />
+        ) : null}
       </div>
 
       {/* Layer 1 — content sheet (full viewport containing block) */}
@@ -118,8 +120,8 @@ export function MainScreen() {
           <ContentSheetPeek
             mode={mode}
             edgeInsetPx={mode === "browse" ? layout.edgeInsetBrowse : layout.edgeInsetLibrary}
-            topBrowse={layout.sheetTopBrowse}
-            topLibrary={layout.sheetTopLibrary}
+            topBrowse={safeTop(layout.sheetTopBrowse)}
+            topLibrary={safeTop(layout.sheetTopLibrary)}
             onTap={toggleMode}
           />
         </div>
@@ -132,7 +134,7 @@ export function MainScreen() {
           style={{
             left: edgeInset,
             right: edgeInset,
-            top: cardTop,
+            top: safeTop(cardTop),
             zIndex: cardOnTop ? 20 : 25,
           }}
         >
