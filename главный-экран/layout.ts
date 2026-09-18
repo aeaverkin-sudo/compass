@@ -8,6 +8,9 @@ export const GAP_UNDER_QR = 18;
 /** Browse card bottom ≈ this % of viewport (green mockup outline). */
 export const CARD_BOTTOM_TARGET_LVH = 73;
 
+/** Trim browse card bottom edge upward (~0.5 cm @ 96 dpi). */
+export const CARD_BOTTOM_RAISE_PX = 19;
+
 export const QR_OVERLAP_LIBRARY_PX = 112;
 
 export const CARD_TOP_BROWSE_OFFSET_PX = QR_TOP_OFFSET_PX + QR_SIZE + GAP_UNDER_QR;
@@ -27,5 +30,5 @@ export function layoutTop(offsetPx: number) {
 }
 
 export function browseCardMinHeight() {
-  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - ${CARD_TOP_BROWSE_OFFSET_PX}px)`;
+  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - ${CARD_TOP_BROWSE_OFFSET_PX}px - ${CARD_BOTTOM_RAISE_PX}px)`;
 }
