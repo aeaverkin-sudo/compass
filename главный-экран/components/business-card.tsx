@@ -56,7 +56,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }}
       className={cn(
         "compass-card compass-layer w-full cursor-default transition-[transform,box-shadow] duration-[460ms] ease-out",
-        compact ? "px-3.5 py-3" : "px-8 py-12",
+        compact ? "px-3.5 py-3" : "px-5 py-10",
       )}
     >
       <div className={cn("flex flex-col items-center", compact && "flex-row items-center gap-3")}>
