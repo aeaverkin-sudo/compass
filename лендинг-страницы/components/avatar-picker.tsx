@@ -1,16 +1,18 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Camera, FileText, ImageIcon, Plus, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 type PickerAction = "selfie" | "gallery" | "file";
 
-const ACTIONS: { id: PickerAction; emoji: string; label: string }[] = [
-  { id: "selfie", emoji: "📷", label: "Селфи" },
-  { id: "gallery", emoji: "🖼️", label: "Галерея" },
-  { id: "file", emoji: "📁", label: "Файл" },
+const ACTIONS: { id: PickerAction; Icon: LucideIcon; label: string }[] = [
+  { id: "file", Icon: FileText, label: "Файл" },
+  { id: "selfie", Icon: Camera, label: "Селфи" },
+  { id: "gallery", Icon: ImageIcon, label: "Галерея" },
 ];
+
+const PICKER_ICON = "size-[17px] text-hairline";
 
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -55,14 +57,14 @@ export function AvatarPicker() {
   };
 
   return (
-    <div ref={rootRef} className="relative shrink-0 -translate-y-[1cm]">
+    <div ref={rootRef} className="relative shrink-0 -translate-y-[2cm]">
       <button
         type="button"
         aria-label="Добавить фото"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          "flex size-[124.8px] items-center justify-center overflow-hidden rounded-full border border-hairline bg-background",
+          "flex size-[149.76px] items-center justify-center overflow-hidden rounded-full border border-hairline bg-background",
           "transition-opacity active:opacity-80",
         )}
       >
@@ -70,7 +72,7 @@ export function AvatarPicker() {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photo} alt="" className="size-full object-cover" />
         ) : (
-          <Plus className="size-7 text-hairline" strokeWidth={1.5} aria-hidden />
+          <Plus className="size-7 text-hint" strokeWidth={1.5} aria-hidden />
         )}
       </button>
 
@@ -78,18 +80,18 @@ export function AvatarPicker() {
         <div
           role="menu"
           aria-label="Выбор фото"
-          className="absolute top-[calc(100%+12px)] left-1/2 z-10 flex -translate-x-1/2 gap-6"
+          className="absolute top-[calc(100%+14px)] left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-4"
         >
-          {ACTIONS.map(({ id, emoji, label }) => (
+          {ACTIONS.map(({ id, Icon, label }) => (
             <button
               key={id}
               type="button"
               role="menuitem"
               aria-label={label}
               onClick={() => openPicker(id)}
-              className="text-[28px] leading-none transition-transform active:scale-95"
+              className="flex items-center justify-center transition-opacity active:opacity-60"
             >
-              {emoji}
+              <Icon className={PICKER_ICON} strokeWidth={1.25} aria-hidden />
             </button>
           ))}
         </div>

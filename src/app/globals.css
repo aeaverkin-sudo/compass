@@ -3,8 +3,8 @@
 :root {
   --background: oklch(93% 0.008 70);
   --foreground: oklch(19% 0.01 60);
-  --hairline: oklch(66% 0.006 70);
-  --hint: oklch(72% 0.008 70);
+  --hairline: oklch(54% 0.006 70);
+  --hint: oklch(76% 0.008 70);
 }
 
 @theme inline {
