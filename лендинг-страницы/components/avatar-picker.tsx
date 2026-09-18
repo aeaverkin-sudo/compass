@@ -78,7 +78,7 @@ export function AvatarPicker({ photo, onPhotoChange }: AvatarPickerProps) {
   };
 
   return (
-    <div ref={rootRef} className="relative shrink-0 -translate-y-[2cm]">
+    <div ref={rootRef} className="relative shrink-0">
       <button
         type="button"
         aria-label="Сделать селфи. Удерживайте для галереи и файла."

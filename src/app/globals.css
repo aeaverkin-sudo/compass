@@ -34,6 +34,8 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* iOS / Safari autofill — keep transparent field look */
