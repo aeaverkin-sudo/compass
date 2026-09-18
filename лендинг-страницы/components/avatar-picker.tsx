@@ -1,18 +1,21 @@
 "use client";
 
-import { Camera, FileText, ImageIcon, Plus, type LucideIcon } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { IconCamera, IconFolder, IconPhotoLibrary } from "./picker-icons";
 
 type PickerAction = "selfie" | "gallery" | "file";
 
-const ACTIONS: { id: PickerAction; Icon: LucideIcon; label: string }[] = [
-  { id: "selfie", Icon: Camera, label: "Фото" },
-  { id: "gallery", Icon: ImageIcon, label: "Галерея" },
-  { id: "file", Icon: FileText, label: "Файл" },
+const ACTIONS: {
+  id: PickerAction;
+  Icon: typeof IconCamera;
+  label: string;
+}[] = [
+  { id: "selfie", Icon: IconCamera, label: "Фото" },
+  { id: "gallery", Icon: IconPhotoLibrary, label: "Галерея" },
+  { id: "file", Icon: IconFolder, label: "Файл" },
 ];
-
-const PICKER_ICON = "size-[20.4px] text-hairline";
 
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -91,7 +94,7 @@ export function AvatarPicker() {
               onClick={() => openPicker(id)}
               className="flex items-center justify-center transition-opacity active:opacity-60"
             >
-              <Icon className={PICKER_ICON} strokeWidth={1.25} aria-hidden />
+              <Icon />
             </button>
           ))}
         </div>
