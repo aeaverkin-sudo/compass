@@ -46,6 +46,7 @@ export function browseCardHeightPx(viewportH: number, safeTop: number) {
 }
 
 export function browseCardHeight() {
-  const stackBelowSafe = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX - CARD_BOTTOM_RAISE_PX;
-  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackBelowSafe}px)`;
+  const stackTopBelowSafe = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
+  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
 }
