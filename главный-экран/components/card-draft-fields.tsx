@@ -7,7 +7,6 @@ import type { Card } from "@/shared/types";
 import {
   browseCardHeight,
   CARD_NAME_GAP_PX,
-  CARD_NAME_SIZE_PX,
   CARD_PHOTO_RADIUS_PX,
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
@@ -20,6 +19,9 @@ type CardDraftFieldsProps = {
 
 const HIDDEN_INPUT =
   "pointer-events-none fixed left-0 top-0 h-px w-px overflow-hidden opacity-0";
+
+/** Second card draft — smaller and lighter than the primary card name. */
+const DRAFT_NAME_SIZE_PX = 17;
 
 async function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -93,7 +95,7 @@ export function CardDraftFields({ card, onUpdate }: CardDraftFieldsProps) {
       <button
         type="button"
         data-card-content
-        aria-label="Добавить фото"
+        aria-label="Add photo"
         onClick={openSelfie}
         onContextMenu={(event) => {
           event.preventDefault();
@@ -122,15 +124,15 @@ export function CardDraftFields({ card, onUpdate }: CardDraftFieldsProps) {
         style={{ marginTop: CARD_NAME_GAP_PX }}
         data-card-content
       >
-        <span className="sr-only">Имя, фамилия или название портфолио</span>
+        <span className="sr-only">Name or portfolio title</span>
         <input
           type="text"
           data-card-content
           value={card.displayName}
-          placeholder="имя, фамилия или портфолио"
+          placeholder="name, portfolio title"
           onChange={(event) => onUpdate({ displayName: event.target.value })}
-          className="compass-input w-full bg-transparent px-0 py-0 text-center font-normal leading-[1.12] text-foreground outline-none placeholder:text-hint"
-          style={{ fontSize: CARD_NAME_SIZE_PX }}
+          className="compass-input w-full bg-transparent px-0 py-0 text-center font-light leading-[1.15] text-foreground outline-none placeholder:text-hint"
+          style={{ fontSize: DRAFT_NAME_SIZE_PX }}
         />
       </label>
 

@@ -41,7 +41,7 @@ export function ContentSheetPeek({
   return (
     <button
       type="button"
-      aria-label={expanded ? "Свернуть поле наполнения" : "Открыть поле наполнения визитки"}
+      aria-label={expanded ? "Collapse content sheet" : "Open content sheet"}
       aria-expanded={expanded}
       onClick={onTap}
       className={cn(

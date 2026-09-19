@@ -54,7 +54,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ref={ref}
       role="button"
       tabIndex={0}
-      aria-label={compact ? "Вернуться к визитке" : "Визитка"}
+      aria-label={compact ? "Back to card" : "Business card"}
       onClick={handleClick}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {

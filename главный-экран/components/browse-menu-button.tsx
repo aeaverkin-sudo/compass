@@ -12,7 +12,7 @@ export function BrowseMenuButton({ centerYpx, onTap }: BrowseMenuButtonProps) {
   return (
     <button
       type="button"
-      aria-label="Меню наполнения визитки"
+      aria-label="Card content menu"
       onClick={onTap}
       className="pointer-events-auto absolute left-1/2 z-30 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center transition-opacity active:opacity-60"
       style={{ top: layoutTop(centerYpx) }}
