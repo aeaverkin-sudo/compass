@@ -23,6 +23,9 @@ export const CARD_BOTTOM_RAISE_PX = -84;
 
 export const QR_OVERLAP_LIBRARY_PX = 112;
 
+/** Library split below QR overlap — card ~50%, content sheet ~50%. */
+export const LIBRARY_CARD_SHARE = 0.5;
+
 export const SHEET_INSET = {
   browse: { horizontal: 14, bottom: 18, overlap: 22 },
   library: { horizontal: 14, bottom: 14, gap: 10 },
@@ -65,4 +68,18 @@ export function browseCardHeight() {
   const stackTopBelowSafe = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
   const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
   return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
+}
+
+export function libraryStackTopPx(safeTop: number) {
+  return safeTop + QR_GAP_SYMMETRIC_PX + QR_SIZE - QR_OVERLAP_LIBRARY_PX;
+}
+
+export function libraryCardHeightPx(viewportH: number, safeTop: number, safeBottom: number) {
+  const stackTop = libraryStackTopPx(safeTop);
+  const stackHeight = viewportH - safeBottom - stackTop;
+  return Math.round(stackHeight * LIBRARY_CARD_SHARE - SHEET_INSET.library.gap / 2);
+}
+
+export function librarySheetTopPx(viewportH: number, safeTop: number, safeBottom: number) {
+  return libraryStackTopPx(safeTop) + libraryCardHeightPx(viewportH, safeTop, safeBottom) + SHEET_INSET.library.gap;
 }

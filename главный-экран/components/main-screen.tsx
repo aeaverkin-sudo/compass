@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { layoutTop, type MainScreenMode } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -11,7 +11,6 @@ import {
   selectActiveCard,
   useAppStore,
 } from "@/shared/store/app-store";
-import { BusinessCard } from "./business-card";
 import { CardCarousel } from "./card-carousel";
 import { ContentSheetPeek } from "./content-sheet-peek";
 import { QrZone } from "./qr-zone";
@@ -33,8 +32,6 @@ export function MainScreen() {
   const updateCard = useAppStore((state) => state.updateCard);
   const [mode, setMode] = useState<MainScreenMode>("browse");
 
-  const compactCardRef = useRef<HTMLElement>(null);
-  const [compactCardHeight, setCompactCardHeight] = useState(0);
   const activeCard = useMemo(
     () => selectActiveCard(cards, currentCardIndex),
     [cards, currentCardIndex],
@@ -44,7 +41,7 @@ export function MainScreen() {
   useShareSync();
 
   const pdfUrl = useMemo(() => buildPdfUrl(shareToken), [shareToken]);
-  const layout = useMainLayout(compactCardHeight);
+  const layout = useMainLayout();
 
   const toggleMode = useCallback(() => {
     setMode((current) => (current === "browse" ? "library" : "browse"));
@@ -53,21 +50,6 @@ export function MainScreen() {
   const handleAddCard = useCallback(() => {
     addCard();
   }, [addCard]);
-
-  useEffect(() => {
-    const compactNode = compactCardRef.current;
-    if (!compactNode) return;
-
-    const sync = () => {
-      setCompactCardHeight(compactNode.offsetHeight);
-    };
-
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(compactNode);
-
-    return () => observer.disconnect();
-  }, [activeCard, contactItems]);
 
   if (!activeCard) {
     return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
@@ -88,19 +70,6 @@ export function MainScreen() {
 
   return (
     <main className="compass-main fixed inset-0 overflow-hidden bg-background-ready">
-      {/* Off-screen measurer — library compact height only */}
-      <div className="pointer-events-none invisible absolute -left-[9999px] top-0" aria-hidden>
-        <div style={{ width: layout ? `calc(100vw - ${layout.edgeInsetLibrary * 2}px)` : "calc(100vw - 28px)" }}>
-          <BusinessCard
-            ref={compactCardRef}
-            card={activeCard}
-            library={contactItems}
-            mode="library"
-            onEmptyAreaTap={() => undefined}
-          />
-        </div>
-      </div>
-
       {/* Layer 0 — permanent background */}
       <div className="pointer-events-none absolute inset-0 z-0 bg-background-ready">
         {layout ? (
@@ -108,7 +77,7 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {/* Layer 1 — content sheet (library only for now) */}
+      {/* Layer 1 — content sheet (library) */}
       {layout && mode === "library" ? (
         <div className="pointer-events-none absolute inset-0" style={{ zIndex: cardOnTop ? 10 : 30 }}>
           <ContentSheetPeek
@@ -144,6 +113,7 @@ export function MainScreen() {
             mode={mode}
             edgeInsetPx={edgeInset}
             canAddCard={showAddSlide}
+            libraryCardHeightPx={layout.libraryCardHeight}
             onActiveIndexChange={setCurrentCardIndex}
             onAddCard={handleAddCard}
             onUpdateCard={updateCard}

@@ -58,16 +58,9 @@ export function ContentSheetPeek({
       }}
     >
       {expanded ? (
-        <>
-          <div className="mx-auto mt-3 mb-2 h-[4px] w-10 shrink-0 rounded-full bg-hairline/45" aria-hidden />
-          <p className="shrink-0 px-4 pb-3 text-center text-[13px] leading-[1.25] text-hint">
-            link, email, phone, file…
-          </p>
-          <div className="compass-sheet-body mx-3 mb-3 min-h-0 flex-1 rounded-[14px]" aria-hidden />
-          <div className="shrink-0 px-4 pb-2">
-            <SkeletonRows count={6} />
-          </div>
-        </>
+        <div className="flex min-h-0 flex-1 flex-col px-4 pt-3 pb-2">
+          <SkeletonRows count={8} />
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col px-4 pt-3 pb-2">
           <SkeletonRows count={3} />

@@ -3,8 +3,10 @@
 import { useLayoutEffect, useState } from "react";
 import {
   browseCardHeightPx,
+  libraryCardHeightPx,
+  librarySheetTopPx,
+  libraryStackTopPx,
   QR_GAP_SYMMETRIC_PX,
-  QR_OVERLAP_LIBRARY_PX,
   QR_SIZE,
   SHEET_INSET,
 } from "../layout";
@@ -20,6 +22,7 @@ export type MainLayout = {
   edgeInsetBrowse: number;
   edgeInsetLibrary: number;
   browseCardHeight: number;
+  libraryCardHeight: number;
 };
 
 function readSafeAreaInset(edge: "top" | "bottom") {
@@ -36,21 +39,21 @@ function readSafeAreaInset(edge: "top" | "bottom") {
   return size;
 }
 
-function computeLayout(compactCardHeight: number): MainLayout | null {
+function computeLayout(): MainLayout | null {
   if (typeof window === "undefined") return null;
 
   const viewportH = window.innerHeight;
   const safeTop = readSafeAreaInset("top");
+  const safeBottom = readSafeAreaInset("bottom");
   const qrTop = safeTop + QR_GAP_SYMMETRIC_PX;
   const cardTopBrowse = qrTop + QR_SIZE + QR_GAP_SYMMETRIC_PX;
   const browseHeight = browseCardHeightPx(viewportH, safeTop);
+  const libraryHeight = libraryCardHeightPx(viewportH, safeTop, safeBottom);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
   const browseMenuCenterY = (cardBottomBrowse + viewportH) / 2;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
-
-  const compactHeight = compactCardHeight > 0 ? compactCardHeight : 72;
-  const cardTopLibrary = qrTop + QR_SIZE - QR_OVERLAP_LIBRARY_PX;
-  const sheetTopLibrary = cardTopLibrary + compactHeight + SHEET_INSET.library.gap;
+  const cardTopLibrary = libraryStackTopPx(safeTop);
+  const sheetTopLibrary = librarySheetTopPx(viewportH, safeTop, safeBottom);
 
   return {
     qrTop,
@@ -63,15 +66,16 @@ function computeLayout(compactCardHeight: number): MainLayout | null {
     edgeInsetBrowse: SHEET_INSET.browse.horizontal,
     edgeInsetLibrary: SHEET_INSET.library.horizontal,
     browseCardHeight: browseHeight,
+    libraryCardHeight: libraryHeight,
   };
 }
 
-export function useMainLayout(compactCardHeight: number) {
+export function useMainLayout() {
   const [layout, setLayout] = useState<MainLayout | null>(null);
 
   useLayoutEffect(() => {
     const sync = () => {
-      setLayout(computeLayout(compactCardHeight));
+      setLayout(computeLayout());
     };
 
     sync();
@@ -82,7 +86,7 @@ export function useMainLayout(compactCardHeight: number) {
       window.removeEventListener("resize", sync);
       window.visualViewport?.removeEventListener("resize", sync);
     };
-  }, [compactCardHeight]);
+  }, []);
 
   return layout;
 }

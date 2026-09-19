@@ -21,6 +21,7 @@ type CardCarouselProps = {
   mode: MainScreenMode;
   edgeInsetPx: number;
   canAddCard: boolean;
+  libraryCardHeightPx?: number;
   onActiveIndexChange: (index: number) => void;
   onAddCard: () => void;
   onUpdateCard: (id: string, data: Partial<Card>) => void;
@@ -51,6 +52,7 @@ export function CardCarousel({
   mode,
   edgeInsetPx,
   canAddCard,
+  libraryCardHeightPx,
   onActiveIndexChange,
   onAddCard,
   onUpdateCard,
@@ -191,6 +193,7 @@ export function CardCarousel({
         card={activeCard}
         library={contactItems}
         mode={mode}
+        libraryCardHeightPx={libraryCardHeightPx}
         onEmptyAreaTap={handleEmptyAreaTap}
         onPhotoChange={
           isBrowse ? (photo) => handlePhotoChange(activeCard.id, photo) : undefined
@@ -229,6 +232,7 @@ export function CardCarousel({
                   card={cards[index]!}
                   library={contactItems}
                   mode={mode}
+                  libraryCardHeightPx={libraryCardHeightPx}
                   onEmptyAreaTap={handleEmptyAreaTap}
                   onPhotoChange={
                     isBrowse ? (photo) => handlePhotoChange(cards[index]!.id, photo) : undefined

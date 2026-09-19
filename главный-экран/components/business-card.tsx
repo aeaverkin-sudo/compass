@@ -19,6 +19,7 @@ type BusinessCardProps = {
   card: Card;
   library: ContactItem[];
   mode: MainScreenMode;
+  libraryCardHeightPx?: number;
   onEmptyAreaTap: () => void;
   onPhotoChange?: (photo: string | null) => void;
 };
@@ -40,7 +41,7 @@ function ContactChip({ item, compact }: { item: ContactItem; compact: boolean })
 }
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
-  { card, library, mode, onEmptyAreaTap, onPhotoChange },
+  { card, library, mode, libraryCardHeightPx, onEmptyAreaTap, onPhotoChange },
   ref,
 ) {
   const items = getCardItems(card, library);
@@ -70,7 +71,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       )}
       style={
         compact
-          ? undefined
+          ? libraryCardHeightPx
+            ? { height: libraryCardHeightPx }
+            : undefined
           : {
               height: browseCardHeight(),
               paddingTop: CARD_PHOTO_TOP_PX,
@@ -134,15 +137,17 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             ))}
           </div>
         ) : null}
-
-        {compact && items.length > 0 ? (
-          <div className="flex max-w-[42%] flex-wrap justify-end gap-1.5">
-            {items.slice(0, 2).map((item) => (
-              <ContactChip key={item.id} item={item} compact />
-            ))}
-          </div>
-        ) : null}
       </div>
+
+      {compact ? (
+        <div className="compass-card-data-zone mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] px-3 pb-3 pt-2">
+          <div className="mx-auto mb-2 h-[4px] w-10 shrink-0 rounded-full bg-hairline/45" aria-hidden />
+          <p className="shrink-0 pb-2 text-center text-[13px] leading-[1.25] text-hint">
+            link, email, phone, file…
+          </p>
+          <div className="compass-sheet-body min-h-0 flex-1 rounded-[12px]" aria-hidden />
+        </div>
+      ) : null}
 
     </article>
   );
