@@ -13,6 +13,8 @@ export type MainLayout = {
   qrTop: number;
   cardTopBrowse: number;
   cardTopLibrary: number;
+  cardBottomBrowse: number;
+  browseMenuCenterY: number;
   sheetTopBrowse: number;
   sheetTopLibrary: number;
   edgeInsetBrowse: number;
@@ -20,28 +22,32 @@ export type MainLayout = {
   browseCardHeight: number;
 };
 
-function readSafeAreaTop() {
+function readSafeAreaInset(edge: "top" | "bottom") {
   if (typeof document === "undefined") return 0;
   const probe = document.createElement("div");
-  probe.style.paddingTop = "env(safe-area-inset-top)";
   probe.style.position = "fixed";
   probe.style.visibility = "hidden";
   probe.style.pointerEvents = "none";
+  if (edge === "top") probe.style.paddingTop = "env(safe-area-inset-top)";
+  else probe.style.paddingBottom = "env(safe-area-inset-bottom)";
   document.documentElement.appendChild(probe);
-  const top = probe.getBoundingClientRect().height;
+  const size = probe.getBoundingClientRect().height;
   document.documentElement.removeChild(probe);
-  return top;
+  return size;
 }
 
 function computeLayout(compactCardHeight: number): MainLayout | null {
   if (typeof window === "undefined") return null;
 
   const viewportH = window.innerHeight;
-  const safeTop = readSafeAreaTop();
+  const safeTop = readSafeAreaInset("top");
+  const safeBottom = readSafeAreaInset("bottom");
   const qrTop = safeTop + QR_GAP_SYMMETRIC_PX;
   const cardTopBrowse = qrTop + QR_SIZE + QR_GAP_SYMMETRIC_PX;
   const browseHeight = browseCardHeightPx(viewportH, safeTop);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
+  const browseMenuCenterY =
+    cardBottomBrowse + (viewportH - safeBottom - cardBottomBrowse) / 2;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
 
   const compactHeight = compactCardHeight > 0 ? compactCardHeight : 72;
@@ -52,6 +58,8 @@ function computeLayout(compactCardHeight: number): MainLayout | null {
     qrTop,
     cardTopBrowse,
     cardTopLibrary,
+    cardBottomBrowse,
+    browseMenuCenterY,
     sheetTopBrowse,
     sheetTopLibrary,
     edgeInsetBrowse: SHEET_INSET.browse.horizontal,

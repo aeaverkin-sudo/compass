@@ -47,6 +47,10 @@ function AddCardSlide({ onAdd }: { onAdd: () => void }) {
   );
 }
 
+function CarouselSpacer({ width }: { width: number }) {
+  return <div aria-hidden className="shrink-0" style={{ width }} />;
+}
+
 export function CardCarousel({
   cards,
   activeIndex,
@@ -83,14 +87,25 @@ export function CardCarousel({
     return carouselSidePaddingPx(window.innerWidth, multiSlide, edgeInsetPx);
   }, [edgeInsetPx, multiSlide]);
 
+  const scrollLeftForIndex = useCallback(
+    (index: number) => {
+      const node = scrollRef.current;
+      if (!node) return 0;
+      const pad = sidePadding();
+      const width = slideWidth();
+      const step = width + CARD_CAROUSEL_GAP_PX;
+      return pad + index * step + width / 2 - node.clientWidth / 2;
+    },
+    [sidePadding, slideWidth],
+  );
+
   const scrollToIndex = useCallback(
     (index: number, behavior: ScrollBehavior = "smooth") => {
       const node = scrollRef.current;
       if (!node || !multiSlide) return;
-      const step = slideWidth() + CARD_CAROUSEL_GAP_PX;
-      node.scrollTo({ left: index * step, behavior });
+      node.scrollTo({ left: scrollLeftForIndex(index), behavior });
     },
-    [multiSlide, slideWidth],
+    [multiSlide, scrollLeftForIndex],
   );
 
   useEffect(() => {
@@ -122,13 +137,27 @@ export function CardCarousel({
     if (syncingScroll.current || !scrollRef.current || !multiSlide) return;
 
     const node = scrollRef.current;
-    const step = slideWidth() + CARD_CAROUSEL_GAP_PX;
-    const nextIndex = Math.round(node.scrollLeft / step);
+    const pad = sidePadding();
+    const width = slideWidth();
+    const step = width + CARD_CAROUSEL_GAP_PX;
+    const viewportCenter = node.scrollLeft + node.clientWidth / 2;
 
-    if (nextIndex !== activeIndex && nextIndex >= 0 && nextIndex < cards.length) {
+    let closestIndex = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (let i = 0; i < cards.length; i++) {
+      const slideCenter = pad + i * step + width / 2;
+      const distance = Math.abs(viewportCenter - slideCenter);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = i;
+      }
+    }
+
+    if (closestIndex !== activeIndex) {
       markScrolled();
       syncingScroll.current = true;
-      onActiveIndexChange(nextIndex);
+      onActiveIndexChange(closestIndex);
       requestAnimationFrame(() => {
         syncingScroll.current = false;
       });
@@ -163,33 +192,28 @@ export function CardCarousel({
         className="compass-carousel snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background-ready"
         onScroll={handleScroll}
       >
-      <div
-        className="flex"
-        style={{
-          gap: CARD_CAROUSEL_GAP_PX,
-          paddingLeft: padding,
-          paddingRight: padding,
-        }}
-      >
-        {slideIds.map((slideId, index) => (
-          <div
-            key={slideId}
-            className="shrink-0 snap-center overflow-hidden rounded-[18px]"
-            style={{ width: width }}
-          >
-            {slideId === ADD_SLIDE_ID ? (
-              <AddCardSlide onAdd={onAddCard} />
-            ) : (
-              <BusinessCard
-                card={cards[index]!}
-                library={contactItems}
-                mode={mode}
-                onEmptyAreaTap={handleEmptyAreaTap}
-              />
-            )}
-          </div>
-        ))}
-      </div>
+        <div className="flex" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
+          <CarouselSpacer width={padding} />
+          {slideIds.map((slideId, index) => (
+            <div
+              key={slideId}
+              className="shrink-0 snap-center overflow-hidden rounded-[18px]"
+              style={{ width }}
+            >
+              {slideId === ADD_SLIDE_ID ? (
+                <AddCardSlide onAdd={onAddCard} />
+              ) : (
+                <BusinessCard
+                  card={cards[index]!}
+                  library={contactItems}
+                  mode={mode}
+                  onEmptyAreaTap={handleEmptyAreaTap}
+                />
+              )}
+            </div>
+          ))}
+          <CarouselSpacer width={padding} />
+        </div>
       </div>
     </div>
   );

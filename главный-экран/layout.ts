@@ -1,6 +1,7 @@
 /** Layout offsets from the physical screen top (viewport-fit: cover). */
 
 export const QR_SIZE = 168;
+export const QR_COLOR = "#C1571F";
 
 /** Browse card photo — 70% of QR size, ~0.5 cm below card top edge. */
 export const CARD_PHOTO_SIZE_PX = 118;

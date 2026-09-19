@@ -75,13 +75,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }
       }
     >
-      <div
-        className={cn(
-          "shrink-0 flex flex-col items-center",
-          compact && "flex-row items-center gap-3",
-          !compact && "compass-card-identity w-full",
-        )}
-      >
+      <div className={cn("shrink-0 flex flex-col items-center", compact && "flex-row items-center gap-3", !compact && "w-full")}>
         {card.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

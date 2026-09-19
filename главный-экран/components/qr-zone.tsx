@@ -1,7 +1,7 @@
 "use client";
 
 import { QRCodeSVG } from "qrcode.react";
-import { QR_SIZE, layoutTop } from "../layout";
+import { QR_COLOR, QR_SIZE, layoutTop } from "../layout";
 
 type QrZoneProps = {
   url: string;
@@ -9,7 +9,6 @@ type QrZoneProps = {
   topOffsetPx: number;
 };
 
-const QR_COLOR = "#C1571F";
 const PLATE_PADDING = 6;
 
 export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {

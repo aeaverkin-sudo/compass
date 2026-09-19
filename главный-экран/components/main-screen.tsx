@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { carouselSidePaddingPx, layoutTop, type MainScreenMode } from "../layout";
+import { layoutTop, type MainScreenMode } from "../layout";
+import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
 import {
@@ -33,8 +34,6 @@ export function MainScreen() {
 
   const compactCardRef = useRef<HTMLElement>(null);
   const [compactCardHeight, setCompactCardHeight] = useState(0);
-  const [viewportWidth, setViewportWidth] = useState(0);
-
   const activeCard = useMemo(
     () => selectActiveCard(cards, currentCardIndex),
     [cards, currentCardIndex],
@@ -53,13 +52,6 @@ export function MainScreen() {
   const handleAddCard = useCallback(() => {
     addCard();
   }, [addCard]);
-
-  useEffect(() => {
-    const syncViewport = () => setViewportWidth(window.innerWidth);
-    syncViewport();
-    window.addEventListener("resize", syncViewport);
-    return () => window.removeEventListener("resize", syncViewport);
-  }, []);
 
   useEffect(() => {
     const compactNode = compactCardRef.current;
@@ -92,10 +84,6 @@ export function MainScreen() {
       : layout.cardTopLibrary
     : undefined;
   const browseCarousel = mode === "browse" && (cards.length > 1 || showAddSlide);
-  const sheetInsetBrowse =
-    browseCarousel && viewportWidth > 0
-      ? carouselSidePaddingPx(viewportWidth, true, edgeInset)
-      : edgeInset;
 
   return (
     <main className="compass-main fixed inset-0 overflow-hidden bg-background-ready">
@@ -119,17 +107,22 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {/* Layer 1 — content sheet (full viewport containing block) */}
-      {layout ? (
+      {/* Layer 1 — content sheet (library only for now) */}
+      {layout && mode === "library" ? (
         <div className="pointer-events-none absolute inset-0" style={{ zIndex: cardOnTop ? 10 : 30 }}>
           <ContentSheetPeek
             mode={mode}
-            edgeInsetPx={mode === "browse" ? sheetInsetBrowse : layout.edgeInsetLibrary}
+            edgeInsetPx={layout.edgeInsetLibrary}
             topBrowse={layoutTop(layout.sheetTopBrowse)}
             topLibrary={layoutTop(layout.sheetTopLibrary)}
             onTap={toggleMode}
           />
         </div>
+      ) : null}
+
+      {/* Browse menu — centered in gap below card */}
+      {layout && mode === "browse" ? (
+        <BrowseMenuButton centerYpx={layout.browseMenuCenterY} onTap={toggleMode} />
       ) : null}
 
       {/* Layer 2 — business card(s) */}
