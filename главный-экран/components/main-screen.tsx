@@ -125,7 +125,7 @@ export function MainScreen() {
         <div
           className="absolute transition-[top,left,right] duration-[460ms] ease-out"
           style={{
-            left: edgeInset,
+            left: browseCarousel ? 0 : edgeInset,
             right: browseCarousel ? 0 : edgeInset,
             top: layoutTop(cardTop),
             zIndex: cardOnTop ? 20 : 25,

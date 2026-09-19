@@ -34,9 +34,14 @@ export const CARD_CAROUSEL_PEEK_PX = 24;
 export const CARD_CAROUSEL_GAP_PX = 8;
 export const MAX_CARDS = 2;
 
-export function carouselSlideWidthPx(viewportWidth: number, edgeInsetPx: number, multiSlide: boolean) {
+export function carouselSlideWidthPx(viewportWidth: number, multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
   if (!multiSlide) return viewportWidth - edgeInsetPx * 2;
-  return viewportWidth - edgeInsetPx - CARD_CAROUSEL_PEEK_PX - CARD_CAROUSEL_GAP_PX;
+  return viewportWidth - 2 * CARD_CAROUSEL_PEEK_PX - CARD_CAROUSEL_GAP_PX;
+}
+
+export function carouselSidePaddingPx(viewportWidth: number, multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
+  if (!multiSlide) return edgeInsetPx;
+  return (viewportWidth - carouselSlideWidthPx(viewportWidth, true)) / 2;
 }
 
 export type MainScreenMode = "browse" | "library";

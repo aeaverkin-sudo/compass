@@ -7,6 +7,7 @@ import type { Card, ContactItem } from "@/shared/types";
 import {
   browseCardHeight,
   CARD_CAROUSEL_GAP_PX,
+  carouselSidePaddingPx,
   carouselSlideWidthPx,
   type MainScreenMode,
 } from "../layout";
@@ -74,7 +75,12 @@ export function CardCarousel({
 
   const slideWidth = useCallback(() => {
     if (typeof window === "undefined") return 0;
-    return carouselSlideWidthPx(window.innerWidth, edgeInsetPx, multiSlide);
+    return carouselSlideWidthPx(window.innerWidth, multiSlide, edgeInsetPx);
+  }, [edgeInsetPx, multiSlide]);
+
+  const sidePadding = useCallback(() => {
+    if (typeof window === "undefined") return 0;
+    return carouselSidePaddingPx(window.innerWidth, multiSlide, edgeInsetPx);
   }, [edgeInsetPx, multiSlide]);
 
   const scrollToIndex = useCallback(
@@ -148,23 +154,26 @@ export function CardCarousel({
   }
 
   const width = slideWidth();
+  const padding = sidePadding();
 
   return (
     <div
       ref={scrollRef}
-      className="compass-carousel flex snap-x snap-mandatory overflow-x-auto overflow-y-hidden"
-      style={{
-        marginRight: -edgeInsetPx,
-        paddingRight: edgeInsetPx,
-        scrollPaddingLeft: 0,
-      }}
+      className="compass-carousel snap-x snap-mandatory overflow-x-auto overflow-y-hidden"
       onScroll={handleScroll}
     >
-      <div className="flex" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
+      <div
+        className="flex"
+        style={{
+          gap: CARD_CAROUSEL_GAP_PX,
+          paddingLeft: padding,
+          paddingRight: padding,
+        }}
+      >
         {slideIds.map((slideId, index) => (
           <div
             key={slideId}
-            className="shrink-0 snap-start"
+            className="shrink-0 snap-center"
             style={{ width: width }}
           >
             {slideId === ADD_SLIDE_ID ? (
