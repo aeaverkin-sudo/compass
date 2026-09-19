@@ -45,9 +45,10 @@ export function ContentSheetPeek({
       aria-expanded={expanded}
       onClick={onTap}
       className={cn(
-        "compass-sheet-peek compass-layer pointer-events-auto absolute inset-x-0 bottom-0 flex h-auto flex-col overflow-hidden rounded-t-[22px] text-left",
+        "compass-sheet-peek compass-layer pointer-events-auto absolute inset-x-0 bottom-0 flex h-auto flex-col overflow-hidden text-left",
+        !expanded && "rounded-t-[22px]",
         "transition-[top,box-shadow] duration-[460ms] ease-out active:scale-[0.998]",
-        expanded && "compass-sheet-expanded",
+        expanded && "compass-sheet-expanded compass-sheet-library",
         !expanded && "compass-sheet-under-card",
       )}
       style={{

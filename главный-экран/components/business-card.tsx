@@ -69,13 +69,16 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }}
       className={cn(
         "compass-card compass-layer flex w-full cursor-default flex-col transition-[transform,box-shadow,height] duration-[460ms] ease-out",
-        compact ? "items-center justify-center px-3.5 py-3" : "min-h-0 overflow-hidden px-5 pb-5",
+        compact
+          ? "compass-card-library items-center justify-start px-5 pb-3"
+          : "min-h-0 overflow-hidden px-5 pb-5",
       )}
       style={
         compact
-          ? libraryCardHeightPx
-            ? { height: libraryCardHeightPx }
-            : undefined
+          ? {
+              height: libraryCardHeightPx,
+              paddingTop: CARD_PHOTO_TOP_PX,
+            }
           : {
               height: browseCardHeight(),
               paddingTop: CARD_PHOTO_TOP_PX,
@@ -109,14 +112,11 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           />
         ) : null}
 
-        <div className="w-full text-center" style={compact ? { marginTop: 12 } : { marginTop: CARD_NAME_GAP_PX }}>
+        <div className="w-full text-center" style={{ marginTop: CARD_NAME_GAP_PX }}>
           <p
             data-card-content
-            className={cn(
-              "font-normal leading-[1.12] text-foreground",
-              compact ? "text-[16px]" : undefined,
-            )}
-            style={compact ? undefined : { fontSize: CARD_NAME_SIZE_PX }}
+            className="font-normal leading-[1.12] text-foreground"
+            style={{ fontSize: CARD_NAME_SIZE_PX }}
           >
             {card.displayName}
           </p>

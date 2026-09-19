@@ -68,6 +68,11 @@ body {
     0 2px 0 oklch(100% 0 0 / 0.5) inset;
 }
 
+.compass-card.compass-card-library {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 .compass-sheet-peek {
   background: var(--sheet);
   border: none;
@@ -96,6 +101,11 @@ body {
   box-shadow:
     inset 0 1px 0 oklch(100% 0 0 / 0.7),
     0 16px 40px oklch(0% 0 0 / 0.12);
+}
+
+.compass-sheet-peek.compass-sheet-library {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .compass-layer {
