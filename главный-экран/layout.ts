@@ -30,8 +30,8 @@ export const SHEET_INSET = {
 
 export const LAYER_TRANSITION_MS = 460;
 
-/** Visible tail of the next card in browse carousel (keep small — max card size). */
-export const CARD_CAROUSEL_PEEK_PX = 24;
+/** Visible tail of the adjacent card in browse carousel. */
+export const CARD_CAROUSEL_PEEK_PX = 36;
 export const CARD_CAROUSEL_GAP_PX = 8;
 export const MAX_CARDS = 2;
 

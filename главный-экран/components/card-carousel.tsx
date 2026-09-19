@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { cn } from "@/lib/utils";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import {
@@ -214,7 +215,13 @@ export function CardCarousel({
           {slideIds.map((slideId, index) => (
             <div
               key={slideId}
-              className="shrink-0 snap-center overflow-hidden rounded-[18px]"
+              className={cn(
+                "compass-carousel-slide relative shrink-0 snap-center overflow-hidden rounded-[18px]",
+                index > activeIndex && "compass-carousel-peek-slide-next",
+                index < activeIndex && "compass-carousel-peek-slide-prev",
+                index === activeIndex && index < slideIds.length - 1 && "compass-carousel-slide-has-next",
+                index === activeIndex && index > 0 && "compass-carousel-slide-has-prev",
+              )}
               style={{ width }}
             >
               {slideId === ADD_SLIDE_ID ? (
