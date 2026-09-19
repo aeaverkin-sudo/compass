@@ -19,6 +19,7 @@ interface AppState {
   currentCardIndex: number;
   contactItems: ContactItem[];
   setHydrated: (value: boolean) => void;
+  resetApp: () => void;
   completeOnboarding: (payload: OnboardingPayload) => void;
   setCurrentCardIndex: (index: number) => void;
   addCard: () => boolean;
@@ -47,6 +48,17 @@ export const useAppStore = create<AppState>()(
       contactItems: [],
 
       setHydrated: (value) => set({ hydrated: value }),
+
+      resetApp: () => {
+        void useAppStore.persist.clearStorage();
+        set({
+          hydrated: true,
+          user: createInitialUser(),
+          cards: [],
+          currentCardIndex: 0,
+          contactItems: [],
+        });
+      },
 
       completeOnboarding: ({ photo, firstName, secondName }) => {
         const now = new Date().toISOString();
