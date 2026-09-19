@@ -1,24 +1,26 @@
 "use client";
 
+import { Camera, FileText, ImageIcon, type LucideIcon } from "lucide-react";
+
 type PhotoSource = "selfie" | "gallery" | "file";
 
-const ACTIONS: { id: PhotoSource; emoji: string; label: string }[] = [
-  { id: "selfie", emoji: "📷", label: "Selfie" },
-  { id: "gallery", emoji: "🖼️", label: "Gallery" },
-  { id: "file", emoji: "📁", label: "File" },
+const ACTIONS: { id: PhotoSource; Icon: LucideIcon; label: string }[] = [
+  { id: "selfie", Icon: Camera, label: "Selfie" },
+  { id: "gallery", Icon: ImageIcon, label: "Gallery" },
+  { id: "file", Icon: FileText, label: "File" },
 ];
 
 type PhotoSourceMenuProps = {
   onPick: (source: PhotoSource) => void;
-  emojiClassName?: string;
+  iconClassName?: string;
   gapClassName?: string;
 };
 
 /** Three source icons laid out inside the photo slot. */
 export function PhotoSourceMenu({
   onPick,
-  emojiClassName = "text-[22px]",
-  gapClassName = "gap-2.5",
+  iconClassName = "size-[20.4px] text-hairline",
+  gapClassName = "gap-3",
 }: PhotoSourceMenuProps) {
   return (
     <div
@@ -26,16 +28,16 @@ export function PhotoSourceMenu({
       aria-label="Photo source"
       className={`flex items-center justify-center ${gapClassName}`}
     >
-      {ACTIONS.map(({ id, emoji, label }) => (
+      {ACTIONS.map(({ id, Icon, label }) => (
         <button
           key={id}
           type="button"
           role="menuitem"
           aria-label={label}
           onClick={() => onPick(id)}
-          className={`leading-none transition-transform active:scale-95 ${emojiClassName}`}
+          className="flex items-center justify-center transition-opacity active:opacity-60"
         >
-          {emoji}
+          <Icon className={iconClassName} strokeWidth={1.25} aria-hidden />
         </button>
       ))}
     </div>

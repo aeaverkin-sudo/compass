@@ -35,8 +35,9 @@ export function PhotoSlotPicker({
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
 
-  const emojiSize = sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "text-[26px]" : "text-[22px]";
-  const emojiGap = sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "gap-4" : "gap-2.5";
+  const iconSize =
+    sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "size-6 text-hairline" : "size-[20.4px] text-hairline";
+  const iconGap = sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "gap-4" : "gap-3";
 
   useEffect(() => {
     if (!open) return;
@@ -83,7 +84,7 @@ export function PhotoSlotPicker({
         style={{ borderRadius: borderRadiusPx }}
       >
         {open ? (
-          <PhotoSourceMenu onPick={openPicker} emojiClassName={emojiSize} gapClassName={emojiGap} />
+          <PhotoSourceMenu onPick={openPicker} iconClassName={iconSize} gapClassName={iconGap} />
         ) : photo ? (
           <button
             type="button"
