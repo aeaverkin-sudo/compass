@@ -8,7 +8,7 @@ import { PhotoSourceMenu, type PhotoSource } from "./photo-source-menu";
 import { HIDDEN_INPUT, openSelfiePicker, preparePhotoForStorage } from "./photo-input-utils";
 
 export const LANDING_PHOTO_SIZE_PX = 149.76;
-const LONG_PRESS_MS = 1000;
+const LONG_PRESS_MS = 800;
 
 /** Soft corners — same ratio as browse card (13 / 118). */
 export function photoRadiusForSize(sizePx: number) {
