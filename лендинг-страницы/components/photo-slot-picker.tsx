@@ -1,12 +1,14 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useLongPress } from "@/shared/hooks/use-long-press";
 import { PhotoSourceMenu, type PhotoSource } from "./photo-source-menu";
 import { fileToDataUrl, HIDDEN_INPUT, openSelfiePicker } from "./photo-input-utils";
 
 export const LANDING_PHOTO_SIZE_PX = 149.76;
+const LONG_PRESS_MS = 1000;
 
 /** Soft corners — same ratio as browse card (13 / 118). */
 export function photoRadiusForSize(sizePx: number) {
@@ -15,7 +17,7 @@ export function photoRadiusForSize(sizePx: number) {
 
 type PhotoSlotPickerProps = {
   photo: string | null;
-  onPhotoChange: (photo: string) => void;
+  onPhotoChange: (photo: string | null) => void;
   sizePx?: number;
   borderRadiusPx?: number;
   className?: string;
@@ -38,6 +40,12 @@ export function PhotoSlotPicker({
   const iconSize =
     sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "size-6 text-hairline" : "size-[20.4px] text-hairline";
   const iconGap = sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "gap-4" : "gap-3";
+  const removeIconSize =
+    sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "size-[18px] text-hairline" : "size-[15px] text-hairline";
+
+  const longPress = useLongPress(() => {
+    if (photo) setOpen(true);
+  }, LONG_PRESS_MS);
 
   useEffect(() => {
     if (!open) return;
@@ -61,11 +69,16 @@ export function PhotoSlotPicker({
   const openPicker = (action: PhotoSource) => {
     setOpen(false);
     if (action === "selfie") {
-      openSelfiePicker(onPhotoChange);
+      openSelfiePicker((nextPhoto) => onPhotoChange(nextPhoto));
       return;
     }
     if (action === "gallery") galleryRef.current?.click();
     if (action === "file") fileRef.current?.click();
+  };
+
+  const removePhoto = () => {
+    onPhotoChange(null);
+    setOpen(false);
   };
 
   const slotStyle = {
@@ -86,16 +99,15 @@ export function PhotoSlotPicker({
         {open ? (
           <PhotoSourceMenu onPick={openPicker} iconClassName={iconSize} gapClassName={iconGap} />
         ) : photo ? (
-          <button
-            type="button"
+          <div
             data-card-content
-            aria-label="Change photo"
-            onClick={() => setOpen(true)}
-            className="size-full transition-opacity active:opacity-80"
+            aria-label="Hold to change photo"
+            className="compass-press relative size-full select-none"
+            {...longPress}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo} alt="" className="size-full object-cover" />
-          </button>
+            <img src={photo} alt="" className="size-full object-cover" draggable={false} />
+          </div>
         ) : (
           <button
             type="button"
@@ -109,6 +121,21 @@ export function PhotoSlotPicker({
           </button>
         )}
       </div>
+
+      {open && photo ? (
+        <button
+          type="button"
+          data-card-content
+          aria-label="Remove photo"
+          onClick={(event) => {
+            event.stopPropagation();
+            removePhoto();
+          }}
+          className="absolute top-1.5 right-1.5 z-10 flex items-center justify-center transition-opacity active:opacity-60"
+        >
+          <X className={removeIconSize} strokeWidth={1.25} aria-hidden />
+        </button>
+      ) : null}
 
       <input
         ref={galleryRef}

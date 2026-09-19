@@ -3,6 +3,7 @@
 import { forwardRef, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
+import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { getCardItems } from "@/shared/services/card-snapshot";
 import {
   browseCardHeight,
@@ -19,6 +20,7 @@ type BusinessCardProps = {
   library: ContactItem[];
   mode: MainScreenMode;
   onEmptyAreaTap: () => void;
+  onPhotoChange?: (photo: string | null) => void;
 };
 
 function ContactChip({ item, compact }: { item: ContactItem; compact: boolean }) {
@@ -38,7 +40,7 @@ function ContactChip({ item, compact }: { item: ContactItem; compact: boolean })
 }
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
-  { card, library, mode, onEmptyAreaTap },
+  { card, library, mode, onEmptyAreaTap, onPhotoChange },
   ref,
 ) {
   const items = getCardItems(card, library);
@@ -76,7 +78,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }
     >
       <div className={cn("shrink-0 flex flex-col items-center", compact && "flex-row items-center gap-3", !compact && "w-full")}>
-        {card.photo ? (
+        {!compact && onPhotoChange ? (
+          <PhotoSlotPicker
+            photo={card.photo ?? null}
+            onPhotoChange={onPhotoChange}
+            sizePx={CARD_PHOTO_SIZE_PX}
+            borderRadiusPx={CARD_PHOTO_RADIUS_PX}
+          />
+        ) : card.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             data-card-content
@@ -84,9 +93,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             alt=""
             className={cn(
               "shrink-0 border border-hairline object-cover",
-              compact
-                ? "size-11 rounded-[10px]"
-                : "rounded-[13px]",
+              compact ? "size-11 rounded-[10px]" : "rounded-[13px]",
             )}
             style={
               compact

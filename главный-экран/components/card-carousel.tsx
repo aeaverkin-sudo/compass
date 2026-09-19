@@ -174,6 +174,13 @@ export function CardCarousel({
     onEmptyAreaTap();
   };
 
+  const handlePhotoChange = useCallback(
+    (cardId: string, photo: string | null) => {
+      onUpdateCard(cardId, { photo: photo ?? undefined });
+    },
+    [onUpdateCard],
+  );
+
   if (!activeCard) return null;
 
   if (!multiSlide) {
@@ -187,6 +194,9 @@ export function CardCarousel({
         library={contactItems}
         mode={mode}
         onEmptyAreaTap={handleEmptyAreaTap}
+        onPhotoChange={
+          isBrowse ? (photo) => handlePhotoChange(activeCard.id, photo) : undefined
+        }
       />
     );
   }
@@ -222,6 +232,9 @@ export function CardCarousel({
                   library={contactItems}
                   mode={mode}
                   onEmptyAreaTap={handleEmptyAreaTap}
+                  onPhotoChange={
+                    isBrowse ? (photo) => handlePhotoChange(cards[index]!.id, photo) : undefined
+                  }
                 />
               )}
             </div>

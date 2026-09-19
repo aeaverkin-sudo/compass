@@ -102,6 +102,11 @@ body {
   will-change: transform, box-shadow;
 }
 
+.compass-press {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
 .compass-carousel {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;

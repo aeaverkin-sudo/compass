@@ -27,7 +27,7 @@ export function CardDraftFields({ card, onUpdate }: CardDraftFieldsProps) {
     >
       <PhotoSlotPicker
         photo={card.photo ?? null}
-        onPhotoChange={(photo) => onUpdate({ photo })}
+        onPhotoChange={(photo) => onUpdate({ photo: photo ?? undefined })}
         sizePx={CARD_PHOTO_SIZE_PX}
         borderRadiusPx={CARD_PHOTO_RADIUS_PX}
       />
