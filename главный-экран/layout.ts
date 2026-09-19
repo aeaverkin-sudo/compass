@@ -12,6 +12,10 @@ export const CARD_PHOTO_RADIUS_PX = 13;
 export const CARD_NAME_SIZE_PX = 22;
 export const CARD_NAME_GAP_PX = 8;
 
+/** Library card photo — 2× previous 44px compact strip avatar. */
+export const LIBRARY_PHOTO_SIZE_PX = 88;
+export const LIBRARY_PHOTO_RADIUS_PX = 14;
+
 /** Equal gap: safe-area bottom → QR top, and QR bottom → card top. */
 export const QR_GAP_SYMMETRIC_PX = 18;
 

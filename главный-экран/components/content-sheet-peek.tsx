@@ -57,15 +57,11 @@ export function ContentSheetPeek({
         paddingBottom: `max(${bottomInset}px, env(safe-area-inset-bottom))`,
       }}
     >
-      {expanded ? (
-        <div className="flex min-h-0 flex-1 flex-col px-4 pt-3 pb-2">
-          <SkeletonRows count={8} />
-        </div>
-      ) : (
+      {!expanded ? (
         <div className="flex min-h-0 flex-1 flex-col px-4 pt-3 pb-2">
           <SkeletonRows count={3} />
         </div>
-      )}
+      ) : null}
     </button>
   );
 }

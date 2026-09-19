@@ -12,6 +12,8 @@ import {
   CARD_PHOTO_TOP_PX,
   CARD_NAME_GAP_PX,
   CARD_NAME_SIZE_PX,
+  LIBRARY_PHOTO_RADIUS_PX,
+  LIBRARY_PHOTO_SIZE_PX,
   type MainScreenMode,
 } from "../layout";
 
@@ -67,7 +69,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }}
       className={cn(
         "compass-card compass-layer flex w-full cursor-default flex-col transition-[transform,box-shadow,height] duration-[460ms] ease-out",
-        compact ? "px-3.5 py-3" : "min-h-0 overflow-hidden px-5 pb-5",
+        compact ? "items-center justify-center px-3.5 py-3" : "min-h-0 overflow-hidden px-5 pb-5",
       )}
       style={
         compact
@@ -80,7 +82,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }
       }
     >
-      <div className={cn("shrink-0 flex flex-col items-center", compact && "flex-row items-center gap-3", !compact && "w-full")}>
+      <div className={cn("flex flex-col items-center", !compact && "w-full shrink-0")}>
         {!compact && onPhotoChange ? (
           <PhotoSlotPicker
             photo={card.photo ?? null}
@@ -94,22 +96,20 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             data-card-content
             src={card.photo}
             alt=""
-            className={cn(
-              "shrink-0 border border-hairline object-cover",
-              compact ? "size-11 rounded-[10px]" : "rounded-[13px]",
-            )}
+            className={cn("shrink-0 border border-hairline object-cover", !compact && "rounded-[13px]")}
             style={
               compact
-                ? undefined
+                ? {
+                    width: LIBRARY_PHOTO_SIZE_PX,
+                    height: LIBRARY_PHOTO_SIZE_PX,
+                    borderRadius: LIBRARY_PHOTO_RADIUS_PX,
+                  }
                 : { width: CARD_PHOTO_SIZE_PX, height: CARD_PHOTO_SIZE_PX, borderRadius: CARD_PHOTO_RADIUS_PX }
             }
           />
         ) : null}
 
-        <div
-          className={cn("w-full text-center", compact && "min-w-0 flex-1 text-left")}
-          style={compact ? undefined : { marginTop: CARD_NAME_GAP_PX }}
-        >
+        <div className="w-full text-center" style={compact ? { marginTop: 12 } : { marginTop: CARD_NAME_GAP_PX }}>
           <p
             data-card-content
             className={cn(
@@ -120,11 +120,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           >
             {card.displayName}
           </p>
-          {card.title ? (
-            <p
-              data-card-content
-              className={cn("leading-[1.2] text-hint", compact ? "mt-0.5 text-[12px]" : "mt-3 text-[30px]")}
-            >
+          {!compact && card.title ? (
+            <p data-card-content className="mt-3 text-[30px] leading-[1.2] text-hint">
               {card.title}
             </p>
           ) : null}
@@ -138,16 +135,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           </div>
         ) : null}
       </div>
-
-      {compact ? (
-        <div className="compass-card-data-zone mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] px-3 pb-3 pt-2">
-          <div className="mx-auto mb-2 h-[4px] w-10 shrink-0 rounded-full bg-hairline/45" aria-hidden />
-          <p className="shrink-0 pb-2 text-center text-[13px] leading-[1.25] text-hint">
-            link, email, phone, file…
-          </p>
-          <div className="compass-sheet-body min-h-0 flex-1 rounded-[12px]" aria-hidden />
-        </div>
-      ) : null}
 
     </article>
   );
