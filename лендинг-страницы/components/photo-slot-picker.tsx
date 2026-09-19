@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { PhotoSourceMenu, type PhotoSource } from "./photo-source-menu";
-import { fileToDataUrl, HIDDEN_INPUT, openSelfiePicker } from "./photo-input-utils";
+import { HIDDEN_INPUT, openSelfiePicker, preparePhotoForStorage } from "./photo-input-utils";
 
 export const LANDING_PHOTO_SIZE_PX = 149.76;
 const LONG_PRESS_MS = 1000;
@@ -62,7 +62,7 @@ export function PhotoSlotPicker({
 
   const onFile = async (file: File | undefined, input: HTMLInputElement) => {
     if (!file) return;
-    onPhotoChange(await fileToDataUrl(file));
+    onPhotoChange(await preparePhotoForStorage(file));
     input.value = "";
   };
 

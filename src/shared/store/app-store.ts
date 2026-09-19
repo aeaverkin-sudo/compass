@@ -24,6 +24,7 @@ interface AppState {
   setCurrentCardIndex: (index: number) => void;
   addCard: () => boolean;
   updateCard: (id: string, data: Partial<Card>) => void;
+  updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo">>) => void;
 }
 
 function createInitialUser(): User {
@@ -115,6 +116,38 @@ export const useAppStore = create<AppState>()(
         set({
           cards: get().cards.map((card) =>
             card.id === id ? { ...card, ...data, updatedAt: now } : card,
+          ),
+        });
+      },
+
+      updateSecondCardDraft: (data) => {
+        const { cards } = get();
+        if (cards.length === 0) return;
+
+        const now = new Date().toISOString();
+
+        if (cards.length < 2) {
+          const next: Card = {
+            id: nanoid(),
+            displayName: data.displayName ?? "",
+            photo: data.photo,
+            title: "",
+            contactItemIds: [],
+            createdAt: now,
+            updatedAt: now,
+          };
+
+          set({
+            cards: [...cards, next],
+            currentCardIndex: 1,
+          });
+          return;
+        }
+
+        const second = cards[1]!;
+        set({
+          cards: cards.map((card) =>
+            card.id === second.id ? { ...card, ...data, updatedAt: now } : card,
           ),
         });
       },

@@ -102,15 +102,13 @@ export function CardCarousel({
     [multiSlide, scrollLeftForIndex],
   );
 
+  const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
+
   const handleDraftUpdate = useCallback(
     (data: Partial<Pick<Card, "displayName" | "photo">>) => {
-      if (useAppStore.getState().cards.length < 2) {
-        onAddCard();
-      }
-      const second = useAppStore.getState().cards[1];
-      if (second) onUpdateCard(second.id, data);
+      updateSecondCardDraft(data);
     },
-    [onAddCard, onUpdateCard],
+    [updateSecondCardDraft],
   );
 
   useEffect(() => {
@@ -220,7 +218,7 @@ export function CardCarousel({
               style={{ width }}
             >
               {slideId === ADD_SLIDE_ID ? (
-                <CardDraftFields card={EMPTY_DRAFT} onUpdate={handleDraftUpdate} />
+                <CardDraftFields card={cards[1] ?? EMPTY_DRAFT} onUpdate={handleDraftUpdate} />
               ) : isBrowse && isDraftCard(cards[index]!, index) ? (
                 <CardDraftFields
                   card={cards[index]!}
