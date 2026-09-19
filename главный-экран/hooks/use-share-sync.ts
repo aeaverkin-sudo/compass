@@ -2,12 +2,14 @@
 
 import { useEffect } from "react";
 import { buildCardSnapshot } from "@/shared/services/card-snapshot";
-import { useAppStore } from "@/shared/store/app-store";
+import { selectActiveCard, useAppStore } from "@/shared/store/app-store";
 
 export function useShareSync() {
-  const card = useAppStore((state) => state.card);
+  const cards = useAppStore((state) => state.cards);
+  const currentCardIndex = useAppStore((state) => state.currentCardIndex);
   const contactItems = useAppStore((state) => state.contactItems);
   const shareToken = useAppStore((state) => state.user.shareToken);
+  const card = selectActiveCard(cards, currentCardIndex);
 
   useEffect(() => {
     if (!card) return;

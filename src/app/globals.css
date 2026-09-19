@@ -97,3 +97,13 @@ body {
 .compass-layer {
   will-change: transform, box-shadow;
 }
+
+.compass-carousel {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.compass-carousel::-webkit-scrollbar {
+  display: none;
+}

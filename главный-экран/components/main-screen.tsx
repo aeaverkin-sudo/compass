@@ -4,8 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { layoutTop, type MainScreenMode } from "../layout";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
-import { isCardReady, useAppStore } from "@/shared/store/app-store";
+import {
+  canAddMoreCards,
+  isCardReady,
+  selectActiveCard,
+  useAppStore,
+} from "@/shared/store/app-store";
 import { BusinessCard } from "./business-card";
+import { CardCarousel } from "./card-carousel";
 import { ContentSheetPeek } from "./content-sheet-peek";
 import { QrZone } from "./qr-zone";
 
@@ -17,13 +23,22 @@ function buildPdfUrl(token: string) {
 }
 
 export function MainScreen() {
-  const card = useAppStore((state) => state.card);
+  const cards = useAppStore((state) => state.cards);
+  const currentCardIndex = useAppStore((state) => state.currentCardIndex);
   const contactItems = useAppStore((state) => state.contactItems);
   const shareToken = useAppStore((state) => state.user.shareToken);
+  const setCurrentCardIndex = useAppStore((state) => state.setCurrentCardIndex);
+  const addCard = useAppStore((state) => state.addCard);
   const [mode, setMode] = useState<MainScreenMode>("browse");
 
   const compactCardRef = useRef<HTMLElement>(null);
   const [compactCardHeight, setCompactCardHeight] = useState(0);
+
+  const activeCard = useMemo(
+    () => selectActiveCard(cards, currentCardIndex),
+    [cards, currentCardIndex],
+  );
+  const showAddSlide = canAddMoreCards(cards);
 
   useShareSync();
 
@@ -33,6 +48,10 @@ export function MainScreen() {
   const toggleMode = useCallback(() => {
     setMode((current) => (current === "browse" ? "library" : "browse"));
   }, []);
+
+  const handleAddCard = useCallback(() => {
+    addCard();
+  }, [addCard]);
 
   useEffect(() => {
     const compactNode = compactCardRef.current;
@@ -47,9 +66,9 @@ export function MainScreen() {
     observer.observe(compactNode);
 
     return () => observer.disconnect();
-  }, [card, contactItems]);
+  }, [activeCard, contactItems]);
 
-  if (!card) {
+  if (!activeCard) {
     return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
   }
 
@@ -64,6 +83,7 @@ export function MainScreen() {
       ? layout.cardTopBrowse
       : layout.cardTopLibrary
     : undefined;
+  const browseCarousel = mode === "browse" && (cards.length > 1 || showAddSlide);
 
   return (
     <main className="compass-main fixed inset-0 overflow-hidden bg-background-ready">
@@ -72,7 +92,7 @@ export function MainScreen() {
         <div style={{ width: layout ? `calc(100vw - ${layout.edgeInsetLibrary * 2}px)` : "calc(100vw - 28px)" }}>
           <BusinessCard
             ref={compactCardRef}
-            card={card}
+            card={activeCard}
             library={contactItems}
             mode="library"
             onEmptyAreaTap={() => undefined}
@@ -83,7 +103,7 @@ export function MainScreen() {
       {/* Layer 0 — permanent background */}
       <div className="pointer-events-none absolute inset-0 z-0 bg-background-ready">
         {layout ? (
-          <QrZone url={pdfUrl} visible={isCardReady(card)} topOffsetPx={layout.qrTop} />
+          <QrZone url={pdfUrl} visible={isCardReady(activeCard)} topOffsetPx={layout.qrTop} />
         ) : null}
       </div>
 
@@ -100,21 +120,26 @@ export function MainScreen() {
         </div>
       ) : null}
 
-      {/* Layer 2 — business card */}
+      {/* Layer 2 — business card(s) */}
       {layout && cardTop !== undefined ? (
         <div
           className="absolute transition-[top,left,right] duration-[460ms] ease-out"
           style={{
             left: edgeInset,
-            right: edgeInset,
+            right: browseCarousel ? 0 : edgeInset,
             top: layoutTop(cardTop),
             zIndex: cardOnTop ? 20 : 25,
           }}
         >
-          <BusinessCard
-            card={card}
-            library={contactItems}
+          <CardCarousel
+            cards={cards}
+            activeIndex={currentCardIndex}
+            contactItems={contactItems}
             mode={mode}
+            edgeInsetPx={edgeInset}
+            canAddCard={showAddSlide}
+            onActiveIndexChange={setCurrentCardIndex}
+            onAddCard={handleAddCard}
             onEmptyAreaTap={toggleMode}
           />
         </div>

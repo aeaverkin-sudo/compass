@@ -29,6 +29,16 @@ export const SHEET_INSET = {
 
 export const LAYER_TRANSITION_MS = 460;
 
+/** Visible tail of the next card in browse carousel (keep small — max card size). */
+export const CARD_CAROUSEL_PEEK_PX = 24;
+export const CARD_CAROUSEL_GAP_PX = 8;
+export const MAX_CARDS = 2;
+
+export function carouselSlideWidthPx(viewportWidth: number, edgeInsetPx: number, multiSlide: boolean) {
+  if (!multiSlide) return viewportWidth - edgeInsetPx * 2;
+  return viewportWidth - edgeInsetPx - CARD_CAROUSEL_PEEK_PX - CARD_CAROUSEL_GAP_PX;
+}
+
 export type MainScreenMode = "browse" | "library";
 
 export function layoutTop(offsetPx: number) {
