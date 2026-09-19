@@ -32,9 +32,21 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+/** Create on demand — a permanent capture="user" input can keep iOS camera indicator lit. */
+function mountHiddenFileInput(options: { accept: string; capture?: "user" }) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = options.accept;
+  if (options.capture) input.capture = options.capture;
+  input.className = HIDDEN_INPUT;
+  input.tabIndex = -1;
+  input.setAttribute("aria-hidden", "true");
+  document.body.appendChild(input);
+  return input;
+}
+
 export function AvatarPicker({ photo, onPhotoChange }: AvatarPickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const selfieRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,7 +74,30 @@ export function AvatarPicker({ photo, onPhotoChange }: AvatarPickerProps) {
   };
 
   const openSelfie = () => {
-    selfieRef.current?.click();
+    const input = mountHiddenFileInput({ accept: "image/*", capture: "user" });
+    let closed = false;
+
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      window.removeEventListener("focus", onDismiss);
+      input.remove();
+    };
+
+    const onDismiss = () => {
+      window.setTimeout(close, 300);
+    };
+
+    input.addEventListener(
+      "change",
+      () => {
+        void onFile(input.files?.[0], input).finally(close);
+      },
+      { once: true },
+    );
+
+    window.addEventListener("focus", onDismiss);
+    input.click();
   };
 
   const openPicker = (action: PickerAction) => {
@@ -135,16 +170,6 @@ export function AvatarPicker({ photo, onPhotoChange }: AvatarPickerProps) {
         </div>
       )}
 
-      <input
-        ref={selfieRef}
-        type="file"
-        accept="image/*"
-        capture="user"
-        className={HIDDEN_INPUT}
-        tabIndex={-1}
-        aria-hidden
-        onChange={(event) => onFile(event.target.files?.[0], event.target)}
-      />
       <input
         ref={galleryRef}
         type="file"
