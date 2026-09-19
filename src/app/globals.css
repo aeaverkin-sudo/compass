@@ -107,43 +107,6 @@ body {
   user-select: none;
 }
 
-.compass-carousel-slide {
-  transition:
-    box-shadow 460ms cubic-bezier(0.32, 0.72, 0, 1),
-    filter 460ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-/** Adjacent card strip — slightly dimmed with a soft edge shadow. */
-.compass-carousel-peek-slide-next {
-  filter: brightness(0.94);
-  box-shadow: -8px 0 22px oklch(0% 0 0 / 0.14);
-}
-
-.compass-carousel-peek-slide-prev {
-  filter: brightness(0.94);
-  box-shadow: 8px 0 22px oklch(0% 0 0 / 0.14);
-}
-
-.compass-carousel-slide-has-next::after,
-.compass-carousel-slide-has-prev::before {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset-block: 0;
-  width: 40px;
-  border-radius: inherit;
-}
-
-.compass-carousel-slide-has-next::after {
-  right: 0;
-  background: linear-gradient(to left, oklch(0% 0 0 / 0.07), transparent);
-}
-
-.compass-carousel-slide-has-prev::before {
-  left: 0;
-  background: linear-gradient(to right, oklch(0% 0 0 / 0.07), transparent);
-}
-
 .compass-carousel {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
