@@ -1,17 +1,16 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { cn } from "@/lib/utils";
+import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import {
-  browseCardHeight,
   CARD_CAROUSEL_GAP_PX,
   carouselSidePaddingPx,
   carouselSlideWidthPx,
   type MainScreenMode,
 } from "../layout";
 import { BusinessCard } from "./business-card";
+import { CardDraftFields } from "./card-draft-fields";
 
 const ADD_SLIDE_ID = "__add__";
 
@@ -24,32 +23,26 @@ type CardCarouselProps = {
   canAddCard: boolean;
   onActiveIndexChange: (index: number) => void;
   onAddCard: () => void;
+  onUpdateCard: (id: string, data: Partial<Card>) => void;
   onEmptyAreaTap: () => void;
 };
-
-function AddCardSlide({ onAdd }: { onAdd: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-label="Добавить визитку"
-      onClick={onAdd}
-      className={cn(
-        "compass-card compass-layer flex w-full flex-col items-center justify-center gap-3",
-        "overflow-hidden text-hint transition-opacity active:opacity-70",
-      )}
-      style={{ height: browseCardHeight(), paddingTop: 19 }}
-    >
-      <span className="flex size-14 items-center justify-center rounded-full border border-hairline/60">
-        <Plus className="size-7" strokeWidth={1.5} aria-hidden />
-      </span>
-      <span className="text-[13px] leading-none">ещё одна</span>
-    </button>
-  );
-}
 
 function CarouselSpacer({ width }: { width: number }) {
   return <div aria-hidden className="shrink-0" style={{ width }} />;
 }
+
+function isDraftCard(card: Card, index: number) {
+  return index > 0 && (!card.photo || !card.displayName.trim());
+}
+
+const EMPTY_DRAFT: Card = {
+  id: ADD_SLIDE_ID,
+  displayName: "",
+  title: "",
+  contactItemIds: [],
+  createdAt: "",
+  updatedAt: "",
+};
 
 export function CardCarousel({
   cards,
@@ -60,6 +53,7 @@ export function CardCarousel({
   canAddCard,
   onActiveIndexChange,
   onAddCard,
+  onUpdateCard,
   onEmptyAreaTap,
 }: CardCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -106,6 +100,17 @@ export function CardCarousel({
       node.scrollTo({ left: scrollLeftForIndex(index), behavior });
     },
     [multiSlide, scrollLeftForIndex],
+  );
+
+  const handleDraftUpdate = useCallback(
+    (data: Partial<Pick<Card, "displayName" | "photo">>) => {
+      if (useAppStore.getState().cards.length < 2) {
+        onAddCard();
+      }
+      const second = useAppStore.getState().cards[1];
+      if (second) onUpdateCard(second.id, data);
+    },
+    [onAddCard, onUpdateCard],
   );
 
   useEffect(() => {
@@ -172,6 +177,10 @@ export function CardCarousel({
   if (!activeCard) return null;
 
   if (!multiSlide) {
+    if (isBrowse && isDraftCard(activeCard, activeIndex)) {
+      return <CardDraftFields card={activeCard} onUpdate={(data) => onUpdateCard(activeCard.id, data)} />;
+    }
+
     return (
       <BusinessCard
         card={activeCard}
@@ -201,7 +210,12 @@ export function CardCarousel({
               style={{ width }}
             >
               {slideId === ADD_SLIDE_ID ? (
-                <AddCardSlide onAdd={onAddCard} />
+                <CardDraftFields card={EMPTY_DRAFT} onUpdate={handleDraftUpdate} />
+              ) : isBrowse && isDraftCard(cards[index]!, index) ? (
+                <CardDraftFields
+                  card={cards[index]!}
+                  onUpdate={(data) => onUpdateCard(cards[index]!.id, data)}
+                />
               ) : (
                 <BusinessCard
                   card={cards[index]!}

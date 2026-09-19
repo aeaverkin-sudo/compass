@@ -22,6 +22,7 @@ interface AppState {
   completeOnboarding: (payload: OnboardingPayload) => void;
   setCurrentCardIndex: (index: number) => void;
   addCard: () => boolean;
+  updateCard: (id: string, data: Partial<Card>) => void;
 }
 
 function createInitialUser(): User {
@@ -80,12 +81,10 @@ export const useAppStore = create<AppState>()(
         const { cards } = get();
         if (cards.length >= MAX_CARDS || cards.length === 0) return false;
 
-        const template = cards[0];
         const now = new Date().toISOString();
         const next: Card = {
           id: nanoid(),
-          displayName: template.displayName,
-          photo: template.photo,
+          displayName: "",
           title: "",
           contactItemIds: [],
           createdAt: now,
@@ -97,6 +96,15 @@ export const useAppStore = create<AppState>()(
           currentCardIndex: cards.length,
         });
         return true;
+      },
+
+      updateCard: (id, data) => {
+        const now = new Date().toISOString();
+        set({
+          cards: get().cards.map((card) =>
+            card.id === id ? { ...card, ...data, updatedAt: now } : card,
+          ),
+        });
       },
     }),
     {

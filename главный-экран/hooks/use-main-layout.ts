@@ -41,13 +41,11 @@ function computeLayout(compactCardHeight: number): MainLayout | null {
 
   const viewportH = window.innerHeight;
   const safeTop = readSafeAreaInset("top");
-  const safeBottom = readSafeAreaInset("bottom");
   const qrTop = safeTop + QR_GAP_SYMMETRIC_PX;
   const cardTopBrowse = qrTop + QR_SIZE + QR_GAP_SYMMETRIC_PX;
   const browseHeight = browseCardHeightPx(viewportH, safeTop);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
-  const browseMenuCenterY =
-    cardBottomBrowse + (viewportH - safeBottom - cardBottomBrowse) / 2;
+  const browseMenuCenterY = (cardBottomBrowse + viewportH) / 2;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
 
   const compactHeight = compactCardHeight > 0 ? compactCardHeight : 72;

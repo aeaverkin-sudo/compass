@@ -30,6 +30,7 @@ export function MainScreen() {
   const shareToken = useAppStore((state) => state.user.shareToken);
   const setCurrentCardIndex = useAppStore((state) => state.setCurrentCardIndex);
   const addCard = useAppStore((state) => state.addCard);
+  const updateCard = useAppStore((state) => state.updateCard);
   const [mode, setMode] = useState<MainScreenMode>("browse");
 
   const compactCardRef = useRef<HTMLElement>(null);
@@ -145,6 +146,7 @@ export function MainScreen() {
             canAddCard={showAddSlide}
             onActiveIndexChange={setCurrentCardIndex}
             onAddCard={handleAddCard}
+            onUpdateCard={updateCard}
             onEmptyAreaTap={toggleMode}
           />
         </div>

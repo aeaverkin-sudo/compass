@@ -117,11 +117,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             >
               {card.title}
             </p>
-          ) : (
-            <p className={cn("leading-[1.2] text-hint", compact ? "mt-0.5 text-[12px]" : "mt-3 text-[30px]")}>
-              title
-            </p>
-          )}
+          ) : null}
         </div>
 
         {!compact && items.length > 0 ? (
@@ -141,15 +137,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         ) : null}
       </div>
 
-      {!compact ? (
-        <div className="compass-card-data-zone mt-6 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <p className="mb-4 shrink-0 text-center text-[13px] leading-[1.25] text-hint">
-            link, email, phone, file…
-          </p>
-          <div className="compass-sheet-body mx-1 mb-4 min-h-0 flex-1" aria-hidden />
-          <div className="mx-auto h-[14px] w-[88%] shrink-0 rounded-full bg-hairline/12" aria-hidden />
-        </div>
-      ) : null}
     </article>
   );
 });
