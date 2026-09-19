@@ -69,8 +69,9 @@ body {
 }
 
 .compass-card.compass-card-library {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .compass-sheet-peek {
@@ -103,9 +104,32 @@ body {
     0 16px 40px oklch(0% 0 0 / 0.12);
 }
 
-.compass-sheet-peek.compass-sheet-library {
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
+.compass-library-stack {
+  isolation: isolate;
+}
+
+.compass-library-panel-top {
+  background: var(--sheet);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+}
+
+.compass-library-panel-bottom {
+  background: var(--sheet);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  border-bottom-left-radius: 22px;
+  border-bottom-right-radius: 22px;
+  box-shadow: 0 8px 28px oklch(0% 0 0 / 0.08);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.compass-library-fill {
+  background: transparent;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .compass-layer {

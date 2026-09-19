@@ -16,6 +16,10 @@ export const CARD_NAME_GAP_PX = 8;
 export const LIBRARY_PHOTO_SIZE_PX = 88;
 export const LIBRARY_PHOTO_RADIUS_PX = 14;
 
+/** Library stack — same top radius as browse card; bottom follows display curve. */
+export const CARD_RADIUS_PX = 18;
+export const LIBRARY_DISPLAY_RADIUS_PX = 22;
+
 /** Equal gap: safe-area bottom → QR top, and QR bottom → card top. */
 export const QR_GAP_SYMMETRIC_PX = 18;
 
@@ -32,7 +36,7 @@ export const LIBRARY_CARD_SHARE = 0.5;
 
 export const SHEET_INSET = {
   browse: { horizontal: 14, bottom: 18, overlap: 22 },
-  library: { horizontal: 14, bottom: 14, gap: 10 },
+  library: { horizontal: 0, bottom: 0, gap: 0 },
 } as const;
 
 export const LAYER_TRANSITION_MS = 460;
@@ -78,12 +82,14 @@ export function libraryStackTopPx(safeTop: number) {
   return safeTop + QR_GAP_SYMMETRIC_PX + QR_SIZE - QR_OVERLAP_LIBRARY_PX;
 }
 
-export function libraryCardHeightPx(viewportH: number, safeTop: number, safeBottom: number) {
-  const stackTop = libraryStackTopPx(safeTop);
-  const stackHeight = viewportH - safeBottom - stackTop;
-  return Math.round(stackHeight * LIBRARY_CARD_SHARE - SHEET_INSET.library.gap / 2);
+export function libraryStackHeightPx(viewportH: number, safeTop: number) {
+  return viewportH - libraryStackTopPx(safeTop);
 }
 
-export function librarySheetTopPx(viewportH: number, safeTop: number, safeBottom: number) {
-  return libraryStackTopPx(safeTop) + libraryCardHeightPx(viewportH, safeTop, safeBottom) + SHEET_INSET.library.gap;
+export function libraryCardHeightPx(viewportH: number, safeTop: number) {
+  return Math.round(libraryStackHeightPx(viewportH, safeTop) * LIBRARY_CARD_SHARE);
+}
+
+export function librarySheetTopPx(viewportH: number, safeTop: number) {
+  return libraryStackTopPx(safeTop) + libraryCardHeightPx(viewportH, safeTop);
 }

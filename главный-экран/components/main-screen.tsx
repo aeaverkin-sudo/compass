@@ -12,7 +12,6 @@ import {
   useAppStore,
 } from "@/shared/store/app-store";
 import { CardCarousel } from "./card-carousel";
-import { ContentSheetPeek } from "./content-sheet-peek";
 import { QrZone } from "./qr-zone";
 
 function buildPdfUrl(token: string) {
@@ -55,17 +54,8 @@ export function MainScreen() {
     return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
   }
 
-  const cardOnTop = mode === "browse";
-  const edgeInset = layout
-    ? mode === "browse"
-      ? layout.edgeInsetBrowse
-      : layout.edgeInsetLibrary
-    : 20;
-  const cardTop = layout
-    ? mode === "browse"
-      ? layout.cardTopBrowse
-      : layout.cardTopLibrary
-    : undefined;
+  const edgeInsetBrowse = layout?.edgeInsetBrowse ?? 20;
+  const cardTopBrowse = layout?.cardTopBrowse;
   const browseCarousel = mode === "browse" && (cards.length > 1 || showAddSlide);
 
   return (
@@ -77,15 +67,35 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {/* Layer 1 — content sheet (library) */}
+      {/* Library — single stack panel to display edge with unified corners */}
       {layout && mode === "library" ? (
-        <div className="pointer-events-none absolute inset-0" style={{ zIndex: cardOnTop ? 10 : 30 }}>
-          <ContentSheetPeek
-            mode={mode}
-            edgeInsetPx={layout.edgeInsetLibrary}
-            topBrowse={layoutTop(layout.sheetTopBrowse)}
-            topLibrary={layoutTop(layout.sheetTopLibrary)}
-            onTap={toggleMode}
+        <div
+          className="compass-library-stack absolute inset-x-0 bottom-0 z-20 flex flex-col"
+          style={{ top: layoutTop(layout.cardTopLibrary) }}
+        >
+          <div
+            className="compass-library-panel-top shrink-0 overflow-hidden"
+            style={{ height: layout.libraryCardHeight }}
+          >
+            <CardCarousel
+              cards={cards}
+              activeIndex={currentCardIndex}
+              contactItems={contactItems}
+              mode="library"
+              edgeInsetPx={0}
+              canAddCard={showAddSlide}
+              libraryCardHeightPx={layout.libraryCardHeight}
+              onActiveIndexChange={setCurrentCardIndex}
+              onAddCard={handleAddCard}
+              onUpdateCard={updateCard}
+              onEmptyAreaTap={toggleMode}
+            />
+          </div>
+          <button
+            type="button"
+            className="compass-library-panel-bottom compass-library-fill min-h-0 flex-1"
+            aria-label="Collapse content sheet"
+            onClick={toggleMode}
           />
         </div>
       ) : null}
@@ -95,25 +105,24 @@ export function MainScreen() {
         <BrowseMenuButton centerYpx={layout.browseMenuCenterY} onTap={toggleMode} />
       ) : null}
 
-      {/* Layer 2 — business card(s) */}
-      {layout && cardTop !== undefined ? (
+      {/* Browse — business card(s) */}
+      {layout && mode === "browse" && cardTopBrowse !== undefined ? (
         <div
           className="absolute overflow-hidden transition-[top,left,right] duration-[460ms] ease-out"
           style={{
-            left: browseCarousel ? 0 : edgeInset,
-            right: browseCarousel ? 0 : edgeInset,
-            top: layoutTop(cardTop),
-            zIndex: cardOnTop ? 20 : 25,
+            left: browseCarousel ? 0 : edgeInsetBrowse,
+            right: browseCarousel ? 0 : edgeInsetBrowse,
+            top: layoutTop(cardTopBrowse),
+            zIndex: 20,
           }}
         >
           <CardCarousel
             cards={cards}
             activeIndex={currentCardIndex}
             contactItems={contactItems}
-            mode={mode}
-            edgeInsetPx={edgeInset}
+            mode="browse"
+            edgeInsetPx={edgeInsetBrowse}
             canAddCard={showAddSlide}
-            libraryCardHeightPx={layout.libraryCardHeight}
             onActiveIndexChange={setCurrentCardIndex}
             onAddCard={handleAddCard}
             onUpdateCard={updateCard}
