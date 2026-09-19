@@ -35,7 +35,7 @@ function AddCardSlide({ onAdd }: { onAdd: () => void }) {
       onClick={onAdd}
       className={cn(
         "compass-card flex w-full flex-col items-center justify-center gap-3",
-        "border border-dashed border-hairline/50 bg-sheet/80 text-hint transition-opacity active:opacity-70",
+        "overflow-hidden border border-dashed border-hairline/50 bg-sheet text-hint transition-opacity active:opacity-70",
       )}
       style={{ height: browseCardHeight(), paddingTop: 19 }}
     >
@@ -157,11 +157,12 @@ export function CardCarousel({
   const padding = sidePadding();
 
   return (
-    <div
-      ref={scrollRef}
-      className="compass-carousel snap-x snap-mandatory overflow-x-auto overflow-y-hidden"
-      onScroll={handleScroll}
-    >
+    <div className="overflow-hidden">
+      <div
+        ref={scrollRef}
+        className="compass-carousel snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background-ready"
+        onScroll={handleScroll}
+      >
       <div
         className="flex"
         style={{
@@ -173,7 +174,7 @@ export function CardCarousel({
         {slideIds.map((slideId, index) => (
           <div
             key={slideId}
-            className="shrink-0 snap-center"
+            className="shrink-0 snap-center overflow-hidden rounded-[18px]"
             style={{ width: width }}
           >
             {slideId === ADD_SLIDE_ID ? (
@@ -188,6 +189,7 @@ export function CardCarousel({
             )}
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

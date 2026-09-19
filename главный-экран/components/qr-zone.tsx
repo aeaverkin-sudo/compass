@@ -17,13 +17,13 @@ export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 flex justify-center"
-      style={{ top: layoutTop(topOffsetPx) }}
+      className="pointer-events-none absolute inset-x-0 flex justify-center overflow-hidden"
+      style={{ top: layoutTop(topOffsetPx), height: QR_SIZE }}
       aria-hidden={!visible}
     >
-      <div className="relative flex items-center justify-center" style={{ width: QR_SIZE, height: QR_SIZE }}>
+      <div className="relative overflow-hidden" style={{ width: QR_SIZE, height: QR_SIZE }}>
         <div
-          className="absolute -inset-x-4 -bottom-4 top-0 rounded-[28px]"
+          className="absolute inset-0 rounded-[28px]"
           style={{
             background:
               "radial-gradient(circle at center, oklch(64% 0.19 45 / 0.18) 0%, oklch(64% 0.19 45 / 0) 72%)",

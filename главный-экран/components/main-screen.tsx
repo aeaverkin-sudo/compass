@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { layoutTop, type MainScreenMode } from "../layout";
+import { carouselSidePaddingPx, layoutTop, type MainScreenMode } from "../layout";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
 import {
@@ -33,6 +33,7 @@ export function MainScreen() {
 
   const compactCardRef = useRef<HTMLElement>(null);
   const [compactCardHeight, setCompactCardHeight] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
 
   const activeCard = useMemo(
     () => selectActiveCard(cards, currentCardIndex),
@@ -52,6 +53,13 @@ export function MainScreen() {
   const handleAddCard = useCallback(() => {
     addCard();
   }, [addCard]);
+
+  useEffect(() => {
+    const syncViewport = () => setViewportWidth(window.innerWidth);
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
 
   useEffect(() => {
     const compactNode = compactCardRef.current;
@@ -84,6 +92,10 @@ export function MainScreen() {
       : layout.cardTopLibrary
     : undefined;
   const browseCarousel = mode === "browse" && (cards.length > 1 || showAddSlide);
+  const sheetInsetBrowse =
+    browseCarousel && viewportWidth > 0
+      ? carouselSidePaddingPx(viewportWidth, true, edgeInset)
+      : edgeInset;
 
   return (
     <main className="compass-main fixed inset-0 overflow-hidden bg-background-ready">
@@ -112,7 +124,7 @@ export function MainScreen() {
         <div className="pointer-events-none absolute inset-0" style={{ zIndex: cardOnTop ? 10 : 30 }}>
           <ContentSheetPeek
             mode={mode}
-            edgeInsetPx={mode === "browse" ? layout.edgeInsetBrowse : layout.edgeInsetLibrary}
+            edgeInsetPx={mode === "browse" ? sheetInsetBrowse : layout.edgeInsetLibrary}
             topBrowse={layoutTop(layout.sheetTopBrowse)}
             topLibrary={layoutTop(layout.sheetTopLibrary)}
             onTap={toggleMode}
@@ -123,7 +135,7 @@ export function MainScreen() {
       {/* Layer 2 — business card(s) */}
       {layout && cardTop !== undefined ? (
         <div
-          className="absolute transition-[top,left,right] duration-[460ms] ease-out"
+          className="absolute overflow-hidden transition-[top,left,right] duration-[460ms] ease-out"
           style={{
             left: browseCarousel ? 0 : edgeInset,
             right: browseCarousel ? 0 : edgeInset,
