@@ -34,8 +34,8 @@ function AddCardSlide({ onAdd }: { onAdd: () => void }) {
       aria-label="Добавить визитку"
       onClick={onAdd}
       className={cn(
-        "compass-card flex w-full flex-col items-center justify-center gap-3",
-        "overflow-hidden border border-dashed border-hairline/50 bg-sheet text-hint transition-opacity active:opacity-70",
+        "compass-card compass-layer flex w-full flex-col items-center justify-center gap-3",
+        "overflow-hidden text-hint transition-opacity active:opacity-70",
       )}
       style={{ height: browseCardHeight(), paddingTop: 19 }}
     >
