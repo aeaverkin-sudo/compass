@@ -8,8 +8,8 @@ export const CARD_PHOTO_SIZE_PX = 118;
 export const CARD_PHOTO_TOP_PX = 19;
 export const CARD_PHOTO_RADIUS_PX = 13;
 
-/** Browse card name — half previous size, ~0.2 cm below photo. */
-export const CARD_NAME_SIZE_PX = 22;
+/** Browse card name — ~0.2 cm below photo; matches draft card scale. */
+export const CARD_NAME_SIZE_PX = 17;
 export const CARD_NAME_GAP_PX = 8;
 
 /** Library card photo — 2× previous 44px compact strip avatar. */

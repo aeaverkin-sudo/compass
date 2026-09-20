@@ -5,6 +5,7 @@ import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import {
   browseCardHeight,
   CARD_NAME_GAP_PX,
+  CARD_NAME_SIZE_PX,
   CARD_PHOTO_RADIUS_PX,
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
@@ -14,9 +15,6 @@ type CardDraftFieldsProps = {
   card: Card;
   onUpdate: (data: Partial<Pick<Card, "displayName" | "photo">>) => void;
 };
-
-/** Second card draft — smaller and lighter than the primary card name. */
-const DRAFT_NAME_SIZE_PX = 17;
 
 export function CardDraftFields({ card, onUpdate }: CardDraftFieldsProps) {
   return (
@@ -49,7 +47,7 @@ export function CardDraftFields({ card, onUpdate }: CardDraftFieldsProps) {
           onChange={(event) => onUpdate({ displayName: event.target.value })}
           onInput={(event) => onUpdate({ displayName: event.currentTarget.value })}
           className="compass-input w-full bg-transparent px-0 py-0 text-center font-light leading-[1.15] text-foreground outline-none placeholder:text-hint"
-          style={{ fontSize: DRAFT_NAME_SIZE_PX }}
+          style={{ fontSize: CARD_NAME_SIZE_PX }}
         />
       </label>
     </div>

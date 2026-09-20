@@ -139,7 +139,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           ) : (
             <p
               data-card-content
-              className="font-normal leading-[1.12] text-foreground"
+              className="font-light leading-[1.15] text-foreground"
               style={{ fontSize: CARD_NAME_SIZE_PX }}
             >
               {card.displayName}
