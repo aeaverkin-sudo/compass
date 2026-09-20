@@ -9,19 +9,8 @@ import {
   prepareCardPhotoForStorage,
 } from "@/shared/services/attachment-storage";
 
-export { HIDDEN_INPUT };
-
-/** @deprecated Use prepareCardPhotoForStorage — kept for imports. */
-export const preparePhotoForStorage = prepareCardPhotoForStorage;
-
-export async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+type PhotoHandler = (photo: string, file: File) => void;
+type Prepare = (file: File) => Promise<string>;
 
 function mountPickerInput(accept: string, capture?: "user" | "environment") {
   const input = document.createElement("input");
@@ -37,8 +26,8 @@ function mountPickerInput(accept: string, capture?: "user" | "environment") {
 
 function openFileInputPicker(
   accept: string,
-  prepare: (file: File) => Promise<string>,
-  onPhoto: (photo: string, file: File) => void,
+  prepare: Prepare,
+  onPhoto: PhotoHandler,
   onDismiss?: () => void,
   capture?: "user" | "environment",
 ) {
@@ -77,26 +66,23 @@ function openFileInputPicker(
   input.click();
 }
 
-export function openSelfiePicker(
-  onPhoto: (photo: string, file: File) => void,
-  onDismiss?: () => void,
-) {
+/** Card avatar — front camera. */
+export function openSelfiePicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
   openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss, "user");
 }
 
-/** Card photo slot — iOS native sheet (Photo Library / Take Photo / Choose File). */
-export function openNativePhotoPicker(
-  onPhoto: (photo: string, file: File) => void,
-  onDismiss?: () => void,
-) {
-  openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss);
+/** Card avatar — photo library; extension list opens Photos without the iOS action sheet. */
+export function openCardGalleryPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openFileInputPicker(PORTFOLIO_GALLERY_ACCEPT, prepareCardPhotoForStorage, onPhoto, onDismiss);
 }
 
-/** Photo library — extensions only, no capture, no image/* wildcard. */
-export function openGalleryPicker(
-  onPhoto: (photo: string, file: File) => void,
-  onDismiss?: () => void,
-) {
+/** Card avatar — Files app; document/media accept opens Files without the iOS action sheet. */
+export function openCardFilePicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openFileInputPicker(PORTFOLIO_FILE_ACCEPT, prepareCardPhotoForStorage, onPhoto, onDismiss);
+}
+
+/** Portfolio attachment — photo library; images compressed to attachment size. */
+export function openGalleryPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
   openFileInputPicker(
     PORTFOLIO_GALLERY_ACCEPT,
     (file) => prepareAttachmentForStorage(file, "photo"),
@@ -105,11 +91,8 @@ export function openGalleryPicker(
   );
 }
 
-/** Files app — PDF, office docs, media; no image types (use gallery for photos). */
-export function openDocumentPicker(
-  onPhoto: (photo: string, file: File) => void,
-  onDismiss?: () => void,
-) {
+/** Portfolio attachment — Files app; PDF, office docs, media (no image types). */
+export function openDocumentPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
   openFileInputPicker(
     PORTFOLIO_FILE_ACCEPT,
     (file) => prepareAttachmentForStorage(file, detectAttachmentType(file)),

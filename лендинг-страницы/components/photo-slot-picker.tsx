@@ -6,9 +6,8 @@ import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { PhotoSourceMenu, type PhotoSource } from "./photo-source-menu";
 import {
-  openDocumentPicker,
-  openGalleryPicker,
-  openNativePhotoPicker,
+  openCardFilePicker,
+  openCardGalleryPicker,
   openSelfiePicker,
 } from "./photo-input-utils";
 
@@ -48,13 +47,6 @@ export function PhotoSlotPicker({
 
   const closeMenu = () => setOpen(false);
 
-  const pickPhoto = () => {
-    openNativePhotoPicker(
-      (nextPhoto) => onPhotoChange(nextPhoto),
-      closeMenu,
-    );
-  };
-
   const longPress = useLongPress(() => {
     if (photo) setOpen(true);
   }, LONG_PRESS_MS);
@@ -82,9 +74,9 @@ export function PhotoSlotPicker({
     if (action === "selfie") {
       openSelfiePicker(onPick, onDismiss);
     } else if (action === "gallery") {
-      openGalleryPicker(onPick, onDismiss);
+      openCardGalleryPicker(onPick, onDismiss);
     } else {
-      openDocumentPicker(onPick, onDismiss);
+      openCardFilePicker(onPick, onDismiss);
     }
 
     // Close after input.click() — closing before breaks iOS user activation.
@@ -111,7 +103,7 @@ export function PhotoSlotPicker({
         )}
         style={{ borderRadius: borderRadiusPx }}
       >
-        {open && photo ? (
+        {open ? (
           <PhotoSourceMenu onPick={openPicker} iconClassName={iconSize} gapClassName={iconGap} />
         ) : photo ? (
           <div
@@ -128,7 +120,8 @@ export function PhotoSlotPicker({
             type="button"
             data-card-content
             aria-label="Add photo"
-            onClick={pickPhoto}
+            aria-expanded={open}
+            onClick={() => setOpen(true)}
             className="flex size-full items-center justify-center transition-opacity active:opacity-80"
           >
             <Plus className="size-7 text-hint" strokeWidth={1.5} aria-hidden />

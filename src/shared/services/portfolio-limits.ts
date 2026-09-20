@@ -29,6 +29,7 @@ export const PORTFOLIO_LIMITS = {
   /** Card avatar — separate from portfolio attachments. */
   maxCardPhotoBytes: 512 * 1024,
   maxCardPhotoPx: 512,
+  cardPhotoJpegQuality: 0.82,
   /** Per-type attachment ceilings (before base64 overhead). */
   maxBytesByType: {
     pdf: 8 * 1024 * 1024,

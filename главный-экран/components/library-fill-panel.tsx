@@ -23,12 +23,10 @@ type LibraryFillPanelProps = {
 };
 
 function CardToggleButton({
-  item,
   onCard,
   onAdd,
   onRemove,
 }: {
-  item: ContactItem;
   onCard: boolean;
   onAdd: () => void;
   onRemove: () => void;
@@ -66,7 +64,7 @@ function FilledRow({
 
   return (
     <li className="grid grid-cols-[28px_72px_minmax(0,1fr)] items-center gap-x-2 py-2.5">
-      <CardToggleButton item={item} onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
+      <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
       {label ? (
         <span className="truncate text-[13px] leading-none text-hint">{label}</span>
       ) : (

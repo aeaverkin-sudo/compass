@@ -1,21 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useAppStore } from "@/shared/store/app-store";
 
+/** True once the persisted store has finished rehydrating from localStorage. */
 export function useStoreHydrated() {
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    if (useAppStore.persist.hasHydrated()) {
-      setHydrated(true);
-      return;
-    }
-
-    return useAppStore.persist.onFinishHydration(() => {
-      setHydrated(true);
-    });
-  }, []);
-
-  return hydrated;
+  return useSyncExternalStore(
+    (onChange) => useAppStore.persist.onFinishHydration(onChange),
+    () => useAppStore.persist.hasHydrated(),
+    () => false,
+  );
 }

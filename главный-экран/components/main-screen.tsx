@@ -28,7 +28,6 @@ export function MainScreen() {
   const contactItems = useAppStore((state) => state.contactItems);
   const shareToken = useAppStore((state) => state.user.shareToken);
   const setCurrentCardIndex = useAppStore((state) => state.setCurrentCardIndex);
-  const addCard = useAppStore((state) => state.addCard);
   const updateCard = useAppStore((state) => state.updateCard);
   const [mode, setMode] = useState<MainScreenMode>("browse");
   const wasCardReady = useRef(false);
@@ -74,10 +73,6 @@ export function MainScreen() {
     setMode((current) => (current === "browse" ? "library" : "browse"));
   }, [activeCard]);
 
-  const handleAddCard = useCallback(() => {
-    addCard();
-  }, [addCard]);
-
   if (!activeCard) {
     return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
   }
@@ -114,7 +109,6 @@ export function MainScreen() {
               canAddCard={showAddSlide}
               libraryCardHeightPx={layout.libraryCardHeight}
               onActiveIndexChange={setCurrentCardIndex}
-              onAddCard={handleAddCard}
               onUpdateCard={updateCard}
               onEmptyAreaTap={toggleMode}
               onNameEditingChange={setNameEditing}
@@ -152,7 +146,6 @@ export function MainScreen() {
             edgeInsetPx={edgeInsetBrowse}
             canAddCard={showAddSlide}
             onActiveIndexChange={setCurrentCardIndex}
-            onAddCard={handleAddCard}
             onUpdateCard={updateCard}
             onEmptyAreaTap={toggleMode}
             onNameEditingChange={setNameEditing}

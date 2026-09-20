@@ -16,7 +16,7 @@ type PhotoSourceMenuProps = {
   gapClassName?: string;
 };
 
-/** Three source icons laid out inside the photo slot. */
+/** Three thin source icons laid out inside the photo slot. */
 export function PhotoSourceMenu({
   onPick,
   iconClassName = "size-[20.4px] text-hairline",

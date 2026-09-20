@@ -37,7 +37,7 @@ export function LibraryComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const pickingRef = useRef(false);
-  const mountedAt = useRef(Date.now());
+  const mountedAt = useRef(0);
   const [attachOpen, setAttachOpen] = useState(false);
   const { keyboardInset } = useVisualViewport();
   const label = rowTypeLabel(item);

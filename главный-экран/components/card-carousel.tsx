@@ -23,7 +23,6 @@ type CardCarouselProps = {
   canAddCard: boolean;
   libraryCardHeightPx?: number;
   onActiveIndexChange: (index: number) => void;
-  onAddCard: () => void;
   onUpdateCard: (id: string, data: Partial<Card>) => void;
   onEmptyAreaTap: () => void;
   onNameEditingChange?: (editing: boolean) => void;
@@ -56,7 +55,6 @@ export function CardCarousel({
   canAddCard,
   libraryCardHeightPx,
   onActiveIndexChange,
-  onAddCard,
   onUpdateCard,
   onEmptyAreaTap,
   onNameEditingChange,

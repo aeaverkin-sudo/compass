@@ -24,16 +24,13 @@ type OnboardingPayload = {
 };
 
 interface AppState {
-  hydrated: boolean;
   user: User;
   cards: Card[];
   currentCardIndex: number;
   contactItems: ContactItem[];
-  setHydrated: (value: boolean) => void;
   resetApp: () => void;
   completeOnboarding: (payload: OnboardingPayload) => void;
   setCurrentCardIndex: (index: number) => void;
-  addCard: () => boolean;
   updateCard: (id: string, data: Partial<Card>) => void;
   updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo">>) => void;
   addContactItemForCard: (cardId: string) => boolean;
@@ -64,18 +61,14 @@ function buildDisplayName(firstName: string, secondName: string) {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      hydrated: false,
       user: createInitialUser(),
       cards: [],
       currentCardIndex: 0,
       contactItems: [],
 
-      setHydrated: (value) => set({ hydrated: value }),
-
       resetApp: () => {
         void useAppStore.persist.clearStorage();
         set({
-          hydrated: true,
           user: createInitialUser(),
           cards: [],
           currentCardIndex: 0,
@@ -111,28 +104,6 @@ export const useAppStore = create<AppState>()(
         if (cards.length === 0) return;
         const wrapped = ((index % cards.length) + cards.length) % cards.length;
         set({ currentCardIndex: wrapped });
-      },
-
-      addCard: () => {
-        const { cards } = get();
-        if (cards.length >= MAX_CARDS || cards.length === 0) return false;
-
-        const now = new Date().toISOString();
-        const next: Card = {
-          id: nanoid(),
-          displayName: "",
-          title: "",
-          contactItemIds: [],
-          nextScanAddons: [],
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        set({
-          cards: [...cards, next],
-          currentCardIndex: cards.length,
-        });
-        return true;
       },
 
       updateCard: (id, data) => {
@@ -304,9 +275,6 @@ export const useAppStore = create<AppState>()(
         currentCardIndex: state.currentCardIndex,
         contactItems: state.contactItems,
       }),
-      onRehydrateStorage: () => (state) => {
-        state?.setHydrated(true);
-      },
     },
   ),
 );
