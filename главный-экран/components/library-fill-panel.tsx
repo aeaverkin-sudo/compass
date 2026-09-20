@@ -3,10 +3,15 @@
 import { Minus, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { isContactFilled, isItemOnCard, sortContactList } from "@/shared/services/contact-item";
+import {
+  isContactFilled,
+  isItemOnCard,
+  itemDisplayValue,
+  rowTypeLabel,
+  sortContactList,
+} from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
-import { ContactItemChip } from "./contact-item-chip";
 import { LibraryComposer } from "./library-composer";
 
 const MENU_BUTTON_HALF_PX = 22;
@@ -57,10 +62,23 @@ function FilledRow({
   onAdd: () => void;
   onRemove: () => void;
 }) {
+  const label = rowTypeLabel(item);
+
   return (
-    <li className="flex items-center gap-2 py-1.5">
+    <li className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-center gap-x-2 py-2.5">
+      {label ? (
+        <span className="truncate text-[13px] leading-none text-hint">{label}</span>
+      ) : (
+        <span aria-hidden />
+      )}
+      <button
+        type="button"
+        onClick={onEdit}
+        className="min-w-0 truncate text-left text-[15px] font-semibold leading-[1.35] text-foreground"
+      >
+        {itemDisplayValue(item)}
+      </button>
       <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
-      <ContactItemChip item={item} size="catalog" className="min-w-0 flex-1" onEdit={onEdit} />
     </li>
   );
 }
@@ -136,7 +154,7 @@ export function LibraryFillPanel({
         {!composerOpen ? (
           <div className="flex w-full max-w-[360px] flex-col items-center">
             {filledRows.length > 0 ? (
-              <ul className="w-full">
+              <ul className="w-full divide-y divide-hairline/25">
                 {filledRows.map((item) => (
                   <FilledRow
                     key={item.id}

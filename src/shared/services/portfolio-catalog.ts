@@ -123,7 +123,7 @@ export const PORTFOLIO_ITEM_CATALOG: CatalogEntry[] = [
   {
     category: "product",
     type: "website",
-    label: "Link",
+    label: "Website",
     examples: ["company.com", "product.io/demo"],
   },
   {
@@ -449,7 +449,7 @@ export function typeLabel(type: ContactType): string {
     calendly: "Calendly",
     appstore: "App Store",
     playstore: "Google Play",
-    website: "Link",
+    website: "Website",
     email: "Email",
     phone: "Phone",
     pdf: "PDF",

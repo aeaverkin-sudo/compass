@@ -30,7 +30,7 @@ export function LibraryComposer({
   const rootRef = useRef<HTMLDivElement>(null);
   const pickingRef = useRef(false);
   const mountedAt = useRef(0);
-  const { keyboardInset } = useVisualViewport();
+  const { offsetTop, height: viewportHeight, keyboardOpen } = useVisualViewport();
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -45,10 +45,28 @@ export function LibraryComposer({
 
   useEffect(() => {
     mountedAt.current = Date.now();
-    const el = textareaRef.current;
-    if (!el) return;
-    el.focus();
+    textareaRef.current?.focus({ preventScroll: true });
   }, [item.id]);
+
+  // iOS scrolls the visual viewport to the focused field — pin the page back
+  // so the composer stays in the visible frame instead of flying off-screen.
+  useEffect(() => {
+    const lock = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
+    lock();
+    window.addEventListener("scroll", lock, { passive: true });
+    window.visualViewport?.addEventListener("scroll", lock);
+
+    return () => {
+      window.removeEventListener("scroll", lock);
+      window.visualViewport?.removeEventListener("scroll", lock);
+      lock();
+    };
+  }, []);
 
   const handleAttach = () => {
     pickingRef.current = true;
@@ -79,13 +97,16 @@ export function LibraryComposer({
   return (
     <div
       ref={rootRef}
-      className="fixed inset-x-0 z-40 px-3"
+      className="pointer-events-none fixed inset-x-0 z-40 flex items-end px-3"
       style={{
-        bottom:
-          keyboardInset > 0 ? keyboardInset : "max(0.5rem, env(safe-area-inset-bottom))",
+        top: offsetTop,
+        height: viewportHeight > 0 ? viewportHeight : "100%",
+        paddingBottom: keyboardOpen
+          ? 8
+          : "max(0.5rem, env(safe-area-inset-bottom))",
       }}
     >
-      <div className="mx-auto w-full max-w-[360px]">
+      <div className="pointer-events-auto mx-auto w-full max-w-[360px]">
         {attachmentError ? (
           <p className="mb-2 px-1 text-center text-[12px] leading-snug text-destructive">
             {attachmentError}

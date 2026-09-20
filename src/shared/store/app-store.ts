@@ -174,7 +174,7 @@ export const useAppStore = create<AppState>()(
             if (card.id !== cardId || card.contactItemIds.includes(itemId)) return card;
             return {
               ...card,
-              contactItemIds: [...card.contactItemIds, itemId],
+              contactItemIds: [itemId, ...card.contactItemIds],
               updatedAt: now,
             };
           }),

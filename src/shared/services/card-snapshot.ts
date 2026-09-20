@@ -1,9 +1,10 @@
 import type { Card, CardSnapshot, ContactItem, NextScanAddon } from "@/shared/types";
 
 export function getCardItems(card: Card, library: ContactItem[]) {
-  return library
-    .filter((item) => card.contactItemIds.includes(item.id) && item.value.trim())
-    .sort((a, b) => a.order - b.order);
+  const map = new Map(library.map((item) => [item.id, item]));
+  return card.contactItemIds
+    .map((id) => map.get(id))
+    .filter((item): item is ContactItem => Boolean(item?.value.trim()));
 }
 
 export function getNextScanAddons(card: Card): NextScanAddon[] {
