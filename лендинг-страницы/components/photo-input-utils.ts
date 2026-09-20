@@ -1,5 +1,8 @@
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
-import { PORTFOLIO_DOCUMENT_ACCEPT } from "@/shared/services/portfolio-catalog";
+import {
+  PORTFOLIO_FILE_ACCEPT,
+  PORTFOLIO_GALLERY_ACCEPT,
+} from "@/shared/services/portfolio-catalog";
 import {
   HIDDEN_INPUT,
   prepareAttachmentForStorage,
@@ -70,6 +73,7 @@ function openFileInputPicker(
   );
 
   window.addEventListener("focus", onWindowFocus);
+  // Must run synchronously in the tap handler — iOS drops user activation otherwise.
   input.click();
 }
 
@@ -80,26 +84,26 @@ export function openSelfiePicker(
   openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss, "user");
 }
 
-/** Photo library — no capture, no image/* wildcard (avoids iOS camera sheet). */
+/** Photo library — extensions only, no capture, no image/* wildcard. */
 export function openGalleryPicker(
   onPhoto: (photo: string, file: File) => void,
   onDismiss?: () => void,
 ) {
   openFileInputPicker(
-    "image/jpeg,image/png,image/heic,image/heif,image/webp",
+    PORTFOLIO_GALLERY_ACCEPT,
     (file) => prepareAttachmentForStorage(file, "photo"),
     onPhoto,
     onDismiss,
   );
 }
 
-/** Portfolio files — PDF, office docs, media, images. */
+/** Files app — PDF, office docs, media; no image types (use gallery for photos). */
 export function openDocumentPicker(
   onPhoto: (photo: string, file: File) => void,
   onDismiss?: () => void,
 ) {
   openFileInputPicker(
-    PORTFOLIO_DOCUMENT_ACCEPT,
+    PORTFOLIO_FILE_ACCEPT,
     (file) => prepareAttachmentForStorage(file, detectAttachmentType(file)),
     onPhoto,
     onDismiss,

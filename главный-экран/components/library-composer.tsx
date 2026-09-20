@@ -37,6 +37,7 @@ export function LibraryComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const pickingRef = useRef(false);
+  const mountedAt = useRef(Date.now());
   const [attachOpen, setAttachOpen] = useState(false);
   const { keyboardInset } = useVisualViewport();
   const label = rowTypeLabel(item);
@@ -53,11 +54,10 @@ export function LibraryComposer({
   }, [item.value, resizeTextarea]);
 
   useEffect(() => {
+    mountedAt.current = Date.now();
     const el = textareaRef.current;
     if (!el) return;
     el.focus();
-    const end = el.value.length;
-    el.setSelectionRange(end, end);
   }, [item.id]);
 
   useEffect(() => {
@@ -90,21 +90,24 @@ export function LibraryComposer({
 
     if (source === "selfie") {
       openSelfiePicker(onPick, onDismiss);
-      return;
-    }
-    if (source === "gallery") {
+    } else if (source === "gallery") {
       openGalleryPicker(onPick, onDismiss);
-      return;
+    } else {
+      openDocumentPicker(onPick, onDismiss);
     }
-    openDocumentPicker(onPick, onDismiss);
+
+    // Hide our menu after native picker opens — must not run before input.click().
+    setAttachOpen(false);
   };
 
   const handleBlur = () => {
     window.setTimeout(() => {
+      if (Date.now() - mountedAt.current < 450) return;
       if (pickingRef.current) return;
+      if (textareaRef.current && document.activeElement === textareaRef.current) return;
       if (rootRef.current?.contains(document.activeElement)) return;
       onBlur();
-    }, 120);
+    }, 180);
   };
 
   return (

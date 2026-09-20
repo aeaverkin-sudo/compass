@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   isContactFilled,
@@ -65,9 +65,7 @@ function FilledRow({
   const label = rowTypeLabel(item);
 
   return (
-    <li
-      className="grid grid-cols-[28px_72px_minmax(0,1fr)] items-center gap-x-2 py-2.5"
-    >
+    <li className="grid grid-cols-[28px_72px_minmax(0,1fr)] items-center gap-x-2 py-2.5">
       <CardToggleButton item={item} onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
       {label ? (
         <span className="truncate text-[13px] leading-none text-hint">{label}</span>
@@ -85,6 +83,11 @@ function FilledRow({
   );
 }
 
+function findCardDraft(card: Card, items: ContactItem[]) {
+  const ids = new Set(card.contactItemIds);
+  return items.find((item) => ids.has(item.id) && !isContactFilled(item)) ?? null;
+}
+
 export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFillPanelProps) {
   const contactItems = useAppStore((state) => state.contactItems);
   const addContactItemForCard = useAppStore((state) => state.addContactItemForCard);
@@ -96,14 +99,16 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const composerOpenedAt = useRef(0);
 
   const rows = useMemo(
     () => sortContactList(contactItems, card.contactItemIds),
     [contactItems, card.contactItemIds],
   );
   const filledRows = useMemo(() => rows.filter((item) => isContactFilled(item)), [rows]);
+  const cardDraft = useMemo(() => findCardDraft(card, contactItems), [card, contactItems]);
   const contentZoneHeight = Math.max(0, menuCenterYpx - panelTopPx - MENU_BUTTON_HALF_PX);
-  const canAddRow = !contactItems.some((item) => !isContactFilled(item));
+  const canAddRow = cardDraft === null;
 
   const editingItem = useMemo(
     () => (editingId ? contactItems.find((item) => item.id === editingId) ?? null : null),
@@ -111,19 +116,31 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
   );
   const composerOpen = editingItem !== null;
 
+  const openComposer = useCallback((itemId: string) => {
+    composerOpenedAt.current = Date.now();
+    setAttachmentError(null);
+    setEditingId(itemId);
+  }, []);
+
   const handleAddRow = () => {
-    if (!canAddRow) return;
+    if (!canAddRow) {
+      if (cardDraft) openComposer(cardDraft.id);
+      return;
+    }
+
     if (addContactItemForCard(card.id)) {
-      const draft = useAppStore
-        .getState()
-        .contactItems.find((item) => !isContactFilled(item));
-      if (draft) setEditingId(draft.id);
+      const { cards, contactItems: items } = useAppStore.getState();
+      const cardNow = cards.find((entry) => entry.id === card.id);
+      if (!cardNow) return;
+      const draft = findCardDraft(cardNow, items);
+      if (draft) openComposer(draft.id);
     }
   };
 
   const handleRemoveRow = (item: ContactItem) => {
     if (!isContactFilled(item)) {
       deleteContactItem(item.id);
+      if (editingId === item.id) setEditingId(null);
       return;
     }
     removeItemFromCard(card.id, item.id);
@@ -131,6 +148,7 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
 
   const handleComposerBlur = useCallback(() => {
     if (!editingId) return;
+    if (Date.now() - composerOpenedAt.current < 450) return;
 
     const item = useAppStore.getState().contactItems.find((row) => row.id === editingId);
     if (item && !isContactFilled(item)) {
@@ -138,6 +156,12 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
     }
     setEditingId(null);
   }, [deleteContactItem, editingId]);
+
+  useEffect(() => {
+    if (cardDraft && !editingId) {
+      openComposer(cardDraft.id);
+    }
+  }, [cardDraft, editingId, openComposer]);
 
   useEffect(() => {
     if (!composerOpen) return;
@@ -161,7 +185,7 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
                     key={item.id}
                     item={item}
                     onCard={isItemOnCard(card, item.id)}
-                    onEdit={() => setEditingId(item.id)}
+                    onEdit={() => openComposer(item.id)}
                     onAdd={() => addItemToCard(card.id, item.id)}
                     onRemove={() => handleRemoveRow(item)}
                   />
@@ -172,12 +196,12 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
             <button
               type="button"
               aria-label="Add contact row"
-              disabled={!canAddRow}
+              disabled={!canAddRow && !cardDraft}
               onClick={handleAddRow}
               className={cn(
                 "flex size-10 shrink-0 items-center justify-center transition-opacity active:opacity-60",
                 filledRows.length > 0 && "mt-2",
-                !canAddRow && "cursor-default opacity-40",
+                !canAddRow && !cardDraft && "cursor-default opacity-40",
               )}
             >
               <Plus className="size-6 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />

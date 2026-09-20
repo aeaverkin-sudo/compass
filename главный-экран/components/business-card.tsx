@@ -28,6 +28,7 @@ type BusinessCardProps = {
   onEmptyAreaTap: () => void;
   onPhotoChange?: (photo: string | null) => void;
   onDisplayNameChange?: (displayName: string) => void;
+  onNameEditingChange?: (editing: boolean) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
 };
 
@@ -56,6 +57,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onEmptyAreaTap,
     onPhotoChange,
     onDisplayNameChange,
+    onNameEditingChange,
     onCardUpdate,
   },
   ref,
@@ -131,6 +133,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             <CardNameField
               value={card.displayName}
               onChange={onDisplayNameChange}
+              onEditingChange={onNameEditingChange}
               fontSizePx={CARD_NAME_SIZE_PX}
             />
           ) : (

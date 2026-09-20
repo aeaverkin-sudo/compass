@@ -265,7 +265,11 @@ const FILENAME_LABEL_RULES: ReadonlyArray<[RegExp, string]> = [
   [/intro/i, "Intro"],
 ];
 
-export const PORTFOLIO_DOCUMENT_ACCEPT = [
+/** iOS — extension list avoids the Photo Library / Take Photo action sheet. */
+export const PORTFOLIO_GALLERY_ACCEPT = ".jpg,.jpeg,.png,.heic,.heif,.webp";
+
+/** Documents/media only — no image/* (images go through gallery picker). */
+export const PORTFOLIO_FILE_ACCEPT = [
   "application/pdf",
   "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -280,13 +284,24 @@ export const PORTFOLIO_DOCUMENT_ACCEPT = [
   "audio/wav",
   "video/mp4",
   "video/quicktime",
-  "image/jpeg",
-  "image/png",
-  "image/heic",
-  "image/heif",
-  "image/webp",
-  "image/svg+xml",
+  ".pdf",
+  ".ppt",
+  ".pptx",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".csv",
+  ".txt",
+  ".mp3",
+  ".m4a",
+  ".wav",
+  ".mp4",
+  ".mov",
 ].join(",");
+
+/** @deprecated Use PORTFOLIO_FILE_ACCEPT */
+export const PORTFOLIO_DOCUMENT_ACCEPT = PORTFOLIO_FILE_ACCEPT;
 
 export function detectAttachmentType(file: File): AttachmentContactType {
   for (const [mime, type] of MIME_TO_ATTACHMENT) {

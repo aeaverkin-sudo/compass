@@ -32,6 +32,9 @@ export function MainScreen() {
   const updateCard = useAppStore((state) => state.updateCard);
   const [mode, setMode] = useState<MainScreenMode>("browse");
   const wasCardReady = useRef(false);
+  const prevPhoto = useRef<string | undefined>(undefined);
+  const isInitialMount = useRef(true);
+  const [nameEditing, setNameEditing] = useState(false);
 
   const activeCard = useMemo(
     () => selectActiveCard(cards, currentCardIndex),
@@ -46,17 +49,25 @@ export function MainScreen() {
   const layout = useMainLayout();
 
   useEffect(() => {
-    if (!activeCard) return;
+    if (!activeCard || nameEditing) return;
 
-    if (cardReady && !wasCardReady.current) {
+    const photo = activeCard.photo;
+    const photoAdded = Boolean(photo && !prevPhoto.current);
+
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      if (cardReady) setMode("library");
+    } else if (cardReady && photoAdded) {
       setMode("library");
     }
+
     if (!cardReady) {
       setMode("browse");
     }
 
     wasCardReady.current = cardReady;
-  }, [activeCard, cardReady]);
+    prevPhoto.current = photo;
+  }, [activeCard, cardReady, nameEditing]);
 
   const toggleMode = useCallback(() => {
     if (!activeCard || !isCardReady(activeCard)) return;
@@ -106,6 +117,7 @@ export function MainScreen() {
               onAddCard={handleAddCard}
               onUpdateCard={updateCard}
               onEmptyAreaTap={toggleMode}
+              onNameEditingChange={setNameEditing}
             />
           </div>
           <LibraryFillPanel
@@ -143,6 +155,7 @@ export function MainScreen() {
             onAddCard={handleAddCard}
             onUpdateCard={updateCard}
             onEmptyAreaTap={toggleMode}
+            onNameEditingChange={setNameEditing}
           />
         </div>
       ) : null}

@@ -1,11 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { useLongPress } from "@/shared/hooks/use-long-press";
-
-const LONG_PRESS_MS = 800;
-const DOUBLE_TAP_MS = 300;
 
 type CardNameFieldProps = {
   value: string;
@@ -13,6 +9,7 @@ type CardNameFieldProps = {
   fontSizePx: number;
   placeholder?: string;
   className?: string;
+  onEditingChange?: (editing: boolean) => void;
 };
 
 export function CardNameField({
@@ -21,45 +18,43 @@ export function CardNameField({
   fontSizePx,
   placeholder = "name, portfolio title",
   className,
+  onEditingChange,
 }: CardNameFieldProps) {
   const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
   const inputRef = useRef<HTMLInputElement>(null);
-  const lastTapAt = useRef(0);
-  const longPressJustFired = useRef(false);
+  const blurTimer = useRef<number | null>(null);
 
-  const beginEdit = useCallback(() => {
-    setEditing(true);
-  }, []);
-
-  const longPress = useLongPress(() => {
-    longPressJustFired.current = true;
-    beginEdit();
-  }, LONG_PRESS_MS);
+  const setEditingState = (next: boolean) => {
+    setEditing(next);
+    onEditingChange?.(next);
+  };
 
   useEffect(() => {
     if (!editing) return;
     inputRef.current?.focus();
-    inputRef.current?.select();
   }, [editing]);
 
-  const handlePointerUp = (event: React.PointerEvent<HTMLParagraphElement>) => {
-    longPress.onPointerUp();
+  useEffect(
+    () => () => {
+      if (blurTimer.current) window.clearTimeout(blurTimer.current);
+    },
+    [],
+  );
 
-    if (longPressJustFired.current) {
-      longPressJustFired.current = false;
-      return;
-    }
+  const commitAndClose = () => {
+    const next = inputRef.current?.value ?? draft;
+    onChange(next);
+    setEditingState(false);
+  };
 
-    const now = Date.now();
-    if (now - lastTapAt.current <= DOUBLE_TAP_MS) {
-      lastTapAt.current = 0;
-      beginEdit();
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
-
-    lastTapAt.current = now;
+  const scheduleBlurCommit = () => {
+    if (blurTimer.current) window.clearTimeout(blurTimer.current);
+    blurTimer.current = window.setTimeout(() => {
+      blurTimer.current = null;
+      if (document.activeElement === inputRef.current) return;
+      commitAndClose();
+    }, 180);
   };
 
   if (editing) {
@@ -67,16 +62,21 @@ export function CardNameField({
       <input
         ref={inputRef}
         type="text"
+        name="displayName"
         data-card-content
-        value={value}
+        value={draft}
         placeholder={placeholder}
         aria-label="Name or portfolio title"
-        onChange={(event) => onChange(event.target.value)}
-        onBlur={() => setEditing(false)}
+        autoComplete="name"
+        autoCapitalize="words"
+        onChange={(event) => setDraft(event.target.value)}
+        onInput={(event) => setDraft(event.currentTarget.value)}
+        onBlur={scheduleBlurCommit}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
-            inputRef.current?.blur();
+            if (blurTimer.current) window.clearTimeout(blurTimer.current);
+            commitAndClose();
           }
         }}
         className={cn(
@@ -89,24 +89,23 @@ export function CardNameField({
   }
 
   return (
-    <p
+    <button
+      type="button"
       data-card-content
-      aria-label="Double tap or hold to edit name"
+      aria-label="Edit name or portfolio title"
+      onClick={(event) => {
+        event.stopPropagation();
+        setDraft(value);
+        setEditingState(true);
+      }}
       className={cn(
-        "compass-press font-normal leading-[1.12] select-none",
+        "w-full bg-transparent text-center font-normal leading-[1.12]",
         value.trim() ? "text-foreground" : "text-hint",
         className,
       )}
       style={{ fontSize: fontSizePx }}
-      onPointerDown={longPress.onPointerDown}
-      onPointerMove={longPress.onPointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={longPress.onPointerCancel}
-      onPointerLeave={longPress.onPointerLeave}
-      onClick={longPress.onClick}
-      onContextMenu={longPress.onContextMenu}
     >
       {value.trim() || placeholder}
-    </p>
+    </button>
   );
 }

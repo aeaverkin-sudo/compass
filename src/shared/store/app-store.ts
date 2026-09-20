@@ -146,7 +146,14 @@ export const useAppStore = create<AppState>()(
 
       addContactItemForCard: (cardId) => {
         const { cards, contactItems } = get();
-        if (contactItems.some((item) => !isContactFilled(item))) return false;
+        const card = cards.find((entry) => entry.id === cardId);
+        if (!card) return false;
+
+        const hasDraftOnCard = card.contactItemIds.some((id) => {
+          const row = contactItems.find((entry) => entry.id === id);
+          return row && !isContactFilled(row);
+        });
+        if (hasDraftOnCard) return false;
 
         const now = new Date().toISOString();
         const item = createEmptyContactItem(contactItems.length);

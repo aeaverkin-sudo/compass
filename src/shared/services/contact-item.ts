@@ -9,7 +9,12 @@ import {
 import { isAttachmentType, validateTextValue } from "./portfolio-limits";
 
 export { typeLabel } from "./portfolio-catalog";
-export { PORTFOLIO_ITEM_CATALOG, PORTFOLIO_DOCUMENT_ACCEPT } from "./portfolio-catalog";
+export {
+  PORTFOLIO_ITEM_CATALOG,
+  PORTFOLIO_DOCUMENT_ACCEPT,
+  PORTFOLIO_FILE_ACCEPT,
+  PORTFOLIO_GALLERY_ACCEPT,
+} from "./portfolio-catalog";
 export {
   PORTFOLIO_LIMITS,
   validatePortfolioAttachment,

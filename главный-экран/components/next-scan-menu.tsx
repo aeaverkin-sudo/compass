@@ -112,9 +112,9 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
           event.stopPropagation();
           setOpen((value) => !value);
         }}
-        className="relative flex size-8 items-center justify-center rounded-full bg-[oklch(96%_0.006_70)] text-hint transition-opacity active:opacity-60"
+        className="relative flex size-8 items-center justify-center transition-opacity active:opacity-60"
       >
-        <Plus className="size-4" strokeWidth={1.25} aria-hidden />
+        <Plus className="size-5 text-hairline" strokeWidth={1} aria-hidden />
         {addons.length > 0 ? (
           <span
             className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none text-white"

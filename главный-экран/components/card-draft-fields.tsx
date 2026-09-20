@@ -40,10 +40,14 @@ export function CardDraftFields({ card, onUpdate }: CardDraftFieldsProps) {
         <span className="sr-only">Name or portfolio title</span>
         <input
           type="text"
+          name="displayName"
           data-card-content
           value={card.displayName}
           placeholder="name, portfolio title"
+          autoComplete="name"
+          autoCapitalize="words"
           onChange={(event) => onUpdate({ displayName: event.target.value })}
+          onInput={(event) => onUpdate({ displayName: event.currentTarget.value })}
           className="compass-input w-full bg-transparent px-0 py-0 text-center font-light leading-[1.15] text-foreground outline-none placeholder:text-hint"
           style={{ fontSize: DRAFT_NAME_SIZE_PX }}
         />

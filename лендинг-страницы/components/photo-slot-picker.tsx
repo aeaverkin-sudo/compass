@@ -73,13 +73,14 @@ export function PhotoSlotPicker({
 
     if (action === "selfie") {
       openSelfiePicker(onPick, onDismiss);
-      return;
-    }
-    if (action === "gallery") {
+    } else if (action === "gallery") {
       openGalleryPicker(onPick, onDismiss);
-      return;
+    } else {
+      openDocumentPicker(onPick, onDismiss);
     }
-    openDocumentPicker(onPick, onDismiss);
+
+    // Close our menu after input.click() — closing before breaks iOS user activation.
+    closeMenu();
   };
 
   const removePhoto = () => {
