@@ -65,20 +65,25 @@ function FilledRow({
   const label = rowTypeLabel(item);
 
   return (
-    <li className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-center gap-x-2 py-2.5">
+    <li className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-start gap-x-2 py-2.5">
       {label ? (
-        <span className="truncate text-[13px] leading-none text-hint">{label}</span>
+        <span className="pt-0.5 text-[13px] font-light leading-[1.35] text-hairline">{label}</span>
       ) : (
         <span aria-hidden />
       )}
       <button
         type="button"
         onClick={onEdit}
-        className="min-w-0 truncate text-left text-[15px] font-semibold leading-[1.35] text-foreground"
+        className={cn(
+          "min-w-0 whitespace-normal break-words text-left text-[15px] leading-[1.35] text-foreground",
+          onCard ? "font-semibold" : "font-normal",
+        )}
       >
         {itemDisplayValue(item)}
       </button>
-      <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
+      <div className="pt-0.5">
+        <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
+      </div>
     </li>
   );
 }

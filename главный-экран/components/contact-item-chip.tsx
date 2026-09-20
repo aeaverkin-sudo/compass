@@ -2,7 +2,7 @@
 
 import type { MouseEvent, ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { itemDisplayValue } from "@/shared/services/contact-item";
+import { itemDisplayValue, rowTypeLabel } from "@/shared/services/contact-item";
 import type { ContactItem } from "@/shared/types";
 
 export type ContactItemChipSize = "browse" | "compact";
@@ -14,14 +14,37 @@ type ContactItemChipProps = {
 };
 
 function ContactItemChip({ item, size, className }: ContactItemChipProps) {
+  const label = rowTypeLabel(item);
   const display = itemDisplayValue(item);
+  const compact = size === "compact";
   const classNames = cn(
-    "inline-flex max-w-full items-center rounded-[10px] bg-[oklch(94%_0.008_70)] text-foreground",
-    size === "compact" ? "h-[25px] px-2 text-[11px] leading-none" : "h-8 px-3 text-[13px] leading-none",
+    "inline-flex max-w-full items-start rounded-[10px] bg-[oklch(94%_0.008_70)] text-left",
+    compact ? "max-w-[220px] gap-1 px-2 py-1.5" : "max-w-[280px] gap-1.5 px-3 py-2",
     className,
   );
 
-  const body = <span className="truncate">{display}</span>;
+  const body = (
+    <>
+      {label ? (
+        <span
+          className={cn(
+            "shrink-0 font-light text-hairline",
+            compact ? "text-[10px] leading-[1.25]" : "text-[12px] leading-[1.3]",
+          )}
+        >
+          {label}
+        </span>
+      ) : null}
+      <span
+        className={cn(
+          "min-w-0 whitespace-normal break-words font-semibold text-foreground",
+          compact ? "text-[12px] leading-[1.3]" : "text-[14px] leading-[1.35]",
+        )}
+      >
+        {display}
+      </span>
+    </>
+  );
 
   if (item.url) {
     return (

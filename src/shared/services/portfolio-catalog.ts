@@ -461,9 +461,9 @@ export function typeLabel(type: ContactType): string {
     video: "Video",
     telegram: "Telegram",
     whatsapp: "WhatsApp",
-    link: "Link",
+    link: "Website",
     text: "Description",
-    custom: "Link",
+    custom: "Website",
   };
 
   return fallback[type] ?? "Link";
