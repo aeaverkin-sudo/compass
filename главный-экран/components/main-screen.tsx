@@ -31,8 +31,15 @@ export function MainScreen() {
   const updateCard = useAppStore((state) => state.updateCard);
   const mainIntroSeen = useAppStore((state) => state.user.mainIntroSeen);
   const markMainIntroSeen = useAppStore((state) => state.markMainIntroSeen);
-  const [mode, setMode] = useState<MainScreenMode>("browse");
+  // Guide the user into the fill screen exactly once, on first arrival with a
+  // ready card. Card switching / relaunch never forces it (see mainIntroSeen).
+  const [mode, setMode] = useState<MainScreenMode>(() => {
+    const state = useAppStore.getState();
+    const card = selectActiveCard(state.cards, state.currentCardIndex);
+    return card && isCardReady(card) && !state.user.mainIntroSeen ? "library" : "browse";
+  });
   const [nameEditing, setNameEditing] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
 
   const activeCard = useMemo(
     () => selectActiveCard(cards, currentCardIndex),
@@ -46,21 +53,15 @@ export function MainScreen() {
   const pdfUrl = useMemo(() => buildPdfUrl(shareToken), [shareToken]);
   const layout = useMainLayout();
 
+  // Persist the one-time intro flag (Zustand action, not React setState).
   useEffect(() => {
-    if (!activeCard || nameEditing) return;
-
-    if (!cardReady) {
-      setMode("browse");
-      return;
-    }
-
-    // Guide the user into the fill screen exactly once — the first time they
-    // reach the main screen with a ready card. Card switching never forces it.
-    if (!mainIntroSeen) {
-      setMode("library");
+    if (mode === "library" && cardReady && !mainIntroSeen) {
       markMainIntroSeen();
     }
-  }, [activeCard, cardReady, nameEditing, mainIntroSeen, markMainIntroSeen]);
+  }, [mode, cardReady, mainIntroSeen, markMainIntroSeen]);
+
+  // A card that isn't ready can never show library; keep name-edit stable.
+  const effectiveMode: MainScreenMode = cardReady || nameEditing ? mode : "browse";
 
   const toggleMode = useCallback(() => {
     if (!activeCard || !isCardReady(activeCard)) return;
@@ -73,7 +74,7 @@ export function MainScreen() {
 
   const edgeInsetBrowse = layout?.edgeInsetBrowse ?? 20;
   const cardTopBrowse = layout?.cardTopBrowse;
-  const browseCarousel = mode === "browse" && (cards.length > 1 || showAddSlide);
+  const browseCarousel = effectiveMode === "browse" && (cards.length > 1 || showAddSlide);
 
   return (
     <main className="compass-main fixed inset-0 overflow-hidden bg-background-ready">
@@ -85,7 +86,7 @@ export function MainScreen() {
       </div>
 
       {/* Library — single stack panel to display edge with unified corners */}
-      {layout && cardReady && mode === "library" ? (
+      {layout && cardReady && effectiveMode === "library" ? (
         <div
           className="compass-library-stack absolute inset-x-0 bottom-0 z-20 flex flex-col"
           style={{ top: layoutTop(layout.cardTopLibrary) }}
@@ -112,17 +113,18 @@ export function MainScreen() {
             card={activeCard}
             panelTopPx={layout.sheetTopLibrary}
             menuCenterYpx={layout.browseMenuCenterY}
+            onComposerOpenChange={setComposerOpen}
           />
         </div>
       ) : null}
 
-      {/* Three dots — fixed in gap below browse card; same spot to enter/exit library */}
-      {layout && cardReady ? (
-        <BrowseMenuButton centerYpx={layout.browseMenuCenterY} mode={mode} onTap={toggleMode} />
+      {/* Three dots — fixed in gap below browse card; hidden while composing a row */}
+      {layout && cardReady && !composerOpen ? (
+        <BrowseMenuButton centerYpx={layout.browseMenuCenterY} mode={effectiveMode} onTap={toggleMode} />
       ) : null}
 
       {/* Browse — business card(s) */}
-      {layout && mode === "browse" && cardTopBrowse !== undefined ? (
+      {layout && effectiveMode === "browse" && cardTopBrowse !== undefined ? (
         <div
           className="absolute overflow-hidden transition-[top,left,right] duration-[460ms] ease-out"
           style={{

@@ -3,14 +3,10 @@
 import { Minus, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import {
-  isContactFilled,
-  isItemOnCard,
-  rowTypeLabel,
-  sortContactList,
-} from "@/shared/services/contact-item";
+import { isContactFilled, isItemOnCard, sortContactList } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
+import { ContactItemChip } from "./contact-item-chip";
 import { LibraryComposer } from "./library-composer";
 
 const MENU_BUTTON_HALF_PX = 22;
@@ -20,6 +16,7 @@ type LibraryFillPanelProps = {
   card: Card;
   panelTopPx: number;
   menuCenterYpx: number;
+  onComposerOpenChange?: (open: boolean) => void;
 };
 
 function CardToggleButton({
@@ -60,35 +57,22 @@ function FilledRow({
   onAdd: () => void;
   onRemove: () => void;
 }) {
-  const label = rowTypeLabel(item);
-
   return (
-    <li className="grid grid-cols-[28px_72px_minmax(0,1fr)] items-center gap-x-2 py-2.5">
+    <li className="flex items-center gap-2 py-1.5">
       <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
-      {label ? (
-        <span className="truncate text-[13px] leading-none text-hint">{label}</span>
-      ) : (
-        <span aria-hidden />
-      )}
-      <button
-        type="button"
-        onClick={onEdit}
-        className="min-w-0 truncate text-left text-[15px] font-semibold leading-[1.35] text-foreground"
-      >
-        {item.value}
-      </button>
+      <ContactItemChip item={item} size="catalog" className="min-w-0 flex-1" onEdit={onEdit} />
     </li>
   );
 }
 
-function findCardDraft(card: Card, items: ContactItem[]) {
-  const ids = new Set(card.contactItemIds);
-  return items.find((item) => ids.has(item.id) && !isContactFilled(item)) ?? null;
-}
-
-export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFillPanelProps) {
+export function LibraryFillPanel({
+  card,
+  panelTopPx,
+  menuCenterYpx,
+  onComposerOpenChange,
+}: LibraryFillPanelProps) {
   const contactItems = useAppStore((state) => state.contactItems);
-  const addContactItemForCard = useAppStore((state) => state.addContactItemForCard);
+  const addContactItem = useAppStore((state) => state.addContactItem);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
   const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
   const addItemToCard = useAppStore((state) => state.addItemToCard);
@@ -104,9 +88,7 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
     [contactItems, card.contactItemIds],
   );
   const filledRows = useMemo(() => rows.filter((item) => isContactFilled(item)), [rows]);
-  const cardDraft = useMemo(() => findCardDraft(card, contactItems), [card, contactItems]);
   const contentZoneHeight = Math.max(0, menuCenterYpx - panelTopPx - MENU_BUTTON_HALF_PX);
-  const canAddRow = cardDraft === null;
 
   const editingItem = useMemo(
     () => (editingId ? contactItems.find((item) => item.id === editingId) ?? null : null),
@@ -120,28 +102,10 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
     setEditingId(itemId);
   }, []);
 
+  // Add a draft to the library pool (never straight onto the card) and edit it.
   const handleAddRow = () => {
-    if (!canAddRow) {
-      if (cardDraft) openComposer(cardDraft.id);
-      return;
-    }
-
-    if (addContactItemForCard(card.id)) {
-      const { cards, contactItems: items } = useAppStore.getState();
-      const cardNow = cards.find((entry) => entry.id === card.id);
-      if (!cardNow) return;
-      const draft = findCardDraft(cardNow, items);
-      if (draft) openComposer(draft.id);
-    }
-  };
-
-  const handleRemoveRow = (item: ContactItem) => {
-    if (!isContactFilled(item)) {
-      deleteContactItem(item.id);
-      if (editingId === item.id) setEditingId(null);
-      return;
-    }
-    removeItemFromCard(card.id, item.id);
+    const draftId = addContactItem();
+    if (draftId) openComposer(draftId);
   };
 
   const handleComposerBlur = useCallback(() => {
@@ -156,17 +120,12 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
   }, [deleteContactItem, editingId]);
 
   useEffect(() => {
-    if (cardDraft && !editingId) {
-      openComposer(cardDraft.id);
-    }
-  }, [cardDraft, editingId, openComposer]);
+    onComposerOpenChange?.(composerOpen);
+  }, [composerOpen, onComposerOpenChange]);
 
   useEffect(() => {
-    if (!composerOpen) return;
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-  }, [composerOpen]);
+    return () => onComposerOpenChange?.(false);
+  }, [onComposerOpenChange]);
 
   return (
     <div className="compass-library-panel-bottom relative min-h-0 flex-1">
@@ -177,7 +136,7 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
         {!composerOpen ? (
           <div className="flex w-full max-w-[360px] flex-col items-center">
             {filledRows.length > 0 ? (
-              <ul className="w-full divide-y divide-hairline/25">
+              <ul className="w-full">
                 {filledRows.map((item) => (
                   <FilledRow
                     key={item.id}
@@ -185,7 +144,7 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
                     onCard={isItemOnCard(card, item.id)}
                     onEdit={() => openComposer(item.id)}
                     onAdd={() => addItemToCard(card.id, item.id)}
-                    onRemove={() => handleRemoveRow(item)}
+                    onRemove={() => removeItemFromCard(card.id, item.id)}
                   />
                 ))}
               </ul>
@@ -194,12 +153,10 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
             <button
               type="button"
               aria-label="Add contact row"
-              disabled={!canAddRow && !cardDraft}
               onClick={handleAddRow}
               className={cn(
                 "flex size-10 shrink-0 items-center justify-center transition-opacity active:opacity-60",
                 filledRows.length > 0 && "mt-2",
-                !canAddRow && !cardDraft && "cursor-default opacity-40",
               )}
             >
               <Plus className="size-6 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />

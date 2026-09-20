@@ -2,8 +2,11 @@ import { nanoid } from "nanoid";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import {
   detectAttachmentType,
+  displayHandleForType,
   inferAttachmentLabel,
+  matchServicePrefix,
   matchSocialDomain,
+  profileUrlForType,
   typeLabel,
 } from "./portfolio-catalog";
 import { isAttachmentType, validateTextValue } from "./portfolio-limits";
@@ -28,6 +31,8 @@ export const EMPTY_CONTACT_PLACEHOLDER = "add contact, link, file etc.";
 const DOMAIN = /^(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const PHONE = /^\+?[\d\s()-]{7,}$/;
+const PREFIX = /^([a-z][a-z0-9]*):(.+)$/i;
+const BARE_HANDLE = /^@([a-z0-9._]{1,30})$/i;
 
 function detectDataUrlType(value: string): ContactType | null {
   if (value.startsWith("data:application/pdf")) return "pdf";
@@ -51,6 +56,20 @@ function detectUrlPathType(value: string): ContactType | null {
   return null;
 }
 
+function parseTypedShortcut(raw: string): { type: ContactType; handle: string } | null {
+  const prefixMatch = raw.match(PREFIX);
+  if (prefixMatch) {
+    const type = matchServicePrefix(prefixMatch[1] ?? "");
+    const handle = (prefixMatch[2] ?? "").trim();
+    if (type && handle) return { type, handle };
+  }
+
+  const bare = raw.match(BARE_HANDLE);
+  if (bare?.[1]) return { type: "instagram", handle: bare[1] };
+
+  return null;
+}
+
 export function detectContactType(raw: string): ContactType {
   const value = raw.trim();
   if (!value) return "text";
@@ -60,6 +79,10 @@ export function detectContactType(raw: string): ContactType {
 
   if (EMAIL.test(value)) return "email";
   if (PHONE.test(value)) return "phone";
+
+  const shortcut = parseTypedShortcut(value);
+  if (shortcut) return shortcut.type;
+
   if (!DOMAIN.test(value)) return "text";
 
   const pathType = detectUrlPathType(value);
@@ -99,12 +122,14 @@ export function createEmptyContactItem(order: number): ContactItem {
 export function normalizeContactItem(item: ContactItem, value: string): ContactItem {
   const trimmed = value.slice(0, 2000);
   const type = detectContactType(trimmed);
+  const shortcut = parseTypedShortcut(trimmed);
   let url = trimmed;
 
   if (type === "text") url = "";
   else if (type === "email") url = `mailto:${trimmed}`;
   else if (type === "phone") url = `tel:${trimmed.replace(/\s/g, "")}`;
   else if (isAttachmentType(type)) url = trimmed.startsWith("data:") ? trimmed : item.url || trimmed;
+  else if (shortcut) url = profileUrlForType(shortcut.type, shortcut.handle) ?? "";
   else if (!trimmed.startsWith("http") && !trimmed.startsWith("data:")) url = `https://${trimmed}`;
 
   const label =
@@ -119,6 +144,35 @@ export function normalizeContactItem(item: ContactItem, value: string): ContactI
     value: trimmed,
     url,
   };
+}
+
+function bareUrl(raw: string): string {
+  return raw
+    .replace(/^https?:\/\//i, "")
+    .replace(/^www\./i, "")
+    .replace(/\/$/, "");
+}
+
+/** Chip / row text: hide the `service:` prefix, keep the handle. */
+export function itemDisplayValue(item: ContactItem): string {
+  const raw = item.value.trim();
+  if (!raw) return item.label;
+
+  const shortcut = parseTypedShortcut(raw);
+  if (shortcut) return displayHandleForType(shortcut.type, shortcut.handle);
+
+  if (raw.startsWith("data:")) return item.label || typeLabel(item.type);
+
+  if (
+    item.type !== "text" &&
+    item.type !== "email" &&
+    item.type !== "phone" &&
+    (raw.includes("://") || DOMAIN.test(raw))
+  ) {
+    return bareUrl(raw);
+  }
+
+  return raw;
 }
 
 /** Card-linked library rows, including empty drafts. */

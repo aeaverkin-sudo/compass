@@ -188,6 +188,89 @@ export const PORTFOLIO_ITEM_CATALOG: CatalogEntry[] = [
   },
 ];
 
+/**
+ * Typed shortcut `service:handle` → contact type.
+ * Example: `instagram:@radiomir`, `youtube:Toples`, `tiktok:brand`.
+ */
+export const SERVICE_PREFIX_ALIASES: Readonly<Record<string, ContactType>> = {
+  instagram: "instagram",
+  insta: "instagram",
+  ig: "instagram",
+  youtube: "youtube",
+  yt: "youtube",
+  tiktok: "tiktok",
+  spotify: "spotify",
+  linkedin: "linkedin",
+  github: "github",
+  x: "x",
+  twitter: "x",
+  meta: "meta",
+  facebook: "meta",
+  fb: "meta",
+  telegram: "telegram",
+  tg: "telegram",
+  whatsapp: "whatsapp",
+  wa: "whatsapp",
+  behance: "behance",
+  dribbble: "dribbble",
+  calendly: "calendly",
+};
+
+const SKIP_PREFIXES = new Set(["http", "https", "mailto", "tel", "data"]);
+
+export function matchServicePrefix(alias: string): ContactType | null {
+  const key = alias.trim().toLowerCase();
+  if (SKIP_PREFIXES.has(key)) return null;
+  return SERVICE_PREFIX_ALIASES[key] ?? null;
+}
+
+/** Canonical profile / search URL for a typed handle. */
+export function profileUrlForType(type: ContactType, handle: string): string | null {
+  const id = handle.replace(/^@/, "").trim();
+  if (!id) return null;
+
+  switch (type) {
+    case "instagram":
+      return `https://instagram.com/${id}`;
+    case "youtube":
+      return `https://youtube.com/@${id}`;
+    case "tiktok":
+      return `https://tiktok.com/@${id}`;
+    case "spotify":
+      return `https://open.spotify.com/search/${encodeURIComponent(id)}`;
+    case "linkedin":
+      return `https://linkedin.com/in/${id}`;
+    case "github":
+      return `https://github.com/${id}`;
+    case "x":
+      return `https://x.com/${id}`;
+    case "meta":
+      return `https://facebook.com/${id}`;
+    case "telegram":
+      return `https://t.me/${id}`;
+    case "whatsapp": {
+      const digits = id.replace(/\D/g, "");
+      return digits ? `https://wa.me/${digits}` : null;
+    }
+    case "behance":
+      return `https://behance.net/${id}`;
+    case "dribbble":
+      return `https://dribbble.com/${id}`;
+    case "calendly":
+      return `https://calendly.com/${id}`;
+    default:
+      return null;
+  }
+}
+
+export function displayHandleForType(type: ContactType, handle: string): string {
+  const id = handle.replace(/^@/, "").trim();
+  if (type === "instagram" || type === "tiktok" || type === "telegram" || type === "youtube") {
+    return id ? `@${id}` : handle;
+  }
+  return id || handle;
+}
+
 /** Hostname (or suffix) → contact type for pasted URLs. Longest match wins. */
 export const SOCIAL_DOMAIN_MAP: ReadonlyArray<[string, ContactType]> = [
   ["linkedin.com", "linkedin"],

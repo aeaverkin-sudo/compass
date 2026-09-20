@@ -6,7 +6,7 @@ import type { Card, ContactItem } from "@/shared/types";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
-import { typeLabel } from "@/shared/services/contact-item";
+import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import {
   browseCardHeight,
@@ -31,22 +31,6 @@ type BusinessCardProps = {
   onNameEditingChange?: (editing: boolean) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
 };
-
-function ContactChip({ item, compact }: { item: ContactItem; compact: boolean }) {
-  return (
-    <span
-      data-card-content
-      className={cn(
-        "inline-flex max-w-full items-center rounded-[10px] bg-[oklch(94%_0.008_70)] text-foreground",
-        compact
-          ? "h-[25px] px-2 text-[11px] leading-none"
-          : "h-16 px-5 text-[26px] leading-none",
-      )}
-    >
-      <span className="truncate">{item.value}</span>
-    </span>
-  );
-}
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
   {
@@ -152,29 +136,15 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           ) : null}
         </div>
 
-        {!compact && items.length > 0 ? (
-          <div className="mt-8 flex w-full flex-wrap justify-center gap-3">
-            {items.map((item) => (
-              <ContactChip key={item.id} item={item} compact={false} />
-            ))}
-          </div>
-        ) : null}
+        {!compact ? <ContactItemChipList items={items} size="browse" /> : null}
       </div>
 
-      {compact && items.length > 0 ? (
-        <div
-          data-card-content
-          className="mt-3 flex w-full min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1 pb-2"
-        >
-          {items.map((item) => (
-            <div key={item.id} className="w-full text-center">
-              <p className="text-[10px] leading-none text-hint">{typeLabel(item.type)}</p>
-              <p className="mt-0.5 text-[13px] font-semibold leading-[1.25] text-foreground">
-                {item.value}
-              </p>
-            </div>
-          ))}
-        </div>
+      {compact ? (
+        <ContactItemChipList
+          items={items}
+          size="compact"
+          className="min-h-0 flex-1 content-start overflow-y-auto px-1 pb-2"
+        />
       ) : null}
 
     </article>

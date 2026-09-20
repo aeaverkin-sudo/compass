@@ -1,7 +1,6 @@
-import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import {
+  detectAttachmentType,
   PORTFOLIO_FILE_ACCEPT,
-  PORTFOLIO_GALLERY_ACCEPT,
 } from "@/shared/services/portfolio-catalog";
 import {
   HIDDEN_INPUT,
@@ -76,20 +75,13 @@ export function openNativePhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => v
   openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss);
 }
 
-/** Portfolio attachment — photo library; images compressed to attachment size. */
-export function openGalleryPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+/**
+ * Contact attachment — native iOS sheet (Photo Library / Take Photo / Choose File).
+ * `image/*` in accept keeps the media sheet; Choose File still allows documents/media.
+ */
+export function openContactAttachmentPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
   openFileInputPicker(
-    PORTFOLIO_GALLERY_ACCEPT,
-    (file) => prepareAttachmentForStorage(file, "photo"),
-    onPhoto,
-    onDismiss,
-  );
-}
-
-/** Portfolio attachment — Files app; PDF, office docs, media (no image types). */
-export function openDocumentPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openFileInputPicker(
-    PORTFOLIO_FILE_ACCEPT,
+    `image/*,${PORTFOLIO_FILE_ACCEPT}`,
     (file) => prepareAttachmentForStorage(file, detectAttachmentType(file)),
     onPhoto,
     onDismiss,

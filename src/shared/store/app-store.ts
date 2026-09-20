@@ -34,7 +34,8 @@ interface AppState {
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
   updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo">>) => void;
-  addContactItemForCard: (cardId: string) => boolean;
+  /** Add an empty draft to the library pool (not bound to any card). One draft at a time. */
+  addContactItem: () => string | null;
   updateContactItem: (itemId: string, data: Partial<Pick<ContactItem, "value">>) => void;
   updateContactItemAttachment: (
     cardId: string,
@@ -122,33 +123,15 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      addContactItemForCard: (cardId) => {
-        const { cards, contactItems } = get();
-        const card = cards.find((entry) => entry.id === cardId);
-        if (!card) return false;
+      addContactItem: () => {
+        const { contactItems } = get();
 
-        const hasDraftOnCard = card.contactItemIds.some((id) => {
-          const row = contactItems.find((entry) => entry.id === id);
-          return row && !isContactFilled(row);
-        });
-        if (hasDraftOnCard) return false;
+        const existingDraft = contactItems.find((item) => !isContactFilled(item));
+        if (existingDraft) return existingDraft.id;
 
-        const now = new Date().toISOString();
         const item = createEmptyContactItem(contactItems.length);
-
-        set({
-          contactItems: [...contactItems, item],
-          cards: cards.map((card) =>
-            card.id === cardId
-              ? {
-                  ...card,
-                  contactItemIds: [...card.contactItemIds, item.id],
-                  updatedAt: now,
-                }
-              : card,
-          ),
-        });
-        return true;
+        set({ contactItems: [...contactItems, item] });
+        return item.id;
       },
 
       updateContactItem: (itemId, data) => {
