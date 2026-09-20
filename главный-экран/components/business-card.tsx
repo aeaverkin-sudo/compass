@@ -4,6 +4,7 @@ import { forwardRef, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
+import { CardNameField } from "./card-name-field";
 import { getCardItems } from "@/shared/services/card-snapshot";
 import { typeLabel } from "@/shared/services/contact-item";
 import {
@@ -25,6 +26,7 @@ type BusinessCardProps = {
   libraryCardHeightPx?: number;
   onEmptyAreaTap: () => void;
   onPhotoChange?: (photo: string | null) => void;
+  onDisplayNameChange?: (displayName: string) => void;
 };
 
 function ContactChip({ item, compact }: { item: ContactItem; compact: boolean }) {
@@ -44,7 +46,7 @@ function ContactChip({ item, compact }: { item: ContactItem; compact: boolean })
 }
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
-  { card, library, mode, libraryCardHeightPx, onEmptyAreaTap, onPhotoChange },
+  { card, library, mode, libraryCardHeightPx, onEmptyAreaTap, onPhotoChange, onDisplayNameChange },
   ref,
 ) {
   const items = getCardItems(card, library);
@@ -87,12 +89,12 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }
     >
       <div className={cn("flex flex-col items-center", !compact && "w-full shrink-0")}>
-        {!compact && onPhotoChange ? (
+        {onPhotoChange ? (
           <PhotoSlotPicker
             photo={card.photo ?? null}
             onPhotoChange={onPhotoChange}
-            sizePx={CARD_PHOTO_SIZE_PX}
-            borderRadiusPx={CARD_PHOTO_RADIUS_PX}
+            sizePx={compact ? LIBRARY_PHOTO_SIZE_PX : CARD_PHOTO_SIZE_PX}
+            borderRadiusPx={compact ? LIBRARY_PHOTO_RADIUS_PX : CARD_PHOTO_RADIUS_PX}
           />
         ) : card.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -100,27 +102,27 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             data-card-content
             src={card.photo}
             alt=""
-            className={cn("shrink-0 border border-hairline object-cover", !compact && "rounded-[13px]")}
-            style={
-              compact
-                ? {
-                    width: LIBRARY_PHOTO_SIZE_PX,
-                    height: LIBRARY_PHOTO_SIZE_PX,
-                    borderRadius: LIBRARY_PHOTO_RADIUS_PX,
-                  }
-                : { width: CARD_PHOTO_SIZE_PX, height: CARD_PHOTO_SIZE_PX, borderRadius: CARD_PHOTO_RADIUS_PX }
-            }
+            className="shrink-0 rounded-[13px] border border-hairline object-cover"
+            style={{ width: CARD_PHOTO_SIZE_PX, height: CARD_PHOTO_SIZE_PX, borderRadius: CARD_PHOTO_RADIUS_PX }}
           />
         ) : null}
 
         <div className="w-full text-center" style={{ marginTop: CARD_NAME_GAP_PX }}>
-          <p
-            data-card-content
-            className="font-normal leading-[1.12] text-foreground"
-            style={{ fontSize: CARD_NAME_SIZE_PX }}
-          >
-            {card.displayName}
-          </p>
+          {onDisplayNameChange ? (
+            <CardNameField
+              value={card.displayName}
+              onChange={onDisplayNameChange}
+              fontSizePx={CARD_NAME_SIZE_PX}
+            />
+          ) : (
+            <p
+              data-card-content
+              className="font-normal leading-[1.12] text-foreground"
+              style={{ fontSize: CARD_NAME_SIZE_PX }}
+            >
+              {card.displayName}
+            </p>
+          )}
           {!compact && card.title ? (
             <p data-card-content className="mt-3 text-[30px] leading-[1.2] text-hint">
               {card.title}

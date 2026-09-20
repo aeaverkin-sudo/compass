@@ -195,9 +195,8 @@ export function CardCarousel({
         mode={mode}
         libraryCardHeightPx={libraryCardHeightPx}
         onEmptyAreaTap={handleEmptyAreaTap}
-        onPhotoChange={
-          isBrowse ? (photo) => handlePhotoChange(activeCard.id, photo) : undefined
-        }
+        onPhotoChange={(photo) => handlePhotoChange(activeCard.id, photo)}
+        onDisplayNameChange={(displayName) => onUpdateCard(activeCard.id, { displayName })}
       />
     );
   }
@@ -234,8 +233,9 @@ export function CardCarousel({
                   mode={mode}
                   libraryCardHeightPx={libraryCardHeightPx}
                   onEmptyAreaTap={handleEmptyAreaTap}
-                  onPhotoChange={
-                    isBrowse ? (photo) => handlePhotoChange(cards[index]!.id, photo) : undefined
+                  onPhotoChange={(photo) => handlePhotoChange(cards[index]!.id, photo)}
+                  onDisplayNameChange={(displayName) =>
+                    onUpdateCard(cards[index]!.id, { displayName })
                   }
                 />
               )}
