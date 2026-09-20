@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 
 const LONG_PRESS_MS = 800;
+const DOUBLE_TAP_MS = 300;
 
 type CardNameFieldProps = {
   value: string;
@@ -23,9 +24,16 @@ export function CardNameField({
 }: CardNameFieldProps) {
   const [editing, setEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastTapAt = useRef(0);
+  const longPressJustFired = useRef(false);
+
+  const beginEdit = useCallback(() => {
+    setEditing(true);
+  }, []);
 
   const longPress = useLongPress(() => {
-    setEditing(true);
+    longPressJustFired.current = true;
+    beginEdit();
   }, LONG_PRESS_MS);
 
   useEffect(() => {
@@ -33,6 +41,26 @@ export function CardNameField({
     inputRef.current?.focus();
     inputRef.current?.select();
   }, [editing]);
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLParagraphElement>) => {
+    longPress.onPointerUp();
+
+    if (longPressJustFired.current) {
+      longPressJustFired.current = false;
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastTapAt.current <= DOUBLE_TAP_MS) {
+      lastTapAt.current = 0;
+      beginEdit();
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    lastTapAt.current = now;
+  };
 
   if (editing) {
     return (
@@ -63,14 +91,20 @@ export function CardNameField({
   return (
     <p
       data-card-content
-      aria-label="Hold to edit name"
+      aria-label="Double tap or hold to edit name"
       className={cn(
         "compass-press font-normal leading-[1.12] select-none",
         value.trim() ? "text-foreground" : "text-hint",
         className,
       )}
       style={{ fontSize: fontSizePx }}
-      {...longPress}
+      onPointerDown={longPress.onPointerDown}
+      onPointerMove={longPress.onPointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={longPress.onPointerCancel}
+      onPointerLeave={longPress.onPointerLeave}
+      onClick={longPress.onClick}
+      onContextMenu={longPress.onContextMenu}
     >
       {value.trim() || placeholder}
     </p>

@@ -12,9 +12,10 @@ import {
 } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
-import { QR_COLOR } from "../layout";
 
 const MENU_BUTTON_HALF_PX = 22;
+/** Match photo slot border — 1px hairline weight. */
+const FILL_ICON_STROKE = 1;
 
 type LibraryFillPanelProps = {
   card: Card;
@@ -43,9 +44,9 @@ function CardToggleButton({
       className="flex size-7 shrink-0 items-center justify-center transition-opacity active:opacity-60"
     >
       {onCard ? (
-        <Minus className="size-4" strokeWidth={2.5} style={{ color: QR_COLOR }} aria-hidden />
+        <Minus className="size-4 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
       ) : (
-        <Plus className="size-4" strokeWidth={2.5} style={{ color: QR_COLOR }} aria-hidden />
+        <Plus className="size-4 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
       )}
     </button>
   );
@@ -140,7 +141,7 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
               !canAddRow && "cursor-default opacity-40",
             )}
           >
-            <Plus className="size-6" strokeWidth={2.25} style={{ color: QR_COLOR }} aria-hidden />
+            <Plus className="size-6 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
           </button>
         </div>
       </div>
