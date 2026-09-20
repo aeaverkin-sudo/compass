@@ -4,6 +4,11 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { MAX_CARDS } from "@main/layout";
+import {
+  createEmptyContactItem,
+  isContactFilled,
+  normalizeContactItem,
+} from "@/shared/services/contact-item";
 import type { Card, ContactItem, User } from "@/shared/types";
 
 type OnboardingPayload = {
@@ -25,6 +30,11 @@ interface AppState {
   addCard: () => boolean;
   updateCard: (id: string, data: Partial<Card>) => void;
   updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo">>) => void;
+  addContactItemForCard: (cardId: string) => boolean;
+  updateContactItem: (itemId: string, data: Partial<Pick<ContactItem, "value">>) => void;
+  addItemToCard: (cardId: string, itemId: string) => void;
+  removeItemFromCard: (cardId: string, itemId: string) => void;
+  deleteContactItem: (itemId: string) => void;
 }
 
 function createInitialUser(): User {
@@ -117,6 +127,80 @@ export const useAppStore = create<AppState>()(
           cards: get().cards.map((card) =>
             card.id === id ? { ...card, ...data, updatedAt: now } : card,
           ),
+        });
+      },
+
+      addContactItemForCard: (cardId) => {
+        const { cards, contactItems } = get();
+        if (contactItems.some((item) => !isContactFilled(item))) return false;
+
+        const now = new Date().toISOString();
+        const item = createEmptyContactItem(contactItems.length);
+
+        set({
+          contactItems: [...contactItems, item],
+          cards: cards.map((card) =>
+            card.id === cardId
+              ? {
+                  ...card,
+                  contactItemIds: [...card.contactItemIds, item.id],
+                  updatedAt: now,
+                }
+              : card,
+          ),
+        });
+        return true;
+      },
+
+      updateContactItem: (itemId, data) => {
+        set({
+          contactItems: get().contactItems.map((item) => {
+            if (item.id !== itemId) return item;
+            if (data.value === undefined) return { ...item, ...data };
+            return normalizeContactItem(item, data.value);
+          }),
+        });
+      },
+
+      addItemToCard: (cardId, itemId) => {
+        const now = new Date().toISOString();
+        set({
+          cards: get().cards.map((card) => {
+            if (card.id !== cardId || card.contactItemIds.includes(itemId)) return card;
+            return {
+              ...card,
+              contactItemIds: [...card.contactItemIds, itemId],
+              updatedAt: now,
+            };
+          }),
+        });
+      },
+
+      removeItemFromCard: (cardId, itemId) => {
+        const now = new Date().toISOString();
+        set({
+          cards: get().cards.map((card) => {
+            if (card.id !== cardId) return card;
+            return {
+              ...card,
+              contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
+              updatedAt: now,
+            };
+          }),
+        });
+      },
+
+      deleteContactItem: (itemId) => {
+        const now = new Date().toISOString();
+        set({
+          contactItems: get()
+            .contactItems.filter((item) => item.id !== itemId)
+            .map((item, order) => ({ ...item, order })),
+          cards: get().cards.map((card) => ({
+            ...card,
+            contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
+            updatedAt: now,
+          })),
         });
       },
 

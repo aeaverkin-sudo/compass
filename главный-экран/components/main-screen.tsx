@@ -12,6 +12,7 @@ import {
   useAppStore,
 } from "@/shared/store/app-store";
 import { CardCarousel } from "./card-carousel";
+import { LibraryFillPanel } from "./library-fill-panel";
 import { QrZone } from "./qr-zone";
 
 function buildPdfUrl(token: string) {
@@ -91,11 +92,10 @@ export function MainScreen() {
               onEmptyAreaTap={toggleMode}
             />
           </div>
-          <button
-            type="button"
-            className="compass-library-panel-bottom compass-library-fill min-h-0 flex-1"
-            aria-label="Collapse content sheet"
-            onClick={toggleMode}
+          <LibraryFillPanel
+            card={activeCard}
+            panelTopPx={layout.sheetTopLibrary}
+            menuCenterYpx={layout.browseMenuCenterY}
           />
         </div>
       ) : null}

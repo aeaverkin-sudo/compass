@@ -126,12 +126,6 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-.compass-library-fill {
-  background: transparent;
-  border: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
 .compass-layer {
   will-change: transform, box-shadow;
 }
