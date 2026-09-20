@@ -100,9 +100,9 @@ export function MainScreen() {
         </div>
       ) : null}
 
-      {/* Browse menu — centered in gap below card */}
-      {layout && mode === "browse" ? (
-        <BrowseMenuButton centerYpx={layout.browseMenuCenterY} onTap={toggleMode} />
+      {/* Three dots — fixed in gap below browse card; same spot to enter/exit library */}
+      {layout ? (
+        <BrowseMenuButton centerYpx={layout.browseMenuCenterY} mode={mode} onTap={toggleMode} />
       ) : null}
 
       {/* Browse — business card(s) */}
