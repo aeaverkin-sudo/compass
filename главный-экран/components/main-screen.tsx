@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { layoutTop, type MainScreenMode } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -29,10 +29,9 @@ export function MainScreen() {
   const shareToken = useAppStore((state) => state.user.shareToken);
   const setCurrentCardIndex = useAppStore((state) => state.setCurrentCardIndex);
   const updateCard = useAppStore((state) => state.updateCard);
+  const mainIntroSeen = useAppStore((state) => state.user.mainIntroSeen);
+  const markMainIntroSeen = useAppStore((state) => state.markMainIntroSeen);
   const [mode, setMode] = useState<MainScreenMode>("browse");
-  const wasCardReady = useRef(false);
-  const prevPhoto = useRef<string | undefined>(undefined);
-  const isInitialMount = useRef(true);
   const [nameEditing, setNameEditing] = useState(false);
 
   const activeCard = useMemo(
@@ -50,23 +49,18 @@ export function MainScreen() {
   useEffect(() => {
     if (!activeCard || nameEditing) return;
 
-    const photo = activeCard.photo;
-    const photoAdded = Boolean(photo && !prevPhoto.current);
-
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      if (cardReady) setMode("library");
-    } else if (cardReady && photoAdded) {
-      setMode("library");
-    }
-
     if (!cardReady) {
       setMode("browse");
+      return;
     }
 
-    wasCardReady.current = cardReady;
-    prevPhoto.current = photo;
-  }, [activeCard, cardReady, nameEditing]);
+    // Guide the user into the fill screen exactly once — the first time they
+    // reach the main screen with a ready card. Card switching never forces it.
+    if (!mainIntroSeen) {
+      setMode("library");
+      markMainIntroSeen();
+    }
+  }, [activeCard, cardReady, nameEditing, mainIntroSeen, markMainIntroSeen]);
 
   const toggleMode = useCallback(() => {
     if (!activeCard || !isCardReady(activeCard)) return;

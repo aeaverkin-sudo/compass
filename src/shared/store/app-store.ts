@@ -30,6 +30,7 @@ interface AppState {
   contactItems: ContactItem[];
   resetApp: () => void;
   completeOnboarding: (payload: OnboardingPayload) => void;
+  markMainIntroSeen: () => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
   updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo">>) => void;
@@ -50,6 +51,7 @@ function createInitialUser(): User {
   return {
     id: nanoid(),
     onboarded: false,
+    mainIntroSeen: false,
     shareToken: nanoid(12),
   };
 }
@@ -97,6 +99,11 @@ export const useAppStore = create<AppState>()(
           cards: [primary, ...get().cards.slice(1)],
           currentCardIndex: 0,
         });
+      },
+
+      markMainIntroSeen: () => {
+        if (get().user.mainIntroSeen) return;
+        set({ user: { ...get().user, mainIntroSeen: true } });
       },
 
       setCurrentCardIndex: (index) => {
@@ -254,20 +261,25 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "compass-storage-v4",
-      version: 5,
+      version: 6,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 5) {
           const legacyCard = state.card as Card | null | undefined;
           if (legacyCard && !state.cards) {
-            return {
-              ...state,
-              cards: [legacyCard],
-              currentCardIndex: 0,
-            };
+            state.cards = [legacyCard];
+            state.currentCardIndex = 0;
           }
         }
-        return persisted as AppState;
+        if (version < 6) {
+          const user = state.user as User | undefined;
+          if (user) {
+            // Existing onboarded users have already set up their card — don't
+            // replay the one-time library intro for them.
+            state.user = { ...user, mainIntroSeen: Boolean(user.onboarded) };
+          }
+        }
+        return state as unknown as AppState;
       },
       partialize: (state) => ({
         user: state.user,

@@ -135,14 +135,14 @@ export function LibraryComposer({
           </div>
         ) : null}
 
-        <div className="flex items-end gap-2 rounded-[22px] border border-hairline/30 bg-[oklch(98%_0.004_70)] px-3 py-2 shadow-[0_2px_12px_oklch(0%_0_0/0.06)]">
+        <div className="flex items-center gap-2 rounded-[22px] border border-hairline/30 bg-[oklch(98%_0.004_70)] px-3 py-2 shadow-[0_2px_12px_oklch(0%_0_0/0.06)]">
           <button
             type="button"
             aria-label="Add photo or file"
             aria-expanded={attachOpen}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => setAttachOpen((open) => !open)}
-            className="mb-0.5 flex size-8 shrink-0 items-center justify-center transition-opacity active:opacity-60"
+            className="flex size-8 shrink-0 items-center justify-center transition-opacity active:opacity-60"
           >
             <Plus className="size-5 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
           </button>

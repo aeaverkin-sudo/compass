@@ -73,5 +73,7 @@ export interface CardSnapshot {
 export interface User {
   id: string;
   onboarded: boolean;
+  /** True once the one-time library ("fill") intro has been shown on the main screen. */
+  mainIntroSeen: boolean;
   shareToken: string;
 }

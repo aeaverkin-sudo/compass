@@ -42,7 +42,9 @@ function readSafeAreaInset(edge: "top" | "bottom") {
 function computeLayout(): MainLayout | null {
   if (typeof window === "undefined") return null;
 
-  const viewportH = window.innerHeight;
+  // `html` is position:fixed inset:0, so its clientHeight is the full layout
+  // viewport and stays stable when the iOS keyboard shrinks the visual viewport.
+  const viewportH = document.documentElement.clientHeight || window.innerHeight;
   const safeTop = readSafeAreaInset("top");
   const qrTop = safeTop + QR_GAP_SYMMETRIC_PX;
   const cardTopBrowse = qrTop + QR_SIZE + QR_GAP_SYMMETRIC_PX;
@@ -77,13 +79,15 @@ export function useMainLayout() {
       setLayout(computeLayout());
     };
 
+    // Recompute only on real layout changes (orientation / window size), not on
+    // keyboard toggles — the visual viewport resize would shift the whole stack.
     sync();
     window.addEventListener("resize", sync);
-    window.visualViewport?.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
 
     return () => {
       window.removeEventListener("resize", sync);
-      window.visualViewport?.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
     };
   }, []);
 
