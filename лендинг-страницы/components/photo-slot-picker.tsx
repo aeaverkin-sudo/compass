@@ -4,12 +4,7 @@ import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { PhotoSourceMenu, type PhotoSource } from "./photo-source-menu";
-import {
-  openCardFilePicker,
-  openCardGalleryPicker,
-  openSelfiePicker,
-} from "./photo-input-utils";
+import { openNativePhotoPicker } from "./photo-input-utils";
 
 export const LANDING_PHOTO_SIZE_PX = 149.76;
 const LONG_PRESS_MS = 800;
@@ -37,56 +32,39 @@ export function PhotoSlotPicker({
   surfaceClassName = "bg-background-ready",
 }: PhotoSlotPickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
 
-  const iconSize =
-    sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "size-6 text-hairline" : "size-[20.4px] text-hairline";
-  const iconGap = sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "gap-4" : "gap-3";
   const removeIconSize =
     sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "size-[18px] text-hairline" : "size-[15px] text-hairline";
 
-  const closeMenu = () => setOpen(false);
+  const pickPhoto = () => {
+    openNativePhotoPicker(
+      (nextPhoto) => {
+        onPhotoChange(nextPhoto);
+        setEditing(false);
+      },
+      () => setEditing(false),
+    );
+  };
 
   const longPress = useLongPress(() => {
-    if (photo) setOpen(true);
+    if (photo) setEditing(true);
   }, LONG_PRESS_MS);
 
   useEffect(() => {
-    if (!open) return;
+    if (!editing) return;
 
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+        setEditing(false);
       }
     };
 
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
+  }, [editing]);
 
-  const openPicker = (action: PhotoSource) => {
-    const onPick = (nextPhoto: string) => {
-      onPhotoChange(nextPhoto);
-      closeMenu();
-    };
-    const onDismiss = () => closeMenu();
-
-    if (action === "selfie") {
-      openSelfiePicker(onPick, onDismiss);
-    } else if (action === "gallery") {
-      openCardGalleryPicker(onPick, onDismiss);
-    } else {
-      openCardFilePicker(onPick, onDismiss);
-    }
-
-    // Close after input.click() — closing before breaks iOS user activation.
-    closeMenu();
-  };
-
-  const removePhoto = () => {
-    onPhotoChange(null);
-    setOpen(false);
-  };
+  const showPlaceholder = !photo || editing;
 
   const slotStyle = {
     width: sizePx,
@@ -103,9 +81,17 @@ export function PhotoSlotPicker({
         )}
         style={{ borderRadius: borderRadiusPx }}
       >
-        {open ? (
-          <PhotoSourceMenu onPick={openPicker} iconClassName={iconSize} gapClassName={iconGap} />
-        ) : photo ? (
+        {showPlaceholder ? (
+          <button
+            type="button"
+            data-card-content
+            aria-label={photo ? "Change photo" : "Add photo"}
+            onClick={pickPhoto}
+            className="flex size-full items-center justify-center transition-opacity active:opacity-80"
+          >
+            <Plus className="size-7 text-hint" strokeWidth={1.5} aria-hidden />
+          </button>
+        ) : (
           <div
             data-card-content
             aria-label="Hold to change photo"
@@ -115,28 +101,18 @@ export function PhotoSlotPicker({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photo} alt="" className="size-full object-cover" draggable={false} />
           </div>
-        ) : (
-          <button
-            type="button"
-            data-card-content
-            aria-label="Add photo"
-            aria-expanded={open}
-            onClick={() => setOpen(true)}
-            className="flex size-full items-center justify-center transition-opacity active:opacity-80"
-          >
-            <Plus className="size-7 text-hint" strokeWidth={1.5} aria-hidden />
-          </button>
         )}
       </div>
 
-      {open && photo ? (
+      {photo && editing ? (
         <button
           type="button"
           data-card-content
           aria-label="Remove photo"
           onClick={(event) => {
             event.stopPropagation();
-            removePhoto();
+            onPhotoChange(null);
+            setEditing(false);
           }}
           className="absolute top-1.5 right-1.5 z-10 flex items-center justify-center transition-opacity active:opacity-60"
         >

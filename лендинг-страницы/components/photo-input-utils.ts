@@ -71,14 +71,9 @@ export function openSelfiePicker(onPhoto: PhotoHandler, onDismiss?: () => void) 
   openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss, "user");
 }
 
-/** Card avatar — photo library; extension list opens Photos without the iOS action sheet. */
-export function openCardGalleryPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openFileInputPicker(PORTFOLIO_GALLERY_ACCEPT, prepareCardPhotoForStorage, onPhoto, onDismiss);
-}
-
-/** Card avatar — Files app; document/media accept opens Files without the iOS action sheet. */
-export function openCardFilePicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openFileInputPicker(PORTFOLIO_FILE_ACCEPT, prepareCardPhotoForStorage, onPhoto, onDismiss);
+/** Card avatar — native iOS sheet (Photo Library / Take Photo / Choose File). */
+export function openNativePhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss);
 }
 
 /** Portfolio attachment — photo library; images compressed to attachment size. */
