@@ -84,6 +84,14 @@ export function openSelfiePicker(
   openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss, "user");
 }
 
+/** Card photo slot — iOS native sheet (Photo Library / Take Photo / Choose File). */
+export function openNativePhotoPicker(
+  onPhoto: (photo: string, file: File) => void,
+  onDismiss?: () => void,
+) {
+  openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss);
+}
+
 /** Photo library — extensions only, no capture, no image/* wildcard. */
 export function openGalleryPicker(
   onPhoto: (photo: string, file: File) => void,
