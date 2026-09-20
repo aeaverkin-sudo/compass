@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getShare, getSharePayload, markShareViewed } from "@/shared/lib/share-store";
+import { getShare } from "@/shared/lib/share-store";
 
 export async function GET(
   _request: Request,
@@ -12,11 +12,8 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const payload = getSharePayload(entry);
-  markShareViewed(token);
-
   return NextResponse.json({
-    snapshot: payload.snapshot,
-    ownerName: payload.ownerName,
+    viewCount: entry.viewCount,
+    nextScanDelivered: Boolean(entry.nextScanDelivered),
   });
 }

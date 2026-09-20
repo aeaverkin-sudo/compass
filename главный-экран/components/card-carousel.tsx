@@ -41,6 +41,7 @@ const EMPTY_DRAFT: Card = {
   displayName: "",
   title: "",
   contactItemIds: [],
+  nextScanAddons: [],
   createdAt: "",
   updatedAt: "",
 };
@@ -197,6 +198,7 @@ export function CardCarousel({
         onEmptyAreaTap={handleEmptyAreaTap}
         onPhotoChange={(photo) => handlePhotoChange(activeCard.id, photo)}
         onDisplayNameChange={(displayName) => onUpdateCard(activeCard.id, { displayName })}
+        onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
       />
     );
   }
@@ -237,6 +239,7 @@ export function CardCarousel({
                   onDisplayNameChange={(displayName) =>
                     onUpdateCard(cards[index]!.id, { displayName })
                   }
+                  onCardUpdate={(data) => onUpdateCard(cards[index]!.id, data)}
                 />
               )}
             </div>

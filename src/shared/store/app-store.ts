@@ -5,10 +5,16 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { MAX_CARDS } from "@main/layout";
 import {
+  contactItemFromAttachment,
   createEmptyContactItem,
   isContactFilled,
   normalizeContactItem,
 } from "@/shared/services/contact-item";
+import {
+  type PortfolioValidationResult,
+  validatePortfolioAttachment,
+} from "@/shared/services/portfolio-limits";
+import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import type { Card, ContactItem, User } from "@/shared/types";
 
 type OnboardingPayload = {
@@ -32,6 +38,12 @@ interface AppState {
   updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo">>) => void;
   addContactItemForCard: (cardId: string) => boolean;
   updateContactItem: (itemId: string, data: Partial<Pick<ContactItem, "value">>) => void;
+  updateContactItemAttachment: (
+    cardId: string,
+    itemId: string,
+    file: File,
+    dataUrl: string,
+  ) => PortfolioValidationResult;
   addItemToCard: (cardId: string, itemId: string) => void;
   removeItemFromCard: (cardId: string, itemId: string) => void;
   deleteContactItem: (itemId: string) => void;
@@ -82,6 +94,7 @@ export const useAppStore = create<AppState>()(
           photo,
           title: existing?.title ?? "",
           contactItemIds: existing?.contactItemIds ?? [],
+          nextScanAddons: existing?.nextScanAddons ?? [],
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
         };
@@ -110,6 +123,7 @@ export const useAppStore = create<AppState>()(
           displayName: "",
           title: "",
           contactItemIds: [],
+          nextScanAddons: [],
           createdAt: now,
           updatedAt: now,
         };
@@ -160,6 +174,29 @@ export const useAppStore = create<AppState>()(
             return normalizeContactItem(item, data.value);
           }),
         });
+      },
+
+      updateContactItemAttachment: (cardId, itemId, file, dataUrl) => {
+        const { cards, contactItems } = get();
+        const card = cards.find((entry) => entry.id === cardId);
+        if (!card) return { ok: false, message: "Card not found." };
+
+        const attachmentType = detectAttachmentType(file);
+        const validation = validatePortfolioAttachment(
+          file,
+          attachmentType,
+          card,
+          contactItems,
+          itemId,
+        );
+        if (!validation.ok) return validation;
+
+        set({
+          contactItems: contactItems.map((item) =>
+            item.id === itemId ? contactItemFromAttachment(item, file, dataUrl) : item,
+          ),
+        });
+        return { ok: true };
       },
 
       addItemToCard: (cardId, itemId) => {
@@ -217,6 +254,7 @@ export const useAppStore = create<AppState>()(
             photo: data.photo,
             title: "",
             contactItemIds: [],
+            nextScanAddons: [],
             createdAt: now,
             updatedAt: now,
           };

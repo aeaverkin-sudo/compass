@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { layoutTop, type MainScreenMode } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -31,11 +31,13 @@ export function MainScreen() {
   const addCard = useAppStore((state) => state.addCard);
   const updateCard = useAppStore((state) => state.updateCard);
   const [mode, setMode] = useState<MainScreenMode>("browse");
+  const wasCardReady = useRef(false);
 
   const activeCard = useMemo(
     () => selectActiveCard(cards, currentCardIndex),
     [cards, currentCardIndex],
   );
+  const cardReady = Boolean(activeCard && isCardReady(activeCard));
   const showAddSlide = canAddMoreCards(cards);
 
   useShareSync();
@@ -43,9 +45,23 @@ export function MainScreen() {
   const pdfUrl = useMemo(() => buildPdfUrl(shareToken), [shareToken]);
   const layout = useMainLayout();
 
+  useEffect(() => {
+    if (!activeCard) return;
+
+    if (cardReady && !wasCardReady.current) {
+      setMode("library");
+    }
+    if (!cardReady) {
+      setMode("browse");
+    }
+
+    wasCardReady.current = cardReady;
+  }, [activeCard, cardReady]);
+
   const toggleMode = useCallback(() => {
+    if (!activeCard || !isCardReady(activeCard)) return;
     setMode((current) => (current === "browse" ? "library" : "browse"));
-  }, []);
+  }, [activeCard]);
 
   const handleAddCard = useCallback(() => {
     addCard();
@@ -64,12 +80,12 @@ export function MainScreen() {
       {/* Layer 0 — permanent background */}
       <div className="pointer-events-none absolute inset-0 z-0 bg-background-ready">
         {layout ? (
-          <QrZone url={pdfUrl} visible={isCardReady(activeCard)} topOffsetPx={layout.qrTop} />
+          <QrZone url={pdfUrl} visible={cardReady} topOffsetPx={layout.qrTop} />
         ) : null}
       </div>
 
       {/* Library — single stack panel to display edge with unified corners */}
-      {layout && mode === "library" ? (
+      {layout && cardReady && mode === "library" ? (
         <div
           className="compass-library-stack absolute inset-x-0 bottom-0 z-20 flex flex-col"
           style={{ top: layoutTop(layout.cardTopLibrary) }}
@@ -101,7 +117,7 @@ export function MainScreen() {
       ) : null}
 
       {/* Three dots — fixed in gap below browse card; same spot to enter/exit library */}
-      {layout ? (
+      {layout && cardReady ? (
         <BrowseMenuButton centerYpx={layout.browseMenuCenterY} mode={mode} onTap={toggleMode} />
       ) : null}
 

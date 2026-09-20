@@ -1,20 +1,19 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-  EMPTY_CONTACT_PLACEHOLDER,
   isContactFilled,
   isItemOnCard,
+  rowTypeLabel,
   sortContactList,
-  typeLabel,
 } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
+import { LibraryComposer } from "./library-composer";
 
 const MENU_BUTTON_HALF_PX = 22;
-/** Match photo slot border — 1px hairline weight. */
 const FILL_ICON_STROKE = 1;
 
 type LibraryFillPanelProps = {
@@ -34,8 +33,6 @@ function CardToggleButton({
   onAdd: () => void;
   onRemove: () => void;
 }) {
-  if (!isContactFilled(item)) return <span className="inline-block size-7 shrink-0" aria-hidden />;
-
   return (
     <button
       type="button"
@@ -52,23 +49,76 @@ function CardToggleButton({
   );
 }
 
+function FilledRow({
+  item,
+  onCard,
+  onEdit,
+  onAdd,
+  onRemove,
+}: {
+  item: ContactItem;
+  onCard: boolean;
+  onEdit: () => void;
+  onAdd: () => void;
+  onRemove: () => void;
+}) {
+  const label = rowTypeLabel(item);
+
+  return (
+    <li
+      className="grid grid-cols-[28px_72px_minmax(0,1fr)] items-center gap-x-2 py-2.5"
+    >
+      <CardToggleButton item={item} onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
+      {label ? (
+        <span className="truncate text-[13px] leading-none text-hint">{label}</span>
+      ) : (
+        <span aria-hidden />
+      )}
+      <button
+        type="button"
+        onClick={onEdit}
+        className="min-w-0 truncate text-left text-[15px] font-semibold leading-[1.35] text-foreground"
+      >
+        {item.value}
+      </button>
+    </li>
+  );
+}
+
 export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFillPanelProps) {
   const contactItems = useAppStore((state) => state.contactItems);
   const addContactItemForCard = useAppStore((state) => state.addContactItemForCard);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
+  const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
   const addItemToCard = useAppStore((state) => state.addItemToCard);
   const removeItemFromCard = useAppStore((state) => state.removeItemFromCard);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
 
   const rows = useMemo(
     () => sortContactList(contactItems, card.contactItemIds),
     [contactItems, card.contactItemIds],
   );
+  const filledRows = useMemo(() => rows.filter((item) => isContactFilled(item)), [rows]);
   const contentZoneHeight = Math.max(0, menuCenterYpx - panelTopPx - MENU_BUTTON_HALF_PX);
   const canAddRow = !contactItems.some((item) => !isContactFilled(item));
 
+  const editingItem = useMemo(
+    () => (editingId ? contactItems.find((item) => item.id === editingId) ?? null : null),
+    [contactItems, editingId],
+  );
+  const composerOpen = editingItem !== null;
+
   const handleAddRow = () => {
-    addContactItemForCard(card.id);
+    if (!canAddRow) return;
+    if (addContactItemForCard(card.id)) {
+      const draft = useAppStore
+        .getState()
+        .contactItems.find((item) => !isContactFilled(item));
+      if (draft) setEditingId(draft.id);
+    }
   };
 
   const handleRemoveRow = (item: ContactItem) => {
@@ -79,72 +129,79 @@ export function LibraryFillPanel({ card, panelTopPx, menuCenterYpx }: LibraryFil
     removeItemFromCard(card.id, item.id);
   };
 
+  const handleComposerBlur = useCallback(() => {
+    if (!editingId) return;
+
+    const item = useAppStore.getState().contactItems.find((row) => row.id === editingId);
+    if (item && !isContactFilled(item)) {
+      deleteContactItem(editingId);
+    }
+    setEditingId(null);
+  }, [deleteContactItem, editingId]);
+
+  useEffect(() => {
+    if (!composerOpen) return;
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [composerOpen]);
+
   return (
     <div className="compass-library-panel-bottom relative min-h-0 flex-1">
       <div
         className="absolute inset-x-0 top-0 flex flex-col items-center justify-center overflow-y-auto px-4"
         style={{ height: contentZoneHeight }}
       >
-        <div className="flex w-full max-w-[360px] flex-col items-center">
-          {rows.length > 0 ? (
-            <ul className="w-full divide-y divide-hairline/25">
-              {rows.map((item) => {
-                const filled = isContactFilled(item);
-                const onCard = isItemOnCard(card, item.id);
-                const label = typeLabel(item.type);
-
-                return (
-                  <li
+        {!composerOpen ? (
+          <div className="flex w-full max-w-[360px] flex-col items-center">
+            {filledRows.length > 0 ? (
+              <ul className="w-full divide-y divide-hairline/25">
+                {filledRows.map((item) => (
+                  <FilledRow
                     key={item.id}
-                    className="grid grid-cols-[28px_72px_minmax(0,1fr)] items-center gap-x-2 py-2.5"
-                  >
-                    <CardToggleButton
-                      item={item}
-                      onCard={onCard}
-                      onAdd={() => addItemToCard(card.id, item.id)}
-                      onRemove={() => handleRemoveRow(item)}
-                    />
-                    <span
-                      className={cn(
-                        "truncate text-[13px] leading-none",
-                        filled ? "text-hint" : "text-hint/70",
-                      )}
-                    >
-                      {label}
-                    </span>
-                    <input
-                      type="text"
-                      value={item.value}
-                      placeholder={EMPTY_CONTACT_PLACEHOLDER}
-                      aria-label={label || "Contact field"}
-                      onChange={(event) => updateContactItem(item.id, { value: event.target.value })}
-                      className={cn(
-                        "compass-input min-w-0 bg-transparent text-left text-[15px] leading-[1.35] text-foreground outline-none",
-                        "placeholder:font-normal placeholder:text-hint",
-                        filled && "font-semibold",
-                      )}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
+                    item={item}
+                    onCard={isItemOnCard(card, item.id)}
+                    onEdit={() => setEditingId(item.id)}
+                    onAdd={() => addItemToCard(card.id, item.id)}
+                    onRemove={() => handleRemoveRow(item)}
+                  />
+                ))}
+              </ul>
+            ) : null}
 
-          <button
-            type="button"
-            aria-label="Add contact row"
-            disabled={!canAddRow}
-            onClick={handleAddRow}
-            className={cn(
-              "flex size-10 shrink-0 items-center justify-center transition-opacity active:opacity-60",
-              rows.length > 0 && "mt-2",
-              !canAddRow && "cursor-default opacity-40",
-            )}
-          >
-            <Plus className="size-6 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
-          </button>
-        </div>
+            <button
+              type="button"
+              aria-label="Add contact row"
+              disabled={!canAddRow}
+              onClick={handleAddRow}
+              className={cn(
+                "flex size-10 shrink-0 items-center justify-center transition-opacity active:opacity-60",
+                filledRows.length > 0 && "mt-2",
+                !canAddRow && "cursor-default opacity-40",
+              )}
+            >
+              <Plus className="size-6 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+            </button>
+          </div>
+        ) : null}
       </div>
+
+      {composerOpen && editingItem ? (
+        <LibraryComposer
+          item={editingItem}
+          attachmentError={attachmentError}
+          onValueChange={(value) => updateContactItem(editingItem.id, { value })}
+          onAttachment={(file, dataUrl) => {
+            const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
+            if (!result.ok) {
+              setAttachmentError(result.message);
+              return;
+            }
+            setAttachmentError(null);
+          }}
+          onBlur={handleComposerBlur}
+        />
+      ) : null}
     </div>
   );
 }

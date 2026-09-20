@@ -34,7 +34,10 @@ export function PhotoSourceMenu({
           type="button"
           role="menuitem"
           aria-label={label}
-          onClick={() => onPick(id)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onPick(id);
+          }}
           className="flex items-center justify-center transition-opacity active:opacity-60"
         >
           <Icon className={iconClassName} strokeWidth={1.25} aria-hidden />

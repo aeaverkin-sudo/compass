@@ -5,7 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { PhotoSourceMenu, type PhotoSource } from "./photo-source-menu";
-import { HIDDEN_INPUT, openSelfiePicker, preparePhotoForStorage } from "./photo-input-utils";
+import {
+  openDocumentPicker,
+  openGalleryPicker,
+  openSelfiePicker,
+} from "./photo-input-utils";
 
 export const LANDING_PHOTO_SIZE_PX = 149.76;
 const LONG_PRESS_MS = 800;
@@ -33,8 +37,6 @@ export function PhotoSlotPicker({
   surfaceClassName = "bg-background-ready",
 }: PhotoSlotPickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
 
   const iconSize =
@@ -60,20 +62,24 @@ export function PhotoSlotPicker({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
-  const onFile = async (file: File | undefined, input: HTMLInputElement) => {
-    if (!file) return;
-    onPhotoChange(await preparePhotoForStorage(file));
-    input.value = "";
-  };
+  const closeMenu = () => setOpen(false);
 
   const openPicker = (action: PhotoSource) => {
-    setOpen(false);
+    const onPick = (nextPhoto: string) => {
+      onPhotoChange(nextPhoto);
+      closeMenu();
+    };
+    const onDismiss = () => closeMenu();
+
     if (action === "selfie") {
-      openSelfiePicker((nextPhoto) => onPhotoChange(nextPhoto));
+      openSelfiePicker(onPick, onDismiss);
       return;
     }
-    if (action === "gallery") galleryRef.current?.click();
-    if (action === "file") fileRef.current?.click();
+    if (action === "gallery") {
+      openGalleryPicker(onPick, onDismiss);
+      return;
+    }
+    openDocumentPicker(onPick, onDismiss);
   };
 
   const removePhoto = () => {
@@ -136,25 +142,6 @@ export function PhotoSlotPicker({
           <X className={removeIconSize} strokeWidth={1.25} aria-hidden />
         </button>
       ) : null}
-
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/*"
-        className={HIDDEN_INPUT}
-        tabIndex={-1}
-        aria-hidden
-        onChange={(event) => onFile(event.target.files?.[0], event.target)}
-      />
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*,application/pdf"
-        className={HIDDEN_INPUT}
-        tabIndex={-1}
-        aria-hidden
-        onChange={(event) => onFile(event.target.files?.[0], event.target)}
-      />
     </div>
   );
 }

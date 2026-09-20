@@ -1,4 +1,4 @@
-import type { Card, CardSnapshot, ContactItem } from "@/shared/types";
+import type { Card, CardSnapshot, ContactItem, NextScanAddon } from "@/shared/types";
 
 export function getCardItems(card: Card, library: ContactItem[]) {
   return library
@@ -6,7 +6,12 @@ export function getCardItems(card: Card, library: ContactItem[]) {
     .sort((a, b) => a.order - b.order);
 }
 
+export function getNextScanAddons(card: Card): NextScanAddon[] {
+  return card.nextScanAddons ?? [];
+}
+
 export function buildCardSnapshot(card: Card, library: ContactItem[]): CardSnapshot {
+  const nextScanAddons = getNextScanAddons(card);
   return {
     displayName: card.displayName,
     photo: card.photo,
@@ -14,5 +19,6 @@ export function buildCardSnapshot(card: Card, library: ContactItem[]): CardSnaps
     subtitle: "",
     description: "",
     items: getCardItems(card, library),
+    nextScanAddons: nextScanAddons.length > 0 ? nextScanAddons : undefined,
   };
 }

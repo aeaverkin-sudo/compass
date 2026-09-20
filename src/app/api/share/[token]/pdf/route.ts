@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getShare } from "@/shared/lib/share-store";
+import { getShare, getSharePayload, markShareViewed } from "@/shared/lib/share-store";
 import { cardPdfFilename, generateCardPdf } from "@/shared/services/card-pdf";
 
 export async function GET(
@@ -13,8 +13,10 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const pdfBytes = await generateCardPdf(entry.snapshot);
-  const filename = cardPdfFilename(entry.snapshot);
+  const payload = getSharePayload(entry);
+  markShareViewed(token);
+  const pdfBytes = await generateCardPdf(payload.snapshot);
+  const filename = cardPdfFilename(payload.snapshot);
 
   return new NextResponse(Buffer.from(pdfBytes), {
     headers: {

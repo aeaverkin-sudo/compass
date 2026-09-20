@@ -5,8 +5,9 @@ import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
-import { getCardItems } from "@/shared/services/card-snapshot";
+import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
 import { typeLabel } from "@/shared/services/contact-item";
+import { NextScanMenu } from "./next-scan-menu";
 import {
   browseCardHeight,
   CARD_PHOTO_RADIUS_PX,
@@ -27,6 +28,7 @@ type BusinessCardProps = {
   onEmptyAreaTap: () => void;
   onPhotoChange?: (photo: string | null) => void;
   onDisplayNameChange?: (displayName: string) => void;
+  onCardUpdate?: (data: Partial<Card>) => void;
 };
 
 function ContactChip({ item, compact }: { item: ContactItem; compact: boolean }) {
@@ -46,11 +48,21 @@ function ContactChip({ item, compact }: { item: ContactItem; compact: boolean })
 }
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
-  { card, library, mode, libraryCardHeightPx, onEmptyAreaTap, onPhotoChange, onDisplayNameChange },
+  {
+    card,
+    library,
+    mode,
+    libraryCardHeightPx,
+    onEmptyAreaTap,
+    onPhotoChange,
+    onDisplayNameChange,
+    onCardUpdate,
+  },
   ref,
 ) {
   const items = getCardItems(card, library);
   const compact = mode === "library";
+  const nextScanAddons = getNextScanAddons(card);
 
   const handleClick = (event: MouseEvent<HTMLElement>) => {
     if ((event.target as HTMLElement).closest("[data-card-content]")) return;
@@ -74,7 +86,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         "compass-card compass-layer flex w-full cursor-default flex-col transition-[transform,box-shadow,height] duration-[460ms] ease-out",
         compact
           ? "compass-card-library min-h-0 items-center justify-start px-5 pb-3"
-          : "min-h-0 overflow-hidden px-5 pb-5",
+          : "relative min-h-0 overflow-hidden px-5 pb-5",
       )}
       style={
         compact
@@ -88,6 +100,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }
       }
     >
+      {!compact && onCardUpdate && card.displayName.trim() && card.photo ? (
+        <NextScanMenu
+          addons={nextScanAddons}
+          onSetAddons={(addons) => onCardUpdate({ nextScanAddons: addons })}
+        />
+      ) : null}
+
       <div className={cn("flex flex-col items-center", !compact && "w-full shrink-0")}>
         {onPhotoChange ? (
           <PhotoSlotPicker

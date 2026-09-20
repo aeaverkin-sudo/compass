@@ -58,10 +58,39 @@ export function SharePdfPage({ token, pdfMode }: SharePdfPageProps) {
     );
   }
 
+  const nextScanSelfie = snapshot.nextScanAddons?.find((addon) => addon.type === "selfie");
+  const nextScanNotes = snapshot.nextScanAddons?.filter((addon) => addon.type !== "selfie") ?? [];
+
   return (
     <div className="flex h-lvh flex-col items-center justify-center bg-background px-8 text-center">
       <p className="text-[22px] text-foreground">{snapshot.displayName}</p>
       {snapshot.title ? <p className="mt-2 text-[14px] text-hint">{snapshot.title}</p> : null}
+
+      {nextScanSelfie ? (
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-hint">Selfie</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={nextScanSelfie.content}
+            alt=""
+            className="size-[120px] rounded-[18px] border border-hairline object-cover"
+          />
+        </div>
+      ) : null}
+
+      {nextScanNotes.length > 0 ? (
+        <ul className="mt-6 w-full max-w-sm space-y-2 text-left">
+          {nextScanNotes.map((addon) => (
+            <li key={addon.id} className="rounded-[12px] border border-hairline/30 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-hint">
+                {addon.type === "voice" ? "Voice note" : "Note"}
+              </p>
+              <p className="mt-1 text-[13px] leading-snug text-foreground">{addon.content}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
       <button
         type="button"
         onClick={() => void downloadPdf(snapshot)}
