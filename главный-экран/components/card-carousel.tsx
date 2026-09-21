@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
+import { cn } from "@/lib/utils";
 import {
   CARD_CAROUSEL_GAP_PX,
   CARD_CAROUSEL_PEEK_PX,
@@ -65,24 +66,29 @@ export function CardCarousel({
   const [containerWidth, setContainerWidth] = useState(0);
 
   const isBrowse = mode === "browse";
-  const multiSlide = cards.length > 1 || canAddCard;
+  const isLibrary = mode === "library";
+  // Library: swipe only when 2+ cards; keep single-card preview layout unchanged.
+  const multiSlide = isBrowse ? cards.length > 1 || canAddCard : cards.length > 1;
   const activeCard = cards[activeIndex] ?? cards[0];
 
   const slideIds = useMemo(() => {
     const ids = cards.map((card) => card.id);
-    if (canAddCard) ids.push(ADD_SLIDE_ID);
+    if (isBrowse && canAddCard) ids.push(ADD_SLIDE_ID);
     return ids;
-  }, [cards, canAddCard]);
+  }, [cards, isBrowse, canAddCard]);
 
   const slideWidthPx = useMemo(() => {
     if (!multiSlide || containerWidth === 0) return 0;
+    // Library preview fills the white panel plate — no peek, no gray gutters.
+    if (isLibrary) return containerWidth;
     return containerWidth - 2 * CARD_CAROUSEL_PEEK_PX - CARD_CAROUSEL_GAP_PX;
-  }, [containerWidth, multiSlide]);
+  }, [containerWidth, isLibrary, multiSlide]);
 
   const sidePaddingPx = useMemo(() => {
     if (!multiSlide || slideWidthPx === 0 || containerWidth === 0) return 0;
+    if (isLibrary) return 0;
     return (containerWidth - slideWidthPx) / 2;
-  }, [containerWidth, multiSlide, slideWidthPx]);
+  }, [containerWidth, isLibrary, multiSlide, slideWidthPx]);
 
   useLayoutEffect(() => {
     const node = scrollRef.current;
@@ -254,10 +260,13 @@ export function CardCarousel({
     <div className="h-full overflow-hidden">
       <div
         ref={scrollRef}
-        className="compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background-ready"
+        className={cn(
+          "compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden",
+          isBrowse ? "bg-background-ready" : "bg-transparent",
+        )}
         onScroll={handleScroll}
       >
-        <div className="flex h-full" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
+        <div className="flex h-full" style={{ gap: isLibrary ? 0 : CARD_CAROUSEL_GAP_PX }}>
           <CarouselSpacer width={sidePaddingPx} />
           {slideIds.map((slideId, index) => (
             <div
