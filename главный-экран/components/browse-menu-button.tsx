@@ -1,7 +1,7 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
-import { layoutTop, QR_COLOR, type MainScreenMode } from "../layout";
+import { cn } from "@/lib/utils";
+import { layoutTop, type MainScreenMode } from "../layout";
 
 type BrowseMenuButtonProps = {
   centerYpx: number;
@@ -11,6 +11,7 @@ type BrowseMenuButtonProps = {
 
 export function BrowseMenuButton({ centerYpx, mode, onTap }: BrowseMenuButtonProps) {
   const expanded = mode === "library";
+  const activeIndex = expanded ? 1 : 0;
 
   return (
     <button
@@ -18,10 +19,21 @@ export function BrowseMenuButton({ centerYpx, mode, onTap }: BrowseMenuButtonPro
       aria-label={expanded ? "Close content menu" : "Open content menu"}
       aria-expanded={expanded}
       onClick={onTap}
-      className="pointer-events-auto absolute left-1/2 z-30 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center transition-opacity active:opacity-60"
+      className="pointer-events-auto absolute left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 px-2 py-2 transition-opacity active:opacity-60"
       style={{ top: layoutTop(centerYpx) }}
     >
-      <MoreHorizontal className="size-7" strokeWidth={2.25} style={{ color: QR_COLOR }} aria-hidden />
+      {[0, 1, 2].map((index) => (
+        <span
+          key={index}
+          aria-hidden
+          className={cn(
+            "size-2 rounded-full",
+            index === activeIndex
+              ? "bg-foreground"
+              : "border border-[#D8D2C4] bg-transparent",
+          )}
+        />
+      ))}
     </button>
   );
 }
