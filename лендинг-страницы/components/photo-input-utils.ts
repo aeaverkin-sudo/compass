@@ -32,6 +32,7 @@ function openFileInputPicker(
 ) {
   const input = mountPickerInput(accept, capture);
   let closed = false;
+  const openedAt = Date.now();
 
   const close = () => {
     if (closed) return;
@@ -42,7 +43,14 @@ function openFileInputPicker(
   };
 
   const onWindowFocus = () => {
-    window.setTimeout(close, 300);
+    window.setTimeout(() => {
+      if (closed) return;
+      // iOS fires focus when the native sheet opens — ignore early events.
+      if (Date.now() - openedAt < 500) return;
+      // File chosen — change handler owns cleanup after async prepare.
+      if (input.files?.length) return;
+      close();
+    }, 200);
   };
 
   input.addEventListener(

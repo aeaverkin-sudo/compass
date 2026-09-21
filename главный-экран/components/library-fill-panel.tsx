@@ -12,6 +12,7 @@ import {
 } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
+import { isAttachmentType } from "@/shared/services/portfolio-limits";
 import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { PANEL_BORDER_WIDTH_PX } from "../layout";
 import { LibraryComposer } from "./library-composer";
@@ -86,10 +87,21 @@ function FilledRow({
         type="button"
         onClick={onEdit}
         className={cn(
-          "flex w-full min-w-0 items-center overflow-hidden text-left text-[15px] leading-[1.5]",
+          "flex w-full min-w-0 items-center gap-2 overflow-hidden text-left text-[15px] leading-[1.5]",
           onCard ? "font-semibold text-foreground" : "font-normal text-label",
         )}
       >
+        {item.type === "photo" && item.url.startsWith("data:") ? (
+          <img
+            src={item.url}
+            alt=""
+            className="size-8 shrink-0 rounded-[10px] object-cover"
+          />
+        ) : isAttachmentType(item.type) && item.url ? (
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-background text-[10px] font-medium uppercase text-label">
+            {item.type.slice(0, 3)}
+          </span>
+        ) : null}
         <span className="min-w-0 w-full whitespace-normal wrap-anywhere break-words">
           {itemDisplayValue(item)}
         </span>
@@ -200,14 +212,8 @@ export function LibraryFillPanel({
     <div className="compass-library-panel-bottom relative flex min-h-0 flex-1 flex-col">
       {composerOpen && editingItem ? (
         <div
-          className={cn(
-            "mx-auto w-full shrink-0 px-4",
-            keyboardOpen && "pointer-events-none h-0 overflow-hidden p-0",
-          )}
-          style={
-            keyboardOpen ? undefined : { ...listWidthStyle, marginBottom: PANEL_BORDER_WIDTH_PX }
-          }
-          aria-hidden={keyboardOpen}
+          className="mx-auto w-full shrink-0 px-4"
+          style={{ ...listWidthStyle, marginBottom: PANEL_BORDER_WIDTH_PX }}
         >
           <LibraryComposer
             item={editingItem}
@@ -227,12 +233,13 @@ export function LibraryFillPanel({
         </div>
       ) : null}
 
+      {composerOpen && keyboardOpen ? null : (
       <div
         className="compass-library-list mx-auto flex min-h-0 flex-col overflow-hidden px-4"
         style={{
-          height: composerOpen && !keyboardOpen ? undefined : contentZoneHeight,
-          maxHeight: contentZoneHeight,
-          flex: composerOpen && !keyboardOpen ? "1 1 0" : undefined,
+          height: composerOpen ? undefined : contentZoneHeight,
+          maxHeight: composerOpen ? undefined : contentZoneHeight,
+          flex: composerOpen ? "1 1 0" : undefined,
           ...listWidthStyle,
         }}
       >
@@ -287,6 +294,7 @@ export function LibraryFillPanel({
         </div>
         ) : null}
       </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,9 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 const FILL_ICON_STROKE = 1;
 const TEXTAREA_MAX_PX = 120;
 const KEYBOARD_DOCK_PADDING_PX = 0;
+const BLUR_GUARD_MS = 300;
+/** Masks the seam between the composer pill and the iOS input accessory bar. */
+const DOCK_SEAM_FADE_PX = 22;
 
 type LibraryComposerProps = {
   item: ContactItem;
@@ -35,6 +38,7 @@ export function LibraryComposer({
   const mountedAt = useRef(0);
   const { keyboardOpen, keyboardInset } = useVisualViewport();
   const dockedAboveKeyboard = keyboardOpen;
+  const hasPhotoPreview = item.type === "photo" && item.url.startsWith("data:");
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -72,19 +76,22 @@ export function LibraryComposer({
     };
   }, []);
 
+  const restoreFocus = useCallback(() => {
+    window.setTimeout(() => {
+      pickingRef.current = false;
+      textareaRef.current?.focus({ preventScroll: true });
+    }, 120);
+  }, []);
+
   const handleAttach = () => {
     pickingRef.current = true;
 
     openContactAttachmentPicker(
       (dataUrl, file) => {
-        pickingRef.current = false;
         onAttachment(file, dataUrl);
-        textareaRef.current?.focus();
+        restoreFocus();
       },
-      () => {
-        pickingRef.current = false;
-        textareaRef.current?.focus();
-      },
+      restoreFocus,
     );
   };
 
@@ -95,7 +102,7 @@ export function LibraryComposer({
       if (textareaRef.current && document.activeElement === textareaRef.current) return;
       if (rootRef.current?.contains(document.activeElement)) return;
       onBlur();
-    }, 180);
+    }, BLUR_GUARD_MS);
   };
 
   const pillWidthStyle = contentWidthPx ? { width: contentWidthPx, maxWidth: "100%" } : undefined;
@@ -116,42 +123,66 @@ export function LibraryComposer({
       }
     >
       <div
-        className={cn("w-full", dockedAboveKeyboard && "pointer-events-auto shrink-0")}
+        className={cn(
+          "relative w-full",
+          dockedAboveKeyboard && "pointer-events-auto shrink-0",
+        )}
         style={pillWidthStyle}
       >
-      {attachmentError ? (
-        <p className="mb-2 px-1 text-center text-[12px] leading-snug text-destructive">
-          {attachmentError}
-        </p>
-      ) : null}
+        {attachmentError ? (
+          <p className="mb-2 px-1 text-center text-[12px] leading-snug text-destructive">
+            {attachmentError}
+          </p>
+        ) : null}
 
-      <div className="compass-block flex items-center gap-2 rounded-[22px] px-3 py-2">
-        <button
-          type="button"
-          aria-label="Add photo or file"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={handleAttach}
-          className="flex size-8 shrink-0 items-center justify-center transition-opacity active:opacity-60"
+        <div
+          className={cn(
+            "compass-block flex items-center gap-2 rounded-[22px] px-3 py-2",
+            dockedAboveKeyboard && "rounded-b-none border-b-0 shadow-none",
+          )}
         >
-          <Plus className="size-5 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
-        </button>
+          {hasPhotoPreview ? (
+            <img
+              src={item.url}
+              alt=""
+              className="size-10 shrink-0 rounded-[12px] object-cover"
+            />
+          ) : (
+            <button
+              type="button"
+              aria-label="Add photo or file"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={handleAttach}
+              className="flex size-8 shrink-0 items-center justify-center transition-opacity active:opacity-60"
+            >
+              <Plus className="size-5 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+            </button>
+          )}
 
-        <div className="min-w-0 flex-1">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={item.value}
-            placeholder={EMPTY_CONTACT_PLACEHOLDER}
-            aria-label="Contact field"
-            onChange={(event) => onValueChange(event.target.value)}
-            onBlur={handleBlur}
-            className={cn(
-              "compass-input block w-full resize-none overflow-y-auto bg-transparent text-[16px] leading-[1.35] text-foreground outline-none",
-              "placeholder:font-normal placeholder:text-hint",
-            )}
-          />
+          <div className="min-w-0 flex-1">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={item.value}
+              placeholder={hasPhotoPreview ? item.label || "Photo" : EMPTY_CONTACT_PLACEHOLDER}
+              aria-label="Contact field"
+              onChange={(event) => onValueChange(event.target.value)}
+              onBlur={handleBlur}
+              className={cn(
+                "compass-input block w-full resize-none overflow-y-auto bg-transparent text-[16px] leading-[1.35] text-foreground outline-none",
+                "placeholder:font-normal placeholder:text-hint",
+              )}
+            />
+          </div>
         </div>
-      </div>
+
+        {dockedAboveKeyboard ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-full z-10 bg-gradient-to-b from-sheet via-sheet/55 to-transparent"
+            style={{ height: DOCK_SEAM_FADE_PX }}
+          />
+        ) : null}
       </div>
     </div>
   );

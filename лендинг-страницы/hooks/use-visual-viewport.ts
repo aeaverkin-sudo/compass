@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type VisualViewportState = {
   offsetTop: number;
@@ -15,6 +15,9 @@ function layoutHeight() {
 }
 
 /** Track iOS visual viewport — keyboard shrinks it even when layout height stays fixed. */
+const KEYBOARD_OPEN_INSET_PX = 80;
+const KEYBOARD_CLOSE_INSET_PX = 40;
+
 export function useVisualViewport() {
   const [state, setState] = useState<VisualViewportState>({
     offsetTop: 0,
@@ -22,6 +25,7 @@ export function useVisualViewport() {
     keyboardOpen: false,
     keyboardInset: 0,
   });
+  const keyboardOpenRef = useRef(false);
 
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -32,10 +36,13 @@ export function useVisualViewport() {
         0,
         layoutHeight() - viewport.height - viewport.offsetTop,
       );
+      if (keyboardInset > KEYBOARD_OPEN_INSET_PX) keyboardOpenRef.current = true;
+      else if (keyboardInset < KEYBOARD_CLOSE_INSET_PX) keyboardOpenRef.current = false;
+
       setState({
         offsetTop: viewport.offsetTop,
         height: viewport.height,
-        keyboardOpen: keyboardInset > 50,
+        keyboardOpen: keyboardOpenRef.current,
         keyboardInset,
       });
     };
