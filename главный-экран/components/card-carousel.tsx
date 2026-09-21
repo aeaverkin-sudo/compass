@@ -268,10 +268,8 @@ export function CardCarousel({
             <div
               key={slideId}
               className={cn(
-                "h-full shrink-0 snap-center overflow-hidden",
-                isBrowse
-                  ? "compass-card compass-layer rounded-[18px]"
-                  : "compass-library-panel-top",
+                "h-full shrink-0 snap-center overflow-hidden rounded-[18px]",
+                !isBrowse && "compass-library-panel-top",
               )}
               style={{ width: slideWidthPx }}
             >
