@@ -18,6 +18,8 @@ const MENU_BUTTON_HALF_PX = 22;
 const LIST_GAP_PX = 8;
 const COMPOSER_LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
+/** Half the + stroke — keeps the add button above the list panel border. */
+const ADD_BUTTON_BORDER_CLEARANCE_PX = FILL_ICON_STROKE / 2;
 
 type LibraryFillPanelProps = {
   card: Card;
@@ -202,7 +204,10 @@ export function LibraryFillPanel({
         }}
       >
         {!composerOpen ? (
-          <div className="flex w-full flex-col items-center">
+          <div
+            className="flex w-full flex-col items-center"
+            style={{ paddingBottom: ADD_BUTTON_BORDER_CLEARANCE_PX }}
+          >
             {filledRows.length > 0 ? (
               <ul className="grid w-full grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-divider">
                 {filledRows.map((item) => (
