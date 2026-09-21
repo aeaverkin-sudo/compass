@@ -169,7 +169,7 @@ export function MainScreen() {
         </>
       ) : null}
 
-      {/* Three dots — fixed in gap below browse card; hidden while composing a row */}
+      {/* Mode dots — fixed in gap below browse card; hidden while composing a row */}
       {layout && cardReady && !composerOpen ? (
         <BrowseMenuButton centerYpx={layout.browseMenuCenterY} mode={effectiveMode} onTap={toggleMode} />
       ) : null}

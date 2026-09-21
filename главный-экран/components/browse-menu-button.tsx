@@ -22,7 +22,7 @@ export function BrowseMenuButton({ centerYpx, mode, onTap }: BrowseMenuButtonPro
       className="pointer-events-auto absolute left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 px-2 py-2 transition-opacity active:opacity-60"
       style={{ top: layoutTop(centerYpx) }}
     >
-      {[0, 1, 2].map((index) => (
+      {[0, 1].map((index) => (
         <span
           key={index}
           aria-hidden
