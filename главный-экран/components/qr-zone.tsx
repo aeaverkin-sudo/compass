@@ -9,22 +9,41 @@ type QrZoneProps = {
   topOffsetPx: number;
 };
 
+const PLATE_PADDING = 6;
+
 export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
+  const codeSize = QR_SIZE - PLATE_PADDING * 2;
+
   return (
     <div
-      className="pointer-events-none absolute inset-x-0 flex justify-center"
+      className="pointer-events-none absolute inset-x-0 flex justify-center overflow-hidden"
       style={{ top: layoutTop(topOffsetPx), height: QR_SIZE }}
       aria-hidden={!visible}
     >
-      {visible ? (
-        <QRCodeSVG
-          value={url}
-          size={QR_SIZE}
-          level="M"
-          fgColor={QR_COLOR}
-          bgColor="#FFFFFF"
+      <div className="relative overflow-hidden" style={{ width: QR_SIZE, height: QR_SIZE }}>
+        <div
+          className="absolute inset-0 rounded-[28px]"
+          style={{
+            background:
+              "radial-gradient(circle at center, oklch(64% 0.19 45 / 0.18) 0%, oklch(64% 0.19 45 / 0) 72%)",
+            filter: "blur(5px)",
+          }}
         />
-      ) : null}
+        <div
+          className="relative flex h-full w-full items-center justify-center rounded-[12px]"
+          style={{ background: "var(--qr-plate)", padding: PLATE_PADDING }}
+        >
+          {visible ? (
+            <QRCodeSVG
+              value={url}
+              size={codeSize}
+              level="M"
+              fgColor={QR_COLOR}
+              bgColor="transparent"
+            />
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

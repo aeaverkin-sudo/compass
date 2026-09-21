@@ -1,24 +1,24 @@
 /** Layout offsets from the physical screen top (viewport-fit: cover). */
 
 export const QR_SIZE = 168;
-export const QR_COLOR = "#141414";
+export const QR_COLOR = "#C1571F";
 
 /** Browse card photo — 70% of QR size, ~0.5 cm below card top edge. */
 export const CARD_PHOTO_SIZE_PX = 118;
 export const CARD_PHOTO_TOP_PX = 19;
-export const CARD_PHOTO_RADIUS_PX = 21;
+export const CARD_PHOTO_RADIUS_PX = 13;
 
 /** Browse card name — ~0.2 cm below photo; matches draft card scale. */
-export const CARD_NAME_SIZE_PX = 28;
+export const CARD_NAME_SIZE_PX = 17;
 export const CARD_NAME_GAP_PX = 8;
 
 /** Library card photo — 2× previous 44px compact strip avatar. */
 export const LIBRARY_PHOTO_SIZE_PX = 88;
-export const LIBRARY_PHOTO_RADIUS_PX = 21;
+export const LIBRARY_PHOTO_RADIUS_PX = 14;
 
 /** Library stack — same top radius as browse card; bottom follows display curve. */
-export const CARD_RADIUS_PX = 27;
-export const LIBRARY_DISPLAY_RADIUS_PX = 27;
+export const CARD_RADIUS_PX = 18;
+export const LIBRARY_DISPLAY_RADIUS_PX = 22;
 
 /** Equal gap: safe-area bottom → QR top, and QR bottom → card top. */
 export const QR_GAP_SYMMETRIC_PX = 18;

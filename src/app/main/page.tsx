@@ -11,7 +11,7 @@ function applyMainChrome() {
 
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute("content", "#ffffff");
+    meta.setAttribute("content", "#f9f8f6");
   }
 }
 
@@ -31,7 +31,7 @@ export default function MainPage() {
   }, [hydrated, onboarded, router]);
 
   if (!hydrated || !onboarded) {
-    return <div className="fixed inset-0 bg-background" aria-hidden />;
+    return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
   }
 
   return <MainScreen />;

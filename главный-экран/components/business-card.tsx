@@ -154,7 +154,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             data-card-content
             src={card.photo}
             alt=""
-            className="shrink-0 border border-[rgba(20,20,20,0.55)] object-cover"
+            className="shrink-0 rounded-[13px] border border-hairline object-cover"
             style={{ width: CARD_PHOTO_SIZE_PX, height: CARD_PHOTO_SIZE_PX, borderRadius: CARD_PHOTO_RADIUS_PX }}
           />
         ) : null}

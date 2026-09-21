@@ -4,6 +4,7 @@ import { Camera, FileText, Mic, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { QR_COLOR } from "../layout";
 import { MAX_NEXT_SCAN_NOTES, type NextScanAddon } from "@/shared/types";
 import { openSelfiePicker } from "@landing/components/photo-input-utils";
 
@@ -126,14 +127,15 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
         }}
         onPointerDown={(event) => event.stopPropagation()}
         className={cn(
-          "compass-icon-circle relative size-8 transition-opacity active:opacity-60",
+          "relative flex size-8 items-center justify-center transition-opacity active:opacity-60",
           open && "z-[60]",
         )}
       >
-        <Plus className="size-4 text-label" strokeWidth={1} aria-hidden />
+        <Plus className="size-5 text-hairline" strokeWidth={1} aria-hidden />
         {addons.length > 0 ? (
           <span
-            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-none text-white"
+            className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none text-white"
+            style={{ backgroundColor: QR_COLOR }}
           >
             {addons.length}
           </span>
@@ -153,7 +155,7 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
             onPointerDown={(event) => event.stopPropagation()}
           />
           <div
-            className="compass-block absolute right-0 top-full z-50 mt-2 w-64 rounded-[22px] p-2"
+            className="absolute right-0 top-full z-50 mt-2 w-64 rounded-[14px] border border-hairline/30 bg-sheet p-2 shadow-[0_4px_24px_oklch(0%_0_0/0.12)]"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
             role="dialog"
@@ -167,7 +169,8 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
                     className="flex items-center gap-2 rounded-lg px-2 py-2"
                   >
                     <span
-                      className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-medium text-white"
+                      className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                      style={{ backgroundColor: QR_COLOR }}
                     >
                       {index + 1}
                     </span>

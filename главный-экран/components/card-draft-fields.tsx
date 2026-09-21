@@ -46,7 +46,7 @@ export function CardDraftFields({ card, onUpdate }: CardDraftFieldsProps) {
           autoCapitalize="words"
           onChange={(event) => onUpdate({ displayName: event.target.value })}
           onInput={(event) => onUpdate({ displayName: event.currentTarget.value })}
-          className="compass-input w-full bg-transparent px-0 py-0 text-center font-light leading-[1.2] text-foreground outline-none placeholder:text-hint"
+          className="compass-input w-full bg-transparent px-0 py-0 text-center font-light leading-[1.15] text-foreground outline-none placeholder:text-hint"
           style={{ fontSize: CARD_NAME_SIZE_PX }}
         />
       </label>

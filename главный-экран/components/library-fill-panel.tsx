@@ -40,15 +40,12 @@ function CardToggleButton({
       type="button"
       aria-label={onCard ? "Remove from card" : "Add to card"}
       onClick={onCard ? onRemove : onAdd}
-      className={cn(
-        "flex size-[22px] shrink-0 items-center justify-center rounded-full border bg-sheet transition-opacity active:opacity-60",
-        onCard ? "border-[rgba(20,20,20,0.55)]" : "border-[#D8D5CC]",
-      )}
+      className="flex size-7 shrink-0 items-center justify-center transition-opacity active:opacity-60"
     >
       {onCard ? (
-        <Minus className="size-3 text-foreground" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+        <Minus className="size-4 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
       ) : (
-        <Plus className="size-3 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+        <Plus className="size-4 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
       )}
     </button>
   );
@@ -70,9 +67,9 @@ function FilledRow({
   const label = rowTypeLabel(item);
 
   return (
-    <li className="col-span-3 grid grid-cols-subgrid items-stretch py-4">
+    <li className="col-span-3 grid grid-cols-subgrid items-stretch py-2.5">
       {label ? (
-        <span className="flex items-center justify-start whitespace-nowrap text-left text-[13px] font-normal leading-[1.4] text-label">
+        <span className="flex items-center justify-start whitespace-nowrap text-left text-[13px] font-light leading-[1.35] text-hairline">
           {label}
         </span>
       ) : (
@@ -82,8 +79,8 @@ function FilledRow({
         type="button"
         onClick={onEdit}
         className={cn(
-          "flex w-full min-w-0 items-center overflow-hidden text-left text-[15px] leading-[1.5]",
-          onCard ? "font-semibold text-foreground" : "font-normal text-label",
+          "flex w-full min-w-0 items-center overflow-hidden text-left text-[15px] leading-[1.35] text-foreground",
+          onCard ? "font-semibold" : "font-normal",
         )}
       >
         <span className="min-w-0 w-full whitespace-normal wrap-anywhere break-words">
@@ -177,7 +174,7 @@ export function LibraryFillPanel({
         {!composerOpen ? (
           <div className="flex w-full flex-col items-center">
             {filledRows.length > 0 ? (
-              <ul className="grid w-full grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-divider">
+              <ul className="grid w-full grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-hairline/25">
                 {filledRows.map((item) => (
                   <FilledRow
                     key={item.id}
@@ -196,11 +193,11 @@ export function LibraryFillPanel({
               aria-label="Add contact row"
               onClick={handleAddRow}
               className={cn(
-                "compass-icon-circle size-10 shrink-0 transition-opacity active:opacity-60",
+                "flex size-10 shrink-0 items-center justify-center transition-opacity active:opacity-60",
                 filledRows.length > 0 && "mt-2",
               )}
             >
-              <Plus className="size-5 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+              <Plus className="size-6 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
           </div>
         ) : null}
