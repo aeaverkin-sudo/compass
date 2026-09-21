@@ -12,7 +12,6 @@ import {
   useAppStore,
 } from "@/shared/store/app-store";
 import { CardCarousel } from "./card-carousel";
-import { LibraryFillPanel } from "./library-fill-panel";
 import { QrZone } from "./qr-zone";
 
 function buildPdfUrl(token: string) {
@@ -89,35 +88,27 @@ export function MainScreen() {
       {/* Library — single stack panel to display edge with unified corners */}
       {layout && cardReady && effectiveMode === "library" ? (
         <div
-          className="compass-library-stack absolute bottom-0 z-20 flex flex-col gap-2"
+          className="compass-library-stack absolute bottom-0 z-20 flex min-h-0 flex-col"
           style={{
             top: layoutTop(layout.cardTopLibrary),
             left: edgeInsetLibrary,
             right: edgeInsetLibrary,
           }}
         >
-          <div
-            className="compass-library-panel-top shrink-0 overflow-hidden"
-            style={{ height: layout.libraryCardHeight }}
-          >
-            <CardCarousel
-              cards={cards}
-              activeIndex={currentCardIndex}
-              contactItems={contactItems}
-              mode="library"
-              edgeInsetPx={0}
-              canAddCard={showAddSlide}
-              libraryCardHeightPx={layout.libraryCardHeight}
-              onActiveIndexChange={setCurrentCardIndex}
-              onUpdateCard={updateCard}
-              onEmptyAreaTap={toggleMode}
-              onNameEditingChange={setNameEditing}
-            />
-          </div>
-          <LibraryFillPanel
-            card={activeCard}
+          <CardCarousel
+            cards={cards}
+            activeIndex={currentCardIndex}
+            contactItems={contactItems}
+            mode="library"
+            edgeInsetPx={0}
+            canAddCard={showAddSlide}
+            libraryCardHeightPx={layout.libraryCardHeight}
             panelTopPx={layout.sheetTopLibrary}
             menuCenterYpx={layout.browseMenuCenterY}
+            onActiveIndexChange={setCurrentCardIndex}
+            onUpdateCard={updateCard}
+            onEmptyAreaTap={toggleMode}
+            onNameEditingChange={setNameEditing}
             onComposerOpenChange={setComposerOpen}
           />
         </div>
