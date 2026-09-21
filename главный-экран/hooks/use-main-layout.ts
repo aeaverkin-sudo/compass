@@ -4,7 +4,6 @@ import { useLayoutEffect, useState } from "react";
 import {
   browseCardHeightPx,
   libraryCardHeightPx,
-  libraryMenuCenterYpx,
   librarySheetTopPx,
   libraryStackTopPx,
   QR_GAP_SYMMETRIC_PX,
@@ -18,8 +17,6 @@ export type MainLayout = {
   cardTopLibrary: number;
   cardBottomBrowse: number;
   browseMenuCenterY: number;
-  libraryMenuCenterY: number;
-  libraryPanelBottomTop: number;
   sheetTopBrowse: number;
   sheetTopLibrary: number;
   edgeInsetBrowse: number;
@@ -58,8 +55,6 @@ function computeLayout(): MainLayout | null {
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
   const cardTopLibrary = libraryStackTopPx(safeTop);
   const sheetTopLibrary = librarySheetTopPx(viewportH, safeTop);
-  const libraryPanelBottomTop = sheetTopLibrary + SHEET_INSET.library.gap;
-  const libraryMenuCenterY = libraryMenuCenterYpx(viewportH);
 
   return {
     qrTop,
@@ -67,8 +62,6 @@ function computeLayout(): MainLayout | null {
     cardTopLibrary,
     cardBottomBrowse,
     browseMenuCenterY,
-    libraryMenuCenterY,
-    libraryPanelBottomTop,
     sheetTopBrowse,
     sheetTopLibrary,
     edgeInsetBrowse: SHEET_INSET.browse.horizontal,

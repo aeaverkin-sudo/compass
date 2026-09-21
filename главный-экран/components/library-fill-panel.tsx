@@ -12,8 +12,10 @@ import {
 } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
-import { LIBRARY_LIST_GAP_PX, LIBRARY_MENU_BUTTON_HALF_PX } from "../layout";
 import { LibraryComposer } from "./library-composer";
+
+const MENU_BUTTON_HALF_PX = 22;
+const LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
 
 type LibraryFillPanelProps = {
@@ -116,7 +118,7 @@ export function LibraryFillPanel({
   const filledRows = useMemo(() => rows.filter((item) => isContactFilled(item)), [rows]);
   const contentZoneHeight = Math.max(
     0,
-    menuCenterYpx - panelTopPx - LIBRARY_MENU_BUTTON_HALF_PX - LIBRARY_LIST_GAP_PX,
+    menuCenterYpx - panelTopPx - MENU_BUTTON_HALF_PX - LIST_GAP_PX,
   );
 
   const editingItem = useMemo(

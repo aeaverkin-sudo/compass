@@ -116,8 +116,8 @@ export function MainScreen() {
           </div>
           <LibraryFillPanel
             card={activeCard}
-            panelTopPx={layout.libraryPanelBottomTop}
-            menuCenterYpx={layout.libraryMenuCenterY}
+            panelTopPx={layout.sheetTopLibrary}
+            menuCenterYpx={layout.browseMenuCenterY}
             onComposerOpenChange={setComposerOpen}
           />
         </div>
@@ -125,11 +125,7 @@ export function MainScreen() {
 
       {/* Three dots — fixed in gap below browse card; hidden while composing a row */}
       {layout && cardReady && !composerOpen ? (
-        <BrowseMenuButton
-          centerYpx={effectiveMode === "library" ? layout.libraryMenuCenterY : layout.browseMenuCenterY}
-          mode={effectiveMode}
-          onTap={toggleMode}
-        />
+        <BrowseMenuButton centerYpx={layout.browseMenuCenterY} mode={effectiveMode} onTap={toggleMode} />
       ) : null}
 
       {/* Browse — business card(s) */}
