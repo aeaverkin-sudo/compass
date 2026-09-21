@@ -16,6 +16,16 @@ export type PortfolioCategory =
   | "files"
   | "media";
 
+/** Card stack: who → how to reach → where to go → social → files. Empty shelves collapse. */
+const CARD_SHELF_RANK: Record<PortfolioCategory, number> = {
+  identity: 0,
+  contact: 1,
+  product: 2,
+  social: 3,
+  files: 4,
+  media: 5,
+};
+
 export type CatalogEntry = {
   category: PortfolioCategory;
   type: ContactType;
@@ -429,6 +439,17 @@ export function matchSocialDomain(hostname: string): ContactType | null {
     if (host === domain || host.endsWith(`.${domain}`)) return type;
   }
   return null;
+}
+
+export function catalogCategory(type: ContactType): PortfolioCategory {
+  const fromCatalog = PORTFOLIO_ITEM_CATALOG.find((entry) => entry.type === type);
+  if (fromCatalog) return fromCatalog.category;
+  if (type === "link" || type === "custom") return "product";
+  return "identity";
+}
+
+export function cardShelfRank(type: ContactType): number {
+  return CARD_SHELF_RANK[catalogCategory(type)];
 }
 
 export function typeLabel(type: ContactType): string {
