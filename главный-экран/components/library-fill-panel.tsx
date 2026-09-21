@@ -12,14 +12,13 @@ import {
 } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
+import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { LibraryComposer } from "./library-composer";
 
 const MENU_BUTTON_HALF_PX = 22;
 const LIST_GAP_PX = 8;
 const COMPOSER_LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
-/** Half the + stroke — keeps the add button above the list panel border. */
-const ADD_BUTTON_BORDER_CLEARANCE_PX = FILL_ICON_STROKE / 2;
 
 type LibraryFillPanelProps = {
   card: Card;
@@ -118,6 +117,7 @@ export function LibraryFillPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const composerOpenedAt = useRef(0);
+  const { keyboardOpen } = useVisualViewport();
 
   const rows = useMemo(
     () => sortContactList(contactItems, card.contactItemIds),
@@ -172,11 +172,20 @@ export function LibraryFillPanel({
     <div className="compass-library-panel-bottom relative flex min-h-0 flex-1 flex-col">
       {composerOpen && editingItem ? (
         <div
-          className="mx-auto flex w-full shrink-0 justify-center"
-          style={{ ...listWidthStyle, marginBottom: COMPOSER_LIST_GAP_PX }}
+          className={cn(
+            "mx-auto flex w-full justify-center",
+            keyboardOpen ? "pointer-events-none h-0 overflow-hidden" : "shrink-0",
+          )}
+          style={
+            keyboardOpen
+              ? undefined
+              : { ...listWidthStyle, marginBottom: COMPOSER_LIST_GAP_PX }
+          }
+          aria-hidden={keyboardOpen}
         >
           <LibraryComposer
             item={editingItem}
+            contentWidthPx={contentWidthPx}
             attachmentError={attachmentError}
             onValueChange={(value) => updateContactItem(editingItem.id, { value })}
             onAttachment={(file, dataUrl) => {
@@ -192,37 +201,34 @@ export function LibraryFillPanel({
         </div>
       ) : null}
 
+      {!composerOpen ? (
       <div
-        className={cn(
-          "compass-library-list mx-auto flex min-h-0 flex-col overflow-y-auto px-4",
-          composerOpen ? "flex-1" : "items-center justify-center",
-        )}
+        className="compass-library-list mx-auto flex min-h-0 flex-col overflow-hidden px-4"
         style={{
-          height: composerOpen ? undefined : contentZoneHeight,
-          maxHeight: composerOpen ? undefined : contentZoneHeight,
+          height: contentZoneHeight,
+          maxHeight: contentZoneHeight,
           ...listWidthStyle,
         }}
       >
-        {!composerOpen ? (
-          <div
-            className="flex w-full flex-col items-center"
-            style={{ paddingBottom: ADD_BUTTON_BORDER_CLEARANCE_PX }}
-          >
-            {filledRows.length > 0 ? (
-              <ul className="grid w-full grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-divider">
-                {filledRows.map((item) => (
-                  <FilledRow
-                    key={item.id}
-                    item={item}
-                    onCard={isItemOnCard(card, item.id)}
-                    onEdit={() => openComposer(item.id)}
-                    onAdd={() => addItemToCard(card.id, item.id)}
-                    onRemove={() => removeItemFromCard(card.id, item.id)}
-                  />
-                ))}
-              </ul>
-            ) : null}
+        <div className="flex min-h-0 flex-1 flex-col">
+          {filledRows.length > 0 ? (
+            <ul className="grid min-h-0 flex-1 auto-rows-min grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-divider overflow-y-auto">
+              {filledRows.map((item) => (
+                <FilledRow
+                  key={item.id}
+                  item={item}
+                  onCard={isItemOnCard(card, item.id)}
+                  onEdit={() => openComposer(item.id)}
+                  onAdd={() => addItemToCard(card.id, item.id)}
+                  onRemove={() => removeItemFromCard(card.id, item.id)}
+                />
+              ))}
+            </ul>
+          ) : (
+            <div className="min-h-0 flex-1" aria-hidden />
+          )}
 
+          <div className="flex shrink-0 justify-center pb-4">
             <button
               type="button"
               aria-label="Add contact row"
@@ -235,8 +241,9 @@ export function LibraryFillPanel({
               <Plus className="size-5 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
           </div>
-        ) : null}
+        </div>
       </div>
+      ) : null}
     </div>
   );
 }

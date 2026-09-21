@@ -5,13 +5,18 @@ import { useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { EMPTY_CONTACT_PLACEHOLDER } from "@/shared/services/contact-item";
 import type { ContactItem } from "@/shared/types";
+import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
 const FILL_ICON_STROKE = 1;
 const TEXTAREA_MAX_PX = 120;
+const KEYBOARD_DOCK_PADDING_PX = 8;
+/** iOS form navigation bar above the keyboard — not always included in visualViewport height. */
+const IOS_INPUT_ACCESSORY_BAR_PX = 44;
 
 type LibraryComposerProps = {
   item: ContactItem;
+  contentWidthPx?: number;
   attachmentError?: string | null;
   onValueChange: (value: string) => void;
   onAttachment: (file: File, dataUrl: string) => void;
@@ -20,6 +25,7 @@ type LibraryComposerProps = {
 
 export function LibraryComposer({
   item,
+  contentWidthPx,
   attachmentError,
   onValueChange,
   onAttachment,
@@ -29,6 +35,8 @@ export function LibraryComposer({
   const rootRef = useRef<HTMLDivElement>(null);
   const pickingRef = useRef(false);
   const mountedAt = useRef(0);
+  const { offsetTop, height: viewportHeight, keyboardOpen } = useVisualViewport();
+  const dockedAboveKeyboard = keyboardOpen;
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -92,8 +100,31 @@ export function LibraryComposer({
     }, 180);
   };
 
+  const pillWidthStyle = contentWidthPx ? { width: contentWidthPx, maxWidth: "100%" } : undefined;
+
   return (
-    <div ref={rootRef} className="relative z-10 w-full shrink-0">
+    <div
+      ref={rootRef}
+      className={cn(
+        "w-full",
+        dockedAboveKeyboard
+          ? "pointer-events-none fixed inset-x-0 z-40 flex items-end justify-center"
+          : "relative z-10 shrink-0",
+      )}
+      style={
+        dockedAboveKeyboard
+          ? {
+              top: offsetTop,
+              height: viewportHeight > 0 ? viewportHeight : "100%",
+              paddingBottom: KEYBOARD_DOCK_PADDING_PX + IOS_INPUT_ACCESSORY_BAR_PX,
+            }
+          : undefined
+      }
+    >
+      <div
+        className={cn("w-full", dockedAboveKeyboard && "pointer-events-auto shrink-0")}
+        style={pillWidthStyle}
+      >
       {attachmentError ? (
         <p className="mb-2 px-1 text-center text-[12px] leading-snug text-destructive">
           {attachmentError}
@@ -126,6 +157,7 @@ export function LibraryComposer({
             )}
           />
         </div>
+      </div>
       </div>
     </div>
   );
