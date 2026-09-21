@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { carouselSlideWidthPx, layoutTop, SHEET_INSET, type MainScreenMode } from "../layout";
+import {
+  carouselSlideWidthPx,
+  layoutTop,
+  LIBRARY_COMPOSER_CARD_GAP_PX,
+  SHEET_INSET,
+  type MainScreenMode,
+} from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
@@ -90,6 +96,7 @@ export function MainScreen() {
 
   const cardTopBrowse = layout?.cardTopBrowse;
   const browseCarousel = effectiveMode === "browse" && (cards.length > 1 || showAddSlide);
+  const libraryStackGapPx = composerOpen ? LIBRARY_COMPOSER_CARD_GAP_PX : SHEET_INSET.library.gap;
 
   return (
     <main className="compass-main fixed inset-0 overflow-hidden bg-background">
@@ -147,7 +154,7 @@ export function MainScreen() {
           <div
             className="compass-library-stack absolute bottom-0 z-20 flex min-h-0 flex-col"
             style={{
-              top: layoutTop(layout.cardTopLibrary + layout.libraryCardHeight + SHEET_INSET.library.gap),
+              top: layoutTop(layout.cardTopLibrary + layout.libraryCardHeight + libraryStackGapPx),
               left: edgeInsetLibrary,
               right: edgeInsetLibrary,
             }}

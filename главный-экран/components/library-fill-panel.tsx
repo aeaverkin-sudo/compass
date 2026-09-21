@@ -16,6 +16,7 @@ import { LibraryComposer } from "./library-composer";
 
 const MENU_BUTTON_HALF_PX = 22;
 const LIST_GAP_PX = 8;
+const COMPOSER_LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
 
 type LibraryFillPanelProps = {
@@ -166,13 +167,39 @@ export function LibraryFillPanel({
   const listWidthStyle = contentWidthPx ? { width: contentWidthPx } : undefined;
 
   return (
-    <div className="compass-library-panel-bottom relative min-h-0 flex-1">
+    <div className="compass-library-panel-bottom relative flex min-h-0 flex-1 flex-col">
+      {composerOpen && editingItem ? (
+        <div
+          className="mx-auto flex w-full shrink-0 justify-center"
+          style={{ ...listWidthStyle, marginBottom: COMPOSER_LIST_GAP_PX }}
+        >
+          <LibraryComposer
+            item={editingItem}
+            attachmentError={attachmentError}
+            onValueChange={(value) => updateContactItem(editingItem.id, { value })}
+            onAttachment={(file, dataUrl) => {
+              const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
+              if (!result.ok) {
+                setAttachmentError(result.message);
+                return;
+              }
+              setAttachmentError(null);
+            }}
+            onBlur={handleComposerBlur}
+          />
+        </div>
+      ) : null}
+
       <div
         className={cn(
-          "compass-library-list absolute top-0 left-1/2 flex -translate-x-1/2 flex-col items-center justify-center overflow-y-auto px-4",
-          !contentWidthPx && "inset-x-0",
+          "compass-library-list mx-auto flex min-h-0 flex-col overflow-y-auto px-4",
+          composerOpen ? "flex-1" : "items-center justify-center",
         )}
-        style={{ height: contentZoneHeight, ...listWidthStyle }}
+        style={{
+          height: composerOpen ? undefined : contentZoneHeight,
+          maxHeight: composerOpen ? undefined : contentZoneHeight,
+          ...listWidthStyle,
+        }}
       >
         {!composerOpen ? (
           <div className="flex w-full flex-col items-center">
@@ -205,23 +232,6 @@ export function LibraryFillPanel({
           </div>
         ) : null}
       </div>
-
-      {composerOpen && editingItem ? (
-        <LibraryComposer
-          item={editingItem}
-          attachmentError={attachmentError}
-          onValueChange={(value) => updateContactItem(editingItem.id, { value })}
-          onAttachment={(file, dataUrl) => {
-            const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
-            if (!result.ok) {
-              setAttachmentError(result.message);
-              return;
-            }
-            setAttachmentError(null);
-          }}
-          onBlur={handleComposerBlur}
-        />
-      ) : null}
     </div>
   );
 }

@@ -39,6 +39,9 @@ export const SHEET_INSET = {
   library: { horizontal: 14, bottom: 0, gap: 8 },
 } as const;
 
+/** Clear space between library card bottom and the add-row composer pill. */
+export const LIBRARY_COMPOSER_CARD_GAP_PX = 16;
+
 export const LAYER_TRANSITION_MS = 460;
 
 /** Visible tail of the next card in browse carousel (keep small — max card size). */
