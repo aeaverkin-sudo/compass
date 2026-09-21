@@ -66,29 +66,24 @@ export function CardCarousel({
   const [containerWidth, setContainerWidth] = useState(0);
 
   const isBrowse = mode === "browse";
-  const isLibrary = mode === "library";
-  // Library: swipe only when 2+ cards; keep single-card preview layout unchanged.
-  const multiSlide = isBrowse ? cards.length > 1 || canAddCard : cards.length > 1;
+  const multiSlide = cards.length > 1 || canAddCard;
   const activeCard = cards[activeIndex] ?? cards[0];
 
   const slideIds = useMemo(() => {
     const ids = cards.map((card) => card.id);
-    if (isBrowse && canAddCard) ids.push(ADD_SLIDE_ID);
+    if (canAddCard) ids.push(ADD_SLIDE_ID);
     return ids;
-  }, [cards, isBrowse, canAddCard]);
+  }, [cards, canAddCard]);
 
   const slideWidthPx = useMemo(() => {
     if (!multiSlide || containerWidth === 0) return 0;
-    // Library preview fills the white panel plate — no peek, no gray gutters.
-    if (isLibrary) return containerWidth;
     return containerWidth - 2 * CARD_CAROUSEL_PEEK_PX - CARD_CAROUSEL_GAP_PX;
-  }, [containerWidth, isLibrary, multiSlide]);
+  }, [containerWidth, multiSlide]);
 
   const sidePaddingPx = useMemo(() => {
     if (!multiSlide || slideWidthPx === 0 || containerWidth === 0) return 0;
-    if (isLibrary) return 0;
     return (containerWidth - slideWidthPx) / 2;
-  }, [containerWidth, isLibrary, multiSlide, slideWidthPx]);
+  }, [containerWidth, multiSlide, slideWidthPx]);
 
   useLayoutEffect(() => {
     const node = scrollRef.current;
@@ -266,7 +261,7 @@ export function CardCarousel({
         )}
         onScroll={handleScroll}
       >
-        <div className="flex h-full" style={{ gap: isLibrary ? 0 : CARD_CAROUSEL_GAP_PX }}>
+        <div className="flex h-full" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
           <CarouselSpacer width={sidePaddingPx} />
           {slideIds.map((slideId, index) => (
             <div
