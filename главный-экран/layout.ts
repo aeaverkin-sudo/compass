@@ -39,8 +39,8 @@ export const SHEET_INSET = {
   library: { horizontal: 14, bottom: 0, gap: 8 },
 } as const;
 
-/** Clear space between library card bottom and the add-row composer pill. */
-export const LIBRARY_COMPOSER_CARD_GAP_PX = 16;
+/** compass-block / compass-library-list border width. */
+export const PANEL_BORDER_WIDTH_PX = 1;
 
 export const LAYER_TRANSITION_MS = 460;
 

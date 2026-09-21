@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   carouselSlideWidthPx,
   layoutTop,
-  LIBRARY_COMPOSER_CARD_GAP_PX,
   SHEET_INSET,
   type MainScreenMode,
 } from "../layout";
@@ -96,7 +95,7 @@ export function MainScreen() {
 
   const cardTopBrowse = layout?.cardTopBrowse;
   const browseCarousel = effectiveMode === "browse" && (cards.length > 1 || showAddSlide);
-  const libraryStackGapPx = composerOpen ? LIBRARY_COMPOSER_CARD_GAP_PX : SHEET_INSET.library.gap;
+  const libraryStackGapPx = SHEET_INSET.library.gap;
 
   return (
     <main className="compass-main fixed inset-0 overflow-hidden bg-background">

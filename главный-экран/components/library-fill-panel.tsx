@@ -13,12 +13,13 @@ import {
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
+import { PANEL_BORDER_WIDTH_PX } from "../layout";
 import { LibraryComposer } from "./library-composer";
 
 const MENU_BUTTON_HALF_PX = 22;
 const LIST_GAP_PX = 8;
-const COMPOSER_LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
+const LIST_SCROLL_FADE_PX = 20;
 
 type LibraryFillPanelProps = {
   card: Card;
@@ -117,7 +118,25 @@ export function LibraryFillPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const composerOpenedAt = useRef(0);
+  const listScrollRef = useRef<HTMLUListElement>(null);
+  const [listScrollFade, setListScrollFade] = useState({ top: false, bottom: false });
   const { keyboardOpen } = useVisualViewport();
+
+  const syncListScrollFade = useCallback(() => {
+    const el = listScrollRef.current;
+    if (!el) return;
+
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    if (maxScroll <= 1) {
+      setListScrollFade({ top: false, bottom: false });
+      return;
+    }
+
+    setListScrollFade({
+      top: el.scrollTop > 1,
+      bottom: el.scrollTop < maxScroll - 1,
+    });
+  }, []);
 
   const rows = useMemo(
     () => sortContactList(contactItems, card.contactItemIds),
@@ -166,6 +185,17 @@ export function LibraryFillPanel({
     return () => onComposerOpenChange?.(false);
   }, [onComposerOpenChange]);
 
+  useEffect(() => {
+    const el = listScrollRef.current;
+    if (!el || composerOpen) return;
+
+    syncListScrollFade();
+    const observer = new ResizeObserver(syncListScrollFade);
+    observer.observe(el);
+
+    return () => observer.disconnect();
+  }, [composerOpen, filledRows, syncListScrollFade]);
+
   const listWidthStyle = contentWidthPx ? { width: contentWidthPx } : undefined;
 
   return (
@@ -173,19 +203,16 @@ export function LibraryFillPanel({
       {composerOpen && editingItem ? (
         <div
           className={cn(
-            "mx-auto flex w-full justify-center",
-            keyboardOpen ? "pointer-events-none h-0 overflow-hidden" : "shrink-0",
+            "mx-auto w-full shrink-0 px-4",
+            keyboardOpen && "pointer-events-none h-0 overflow-hidden p-0",
           )}
           style={
-            keyboardOpen
-              ? undefined
-              : { ...listWidthStyle, marginBottom: COMPOSER_LIST_GAP_PX }
+            keyboardOpen ? undefined : { ...listWidthStyle, marginBottom: PANEL_BORDER_WIDTH_PX }
           }
           aria-hidden={keyboardOpen}
         >
           <LibraryComposer
             item={editingItem}
-            contentWidthPx={contentWidthPx}
             attachmentError={attachmentError}
             onValueChange={(value) => updateContactItem(editingItem.id, { value })}
             onAttachment={(file, dataUrl) => {
@@ -201,29 +228,50 @@ export function LibraryFillPanel({
         </div>
       ) : null}
 
-      {!composerOpen ? (
       <div
         className="compass-library-list mx-auto flex min-h-0 flex-col overflow-hidden px-4"
         style={{
-          height: contentZoneHeight,
+          height: composerOpen && !keyboardOpen ? undefined : contentZoneHeight,
           maxHeight: contentZoneHeight,
+          flex: composerOpen && !keyboardOpen ? "1 1 0" : undefined,
           ...listWidthStyle,
         }}
       >
+        {!composerOpen ? (
         <div className="flex min-h-0 flex-1 flex-col">
           {filledRows.length > 0 ? (
-            <ul className="grid min-h-0 flex-1 auto-rows-min grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-divider overflow-y-auto">
-              {filledRows.map((item) => (
-                <FilledRow
-                  key={item.id}
-                  item={item}
-                  onCard={isItemOnCard(card, item.id)}
-                  onEdit={() => openComposer(item.id)}
-                  onAdd={() => addItemToCard(card.id, item.id)}
-                  onRemove={() => removeItemFromCard(card.id, item.id)}
+            <div className="relative min-h-0 flex-1">
+              <ul
+                ref={listScrollRef}
+                onScroll={syncListScrollFade}
+                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-divider overflow-y-auto"
+              >
+                {filledRows.map((item) => (
+                  <FilledRow
+                    key={item.id}
+                    item={item}
+                    onCard={isItemOnCard(card, item.id)}
+                    onEdit={() => openComposer(item.id)}
+                    onAdd={() => addItemToCard(card.id, item.id)}
+                    onRemove={() => removeItemFromCard(card.id, item.id)}
+                  />
+                ))}
+              </ul>
+              {listScrollFade.top ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-sheet to-transparent"
+                  style={{ height: LIST_SCROLL_FADE_PX }}
                 />
-              ))}
-            </ul>
+              ) : null}
+              {listScrollFade.bottom ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-sheet to-transparent"
+                  style={{ height: LIST_SCROLL_FADE_PX }}
+                />
+              ) : null}
+            </div>
           ) : (
             <div className="min-h-0 flex-1" aria-hidden />
           )}
@@ -242,8 +290,8 @@ export function LibraryFillPanel({
             </button>
           </div>
         </div>
+        ) : null}
       </div>
-      ) : null}
     </div>
   );
 }
