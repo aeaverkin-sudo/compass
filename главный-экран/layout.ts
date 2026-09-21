@@ -30,7 +30,14 @@ export const CARD_BOTTOM_TARGET_LVH = 73;
 /** Trim browse card bottom edge (px; negative extends downward). −84 = prior −46 plus +1 cm. */
 export const CARD_BOTTOM_RAISE_PX = -84;
 
-export const QR_OVERLAP_LIBRARY_PX = 112;
+/** Base overlap of the library preview onto the QR zone. */
+export const QR_OVERLAP_LIBRARY_BASE_PX = 112;
+
+/** ~0.5 cm — preview rises and covers the QR more; fill panel gains the same height. */
+export const LIBRARY_QR_OVERLAP_EXTRA_PX = 19;
+
+export const QR_OVERLAP_LIBRARY_PX =
+  QR_OVERLAP_LIBRARY_BASE_PX + LIBRARY_QR_OVERLAP_EXTRA_PX;
 
 /** Library split below QR overlap — card ~50%, content sheet ~50%. */
 export const LIBRARY_CARD_SHARE = 0.5;
@@ -91,7 +98,9 @@ export function libraryStackHeightPx(viewportH: number, safeTop: number) {
 }
 
 export function libraryCardHeightPx(viewportH: number, safeTop: number) {
-  return Math.round(libraryStackHeightPx(viewportH, safeTop) * LIBRARY_CARD_SHARE);
+  const stackHeight = libraryStackHeightPx(viewportH, safeTop);
+  // Keep preview height stable; the extra overlap goes to the fill panel below.
+  return Math.round((stackHeight - LIBRARY_QR_OVERLAP_EXTRA_PX) * LIBRARY_CARD_SHARE);
 }
 
 export function librarySheetTopPx(viewportH: number, safeTop: number) {
