@@ -134,7 +134,7 @@ export function LibraryComposer({
               onChange={(event) => onValueChange(event.target.value)}
               onBlur={handleBlur}
               className={cn(
-                "compass-input block w-full resize-none overflow-y-auto bg-transparent text-[15px] leading-[1.35] text-foreground outline-none",
+                "compass-input block w-full resize-none overflow-y-auto bg-transparent text-[16px] leading-[1.35] text-foreground outline-none",
                 "placeholder:font-normal placeholder:text-hint",
               )}
             />

@@ -18,7 +18,7 @@ function ContactItemChip({ item, size, className }: ContactItemChipProps) {
   const display = itemDisplayValue(item);
   const compact = size === "compact";
   const classNames = cn(
-    "inline-flex max-w-full items-start rounded-[10px] bg-[oklch(94%_0.008_70)] text-left",
+    "inline-flex max-w-full items-center justify-center rounded-[10px] bg-[oklch(94%_0.008_70)] text-left",
     compact ? "max-w-[220px] gap-1 px-2 py-1.5" : "max-w-[280px] gap-1.5 px-3 py-2",
     className,
   );
@@ -28,7 +28,7 @@ function ContactItemChip({ item, size, className }: ContactItemChipProps) {
       {label ? (
         <span
           className={cn(
-            "shrink-0 font-light text-hairline",
+            "shrink-0 self-center font-light text-hairline",
             compact ? "text-[10px] leading-[1.25]" : "text-[12px] leading-[1.3]",
           )}
         >
@@ -37,7 +37,7 @@ function ContactItemChip({ item, size, className }: ContactItemChipProps) {
       ) : null}
       <span
         className={cn(
-          "min-w-0 whitespace-normal break-words font-semibold text-foreground",
+          "min-w-0 self-center whitespace-normal break-words font-semibold text-foreground",
           compact ? "text-[12px] leading-[1.3]" : "text-[14px] leading-[1.35]",
         )}
       >
@@ -83,7 +83,7 @@ export function ContactItemChipList({
     <div
       data-card-content
       className={cn(
-        "flex w-full flex-wrap justify-center",
+        "flex w-full flex-col items-center",
         size === "browse" ? "mt-8 gap-2" : "mt-3 gap-1.5",
         className,
       )}

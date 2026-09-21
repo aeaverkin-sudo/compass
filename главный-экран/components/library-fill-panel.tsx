@@ -65,9 +65,9 @@ function FilledRow({
   const label = rowTypeLabel(item);
 
   return (
-    <li className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-start gap-x-2 py-2.5">
+    <li className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-center gap-x-2 py-2.5">
       {label ? (
-        <span className="pt-0.5 text-[13px] font-light leading-[1.35] text-hairline">{label}</span>
+        <span className="text-[13px] font-light leading-[1.35] text-hairline">{label}</span>
       ) : (
         <span aria-hidden />
       )}
@@ -81,9 +81,7 @@ function FilledRow({
       >
         {itemDisplayValue(item)}
       </button>
-      <div className="pt-0.5">
-        <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
-      </div>
+      <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
     </li>
   );
 }

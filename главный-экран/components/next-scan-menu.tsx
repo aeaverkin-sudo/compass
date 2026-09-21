@@ -2,7 +2,7 @@
 
 import { Camera, FileText, Mic, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { QR_COLOR } from "../layout";
 import { MAX_NEXT_SCAN_NOTES, type NextScanAddon } from "@/shared/types";
@@ -35,15 +35,28 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
   const [recording, setRecording] = useState(false);
   const [redoId, setRedoId] = useState<string | null>(null);
   const [pickingSelfie, setPickingSelfie] = useState(false);
+  const textRef = useRef<HTMLTextAreaElement>(null);
 
   const atMax = addons.length >= MAX_NEXT_SCAN_NOTES;
 
   const closeMenu = () => {
+    textRef.current?.blur();
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
     setOpen(false);
     setTextMode(false);
     setText("");
     setRedoId(null);
   };
+
+  useEffect(() => {
+    if (!textMode) return;
+    textRef.current?.focus({ preventScroll: true });
+  }, [textMode]);
 
   const addAddon = (type: NextScanAddon["type"], content: string) => {
     const next: NextScanAddon = {
@@ -181,12 +194,12 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
             {textMode ? (
               <div className="p-2">
                 <textarea
-                  autoFocus
+                  ref={textRef}
                   value={text}
                   onChange={(event) => setText(event.target.value)}
                   placeholder="Short note…"
                   rows={3}
-                  className="compass-input mb-2 w-full resize-none border-b border-hairline/30 bg-transparent text-[13px] outline-none placeholder:text-hint"
+                  className="compass-input mb-2 w-full resize-none border-b border-hairline/30 bg-transparent text-[16px] leading-[1.35] outline-none placeholder:text-hint"
                 />
                 <button
                   type="button"
