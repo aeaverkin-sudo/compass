@@ -100,42 +100,67 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {/* Library — single stack panel to display edge with unified corners */}
+      {/* Library — preview carousel (full-bleed like browse) + fixed fill panel below */}
       {layout && cardReady && effectiveMode === "library" ? (
-        <div
-          className="compass-library-stack absolute bottom-0 z-20 flex flex-col gap-2"
-          style={{
-            top: layoutTop(layout.cardTopLibrary),
-            left: edgeInsetLibrary,
-            right: edgeInsetLibrary,
-          }}
-        >
+        <>
           <div
-            className="compass-library-panel-top shrink-0 overflow-hidden"
-            style={{ height: layout.libraryCardHeight }}
+            className="absolute z-20 overflow-hidden"
+            style={{
+              left: libraryMultiSlide ? 0 : edgeInsetLibrary,
+              right: libraryMultiSlide ? 0 : edgeInsetLibrary,
+              top: layoutTop(layout.cardTopLibrary),
+              height: layout.libraryCardHeight,
+            }}
           >
-            <CardCarousel
-              cards={cards}
-              activeIndex={currentCardIndex}
-              contactItems={contactItems}
-              mode="library"
-              edgeInsetPx={0}
-              canAddCard={showAddSlide}
-              libraryCardHeightPx={layout.libraryCardHeight}
-              onActiveIndexChange={setCurrentCardIndex}
-              onUpdateCard={updateCard}
-              onEmptyAreaTap={toggleMode}
-              onNameEditingChange={setNameEditing}
+            {libraryMultiSlide ? (
+              <CardCarousel
+                cards={cards}
+                activeIndex={currentCardIndex}
+                contactItems={contactItems}
+                mode="library"
+                edgeInsetPx={edgeInsetBrowse}
+                canAddCard={showAddSlide}
+                libraryCardHeightPx={layout.libraryCardHeight}
+                onActiveIndexChange={setCurrentCardIndex}
+                onUpdateCard={updateCard}
+                onEmptyAreaTap={toggleMode}
+                onNameEditingChange={setNameEditing}
+              />
+            ) : (
+              <div className="compass-library-panel-top h-full overflow-hidden">
+                <CardCarousel
+                  cards={cards}
+                  activeIndex={currentCardIndex}
+                  contactItems={contactItems}
+                  mode="library"
+                  edgeInsetPx={0}
+                  canAddCard={showAddSlide}
+                  libraryCardHeightPx={layout.libraryCardHeight}
+                  onActiveIndexChange={setCurrentCardIndex}
+                  onUpdateCard={updateCard}
+                  onEmptyAreaTap={toggleMode}
+                  onNameEditingChange={setNameEditing}
+                />
+              </div>
+            )}
+          </div>
+          <div
+            className="compass-library-stack absolute bottom-0 z-20 flex min-h-0 flex-col"
+            style={{
+              top: layoutTop(layout.cardTopLibrary + layout.libraryCardHeight + SHEET_INSET.library.gap),
+              left: edgeInsetLibrary,
+              right: edgeInsetLibrary,
+            }}
+          >
+            <LibraryFillPanel
+              card={activeCard}
+              panelTopPx={layout.sheetTopLibrary}
+              menuCenterYpx={layout.browseMenuCenterY}
+              contentWidthPx={libraryContentWidthPx}
+              onComposerOpenChange={setComposerOpen}
             />
           </div>
-          <LibraryFillPanel
-            card={activeCard}
-            panelTopPx={layout.sheetTopLibrary}
-            menuCenterYpx={layout.browseMenuCenterY}
-            contentWidthPx={libraryContentWidthPx}
-            onComposerOpenChange={setComposerOpen}
-          />
-        </div>
+        </>
       ) : null}
 
       {/* Three dots — fixed in gap below browse card; hidden while composing a row */}

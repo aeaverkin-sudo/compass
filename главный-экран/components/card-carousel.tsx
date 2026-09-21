@@ -6,6 +6,7 @@ import type { Card, ContactItem } from "@/shared/types";
 import { cn } from "@/lib/utils";
 import {
   CARD_CAROUSEL_GAP_PX,
+  carouselSidePaddingPx,
   carouselSlideWidthPx,
   SHEET_INSET,
   type MainScreenMode,
@@ -65,7 +66,6 @@ export function CardCarousel({
   const scrolledRecently = useRef(false);
   const scrollResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [viewportWidth, setViewportWidth] = useState(0);
 
   const isBrowse = mode === "browse";
   const multiSlide = cards.length > 1 || canAddCard;
@@ -77,15 +77,14 @@ export function CardCarousel({
     return ids;
   }, [cards, canAddCard]);
 
-  // Same slide width as browse cards (viewport-based peek layout).
   const slideWidthPx = useMemo(() => {
-    if (!multiSlide || containerWidth === 0 || viewportWidth === 0) return 0;
-    return carouselSlideWidthPx(viewportWidth, true, SHEET_INSET.browse.horizontal);
-  }, [containerWidth, multiSlide, viewportWidth]);
+    if (!multiSlide || containerWidth === 0) return 0;
+    return carouselSlideWidthPx(containerWidth, true, SHEET_INSET.browse.horizontal);
+  }, [containerWidth, multiSlide]);
 
   const sidePaddingPx = useMemo(() => {
     if (!multiSlide || slideWidthPx === 0 || containerWidth === 0) return 0;
-    return (containerWidth - slideWidthPx) / 2;
+    return carouselSidePaddingPx(containerWidth, true, SHEET_INSET.browse.horizontal);
   }, [containerWidth, multiSlide, slideWidthPx]);
 
   useLayoutEffect(() => {
@@ -94,7 +93,6 @@ export function CardCarousel({
 
     const sync = () => {
       setContainerWidth(node.clientWidth);
-      setViewportWidth(window.innerWidth);
     };
     sync();
 
@@ -261,10 +259,7 @@ export function CardCarousel({
     <div className="h-full overflow-hidden">
       <div
         ref={scrollRef}
-        className={cn(
-          "compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden",
-          isBrowse ? "bg-background-ready" : "bg-transparent",
-        )}
+        className="compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background-ready"
         onScroll={handleScroll}
       >
         <div className="flex h-full" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
@@ -272,7 +267,12 @@ export function CardCarousel({
           {slideIds.map((slideId, index) => (
             <div
               key={slideId}
-              className={cn("h-full shrink-0 snap-center overflow-hidden", isBrowse && "rounded-[18px]")}
+              className={cn(
+                "h-full shrink-0 snap-center overflow-hidden",
+                isBrowse
+                  ? "compass-card compass-layer rounded-[18px]"
+                  : "compass-library-panel-top",
+              )}
               style={{ width: slideWidthPx }}
             >
               {renderSlide(slideId, index)}
