@@ -55,6 +55,8 @@ export interface Card {
   photo?: string;
   title: string;
   contactItemIds: string[];
+  /** When true, card rows keep the user's manual order instead of auto shelves. */
+  itemOrderManual?: boolean;
   nextScanAddons: NextScanAddon[];
   createdAt: string;
   updatedAt: string;

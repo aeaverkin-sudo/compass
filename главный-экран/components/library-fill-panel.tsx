@@ -14,14 +14,10 @@ import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { LibraryComposer } from "./library-composer";
 
-const MENU_BUTTON_HALF_PX = 22;
-const LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
 
 type LibraryFillPanelProps = {
   card: Card;
-  panelTopPx: number;
-  menuCenterYpx: number;
   onComposerOpenChange?: (open: boolean) => void;
 };
 
@@ -66,9 +62,9 @@ function FilledRow({
   const label = rowTypeLabel(item);
 
   return (
-    <li className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-stretch gap-x-2 py-2.5">
+    <li className="col-span-3 grid grid-cols-subgrid items-stretch py-2.5">
       {label ? (
-        <span className="flex items-center text-[13px] font-light leading-[1.35] text-hairline">
+        <span className="flex items-center justify-end whitespace-nowrap text-right text-[13px] font-light leading-[1.35] text-hairline">
           {label}
         </span>
       ) : (
@@ -78,25 +74,22 @@ function FilledRow({
         type="button"
         onClick={onEdit}
         className={cn(
-          "flex min-w-0 items-center whitespace-normal break-words text-left text-[15px] leading-[1.35] text-foreground",
+          "flex w-full min-w-0 items-center overflow-hidden text-left text-[15px] leading-[1.35] text-foreground",
           onCard ? "font-semibold" : "font-normal",
         )}
       >
-        {itemDisplayValue(item)}
+        <span className="min-w-0 w-full whitespace-normal wrap-anywhere break-words">
+          {itemDisplayValue(item)}
+        </span>
       </button>
-      <div className="flex items-center justify-center">
+      <div className="relative z-10 flex items-center justify-center">
         <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
       </div>
     </li>
   );
 }
 
-export function LibraryFillPanel({
-  card,
-  panelTopPx,
-  menuCenterYpx,
-  onComposerOpenChange,
-}: LibraryFillPanelProps) {
+export function LibraryFillPanel({ card, onComposerOpenChange }: LibraryFillPanelProps) {
   const contactItems = useAppStore((state) => state.contactItems);
   const addContactItem = useAppStore((state) => state.addContactItem);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
@@ -114,10 +107,6 @@ export function LibraryFillPanel({
     [contactItems, card.contactItemIds],
   );
   const filledRows = useMemo(() => rows.filter((item) => isContactFilled(item)), [rows]);
-  const contentZoneHeight = Math.max(
-    0,
-    menuCenterYpx - panelTopPx - MENU_BUTTON_HALF_PX - LIST_GAP_PX,
-  );
 
   const editingItem = useMemo(
     () => (editingId ? contactItems.find((item) => item.id === editingId) ?? null : null),
@@ -157,15 +146,12 @@ export function LibraryFillPanel({
   }, [onComposerOpenChange]);
 
   return (
-    <div className="compass-library-panel-bottom relative min-h-0 flex-1">
-      <div
-        className="compass-library-list absolute inset-x-0 top-0 flex flex-col items-center justify-center overflow-y-auto px-4"
-        style={{ height: contentZoneHeight }}
-      >
+    <div className="compass-library-panel-bottom relative flex min-h-0 flex-1 flex-col">
+      <div className="compass-library-list flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4">
         {!composerOpen ? (
           <div className="flex w-full max-w-[360px] flex-col items-center">
             {filledRows.length > 0 ? (
-              <ul className="w-full divide-y divide-hairline/25">
+              <ul className="grid w-full grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-hairline/25">
                 {filledRows.map((item) => (
                   <FilledRow
                     key={item.id}

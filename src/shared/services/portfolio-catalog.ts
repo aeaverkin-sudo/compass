@@ -1,4 +1,5 @@
-import type { ContactType } from "@/shared/types";
+import type { ContactItem, ContactType } from "@/shared/types";
+import { classifyDescription } from "./description-analytics";
 import type { AttachmentContactType } from "./portfolio-limits";
 
 /**
@@ -16,15 +17,17 @@ export type PortfolioCategory =
   | "files"
   | "media";
 
-/** Card stack: who → how to reach → where to go → social → files. Empty shelves collapse. */
+/** Card stack: who → contact → product → social → lifestyle text → files → media. */
 const CARD_SHELF_RANK: Record<PortfolioCategory, number> = {
   identity: 0,
-  contact: 1,
-  product: 2,
-  social: 3,
-  files: 4,
-  media: 5,
+  contact: 10,
+  product: 20,
+  social: 30,
+  files: 40,
+  media: 50,
 };
+
+const LIFESTYLE_TEXT_SHELF_RANK = 35;
 
 export type CatalogEntry = {
   category: PortfolioCategory;
@@ -450,6 +453,13 @@ export function catalogCategory(type: ContactType): PortfolioCategory {
 
 export function cardShelfRank(type: ContactType): number {
   return CARD_SHELF_RANK[catalogCategory(type)];
+}
+
+export function cardItemShelfRank(item: ContactItem): number {
+  if (item.type === "text" && classifyDescription(item.value) === "lifestyle") {
+    return LIFESTYLE_TEXT_SHELF_RANK;
+  }
+  return cardShelfRank(item.type);
 }
 
 export function typeLabel(type: ContactType): string {

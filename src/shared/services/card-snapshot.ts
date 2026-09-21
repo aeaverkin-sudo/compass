@@ -1,5 +1,5 @@
 import type { Card, CardSnapshot, ContactItem, NextScanAddon } from "@/shared/types";
-import { cardShelfRank } from "./portfolio-catalog";
+import { cardItemShelfRank } from "./portfolio-catalog";
 
 export function getCardItems(card: Card, library: ContactItem[]) {
   const map = new Map(library.map((item) => [item.id, item]));
@@ -7,8 +7,12 @@ export function getCardItems(card: Card, library: ContactItem[]) {
     .map((id) => map.get(id))
     .filter((item): item is ContactItem => Boolean(item?.value.trim()));
 
+  if (card.itemOrderManual) {
+    return items;
+  }
+
   return [...items].sort((a, b) => {
-    const shelf = cardShelfRank(a.type) - cardShelfRank(b.type);
+    const shelf = cardItemShelfRank(a) - cardItemShelfRank(b);
     if (shelf !== 0) return shelf;
     return card.contactItemIds.indexOf(a.id) - card.contactItemIds.indexOf(b.id);
   });

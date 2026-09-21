@@ -1,8 +1,9 @@
 "use client";
 
-import { forwardRef, type MouseEvent } from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
+import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
@@ -46,18 +47,49 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   },
   ref,
 ) {
+  const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const items = getCardItems(card, library);
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
+  const [previewReorder, setPreviewReorder] = useState(false);
+  const articleRef = useRef<HTMLElement | null>(null);
+
+  const handleCommitOrder = useCallback(
+    (orderedIds: string[]) => {
+      setCardItemOrder(card.id, orderedIds);
+    },
+    [card.id, setCardItemOrder],
+  );
+
+  useEffect(() => {
+    if (!previewReorder || !compact) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      const node = articleRef.current;
+      if (!node || node.contains(event.target as Node)) return;
+      setPreviewReorder(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [previewReorder, compact]);
 
   const handleClick = (event: MouseEvent<HTMLElement>) => {
     if ((event.target as HTMLElement).closest("[data-card-content]")) return;
+    if (previewReorder) {
+      setPreviewReorder(false);
+      return;
+    }
     onEmptyAreaTap();
   };
 
   return (
     <article
-      ref={ref}
+      ref={(node) => {
+        articleRef.current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) ref.current = node;
+      }}
       role="button"
       tabIndex={0}
       aria-label={compact ? "Back to card" : "Business card"}
@@ -144,6 +176,12 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           items={items}
           size="compact"
           className="min-h-0 flex-1 content-start overflow-y-auto px-1 pb-2"
+          previewReorder={{
+            active: previewReorder,
+            onEnter: () => setPreviewReorder(true),
+            onExit: () => setPreviewReorder(false),
+            onCommit: handleCommitOrder,
+          }}
         />
       ) : null}
 

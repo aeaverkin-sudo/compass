@@ -45,6 +45,7 @@ interface AppState {
   ) => PortfolioValidationResult;
   addItemToCard: (cardId: string, itemId: string) => void;
   removeItemFromCard: (cardId: string, itemId: string) => void;
+  setCardItemOrder: (cardId: string, orderedIds: string[]) => void;
   deleteContactItem: (itemId: string) => void;
 }
 
@@ -189,6 +190,30 @@ export const useAppStore = create<AppState>()(
             return {
               ...card,
               contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
+              updatedAt: now,
+            };
+          }),
+        });
+      },
+
+      setCardItemOrder: (cardId, orderedIds) => {
+        const now = new Date().toISOString();
+        set({
+          cards: get().cards.map((card) => {
+            if (card.id !== cardId) return card;
+            const onCard = new Set(card.contactItemIds);
+            const nextIds = orderedIds.filter((id) => onCard.has(id));
+            for (const id of card.contactItemIds) {
+              if (!nextIds.includes(id)) nextIds.push(id);
+            }
+            const sameOrder =
+              nextIds.length === card.contactItemIds.length &&
+              nextIds.every((id, index) => id === card.contactItemIds[index]);
+            if (sameOrder) return card;
+            return {
+              ...card,
+              contactItemIds: nextIds,
+              itemOrderManual: true,
               updatedAt: now,
             };
           }),
