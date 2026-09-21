@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { layoutTop, type MainScreenMode } from "../layout";
+import { layoutTop, SHEET_INSET, type MainScreenMode } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
@@ -72,7 +72,8 @@ export function MainScreen() {
     return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
   }
 
-  const edgeInsetBrowse = layout?.edgeInsetBrowse ?? 20;
+  const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
+  const edgeInsetLibrary = layout?.edgeInsetLibrary ?? SHEET_INSET.library.horizontal;
   const cardTopBrowse = layout?.cardTopBrowse;
   const browseCarousel = effectiveMode === "browse" && (cards.length > 1 || showAddSlide);
 
@@ -88,8 +89,12 @@ export function MainScreen() {
       {/* Library — single stack panel to display edge with unified corners */}
       {layout && cardReady && effectiveMode === "library" ? (
         <div
-          className="compass-library-stack absolute inset-x-0 bottom-0 z-20 flex flex-col gap-2"
-          style={{ top: layoutTop(layout.cardTopLibrary) }}
+          className="compass-library-stack absolute bottom-0 z-20 flex flex-col gap-2"
+          style={{
+            top: layoutTop(layout.cardTopLibrary),
+            left: edgeInsetLibrary,
+            right: edgeInsetLibrary,
+          }}
         >
           <div
             className="compass-library-panel-top shrink-0 overflow-hidden"

@@ -36,7 +36,7 @@ export const LIBRARY_CARD_SHARE = 0.5;
 
 export const SHEET_INSET = {
   browse: { horizontal: 14, bottom: 18, overlap: 22 },
-  library: { horizontal: 0, bottom: 0, gap: 0 },
+  library: { horizontal: 14, bottom: 0, gap: 8 },
 } as const;
 
 export const LAYER_TRANSITION_MS = 460;
