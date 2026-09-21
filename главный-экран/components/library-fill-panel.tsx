@@ -207,42 +207,20 @@ export function LibraryFillPanel({
       </div>
 
       {composerOpen && editingItem ? (
-        contentWidthPx ? (
-          <div
-            className="absolute top-0 left-1/2 -translate-x-1/2 px-4"
-            style={{ width: contentWidthPx, height: contentZoneHeight }}
-          >
-            <LibraryComposer
-              item={editingItem}
-              attachmentError={attachmentError}
-              onValueChange={(value) => updateContactItem(editingItem.id, { value })}
-              onAttachment={(file, dataUrl) => {
-                const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
-                if (!result.ok) {
-                  setAttachmentError(result.message);
-                  return;
-                }
-                setAttachmentError(null);
-              }}
-              onBlur={handleComposerBlur}
-            />
-          </div>
-        ) : (
-          <LibraryComposer
-            item={editingItem}
-            attachmentError={attachmentError}
-            onValueChange={(value) => updateContactItem(editingItem.id, { value })}
-            onAttachment={(file, dataUrl) => {
-              const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
-              if (!result.ok) {
-                setAttachmentError(result.message);
-                return;
-              }
-              setAttachmentError(null);
-            }}
-            onBlur={handleComposerBlur}
-          />
-        )
+        <LibraryComposer
+          item={editingItem}
+          attachmentError={attachmentError}
+          onValueChange={(value) => updateContactItem(editingItem.id, { value })}
+          onAttachment={(file, dataUrl) => {
+            const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
+            if (!result.ok) {
+              setAttachmentError(result.message);
+              return;
+            }
+            setAttachmentError(null);
+          }}
+          onBlur={handleComposerBlur}
+        />
       ) : null}
     </div>
   );
