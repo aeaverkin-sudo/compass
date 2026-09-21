@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import {
   CARD_CAROUSEL_GAP_PX,
-  carouselSidePaddingPx,
-  carouselSlideWidthPx,
+  CARD_CAROUSEL_PEEK_PX,
   type MainScreenMode,
 } from "../layout";
 import { BusinessCard } from "./business-card";
@@ -51,7 +50,7 @@ export function CardCarousel({
   activeIndex,
   contactItems,
   mode,
-  edgeInsetPx,
+  edgeInsetPx: _edgeInsetPx,
   canAddCard,
   libraryCardHeightPx,
   onActiveIndexChange,
@@ -63,46 +62,62 @@ export function CardCarousel({
   const syncingScroll = useRef(false);
   const scrolledRecently = useRef(false);
   const scrollResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   const isBrowse = mode === "browse";
-  const multiSlide = isBrowse && (cards.length > 1 || canAddCard);
+  const multiSlide = cards.length > 1 || canAddCard;
   const activeCard = cards[activeIndex] ?? cards[0];
 
   const slideIds = useMemo(() => {
     const ids = cards.map((card) => card.id);
-    if (isBrowse && canAddCard) ids.push(ADD_SLIDE_ID);
+    if (canAddCard) ids.push(ADD_SLIDE_ID);
     return ids;
-  }, [cards, isBrowse, canAddCard]);
+  }, [cards, canAddCard]);
 
-  const slideWidth = useCallback(() => {
-    if (typeof window === "undefined") return 0;
-    return carouselSlideWidthPx(window.innerWidth, multiSlide, edgeInsetPx);
-  }, [edgeInsetPx, multiSlide]);
+  const slideWidthPx = useMemo(() => {
+    if (!multiSlide || containerWidth === 0) return 0;
+    return containerWidth - 2 * CARD_CAROUSEL_PEEK_PX - CARD_CAROUSEL_GAP_PX;
+  }, [containerWidth, multiSlide]);
 
-  const sidePadding = useCallback(() => {
-    if (typeof window === "undefined") return 0;
-    return carouselSidePaddingPx(window.innerWidth, multiSlide, edgeInsetPx);
-  }, [edgeInsetPx, multiSlide]);
+  const sidePaddingPx = useMemo(() => {
+    if (!multiSlide || slideWidthPx === 0 || containerWidth === 0) return 0;
+    return (containerWidth - slideWidthPx) / 2;
+  }, [containerWidth, multiSlide, slideWidthPx]);
+
+  useLayoutEffect(() => {
+    const node = scrollRef.current;
+    if (!node || !multiSlide) return;
+
+    const sync = () => setContainerWidth(node.clientWidth);
+    sync();
+
+    const observer = new ResizeObserver(sync);
+    observer.observe(node);
+    window.addEventListener("resize", sync);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", sync);
+    };
+  }, [multiSlide]);
 
   const scrollLeftForIndex = useCallback(
     (index: number) => {
       const node = scrollRef.current;
-      if (!node) return 0;
-      const pad = sidePadding();
-      const width = slideWidth();
-      const step = width + CARD_CAROUSEL_GAP_PX;
-      return pad + index * step + width / 2 - node.clientWidth / 2;
+      if (!node || slideWidthPx === 0) return 0;
+      const step = slideWidthPx + CARD_CAROUSEL_GAP_PX;
+      return sidePaddingPx + index * step + slideWidthPx / 2 - node.clientWidth / 2;
     },
-    [sidePadding, slideWidth],
+    [sidePaddingPx, slideWidthPx],
   );
 
   const scrollToIndex = useCallback(
     (index: number, behavior: ScrollBehavior = "smooth") => {
       const node = scrollRef.current;
-      if (!node || !multiSlide) return;
+      if (!node || !multiSlide || slideWidthPx === 0) return;
       node.scrollTo({ left: scrollLeftForIndex(index), behavior });
     },
-    [multiSlide, scrollLeftForIndex],
+    [multiSlide, scrollLeftForIndex, slideWidthPx],
   );
 
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
@@ -115,13 +130,13 @@ export function CardCarousel({
   );
 
   useEffect(() => {
-    if (!multiSlide) return;
+    if (!multiSlide || slideWidthPx === 0) return;
     syncingScroll.current = true;
     scrollToIndex(activeIndex, "auto");
     requestAnimationFrame(() => {
       syncingScroll.current = false;
     });
-  }, [activeIndex, multiSlide, scrollToIndex]);
+  }, [activeIndex, multiSlide, scrollToIndex, slideWidthPx]);
 
   useEffect(() => {
     if (!multiSlide) return;
@@ -136,23 +151,21 @@ export function CardCarousel({
     if (scrollResetTimer.current) clearTimeout(scrollResetTimer.current);
     scrollResetTimer.current = setTimeout(() => {
       scrolledRecently.current = false;
-    }, 320);
+    }, 280);
   };
 
   const handleScroll = () => {
-    if (syncingScroll.current || !scrollRef.current || !multiSlide) return;
+    if (syncingScroll.current || !scrollRef.current || !multiSlide || slideWidthPx === 0) return;
 
     const node = scrollRef.current;
-    const pad = sidePadding();
-    const width = slideWidth();
-    const step = width + CARD_CAROUSEL_GAP_PX;
+    const step = slideWidthPx + CARD_CAROUSEL_GAP_PX;
     const viewportCenter = node.scrollLeft + node.clientWidth / 2;
 
     let closestIndex = 0;
     let closestDistance = Number.POSITIVE_INFINITY;
 
     for (let i = 0; i < cards.length; i++) {
-      const slideCenter = pad + i * step + width / 2;
+      const slideCenter = sidePaddingPx + i * step + slideWidthPx / 2;
       const distance = Math.abs(viewportCenter - slideCenter);
       if (distance < closestDistance) {
         closestDistance = distance;
@@ -182,6 +195,31 @@ export function CardCarousel({
     [onUpdateCard],
   );
 
+  const renderSlide = (slideId: string, index: number) => {
+    if (slideId === ADD_SLIDE_ID) {
+      return <CardDraftFields card={cards[1] ?? EMPTY_DRAFT} onUpdate={handleDraftUpdate} />;
+    }
+
+    const card = cards[index]!;
+    if (isDraftCard(card, index)) {
+      return <CardDraftFields card={card} onUpdate={(data) => onUpdateCard(card.id, data)} />;
+    }
+
+    return (
+      <BusinessCard
+        card={card}
+        library={contactItems}
+        mode={mode}
+        libraryCardHeightPx={libraryCardHeightPx}
+        onEmptyAreaTap={handleEmptyAreaTap}
+        onPhotoChange={(photo) => handlePhotoChange(card.id, photo)}
+        onDisplayNameChange={(displayName) => onUpdateCard(card.id, { displayName })}
+        onNameEditingChange={onNameEditingChange}
+        onCardUpdate={(data) => onUpdateCard(card.id, data)}
+      />
+    );
+  };
+
   if (!activeCard) return null;
 
   if (!multiSlide) {
@@ -204,49 +242,33 @@ export function CardCarousel({
     );
   }
 
-  const width = slideWidth();
-  const padding = sidePadding();
+  if (slideWidthPx === 0) {
+    return (
+      <div className="h-full overflow-hidden">
+        <div ref={scrollRef} className="compass-carousel h-full" aria-hidden />
+      </div>
+    );
+  }
 
   return (
-    <div className="overflow-hidden">
+    <div className="h-full overflow-hidden">
       <div
         ref={scrollRef}
-        className="compass-carousel snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background-ready"
+        className="compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background-ready"
         onScroll={handleScroll}
       >
-        <div className="flex" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
-          <CarouselSpacer width={padding} />
+        <div className="flex h-full" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
+          <CarouselSpacer width={sidePaddingPx} />
           {slideIds.map((slideId, index) => (
             <div
               key={slideId}
-              className="shrink-0 snap-center overflow-hidden rounded-[18px]"
-              style={{ width }}
+              className={`h-full shrink-0 snap-center overflow-hidden ${isBrowse ? "rounded-[18px]" : ""}`}
+              style={{ width: slideWidthPx }}
             >
-              {slideId === ADD_SLIDE_ID ? (
-                <CardDraftFields card={cards[1] ?? EMPTY_DRAFT} onUpdate={handleDraftUpdate} />
-              ) : isBrowse && isDraftCard(cards[index]!, index) ? (
-                <CardDraftFields
-                  card={cards[index]!}
-                  onUpdate={(data) => onUpdateCard(cards[index]!.id, data)}
-                />
-              ) : (
-                <BusinessCard
-                  card={cards[index]!}
-                  library={contactItems}
-                  mode={mode}
-                  libraryCardHeightPx={libraryCardHeightPx}
-                  onEmptyAreaTap={handleEmptyAreaTap}
-                  onPhotoChange={(photo) => handlePhotoChange(cards[index]!.id, photo)}
-                  onDisplayNameChange={(displayName) =>
-                    onUpdateCard(cards[index]!.id, { displayName })
-                  }
-                  onNameEditingChange={onNameEditingChange}
-                  onCardUpdate={(data) => onUpdateCard(cards[index]!.id, data)}
-                />
-              )}
+              {renderSlide(slideId, index)}
             </div>
           ))}
-          <CarouselSpacer width={padding} />
+          <CarouselSpacer width={sidePaddingPx} />
         </div>
       </div>
     </div>
