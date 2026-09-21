@@ -151,11 +151,6 @@ export function LibraryFillPanel({
   }, [deleteContactItem, editingId]);
 
   useEffect(() => {
-    setEditingId(null);
-    setAttachmentError(null);
-  }, [card.id]);
-
-  useEffect(() => {
     onComposerOpenChange?.(composerOpen);
   }, [composerOpen, onComposerOpenChange]);
 
