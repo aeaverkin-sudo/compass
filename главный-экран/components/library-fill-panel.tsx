@@ -14,10 +14,14 @@ import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { LibraryComposer } from "./library-composer";
 
+const MENU_BUTTON_HALF_PX = 22;
+const LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
 
 type LibraryFillPanelProps = {
   card: Card;
+  panelTopPx: number;
+  menuCenterYpx: number;
   onComposerOpenChange?: (open: boolean) => void;
 };
 
@@ -64,7 +68,7 @@ function FilledRow({
   return (
     <li className="col-span-3 grid grid-cols-subgrid items-stretch py-2.5">
       {label ? (
-        <span className="flex items-center justify-end whitespace-nowrap text-right text-[13px] font-light leading-[1.35] text-hairline">
+        <span className="flex items-center justify-start whitespace-nowrap text-left text-[13px] font-light leading-[1.35] text-hairline">
           {label}
         </span>
       ) : (
@@ -89,7 +93,12 @@ function FilledRow({
   );
 }
 
-export function LibraryFillPanel({ card, onComposerOpenChange }: LibraryFillPanelProps) {
+export function LibraryFillPanel({
+  card,
+  panelTopPx,
+  menuCenterYpx,
+  onComposerOpenChange,
+}: LibraryFillPanelProps) {
   const contactItems = useAppStore((state) => state.contactItems);
   const addContactItem = useAppStore((state) => state.addContactItem);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
@@ -107,6 +116,10 @@ export function LibraryFillPanel({ card, onComposerOpenChange }: LibraryFillPane
     [contactItems, card.contactItemIds],
   );
   const filledRows = useMemo(() => rows.filter((item) => isContactFilled(item)), [rows]);
+  const contentZoneHeight = Math.max(
+    0,
+    menuCenterYpx - panelTopPx - MENU_BUTTON_HALF_PX - LIST_GAP_PX,
+  );
 
   const editingItem = useMemo(
     () => (editingId ? contactItems.find((item) => item.id === editingId) ?? null : null),
@@ -146,8 +159,11 @@ export function LibraryFillPanel({ card, onComposerOpenChange }: LibraryFillPane
   }, [onComposerOpenChange]);
 
   return (
-    <div className="compass-library-panel-bottom relative flex min-h-0 flex-1 flex-col">
-      <div className="compass-library-list flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4">
+    <div className="compass-library-panel-bottom relative min-h-0 flex-1">
+      <div
+        className="compass-library-list absolute inset-x-0 top-0 flex flex-col items-center justify-center overflow-y-auto px-4"
+        style={{ height: contentZoneHeight }}
+      >
         {!composerOpen ? (
           <div className="flex w-full max-w-[360px] flex-col items-center">
             {filledRows.length > 0 ? (

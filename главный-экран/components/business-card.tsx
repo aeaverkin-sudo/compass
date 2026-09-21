@@ -64,22 +64,37 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   useEffect(() => {
     if (!previewReorder || !compact) return;
 
-    const onPointerDown = (event: PointerEvent) => {
-      const node = articleRef.current;
-      if (!node || node.contains(event.target as Node)) return;
-      setPreviewReorder(false);
+    const exit = () => setPreviewReorder(false);
+
+    const onPointerDownCapture = (event: PointerEvent) => {
+      if ((event.target as HTMLElement).closest("[data-reorder-list]")) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      exit();
     };
 
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+    const blockClick = (event: Event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    document.addEventListener("pointerdown", onPointerDownCapture, true);
+    document.addEventListener("click", blockClick, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDownCapture, true);
+      document.removeEventListener("click", blockClick, true);
+    };
   }, [previewReorder, compact]);
 
   const handleClick = (event: MouseEvent<HTMLElement>) => {
-    if ((event.target as HTMLElement).closest("[data-card-content]")) return;
     if (previewReorder) {
+      event.preventDefault();
+      event.stopPropagation();
       setPreviewReorder(false);
       return;
     }
+    if ((event.target as HTMLElement).closest("[data-card-content]")) return;
     onEmptyAreaTap();
   };
 
@@ -175,7 +190,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         <ContactItemChipList
           items={items}
           size="compact"
-          className="min-h-0 flex-1 content-start overflow-y-auto px-1 pb-2"
+          className="min-h-0 flex-1 content-start overflow-y-auto px-1 pb-2 pt-0"
           previewReorder={{
             active: previewReorder,
             onEnter: () => setPreviewReorder(true),

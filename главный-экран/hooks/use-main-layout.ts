@@ -3,7 +3,6 @@
 import { useLayoutEffect, useState } from "react";
 import {
   browseCardHeightPx,
-  LIBRARY_MENU_STRIP_PX,
   libraryCardHeightPx,
   librarySheetTopPx,
   libraryStackTopPx,
@@ -47,17 +46,19 @@ function computeLayout(): MainLayout | null {
   // `html` is position:fixed inset:0, so its clientHeight is the full layout
   // viewport and stays stable when the iOS keyboard shrinks the visual viewport.
   const viewportH = document.documentElement.clientHeight || window.innerHeight;
+  // Match `browseCardHeight()` lvh calc so the menu strip centers in the real gap.
+  const layoutH = window.innerHeight || viewportH;
   const safeTop = readSafeAreaInset("top");
   const qrTop = safeTop + QR_GAP_SYMMETRIC_PX;
   const cardTopBrowse = qrTop + QR_SIZE + QR_GAP_SYMMETRIC_PX;
-  const browseHeight = browseCardHeightPx(viewportH, safeTop);
+  const browseHeight = browseCardHeightPx(layoutH, safeTop);
   const libraryHeight = libraryCardHeightPx(viewportH, safeTop);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
   const browseMenuCenterY = (cardBottomBrowse + viewportH) / 2;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
   const cardTopLibrary = libraryStackTopPx(safeTop);
   const sheetTopLibrary = librarySheetTopPx(viewportH, safeTop);
-  const libraryMenuCenterY = sheetTopLibrary + LIBRARY_MENU_STRIP_PX / 2;
+  const libraryMenuCenterY = sheetTopLibrary + SHEET_INSET.library.gap / 2;
 
   return {
     qrTop,

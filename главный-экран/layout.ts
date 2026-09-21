@@ -39,9 +39,6 @@ export const SHEET_INSET = {
   library: { horizontal: 14, bottom: 0, gap: 8 },
 } as const;
 
-/** Gray strip between preview and fill list — three dots sit centered here. */
-export const LIBRARY_MENU_STRIP_PX = 44;
-
 export const LAYER_TRANSITION_MS = 460;
 
 /** Visible tail of the next card in browse carousel (keep small — max card size). */

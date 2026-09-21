@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { layoutTop, LIBRARY_MENU_STRIP_PX, SHEET_INSET, type MainScreenMode } from "../layout";
+import { layoutTop, SHEET_INSET, type MainScreenMode } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
@@ -89,12 +89,11 @@ export function MainScreen() {
       {/* Library — single stack panel to display edge with unified corners */}
       {layout && cardReady && effectiveMode === "library" ? (
         <div
-          className="compass-library-stack absolute bottom-0 z-20 flex flex-col"
+          className="compass-library-stack absolute bottom-0 z-20 flex flex-col gap-2"
           style={{
             top: layoutTop(layout.cardTopLibrary),
             left: edgeInsetLibrary,
             right: edgeInsetLibrary,
-            gap: LIBRARY_MENU_STRIP_PX,
           }}
         >
           <div
@@ -115,7 +114,12 @@ export function MainScreen() {
               onNameEditingChange={setNameEditing}
             />
           </div>
-          <LibraryFillPanel card={activeCard} onComposerOpenChange={setComposerOpen} />
+          <LibraryFillPanel
+            card={activeCard}
+            panelTopPx={layout.sheetTopLibrary + SHEET_INSET.library.gap}
+            menuCenterYpx={layout.browseMenuCenterY}
+            onComposerOpenChange={setComposerOpen}
+          />
         </div>
       ) : null}
 
