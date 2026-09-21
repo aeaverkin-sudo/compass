@@ -19,7 +19,8 @@ import { LibraryComposer } from "./library-composer";
 const MENU_BUTTON_HALF_PX = 22;
 const LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
-const LIST_SCROLL_FADE_PX = 20;
+const LIST_SCROLL_FADE_PX = 12;
+const ADD_BUTTON_BOTTOM_INSET_PX = 14;
 
 type LibraryFillPanelProps = {
   card: Card;
@@ -119,7 +120,7 @@ export function LibraryFillPanel({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const composerOpenedAt = useRef(0);
   const listScrollRef = useRef<HTMLUListElement>(null);
-  const [listScrollFade, setListScrollFade] = useState({ top: false, bottom: false });
+  const [listScrollFadeBottom, setListScrollFadeBottom] = useState(false);
   const { keyboardOpen } = useVisualViewport();
 
   const syncListScrollFade = useCallback(() => {
@@ -128,14 +129,11 @@ export function LibraryFillPanel({
 
     const maxScroll = el.scrollHeight - el.clientHeight;
     if (maxScroll <= 1) {
-      setListScrollFade({ top: false, bottom: false });
+      setListScrollFadeBottom(false);
       return;
     }
 
-    setListScrollFade({
-      top: el.scrollTop > 1,
-      bottom: el.scrollTop < maxScroll - 1,
-    });
+    setListScrollFadeBottom(el.scrollTop < maxScroll - 1);
   }, []);
 
   const rows = useMemo(
@@ -257,17 +255,10 @@ export function LibraryFillPanel({
                   />
                 ))}
               </ul>
-              {listScrollFade.top ? (
+              {listScrollFadeBottom ? (
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-sheet to-transparent"
-                  style={{ height: LIST_SCROLL_FADE_PX }}
-                />
-              ) : null}
-              {listScrollFade.bottom ? (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-sheet to-transparent"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-b from-transparent to-sheet"
                   style={{ height: LIST_SCROLL_FADE_PX }}
                 />
               ) : null}
@@ -276,7 +267,10 @@ export function LibraryFillPanel({
             <div className="min-h-0 flex-1" aria-hidden />
           )}
 
-          <div className="flex shrink-0 justify-center pb-4">
+          <div
+            className="flex shrink-0 justify-center"
+            style={{ paddingBottom: ADD_BUTTON_BOTTOM_INSET_PX }}
+          >
             <button
               type="button"
               aria-label="Add contact row"

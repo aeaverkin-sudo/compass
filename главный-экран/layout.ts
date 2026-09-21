@@ -1,7 +1,8 @@
 /** Layout offsets from the physical screen top (viewport-fit: cover). */
 
 export const QR_SIZE = 168;
-export const QR_COLOR = "#141414";
+/** Dark apelsin orange — vivid but enough contrast on white for phone scanners. */
+export const QR_COLOR = "#E8640C";
 
 /** Browse card photo — 70% of QR size, ~0.5 cm below card top edge. */
 export const CARD_PHOTO_SIZE_PX = 118;

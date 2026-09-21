@@ -20,7 +20,7 @@ export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
         <QRCodeSVG
           value={url}
           size={QR_SIZE}
-          level="M"
+          level="H"
           fgColor={QR_COLOR}
           bgColor="#FFFFFF"
         />
