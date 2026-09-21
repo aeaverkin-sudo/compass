@@ -125,7 +125,11 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
           event.stopPropagation();
           setOpen((value) => !value);
         }}
-        className="relative flex size-8 items-center justify-center transition-opacity active:opacity-60"
+        onPointerDown={(event) => event.stopPropagation()}
+        className={cn(
+          "relative flex size-8 items-center justify-center transition-opacity active:opacity-60",
+          open && "z-[60]",
+        )}
       >
         <Plus className="size-5 text-hairline" strokeWidth={1} aria-hidden />
         {addons.length > 0 ? (
@@ -144,7 +148,11 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
             type="button"
             className="fixed inset-0 z-40"
             aria-label="Close menu"
-            onClick={closeMenu}
+            onClick={(event) => {
+              event.stopPropagation();
+              closeMenu();
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
           />
           <div
             className="absolute right-0 top-full z-50 mt-2 w-64 rounded-[14px] border border-hairline/30 bg-sheet p-2 shadow-[0_4px_24px_oklch(0%_0_0/0.12)]"
