@@ -12,6 +12,7 @@ import {
 } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
+import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { LibraryComposer } from "./library-composer";
 
 const MENU_BUTTON_HALF_PX = 22;
@@ -115,6 +116,7 @@ export function LibraryFillPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const composerOpenedAt = useRef(0);
+  const { keyboardInset } = useVisualViewport();
 
   const rows = useMemo(
     () => sortContactList(contactItems, card.contactItemIds),
@@ -164,15 +166,20 @@ export function LibraryFillPanel({
   }, [onComposerOpenChange]);
 
   const listWidthStyle = contentWidthPx ? { width: contentWidthPx } : undefined;
+  const listHeightPx =
+    composerOpen && keyboardInset > 0
+      ? Math.max(0, contentZoneHeight - keyboardInset)
+      : contentZoneHeight;
 
   return (
     <div className="compass-library-panel-bottom relative min-h-0 flex-1">
       <div
         className={cn(
-          "compass-library-list absolute top-0 left-1/2 flex -translate-x-1/2 flex-col items-center justify-center overflow-y-auto px-4",
+          "compass-library-list absolute top-0 left-1/2 flex -translate-x-1/2 flex-col overflow-y-auto px-4",
+          composerOpen ? "justify-end pb-4" : "items-center justify-center",
           !contentWidthPx && "inset-x-0",
         )}
-        style={{ height: contentZoneHeight, ...listWidthStyle }}
+        style={{ height: listHeightPx, ...listWidthStyle }}
       >
         {!composerOpen ? (
           <div className="flex w-full flex-col items-center">
@@ -203,25 +210,23 @@ export function LibraryFillPanel({
               <Plus className="size-5 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
           </div>
+        ) : editingItem ? (
+          <LibraryComposer
+            item={editingItem}
+            attachmentError={attachmentError}
+            onValueChange={(value) => updateContactItem(editingItem.id, { value })}
+            onAttachment={(file, dataUrl) => {
+              const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
+              if (!result.ok) {
+                setAttachmentError(result.message);
+                return;
+              }
+              setAttachmentError(null);
+            }}
+            onBlur={handleComposerBlur}
+          />
         ) : null}
       </div>
-
-      {composerOpen && editingItem ? (
-        <LibraryComposer
-          item={editingItem}
-          attachmentError={attachmentError}
-          onValueChange={(value) => updateContactItem(editingItem.id, { value })}
-          onAttachment={(file, dataUrl) => {
-            const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
-            if (!result.ok) {
-              setAttachmentError(result.message);
-              return;
-            }
-            setAttachmentError(null);
-          }}
-          onBlur={handleComposerBlur}
-        />
-      ) : null}
     </div>
   );
 }

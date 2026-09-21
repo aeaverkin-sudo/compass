@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { EMPTY_CONTACT_PLACEHOLDER } from "@/shared/services/contact-item";
 import type { ContactItem } from "@/shared/types";
-import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
 const FILL_ICON_STROKE = 1;
@@ -30,7 +29,6 @@ export function LibraryComposer({
   const rootRef = useRef<HTMLDivElement>(null);
   const pickingRef = useRef(false);
   const mountedAt = useRef(0);
-  const { offsetTop, height: viewportHeight, keyboardOpen } = useVisualViewport();
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -95,50 +93,38 @@ export function LibraryComposer({
   };
 
   return (
-    <div
-      ref={rootRef}
-      className="pointer-events-none fixed inset-x-0 z-40 flex items-end px-3"
-      style={{
-        top: offsetTop,
-        height: viewportHeight > 0 ? viewportHeight : "100%",
-        paddingBottom: keyboardOpen
-          ? 8
-          : "max(0.5rem, env(safe-area-inset-bottom))",
-      }}
-    >
-      <div className="pointer-events-auto mx-auto w-full max-w-[360px]">
-        {attachmentError ? (
-          <p className="mb-2 px-1 text-center text-[12px] leading-snug text-destructive">
-            {attachmentError}
-          </p>
-        ) : null}
+    <div ref={rootRef} className="w-full shrink-0 border-t border-divider pt-4">
+      {attachmentError ? (
+        <p className="mb-2 px-1 text-center text-[12px] leading-snug text-destructive">
+          {attachmentError}
+        </p>
+      ) : null}
 
-        <div className="compass-block flex items-center gap-2 rounded-[22px] px-3 py-2">
-          <button
-            type="button"
-            aria-label="Add photo or file"
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={handleAttach}
-            className="flex size-8 shrink-0 items-center justify-center transition-opacity active:opacity-60"
-          >
-            <Plus className="size-5 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
-          </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-label="Add photo or file"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={handleAttach}
+          className="flex size-8 shrink-0 items-center justify-center transition-opacity active:opacity-60"
+        >
+          <Plus className="size-5 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+        </button>
 
-          <div className="min-w-0 flex-1">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={item.value}
-              placeholder={EMPTY_CONTACT_PLACEHOLDER}
-              aria-label="Contact field"
-              onChange={(event) => onValueChange(event.target.value)}
-              onBlur={handleBlur}
-              className={cn(
-                "compass-input block w-full resize-none overflow-y-auto bg-transparent text-[16px] leading-[1.35] text-foreground outline-none",
-                "placeholder:font-normal placeholder:text-hint",
-              )}
-            />
-          </div>
+        <div className="min-w-0 flex-1">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={item.value}
+            placeholder={EMPTY_CONTACT_PLACEHOLDER}
+            aria-label="Contact field"
+            onChange={(event) => onValueChange(event.target.value)}
+            onBlur={handleBlur}
+            className={cn(
+              "compass-input block w-full resize-none overflow-y-auto bg-transparent text-[16px] leading-[1.35] text-foreground outline-none",
+              "placeholder:font-normal placeholder:text-hint",
+            )}
+          />
         </div>
       </div>
     </div>
