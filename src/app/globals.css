@@ -106,6 +106,7 @@ body {
 
 .compass-library-stack {
   isolation: isolate;
+  background: var(--background-ready);
 }
 
 .compass-library-panel-top {
@@ -117,13 +118,13 @@ body {
 }
 
 .compass-library-panel-bottom {
-  background: var(--sheet);
-  border-top-left-radius: 18px;
-  border-top-right-radius: 18px;
-  border-bottom-left-radius: 22px;
-  border-bottom-right-radius: 22px;
-  box-shadow: 0 8px 28px oklch(0% 0 0 / 0.08);
+  background: transparent;
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.compass-library-list {
+  background: var(--sheet);
+  border-radius: 18px;
 }
 
 .compass-layer {

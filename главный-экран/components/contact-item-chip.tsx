@@ -18,7 +18,7 @@ function ContactItemChip({ item, size, className }: ContactItemChipProps) {
   const display = itemDisplayValue(item);
   const compact = size === "compact";
   const classNames = cn(
-    "inline-flex max-w-full items-center justify-center rounded-[10px] bg-[oklch(94%_0.008_70)] text-left",
+    "inline-flex max-w-full items-stretch rounded-[10px] bg-[oklch(97.5%_0.004_70)] text-left",
     compact ? "max-w-[220px] gap-1 px-2 py-1.5" : "max-w-[280px] gap-1.5 px-3 py-2",
     className,
   );
@@ -28,7 +28,7 @@ function ContactItemChip({ item, size, className }: ContactItemChipProps) {
       {label ? (
         <span
           className={cn(
-            "shrink-0 self-center font-light text-hairline",
+            "flex shrink-0 items-center font-light text-hairline",
             compact ? "text-[10px] leading-[1.25]" : "text-[12px] leading-[1.3]",
           )}
         >
@@ -37,7 +37,7 @@ function ContactItemChip({ item, size, className }: ContactItemChipProps) {
       ) : null}
       <span
         className={cn(
-          "min-w-0 self-center whitespace-normal break-words font-semibold text-foreground",
+          "flex min-w-0 items-center whitespace-normal break-words font-semibold text-foreground",
           compact ? "text-[12px] leading-[1.3]" : "text-[14px] leading-[1.35]",
         )}
       >

@@ -15,6 +15,7 @@ import type { Card, ContactItem } from "@/shared/types";
 import { LibraryComposer } from "./library-composer";
 
 const MENU_BUTTON_HALF_PX = 22;
+const LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
 
 type LibraryFillPanelProps = {
@@ -65,9 +66,11 @@ function FilledRow({
   const label = rowTypeLabel(item);
 
   return (
-    <li className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-center gap-x-2 py-2.5">
+    <li className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-stretch gap-x-2 py-2.5">
       {label ? (
-        <span className="text-[13px] font-light leading-[1.35] text-hairline">{label}</span>
+        <span className="flex items-center text-[13px] font-light leading-[1.35] text-hairline">
+          {label}
+        </span>
       ) : (
         <span aria-hidden />
       )}
@@ -75,13 +78,15 @@ function FilledRow({
         type="button"
         onClick={onEdit}
         className={cn(
-          "min-w-0 whitespace-normal break-words text-left text-[15px] leading-[1.35] text-foreground",
+          "flex min-w-0 items-center whitespace-normal break-words text-left text-[15px] leading-[1.35] text-foreground",
           onCard ? "font-semibold" : "font-normal",
         )}
       >
         {itemDisplayValue(item)}
       </button>
-      <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
+      <div className="flex items-center justify-center">
+        <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
+      </div>
     </li>
   );
 }
@@ -109,7 +114,10 @@ export function LibraryFillPanel({
     [contactItems, card.contactItemIds],
   );
   const filledRows = useMemo(() => rows.filter((item) => isContactFilled(item)), [rows]);
-  const contentZoneHeight = Math.max(0, menuCenterYpx - panelTopPx - MENU_BUTTON_HALF_PX);
+  const contentZoneHeight = Math.max(
+    0,
+    menuCenterYpx - panelTopPx - MENU_BUTTON_HALF_PX - LIST_GAP_PX,
+  );
 
   const editingItem = useMemo(
     () => (editingId ? contactItems.find((item) => item.id === editingId) ?? null : null),
@@ -151,7 +159,7 @@ export function LibraryFillPanel({
   return (
     <div className="compass-library-panel-bottom relative min-h-0 flex-1">
       <div
-        className="absolute inset-x-0 top-0 flex flex-col items-center justify-center overflow-y-auto px-4"
+        className="compass-library-list absolute inset-x-0 top-0 flex flex-col items-center justify-center overflow-y-auto px-4"
         style={{ height: contentZoneHeight }}
       >
         {!composerOpen ? (

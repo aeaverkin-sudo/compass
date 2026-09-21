@@ -88,7 +88,7 @@ export function MainScreen() {
       {/* Library — single stack panel to display edge with unified corners */}
       {layout && cardReady && effectiveMode === "library" ? (
         <div
-          className="compass-library-stack absolute inset-x-0 bottom-0 z-20 flex flex-col"
+          className="compass-library-stack absolute inset-x-0 bottom-0 z-20 flex flex-col gap-2"
           style={{ top: layoutTop(layout.cardTopLibrary) }}
         >
           <div
