@@ -10,9 +10,7 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 
 const FILL_ICON_STROKE = 1;
 const TEXTAREA_MAX_PX = 120;
-const KEYBOARD_DOCK_PADDING_PX = 8;
-/** iOS form navigation bar above the keyboard — not always included in visualViewport height. */
-const IOS_INPUT_ACCESSORY_BAR_PX = 44;
+const KEYBOARD_DOCK_PADDING_PX = 0;
 
 type LibraryComposerProps = {
   item: ContactItem;
@@ -35,7 +33,7 @@ export function LibraryComposer({
   const rootRef = useRef<HTMLDivElement>(null);
   const pickingRef = useRef(false);
   const mountedAt = useRef(0);
-  const { offsetTop, height: viewportHeight, keyboardOpen } = useVisualViewport();
+  const { keyboardOpen, keyboardInset } = useVisualViewport();
   const dockedAboveKeyboard = keyboardOpen;
 
   const resizeTextarea = useCallback(() => {
@@ -108,16 +106,12 @@ export function LibraryComposer({
       className={cn(
         "w-full",
         dockedAboveKeyboard
-          ? "pointer-events-none fixed inset-x-0 z-40 flex items-end justify-center"
+          ? "pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4"
           : "relative z-10 shrink-0",
       )}
       style={
         dockedAboveKeyboard
-          ? {
-              top: offsetTop,
-              height: viewportHeight > 0 ? viewportHeight : "100%",
-              paddingBottom: KEYBOARD_DOCK_PADDING_PX + IOS_INPUT_ACCESSORY_BAR_PX,
-            }
+          ? { bottom: keyboardInset + KEYBOARD_DOCK_PADDING_PX }
           : undefined
       }
     >

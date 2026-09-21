@@ -211,6 +211,7 @@ export function LibraryFillPanel({
         >
           <LibraryComposer
             item={editingItem}
+            contentWidthPx={contentWidthPx}
             attachmentError={attachmentError}
             onValueChange={(value) => updateContactItem(editingItem.id, { value })}
             onAttachment={(file, dataUrl) => {
