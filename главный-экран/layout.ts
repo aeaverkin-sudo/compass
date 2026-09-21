@@ -39,6 +39,15 @@ export const SHEET_INSET = {
   library: { horizontal: 14, bottom: 0, gap: 8 },
 } as const;
 
+/** Matches library-fill-panel list → menu spacing. */
+export const LIBRARY_MENU_BUTTON_HALF_PX = 22;
+export const LIBRARY_LIST_GAP_PX = 8;
+
+/** Vertical center of zone 1 below the fill list (self-consistent with list height formula). */
+export function libraryMenuCenterYpx(viewportH: number) {
+  return viewportH - LIBRARY_MENU_BUTTON_HALF_PX - LIBRARY_LIST_GAP_PX;
+}
+
 export const LAYER_TRANSITION_MS = 460;
 
 /** Visible tail of the next card in browse carousel (keep small — max card size). */
