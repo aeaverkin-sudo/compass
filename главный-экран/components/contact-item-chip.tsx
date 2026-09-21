@@ -18,7 +18,7 @@ function ContactItemChip({ item, size, className }: ContactItemChipProps) {
   const display = itemDisplayValue(item);
   const compact = size === "compact";
   const classNames = cn(
-    "inline-flex max-w-full items-stretch rounded-[10px] bg-[oklch(97.5%_0.004_70)] text-left",
+    "inline-flex max-w-full items-stretch bg-transparent text-left",
     compact ? "max-w-[220px] gap-1 px-2 py-1.5" : "max-w-[280px] gap-1.5 px-3 py-2",
     className,
   );
