@@ -22,6 +22,7 @@ type LibraryFillPanelProps = {
   card: Card;
   panelTopPx: number;
   menuCenterYpx: number;
+  contentWidthPx?: number;
   onComposerOpenChange?: (open: boolean) => void;
 };
 
@@ -97,6 +98,7 @@ export function LibraryFillPanel({
   card,
   panelTopPx,
   menuCenterYpx,
+  contentWidthPx,
   onComposerOpenChange,
 }: LibraryFillPanelProps) {
   const contactItems = useAppStore((state) => state.contactItems);
@@ -158,14 +160,19 @@ export function LibraryFillPanel({
     return () => onComposerOpenChange?.(false);
   }, [onComposerOpenChange]);
 
+  const listWidthStyle = contentWidthPx ? { width: contentWidthPx } : undefined;
+
   return (
     <div className="compass-library-panel-bottom relative min-h-0 flex-1">
       <div
-        className="compass-library-list absolute inset-x-0 top-0 flex flex-col items-center justify-center overflow-y-auto px-4"
-        style={{ height: contentZoneHeight }}
+        className={cn(
+          "compass-library-list absolute top-0 left-1/2 flex -translate-x-1/2 flex-col items-center justify-center overflow-y-auto px-4",
+          !contentWidthPx && "inset-x-0",
+        )}
+        style={{ height: contentZoneHeight, ...listWidthStyle }}
       >
         {!composerOpen ? (
-          <div className="flex w-full max-w-[360px] flex-col items-center">
+          <div className="flex w-full flex-col items-center">
             {filledRows.length > 0 ? (
               <ul className="grid w-full grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-hairline/25">
                 {filledRows.map((item) => (
@@ -197,20 +204,42 @@ export function LibraryFillPanel({
       </div>
 
       {composerOpen && editingItem ? (
-        <LibraryComposer
-          item={editingItem}
-          attachmentError={attachmentError}
-          onValueChange={(value) => updateContactItem(editingItem.id, { value })}
-          onAttachment={(file, dataUrl) => {
-            const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
-            if (!result.ok) {
-              setAttachmentError(result.message);
-              return;
-            }
-            setAttachmentError(null);
-          }}
-          onBlur={handleComposerBlur}
-        />
+        contentWidthPx ? (
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 px-4"
+            style={{ width: contentWidthPx, height: contentZoneHeight }}
+          >
+            <LibraryComposer
+              item={editingItem}
+              attachmentError={attachmentError}
+              onValueChange={(value) => updateContactItem(editingItem.id, { value })}
+              onAttachment={(file, dataUrl) => {
+                const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
+                if (!result.ok) {
+                  setAttachmentError(result.message);
+                  return;
+                }
+                setAttachmentError(null);
+              }}
+              onBlur={handleComposerBlur}
+            />
+          </div>
+        ) : (
+          <LibraryComposer
+            item={editingItem}
+            attachmentError={attachmentError}
+            onValueChange={(value) => updateContactItem(editingItem.id, { value })}
+            onAttachment={(file, dataUrl) => {
+              const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
+              if (!result.ok) {
+                setAttachmentError(result.message);
+                return;
+              }
+              setAttachmentError(null);
+            }}
+            onBlur={handleComposerBlur}
+          />
+        )
       ) : null}
     </div>
   );

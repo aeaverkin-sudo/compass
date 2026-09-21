@@ -6,7 +6,8 @@ import type { Card, ContactItem } from "@/shared/types";
 import { cn } from "@/lib/utils";
 import {
   CARD_CAROUSEL_GAP_PX,
-  CARD_CAROUSEL_PEEK_PX,
+  carouselSlideWidthPx,
+  SHEET_INSET,
   type MainScreenMode,
 } from "../layout";
 import { BusinessCard } from "./business-card";
@@ -64,37 +65,37 @@ export function CardCarousel({
   const scrolledRecently = useRef(false);
   const scrollResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
 
   const isBrowse = mode === "browse";
-  const isLibrary = mode === "library";
-  // Library: swipe only when 2+ cards; keep single-card preview layout unchanged.
-  const multiSlide = isBrowse ? cards.length > 1 || canAddCard : cards.length > 1;
+  const multiSlide = cards.length > 1 || canAddCard;
   const activeCard = cards[activeIndex] ?? cards[0];
 
   const slideIds = useMemo(() => {
     const ids = cards.map((card) => card.id);
-    if (isBrowse && canAddCard) ids.push(ADD_SLIDE_ID);
+    if (canAddCard) ids.push(ADD_SLIDE_ID);
     return ids;
-  }, [cards, isBrowse, canAddCard]);
+  }, [cards, canAddCard]);
 
+  // Same slide width as browse cards (viewport-based peek layout).
   const slideWidthPx = useMemo(() => {
-    if (!multiSlide || containerWidth === 0) return 0;
-    // Library preview fills the white panel plate — no peek, no gray gutters.
-    if (isLibrary) return containerWidth;
-    return containerWidth - 2 * CARD_CAROUSEL_PEEK_PX - CARD_CAROUSEL_GAP_PX;
-  }, [containerWidth, isLibrary, multiSlide]);
+    if (!multiSlide || containerWidth === 0 || viewportWidth === 0) return 0;
+    return carouselSlideWidthPx(viewportWidth, true, SHEET_INSET.browse.horizontal);
+  }, [containerWidth, multiSlide, viewportWidth]);
 
   const sidePaddingPx = useMemo(() => {
     if (!multiSlide || slideWidthPx === 0 || containerWidth === 0) return 0;
-    if (isLibrary) return 0;
     return (containerWidth - slideWidthPx) / 2;
-  }, [containerWidth, isLibrary, multiSlide, slideWidthPx]);
+  }, [containerWidth, multiSlide, slideWidthPx]);
 
   useLayoutEffect(() => {
     const node = scrollRef.current;
     if (!node || !multiSlide) return;
 
-    const sync = () => setContainerWidth(node.clientWidth);
+    const sync = () => {
+      setContainerWidth(node.clientWidth);
+      setViewportWidth(window.innerWidth);
+    };
     sync();
 
     const observer = new ResizeObserver(sync);
@@ -266,12 +267,12 @@ export function CardCarousel({
         )}
         onScroll={handleScroll}
       >
-        <div className="flex h-full" style={{ gap: isLibrary ? 0 : CARD_CAROUSEL_GAP_PX }}>
+        <div className="flex h-full" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
           <CarouselSpacer width={sidePaddingPx} />
           {slideIds.map((slideId, index) => (
             <div
               key={slideId}
-              className={`h-full shrink-0 snap-center overflow-hidden ${isBrowse ? "rounded-[18px]" : ""}`}
+              className={cn("h-full shrink-0 snap-center overflow-hidden", isBrowse && "rounded-[18px]")}
               style={{ width: slideWidthPx }}
             >
               {renderSlide(slideId, index)}

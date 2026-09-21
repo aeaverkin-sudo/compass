@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { layoutTop, SHEET_INSET, type MainScreenMode } from "../layout";
+import { carouselSlideWidthPx, layoutTop, SHEET_INSET, type MainScreenMode } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
@@ -40,6 +40,7 @@ export function MainScreen() {
   });
   const [nameEditing, setNameEditing] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [libraryContentWidthPx, setLibraryContentWidthPx] = useState(0);
 
   const activeCard = useMemo(
     () => selectActiveCard(cards, currentCardIndex),
@@ -68,12 +69,25 @@ export function MainScreen() {
     setMode((current) => (current === "browse" ? "library" : "browse"));
   }, [activeCard]);
 
+  const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
+  const edgeInsetLibrary = layout?.edgeInsetLibrary ?? SHEET_INSET.library.horizontal;
+  const libraryMultiSlide = cards.length > 1 || showAddSlide;
+
+  useEffect(() => {
+    const sync = () => {
+      setLibraryContentWidthPx(
+        carouselSlideWidthPx(window.innerWidth, libraryMultiSlide, edgeInsetBrowse),
+      );
+    };
+    sync();
+    window.addEventListener("resize", sync);
+    return () => window.removeEventListener("resize", sync);
+  }, [libraryMultiSlide, edgeInsetBrowse]);
+
   if (!activeCard) {
     return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
   }
 
-  const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
-  const edgeInsetLibrary = layout?.edgeInsetLibrary ?? SHEET_INSET.library.horizontal;
   const cardTopBrowse = layout?.cardTopBrowse;
   const browseCarousel = effectiveMode === "browse" && (cards.length > 1 || showAddSlide);
 
@@ -118,6 +132,7 @@ export function MainScreen() {
             card={activeCard}
             panelTopPx={layout.sheetTopLibrary}
             menuCenterYpx={layout.browseMenuCenterY}
+            contentWidthPx={libraryContentWidthPx}
             onComposerOpenChange={setComposerOpen}
           />
         </div>
