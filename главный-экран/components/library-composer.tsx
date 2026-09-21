@@ -113,7 +113,7 @@ export function LibraryComposer({
           </p>
         ) : null}
 
-        <div className="flex items-center gap-2 rounded-[22px] border border-hairline/30 bg-[oklch(98%_0.004_70)] px-3 py-2 shadow-[0_2px_12px_oklch(0%_0_0/0.06)]">
+        <div className="compass-block flex items-center gap-2 rounded-[22px] px-3 py-2">
           <button
             type="button"
             aria-label="Add photo or file"

@@ -85,16 +85,16 @@ export function MainScreen() {
   }, [libraryMultiSlide, edgeInsetBrowse]);
 
   if (!activeCard) {
-    return <div className="fixed inset-0 bg-background-ready" aria-hidden />;
+    return <div className="fixed inset-0 bg-background" aria-hidden />;
   }
 
   const cardTopBrowse = layout?.cardTopBrowse;
   const browseCarousel = effectiveMode === "browse" && (cards.length > 1 || showAddSlide);
 
   return (
-    <main className="compass-main fixed inset-0 overflow-hidden bg-background-ready">
+    <main className="compass-main fixed inset-0 overflow-hidden bg-background">
       {/* Layer 0 — permanent background */}
-      <div className="pointer-events-none absolute inset-0 z-0 bg-background-ready">
+      <div className="pointer-events-none absolute inset-0 z-0 bg-background">
         {layout ? (
           <QrZone url={pdfUrl} visible={cardReady} topOffsetPx={layout.qrTop} />
         ) : null}

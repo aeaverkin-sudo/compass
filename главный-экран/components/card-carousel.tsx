@@ -259,7 +259,7 @@ export function CardCarousel({
     <div className="h-full overflow-hidden">
       <div
         ref={scrollRef}
-        className="compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background-ready"
+        className="compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background"
         onScroll={handleScroll}
       >
         <div className="flex h-full" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
@@ -268,8 +268,8 @@ export function CardCarousel({
             <div
               key={slideId}
               className={cn(
-                "h-full shrink-0 snap-center overflow-hidden rounded-[18px]",
-                !isBrowse && "compass-library-panel-top",
+                "compass-carousel-slide h-full shrink-0 snap-center overflow-hidden transition-opacity duration-300",
+                index !== activeIndex && "opacity-50",
               )}
               style={{ width: slideWidthPx }}
             >

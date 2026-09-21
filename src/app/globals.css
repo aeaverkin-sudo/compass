@@ -1,15 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: oklch(93% 0.008 70);
-  --background-ready: oklch(97.5% 0.004 75);
-  --theme-color: #e8e4df;
-  --theme-color-ready: #f9f8f6;
-  --foreground: oklch(19% 0.01 60);
-  --hairline: oklch(54% 0.006 70);
-  --hint: oklch(76% 0.008 70);
-  --sheet: oklch(99% 0.003 75);
-  --qr-plate: oklch(97% 0.006 70);
+  --background: #ffffff;
+  --background-ready: #ffffff;
+  --theme-color: #ffffff;
+  --theme-color-ready: #ffffff;
+  --foreground: #161616;
+  --label: #a6a29a;
+  --hairline: #a6a29a;
+  --hint: #a6a29a;
+  --sheet: #ffffff;
+  --divider: #edeae1;
+  --border: rgba(20, 20, 20, 0.55);
+  --toggle-off: #d8d5cc;
+  --toggle-dot-off: #d8d2c4;
+  --block-radius: 27px;
+  --block-shadow: 0 12px 22px -16px rgba(20, 20, 20, 0.12);
 }
 
 html {
@@ -35,7 +41,9 @@ html.compass-ready {
   --color-hairline: var(--hairline);
   --color-hint: var(--hint);
   --color-sheet: var(--sheet);
-  --font-sans: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --color-label: var(--label);
+  --color-divider: var(--divider);
+  --font-sans: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 body {
@@ -59,28 +67,45 @@ body {
   transition: background-color 99999s ease-out 0s;
 }
 
+.compass-block {
+  background: var(--sheet);
+  border: 1px solid var(--border);
+  border-radius: var(--block-radius);
+  box-shadow: var(--block-shadow);
+}
+
 .compass-card {
   background: var(--sheet);
-  border-radius: 18px;
-  box-shadow:
-    0 2px 6px oklch(0% 0 0 / 0.05),
-    0 14px 36px oklch(0% 0 0 / 0.11),
-    0 2px 0 oklch(100% 0 0 / 0.5) inset;
+  border: 1px solid var(--border);
+  border-radius: var(--block-radius);
+  box-shadow: var(--block-shadow);
 }
 
 .compass-card.compass-card-library {
   border-radius: 0;
   background: transparent;
+  border: none;
   box-shadow: none;
+}
+
+.compass-carousel .compass-card,
+.compass-carousel-slide .compass-card {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.compass-carousel-slide {
+  background: var(--sheet);
+  border: 1px solid var(--border);
+  border-radius: var(--block-radius);
+  box-shadow: var(--block-shadow);
 }
 
 .compass-sheet-peek {
   background: var(--sheet);
-  border: none;
-  box-shadow:
-    inset 0 1px 0 oklch(100% 0 0 / 0.85),
-    0 -20px 48px oklch(0% 0 0 / 0.12),
-    0 2px 0 oklch(100% 0 0 / 0.5);
+  border: 1px solid var(--border);
+  box-shadow: var(--block-shadow);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -90,7 +115,6 @@ body {
 
 .compass-card-data-zone {
   background: var(--sheet);
-  box-shadow: inset 0 1px 0 oklch(0% 0 0 / 0.05);
 }
 
 .compass-sheet-under-card {
@@ -99,9 +123,7 @@ body {
 }
 
 .compass-sheet-expanded {
-  box-shadow:
-    inset 0 1px 0 oklch(100% 0 0 / 0.7),
-    0 16px 40px oklch(0% 0 0 / 0.12);
+  box-shadow: var(--block-shadow);
 }
 
 .compass-library-stack {
@@ -111,10 +133,9 @@ body {
 
 .compass-library-panel-top {
   background: var(--sheet);
-  border-top-left-radius: 18px;
-  border-top-right-radius: 18px;
-  border-bottom-left-radius: 18px;
-  border-bottom-right-radius: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--block-radius);
+  box-shadow: var(--block-shadow);
 }
 
 .compass-library-panel-bottom {
@@ -124,7 +145,18 @@ body {
 
 .compass-library-list {
   background: var(--sheet);
-  border-radius: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--block-radius);
+  box-shadow: var(--block-shadow);
+}
+
+.compass-icon-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--sheet);
 }
 
 .compass-layer {
@@ -144,4 +176,12 @@ body {
 
 .compass-carousel::-webkit-scrollbar {
   display: none;
+}
+
+.compass-caption {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--label);
 }

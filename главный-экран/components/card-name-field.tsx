@@ -80,7 +80,7 @@ export function CardNameField({
           }
         }}
         className={cn(
-          "compass-input w-full bg-transparent text-center font-light leading-[1.15] text-foreground outline-none placeholder:text-hint",
+          "compass-input w-full bg-transparent text-center font-light leading-[1.2] text-foreground outline-none placeholder:text-hint",
           className,
         )}
         style={{ fontSize: fontSizePx }}
@@ -99,7 +99,7 @@ export function CardNameField({
         setEditingState(true);
       }}
       className={cn(
-        "w-full bg-transparent text-center font-light leading-[1.15]",
+        "w-full bg-transparent text-center font-light leading-[1.2]",
         value.trim() ? "text-foreground" : "text-hint",
         className,
       )}

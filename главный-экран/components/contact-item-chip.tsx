@@ -63,8 +63,8 @@ function ContactItemChipRow({
 
   const classNames = cn(
     "col-span-2 grid grid-cols-subgrid items-center select-none",
-    compact ? (dense ? "py-0.5" : "py-1.5") : dense ? "py-1" : "py-2",
-    reorderActive && "rounded-lg bg-[oklch(97%_0.004_70)] px-1.5 ring-1 ring-hairline/35",
+    compact ? (dense ? "py-1" : "py-2") : dense ? "py-2" : "py-4",
+    reorderActive && "rounded-lg bg-sheet px-1.5 ring-1 ring-[rgba(20,20,20,0.55)]",
     dragging && "z-10 opacity-80 shadow-sm",
     dropTarget && !dragging && "ring-2 ring-hairline/60",
   );
@@ -85,8 +85,8 @@ function ContactItemChipRow({
     <>
       <span
         className={cn(
-          "whitespace-nowrap text-left font-light text-hairline",
-          compact ? "text-[10px] leading-[1.2]" : "text-[12px] leading-[1.25]",
+          "whitespace-nowrap text-left font-normal text-label",
+          compact ? "text-[10px] leading-[1.3]" : "text-[13px] leading-[1.35]",
         )}
       >
         {label}
@@ -96,10 +96,10 @@ function ContactItemChipRow({
           className={cn(
             "min-w-0 whitespace-normal wrap-anywhere break-words text-left font-semibold text-foreground",
             compact
-              ? "text-[12px] leading-[1.25]"
+              ? "text-[12px] leading-[1.4]"
               : dense
-                ? "text-[14px] leading-[1.2]"
-                : "text-[14px] leading-[1.35]",
+                ? "text-[14px] leading-[1.45]"
+                : "text-[15px] leading-[1.5]",
           )}
         >
           {display}
@@ -325,7 +325,7 @@ export function ContactItemChipList({
             : "mt-3 max-w-[220px] gap-x-1 gap-y-1.5"
           : dense
             ? "mt-4 max-w-[280px] gap-x-1.5 gap-y-1"
-            : "mt-8 max-w-[280px] gap-x-1.5 gap-y-2",
+            : "mt-8 max-w-[280px] gap-x-1.5 gap-y-4",
         reorderActive && "touch-none gap-y-1.5",
         className,
       )}

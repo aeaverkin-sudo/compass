@@ -29,7 +29,7 @@ export function PhotoSlotPicker({
   sizePx = 118,
   borderRadiusPx = photoRadiusForSize(sizePx),
   className,
-  surfaceClassName = "bg-background-ready",
+  surfaceClassName = "bg-sheet",
 }: PhotoSlotPickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
@@ -76,7 +76,7 @@ export function PhotoSlotPicker({
     <div ref={rootRef} className={cn("relative shrink-0", className)} style={slotStyle}>
       <div
         className={cn(
-          "flex size-full items-center justify-center overflow-hidden border border-hairline",
+          "flex size-full items-center justify-center overflow-hidden border border-[rgba(20,20,20,0.55)]",
           surfaceClassName,
         )}
         style={{ borderRadius: borderRadiusPx }}
