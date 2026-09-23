@@ -1,4 +1,3 @@
-import { nanoid } from "nanoid";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import {
   detectAttachmentType,
@@ -110,7 +109,7 @@ export function isContactFilled(item: ContactItem): boolean {
 
 export function createEmptyContactItem(order: number): ContactItem {
   return {
-    id: nanoid(),
+    id: crypto.randomUUID(),
     type: "text",
     label: "",
     value: "",

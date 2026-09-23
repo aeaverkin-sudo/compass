@@ -229,6 +229,9 @@ async function runHydrate() {
   const remoteIds = new Set(remote.map((row) => row.id));
   const toUpload = merged.filter((card) => !remoteIds.has(card.id));
   await Promise.all(toUpload.map((card) => upsertCardScalars(card)));
+
+  const { hydrateCardItems } = await import("@/shared/services/card-items-sync");
+  await hydrateCardItems();
 }
 
 /** Pull server scalars after the anonymous session exists. Safe to call more than once. */

@@ -16,6 +16,14 @@ import {
 } from "@/shared/services/portfolio-limits";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { ensureCardIdentity, scheduleCardUpsert } from "@/shared/services/card-sync";
+import {
+  deleteItemRow,
+  rekeyContactItems,
+  scheduleItemUpsert,
+  syncCardLinkOrder,
+  syncItemOnCard,
+  unlinkItem,
+} from "@/shared/services/card-items-sync";
 import type { Card, ContactItem, User } from "@/shared/types";
 
 type OnboardingPayload = {
@@ -140,13 +148,14 @@ export const useAppStore = create<AppState>()(
       },
 
       updateContactItem: (itemId, data) => {
-        set({
-          contactItems: get().contactItems.map((item) => {
-            if (item.id !== itemId) return item;
-            if (data.value === undefined) return { ...item, ...data };
-            return normalizeContactItem(item, data.value);
-          }),
+        const nextItems = get().contactItems.map((item) => {
+          if (item.id !== itemId) return item;
+          if (data.value === undefined) return { ...item, ...data };
+          return normalizeContactItem(item, data.value);
         });
+        set({ contactItems: nextItems });
+        const next = nextItems.find((item) => item.id === itemId);
+        if (next) scheduleItemUpsert(next);
       },
 
       updateContactItemAttachment: (cardId, itemId, file, dataUrl) => {
@@ -174,30 +183,35 @@ export const useAppStore = create<AppState>()(
 
       addItemToCard: (cardId, itemId) => {
         const now = new Date().toISOString();
-        set({
-          cards: get().cards.map((card) => {
-            if (card.id !== cardId || card.contactItemIds.includes(itemId)) return card;
-            return {
-              ...card,
-              contactItemIds: [itemId, ...card.contactItemIds],
-              updatedAt: now,
-            };
-          }),
+        const item = get().contactItems.find((entry) => entry.id === itemId);
+        if (!item) return;
+        const cards = get().cards.map((card) => {
+          if (card.id !== cardId || card.contactItemIds.includes(itemId)) return card;
+          return {
+            ...card,
+            contactItemIds: [itemId, ...card.contactItemIds],
+            updatedAt: now,
+          };
         });
+        set({ cards });
+        const card = cards.find((entry) => entry.id === cardId);
+        if (card) void syncItemOnCard(card, item);
       },
 
       removeItemFromCard: (cardId, itemId) => {
         const now = new Date().toISOString();
-        set({
-          cards: get().cards.map((card) => {
-            if (card.id !== cardId) return card;
-            return {
-              ...card,
-              contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
-              updatedAt: now,
-            };
-          }),
+        const cards = get().cards.map((card) => {
+          if (card.id !== cardId) return card;
+          return {
+            ...card,
+            contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
+            updatedAt: now,
+          };
         });
+        set({ cards });
+        void unlinkItem(cardId, itemId);
+        const card = cards.find((entry) => entry.id === cardId);
+        if (card) void syncCardLinkOrder(card, get().contactItems);
       },
 
       setCardItemOrder: (cardId, orderedIds) => {
@@ -222,6 +236,8 @@ export const useAppStore = create<AppState>()(
             };
           }),
         });
+        const card = get().cards.find((entry) => entry.id === cardId);
+        if (card) void syncCardLinkOrder(card, get().contactItems);
       },
 
       deleteContactItem: (itemId) => {
@@ -236,6 +252,7 @@ export const useAppStore = create<AppState>()(
             updatedAt: now,
           })),
         });
+        void deleteItemRow(itemId);
       },
 
       updateSecondCardDraft: (data) => {
@@ -277,7 +294,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "compass-storage-v4",
-      version: 7,
+      version: 8,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 5) {
@@ -303,6 +320,14 @@ export const useAppStore = create<AppState>()(
             publicToken: card.publicToken && card.publicToken.length >= 16 ? card.publicToken : nanoid(21),
             qrVersion: card.qrVersion && card.qrVersion > 0 ? card.qrVersion : 1,
           }));
+        }
+        if (version < 8) {
+          const rekeyed = rekeyContactItems(
+            (state.cards as Card[] | undefined) ?? [],
+            (state.contactItems as ContactItem[] | undefined) ?? [],
+          );
+          state.cards = rekeyed.cards;
+          state.contactItems = rekeyed.items;
         }
         return state as unknown as AppState;
       },
