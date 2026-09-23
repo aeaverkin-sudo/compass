@@ -101,7 +101,7 @@ export function customDisplayName(item: ContactItem): string {
 }
 
 export function canRenameLinkDisplay(item: ContactItem): boolean {
-  if (isAttachmentType(item.type) || item.type === "text") return false;
+  if (isAttachmentType(item.type) || item.type === "text" || item.type === "position") return false;
   return item.value.trim().length > 0 || item.url.trim().length > 0;
 }
 
@@ -229,7 +229,7 @@ export function autoLinkDisplay(item: ContactItem): string {
   }
   if (item.type === "email") return item.value.replace(/^mailto:/i, "").trim();
   if (item.type === "phone") return item.value.replace(/^tel:/i, "").trim();
-  if (item.type === "text") return item.value.trim();
+  if (item.type === "text" || item.type === "position") return item.value.trim();
   if (!item.value.trim() && !item.url.trim()) return "";
   return prettyLink(item, item.type);
 }

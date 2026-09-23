@@ -7,6 +7,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
+import { composeCard } from "@/shared/services/card-zones";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import {
@@ -15,9 +16,7 @@ import {
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
   CARD_NAME_GAP_PX,
-  CARD_NAME_SIZE_PX,
-  LIBRARY_PHOTO_RADIUS_PX,
-  LIBRARY_PHOTO_SIZE_PX,
+  CARD_HEADER_NAME_SIZE_PX,
   type MainScreenMode,
 } from "../layout";
 
@@ -47,6 +46,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
 ) {
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const items = getCardItems(card, library);
+  const position = composeCard(items).position;
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const articleRef = useRef<HTMLElement | null>(null);
@@ -81,7 +81,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         compact
           ? {
               height: libraryCardHeightPx,
-              paddingTop: CARD_PHOTO_TOP_PX,
+              paddingTop: 16,
             }
           : {
               height: browseCardHeight(),
@@ -96,15 +96,15 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
 
-      <div className={cn("flex flex-col items-center", !compact && "w-full shrink-0")}>
-        {onPhotoChange ? (
+      <div className="flex w-full shrink-0 flex-col items-center">
+        {!compact && onPhotoChange ? (
           <PhotoSlotPicker
             photo={card.photo ?? null}
             onPhotoChange={onPhotoChange}
-            sizePx={compact ? LIBRARY_PHOTO_SIZE_PX : CARD_PHOTO_SIZE_PX}
-            borderRadiusPx={compact ? LIBRARY_PHOTO_RADIUS_PX : CARD_PHOTO_RADIUS_PX}
+            sizePx={CARD_PHOTO_SIZE_PX}
+            borderRadiusPx={CARD_PHOTO_RADIUS_PX}
           />
-        ) : card.photo ? (
+        ) : !compact && card.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             data-card-content
@@ -115,41 +115,45 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           />
         ) : null}
 
-        <div className="w-full text-center" style={{ marginTop: CARD_NAME_GAP_PX }}>
+        <div
+          className="w-full text-center"
+          style={{ marginTop: !compact && (card.photo || onPhotoChange) ? CARD_NAME_GAP_PX : 0 }}
+        >
           {onDisplayNameChange ? (
             <CardNameField
               value={card.displayName}
               onChange={onDisplayNameChange}
-              fontSizePx={CARD_NAME_SIZE_PX}
+              fontSizePx={CARD_HEADER_NAME_SIZE_PX}
+              className="font-semibold"
             />
           ) : (
             <p
               data-card-content
-              className="font-light leading-[1.15] text-foreground"
-              style={{ fontSize: CARD_NAME_SIZE_PX }}
+              className="font-semibold leading-[1.15] text-foreground"
+              style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
             >
               {card.displayName}
             </p>
           )}
-          {!compact && card.title ? (
-            <p data-card-content className="mt-3 text-[30px] leading-[1.2] text-hint">
-              {card.title}
+          {position ? (
+            <p
+              data-card-content
+              className="mt-1 text-center text-[14.5px] font-semibold leading-snug text-foreground"
+            >
+              {position.title}
+              {position.company ? <span className="font-normal text-label"> · {position.company}</span> : null}
             </p>
           ) : null}
         </div>
-
-        {!compact ? <ContactItemChipList items={items} size="browse" /> : null}
       </div>
 
-      {compact ? (
-        <ContactItemChipList
-          items={items}
-          size="compact"
-          className="min-h-0 flex-1 content-start overflow-y-auto px-1 pb-2 pt-0"
-          listId={card.id}
-          onReorder={handleCommitOrder}
-        />
-      ) : null}
+      <ContactItemChipList
+        items={items}
+        size={compact ? "compact" : "browse"}
+        className="min-h-0 w-full flex-1 content-start overflow-y-auto pb-2"
+        listId={card.id}
+        onReorder={compact ? handleCommitOrder : undefined}
+      />
 
     </article>
   );

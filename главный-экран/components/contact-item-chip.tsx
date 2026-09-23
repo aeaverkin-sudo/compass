@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -10,8 +11,10 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { cn } from "@/lib/utils";
-import { itemDisplayValue, rowTypeLabel } from "@/shared/services/contact-item";
+import { itemDisplayValue } from "@/shared/services/contact-item";
+import { composeCard, FLUSH_PLAIN_VALUES, type CardDisplayRow } from "@/shared/services/card-zones";
 import type { ContactItem } from "@/shared/types";
+import { CardZoneHeading } from "./card-zone-heading";
 
 export type ContactItemChipSize = "browse" | "compact";
 
@@ -73,69 +76,61 @@ type Lift = {
 };
 
 function ContactItemChipRow({
-  item,
+  row,
   size,
   dense,
   lifted,
   style,
 }: {
-  item: ContactItem;
+  row: CardDisplayRow;
   size: ContactItemChipSize;
   dense: boolean;
   lifted: boolean;
   style?: CSSProperties;
 }) {
-  const label = rowTypeLabel(item);
-  const display = itemDisplayValue(item);
   const compact = size === "compact";
   const motion = typeof window !== "undefined" && prefersMotion();
+  const flush = FLUSH_PLAIN_VALUES && !row.axis;
+  const valueClass = cn(
+    "min-w-0 truncate text-left font-semibold text-foreground",
+    compact
+      ? "text-[12px] leading-[1.4]"
+      : dense
+        ? "text-[14px] leading-[1.45]"
+        : "text-[15px] leading-[1.5]",
+  );
 
   const classNames = cn(
-    "col-span-2 grid grid-cols-subgrid items-center select-none",
-    compact ? (dense ? "py-1" : "py-2") : dense ? "py-2" : "py-4",
+    "col-span-2 grid grid-cols-subgrid items-baseline select-none",
+    compact ? (dense ? "py-1" : "py-2") : dense ? "py-2" : "py-1.5",
+    lifted &&
+      motion &&
+      "origin-center scale-[1.03] rounded-full bg-sheet px-1.5 shadow-[0_10px_22px_rgba(20,20,20,0.14)] ring-1 ring-[rgba(20,20,20,0.28)] transition-[transform,box-shadow] duration-200 ease-out motion-reduce:scale-100 motion-reduce:transition-none motion-reduce:shadow-none",
+    lifted && !motion && "rounded-full bg-sheet px-1.5 ring-1 ring-[rgba(20,20,20,0.28)]",
   );
 
   const body = (
-    <span
-      className={cn(
-        "col-span-2 grid grid-cols-subgrid items-center",
-        lifted &&
-          motion &&
-          "origin-center scale-[1.03] rounded-full bg-sheet px-1.5 shadow-[0_10px_22px_rgba(20,20,20,0.14)] ring-1 ring-[rgba(20,20,20,0.28)] transition-[transform,box-shadow] duration-200 ease-out motion-reduce:scale-100 motion-reduce:transition-none motion-reduce:shadow-none",
-        lifted && !motion && "rounded-full bg-sheet px-1.5 ring-1 ring-[rgba(20,20,20,0.28)]",
-      )}
-    >
-      <span
-        className={cn(
-          "whitespace-nowrap text-left font-normal text-label",
-          compact ? "text-[10px] leading-[1.3]" : "text-[13px] leading-[1.35]",
-        )}
-      >
-        {label}
-      </span>
-      <span className="flex min-w-0 items-center">
+    <>
+      {flush ? null : (
         <span
           className={cn(
-            "min-w-0 flex-1 truncate text-left font-semibold text-foreground",
-            compact
-              ? "text-[12px] leading-[1.4]"
-              : dense
-                ? "text-[14px] leading-[1.45]"
-                : "text-[15px] leading-[1.5]",
+            "whitespace-nowrap text-left font-normal text-label",
+            compact ? "text-[10px] leading-[1.3]" : "text-[13px] leading-[1.35]",
           )}
         >
-          {display}
+          {row.axis}
         </span>
-      </span>
-    </span>
+      )}
+      <span className={cn("min-w-0", flush && "col-span-2", valueClass)}>{row.value}</span>
+    </>
   );
 
-  if (!compact && item.url) {
+  if (!compact && row.item && row.url) {
     return (
       <a
         data-card-content
-        data-preview-row={item.id}
-        href={item.url}
+        data-preview-row={row.item.id}
+        href={row.url}
         target="_blank"
         rel="noopener noreferrer"
         onClick={(event: MouseEvent) => event.stopPropagation()}
@@ -148,7 +143,12 @@ function ContactItemChipRow({
   }
 
   return (
-    <span data-card-content data-preview-row={item.id} className={classNames} style={style}>
+    <span
+      data-card-content
+      {...(row.item ? { "data-preview-row": row.item.id } : {})}
+      className={classNames}
+      style={style}
+    >
       {body}
     </span>
   );
@@ -178,13 +178,16 @@ export function ContactItemChipList({
   const detachGesture = useRef<(() => void) | null>(null);
   const pendingFlip = useRef<{ tops: Map<string, number>; orderKey: string } | null>(null);
   const [lift, setLift] = useState<Lift | null>(null);
+  const composed = composeCard(items);
+  const visualItems = composed.zones.flatMap((zone) =>
+    zone.rows.flatMap((row) => (row.item ? [row.item] : [])),
+  );
+  const orderKey = visualItems.map((item) => item.id).join("|");
 
-  const orderKey = items.map((item) => item.id).join("|");
-
-  useEffect(() => {
-    itemsRef.current = items;
+  useLayoutEffect(() => {
+    itemsRef.current = visualItems;
     onReorderRef.current = onReorder;
-  }, [items, onReorder]);
+  }, [visualItems, onReorder]);
 
   useLayoutEffect(() => {
     const pending = pendingFlip.current;
@@ -330,10 +333,12 @@ export function ContactItemChipList({
     document.addEventListener("pointercancel", up);
   };
 
-  const target = lift?.active ? dropIndex(lift.index, lift.dy, lift.stride, items.length) : lift?.index ?? 0;
+  const target = lift?.active
+    ? dropIndex(lift.index, lift.dy, lift.stride, visualItems.length)
+    : (lift?.index ?? 0);
   const motion = typeof window !== "undefined" && prefersMotion();
 
-  if (items.length === 0) return null;
+  if (composed.zones.length === 0) return null;
 
   return (
     <div
@@ -351,43 +356,43 @@ export function ContactItemChipList({
         if (compact && onReorder) event.preventDefault();
       }}
       className={cn(
-        "mx-auto grid w-full shrink-0 grid-cols-[auto_minmax(0,1fr)]",
-        compact
-          ? dense
-            ? "mt-3 max-w-[220px] gap-x-1 gap-y-0.5"
-            : "mt-3 max-w-[220px] gap-x-1 gap-y-1.5"
-          : dense
-            ? "mt-4 max-w-[280px] gap-x-1.5 gap-y-1"
-            : "mt-8 max-w-[280px] gap-x-1.5 gap-y-4",
+        "mx-auto grid w-full min-h-0 grid-cols-[72px_minmax(0,1fr)]",
+        compact ? (dense ? "mt-3 gap-x-2 gap-y-0.5" : "mt-3 gap-x-2 gap-y-1") : "mt-5 gap-x-2 gap-y-1",
         className,
         lift?.active && "touch-none overflow-hidden",
       )}
     >
-      {items.map((item, index) => {
-        const isLifted = Boolean(lift?.active && lift.id === item.id);
-        const shift = lift?.active ? rowShift(index, lift.index, target, lift.stride) : 0;
-        const ty = isLifted ? lift?.dy ?? 0 : shift;
-        const style: CSSProperties | undefined =
-          lift?.active && ty
-            ? {
-                transform: `translateY(${ty}px)`,
-                transition: isLifted || !motion ? "none" : "transform 250ms ease-out",
-                zIndex: isLifted ? 5 : undefined,
-              }
-            : isLifted
-              ? { zIndex: 5 }
-              : undefined;
-        return (
-          <ContactItemChipRow
-            key={item.id}
-            item={item}
-            size={size}
-            dense={dense}
-            lifted={isLifted}
-            style={style}
-          />
-        );
-      })}
+      {composed.zones.map((zone, zoneIndex) => (
+        <Fragment key={zone.id}>
+          <CardZoneHeading title={zone.title} className={zoneIndex === 0 ? undefined : "mt-4"} />
+          {zone.rows.map((row) => {
+            const index = row.item ? visualItems.findIndex((item) => item.id === row.item?.id) : -1;
+            const isLifted = Boolean(row.item && lift?.active && lift.id === row.item.id);
+            const shift = lift?.active && index >= 0 ? rowShift(index, lift.index, target, lift.stride) : 0;
+            const ty = isLifted ? (lift?.dy ?? 0) : shift;
+            const style: CSSProperties | undefined =
+              lift?.active && ty
+                ? {
+                    transform: `translateY(${ty}px)`,
+                    transition: isLifted || !motion ? "none" : "transform 250ms ease-out",
+                    zIndex: isLifted ? 5 : undefined,
+                  }
+                : isLifted
+                  ? { zIndex: 5 }
+                  : undefined;
+            return (
+              <ContactItemChipRow
+                key={row.key}
+                row={row}
+                size={size}
+                dense={dense}
+                lifted={isLifted}
+                style={style}
+              />
+            );
+          })}
+        </Fragment>
+      ))}
     </div>
   );
 }

@@ -116,6 +116,7 @@ export function MainScreen() {
         } else {
           if (dy > 0) return;
           if (startY < zone.top + zone.height * 0.4) return;
+          if (scroller && scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop > 2) return;
           openLibrary();
         }
 

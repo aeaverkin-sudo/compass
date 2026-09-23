@@ -38,6 +38,7 @@ export type ContactType =
   | "video"
   | "link"
   | "text"
+  | "position"
   | "custom";
 
 export interface ContactItem {

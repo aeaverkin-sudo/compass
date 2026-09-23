@@ -1,6 +1,7 @@
 /** Layout offsets from the physical screen top (viewport-fit: cover). */
 
-export const QR_SIZE = 168;
+/** ~10% under 168 so the card picks up the freed space. */
+export const QR_SIZE = 151;
 /** Dark apelsin orange — vivid but enough contrast on white for phone scanners. */
 export const QR_COLOR = "#E8640C";
 
@@ -11,6 +12,8 @@ export const CARD_PHOTO_RADIUS_PX = 21;
 
 /** Browse card name — ~0.2 cm below photo; matches draft card scale. */
 export const CARD_NAME_SIZE_PX = 28;
+/** Live card header name. Draft cards keep CARD_NAME_SIZE_PX. */
+export const CARD_HEADER_NAME_SIZE_PX = 22;
 export const CARD_NAME_GAP_PX = 8;
 
 /** Library card photo — 2× previous 44px compact strip avatar. */

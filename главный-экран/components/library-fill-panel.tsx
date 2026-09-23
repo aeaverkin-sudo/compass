@@ -1,13 +1,13 @@
 "use client";
 
-import { Minus, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { GripVertical, Minus, Plus, X } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { axisLabel, groupLibrary } from "@/shared/services/card-zones";
 import {
   isContactFilled,
   isItemOnCard,
   itemDisplayValue,
-  rowTypeLabel,
   sortContactList,
 } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
@@ -15,6 +15,7 @@ import type { Card, ContactItem } from "@/shared/types";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { PANEL_BORDER_WIDTH_PX } from "../layout";
+import { CardZoneHeading } from "./card-zone-heading";
 import { LibraryComposer } from "./library-composer";
 
 const MENU_BUTTON_HALF_PX = 22;
@@ -168,11 +169,13 @@ function CardToggleButton({
 
 function TypeMarker({
   label,
+  quiet,
   deleteReady,
   onArm,
   onDelete,
 }: {
   label: string;
+  quiet?: boolean;
   deleteReady: boolean;
   onArm: () => void;
   onDelete: () => void;
@@ -209,11 +212,11 @@ function TypeMarker({
       }}
       onContextMenu={longPress.onContextMenu}
       className={cn(
-        "relative flex items-center justify-start whitespace-nowrap text-left text-[13px] leading-[1.4] text-label select-none",
+        "relative flex min-h-[1.4em] w-full items-center justify-start whitespace-nowrap text-left text-[13px] leading-[1.4] text-label select-none",
         holding && "opacity-40",
       )}
     >
-      <span className={deleteReady ? "invisible" : undefined}>{label}</span>
+      <span className={deleteReady || quiet ? "sr-only" : undefined}>{label}</span>
       {deleteReady ? (
         <X className="absolute left-0 size-3.5 text-foreground" strokeWidth={1.5} aria-hidden />
       ) : null}
@@ -242,20 +245,20 @@ function FilledRow({
   onArmDelete: () => void;
   onDelete: () => void;
 }) {
-  const label = rowTypeLabel(item);
+  const axis = axisLabel(item);
 
   return (
-    <li data-fill-row={item.id} className="col-span-3 grid grid-cols-subgrid items-stretch py-4">
-      {label ? (
-        <TypeMarker
-          label={label}
-          deleteReady={deleteReady}
-          onArm={onArmDelete}
-          onDelete={onDelete}
-        />
-      ) : (
-        <span aria-hidden />
-      )}
+    <li data-fill-row={item.id} className="col-span-4 grid grid-cols-subgrid items-center border-b border-divider py-3">
+      <span className="flex items-center text-[rgba(20,20,20,0.35)]" aria-hidden>
+        <GripVertical className="size-3.5" strokeWidth={1.5} />
+      </span>
+      <TypeMarker
+        label={axis || "item"}
+        quiet={!axis}
+        deleteReady={deleteReady}
+        onArm={onArmDelete}
+        onDelete={onDelete}
+      />
       <button
         type="button"
         onClick={onEdit}
@@ -330,6 +333,7 @@ export function LibraryFillPanel({
     [contactItems, card.contactItemIds],
   );
   const filledRows = useMemo(() => rows.filter((item) => isContactFilled(item)), [rows]);
+  const zones = useMemo(() => groupLibrary(filledRows), [filledRows]);
   const contentZoneHeight = Math.max(
     0,
     menuCenterYpx - panelTopPx - MENU_BUTTON_HALF_PX - LIST_GAP_PX,
@@ -440,24 +444,37 @@ export function LibraryFillPanel({
               <ul
                 ref={listScrollRef}
                 onScroll={syncListScrollFade}
-                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[auto_minmax(0,1fr)_28px] gap-x-2 divide-y divide-divider overflow-y-auto"
+                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[16px_72px_minmax(0,1fr)_28px] gap-x-2 overflow-y-auto"
               >
-                {filledRows.map((item) => (
-                  <FilledRow
-                    key={item.id}
-                    item={item}
-                    onCard={isItemOnCard(card, item.id)}
-                    onEdit={() => openComposer(item.id)}
-                    onAdd={() => addItemToCard(card.id, item.id)}
-                    onRemove={() => removeItemFromCard(card.id, item.id)}
-                    cardId={card.id}
-                    deleteReady={deleteReadyId === item.id}
-                    onArmDelete={() => setDeleteReadyId(item.id)}
-                    onDelete={() => {
-                      setDeleteReadyId(null);
-                      deleteContactItem(item.id);
-                    }}
-                  />
+                {zones.map((zone, zoneIndex) => (
+                  <Fragment key={zone.id}>
+                    <CardZoneHeading
+                      as="li"
+                      title={zone.title}
+                      className={zoneIndex === 0 ? "pt-1 pb-1" : "pt-4 pb-1"}
+                    />
+                    {zone.rows.map((row) => {
+                      const entry = row.item;
+                      if (!entry) return null;
+                      return (
+                        <FilledRow
+                          key={entry.id}
+                          item={entry}
+                          onCard={isItemOnCard(card, entry.id)}
+                          onEdit={() => openComposer(entry.id)}
+                          onAdd={() => addItemToCard(card.id, entry.id)}
+                          onRemove={() => removeItemFromCard(card.id, entry.id)}
+                          cardId={card.id}
+                          deleteReady={deleteReadyId === entry.id}
+                          onArmDelete={() => setDeleteReadyId(entry.id)}
+                          onDelete={() => {
+                            setDeleteReadyId(null);
+                            deleteContactItem(entry.id);
+                          }}
+                        />
+                      );
+                    })}
+                  </Fragment>
                 ))}
               </ul>
               {listScrollFadeBottom ? (

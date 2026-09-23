@@ -227,6 +227,7 @@ export const SERVICE_PREFIX_ALIASES: Readonly<Record<string, ContactType>> = {
   behance: "behance",
   dribbble: "dribbble",
   calendly: "calendly",
+  position: "position",
 };
 
 const SKIP_PREFIXES = new Set(["http", "https", "mailto", "tel", "data"]);
@@ -494,6 +495,7 @@ export function typeLabel(type: ContactType): string {
     whatsapp: "WhatsApp",
     link: "Website",
     text: "Description",
+    position: "Position",
     custom: "Website",
   };
 
