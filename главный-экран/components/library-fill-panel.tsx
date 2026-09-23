@@ -12,7 +12,6 @@ import {
 } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
-import { isAttachmentType } from "@/shared/services/portfolio-limits";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { PANEL_BORDER_WIDTH_PX } from "../layout";
@@ -185,10 +184,6 @@ function FilledRow({
             alt=""
             className="size-8 shrink-0 rounded-[10px] object-cover"
           />
-        ) : isAttachmentType(item.type) && item.url ? (
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-background text-[10px] font-medium uppercase text-label">
-            {item.type.slice(0, 3)}
-          </span>
         ) : null}
         <span className="min-w-0 w-full truncate">
           {itemDisplayValue(item)}
