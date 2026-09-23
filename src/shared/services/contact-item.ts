@@ -1,7 +1,6 @@
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import {
   detectAttachmentType,
-  displayHandleForType,
   inferAttachmentLabel,
   matchServicePrefix,
   matchSocialDomain,
@@ -9,6 +8,7 @@ import {
   typeLabel,
 } from "./portfolio-catalog";
 import { isAttachmentType, validateTextValue } from "./portfolio-limits";
+import { linkDisplay } from "./link-display";
 
 export { typeLabel } from "./portfolio-catalog";
 export {
@@ -131,10 +131,7 @@ export function normalizeContactItem(item: ContactItem, value: string): ContactI
   else if (shortcut) url = profileUrlForType(shortcut.type, shortcut.handle) ?? "";
   else if (!trimmed.startsWith("http") && !trimmed.startsWith("data:")) url = `https://${trimmed}`;
 
-  const label =
-    isAttachmentType(type) && item.label.trim()
-      ? item.label
-      : typeLabel(type);
+  const label = isAttachmentType(type) ? item.label : keptCustomLabel(item, type);
 
   return {
     ...item,
@@ -145,33 +142,18 @@ export function normalizeContactItem(item: ContactItem, value: string): ContactI
   };
 }
 
-function bareUrl(raw: string): string {
-  return raw
-    .replace(/^https?:\/\//i, "")
-    .replace(/^www\./i, "")
-    .replace(/\/$/, "");
+function keptCustomLabel(item: ContactItem, nextType: ContactType) {
+  const label = item.label.trim();
+  if (!label) return "";
+  const platform =
+    label.localeCompare(typeLabel(item.type), undefined, { sensitivity: "accent" }) === 0 ||
+    label.localeCompare(typeLabel(nextType), undefined, { sensitivity: "accent" }) === 0;
+  return platform ? "" : label;
 }
 
-/** Chip / row text: hide the `service:` prefix, keep the handle. */
+/** Chip / row text. Display only — the stored url stays intact. */
 export function itemDisplayValue(item: ContactItem): string {
-  const raw = item.value.trim();
-  if (!raw) return item.label;
-
-  const shortcut = parseTypedShortcut(raw);
-  if (shortcut) return displayHandleForType(shortcut.type, shortcut.handle);
-
-  if (raw.startsWith("data:")) return item.label || typeLabel(item.type);
-
-  if (
-    item.type !== "text" &&
-    item.type !== "email" &&
-    item.type !== "phone" &&
-    (raw.includes("://") || DOMAIN.test(raw))
-  ) {
-    return bareUrl(raw);
-  }
-
-  return raw;
+  return linkDisplay(item);
 }
 
 /** Card-linked library rows, including empty drafts. */

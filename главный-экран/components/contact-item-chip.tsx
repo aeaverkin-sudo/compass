@@ -94,7 +94,7 @@ function ContactItemChipRow({
       <span className="flex min-w-0 items-center gap-1">
         <span
           className={cn(
-            "min-w-0 whitespace-normal wrap-anywhere break-words text-left font-semibold text-foreground",
+            "min-w-0 flex-1 truncate text-left font-semibold text-foreground",
             compact
               ? "text-[12px] leading-[1.4]"
               : dense

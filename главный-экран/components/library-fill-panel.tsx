@@ -102,7 +102,7 @@ function FilledRow({
             {item.type.slice(0, 3)}
           </span>
         ) : null}
-        <span className="min-w-0 w-full whitespace-normal wrap-anywhere break-words">
+        <span className="min-w-0 w-full truncate">
           {itemDisplayValue(item)}
         </span>
       </button>
@@ -220,6 +220,7 @@ export function LibraryFillPanel({
             contentWidthPx={contentWidthPx}
             attachmentError={attachmentError}
             onValueChange={(value) => updateContactItem(editingItem.id, { value })}
+            onLabelChange={(label) => updateContactItem(editingItem.id, { label })}
             onAttachment={(file, dataUrl) => {
               const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
               if (!result.ok) {

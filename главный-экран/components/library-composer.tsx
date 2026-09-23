@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { EMPTY_CONTACT_PLACEHOLDER } from "@/shared/services/contact-item";
+import { autoLinkDisplay, canRenameLinkDisplay, customDisplayName } from "@/shared/services/link-display";
 import type { ContactItem } from "@/shared/types";
 import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
@@ -20,6 +21,7 @@ type LibraryComposerProps = {
   contentWidthPx?: number;
   attachmentError?: string | null;
   onValueChange: (value: string) => void;
+  onLabelChange: (label: string) => void;
   onAttachment: (file: File, dataUrl: string) => void;
   onBlur: () => void;
 };
@@ -29,6 +31,7 @@ export function LibraryComposer({
   contentWidthPx,
   attachmentError,
   onValueChange,
+  onLabelChange,
   onAttachment,
   onBlur,
 }: LibraryComposerProps) {
@@ -39,6 +42,7 @@ export function LibraryComposer({
   const { keyboardOpen, keyboardInset } = useVisualViewport();
   const dockedAboveKeyboard = keyboardOpen;
   const hasPhotoPreview = item.type === "photo" && item.url.startsWith("data:");
+  const showName = canRenameLinkDisplay(item);
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -173,6 +177,17 @@ export function LibraryComposer({
                 "placeholder:font-normal placeholder:text-hint",
               )}
             />
+            {showName ? (
+              <input
+                type="text"
+                value={customDisplayName(item) ? item.label : ""}
+                placeholder={autoLinkDisplay(item) || "Name"}
+                aria-label="Display name"
+                onChange={(event) => onLabelChange(event.target.value)}
+                onBlur={handleBlur}
+                className="compass-input mt-1 block w-full truncate border-t border-hairline/40 bg-transparent pt-1 text-[13px] leading-[1.3] text-foreground outline-none placeholder:font-normal placeholder:text-hint"
+              />
+            ) : null}
           </div>
         </div>
 

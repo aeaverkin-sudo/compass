@@ -1,9 +1,12 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { CardSnapshot, ContactItem, NextScanAddon } from "@/shared/types";
 import { typeLabel } from "./portfolio-catalog";
+import { isAttachmentType } from "./portfolio-limits";
+import { linkDisplay } from "./link-display";
 
 function itemLabel(item: ContactItem) {
-  return item.label.trim() || typeLabel(item.type);
+  if (isAttachmentType(item.type) && item.label.trim()) return item.label.trim();
+  return typeLabel(item.type);
 }
 
 async function drawNextScanAddon(
@@ -148,7 +151,7 @@ export async function generateCardPdf(snapshot: CardSnapshot): Promise<Uint8Arra
     });
     y -= 16;
 
-    page.drawText(item.value.slice(0, 400), {
+    page.drawText(linkDisplay(item).slice(0, 400), {
       x: 50,
       y,
       size: 10,
