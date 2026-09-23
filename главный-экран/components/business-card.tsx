@@ -29,7 +29,6 @@ type BusinessCardProps = {
   onEmptyAreaTap: () => void;
   onPhotoChange?: (photo: string | null) => void;
   onDisplayNameChange?: (displayName: string) => void;
-  onNameEditingChange?: (editing: boolean) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
 };
 
@@ -42,7 +41,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onEmptyAreaTap,
     onPhotoChange,
     onDisplayNameChange,
-    onNameEditingChange,
     onCardUpdate,
   },
   ref,
@@ -105,17 +103,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         if (typeof ref === "function") ref(node);
         else if (ref) ref.current = node;
       }}
-      role="button"
-      tabIndex={0}
-      aria-label={compact ? "Back to card" : "Business card"}
       onClick={handleClick}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onEmptyAreaTap();
-        }
-      }}
       className={cn(
         "compass-card compass-layer flex w-full cursor-default flex-col transition-[transform,box-shadow,height] duration-[460ms] ease-out",
         compact
@@ -165,7 +153,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             <CardNameField
               value={card.displayName}
               onChange={onDisplayNameChange}
-              onEditingChange={onNameEditingChange}
               fontSizePx={CARD_NAME_SIZE_PX}
             />
           ) : (

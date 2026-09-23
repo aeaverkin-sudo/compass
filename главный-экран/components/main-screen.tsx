@@ -43,7 +43,6 @@ export function MainScreen() {
     const card = selectActiveCard(state.cards, state.currentCardIndex);
     return card && isCardReady(card) && !state.user.mainIntroSeen ? "library" : "browse";
   });
-  const [nameEditing, setNameEditing] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [libraryContentWidthPx, setLibraryContentWidthPx] = useState(0);
 
@@ -66,12 +65,13 @@ export function MainScreen() {
     }
   }, [mode, cardReady, mainIntroSeen, markMainIntroSeen]);
 
-  // A card that isn't ready can never show library; keep name-edit stable.
-  const effectiveMode: MainScreenMode = cardReady || nameEditing ? mode : "browse";
-
   const toggleMode = useCallback(() => {
-    if (!activeCard || !isCardReady(activeCard)) return;
-    setMode((current) => (current === "browse" ? "library" : "browse"));
+    if (!activeCard) return;
+    setMode((current) => {
+      if (current === "library") return "browse";
+      if (!isCardReady(activeCard)) return current;
+      return "library";
+    });
   }, [activeCard]);
 
   const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
@@ -94,7 +94,7 @@ export function MainScreen() {
   }
 
   const cardTopBrowse = layout?.cardTopBrowse;
-  const browseCarousel = effectiveMode === "browse" && (cards.length > 1 || showAddSlide);
+  const browseCarousel = mode === "browse" && (cards.length > 1 || showAddSlide);
   const libraryStackGapPx = SHEET_INSET.library.gap;
 
   return (
@@ -107,7 +107,7 @@ export function MainScreen() {
       </div>
 
       {/* Library — preview carousel (full-bleed like browse) + fixed fill panel below */}
-      {layout && cardReady && effectiveMode === "library" ? (
+      {layout && mode === "library" ? (
         <>
           <div
             className="absolute z-20 overflow-hidden"
@@ -130,7 +130,6 @@ export function MainScreen() {
                 onActiveIndexChange={setCurrentCardIndex}
                 onUpdateCard={updateCard}
                 onEmptyAreaTap={toggleMode}
-                onNameEditingChange={setNameEditing}
               />
             ) : (
               <div className="compass-library-panel-top h-full overflow-hidden">
@@ -145,7 +144,6 @@ export function MainScreen() {
                   onActiveIndexChange={setCurrentCardIndex}
                   onUpdateCard={updateCard}
                   onEmptyAreaTap={toggleMode}
-                  onNameEditingChange={setNameEditing}
                 />
               </div>
             )}
@@ -170,12 +168,12 @@ export function MainScreen() {
       ) : null}
 
       {/* Mode dots — fixed in gap below browse card; hidden while composing a row */}
-      {layout && cardReady && !composerOpen ? (
-        <BrowseMenuButton centerYpx={layout.browseMenuCenterY} mode={effectiveMode} onTap={toggleMode} />
+      {layout && (cardReady || mode === "library") && !composerOpen ? (
+        <BrowseMenuButton centerYpx={layout.browseMenuCenterY} mode={mode} onTap={toggleMode} />
       ) : null}
 
       {/* Browse — business card(s) */}
-      {layout && effectiveMode === "browse" && cardTopBrowse !== undefined ? (
+      {layout && mode === "browse" && cardTopBrowse !== undefined ? (
         <div
           className="absolute overflow-hidden transition-[top,left,right] duration-[460ms] ease-out"
           style={{
@@ -195,7 +193,6 @@ export function MainScreen() {
             onActiveIndexChange={setCurrentCardIndex}
             onUpdateCard={updateCard}
             onEmptyAreaTap={toggleMode}
-            onNameEditingChange={setNameEditing}
           />
         </div>
       ) : null}
