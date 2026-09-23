@@ -10,10 +10,8 @@ export const CARD_PHOTO_SIZE_PX = 118;
 export const CARD_PHOTO_TOP_PX = 19;
 export const CARD_PHOTO_RADIUS_PX = 21;
 
-/** Browse card name — ~0.2 cm below photo; matches draft card scale. */
-export const CARD_NAME_SIZE_PX = 28;
-/** Live card header name. Draft cards keep CARD_NAME_SIZE_PX. */
-export const CARD_HEADER_NAME_SIZE_PX = 22;
+/** Card name — 21px, weight 500. */
+export const CARD_HEADER_NAME_SIZE_PX = 21;
 export const CARD_NAME_GAP_PX = 8;
 
 /** Library card photo — 2× previous 44px compact strip avatar. */

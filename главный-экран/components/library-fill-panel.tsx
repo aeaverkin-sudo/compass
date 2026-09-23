@@ -202,11 +202,12 @@ function FilledRow({
     setHolding(false);
     longPress.onPointerUp();
   };
-  const gap = spaced ? "mt-4" : undefined;
+  const gap = spaced ? "mt-[22px]" : undefined;
+  const line = mark ? `${mark} / ${value}` : value;
 
   return (
     <>
-      <span className={cn("whitespace-nowrap font-normal text-[16px] leading-[1.35] text-label", gap)}>{lead}</span>
+      <span className={cn("compass-type-zone whitespace-nowrap", gap)}>{lead}</span>
       <div data-fill-row={item.id} className={cn("flex min-w-0 items-baseline gap-2", gap)}>
         {deleteReady ? (
           <button
@@ -237,7 +238,7 @@ function FilledRow({
           }}
           onContextMenu={longPress.onContextMenu}
           className={cn(
-            "min-w-0 break-words text-left text-[16px] leading-[1.35]",
+            "compass-type-value min-w-0 overflow-hidden whitespace-nowrap text-left",
             holding && "opacity-40",
             onCard ? "text-foreground" : "text-label",
           )}
@@ -245,11 +246,10 @@ function FilledRow({
           {item.type === "photo" && item.url.startsWith("data:") ? (
             <img src={item.url} alt="" className="mr-2 inline-block size-8 rounded-[10px] object-cover align-middle" />
           ) : null}
-          {mark ? <span className="font-normal text-label">{mark} / </span> : null}
-          <span className={onCard ? "font-semibold" : "font-normal"}>{value}</span>
+          {line}
         </button>
       </div>
-      <div className={cn("relative z-10 flex items-center justify-center", gap)}>
+      <div className={cn("relative z-10 flex items-center justify-center overflow-x-clip", gap)}>
         <CardToggleButton
           onCard={onCard}
           onAdd={onAdd}
@@ -401,7 +401,7 @@ export function LibraryFillPanel({
 
       {composerOpen && keyboardOpen ? null : (
       <div
-        className="compass-library-list mx-auto flex min-h-0 flex-col overflow-hidden px-4"
+        className="compass-library-list mx-auto flex min-h-0 flex-col overflow-hidden px-2.5"
         style={{
           height: composerOpen ? undefined : contentZoneHeight,
           maxHeight: composerOpen ? undefined : contentZoneHeight,
@@ -416,7 +416,7 @@ export function LibraryFillPanel({
               <div
                 ref={listScrollRef}
                 onScroll={syncListScrollFade}
-                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[auto_minmax(0,1fr)_28px] items-baseline gap-x-5 gap-y-2 overflow-y-auto"
+                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[70px_minmax(0,1fr)_22px] items-baseline gap-x-1.5 gap-y-[7px] pt-[22px]"
               >
                 {zones.map((zone, zoneIndex) =>
                   zone.rows.map((row, rowIndex) => {
@@ -475,11 +475,11 @@ export function LibraryFillPanel({
               aria-label="Add contact row"
               onClick={handleAddRow}
               className={cn(
-                "compass-icon-circle size-10 shrink-0 transition-opacity active:opacity-60",
+                "compass-icon-circle size-[18px] shrink-0 transition-opacity active:opacity-60",
                 filledRows.length > 0 && "mt-2",
               )}
             >
-              <Plus className="size-5 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+              <Plus className="size-2.5 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
           </div>
         </div>

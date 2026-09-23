@@ -5,7 +5,7 @@ import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import {
   browseCardHeight,
   CARD_NAME_GAP_PX,
-  CARD_NAME_SIZE_PX,
+  CARD_HEADER_NAME_SIZE_PX,
   CARD_PHOTO_RADIUS_PX,
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
@@ -46,8 +46,8 @@ export function CardDraftFields({ card, onUpdate }: CardDraftFieldsProps) {
           autoCapitalize="words"
           onChange={(event) => onUpdate({ displayName: event.target.value })}
           onInput={(event) => onUpdate({ displayName: event.currentTarget.value })}
-          className="compass-input w-full bg-transparent px-0 py-0 text-center font-light leading-[1.2] text-foreground outline-none placeholder:text-hint"
-          style={{ fontSize: CARD_NAME_SIZE_PX }}
+          className="compass-input compass-type-name w-full bg-transparent px-0 py-0 text-center text-foreground outline-none placeholder:text-hint"
+          style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
         />
       </label>
     </div>

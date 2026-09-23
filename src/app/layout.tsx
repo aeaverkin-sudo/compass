@@ -1,7 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { Archivo } from "next/font/google";
 import { AppResetGate } from "@/shared/components/app-reset-gate";
 import { SupabaseSession } from "@/shared/components/supabase-session";
 import "./globals.css";
+
+const archivo = Archivo({
+  weight: ["300", "400", "500"],
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-archivo",
+});
 
 export const metadata: Metadata = {
   title: "Compass",
@@ -21,7 +29,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className="h-full">
+    <html lang="ru" className={`h-full ${archivo.variable}`}>
       <body className="min-h-full font-sans antialiased">
         <AppResetGate />
         <SupabaseSession />

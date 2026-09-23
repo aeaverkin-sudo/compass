@@ -85,9 +85,9 @@ function ContactItemChipRow({
   const compact = size === "compact";
   const motion = typeof window !== "undefined" && prefersMotion();
 
+  const line = row.axis ? `${row.axis} / ${row.value}` : row.value;
   const classNames = cn(
-    "min-w-0 break-words text-left select-none",
-    compact ? "text-[13px] leading-[1.35]" : "text-[16px] leading-[1.35]",
+    "compass-type-value min-w-0 whitespace-nowrap text-left text-foreground select-none",
     lifted &&
       motion &&
       "origin-center scale-[1.03] rounded-full bg-sheet px-1.5 shadow-[0_10px_22px_rgba(20,20,20,0.14)] ring-1 ring-[rgba(20,20,20,0.28)] transition-[transform,box-shadow] duration-200 ease-out motion-reduce:scale-100 motion-reduce:transition-none motion-reduce:shadow-none",
@@ -95,12 +95,7 @@ function ContactItemChipRow({
     className,
   );
 
-  const body = (
-    <>
-      {row.axis ? <span className="font-normal text-label">{row.axis} / </span> : null}
-      <span className="font-semibold text-foreground">{row.value}</span>
-    </>
-  );
+  const body = line;
 
   if (!compact && row.item && row.url) {
     return (
@@ -359,8 +354,7 @@ export function ContactItemChipList({
           if (compact && onReorder) event.preventDefault();
         }}
         className={cn(
-          "grid h-full min-h-0 grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-5 overflow-y-auto",
-          compact ? "mt-3 gap-y-1.5" : "mt-4 gap-y-2",
+          "mt-4 grid h-full min-h-0 grid-cols-[70px_minmax(0,1fr)] items-baseline gap-x-1.5 gap-y-[7px] overflow-x-hidden overflow-y-auto",
           lift?.active && "touch-none overflow-hidden",
         )}
       >
@@ -384,11 +378,7 @@ export function ContactItemChipList({
             return (
               <Fragment key={row.key}>
                 <span
-                  className={cn(
-                    "whitespace-nowrap font-normal text-label",
-                    compact ? "text-[13px] leading-[1.35]" : "text-[16px] leading-[1.35]",
-                    zoneGap && "mt-4",
-                  )}
+                  className={cn("compass-type-zone whitespace-nowrap", zoneGap && "mt-[22px]")}
                 >
                   {rowIndex === 0 ? zone.title : null}
                 </span>
@@ -397,7 +387,7 @@ export function ContactItemChipList({
                   size={size}
                   lifted={isLifted}
                   style={style}
-                  className={zoneGap ? "mt-4" : undefined}
+                  className={zoneGap ? "mt-[22px]" : undefined}
                 />
               </Fragment>
             );

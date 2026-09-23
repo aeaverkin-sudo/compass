@@ -37,7 +37,7 @@ export function CardNameField({
       }}
       onClick={(event) => event.stopPropagation()}
       className={cn(
-        "compass-input w-full bg-transparent text-center font-light leading-[1.2] text-foreground outline-none placeholder:text-hint",
+        "compass-input compass-type-name w-full bg-transparent text-center text-foreground outline-none placeholder:text-hint",
         className,
       )}
       style={{ fontSize: fontSizePx }}

@@ -124,24 +124,20 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               value={card.displayName}
               onChange={onDisplayNameChange}
               fontSizePx={CARD_HEADER_NAME_SIZE_PX}
-              className="font-semibold"
             />
           ) : (
             <p
               data-card-content
-              className="font-semibold leading-[1.15] text-foreground"
+              className="compass-type-name text-foreground"
               style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
             >
               {card.displayName}
             </p>
           )}
           {position ? (
-            <p
-              data-card-content
-              className="mt-1 text-center text-[14.5px] font-semibold leading-snug text-foreground"
-            >
+            <p data-card-content className="compass-type-position mt-1 text-center text-foreground">
               {position.title}
-              {position.company ? <span className="font-normal text-label"> · {position.company}</span> : null}
+              {position.company ? <span className="text-label"> · {position.company}</span> : null}
             </p>
           ) : null}
         </div>
