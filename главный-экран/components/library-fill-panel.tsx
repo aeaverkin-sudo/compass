@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   isContactFilled,
@@ -48,9 +48,9 @@ function CardToggleButton({
     else onAdd();
   }, CARD_TOGGLE_HOLD_MS);
 
-  const release = (event: PointerEvent<HTMLButtonElement>) => {
+  const release = () => {
     setHolding(false);
-    longPress.onPointerUp(event);
+    longPress.onPointerUp();
   };
 
   return (
@@ -99,9 +99,9 @@ function TypeMarker({
     onArm();
   }, CARD_TOGGLE_HOLD_MS);
 
-  const release = (event: PointerEvent<HTMLButtonElement>) => {
+  const release = () => {
     setHolding(false);
-    longPress.onPointerUp(event);
+    longPress.onPointerUp();
   };
 
   return (
