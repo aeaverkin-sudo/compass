@@ -1,7 +1,7 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Minus, Plus, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { cn } from "@/lib/utils";
 import {
   isContactFilled,
@@ -13,6 +13,7 @@ import {
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { isAttachmentType } from "@/shared/services/portfolio-limits";
+import { useLongPress } from "@/shared/hooks/use-long-press";
 import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { PANEL_BORDER_WIDTH_PX } from "../layout";
 import { LibraryComposer } from "./library-composer";
@@ -22,6 +23,7 @@ const LIST_GAP_PX = 8;
 const FILL_ICON_STROKE = 1;
 const LIST_SCROLL_FADE_PX = 12;
 const ADD_BUTTON_BOTTOM_INSET_PX = 14;
+const CARD_TOGGLE_HOLD_MS = 500;
 
 type LibraryFillPanelProps = {
   card: Card;
@@ -40,13 +42,35 @@ function CardToggleButton({
   onAdd: () => void;
   onRemove: () => void;
 }) {
+  const [holding, setHolding] = useState(false);
+  const longPress = useLongPress(() => {
+    setHolding(false);
+    if (onCard) onRemove();
+    else onAdd();
+  }, CARD_TOGGLE_HOLD_MS);
+
+  const release = (event: PointerEvent<HTMLButtonElement>) => {
+    setHolding(false);
+    longPress.onPointerUp(event);
+  };
+
   return (
     <button
       type="button"
-      aria-label={onCard ? "Remove from card" : "Add to card"}
-      onClick={onCard ? onRemove : onAdd}
+      aria-label={onCard ? "Hold to remove from card" : "Hold to add to card"}
+      onPointerDown={(event) => {
+        setHolding(true);
+        longPress.onPointerDown(event);
+      }}
+      onPointerMove={longPress.onPointerMove}
+      onPointerUp={release}
+      onPointerCancel={release}
+      onPointerLeave={release}
+      onClick={longPress.onClick}
+      onContextMenu={longPress.onContextMenu}
       className={cn(
-        "flex size-[22px] shrink-0 items-center justify-center rounded-full border bg-sheet transition-opacity active:opacity-60",
+        "relative flex size-[22px] shrink-0 touch-none items-center justify-center rounded-full border bg-sheet select-none before:absolute before:-inset-2 before:content-['']",
+        holding && "bg-[rgba(20,20,20,0.06)]",
         onCard ? "border-[rgba(20,20,20,0.55)]" : "border-[#D8D5CC]",
       )}
     >
@@ -59,27 +83,91 @@ function CardToggleButton({
   );
 }
 
+function TypeMarker({
+  label,
+  deleteReady,
+  onArm,
+  onDelete,
+}: {
+  label: string;
+  deleteReady: boolean;
+  onArm: () => void;
+  onDelete: () => void;
+}) {
+  const [holding, setHolding] = useState(false);
+  const longPress = useLongPress(() => {
+    setHolding(false);
+    onArm();
+  }, CARD_TOGGLE_HOLD_MS);
+
+  const release = (event: PointerEvent<HTMLButtonElement>) => {
+    setHolding(false);
+    longPress.onPointerUp(event);
+  };
+
+  return (
+    <button
+      type="button"
+      data-delete-marker
+      aria-label={deleteReady ? "Delete item" : `Hold to delete ${label}`}
+      onPointerDown={(event) => {
+        if (deleteReady) return;
+        setHolding(true);
+        longPress.onPointerDown(event);
+      }}
+      onPointerMove={longPress.onPointerMove}
+      onPointerUp={release}
+      onPointerCancel={release}
+      onPointerLeave={release}
+      onClick={(event) => {
+        longPress.onClick(event);
+        if (event.defaultPrevented || !deleteReady) return;
+        onDelete();
+      }}
+      onContextMenu={longPress.onContextMenu}
+      className={cn(
+        "relative flex items-center justify-start whitespace-nowrap text-left text-[13px] leading-[1.4] text-label select-none",
+        holding && "opacity-40",
+      )}
+    >
+      <span className={deleteReady ? "invisible" : undefined}>{label}</span>
+      {deleteReady ? (
+        <X className="absolute left-0 size-3.5 text-foreground" strokeWidth={1.5} aria-hidden />
+      ) : null}
+    </button>
+  );
+}
+
 function FilledRow({
   item,
   onCard,
   onEdit,
   onAdd,
   onRemove,
+  deleteReady,
+  onArmDelete,
+  onDelete,
 }: {
   item: ContactItem;
   onCard: boolean;
   onEdit: () => void;
   onAdd: () => void;
   onRemove: () => void;
+  deleteReady: boolean;
+  onArmDelete: () => void;
+  onDelete: () => void;
 }) {
   const label = rowTypeLabel(item);
 
   return (
     <li className="col-span-3 grid grid-cols-subgrid items-stretch py-4">
       {label ? (
-        <span className="flex items-center justify-start whitespace-nowrap text-left text-[13px] font-normal leading-[1.4] text-label">
-          {label}
-        </span>
+        <TypeMarker
+          label={label}
+          deleteReady={deleteReady}
+          onArm={onArmDelete}
+          onDelete={onDelete}
+        />
       ) : (
         <span aria-hidden />
       )}
@@ -129,6 +217,7 @@ export function LibraryFillPanel({
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const composerOpenedAt = useRef(0);
   const listScrollRef = useRef<HTMLUListElement>(null);
@@ -167,8 +256,20 @@ export function LibraryFillPanel({
   const openComposer = useCallback((itemId: string) => {
     composerOpenedAt.current = Date.now();
     setAttachmentError(null);
+    setDeleteReadyId(null);
     setEditingId(itemId);
   }, []);
+
+  useEffect(() => {
+    if (!deleteReadyId) return;
+    const dismiss = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-delete-marker]")) return;
+      setDeleteReadyId(null);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [deleteReadyId]);
 
   // Add a draft to the library pool (never straight onto the card) and edit it.
   const handleAddRow = () => {
@@ -261,6 +362,12 @@ export function LibraryFillPanel({
                     onEdit={() => openComposer(item.id)}
                     onAdd={() => addItemToCard(card.id, item.id)}
                     onRemove={() => removeItemFromCard(card.id, item.id)}
+                    deleteReady={deleteReadyId === item.id}
+                    onArmDelete={() => setDeleteReadyId(item.id)}
+                    onDelete={() => {
+                      setDeleteReadyId(null);
+                      deleteContactItem(item.id);
+                    }}
                   />
                 ))}
               </ul>
