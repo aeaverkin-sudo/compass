@@ -1,88 +1,110 @@
 "use client";
 
-import { GripVertical } from "lucide-react";
 import {
-  useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type MouseEvent,
-  type PointerEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import { cn } from "@/lib/utils";
-import { useLongPress } from "@/shared/hooks/use-long-press";
 import { itemDisplayValue, rowTypeLabel } from "@/shared/services/contact-item";
 import type { ContactItem } from "@/shared/types";
 
 export type ContactItemChipSize = "browse" | "compact";
 
-const PREVIEW_LONG_PRESS_MS = 500;
-const DRAG_START_PX = 8;
+const LIFT_MS = 400;
+const LIFT_SLOP_PX = 8;
+const SETTLE_MS = 280;
 
-/** 3+ rows or a long wrap — pack to half the open browse rhythm. */
-function isDenseList(items: ContactItem[]) {
-  return (
-    items.length >= 3 || items.some((item) => itemDisplayValue(item).length > 48)
-  );
+function prefersMotion() {
+  return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-type PreviewReorderProps = {
+/** How far a resting row moves while another row is held. */
+export function rowShift(index: number, from: number, to: number, stride: number) {
+  if (index === from) return 0;
+  if (from < to && index > from && index <= to) return -stride;
+  if (to < from && index >= to && index < from) return stride;
+  return 0;
+}
+
+export function dropIndex(from: number, dy: number, stride: number, count: number) {
+  if (stride <= 0) return from;
+  const slots = Math.round(dy / stride);
+  return Math.max(0, Math.min(count - 1, from + slots));
+}
+
+function moveItem(items: ContactItem[], fromIndex: number, toIndex: number) {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return items;
+  const next = [...items];
+  const [moved] = next.splice(fromIndex, 1);
+  if (!moved) return items;
+  next.splice(toIndex, 0, moved);
+  return next;
+}
+
+function isDenseList(items: ContactItem[]) {
+  return items.length >= 3 || items.some((item) => itemDisplayValue(item).length > 48);
+}
+
+function rowStride(list: HTMLElement, id: string) {
+  const rows = [...list.querySelectorAll<HTMLElement>("[data-preview-row]")];
+  const index = rows.findIndex((row) => row.dataset.previewRow === id);
+  const row = rows[index];
+  if (!row || index < 0) return { index: -1, stride: 0 };
+  const rect = row.getBoundingClientRect();
+  const neighbor = (rows[index + 1] ?? rows[index - 1])?.getBoundingClientRect();
+  const stride = neighbor ? Math.abs(neighbor.top - rect.top) : rect.height;
+  return { index, stride: stride || rect.height };
+}
+
+type Lift = {
+  id: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  index: number;
+  stride: number;
+  dy: number;
   active: boolean;
-  onEnter: () => void;
-  onExit: () => void;
-  onCommit: (orderedIds: string[]) => void;
 };
 
 function ContactItemChipRow({
   item,
   size,
   dense,
-  previewReorder,
-  onEnterReorder,
-  dragging,
-  dropTarget,
+  lifted,
+  style,
 }: {
   item: ContactItem;
   size: ContactItemChipSize;
   dense: boolean;
-  previewReorder?: PreviewReorderProps;
-  onEnterReorder?: () => void;
-  dragging?: boolean;
-  dropTarget?: boolean;
+  lifted: boolean;
+  style?: CSSProperties;
 }) {
   const label = rowTypeLabel(item);
   const display = itemDisplayValue(item);
   const compact = size === "compact";
-  const reorderActive = Boolean(previewReorder?.active);
-  const interactivePreview = compact && Boolean(previewReorder) && !reorderActive;
-
-  const longPress = useLongPress(() => {
-    onEnterReorder?.();
-    previewReorder?.onEnter();
-  }, PREVIEW_LONG_PRESS_MS);
+  const motion = typeof window !== "undefined" && prefersMotion();
 
   const classNames = cn(
     "col-span-2 grid grid-cols-subgrid items-center select-none",
     compact ? (dense ? "py-1" : "py-2") : dense ? "py-2" : "py-4",
-    reorderActive && "rounded-lg bg-sheet px-1.5 ring-1 ring-[rgba(20,20,20,0.55)]",
-    dragging && "z-10 opacity-80 shadow-sm",
-    dropTarget && !dragging && "ring-2 ring-hairline/60",
   );
 
-  const longPressProps = interactivePreview
-    ? {
-        onPointerDown: longPress.onPointerDown,
-        onPointerMove: longPress.onPointerMove,
-        onPointerUp: longPress.onPointerUp,
-        onPointerCancel: longPress.onPointerCancel,
-        onPointerLeave: longPress.onPointerLeave,
-        onClick: longPress.onClick,
-        onContextMenu: longPress.onContextMenu,
-      }
-    : {};
-
   const body = (
-    <>
+    <span
+      className={cn(
+        "col-span-2 grid grid-cols-subgrid items-center",
+        lifted &&
+          motion &&
+          "origin-center scale-[1.03] rounded-full bg-sheet px-1.5 shadow-[0_10px_22px_rgba(20,20,20,0.14)] ring-1 ring-[rgba(20,20,20,0.28)] transition-[transform,box-shadow] duration-200 ease-out motion-reduce:scale-100 motion-reduce:transition-none motion-reduce:shadow-none",
+        lifted && !motion && "rounded-full bg-sheet px-1.5 ring-1 ring-[rgba(20,20,20,0.28)]",
+      )}
+    >
       <span
         className={cn(
           "whitespace-nowrap text-left font-normal text-label",
@@ -91,7 +113,7 @@ function ContactItemChipRow({
       >
         {label}
       </span>
-      <span className="flex min-w-0 items-center gap-1">
+      <span className="flex min-w-0 items-center">
         <span
           className={cn(
             "min-w-0 flex-1 truncate text-left font-semibold text-foreground",
@@ -104,26 +126,21 @@ function ContactItemChipRow({
         >
           {display}
         </span>
-        {reorderActive ? (
-          <GripVertical
-            className="size-3.5 shrink-0 text-hairline"
-            strokeWidth={1.5}
-            aria-hidden
-          />
-        ) : null}
       </span>
-    </>
+    </span>
   );
 
   if (!compact && item.url) {
     return (
       <a
         data-card-content
+        data-preview-row={item.id}
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
         onClick={(event: MouseEvent) => event.stopPropagation()}
         className={classNames}
+        style={style}
       >
         {body}
       </a>
@@ -131,192 +148,208 @@ function ContactItemChipRow({
   }
 
   return (
-    <span
-      data-card-content
-      data-preview-row={item.id}
-      className={classNames}
-      {...longPressProps}
-    >
+    <span data-card-content data-preview-row={item.id} className={classNames} style={style}>
       {body}
     </span>
   );
-}
-
-function moveItem(items: ContactItem[], fromIndex: number, toIndex: number) {
-  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return items;
-  const next = [...items];
-  const [moved] = next.splice(fromIndex, 1);
-  if (!moved) return items;
-  next.splice(toIndex, 0, moved);
-  return next;
-}
-
-function rowIdFromPoint(list: HTMLElement, clientY: number) {
-  for (const row of list.querySelectorAll<HTMLElement>("[data-preview-row]")) {
-    const rect = row.getBoundingClientRect();
-    if (clientY >= rect.top && clientY <= rect.bottom) {
-      return row.dataset.previewRow ?? null;
-    }
-  }
-  return null;
 }
 
 export function ContactItemChipList({
   items,
   size,
   className,
-  previewReorder,
+  listId,
+  onReorder,
 }: {
   items: ContactItem[];
   size: ContactItemChipSize;
   className?: string;
-  previewReorder?: PreviewReorderProps;
+  listId?: string;
+  onReorder?: (orderedIds: string[]) => void;
 }) {
   const dense = isDenseList(items);
   const compact = size === "compact";
-  const reorderActive = Boolean(previewReorder?.active);
   const listRef = useRef<HTMLDivElement>(null);
-  const [draftItems, setDraftItems] = useState(items);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
-  const draggingIdRef = useRef<string | null>(null);
-  const draftRef = useRef(items);
-  const movedRef = useRef(false);
-  const dragRef = useRef<{ startY: number; moved: boolean } | null>(null);
+  const itemsRef = useRef(items);
+  const onReorderRef = useRef(onReorder);
+  const liftRef = useRef<Lift | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const suppressClick = useRef(false);
+  const detachGesture = useRef<(() => void) | null>(null);
+  const pendingFlip = useRef<{ tops: Map<string, number>; orderKey: string } | null>(null);
+  const [lift, setLift] = useState<Lift | null>(null);
+
+  const orderKey = items.map((item) => item.id).join("|");
 
   useEffect(() => {
-    draftRef.current = draftItems;
-  }, [draftItems]);
+    itemsRef.current = items;
+    onReorderRef.current = onReorder;
+  }, [items, onReorder]);
 
-  useEffect(() => {
-    if (reorderActive || !movedRef.current || !previewReorder) return;
-    previewReorder.onCommit(draftRef.current.map((item) => item.id));
-    movedRef.current = false;
-  }, [reorderActive, previewReorder]);
+  useLayoutEffect(() => {
+    const pending = pendingFlip.current;
+    const list = listRef.current;
+    if (!pending || pending.orderKey !== orderKey || !list) return;
+    pendingFlip.current = null;
+    if (!prefersMotion()) return;
 
-  const enterReorder = useCallback(() => {
-    draftRef.current = items;
-    setDraftItems(items);
-    movedRef.current = false;
-    setDraggingId(null);
-    setOverId(null);
-    draggingIdRef.current = null;
-    dragRef.current = null;
-  }, [items]);
-
-  const exitReorder = useCallback(() => {
-    previewReorder?.onExit();
-  }, [previewReorder]);
-
-  const displayedItems = reorderActive ? draftItems : items;
-
-  const swapToRow = useCallback((targetId: string) => {
-    const activeId = draggingIdRef.current;
-    if (!activeId || activeId === targetId) return;
-
-    setDraftItems((current) => {
-      const fromIndex = current.findIndex((item) => item.id === activeId);
-      const toIndex = current.findIndex((item) => item.id === targetId);
-      if (fromIndex === toIndex) return current;
-      movedRef.current = true;
-      const next = moveItem(current, fromIndex, toIndex);
-      draftRef.current = next;
-      return next;
+    const rows = [...list.querySelectorAll<HTMLElement>("[data-preview-row]")];
+    const moved: HTMLElement[] = [];
+    for (const row of rows) {
+      const id = row.dataset.previewRow;
+      const before = id ? pending.tops.get(id) : undefined;
+      if (before == null) continue;
+      const dy = before - row.getBoundingClientRect().top;
+      if (Math.abs(dy) < 1) continue;
+      row.style.transition = "none";
+      row.style.transform = `translateY(${dy}px)`;
+      moved.push(row);
+    }
+    requestAnimationFrame(() => {
+      for (const row of moved) {
+        row.style.transition = `transform ${SETTLE_MS}ms ease-out`;
+        row.style.transform = "";
+      }
     });
-    setOverId(targetId);
+  }, [orderKey]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      detachGesture.current?.();
+      document.removeEventListener("touchmove", blockTouchMove);
+    };
   }, []);
 
-  const handleListPointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (!reorderActive) return;
+  const clearTimer = () => {
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = null;
+  };
 
-      const row = (event.target as HTMLElement).closest("[data-preview-row]");
-      if (!row) {
-        event.stopPropagation();
-        exitReorder();
+  const publish = (next: Lift | null) => {
+    liftRef.current = next;
+    setLift(next ? { ...next } : null);
+  };
+
+  const finish = (commit: boolean) => {
+    clearTimer();
+    document.removeEventListener("touchmove", blockTouchMove);
+    const current = liftRef.current;
+    liftRef.current = null;
+    if (!current?.active || !commit) {
+      setLift(null);
+      return;
+    }
+    const list = itemsRef.current;
+    const to = dropIndex(current.index, current.dy, current.stride, list.length);
+    if (to !== current.index && listRef.current) {
+      const tops = new Map<string, number>();
+      for (const row of listRef.current.querySelectorAll<HTMLElement>("[data-preview-row]")) {
+        const id = row.dataset.previewRow;
+        if (id) tops.set(id, row.getBoundingClientRect().top);
+      }
+      const next = moveItem(list, current.index, to);
+      const ids = next.map((item) => item.id);
+      pendingFlip.current = { tops, orderKey: ids.join("|") };
+      onReorderRef.current?.(ids);
+    }
+    setLift(null);
+  };
+
+  const arm = (pointerId: number) => {
+    const current = liftRef.current;
+    if (!current || current.pointerId !== pointerId || current.active) return;
+    current.active = true;
+    suppressClick.current = true;
+    document.addEventListener("touchmove", blockTouchMove, { passive: false });
+    publish(current);
+  };
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!compact || !onReorderRef.current || !listRef.current || liftRef.current) return;
+    const row = (event.target as HTMLElement).closest<HTMLElement>("[data-preview-row]");
+    if (!row?.dataset.previewRow) return;
+
+    const id = row.dataset.previewRow;
+    const { index, stride } = rowStride(listRef.current, id);
+    if (index < 0) return;
+
+    const pointerId = event.pointerId;
+    publish({
+      id,
+      pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      index,
+      stride,
+      dy: 0,
+      active: false,
+    });
+
+    clearTimer();
+    timerRef.current = window.setTimeout(() => arm(pointerId), LIFT_MS);
+    event.currentTarget.setPointerCapture(pointerId);
+
+    const move = (native: PointerEvent) => {
+      if (native.pointerId !== pointerId) return;
+      const current = liftRef.current;
+      if (!current) return;
+      const dy = native.clientY - current.startY;
+      const dx = native.clientX - current.startX;
+      if (!current.active) {
+        if (Math.hypot(dx, dy) > LIFT_SLOP_PX) {
+          clearTimer();
+          publish(null);
+          detach();
+        }
         return;
       }
+      native.preventDefault();
+      current.dy = dy;
+      publish(current);
+    };
 
-      const itemId = row.getAttribute("data-preview-row");
-      if (!itemId) return;
-
-      event.stopPropagation();
-      draggingIdRef.current = itemId;
-      dragRef.current = { startY: event.clientY, moved: false };
-      setDraggingId(itemId);
-      setOverId(itemId);
-      event.currentTarget.setPointerCapture(event.pointerId);
-    },
-    [exitReorder, reorderActive],
-  );
-
-  const handleListPointerMove = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (!reorderActive || !dragRef.current || !draggingIdRef.current || !listRef.current) return;
-
-      if (Math.abs(event.clientY - dragRef.current.startY) >= DRAG_START_PX) {
-        dragRef.current.moved = true;
-      }
-
-      const targetId = rowIdFromPoint(listRef.current, event.clientY);
-      if (targetId) swapToRow(targetId);
-    },
-    [reorderActive, swapToRow],
-  );
-
-  const finishDrag = useCallback(() => {
-    if (dragRef.current?.moved && previewReorder) {
-      previewReorder.onCommit(draftRef.current.map((item) => item.id));
-      movedRef.current = false;
+    function detach() {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
+      const list = listRef.current;
+      if (list?.hasPointerCapture(pointerId)) list.releasePointerCapture(pointerId);
+      if (detachGesture.current === detach) detachGesture.current = null;
     }
-    draggingIdRef.current = null;
-    dragRef.current = null;
-    setDraggingId(null);
-    setOverId(null);
-  }, [previewReorder]);
 
-  const handleListPointerUp = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (!reorderActive) return;
+    const up = (native: PointerEvent) => {
+      if (native.pointerId !== pointerId) return;
+      detach();
+      finish(true);
+    };
+    detachGesture.current = detach;
 
-      event.stopPropagation();
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
+    document.addEventListener("pointermove", move, { passive: false });
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", up);
+  };
 
-      if (dragRef.current?.moved) {
-        finishDrag();
-      }
+  const target = lift?.active ? dropIndex(lift.index, lift.dy, lift.stride, items.length) : lift?.index ?? 0;
+  const motion = typeof window !== "undefined" && prefersMotion();
 
-      exitReorder();
-    },
-    [exitReorder, finishDrag, reorderActive],
-  );
-
-  const handleListPointerCancel = useCallback(
-    (event: PointerEvent<HTMLDivElement>) => {
-      if (!reorderActive) return;
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-      finishDrag();
-      exitReorder();
-    },
-    [exitReorder, finishDrag, reorderActive],
-  );
-
-  if (displayedItems.length === 0) return null;
+  if (items.length === 0) return null;
 
   return (
     <div
       ref={listRef}
       data-card-content
-      data-reorder-list
-      data-reorder-active={reorderActive || undefined}
-      onPointerDown={reorderActive ? handleListPointerDown : undefined}
-      onPointerMove={reorderActive ? handleListPointerMove : undefined}
-      onPointerUp={reorderActive ? handleListPointerUp : undefined}
-      onPointerCancel={reorderActive ? handleListPointerCancel : undefined}
+      data-card-chip-list={listId}
+      onPointerDown={compact && onReorder ? onPointerDown : undefined}
+      onClick={(event) => {
+        if (!suppressClick.current) return;
+        suppressClick.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onContextMenu={(event) => {
+        if (compact && onReorder) event.preventDefault();
+      }}
       className={cn(
         "mx-auto grid w-full shrink-0 grid-cols-[auto_minmax(0,1fr)]",
         compact
@@ -326,22 +359,39 @@ export function ContactItemChipList({
           : dense
             ? "mt-4 max-w-[280px] gap-x-1.5 gap-y-1"
             : "mt-8 max-w-[280px] gap-x-1.5 gap-y-4",
-        reorderActive && "touch-none gap-y-1.5",
         className,
+        lift?.active && "touch-none overflow-hidden",
       )}
     >
-      {displayedItems.map((item) => (
-        <ContactItemChipRow
-          key={item.id}
-          item={item}
-          size={size}
-          dense={dense}
-          previewReorder={previewReorder}
-          onEnterReorder={enterReorder}
-          dragging={reorderActive && draggingId === item.id}
-          dropTarget={reorderActive && overId === item.id && draggingId !== item.id}
-        />
-      ))}
+      {items.map((item, index) => {
+        const isLifted = Boolean(lift?.active && lift.id === item.id);
+        const shift = lift?.active ? rowShift(index, lift.index, target, lift.stride) : 0;
+        const ty = isLifted ? lift?.dy ?? 0 : shift;
+        const style: CSSProperties | undefined =
+          lift?.active && ty
+            ? {
+                transform: `translateY(${ty}px)`,
+                transition: isLifted || !motion ? "none" : "transform 250ms ease-out",
+                zIndex: isLifted ? 5 : undefined,
+              }
+            : isLifted
+              ? { zIndex: 5 }
+              : undefined;
+        return (
+          <ContactItemChipRow
+            key={item.id}
+            item={item}
+            size={size}
+            dense={dense}
+            lifted={isLifted}
+            style={style}
+          />
+        );
+      })}
     </div>
   );
+}
+
+function blockTouchMove(event: TouchEvent) {
+  event.preventDefault();
 }

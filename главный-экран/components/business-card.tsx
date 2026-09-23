@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import { forwardRef, useCallback, useRef, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import { useAppStore } from "@/shared/store/app-store";
@@ -49,7 +49,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const items = getCardItems(card, library);
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
-  const [previewReorder, setPreviewReorder] = useState(false);
   const articleRef = useRef<HTMLElement | null>(null);
 
   const handleCommitOrder = useCallback(
@@ -59,39 +58,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     [card.id, setCardItemOrder],
   );
 
-  useEffect(() => {
-    if (!previewReorder || !compact) return;
-
-    const exit = () => setPreviewReorder(false);
-
-    const onPointerDownCapture = (event: PointerEvent) => {
-      if ((event.target as HTMLElement).closest("[data-reorder-list]")) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      exit();
-    };
-
-    const blockClick = (event: Event) => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-    };
-
-    document.addEventListener("pointerdown", onPointerDownCapture, true);
-    document.addEventListener("click", blockClick, true);
-
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDownCapture, true);
-      document.removeEventListener("click", blockClick, true);
-    };
-  }, [previewReorder, compact]);
-
   const handleClick = (event: MouseEvent<HTMLElement>) => {
-    if (previewReorder) {
-      event.preventDefault();
-      event.stopPropagation();
-      setPreviewReorder(false);
-      return;
-    }
     if ((event.target as HTMLElement).closest("[data-card-content]")) return;
     onEmptyAreaTap();
   };
@@ -179,12 +146,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           items={items}
           size="compact"
           className="min-h-0 flex-1 content-start overflow-y-auto px-1 pb-2 pt-0"
-          previewReorder={{
-            active: previewReorder,
-            onEnter: () => setPreviewReorder(true),
-            onExit: () => setPreviewReorder(false),
-            onCommit: handleCommitOrder,
-          }}
+          listId={card.id}
+          onReorder={handleCommitOrder}
         />
       ) : null}
 

@@ -23,6 +23,56 @@ const FILL_ICON_STROKE = 1;
 const LIST_SCROLL_FADE_PX = 12;
 const ADD_BUTTON_BOTTOM_INSET_PX = 14;
 const CARD_TOGGLE_HOLD_MS = 500;
+const FLY_MS = 320;
+
+function prefersMotion() {
+  return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function pulseHaptic() {
+  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    navigator.vibrate(8);
+  }
+}
+
+function flyBetween(from: DOMRect, to: DOMRect, text: string) {
+  const ghost = document.createElement("div");
+  ghost.textContent = text;
+  ghost.setAttribute("aria-hidden", "true");
+  ghost.style.position = "fixed";
+  ghost.style.zIndex = "80";
+  ghost.style.left = `${from.left}px`;
+  ghost.style.top = `${from.top}px`;
+  ghost.style.width = `${Math.max(from.width, 48)}px`;
+  ghost.style.height = `${from.height}px`;
+  ghost.style.display = "flex";
+  ghost.style.alignItems = "center";
+  ghost.style.overflow = "hidden";
+  ghost.style.whiteSpace = "nowrap";
+  ghost.style.textOverflow = "ellipsis";
+  ghost.style.padding = "0 10px";
+  ghost.style.borderRadius = "999px";
+  ghost.style.background = "var(--sheet)";
+  ghost.style.color = "var(--foreground)";
+  ghost.style.fontSize = "13px";
+  ghost.style.fontWeight = "600";
+  ghost.style.boxShadow = "0 10px 22px rgba(20, 20, 20, 0.14)";
+  ghost.style.pointerEvents = "none";
+  ghost.style.transition = `transform ${FLY_MS}ms ease-out, opacity ${FLY_MS}ms ease-out`;
+  document.body.appendChild(ghost);
+  const dx = to.left - from.left;
+  const dy = to.top - from.top;
+  requestAnimationFrame(() => {
+    ghost.style.transform = `translate(${dx}px, ${dy}px)`;
+    ghost.style.opacity = "0";
+  });
+  window.setTimeout(() => ghost.remove(), FLY_MS + 40);
+}
+
+function flyItem(from: DOMRect, to: DOMRect, label: string) {
+  if (!prefersMotion() || from.height === 0) return;
+  flyBetween(from, to, label);
+}
 
 type LibraryFillPanelProps = {
   card: Card;
@@ -36,16 +86,48 @@ function CardToggleButton({
   onCard,
   onAdd,
   onRemove,
+  itemId,
+  listId,
+  flyLabel,
 }: {
   onCard: boolean;
   onAdd: () => void;
   onRemove: () => void;
+  itemId: string;
+  listId: string;
+  flyLabel: string;
 }) {
   const [holding, setHolding] = useState(false);
+  const [pulsing, setPulsing] = useState(false);
   const longPress = useLongPress(() => {
     setHolding(false);
-    if (onCard) onRemove();
-    else onAdd();
+    setPulsing(true);
+    window.setTimeout(() => setPulsing(false), 250);
+    pulseHaptic();
+    const ontoCard = !onCard;
+    const from = document
+      .querySelector<HTMLElement>(
+        ontoCard
+          ? `[data-fill-row="${CSS.escape(itemId)}"]`
+          : `[data-card-chip-list="${CSS.escape(listId)}"] [data-preview-row="${CSS.escape(itemId)}"]`,
+      )
+      ?.getBoundingClientRect();
+    if (ontoCard) onAdd();
+    else onRemove();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!from) return;
+        const to = document
+          .querySelector<HTMLElement>(
+            ontoCard
+              ? `[data-card-chip-list="${CSS.escape(listId)}"] [data-preview-row="${CSS.escape(itemId)}"]`
+              : `[data-fill-row="${CSS.escape(itemId)}"]`,
+          )
+          ?.getBoundingClientRect();
+        if (!to || to.height === 0) return;
+        flyItem(from, to, flyLabel);
+      });
+    });
   }, CARD_TOGGLE_HOLD_MS);
 
   const release = () => {
@@ -68,8 +150,9 @@ function CardToggleButton({
       onClick={longPress.onClick}
       onContextMenu={longPress.onContextMenu}
       className={cn(
-        "relative flex size-[22px] shrink-0 touch-none items-center justify-center rounded-full border bg-sheet select-none before:absolute before:-inset-2 before:content-['']",
-        holding && "bg-[rgba(20,20,20,0.06)]",
+        "relative flex size-[22px] shrink-0 touch-none items-center justify-center rounded-full border bg-sheet transition-transform duration-200 ease-out select-none before:absolute before:-inset-2 before:content-[''] motion-reduce:transform-none motion-reduce:transition-none",
+        holding && "scale-90 bg-[rgba(20,20,20,0.06)] shadow-[0_6px_14px_rgba(20,20,20,0.14)]",
+        pulsing && "compass-toggle-pulse",
         onCard ? "border-[rgba(20,20,20,0.55)]" : "border-[#D8D5CC]",
       )}
     >
@@ -143,6 +226,7 @@ function FilledRow({
   onEdit,
   onAdd,
   onRemove,
+  cardId,
   deleteReady,
   onArmDelete,
   onDelete,
@@ -152,6 +236,7 @@ function FilledRow({
   onEdit: () => void;
   onAdd: () => void;
   onRemove: () => void;
+  cardId: string;
   deleteReady: boolean;
   onArmDelete: () => void;
   onDelete: () => void;
@@ -159,7 +244,7 @@ function FilledRow({
   const label = rowTypeLabel(item);
 
   return (
-    <li className="col-span-3 grid grid-cols-subgrid items-stretch py-4">
+    <li data-fill-row={item.id} className="col-span-3 grid grid-cols-subgrid items-stretch py-4">
       {label ? (
         <TypeMarker
           label={label}
@@ -190,7 +275,14 @@ function FilledRow({
         </span>
       </button>
       <div className="relative z-10 flex items-center justify-center">
-        <CardToggleButton onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
+        <CardToggleButton
+          onCard={onCard}
+          onAdd={onAdd}
+          onRemove={onRemove}
+          itemId={item.id}
+          listId={cardId}
+          flyLabel={itemDisplayValue(item)}
+        />
       </div>
     </li>
   );
@@ -357,6 +449,7 @@ export function LibraryFillPanel({
                     onEdit={() => openComposer(item.id)}
                     onAdd={() => addItemToCard(card.id, item.id)}
                     onRemove={() => removeItemFromCard(card.id, item.id)}
+                    cardId={card.id}
                     deleteReady={deleteReadyId === item.id}
                     onArmDelete={() => setDeleteReadyId(item.id)}
                     onDelete={() => {

@@ -194,3 +194,25 @@ body {
   text-transform: uppercase;
   color: var(--label);
 }
+
+@keyframes compass-toggle-pulse {
+  0% {
+    transform: scale(0.9);
+  }
+  40% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.compass-toggle-pulse {
+  animation: compass-toggle-pulse 250ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compass-toggle-pulse {
+    animation: none;
+  }
+}
