@@ -150,7 +150,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       <ContactItemChipList
         items={items}
         size={compact ? "compact" : "browse"}
-        className="min-h-0 w-full flex-1 content-start overflow-y-auto pb-2"
+        className="pb-2"
         listId={card.id}
         onReorder={compact ? handleCommitOrder : undefined}
       />

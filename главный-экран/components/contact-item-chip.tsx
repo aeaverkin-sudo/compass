@@ -11,10 +11,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { cn } from "@/lib/utils";
-import { itemDisplayValue } from "@/shared/services/contact-item";
-import { composeCard, FLUSH_PLAIN_VALUES, type CardDisplayRow } from "@/shared/services/card-zones";
+import { composeCard, type CardDisplayRow } from "@/shared/services/card-zones";
 import type { ContactItem } from "@/shared/types";
-import { CardZoneHeading } from "./card-zone-heading";
 
 export type ContactItemChipSize = "browse" | "compact";
 
@@ -49,10 +47,6 @@ function moveItem(items: ContactItem[], fromIndex: number, toIndex: number) {
   return next;
 }
 
-function isDenseList(items: ContactItem[]) {
-  return items.length >= 3 || items.some((item) => itemDisplayValue(item).length > 48);
-}
-
 function rowStride(list: HTMLElement, id: string) {
   const rows = [...list.querySelectorAll<HTMLElement>("[data-preview-row]")];
   const index = rows.findIndex((row) => row.dataset.previewRow === id);
@@ -78,50 +72,33 @@ type Lift = {
 function ContactItemChipRow({
   row,
   size,
-  dense,
   lifted,
   style,
+  className,
 }: {
   row: CardDisplayRow;
   size: ContactItemChipSize;
-  dense: boolean;
   lifted: boolean;
   style?: CSSProperties;
+  className?: string;
 }) {
   const compact = size === "compact";
   const motion = typeof window !== "undefined" && prefersMotion();
-  const flush = FLUSH_PLAIN_VALUES && !row.axis;
-  const valueClass = cn(
-    "min-w-0 truncate text-left font-semibold text-foreground",
-    compact
-      ? "text-[12px] leading-[1.4]"
-      : dense
-        ? "text-[14px] leading-[1.45]"
-        : "text-[15px] leading-[1.5]",
-  );
 
   const classNames = cn(
-    "col-span-2 grid grid-cols-subgrid items-baseline select-none",
-    compact ? (dense ? "py-1" : "py-2") : dense ? "py-2" : "py-1.5",
+    "min-w-0 break-words text-left select-none",
+    compact ? "text-[13px] leading-[1.35]" : "text-[16px] leading-[1.35]",
     lifted &&
       motion &&
       "origin-center scale-[1.03] rounded-full bg-sheet px-1.5 shadow-[0_10px_22px_rgba(20,20,20,0.14)] ring-1 ring-[rgba(20,20,20,0.28)] transition-[transform,box-shadow] duration-200 ease-out motion-reduce:scale-100 motion-reduce:transition-none motion-reduce:shadow-none",
     lifted && !motion && "rounded-full bg-sheet px-1.5 ring-1 ring-[rgba(20,20,20,0.28)]",
+    className,
   );
 
   const body = (
     <>
-      {flush ? null : (
-        <span
-          className={cn(
-            "whitespace-nowrap text-left font-normal text-label",
-            compact ? "text-[10px] leading-[1.3]" : "text-[13px] leading-[1.35]",
-          )}
-        >
-          {row.axis}
-        </span>
-      )}
-      <span className={cn("min-w-0", flush && "col-span-2", valueClass)}>{row.value}</span>
+      {row.axis ? <span className="font-normal text-label">{row.axis} / </span> : null}
+      <span className="font-semibold text-foreground">{row.value}</span>
     </>
   );
 
@@ -167,7 +144,6 @@ export function ContactItemChipList({
   listId?: string;
   onReorder?: (orderedIds: string[]) => void;
 }) {
-  const dense = isDenseList(items);
   const compact = size === "compact";
   const listRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef(items);
@@ -178,6 +154,7 @@ export function ContactItemChipList({
   const detachGesture = useRef<(() => void) | null>(null);
   const pendingFlip = useRef<{ tops: Map<string, number>; orderKey: string } | null>(null);
   const [lift, setLift] = useState<Lift | null>(null);
+  const [fade, setFade] = useState({ top: false, bottom: false });
   const composed = composeCard(items);
   const visualItems = composed.zones.flatMap((zone) =>
     zone.rows.flatMap((row) => (row.item ? [row.item] : [])),
@@ -187,6 +164,13 @@ export function ContactItemChipList({
   useLayoutEffect(() => {
     itemsRef.current = visualItems;
     onReorderRef.current = onReorder;
+    const el = listRef.current;
+    if (!el) return;
+    const max = el.scrollHeight - el.clientHeight;
+    setFade({
+      top: el.scrollTop > 2,
+      bottom: max > 2 && el.scrollTop < max - 2,
+    });
   }, [visualItems, onReorder]);
 
   useLayoutEffect(() => {
@@ -338,34 +322,44 @@ export function ContactItemChipList({
     : (lift?.index ?? 0);
   const motion = typeof window !== "undefined" && prefersMotion();
 
+  const syncFade = () => {
+    const el = listRef.current;
+    if (!el) return;
+    const max = el.scrollHeight - el.clientHeight;
+    const next = {
+      top: el.scrollTop > 2,
+      bottom: max > 2 && el.scrollTop < max - 2,
+    };
+    setFade((current) => (current.top === next.top && current.bottom === next.bottom ? current : next));
+  };
+
   if (composed.zones.length === 0) return null;
 
   return (
-    <div
-      ref={listRef}
-      data-card-content
-      data-card-chip-list={listId}
-      onPointerDown={compact && onReorder ? onPointerDown : undefined}
-      onClick={(event) => {
-        if (!suppressClick.current) return;
-        suppressClick.current = false;
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-      onContextMenu={(event) => {
-        if (compact && onReorder) event.preventDefault();
-      }}
-      className={cn(
-        "mx-auto grid w-full min-h-0 grid-cols-[72px_minmax(0,1fr)]",
-        compact ? (dense ? "mt-3 gap-x-2 gap-y-0.5" : "mt-3 gap-x-2 gap-y-1") : "mt-5 gap-x-2 gap-y-1",
-        className,
-        lift?.active && "touch-none overflow-hidden",
-      )}
-    >
-      {composed.zones.map((zone, zoneIndex) => (
-        <Fragment key={zone.id}>
-          <CardZoneHeading title={zone.title} className={zoneIndex === 0 ? undefined : "mt-4"} />
-          {zone.rows.map((row) => {
+    <div className={cn("relative min-h-0 w-full flex-1", className)}>
+      <div
+        ref={listRef}
+        data-card-content
+        data-card-chip-list={listId}
+        onScroll={syncFade}
+        onPointerDown={compact && onReorder ? onPointerDown : undefined}
+        onClick={(event) => {
+          if (!suppressClick.current) return;
+          suppressClick.current = false;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onContextMenu={(event) => {
+          if (compact && onReorder) event.preventDefault();
+        }}
+        className={cn(
+          "grid h-full min-h-0 grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-5 overflow-y-auto",
+          compact ? "mt-3 gap-y-1.5" : "mt-4 gap-y-2",
+          lift?.active && "touch-none overflow-hidden",
+        )}
+      >
+        {composed.zones.map((zone, zoneIndex) =>
+          zone.rows.map((row, rowIndex) => {
             const index = row.item ? visualItems.findIndex((item) => item.id === row.item?.id) : -1;
             const isLifted = Boolean(row.item && lift?.active && lift.id === row.item.id);
             const shift = lift?.active && index >= 0 ? rowShift(index, lift.index, target, lift.stride) : 0;
@@ -380,19 +374,44 @@ export function ContactItemChipList({
                 : isLifted
                   ? { zIndex: 5 }
                   : undefined;
+            const zoneGap = zoneIndex > 0 && rowIndex === 0;
             return (
-              <ContactItemChipRow
-                key={row.key}
-                row={row}
-                size={size}
-                dense={dense}
-                lifted={isLifted}
-                style={style}
-              />
+              <Fragment key={row.key}>
+                <span
+                  className={cn(
+                    "whitespace-nowrap font-normal text-label",
+                    compact ? "text-[13px] leading-[1.35]" : "text-[16px] leading-[1.35]",
+                    zoneGap && "mt-4",
+                  )}
+                >
+                  {rowIndex === 0 ? zone.title : null}
+                </span>
+                <ContactItemChipRow
+                  row={row}
+                  size={size}
+                  lifted={isLifted}
+                  style={style}
+                  className={zoneGap ? "mt-4" : undefined}
+                />
+              </Fragment>
             );
-          })}
-        </Fragment>
-      ))}
+          }),
+        )}
+      </div>
+      {fade.top ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-sheet to-transparent"
+          style={{ height: 72 }}
+        />
+      ) : null}
+      {fade.bottom ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-sheet to-transparent"
+          style={{ height: 40 }}
+        />
+      ) : null}
     </div>
   );
 }

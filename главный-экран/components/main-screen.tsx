@@ -105,18 +105,26 @@ export function MainScreen() {
       function onUp(end: PointerEvent) {
         if (end.pointerId !== pointerId) return;
         clear();
-        if (performance.now() - startedAt > 450) return;
+        const elapsed = performance.now() - startedAt;
+        if (elapsed > 520) return;
         const dx = end.clientX - startX;
         const dy = end.clientY - startY;
         if (Math.abs(dy) < 52 || Math.abs(dy) < Math.abs(dx) * 1.35) return;
+        const scrolled = scroller ? Math.abs(scroller.scrollTop - scrollTop) > 2 : false;
+        if (scrolled) return;
 
         if (direction === "down") {
-          if (dy < 0 || scrollTop > 2) return;
+          if (dy < 0) return;
+          // A slow drag on a list that is not at the top stays a scroll. A flick closes.
+          if (scroller && scrollTop > 2 && elapsed > 280) return;
           closeLibrary();
         } else {
           if (dy > 0) return;
           if (startY < zone.top + zone.height * 0.4) return;
-          if (scroller && scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop > 2) return;
+          const roomBelow = scroller
+            ? scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop
+            : 0;
+          if (roomBelow > 2 && elapsed > 280) return;
           openLibrary();
         }
 

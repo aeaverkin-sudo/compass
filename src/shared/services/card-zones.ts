@@ -3,14 +3,6 @@ import { itemDisplayValue } from "./contact-item";
 import { isAttachmentType } from "./portfolio-limits";
 import { typeLabel } from "./portfolio-catalog";
 
-/**
- * Web and Additional values sit in the value column (empty 72px label).
- * Set true to pull those values to the card's left edge.
- */
-export const FLUSH_PLAIN_VALUES = false;
-
-export const CARD_AXIS_PX = 72;
-
 export const CARD_ZONES = [
   { id: "web", title: "Web" },
   { id: "social", title: "Social" },
@@ -195,27 +187,20 @@ export function composeCard(items: ContactItem[]): { position: PositionLine | nu
       const lines = remainderById.get(item.id) ?? [];
       const rows = buckets.get("additional") ?? [];
       lines.forEach((text, index) => {
+        const value = text.trim();
+        if (!value || value === "+") return;
         rows.push({
           key: `${item.id}:rest:${index}`,
           item: null,
           axis: "",
-          value: text,
+          value,
           url: "",
         });
       });
       buckets.set("additional", rows);
       continue;
     }
-    const zone = zoneForItem(item);
-    const rows = buckets.get(zone) ?? [];
-    rows.push({
-      key: item.id,
-      item,
-      axis: axisLabel(item),
-      value: itemDisplayValue(item),
-      url: item.url,
-    });
-    buckets.set(zone, rows);
+    pushDisplayed(buckets, item);
   }
 
   return { position, zones: sectionsFrom(buckets) };
@@ -223,19 +208,32 @@ export function composeCard(items: ContactItem[]): { position: PositionLine | nu
 
 export function groupLibrary(items: ContactItem[]): CardZoneSection[] {
   const buckets = new Map<CardZoneId, CardDisplayRow[]>();
-  for (const item of items) {
-    const zone = zoneForItem(item);
-    const rows = buckets.get(zone) ?? [];
-    rows.push({
-      key: item.id,
-      item,
-      axis: axisLabel(item),
-      value: itemDisplayValue(item),
-      url: item.url,
-    });
-    buckets.set(zone, rows);
-  }
+  for (const item of items) pushDisplayed(buckets, item);
   return sectionsFrom(buckets);
+}
+
+function pushDisplayed(buckets: Map<CardZoneId, CardDisplayRow[]>, item: ContactItem) {
+  const split = splitPresentation(item);
+  if (!split) return;
+  const zone = zoneForItem(item);
+  const rows = buckets.get(zone) ?? [];
+  rows.push({
+    key: item.id,
+    item,
+    axis: split.axis,
+    value: split.value,
+    url: item.url,
+  });
+  buckets.set(zone, rows);
+}
+
+function splitPresentation(item: ContactItem): { axis: string; value: string } | null {
+  const display = itemDisplayValue(item).trim();
+  if (!display || display === "+") return null;
+  const zone = zoneForItem(item);
+  if (zone === "social" || zone === "lifestyle") return { axis: typeLabel(item.type), value: display };
+  if (zone === "files") return { axis: FILE_AXIS[item.type] ?? "FILE", value: display };
+  return { axis: "", value: display };
 }
 
 function sectionsFrom(buckets: Map<CardZoneId, CardDisplayRow[]>) {
