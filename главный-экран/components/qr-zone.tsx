@@ -17,15 +17,13 @@ export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
       aria-hidden={!visible}
     >
       {visible ? (
-        <div className="shadow-[0_4px_10px_rgba(20,20,20,0.12)]">
-          <QRCodeSVG
-            value={url}
-            size={QR_SIZE}
-            level="H"
-            fgColor={QR_COLOR}
-            bgColor="#FFFFFF"
-          />
-        </div>
+        <QRCodeSVG
+          value={url}
+          size={QR_SIZE}
+          level="H"
+          fgColor={QR_COLOR}
+          bgColor="#FFFFFF"
+        />
       ) : null}
     </div>
   );

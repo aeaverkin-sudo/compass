@@ -44,7 +44,7 @@ html.compass-ready {
   --color-sheet: var(--sheet);
   --color-label: var(--label);
   --color-divider: var(--divider);
-  --font-sans: "Helvetica Neue", var(--font-archivo), Inter, system-ui, -apple-system, sans-serif;
+  --font-sans: "Helvetica Neue";
 }
 
 body {
