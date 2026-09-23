@@ -49,11 +49,17 @@ export interface ContactItem {
   order: number;
 }
 
+export type CardStatus = "draft" | "published" | "archived" | "suspended";
+
 export interface Card {
   id: string;
   displayName: string;
   photo?: string;
   title: string;
+  status: CardStatus;
+  /** Public QR token (`cards.public_token`). Not the legacy `User.shareToken`. */
+  publicToken: string;
+  qrVersion: number;
   contactItemIds: string[];
   /** When true, card rows keep the user's manual order instead of auto shelves. */
   itemOrderManual?: boolean;

@@ -15,6 +15,7 @@ import {
   validatePortfolioAttachment,
 } from "@/shared/services/portfolio-limits";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
+import { ensureCardIdentity, scheduleCardUpsert } from "@/shared/services/card-sync";
 import type { Card, ContactItem, User } from "@/shared/types";
 
 type OnboardingPayload = {
@@ -85,22 +86,27 @@ export const useAppStore = create<AppState>()(
         const displayName = buildDisplayName(firstName, secondName);
         const existing = get().cards[0];
 
-        const primary: Card = {
-          id: existing?.id ?? nanoid(),
+        const primary = ensureCardIdentity({
+          id: existing?.id ?? crypto.randomUUID(),
           displayName,
           photo,
           title: existing?.title ?? "",
+          status: existing?.status ?? "draft",
+          publicToken: existing?.publicToken ?? "",
+          qrVersion: existing?.qrVersion ?? 1,
           contactItemIds: existing?.contactItemIds ?? [],
+          itemOrderManual: existing?.itemOrderManual,
           nextScanAddons: existing?.nextScanAddons ?? [],
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
-        };
+        });
 
         set({
           user: { ...get().user, onboarded: true },
           cards: [primary, ...get().cards.slice(1)],
           currentCardIndex: 0,
         });
+        scheduleCardUpsert(primary);
       },
 
       markMainIntroSeen: () => {
@@ -117,11 +123,14 @@ export const useAppStore = create<AppState>()(
 
       updateCard: (id, data) => {
         const now = new Date().toISOString();
+        const current = get().cards.find((card) => card.id === id);
+        if (!current) return;
+
+        const next = ensureCardIdentity({ ...current, ...data, updatedAt: now });
         set({
-          cards: get().cards.map((card) =>
-            card.id === id ? { ...card, ...data, updatedAt: now } : card,
-          ),
+          cards: get().cards.map((card) => (card.id === id ? next : card)),
         });
+        scheduleCardUpsert(next);
       },
 
       addContactItem: () => {
@@ -241,35 +250,39 @@ export const useAppStore = create<AppState>()(
         const now = new Date().toISOString();
 
         if (cards.length < 2) {
-          const next: Card = {
-            id: nanoid(),
+          const next = ensureCardIdentity({
+            id: crypto.randomUUID(),
             displayName: data.displayName ?? "",
             photo: data.photo,
             title: "",
+            status: "draft",
+            publicToken: "",
+            qrVersion: 1,
             contactItemIds: [],
             nextScanAddons: [],
             createdAt: now,
             updatedAt: now,
-          };
+          });
 
           set({
             cards: [...cards, next],
             currentCardIndex: 1,
           });
+          scheduleCardUpsert(next);
           return;
         }
 
         const second = cards[1]!;
+        const next = ensureCardIdentity({ ...second, ...data, updatedAt: now });
         set({
-          cards: cards.map((card) =>
-            card.id === second.id ? { ...card, ...data, updatedAt: now } : card,
-          ),
+          cards: cards.map((card) => (card.id === second.id ? next : card)),
         });
+        scheduleCardUpsert(next);
       },
     }),
     {
       name: "compass-storage-v4",
-      version: 6,
+      version: 7,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 5) {
@@ -286,6 +299,15 @@ export const useAppStore = create<AppState>()(
             // replay the one-time library intro for them.
             state.user = { ...user, mainIntroSeen: Boolean(user.onboarded) };
           }
+        }
+        if (version < 7) {
+          const cards = (state.cards as Card[] | undefined) ?? [];
+          state.cards = cards.map((card) => ({
+            ...card,
+            status: card.status ?? "draft",
+            publicToken: card.publicToken && card.publicToken.length >= 16 ? card.publicToken : nanoid(21),
+            qrVersion: card.qrVersion && card.qrVersion > 0 ? card.qrVersion : 1,
+          }));
         }
         return state as unknown as AppState;
       },

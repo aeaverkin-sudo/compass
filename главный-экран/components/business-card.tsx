@@ -110,6 +110,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       aria-label={compact ? "Back to card" : "Business card"}
       onClick={handleClick}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onEmptyAreaTap();

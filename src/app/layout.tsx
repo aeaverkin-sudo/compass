@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AppResetGate } from "@/shared/components/app-reset-gate";
+import { SupabaseSession } from "@/shared/components/supabase-session";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ru" className="h-full">
       <body className="min-h-full font-sans antialiased">
         <AppResetGate />
+        <SupabaseSession />
         {children}
       </body>
     </html>
