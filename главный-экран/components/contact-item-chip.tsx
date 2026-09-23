@@ -164,14 +164,20 @@ export function ContactItemChipList({
   useLayoutEffect(() => {
     itemsRef.current = visualItems;
     onReorderRef.current = onReorder;
+  }, [visualItems, onReorder]);
+
+  useLayoutEffect(() => {
     const el = listRef.current;
     if (!el) return;
     const max = el.scrollHeight - el.clientHeight;
-    setFade({
+    const next = {
       top: el.scrollTop > 2,
       bottom: max > 2 && el.scrollTop < max - 2,
-    });
-  }, [visualItems, onReorder]);
+    };
+    setFade((current) =>
+      current.top === next.top && current.bottom === next.bottom ? current : next,
+    );
+  }, [orderKey]);
 
   useLayoutEffect(() => {
     const pending = pendingFlip.current;
