@@ -22,18 +22,14 @@ function resetDocumentScroll() {
 export function LandingPage() {
   const router = useRouter();
   const [photo, setPhoto] = useState<string | null>(null);
-  const [firstName, setFirstName] = useState("");
-  const [secondName, setSecondName] = useState("");
+  const [name, setName] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
 
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
   const { keyboardOpen, offsetTop } = useVisualViewport();
   const typing = inputFocused || keyboardOpen;
 
-  const ready = useMemo(
-    () => Boolean(photo) && isFilled(firstName) && isFilled(secondName),
-    [photo, firstName, secondName],
-  );
+  const ready = useMemo(() => Boolean(photo) && isFilled(name), [photo, name]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("compass-ready", ready);
@@ -53,11 +49,10 @@ export function LandingPage() {
   }, [typing, offsetTop]);
 
   const handleConfirm = () => {
-    if (!photo || !isFilled(firstName) || !isFilled(secondName)) return;
+    if (!photo || !isFilled(name)) return;
     completeOnboarding({
       photo,
-      firstName: firstName.trim(),
-      secondName: secondName.trim(),
+      displayName: name.trim(),
     });
     router.push("/main");
   };
@@ -86,13 +81,7 @@ export function LandingPage() {
           ) : null}
 
           <div className="w-full">
-            <NameFields
-              firstName={firstName}
-              secondName={secondName}
-              onFirstNameChange={setFirstName}
-              onSecondNameChange={setSecondName}
-              onFocusChange={setInputFocused}
-            />
+            <NameFields name={name} onNameChange={setName} onFocusChange={setInputFocused} />
           </div>
         </div>
       </div>

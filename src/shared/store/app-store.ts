@@ -20,8 +20,7 @@ import type { Card, ContactItem, User } from "@/shared/types";
 
 type OnboardingPayload = {
   photo: string;
-  firstName: string;
-  secondName: string;
+  displayName: string;
 };
 
 interface AppState {
@@ -59,10 +58,6 @@ function createInitialUser(): User {
   };
 }
 
-function buildDisplayName(firstName: string, secondName: string) {
-  return [firstName, secondName].filter(Boolean).join(" ").trim();
-}
-
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -81,14 +76,14 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      completeOnboarding: ({ photo, firstName, secondName }) => {
+      completeOnboarding: ({ photo, displayName }) => {
         const now = new Date().toISOString();
-        const displayName = buildDisplayName(firstName, secondName);
+        const name = displayName.trim();
         const existing = get().cards[0];
 
         const primary = ensureCardIdentity({
           id: existing?.id ?? crypto.randomUUID(),
-          displayName,
+          displayName: name,
           photo,
           title: existing?.title ?? "",
           status: existing?.status ?? "draft",
