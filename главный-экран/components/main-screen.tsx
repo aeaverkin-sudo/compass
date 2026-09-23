@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   carouselSlideWidthPx,
   layoutTop,
@@ -74,6 +74,65 @@ export function MainScreen() {
     });
   }, [activeCard]);
 
+  const openLibrary = useCallback(() => {
+    if (!activeCard || !isCardReady(activeCard)) return;
+    setMode("library");
+  }, [activeCard]);
+
+  const closeLibrary = useCallback(() => {
+    setMode("browse");
+  }, []);
+
+  const beginModeSwipe = useCallback(
+    (event: ReactPointerEvent<HTMLElement>, direction: "down" | "up") => {
+      if (composerOpen) return;
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-no-swipe], input, textarea")) return;
+
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const pointerId = event.pointerId;
+      const startedAt = performance.now();
+      const zone = event.currentTarget.getBoundingClientRect();
+      const scroller = target.closest<HTMLElement>(".compass-library-list-scroll, [data-card-chip-list]");
+      const scrollTop = scroller?.scrollTop ?? 0;
+
+      const clear = () => {
+        document.removeEventListener("pointerup", onUp);
+        document.removeEventListener("pointercancel", clear);
+      };
+
+      function onUp(end: PointerEvent) {
+        if (end.pointerId !== pointerId) return;
+        clear();
+        if (performance.now() - startedAt > 450) return;
+        const dx = end.clientX - startX;
+        const dy = end.clientY - startY;
+        if (Math.abs(dy) < 52 || Math.abs(dy) < Math.abs(dx) * 1.35) return;
+
+        if (direction === "down") {
+          if (dy < 0 || scrollTop > 2) return;
+          closeLibrary();
+        } else {
+          if (dy > 0) return;
+          if (startY < zone.top + zone.height * 0.4) return;
+          openLibrary();
+        }
+
+        const swallowClick = (click: Event) => {
+          click.preventDefault();
+          click.stopPropagation();
+        };
+        document.addEventListener("click", swallowClick, true);
+        window.setTimeout(() => document.removeEventListener("click", swallowClick, true), 400);
+      }
+
+      document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", clear);
+    },
+    [closeLibrary, composerOpen, openLibrary],
+  );
+
   const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
   const edgeInsetLibrary = layout?.edgeInsetLibrary ?? SHEET_INSET.library.horizontal;
   const libraryMultiSlide = cards.length > 1 || showAddSlide;
@@ -111,6 +170,7 @@ export function MainScreen() {
         <>
           <div
             className="absolute z-20 overflow-hidden"
+            onPointerDown={(event) => beginModeSwipe(event, "down")}
             style={{
               left: libraryMultiSlide ? 0 : edgeInsetLibrary,
               right: libraryMultiSlide ? 0 : edgeInsetLibrary,
@@ -150,6 +210,7 @@ export function MainScreen() {
           </div>
           <div
             className="compass-library-stack absolute bottom-0 z-20 flex min-h-0 flex-col"
+            onPointerDown={(event) => beginModeSwipe(event, "down")}
             style={{
               top: layoutTop(layout.cardTopLibrary + layout.libraryCardHeight + libraryStackGapPx),
               left: edgeInsetLibrary,
@@ -176,6 +237,7 @@ export function MainScreen() {
       {layout && mode === "browse" && cardTopBrowse !== undefined ? (
         <div
           className="absolute overflow-hidden transition-[top,left,right] duration-[460ms] ease-out"
+          onPointerDown={(event) => beginModeSwipe(event, "up")}
           style={{
             left: browseCarousel ? 0 : edgeInsetBrowse,
             right: browseCarousel ? 0 : edgeInsetBrowse,

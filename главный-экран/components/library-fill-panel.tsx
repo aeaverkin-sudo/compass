@@ -23,7 +23,7 @@ const FILL_ICON_STROKE = 1;
 const LIST_SCROLL_FADE_PX = 12;
 const ADD_BUTTON_BOTTOM_INSET_PX = 14;
 const CARD_TOGGLE_HOLD_MS = 500;
-const FLY_MS = 320;
+const FLY_MS = 960;
 
 function prefersMotion() {
   return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -138,6 +138,7 @@ function CardToggleButton({
   return (
     <button
       type="button"
+      data-no-swipe
       aria-label={onCard ? "Hold to remove from card" : "Hold to add to card"}
       onPointerDown={(event) => {
         setHolding(true);
@@ -477,6 +478,7 @@ export function LibraryFillPanel({
           >
             <button
               type="button"
+              data-no-swipe
               aria-label="Add contact row"
               onClick={handleAddRow}
               className={cn(
