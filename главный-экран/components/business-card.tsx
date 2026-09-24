@@ -11,48 +11,43 @@ import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot
 import { composeCard } from "@/shared/services/card-zones";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
+import { clampNameLines } from "@/shared/components/name-or-title-field";
 import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, type MainScreenMode } from "../layout";
 
 const HERO_PHOTO_PX = 105;
+const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const HERO_MIN_PX = 16;
+
+function splitHeroName(name: string) {
+  const breakAt = name.indexOf("\n");
+  if (breakAt < 0) return [name, ""] as const;
+  return [name.slice(0, breakAt), name.slice(breakAt + 1).replace(/\n/g, "")] as const;
+}
 
 function heroLineSize(lines: string[], width: number, height: number) {
-  if (!width || !height) return 58;
-  const probe = document.createElement("span");
-  probe.style.cssText =
-    "position:absolute;visibility:hidden;white-space:nowrap;font-weight:300;letter-spacing:-0.045em;line-height:0.8;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif";
-  document.body.appendChild(probe);
-  const shown = lines.filter((line) => line.trim().length > 0);
-  const count = Math.max(shown.length, 1);
-  const fill = Math.floor(height / (count * 0.8));
-  let lo = 16;
-  let hi = Math.max(fill, 16);
-  let best = 16;
+  if (!width || !height) return HERO_MIN_PX;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return HERO_MIN_PX;
+  const shown = lines.filter((line) => line.length > 0);
+  const count = shown.length > 1 ? 2 : 1;
+  const heightLimit = count === 2 ? height / 2 : height;
+  const widest = shown.reduce((longest, line) => (line.length > longest.length ? line : longest), shown[0] ?? "");
+  let lo = HERO_MIN_PX;
+  let hi = Math.max(HERO_MIN_PX, Math.floor(heightLimit));
+  let best = HERO_MIN_PX;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    probe.style.fontSize = `${mid}px`;
-    const tooWide = shown.some((line) => {
-      probe.textContent = line;
-      return probe.offsetWidth > width;
-    });
+    ctx.font = `300 ${mid}px ${HERO_FONT}`;
+    const spacing = widest.length > 1 ? (widest.length - 1) * mid * -0.045 : 0;
+    const tooWide = ctx.measureText(widest).width + spacing > width;
     if (tooWide) hi = mid - 1;
     else {
       best = mid;
       lo = mid + 1;
     }
   }
-  probe.remove();
   return best;
-}
-
-function capInset(size: number) {
-  if (typeof document === "undefined") return 0;
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return 0;
-  ctx.font = `300 ${size}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
-  const metrics = ctx.measureText("A");
-  const ink = metrics.actualBoundingBoxAscent + (metrics.actualBoundingBoxDescent || 0);
-  return ((size * 0.8) - ink) / 2;
 }
 
 function HeroName({
@@ -63,67 +58,71 @@ function HeroName({
   onChange?: (displayName: string) => void;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState(58);
+  const [size, setSize] = useState(HERO_MIN_PX);
   const [first, second] = splitHeroName(value);
-  const empty = value.trim().length === 0;
-  const twoLines = empty || value.includes("\n");
+  const twoLines = value.includes("\n");
 
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box) return;
     const fit = () =>
-      setSize(heroLineSize(empty ? ["M", "M"] : [first, second], box.clientWidth, box.clientHeight));
+      setSize(
+        heroLineSize(
+          value.length === 0 ? ["Name or portfolio title"] : twoLines ? [first, second] : [value],
+          box.clientWidth,
+          box.clientHeight,
+        ),
+      );
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
-    return () => observer.disconnect();
-  }, [empty, first, second]);
+    const onTurn = () => fit();
+    window.addEventListener("orientationchange", onTurn);
+    void document.fonts?.ready.then(fit);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("orientationchange", onTurn);
+    };
+  }, [first, second, twoLines, value]);
 
-  const lineClass =
-    "block w-full overflow-hidden whitespace-nowrap text-left font-light tracking-[-0.045em]";
-  const lift = twoLines ? capInset(size) : 0;
-  const lineStyle = { fontSize: size, lineHeight: 0.8 };
+  const lineStyle = { fontSize: size, lineHeight: 1, height: twoLines ? size * 2 : size };
 
   return (
-    <div ref={boxRef} data-card-content className="relative h-full w-full min-w-0 overflow-hidden">
-      <div
-        className={cn(
-          "pointer-events-none flex h-full flex-col",
-          twoLines ? "justify-between" : "justify-end",
-        )}
-      >
-        {twoLines ? (
-          <span className={cn(lineClass, "text-[#111]")} style={{ ...lineStyle, marginTop: -lift }}>
-            {first || "\u00a0"}
-          </span>
-        ) : null}
-        <span className={cn(lineClass, "text-[#111]")} style={lineStyle}>
-          {twoLines ? second || "\u00a0" : first || "\u00a0"}
-        </span>
-      </div>
+    <div ref={boxRef} data-card-content className="flex h-full w-full min-w-0 items-end overflow-hidden">
       {onChange ? (
         <textarea
           value={value}
-          rows={2}
-          onChange={(event) => onChange(event.target.value.replace(/\n{2,}/g, "\n").split("\n").slice(0, 2).join("\n"))}
+          rows={twoLines ? 2 : 1}
+          placeholder="Name or portfolio title"
+          aria-label="Name or portfolio title"
+          onChange={(event) => onChange(clampNameLines(event.target.value))}
           onKeyDown={(event) => {
             event.stopPropagation();
-            if (event.key === "Enter" && value.includes("\n")) event.preventDefault();
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            if (value.includes("\n")) return;
+            const start = event.currentTarget.selectionStart ?? value.length;
+            const end = event.currentTarget.selectionEnd ?? start;
+            onChange(clampNameLines(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          aria-label="Name"
-          className="compass-input absolute inset-0 h-full w-full resize-none bg-transparent text-transparent caret-[#111] outline-none"
-          style={{ fontSize: size }}
+          className="compass-input block w-full resize-none overflow-hidden bg-transparent text-left font-light tracking-[-0.045em] text-[#111] outline-none placeholder:text-[#C8C8C8]"
+          style={lineStyle}
         />
-      ) : null}
+      ) : (
+        <div className="w-full overflow-hidden text-left font-light tracking-[-0.045em] text-[#111]" style={lineStyle}>
+          {twoLines ? (
+            <>
+              <div className="overflow-hidden whitespace-nowrap">{first || "\u00a0"}</div>
+              <div className="overflow-hidden whitespace-nowrap">{second || "\u00a0"}</div>
+            </>
+          ) : (
+            <div className="overflow-hidden whitespace-nowrap">{value || "\u00a0"}</div>
+          )}
+        </div>
+      )}
     </div>
   );
-}
-
-function splitHeroName(name: string) {
-  const breakAt = name.indexOf("\n");
-  if (breakAt < 0) return [name, ""] as const;
-  return [name.slice(0, breakAt), name.slice(breakAt + 1).replace(/\n/g, " ")] as const;
 }
 
 function EditorialHeader({
@@ -146,15 +145,15 @@ function EditorialHeader({
       <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative py-[22px]">
         <div className="flex items-stretch gap-2" style={{ height: HERO_PHOTO_PX }}>
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <HeroName value={card.displayName} onChange={onDisplayNameChange} />
-          </div>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : card.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img data-card-content src={card.photo} alt="" className="size-[105px] shrink-0 object-cover" />
           ) : null}
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <HeroName value={card.displayName} onChange={onDisplayNameChange} />
+          </div>
           {showPlus ? <div className="ml-1 shrink-0 self-start">{nextScan}</div> : null}
         </div>
         {positionTitle ? (

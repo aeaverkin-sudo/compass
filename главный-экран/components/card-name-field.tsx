@@ -1,46 +1,21 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 
 type CardNameFieldProps = {
   value: string;
   onChange: (value: string) => void;
   fontSizePx: number;
-  placeholder?: string;
   className?: string;
 };
 
-export function CardNameField({
-  value,
-  onChange,
-  fontSizePx,
-  placeholder = "name, portfolio title",
-  className,
-}: CardNameFieldProps) {
+export function CardNameField({ value, onChange, fontSizePx, className }: CardNameFieldProps) {
   return (
-    <input
-      type="text"
-      name="displayName"
-      data-card-content
+    <NameOrTitleField
       value={value}
-      placeholder={placeholder}
-      aria-label="Name or portfolio title"
-      autoComplete="name"
-      autoCapitalize="words"
-      onChange={(event) => onChange(event.target.value)}
-      onInput={(event) => onChange(event.currentTarget.value)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          event.currentTarget.blur();
-        }
-      }}
-      onClick={(event) => event.stopPropagation()}
-      className={cn(
-        "compass-input compass-type-name w-full bg-transparent text-center text-foreground outline-none placeholder:text-hint",
-        className,
-      )}
-      style={{ fontSize: fontSizePx }}
+      onChange={onChange}
+      fontSizePx={fontSizePx}
+      className={className ?? "compass-type-name text-center"}
     />
   );
 }

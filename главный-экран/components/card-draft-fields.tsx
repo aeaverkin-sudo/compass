@@ -1,6 +1,7 @@
 "use client";
 
 import type { Card } from "@/shared/types";
+import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import {
   browseCardHeight,
@@ -35,19 +36,11 @@ export function CardDraftFields({ card, onUpdate }: CardDraftFieldsProps) {
         style={{ marginTop: CARD_NAME_GAP_PX }}
         data-card-content
       >
-        <span className="sr-only">Name or portfolio title</span>
-        <input
-          type="text"
-          name="displayName"
-          data-card-content
+        <NameOrTitleField
           value={card.displayName}
-          placeholder="name, portfolio title"
-          autoComplete="name"
-          autoCapitalize="words"
-          onChange={(event) => onUpdate({ displayName: event.target.value })}
-          onInput={(event) => onUpdate({ displayName: event.currentTarget.value })}
-          className="compass-input compass-type-name w-full bg-transparent px-0 py-0 text-center text-foreground outline-none placeholder:text-hint"
-          style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
+          onChange={(displayName) => onUpdate({ displayName })}
+          fontSizePx={CARD_HEADER_NAME_SIZE_PX}
+          className="compass-type-name px-0 py-0 text-center"
         />
       </label>
     </div>
