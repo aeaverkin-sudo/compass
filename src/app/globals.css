@@ -229,6 +229,14 @@ body {
   display: none;
 }
 
+.compass-card-scroll {
+  scrollbar-width: none;
+}
+
+.compass-card-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 .compass-caption {
   font-size: 10px;
   font-weight: 500;
