@@ -14,10 +14,7 @@ export const CARD_PHOTO_RADIUS_PX = 21;
 export const CARD_HEADER_NAME_SIZE_PX = 21;
 export const CARD_NAME_GAP_PX = 8;
 
-/** Equal gap: Dynamic Island → QR, QR → rule, rule → photo. */
-export const HEADER_RHYTHM_PX = 24;
-
-/** Equal gap used by the library stack, unchanged. */
+/** Equal gap: safe-area bottom → QR top, and QR bottom → card top. */
 export const QR_GAP_SYMMETRIC_PX = 18;
 
 /** Browse card bottom ≈ this % of viewport (green mockup outline). */
@@ -70,7 +67,7 @@ export function layoutTop(offsetPx: number) {
 }
 
 export function browseStackTopPx(safeTop: number) {
-  return safeTop + HEADER_RHYTHM_PX + QR_SIZE + HEADER_RHYTHM_PX;
+  return safeTop + QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
 }
 
 export function browseCardHeightPx(viewportH: number, safeTop: number) {
@@ -80,7 +77,7 @@ export function browseCardHeightPx(viewportH: number, safeTop: number) {
 }
 
 export function browseCardHeight() {
-  const stackTopBelowSafe = HEADER_RHYTHM_PX + QR_SIZE + HEADER_RHYTHM_PX;
+  const stackTopBelowSafe = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
   const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
   return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
 }
