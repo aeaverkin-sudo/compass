@@ -181,8 +181,8 @@ export function MainScreen() {
             className="absolute z-20 overflow-hidden"
             onPointerDown={(event) => beginModeSwipe(event, "down")}
             style={{
-              left: libraryMultiSlide ? 0 : edgeInsetLibrary,
-              right: libraryMultiSlide ? 0 : edgeInsetLibrary,
+              left: libraryMultiSlide ? 0 : edgeInsetBrowse,
+              right: libraryMultiSlide ? 0 : edgeInsetBrowse,
               top: layoutTop(layout.cardTopLibrary),
               height: layout.libraryCardHeight,
             }}

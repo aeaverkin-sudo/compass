@@ -271,10 +271,10 @@ export function CardCarousel({
             <div
               key={slideId}
               className={cn(
-                "compass-carousel-slide h-full shrink-0 snap-center overflow-hidden transition-opacity duration-300",
+                "compass-carousel-slide h-full min-w-0 shrink-0 snap-center overflow-hidden transition-opacity duration-300",
                 index !== activeIndex && "opacity-50",
               )}
-              style={{ width: slideWidthPx }}
+              style={{ width: slideWidthPx, minWidth: slideWidthPx, maxWidth: slideWidthPx }}
             >
               {renderSlide(slideId, index)}
             </div>

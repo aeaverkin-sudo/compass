@@ -396,7 +396,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       className={cn(
         "compass-layer flex w-full cursor-default flex-col",
         compact
-          ? "compass-card compass-card-library min-h-0 items-center justify-start px-5 pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
+          ? "compass-card compass-card-library min-h-0 w-full min-w-0 items-center justify-start overflow-x-hidden px-5 pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
           : "relative min-h-0 overflow-hidden bg-white text-[#111]",
       )}
       style={

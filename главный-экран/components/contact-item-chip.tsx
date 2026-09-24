@@ -407,7 +407,7 @@ export function ContactItemChipList({
           if (compact && onReorder) event.preventDefault();
         }}
         className={cn(
-          "compass-preview-scroll mt-3 grid h-full min-h-0 grid-cols-[92px_minmax(0,1fr)] items-start gap-x-1.5 overflow-x-hidden overflow-y-auto",
+          "compass-preview-scroll mt-3 grid h-full w-full min-w-0 grid-cols-[92px_minmax(0,1fr)] items-start gap-x-1.5 overflow-x-hidden overflow-y-auto",
           lift?.active && "touch-none overflow-hidden",
         )}
       >
