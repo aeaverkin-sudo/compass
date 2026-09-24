@@ -166,6 +166,7 @@ function CardToggleButton({
 function FilledRow({
   lead,
   spaced,
+  ruled,
   mark,
   value,
   item,
@@ -180,6 +181,7 @@ function FilledRow({
 }: {
   lead: string;
   spaced: boolean;
+  ruled: boolean;
   mark: string;
   value: string;
   item: ContactItem;
@@ -202,12 +204,19 @@ function FilledRow({
     setHolding(false);
     longPress.onPointerUp();
   };
-  const gap = spaced ? "mt-[22px]" : undefined;
+  const gap = spaced ? "mt-3" : undefined;
   const line = mark ? `${mark} / ${value}` : value;
 
   return (
     <>
-      <span className={cn("compass-type-zone whitespace-nowrap", gap)}>{lead}</span>
+      <span
+        className={cn(
+          "pt-1 text-[11px] font-normal leading-none tracking-[0.1em] whitespace-nowrap text-[#999] uppercase",
+          gap,
+        )}
+      >
+        {lead}
+      </span>
       <div data-fill-row={item.id} className={cn("flex min-w-0 items-baseline gap-2", gap)}>
         {deleteReady ? (
           <button
@@ -238,7 +247,7 @@ function FilledRow({
           }}
           onContextMenu={longPress.onContextMenu}
           className={cn(
-            "compass-type-value line-clamp-3 min-w-0 flex-1 pr-[1ch] text-left break-words whitespace-normal",
+            "line-clamp-3 min-w-0 flex-1 pr-[1ch] text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] break-words whitespace-normal",
             holding && "opacity-40",
             onCard ? "text-label" : "text-foreground",
           )}
@@ -259,6 +268,7 @@ function FilledRow({
           flyLabel={value}
         />
       </div>
+      {ruled ? <div className="col-span-3 mt-3 border-b-[0.5px] border-[#111]" /> : null}
     </>
   );
 }
@@ -416,7 +426,7 @@ export function LibraryFillPanel({
               <div
                 ref={listScrollRef}
                 onScroll={syncListScrollFade}
-                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[70px_minmax(0,1fr)_26px] items-baseline gap-x-1.5 gap-y-[7px] pt-[22px]"
+                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[86px_minmax(0,1fr)_26px] items-baseline gap-x-1.5 gap-y-[7px] pt-[22px]"
               >
                 {zones.map((zone, zoneIndex) =>
                   zone.rows.map((row, rowIndex) => {
@@ -427,6 +437,7 @@ export function LibraryFillPanel({
                         key={entry.id}
                         lead={rowIndex === 0 ? zone.title : ""}
                         spaced={zoneIndex > 0 && rowIndex === 0}
+                        ruled={rowIndex === zone.rows.length - 1 && zoneIndex < zones.length - 1}
                         mark={row.axis}
                         value={row.value}
                         item={entry}
