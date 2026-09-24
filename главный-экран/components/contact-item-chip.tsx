@@ -401,7 +401,7 @@ export function ContactItemChipList({
           if (compact && onReorder) event.preventDefault();
         }}
         className={cn(
-          "mt-4 grid h-full min-h-0 grid-cols-[70px_minmax(0,1fr)] items-baseline gap-x-1.5 gap-y-[7px] overflow-x-hidden overflow-y-auto",
+          "mt-3 grid h-full min-h-0 grid-cols-[72px_minmax(0,1fr)] items-start gap-x-1.5 overflow-x-hidden overflow-y-auto",
           lift?.active && "touch-none overflow-hidden",
         )}
       >
@@ -422,10 +422,15 @@ export function ContactItemChipList({
                   ? { zIndex: 5 }
                   : undefined;
             const zoneGap = zoneIndex > 0 && rowIndex === 0;
+            const zoneEnd = rowIndex === zone.rows.length - 1;
             return (
               <Fragment key={row.key}>
                 <span
-                  className={cn("compass-type-zone whitespace-nowrap", zoneGap && "mt-[22px]")}
+                  className={cn(
+                    "pt-1 text-[11px] font-normal leading-none tracking-[0.1em] whitespace-nowrap text-[#999] uppercase",
+                    zoneGap && "mt-3",
+                    zoneEnd && "border-b-[0.5px] border-[#111] pb-3",
+                  )}
                 >
                   {rowIndex === 0 ? zone.title : null}
                 </span>
@@ -433,8 +438,19 @@ export function ContactItemChipList({
                   row={row}
                   size={size}
                   lifted={isLifted}
-                  style={style}
-                  className={zoneGap ? "mt-[22px]" : undefined}
+                  style={{
+                    ...style,
+                    fontSize: 13,
+                    fontWeight: 400,
+                    letterSpacing: "-0.015em",
+                    lineHeight: 1.35,
+                    color: "#111",
+                  }}
+                  className={cn(
+                    "text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]",
+                    zoneGap && "mt-3",
+                    zoneEnd && "border-b-[0.5px] border-[#111] pb-3",
+                  )}
                 />
               </Fragment>
             );

@@ -314,16 +314,25 @@ function CompactHeader({
     <div className="flex w-full shrink-0 flex-col items-center">
       <div className="w-full text-center">
         {onDisplayNameChange ? (
-          <CardNameField value={card.displayName} onChange={onDisplayNameChange} fontSizePx={CARD_HEADER_NAME_SIZE_PX} />
+          <CardNameField
+            value={card.displayName}
+            onChange={onDisplayNameChange}
+            fontSizePx={CARD_HEADER_NAME_SIZE_PX}
+            className="text-center font-semibold tracking-[-1px] text-[#111]"
+          />
         ) : (
-          <p data-card-content className="compass-type-name text-foreground" style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}>
+          <p
+            data-card-content
+            className="text-center font-semibold tracking-[-1px] text-[#111]"
+            style={{ fontSize: CARD_HEADER_NAME_SIZE_PX, fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
+          >
             {card.displayName}
           </p>
         )}
         {positionTitle ? (
-          <p data-card-content className="compass-type-position mt-1 text-center text-foreground">
+          <p data-card-content className="mt-1 text-center text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase">
             {positionTitle}
-            {positionCompany ? <span className="text-label"> · {positionCompany}</span> : null}
+            {positionCompany ? <span> · {positionCompany}</span> : null}
           </p>
         ) : null}
       </div>
