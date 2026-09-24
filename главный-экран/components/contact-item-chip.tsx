@@ -129,7 +129,7 @@ function ContactItemChipRow({
 function EditorialValue({ row }: { row: CardDisplayRow }) {
   const line = row.axis ? `${row.axis} / ${row.value}` : row.value;
   const body = (
-    <span className="block min-w-0 break-words text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] no-underline">
+    <span className="block min-w-0 whitespace-nowrap text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] no-underline">
       {line}
     </span>
   );
@@ -367,7 +367,7 @@ export function ContactItemChipList({
       <div className={cn("w-full", className)} data-card-chip-list={listId} data-card-content>
         {composed.zones.map((zone) => (
           <section key={zone.id} className="border-b-[0.5px] border-[#111] py-[18px]">
-            <div className="grid grid-cols-[92px_minmax(0,1fr)] items-start gap-x-3">
+            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-1.5">
               <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
                 {zone.title}
               </span>
