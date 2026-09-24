@@ -189,6 +189,12 @@ body {
   box-shadow: var(--block-shadow);
 }
 
+.compass-library-list {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .compass-library-list-scroll {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;

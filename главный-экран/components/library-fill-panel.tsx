@@ -195,6 +195,7 @@ function FilledRow({
   const [holding, setHolding] = useState(false);
   const longPress = useLongPress(() => {
     setHolding(false);
+    window.getSelection()?.removeAllRanges();
     onArmDelete();
   }, CARD_TOGGLE_HOLD_MS);
   const release = () => {
