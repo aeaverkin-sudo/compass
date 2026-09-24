@@ -3,11 +3,11 @@
 import { useLayoutEffect, useState } from "react";
 import {
   browseCardHeightPx,
-  browseStackTopPx,
   libraryCardHeightPx,
   librarySheetTopPx,
   libraryStackTopPx,
   QR_GAP_SYMMETRIC_PX,
+  QR_SIZE,
   SHEET_INSET,
 } from "../layout";
 
@@ -47,7 +47,7 @@ function computeLayout(): MainLayout | null {
   const viewportH = document.documentElement.clientHeight || window.innerHeight;
   const safeTop = readSafeAreaInset("top");
   const qrTop = safeTop + QR_GAP_SYMMETRIC_PX;
-  const cardTopBrowse = browseStackTopPx(safeTop);
+  const cardTopBrowse = qrTop + QR_SIZE + QR_GAP_SYMMETRIC_PX;
   const browseHeight = browseCardHeightPx(viewportH, safeTop);
   const libraryHeight = libraryCardHeightPx(viewportH, safeTop);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
