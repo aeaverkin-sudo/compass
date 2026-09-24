@@ -240,7 +240,7 @@ function FilledRow({
           className={cn(
             "compass-type-value min-w-0 overflow-hidden whitespace-nowrap text-left",
             holding && "opacity-40",
-            onCard ? "text-foreground" : "text-label",
+            onCard ? "text-label" : "text-foreground",
           )}
         >
           {item.type === "photo" && item.url.startsWith("data:") ? (
