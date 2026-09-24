@@ -40,10 +40,10 @@ export const LIBRARY_QR_OVERLAP_EXTRA_PX = 19;
 export const QR_OVERLAP_LIBRARY_PX =
   QR_OVERLAP_LIBRARY_BASE_PX + LIBRARY_QR_OVERLAP_EXTRA_PX;
 
-/** Library white top sits lower so the QR shows; the fill panel stays put. */
-export const LIBRARY_WHITE_TOP_DROP_PX = 48;
-/** Fade from the new white edge down to the top of the name. */
-export const LIBRARY_NAME_FADE_PX = 32;
+/** Library white top sits lower so the QR shows; 0.5 cm less than the first drop. */
+export const LIBRARY_WHITE_TOP_DROP_PX = 29;
+/** Fade from the new white edge down to the top of the name — one line higher. */
+export const LIBRARY_NAME_FADE_PX = 11;
 
 /** Library split below QR overlap — card ~50%, content sheet ~50%. */
 export const LIBRARY_CARD_SHARE = 0.5;

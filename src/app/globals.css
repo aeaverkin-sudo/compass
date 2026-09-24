@@ -173,7 +173,7 @@ body {
   border: none;
   border-radius: var(--block-radius);
   box-shadow: none;
-  background: linear-gradient(to bottom, transparent 0, #fff 32px);
+  background: linear-gradient(to bottom, transparent 0, #fff 11px);
 }
 
 .compass-library-panel-bottom {
@@ -237,10 +237,12 @@ body {
   touch-action: pan-y;
 }
 
+.compass-preview-scroll,
 .compass-card-scroll {
   scrollbar-width: none;
 }
 
+.compass-preview-scroll::-webkit-scrollbar,
 .compass-card-scroll::-webkit-scrollbar {
   display: none;
 }
