@@ -139,6 +139,12 @@ body {
   box-shadow: none;
 }
 
+.compass-carousel:not(.compass-carousel-editorial) .compass-carousel-slide {
+  border: none;
+  box-shadow: none;
+  background: linear-gradient(to bottom, transparent 0, #fff 28px);
+}
+
 .compass-sheet-peek {
   background: var(--sheet);
   border: 1px solid var(--border);
@@ -168,16 +174,11 @@ body {
   background: var(--background-ready);
 }
 
-.compass-carousel:not(.compass-carousel-editorial) .compass-carousel-slide {
-  border: none;
-  box-shadow: none;
-}
-
 .compass-library-panel-top {
-  background: var(--sheet);
   border: none;
   border-radius: var(--block-radius);
   box-shadow: none;
+  background: linear-gradient(to bottom, transparent 0, #fff 28px);
 }
 
 .compass-library-panel-bottom {
