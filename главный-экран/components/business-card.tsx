@@ -145,25 +145,23 @@ function EditorialHeader({
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative py-[22px]">
-        <div className="flex items-start gap-2">
-          {showPlus ? <div className="mr-1 shrink-0 self-start">{nextScan}</div> : null}
+        <div className="flex items-stretch gap-2" style={{ height: HERO_PHOTO_PX }}>
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <HeroName value={card.displayName} onChange={onDisplayNameChange} />
+          </div>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : card.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img data-card-content src={card.photo} alt="" className="size-[105px] shrink-0 object-cover" />
           ) : null}
-          <div className="min-w-0 flex-1">
-            <div className="overflow-hidden" style={{ height: HERO_PHOTO_PX }}>
-              <HeroName value={card.displayName} onChange={onDisplayNameChange} />
-            </div>
-            {positionTitle ? (
-              <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
-                {positionTitle}
-              </p>
-            ) : null}
-          </div>
+          {showPlus ? <div className="ml-1 shrink-0 self-start">{nextScan}</div> : null}
         </div>
+        {positionTitle ? (
+          <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
+            {positionTitle}
+          </p>
+        ) : null}
       </div>
     </div>
   );
