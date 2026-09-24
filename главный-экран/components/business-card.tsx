@@ -12,7 +12,7 @@ import { composeCard } from "@/shared/services/card-zones";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
-import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, type MainScreenMode } from "../layout";
+import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, QR_GAP_SYMMETRIC_PX, type MainScreenMode } from "../layout";
 
 const HERO_PHOTO_PX = 128;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -166,15 +166,15 @@ function EditorialHeader({
   return (
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
-      <div className="relative py-[22px]">
-        <div className="flex shrink-0 items-stretch gap-2 overflow-hidden" style={{ height: HERO_PHOTO_PX }}>
+      <div className="relative pb-[22px]" style={{ paddingTop: QR_GAP_SYMMETRIC_PX }}>
+        <div className="flex shrink-0 items-stretch gap-2" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : card.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img data-card-content src={card.photo} alt="" className="size-[128px] shrink-0 object-cover" />
           ) : null}
-          <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div className="relative h-full min-h-0 min-w-0 flex-1">
             {showPlus ? <div className="absolute top-0 right-0 z-10">{nextScan}</div> : null}
             <div
               className="absolute inset-x-0 top-0 overflow-x-hidden overflow-y-visible"
