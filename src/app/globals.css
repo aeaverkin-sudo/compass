@@ -180,8 +180,9 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.compass-block.compass-sky,
 .compass-library-list {
-  background: var(--sheet);
+  background: #c5e8f7;
   border: 1px solid var(--border);
   border-radius: var(--block-radius);
   box-shadow: var(--block-shadow);

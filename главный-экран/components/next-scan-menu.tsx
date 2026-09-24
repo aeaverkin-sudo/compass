@@ -288,7 +288,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
             onPointerDown={(event) => event.stopPropagation()}
           />
           <div
-            className="compass-block absolute right-0 top-full z-50 mt-2 w-64 rounded-[22px] p-2"
+            className="compass-block compass-sky absolute right-0 top-full z-50 mt-2 w-64 rounded-[22px] p-2"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
             role="dialog"
