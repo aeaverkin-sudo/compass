@@ -390,7 +390,7 @@ export function ContactItemChipList({
   }
 
   return (
-    <div className={cn(compact ? "relative w-full" : "relative min-h-0 w-full flex-1", className)}>
+    <div className={cn("relative w-full", className)}>
       <div
         ref={listRef}
         data-card-content

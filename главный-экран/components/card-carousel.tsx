@@ -260,7 +260,7 @@ export function CardCarousel({
       <div
         ref={scrollRef}
         className={cn(
-          "compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background",
+          "compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-clip bg-background",
           isBrowse && "compass-carousel-editorial",
         )}
         onScroll={handleScroll}

@@ -235,6 +235,8 @@ body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
+  overflow-x: auto;
+  overflow-y: clip;
 }
 
 .compass-carousel:focus-within {
