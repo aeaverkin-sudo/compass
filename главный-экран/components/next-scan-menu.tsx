@@ -55,6 +55,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const atMax = addons.length >= MAX_NEXT_SCAN_NOTES;
+  const hasType = (type: NextScanAddon["type"]) => addons.some((addon) => addon.type === type);
 
   const closeMenu = () => {
     textRef.current?.blur();
@@ -99,7 +100,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   }, [textMode]);
 
   const addAddon = (type: NextScanAddon["type"], content: string) => {
-    if (addons.length >= MAX_NEXT_SCAN_NOTES) return;
+    if (addons.length >= MAX_NEXT_SCAN_NOTES || addons.some((addon) => addon.type === type)) return;
     const next: NextScanAddon = {
       id: nanoid(),
       type,
@@ -156,7 +157,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   const beginVoice = (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    if (atMax || recording) return;
+    if (atMax || recording || hasType("voice")) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     stopWantedRef.current = false;
     setVoiceHint("");
@@ -338,6 +339,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
               </div>
             ) : !atMax && !viewing ? (
               <>
+                {!hasType("text") ? (
                 <button
                   type="button"
                   onClick={() => setTextMode(true)}
@@ -346,6 +348,8 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   <FileText className="size-4" strokeWidth={1.25} aria-hidden />
                   Add a short text
                 </button>
+                ) : null}
+                {!hasType("selfie") ? (
                 <button
                   type="button"
                   disabled={pickingSelfie}
@@ -355,6 +359,8 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   <Camera className="size-4" strokeWidth={1.25} aria-hidden />
                   {pickingSelfie ? "Opening camera…" : "Add a selfie"}
                 </button>
+                ) : null}
+                {!hasType("voice") ? (
                 <button
                   type="button"
                   onPointerDown={beginVoice}
@@ -369,6 +375,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   <Mic className={cn("size-4", recording && "animate-pulse text-[#E8640C]")} strokeWidth={1.25} aria-hidden />
                   {recording ? `Recording · ${secondsLeft}s` : "Add a voice note"}
                 </button>
+                ) : null}
                 {voiceHint ? <p className="px-3 pb-1 text-[10px] text-hint">{voiceHint}</p> : null}
               </>
             ) : null}
