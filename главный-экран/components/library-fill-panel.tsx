@@ -237,7 +237,7 @@ function FilledRow({
           }}
           onContextMenu={longPress.onContextMenu}
           className={cn(
-            "compass-type-value min-w-0 overflow-hidden whitespace-nowrap text-left",
+            "compass-type-value line-clamp-3 min-w-0 flex-1 pr-[1ch] text-left break-words whitespace-normal",
             holding && "opacity-40",
             onCard ? "text-label" : "text-foreground",
           )}
