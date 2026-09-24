@@ -285,6 +285,13 @@ export function CardCarousel({
       {isBrowse ? (
         <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-white to-transparent" />
       ) : null}
+      {isBrowse && activeIndex < slideIds.length - 1 ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 bg-gradient-to-l from-[#111]/10 to-transparent"
+          style={{ width: "0.5cm" }}
+        />
+      ) : null}
     </div>
   );
 }
