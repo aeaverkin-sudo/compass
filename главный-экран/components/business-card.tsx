@@ -44,9 +44,11 @@ function heroLineSize(lines: string[], width: number, height: number) {
 function HeroName({
   value,
   onChange,
+  boxHeight,
 }: {
   value: string;
   onChange?: (displayName: string) => void;
+  boxHeight: number;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(16);
@@ -58,8 +60,7 @@ function HeroName({
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box || empty) return;
-    const fit = () =>
-      setSize(heroLineSize(twoLines ? [first, second] : [value], box.clientWidth, box.clientHeight));
+    const fit = () => setSize(heroLineSize(twoLines ? [first, second] : [value], box.clientWidth, boxHeight));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
@@ -70,7 +71,7 @@ function HeroName({
       observer.disconnect();
       window.removeEventListener("orientationchange", onTurn);
     };
-  }, [empty, first, second, twoLines, value]);
+  }, [boxHeight, empty, first, second, twoLines, value]);
 
   const lineStyle = empty
     ? { fontSize: 19, lineHeight: 1, fontWeight: 400, height: 19 }
@@ -111,7 +112,7 @@ function HeroName({
             onChange(clampNameLines(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className="compass-input block w-full resize-none overflow-hidden whitespace-nowrap bg-transparent text-left text-[#111] outline-none placeholder:text-[#C8C8C8]"
+          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-hidden whitespace-nowrap bg-transparent p-0 text-left text-[#111] outline-none placeholder:text-[#C8C8C8]"
           style={lineStyle}
         />
       ) : (
@@ -151,22 +152,29 @@ function EditorialHeader({
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative py-[22px]">
-        <div className="flex items-stretch gap-2" style={{ height: HERO_PHOTO_PX }}>
+        <div className="flex shrink-0 items-stretch gap-2 overflow-hidden" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : card.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img data-card-content src={card.photo} alt="" className="size-[128px] shrink-0 object-cover" />
           ) : null}
-          <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
             {showPlus ? <div className="absolute top-0 right-0 z-10">{nextScan}</div> : null}
-            <div className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden">
-              <HeroName value={card.displayName} onChange={onDisplayNameChange} />
+            <div
+              className="absolute inset-x-0 top-0 overflow-hidden"
+              style={{ bottom: positionTitle ? ROLE_RESERVE_PX : 0 }}
+            >
+              <HeroName
+                value={card.displayName}
+                onChange={onDisplayNameChange}
+                boxHeight={HERO_PHOTO_PX - (positionTitle ? ROLE_RESERVE_PX : 0)}
+              />
             </div>
             {positionTitle ? (
               <p
                 data-card-content
-                className="flex shrink-0 items-end text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase"
+                className="absolute inset-x-0 bottom-0 flex items-end text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase"
                 style={{ height: ROLE_RESERVE_PX }}
               >
                 {positionTitle}
