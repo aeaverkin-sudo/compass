@@ -46,6 +46,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   const [pickingSelfie, setPickingSelfie] = useState(false);
   const [viewing, setViewing] = useState<NextScanAddon | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -95,6 +96,17 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
       audioRef.current?.pause();
     };
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && rootRef.current?.contains(target)) return;
+      closeMenu();
+    };
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, [open]);
 
   useEffect(() => {
     if (!textMode) return;
@@ -235,7 +247,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   const secondsLeft = Math.max(0, Math.ceil((MAX_VOICE_MS - recordMs) / 1000));
 
   return (
-    <div className={cn("relative shrink-0", bare ? "z-10" : compact ? "" : "absolute right-3 top-3 z-10")}>
+    <div ref={rootRef} className={cn("relative shrink-0", bare ? "z-10" : compact ? "" : "absolute right-3 top-3 z-10")}>
       <button
         type="button"
         data-card-content
