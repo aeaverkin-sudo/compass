@@ -56,71 +56,72 @@ function capInset(size: number) {
 }
 
 function HeroName({
-  first,
-  second,
+  value,
   onChange,
 }: {
-  first: string;
-  second: string;
+  value: string;
   onChange?: (displayName: string) => void;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(58);
+  const [first, second] = splitHeroName(value);
+  const empty = value.trim().length === 0;
+  const twoLines = empty || second.length > 0;
+  const top = empty ? "Name" : first;
+  const bottom = empty ? "Surname" : second;
 
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box) return;
-    const fit = () => setSize(heroLineSize([first, second], box.clientWidth, box.clientHeight));
+    const fit = () => setSize(heroLineSize([top, bottom], box.clientWidth, box.clientHeight));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
     return () => observer.disconnect();
-  }, [first, second]);
+  }, [top, bottom]);
 
   const lineClass =
-    "block w-full overflow-hidden bg-transparent whitespace-nowrap text-left font-light tracking-[-0.045em] text-[#111] outline-none";
-  const twoLines = second.trim().length > 0;
+    "block w-full overflow-hidden whitespace-nowrap text-left font-light tracking-[-0.045em]";
   const lift = twoLines ? capInset(size) : 0;
   const lineStyle = { fontSize: size, lineHeight: 0.8 };
 
   return (
-    <div
-      ref={boxRef}
-      data-card-content
-      className={cn("flex h-full w-full min-w-0 flex-col items-start", twoLines ? "justify-between" : "justify-end")}
-    >
+    <div ref={boxRef} data-card-content className="relative h-full w-full min-w-0 overflow-hidden">
+      <div
+        className={cn(
+          "pointer-events-none flex h-full flex-col",
+          twoLines ? "justify-between" : "justify-end",
+        )}
+      >
+        {twoLines ? (
+          <span className={cn(lineClass, empty ? "text-[#C8C8C8]" : "text-[#111]")} style={{ ...lineStyle, marginTop: -lift }}>
+            {top}
+          </span>
+        ) : null}
+        {bottom ? (
+          <span className={cn(lineClass, empty ? "text-[#C8C8C8]" : "text-[#111]")} style={lineStyle}>
+            {bottom}
+          </span>
+        ) : null}
+      </div>
       {onChange ? (
-        <>
-          <input
-            value={first}
-            onChange={(event) => onChange([event.target.value, second].filter(Boolean).join(" "))}
-            onClick={(event) => event.stopPropagation()}
-            className={cn("compass-input", lineClass)}
-            style={{ ...lineStyle, marginTop: -lift }}
-          />
-          <input
-            value={second}
-            onChange={(event) => onChange([first, event.target.value].filter(Boolean).join(" "))}
-            onClick={(event) => event.stopPropagation()}
-            className={cn("compass-input", lineClass)}
-            style={lineStyle}
-          />
-        </>
-      ) : (
-        <>
-          <span className={lineClass} style={{ ...lineStyle, marginTop: -lift }}>{first}</span>
-          {second ? <span className={lineClass} style={lineStyle}>{second}</span> : null}
-        </>
-      )}
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onClick={(event) => event.stopPropagation()}
+          aria-label="Name"
+          className="compass-input absolute inset-0 h-full w-full bg-transparent text-transparent caret-[#111] outline-none"
+          style={{ fontSize: size }}
+        />
+      ) : null}
     </div>
   );
 }
 
 function splitHeroName(name: string) {
-  const trimmed = name.trim();
-  const space = trimmed.indexOf(" ");
-  if (space < 0) return [trimmed, ""] as const;
-  return [trimmed.slice(0, space), trimmed.slice(space + 1)] as const;
+  const space = name.indexOf(" ");
+  if (space < 0) return [name, ""] as const;
+  return [name.slice(0, space), name.slice(space + 1)] as const;
 }
 
 function EditorialHeader({
@@ -138,15 +139,13 @@ function EditorialHeader({
   onPhotoChange?: (photo: string | null) => void;
   onDisplayNameChange?: (displayName: string) => void;
 }) {
-  const [first, second] = splitHeroName(card.displayName);
-
   return (
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative py-[22px]">
         <div className="flex items-stretch gap-2" style={{ height: HERO_PHOTO_PX }}>
-          <div className="min-w-0 flex-1">
-            <HeroName first={first} second={second} onChange={onDisplayNameChange} />
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <HeroName value={card.displayName} onChange={onDisplayNameChange} />
           </div>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
@@ -287,9 +286,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         <EditorialHeader
           card={card}
           positionTitle={position?.title}
-          showPlus={Boolean(onCardUpdate && card.displayName.trim() && card.photo)}
+          showPlus={Boolean(onCardUpdate && card.photo)}
           nextScan={
-            onCardUpdate && card.displayName.trim() && card.photo ? (
+            onCardUpdate && card.photo ? (
               <NextScanMenu
                 bare
                 addons={nextScanAddons}
