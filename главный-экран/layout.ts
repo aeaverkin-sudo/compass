@@ -73,7 +73,7 @@ export function layoutTop(offsetPx: number) {
 }
 
 export function browseStackTopPx(safeTop: number) {
-  return safeTop + QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  return safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + QR_GAP_SYMMETRIC_PX;
 }
 
 export function browseCardHeightPx(viewportH: number, safeTop: number) {
@@ -83,7 +83,7 @@ export function browseCardHeightPx(viewportH: number, safeTop: number) {
 }
 
 export function browseCardHeight() {
-  const stackTopBelowSafe = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + QR_GAP_SYMMETRIC_PX;
   const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
   return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
 }

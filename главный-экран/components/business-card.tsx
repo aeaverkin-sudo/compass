@@ -12,7 +12,7 @@ import { composeCard } from "@/shared/services/card-zones";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
-import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, HEADER_RHYTHM_PX, type MainScreenMode } from "../layout";
+import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, QR_GAP_SYMMETRIC_PX, type MainScreenMode } from "../layout";
 
 const HERO_PHOTO_PX = 128;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -217,7 +217,7 @@ function EditorialHeader({
   return (
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
-      <div className="relative pb-[22px]" style={{ paddingTop: HEADER_RHYTHM_PX }}>
+      <div className="relative pb-[22px]" style={{ paddingTop: QR_GAP_SYMMETRIC_PX }}>
         <div className="flex shrink-0 items-stretch gap-2" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
