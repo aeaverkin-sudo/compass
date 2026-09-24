@@ -44,6 +44,17 @@ function heroLineSize(lines: string[], width: number, height: number) {
   return best;
 }
 
+function capInset(size: number) {
+  if (typeof document === "undefined") return 0;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return 0;
+  ctx.font = `300 ${size}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+  const metrics = ctx.measureText("A");
+  const ink = metrics.actualBoundingBoxAscent + (metrics.actualBoundingBoxDescent || 0);
+  return ((size * 0.88) - ink) / 2;
+}
+
 function HeroName({
   first,
   second,
@@ -68,6 +79,7 @@ function HeroName({
 
   const lineClass =
     "block w-full overflow-hidden bg-transparent whitespace-nowrap text-left leading-[0.88] font-light tracking-[-0.045em] text-[#111] outline-none";
+  const lift = capInset(size);
 
   return (
     <div ref={boxRef} data-card-content className="flex h-full min-w-0 flex-col items-start justify-between">
@@ -78,7 +90,7 @@ function HeroName({
             onChange={(event) => onChange([event.target.value, second].filter(Boolean).join(" "))}
             onClick={(event) => event.stopPropagation()}
             className={cn("compass-input", lineClass)}
-            style={{ fontSize: size }}
+            style={{ fontSize: size, marginTop: -lift }}
           />
           <input
             value={second}
@@ -90,7 +102,7 @@ function HeroName({
         </>
       ) : (
         <>
-          <span className={lineClass} style={{ fontSize: size }}>{first}</span>
+          <span className={lineClass} style={{ fontSize: size, marginTop: -lift }}>{first}</span>
           {second ? <span className={lineClass} style={{ fontSize: size }}>{second}</span> : null}
         </>
       )}
