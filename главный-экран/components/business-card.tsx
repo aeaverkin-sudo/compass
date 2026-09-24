@@ -14,9 +14,9 @@ import { NextScanMenu } from "./next-scan-menu";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
 import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, type MainScreenMode } from "../layout";
 
-const HERO_PHOTO_PX = 105;
+const HERO_PHOTO_PX = 128;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const HERO_MIN_PX = 16;
+const ROLE_RESERVE_PX = 26;
 
 function splitHeroName(name: string) {
   const breakAt = name.indexOf("\n");
@@ -25,29 +25,20 @@ function splitHeroName(name: string) {
 }
 
 function heroLineSize(lines: string[], width: number, height: number) {
-  if (!width || !height) return HERO_MIN_PX;
+  if (!width || !height) return 16;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
-  if (!ctx) return HERO_MIN_PX;
+  if (!ctx) return 16;
+  ctx.font = `600 100px ${HERO_FONT}`;
   const shown = lines.filter((line) => line.length > 0);
   const count = shown.length > 1 ? 2 : 1;
-  const heightLimit = count === 2 ? height / 2 : height;
-  const widest = shown.reduce((longest, line) => (line.length > longest.length ? line : longest), shown[0] ?? "");
-  let lo = HERO_MIN_PX;
-  let hi = Math.max(HERO_MIN_PX, Math.floor(heightLimit));
-  let best = HERO_MIN_PX;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    ctx.font = `300 ${mid}px ${HERO_FONT}`;
-    const spacing = widest.length > 1 ? (widest.length - 1) * mid * -0.045 : 0;
-    const tooWide = ctx.measureText(widest).width + spacing > width;
-    if (tooWide) hi = mid - 1;
-    else {
-      best = mid;
-      lo = mid + 1;
-    }
-  }
-  return best;
+  const maxW = shown.reduce((widest, line) => {
+    const measured = ctx.measureText(line).width - Math.max(0, line.length - 1);
+    return Math.max(widest, measured);
+  }, 0);
+  const widthFont = maxW > 0 ? (100 * width) / maxW : 60;
+  const heightFont = height / count;
+  return Math.min(60, Math.max(16, Math.min(widthFont, heightFont)));
 }
 
 function HeroName({
@@ -58,21 +49,17 @@ function HeroName({
   onChange?: (displayName: string) => void;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState(HERO_MIN_PX);
+  const [size, setSize] = useState(16);
   const [first, second] = splitHeroName(value);
+  const empty = value.length === 0;
   const twoLines = value.includes("\n");
+  const lineCount = twoLines ? 2 : 1;
 
   useLayoutEffect(() => {
     const box = boxRef.current;
-    if (!box) return;
+    if (!box || empty) return;
     const fit = () =>
-      setSize(
-        heroLineSize(
-          value.length === 0 ? ["Name or portfolio title"] : twoLines ? [first, second] : [value],
-          box.clientWidth,
-          box.clientHeight,
-        ),
-      );
+      setSize(heroLineSize(twoLines ? [first, second] : [value], box.clientWidth, box.clientHeight));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
@@ -83,19 +70,37 @@ function HeroName({
       observer.disconnect();
       window.removeEventListener("orientationchange", onTurn);
     };
-  }, [first, second, twoLines, value]);
+  }, [empty, first, second, twoLines, value]);
 
-  const lineStyle = { fontSize: size, lineHeight: 1, height: twoLines ? size * 2 : size };
+  const lineStyle = empty
+    ? { fontSize: 19, lineHeight: 1, fontWeight: 400, height: 19 }
+    : {
+        fontSize: size,
+        lineHeight: 0.9,
+        fontWeight: 600,
+        letterSpacing: "-1px",
+        height: size * lineCount * 0.9,
+      };
+
+  const holdScroll = (node: HTMLTextAreaElement) => {
+    const scroller = node.closest<HTMLElement>(".compass-card-scroll");
+    const top = scroller?.scrollTop ?? 0;
+    requestAnimationFrame(() => {
+      if (scroller) scroller.scrollTop = top;
+      window.scrollTo(0, 0);
+    });
+  };
 
   return (
     <div ref={boxRef} data-card-content className="flex h-full w-full min-w-0 items-end overflow-hidden">
       {onChange ? (
         <textarea
           value={value}
-          rows={twoLines ? 2 : 1}
+          rows={lineCount}
           placeholder="Name or portfolio title"
           aria-label="Name or portfolio title"
           onChange={(event) => onChange(clampNameLines(event.target.value))}
+          onFocus={(event) => holdScroll(event.currentTarget)}
           onKeyDown={(event) => {
             event.stopPropagation();
             if (event.key !== "Enter") return;
@@ -106,18 +111,20 @@ function HeroName({
             onChange(clampNameLines(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className="compass-input block w-full resize-none overflow-hidden bg-transparent text-left font-light tracking-[-0.045em] text-[#111] outline-none placeholder:text-[#C8C8C8]"
+          className="compass-input block w-full resize-none overflow-hidden whitespace-nowrap bg-transparent text-left text-[#111] outline-none placeholder:text-[#C8C8C8]"
           style={lineStyle}
         />
       ) : (
-        <div className="w-full overflow-hidden text-left font-light tracking-[-0.045em] text-[#111]" style={lineStyle}>
-          {twoLines ? (
+        <div className="w-full overflow-hidden whitespace-nowrap text-left text-[#111]" style={lineStyle}>
+          {empty ? (
+            <div className="text-[#C8C8C8]">Name or portfolio title</div>
+          ) : twoLines ? (
             <>
               <div className="overflow-hidden whitespace-nowrap">{first || "\u00a0"}</div>
               <div className="overflow-hidden whitespace-nowrap">{second || "\u00a0"}</div>
             </>
           ) : (
-            <div className="overflow-hidden whitespace-nowrap">{value || "\u00a0"}</div>
+            <div className="overflow-hidden whitespace-nowrap">{value}</div>
           )}
         </div>
       )}
@@ -149,18 +156,24 @@ function EditorialHeader({
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : card.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img data-card-content src={card.photo} alt="" className="size-[105px] shrink-0 object-cover" />
+            <img data-card-content src={card.photo} alt="" className="size-[128px] shrink-0 object-cover" />
           ) : null}
-          <div className="min-w-0 flex-1 overflow-hidden">
-            <HeroName value={card.displayName} onChange={onDisplayNameChange} />
+          <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+            {showPlus ? <div className="absolute top-0 right-0 z-10">{nextScan}</div> : null}
+            <div className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden">
+              <HeroName value={card.displayName} onChange={onDisplayNameChange} />
+            </div>
+            {positionTitle ? (
+              <p
+                data-card-content
+                className="flex shrink-0 items-end text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase"
+                style={{ height: ROLE_RESERVE_PX }}
+              >
+                {positionTitle}
+              </p>
+            ) : null}
           </div>
-          {showPlus ? <div className="ml-1 shrink-0 self-start">{nextScan}</div> : null}
         </div>
-        {positionTitle ? (
-          <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
-            {positionTitle}
-          </p>
-        ) : null}
       </div>
     </div>
   );
