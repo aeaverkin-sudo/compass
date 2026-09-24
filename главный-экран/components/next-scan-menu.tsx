@@ -256,7 +256,8 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
         aria-expanded={open}
         onClick={(event) => {
           event.stopPropagation();
-          setOpen((value) => !value);
+          if (open) closeMenu();
+          else setOpen(true);
         }}
         onPointerDown={(event) => event.stopPropagation()}
         className={cn(
