@@ -42,6 +42,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   const [recording, setRecording] = useState(false);
   const [recordMs, setRecordMs] = useState(0);
   const [voiceHint, setVoiceHint] = useState("");
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const [pickingSelfie, setPickingSelfie] = useState(false);
   const [viewing, setViewing] = useState<NextScanAddon | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -70,6 +71,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
     setText("");
     setViewing(null);
     setVoiceHint("");
+    setPlayingId(null);
     audioRef.current?.pause();
     window.speechSynthesis?.cancel();
   };
@@ -116,15 +118,31 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   };
 
   const openAddon = (addon: NextScanAddon) => {
+    if (addon.type === "voice") return;
     setTextMode(false);
     setViewing(addon);
-    if (addon.type !== "voice") return;
+  };
+
+  const stopPlayback = () => {
     audioRef.current?.pause();
+    audioRef.current = null;
     window.speechSynthesis?.cancel();
+    setPlayingId(null);
+  };
+
+  const holdPlay = (addon: NextScanAddon, event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    stopPlayback();
+    setPlayingId(addon.id);
     if (addon.content.startsWith("data:") || addon.content.startsWith("blob:")) {
       const audio = new Audio(addon.content);
       audioRef.current = audio;
-      void audio.play().catch(() => setVoiceHint("Couldn't play this note"));
+      void audio.play().catch(() => {
+        setPlayingId(null);
+        setVoiceHint("Couldn't play this note");
+      });
       return;
     }
     window.speechSynthesis?.speak(new SpeechSynthesisUtterance(addon.content));
@@ -291,13 +309,22 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   <li key={addon.id} className="flex items-center gap-2 rounded-lg px-2 py-2">
                     <button
                       type="button"
-                      onClick={() => openAddon(addon)}
-                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                      onClick={addon.type === "voice" ? undefined : () => openAddon(addon)}
+                      onPointerDown={addon.type === "voice" ? (event) => holdPlay(addon, event) : undefined}
+                      onPointerUp={addon.type === "voice" ? stopPlayback : undefined}
+                      onPointerCancel={addon.type === "voice" ? stopPlayback : undefined}
+                      onContextMenu={addon.type === "voice" ? (event) => event.preventDefault() : undefined}
+                      className={cn(
+                        "flex min-w-0 flex-1 items-center gap-2 text-left",
+                        addon.type === "voice" && "touch-none select-none",
+                      )}
                     >
                       <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-medium text-white">
                         {index + 1}
                       </span>
-                      <NextScanAddonIcon type={addon.type} />
+                      <span className={cn(playingId === addon.id && "animate-pulse text-[#E8640C]")}>
+                        <NextScanAddonIcon type={addon.type} />
+                      </span>
                       <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[12px] text-foreground">
                         {addonPreview(addon)}
                       </span>
