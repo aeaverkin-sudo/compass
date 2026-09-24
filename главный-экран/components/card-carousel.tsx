@@ -78,18 +78,16 @@ export function CardCarousel({
     return ids;
   }, [cards, canAddCard]);
 
-  const slideGapPx = isBrowse ? 10 : CARD_CAROUSEL_GAP_PX;
+  const slideGapPx = CARD_CAROUSEL_GAP_PX;
   const slideWidthPx = useMemo(() => {
     if (!multiSlide || containerWidth === 0) return 0;
-    if (isBrowse) return containerWidth - 16 - 10;
     return carouselSlideWidthPx(containerWidth, true, SHEET_INSET.browse.horizontal);
-  }, [containerWidth, isBrowse, multiSlide]);
+  }, [containerWidth, multiSlide]);
 
   const sidePaddingPx = useMemo(() => {
     if (!multiSlide || slideWidthPx === 0 || containerWidth === 0) return 0;
-    if (isBrowse) return 0;
     return carouselSidePaddingPx(containerWidth, true, SHEET_INSET.browse.horizontal);
-  }, [containerWidth, isBrowse, multiSlide, slideWidthPx]);
+  }, [containerWidth, multiSlide, slideWidthPx]);
 
   useLayoutEffect(() => {
     const node = scrollRef.current;
@@ -115,10 +113,9 @@ export function CardCarousel({
       const node = scrollRef.current;
       if (!node || slideWidthPx === 0) return 0;
       const step = slideWidthPx + slideGapPx;
-      if (isBrowse) return index * step;
       return sidePaddingPx + index * step + slideWidthPx / 2 - node.clientWidth / 2;
     },
-    [isBrowse, sidePaddingPx, slideGapPx, slideWidthPx],
+    [sidePaddingPx, slideGapPx, slideWidthPx],
   );
 
   const scrollToIndex = useCallback(
@@ -259,7 +256,7 @@ export function CardCarousel({
   }
 
   return (
-    <div className="h-full overflow-hidden">
+    <div className="relative h-full overflow-hidden">
       <div
         ref={scrollRef}
         className={cn(
@@ -285,6 +282,12 @@ export function CardCarousel({
           <CarouselSpacer width={sidePaddingPx} />
         </div>
       </div>
+      {isBrowse ? (
+        <>
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-white to-transparent" />
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white to-transparent" />
+        </>
+      ) : null}
     </div>
   );
 }
