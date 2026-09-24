@@ -135,13 +135,6 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   return "additional";
 }
 
-export function axisLabel(item: ContactItem) {
-  const zone = zoneForItem(item);
-  if (zone === "web" || zone === "additional") return "";
-  if (zone === "files") return FILE_AXIS[item.type] ?? "FILE";
-  return typeLabel(item.type);
-}
-
 export function parseDescription(text: string): { position: PositionLine | null; remainders: string[] } {
   const source = text.trim();
   if (!source) return { position: null, remainders: [] };

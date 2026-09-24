@@ -14,14 +14,6 @@ export const CARD_PHOTO_RADIUS_PX = 21;
 export const CARD_HEADER_NAME_SIZE_PX = 21;
 export const CARD_NAME_GAP_PX = 8;
 
-/** Library card photo — 2× previous 44px compact strip avatar. */
-export const LIBRARY_PHOTO_SIZE_PX = 88;
-export const LIBRARY_PHOTO_RADIUS_PX = 21;
-
-/** Library stack — same top radius as browse card; bottom follows display curve. */
-export const CARD_RADIUS_PX = 27;
-export const LIBRARY_DISPLAY_RADIUS_PX = 27;
-
 /** Equal gap: safe-area bottom → QR top, and QR bottom → card top. */
 export const QR_GAP_SYMMETRIC_PX = 18;
 

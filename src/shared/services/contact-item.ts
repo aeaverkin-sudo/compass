@@ -97,12 +97,6 @@ export function detectContactType(raw: string): ContactType {
   }
 }
 
-export function rowTypeLabel(item: ContactItem): string | null {
-  if (!isContactFilled(item)) return null;
-  if (isAttachmentType(item.type) && item.label.trim()) return item.label;
-  return typeLabel(item.type);
-}
-
 export function isContactFilled(item: ContactItem): boolean {
   return item.value.trim().length > 0;
 }
