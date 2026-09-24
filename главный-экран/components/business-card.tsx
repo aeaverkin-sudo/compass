@@ -24,21 +24,37 @@ function splitHeroName(name: string) {
   return [name.slice(0, breakAt), name.slice(breakAt + 1).replace(/\n/g, "")] as const;
 }
 
-function heroLineSize(lines: string[], width: number, height: number) {
+function measureAt(ctx: CanvasRenderingContext2D, line: string, size: number, weight: number) {
+  ctx.font = `${weight} ${size}px ${HERO_FONT}`;
+  return ctx.measureText(line).width - Math.max(0, line.length - 1);
+}
+
+function heroLineSize(lines: string[], width: number, height: number, weight = 600) {
   if (!width || !height) return 16;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) return 16;
-  ctx.font = `600 100px ${HERO_FONT}`;
   const shown = lines.filter((line) => line.length > 0);
   const count = shown.length > 1 ? 2 : 1;
-  const maxW = shown.reduce((widest, line) => {
-    const measured = ctx.measureText(line).width - Math.max(0, line.length - 1);
-    return Math.max(widest, measured);
-  }, 0);
+  const maxW = shown.reduce((widest, line) => Math.max(widest, measureAt(ctx, line, 100, weight)), 0);
   const widthFont = maxW > 0 ? (100 * width) / maxW : 60;
   const heightFont = height / count;
-  return Math.min(60, Math.max(16, Math.min(widthFont, heightFont)));
+  const max = weight === 400 ? 19 : 60;
+  const min = weight === 400 ? 10 : 16;
+  return Math.min(max, Math.max(min, Math.min(widthFont, heightFont)));
+}
+
+function wordNeedsWrap(word: string, width: number) {
+  if (!width || word.includes(" ") || word.includes("\n")) return false;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return false;
+  return measureAt(ctx, word, 16, 600) > width;
+}
+
+function splitLongWord(word: string) {
+  const mid = Math.ceil(word.length / 2);
+  return [word.slice(0, mid), word.slice(mid)] as const;
 }
 
 function HeroName({
@@ -52,16 +68,27 @@ function HeroName({
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(16);
+  const [wrapWord, setWrapWord] = useState(false);
   const [first, second] = splitHeroName(value);
   const empty = value.length === 0;
-  const twoLines = value.includes("\n");
+  const twoLines = value.includes("\n") || wrapWord;
   const lineCount = twoLines ? 2 : 1;
 
   useLayoutEffect(() => {
     const box = boxRef.current;
-    if (!box || empty) return;
-    const fit = () =>
-      setSize(heroLineSize(twoLines ? [first, second] : [value], box.clientWidth, Math.max(16, boxHeight - 4)));
+    if (!box) return;
+    const fit = () => {
+      const width = box.clientWidth;
+      if (!value) {
+        setWrapWord(false);
+        setSize(heroLineSize(["Name or portfolio title"], width, boxHeight, 400));
+        return;
+      }
+      const wrap = wordNeedsWrap(value, width);
+      setWrapWord(wrap);
+      const lines = value.includes("\n") ? [first, second] : wrap ? [...splitLongWord(value)] : [value];
+      setSize(heroLineSize(lines, width, Math.max(16, boxHeight - 4)));
+    };
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
@@ -72,7 +99,7 @@ function HeroName({
       observer.disconnect();
       window.removeEventListener("orientationchange", onTurn);
     };
-  }, [boxHeight, empty, first, second, twoLines, value]);
+  }, [boxHeight, first, second, value]);
 
   const lineStyle = empty
     ? { fontSize: 19, lineHeight: 1, fontWeight: 400, height: 19 }
@@ -115,8 +142,10 @@ function HeroName({
           rows={lineCount}
           placeholder="Name or portfolio title"
           aria-label="Name or portfolio title"
+          data-no-swipe
           onChange={(event) => onChange(clampNameLines(event.target.value))}
           onFocus={(event) => holdScroll(event.currentTarget)}
+          onPointerDown={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             event.stopPropagation();
             if (event.key !== "Enter") return;
@@ -127,11 +156,20 @@ function HeroName({
             onChange(clampNameLines(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-hidden whitespace-nowrap bg-transparent p-0 text-left text-[#111] outline-none placeholder:text-[#C8C8C8]"
+          className={cn(
+            "compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-hidden bg-transparent p-0 text-left text-[#111] outline-none placeholder:text-[#C8C8C8]",
+            wrapWord ? "whitespace-pre-wrap break-all" : "whitespace-nowrap",
+          )}
           style={lineStyle}
         />
       ) : (
-        <div className="w-full overflow-hidden whitespace-nowrap text-left text-[#111]" style={lineStyle}>
+        <div
+          className={cn(
+            "w-full overflow-x-hidden text-left text-[#111]",
+            wrapWord ? "whitespace-pre-wrap break-all" : "overflow-hidden whitespace-nowrap",
+          )}
+          style={lineStyle}
+        >
           {empty ? (
             <div className="text-[#C8C8C8]">Name or portfolio title</div>
           ) : twoLines ? (

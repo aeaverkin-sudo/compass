@@ -162,9 +162,9 @@ export function CardCarousel({
   };
 
   const handleScroll = () => {
-    if (syncingScroll.current || !scrollRef.current || !multiSlide || slideWidthPx === 0) return;
-
     const node = scrollRef.current;
+    if (!node || syncingScroll.current || !multiSlide || slideWidthPx === 0) return;
+    if (node.querySelector("textarea:focus, input:focus")) return;
     const step = slideWidthPx + slideGapPx;
     const viewportCenter = node.scrollLeft + node.clientWidth / 2;
 

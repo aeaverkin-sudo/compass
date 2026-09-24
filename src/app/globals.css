@@ -225,8 +225,10 @@ body {
   scrollbar-width: none;
 }
 
-.compass-carousel::-webkit-scrollbar {
-  display: none;
+.compass-carousel:focus-within {
+  overflow-x: hidden;
+  scroll-snap-type: none;
+  touch-action: pan-y;
 }
 
 .compass-card-scroll {

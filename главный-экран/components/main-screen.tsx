@@ -238,7 +238,7 @@ export function MainScreen() {
       ) : null}
 
       {/* Mode dots — fixed in gap below browse card; hidden while composing a row */}
-      {layout && (cardReady || mode === "library") && !composerOpen ? (
+      {layout && !composerOpen ? (
         <BrowseMenuButton centerYpx={layout.browseMenuCenterY} mode={mode} onTap={toggleMode} />
       ) : null}
 
