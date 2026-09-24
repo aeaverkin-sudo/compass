@@ -416,6 +416,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                 </button>
                 ) : null}
                 {voiceHint ? <p className="px-3 pb-1 text-[10px] text-hint">{voiceHint}</p> : null}
+                <p className="px-3 py-2 text-[10px] text-[#111]">* For the next scan only.</p>
               </>
             ) : null}
 
