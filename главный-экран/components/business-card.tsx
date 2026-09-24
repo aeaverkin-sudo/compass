@@ -67,18 +67,17 @@ function HeroName({
   const [first, second] = splitHeroName(value);
   const empty = value.trim().length === 0;
   const twoLines = empty || second.length > 0;
-  const top = empty ? "Name" : first;
-  const bottom = empty ? "Surname" : second;
 
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box) return;
-    const fit = () => setSize(heroLineSize([top, bottom], box.clientWidth, box.clientHeight));
+    const fit = () =>
+      setSize(heroLineSize(empty ? ["M", "M"] : [first, second], box.clientWidth, box.clientHeight));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
     return () => observer.disconnect();
-  }, [top, bottom]);
+  }, [empty, first, second]);
 
   const lineClass =
     "block w-full overflow-hidden whitespace-nowrap text-left font-light tracking-[-0.045em]";
@@ -94,15 +93,13 @@ function HeroName({
         )}
       >
         {twoLines ? (
-          <span className={cn(lineClass, empty ? "text-[#C8C8C8]" : "text-[#111]")} style={{ ...lineStyle, marginTop: -lift }}>
-            {top}
+          <span className={cn(lineClass, "text-[#111]")} style={{ ...lineStyle, marginTop: -lift }}>
+            {first || "\u00a0"}
           </span>
         ) : null}
-        {bottom ? (
-          <span className={cn(lineClass, empty ? "text-[#C8C8C8]" : "text-[#111]")} style={lineStyle}>
-            {bottom}
-          </span>
-        ) : null}
+        <span className={cn(lineClass, "text-[#111]")} style={lineStyle}>
+          {second || first || "\u00a0"}
+        </span>
       </div>
       {onChange ? (
         <input
