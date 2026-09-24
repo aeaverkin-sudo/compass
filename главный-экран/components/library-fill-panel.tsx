@@ -149,16 +149,16 @@ function CardToggleButton({
       onClick={longPress.onClick}
       onContextMenu={longPress.onContextMenu}
       className={cn(
-        "relative flex size-[22px] shrink-0 touch-none items-center justify-center rounded-full border bg-sheet transition-transform duration-200 ease-out select-none before:absolute before:-inset-2 before:content-[''] motion-reduce:transform-none motion-reduce:transition-none",
+        "relative flex size-[25.3px] shrink-0 touch-none items-center justify-center rounded-full border bg-sheet transition-transform duration-200 ease-out select-none before:absolute before:-inset-2 before:content-[''] motion-reduce:transform-none motion-reduce:transition-none",
         holding && "scale-90 bg-[rgba(20,20,20,0.06)] shadow-[0_6px_14px_rgba(20,20,20,0.14)]",
         pulsing && "compass-toggle-pulse",
         onCard ? "border-[rgba(20,20,20,0.55)]" : "border-[#D8D5CC]",
       )}
     >
       {onCard ? (
-        <Minus className="size-3 text-foreground" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+        <Minus className="size-[13.8px] text-foreground" strokeWidth={FILL_ICON_STROKE} aria-hidden />
       ) : (
-        <Plus className="size-3 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+        <Plus className="size-[13.8px] text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
       )}
     </button>
   );
@@ -416,7 +416,7 @@ export function LibraryFillPanel({
               <div
                 ref={listScrollRef}
                 onScroll={syncListScrollFade}
-                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[70px_minmax(0,1fr)_22px] items-baseline gap-x-1.5 gap-y-[7px] pt-[22px]"
+                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[70px_minmax(0,1fr)_26px] items-baseline gap-x-1.5 gap-y-[7px] pt-[22px]"
               >
                 {zones.map((zone, zoneIndex) =>
                   zone.rows.map((row, rowIndex) => {
@@ -475,11 +475,11 @@ export function LibraryFillPanel({
               aria-label="Add contact row"
               onClick={handleAddRow}
               className={cn(
-                "compass-icon-circle size-[22px] shrink-0 transition-opacity active:opacity-60",
+                "compass-icon-circle size-[25.3px] shrink-0 transition-opacity active:opacity-60",
                 filledRows.length > 0 && "mt-2",
               )}
             >
-              <Plus className="size-3 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+              <Plus className="size-[13.8px] text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
           </div>
         </div>
