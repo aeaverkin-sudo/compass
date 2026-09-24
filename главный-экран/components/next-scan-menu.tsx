@@ -14,6 +14,7 @@ type NextScanMenuProps = {
   addons: NextScanAddon[];
   onSetAddons: (addons: NextScanAddon[]) => void;
   compact?: boolean;
+  bare?: boolean;
 };
 
 function NextScanAddonIcon({ type }: { type: NextScanAddon["type"] }) {
@@ -27,7 +28,7 @@ function addonPreview(addon: NextScanAddon): string {
   return addon.content.slice(0, 48) + (addon.content.length > 48 ? "…" : "");
 }
 
-export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps) {
+export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMenuProps) {
   const [open, setOpen] = useState(false);
   const [textMode, setTextMode] = useState(false);
   const [text, setText] = useState("");
@@ -114,10 +115,11 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
   };
 
   return (
-    <div className={cn("relative shrink-0", compact ? "" : "absolute right-3 top-3 z-10")}>
+    <div className={cn("relative shrink-0", bare ? "absolute right-0 top-[18px] z-10" : compact ? "" : "absolute right-3 top-3 z-10")}>
       <button
         type="button"
         data-card-content
+        data-no-swipe
         aria-label="Next scan notes"
         aria-expanded={open}
         onClick={(event) => {
@@ -126,11 +128,12 @@ export function NextScanMenu({ addons, onSetAddons, compact }: NextScanMenuProps
         }}
         onPointerDown={(event) => event.stopPropagation()}
         className={cn(
-          "compass-icon-circle relative size-8 transition-opacity active:opacity-60",
+          "relative transition-opacity active:opacity-60",
+          bare ? "flex size-8 items-center justify-center" : "compass-icon-circle size-8",
           open && "z-[60]",
         )}
       >
-        <Plus className="size-4 text-label" strokeWidth={1} aria-hidden />
+        <Plus className={cn(bare ? "size-6 text-[#111]" : "size-4 text-label")} strokeWidth={1} aria-hidden />
         {addons.length > 0 ? (
           <span
             className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-none text-white"

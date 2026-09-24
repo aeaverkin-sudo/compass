@@ -78,15 +78,18 @@ export function CardCarousel({
     return ids;
   }, [cards, canAddCard]);
 
+  const slideGapPx = isBrowse ? 10 : CARD_CAROUSEL_GAP_PX;
   const slideWidthPx = useMemo(() => {
     if (!multiSlide || containerWidth === 0) return 0;
+    if (isBrowse) return containerWidth - 16 - 10;
     return carouselSlideWidthPx(containerWidth, true, SHEET_INSET.browse.horizontal);
-  }, [containerWidth, multiSlide]);
+  }, [containerWidth, isBrowse, multiSlide]);
 
   const sidePaddingPx = useMemo(() => {
     if (!multiSlide || slideWidthPx === 0 || containerWidth === 0) return 0;
+    if (isBrowse) return 0;
     return carouselSidePaddingPx(containerWidth, true, SHEET_INSET.browse.horizontal);
-  }, [containerWidth, multiSlide, slideWidthPx]);
+  }, [containerWidth, isBrowse, multiSlide, slideWidthPx]);
 
   useLayoutEffect(() => {
     const node = scrollRef.current;
@@ -111,10 +114,11 @@ export function CardCarousel({
     (index: number) => {
       const node = scrollRef.current;
       if (!node || slideWidthPx === 0) return 0;
-      const step = slideWidthPx + CARD_CAROUSEL_GAP_PX;
+      const step = slideWidthPx + slideGapPx;
+      if (isBrowse) return index * step;
       return sidePaddingPx + index * step + slideWidthPx / 2 - node.clientWidth / 2;
     },
-    [sidePaddingPx, slideWidthPx],
+    [isBrowse, sidePaddingPx, slideGapPx, slideWidthPx],
   );
 
   const scrollToIndex = useCallback(
@@ -164,7 +168,7 @@ export function CardCarousel({
     if (syncingScroll.current || !scrollRef.current || !multiSlide || slideWidthPx === 0) return;
 
     const node = scrollRef.current;
-    const step = slideWidthPx + CARD_CAROUSEL_GAP_PX;
+    const step = slideWidthPx + slideGapPx;
     const viewportCenter = node.scrollLeft + node.clientWidth / 2;
 
     let closestIndex = 0;
@@ -221,6 +225,8 @@ export function CardCarousel({
         onPhotoChange={(photo) => handlePhotoChange(card.id, photo)}
         onDisplayNameChange={(displayName) => onUpdateCard(card.id, { displayName })}
         onCardUpdate={(data) => onUpdateCard(card.id, data)}
+        cardIndex={index}
+        cardCount={cards.length}
       />
     );
   };
@@ -242,6 +248,8 @@ export function CardCarousel({
         onPhotoChange={(photo) => handlePhotoChange(activeCard.id, photo)}
         onDisplayNameChange={(displayName) => onUpdateCard(activeCard.id, { displayName })}
         onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
+        cardIndex={activeIndex}
+        cardCount={cards.length}
       />
     );
   }
@@ -258,10 +266,13 @@ export function CardCarousel({
     <div className="h-full overflow-hidden">
       <div
         ref={scrollRef}
-        className="compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background"
+        className={cn(
+          "compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background",
+          isBrowse && "compass-carousel-editorial",
+        )}
         onScroll={handleScroll}
       >
-        <div className="flex h-full" style={{ gap: CARD_CAROUSEL_GAP_PX }}>
+        <div className="flex h-full" style={{ gap: slideGapPx }}>
           <CarouselSpacer width={sidePaddingPx} />
           {slideIds.map((slideId, index) => (
             <div

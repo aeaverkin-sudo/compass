@@ -475,11 +475,11 @@ export function LibraryFillPanel({
               aria-label="Add contact row"
               onClick={handleAddRow}
               className={cn(
-                "compass-icon-circle size-[18px] shrink-0 transition-opacity active:opacity-60",
+                "compass-icon-circle size-[22px] shrink-0 transition-opacity active:opacity-60",
                 filledRows.length > 0 && "mt-2",
               )}
             >
-              <Plus className="size-2.5 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+              <Plus className="size-3 text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
           </div>
         </div>

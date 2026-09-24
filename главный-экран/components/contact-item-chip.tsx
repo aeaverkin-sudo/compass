@@ -126,6 +126,42 @@ function ContactItemChipRow({
   );
 }
 
+function EditorialValue({
+  row,
+  zoneId,
+  first,
+}: {
+  row: CardDisplayRow;
+  zoneId: string;
+  first: boolean;
+}) {
+  const webLead = zoneId === "web" && first;
+  const marked = zoneId === "social" || zoneId === "files" || zoneId === "lifestyle";
+  const body = (
+    <span className="text-[15.5px] leading-[1.45] tracking-[-0.015em] text-[#111]">
+      {marked && row.axis ? (
+        <>
+          <span className="font-light text-[#777]">{row.axis}</span>
+          <span className="font-light text-[#222]"> / </span>
+          <span className={webLead ? "font-medium" : "font-normal"}>{row.value}</span>
+        </>
+      ) : (
+        <span className={webLead ? "font-medium underline" : "font-normal"}>{row.value}</span>
+      )}
+    </span>
+  );
+
+  if (row.item && row.url) {
+    return (
+      <a data-card-content href={row.url} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
+        {body}
+      </a>
+    );
+  }
+
+  return <span data-card-content>{body}</span>;
+}
+
 export function ContactItemChipList({
   items,
   size,
@@ -335,6 +371,30 @@ export function ContactItemChipList({
   };
 
   if (composed.zones.length === 0) return null;
+
+  if (!compact) {
+    return (
+      <div className={cn("w-full", className)} data-card-chip-list={listId} data-card-content>
+        {composed.zones.map((zone, zoneIndex) => (
+          <section key={zone.id} className="border-b-[0.5px] border-[#111] py-[18px]">
+            <div className="grid grid-cols-[34px_102px_minmax(0,1fr)] items-start">
+              <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] text-[#111]">
+                {String(zoneIndex + 2).padStart(2, "0")}
+              </span>
+              <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] text-[#111] uppercase">
+                / {zone.title}
+              </span>
+              <div className="flex flex-col gap-[6px]">
+                {zone.rows.map((row, rowIndex) => (
+                  <EditorialValue key={row.key} row={row} zoneId={zone.id} first={rowIndex === 0} />
+                ))}
+              </div>
+            </div>
+          </section>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("relative min-h-0 w-full flex-1", className)}>
