@@ -149,10 +149,9 @@ function CardToggleButton({
       onClick={longPress.onClick}
       onContextMenu={longPress.onContextMenu}
       className={cn(
-        "relative flex size-[25.3px] shrink-0 touch-none items-center justify-center rounded-full border bg-sheet transition-transform duration-200 ease-out select-none before:absolute before:-inset-2 before:content-[''] motion-reduce:transform-none motion-reduce:transition-none",
+        "relative flex size-[25.3px] shrink-0 touch-none items-center justify-center rounded-full border-0 bg-sheet transition-transform duration-200 ease-out select-none before:absolute before:-inset-2 before:content-[''] motion-reduce:transform-none motion-reduce:transition-none",
         holding && "scale-90 bg-[rgba(20,20,20,0.06)] shadow-[0_6px_14px_rgba(20,20,20,0.14)]",
         pulsing && "compass-toggle-pulse",
-        onCard ? "border-[rgba(20,20,20,0.55)]" : "border-[#D8D5CC]",
       )}
     >
       {onCard ? (
@@ -475,7 +474,7 @@ export function LibraryFillPanel({
               aria-label="Add contact row"
               onClick={handleAddRow}
               className={cn(
-                "compass-icon-circle size-[25.3px] shrink-0 transition-opacity active:opacity-60",
+                "compass-icon-circle size-[25.3px] shrink-0 border-0 transition-opacity active:opacity-60",
                 filledRows.length > 0 && "mt-2",
               )}
             >

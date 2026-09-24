@@ -216,6 +216,10 @@ body {
   background: var(--sheet);
 }
 
+.compass-icon-circle.border-0 {
+  border: none;
+}
+
 .compass-layer {
   will-change: transform, box-shadow;
 }
