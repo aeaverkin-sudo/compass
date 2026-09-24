@@ -121,9 +121,11 @@ function EditorialHeader({
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative py-[22px]">
-        <div className="grid grid-cols-[minmax(0,1fr)_105px] items-start gap-3 pr-9">
-          <div>
-            <HeroName first={first} second={second} onChange={onDisplayNameChange} />
+        <div className="flex items-start">
+          <div className="min-w-0 flex-1 pr-3">
+            <div className="h-[105px] overflow-hidden">
+              <HeroName first={first} second={second} onChange={onDisplayNameChange} />
+            </div>
             {positionTitle ? (
               <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
                 {positionTitle}
@@ -134,10 +136,10 @@ function EditorialHeader({
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={105} borderRadiusPx={0} />
           ) : card.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img data-card-content src={card.photo} alt="" className="size-[105px] object-cover" />
+            <img data-card-content src={card.photo} alt="" className="size-[105px] shrink-0 object-cover" />
           ) : null}
+          {showPlus ? <div className="ml-[8px] shrink-0">{nextScan}</div> : null}
         </div>
-        {showPlus ? nextScan : null}
       </div>
     </div>
   );
@@ -246,7 +248,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }
     >
       <div
-        className={cn("flex min-h-0 flex-1 flex-col", !compact && "overflow-y-auto px-[clamp(24px,6.1vw,28px)] pb-8")}
+        className={cn("flex min-h-0 flex-1 flex-col", !compact && "overflow-y-auto px-[clamp(18px,6.1vw,22px)] pb-8")}
         onScroll={
           compact
             ? undefined
@@ -309,7 +311,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }}
             className="text-[#111]"
           >
-            <Share className="size-4" strokeWidth={1.25} aria-hidden />
+            <Share className="size-6" strokeWidth={1} aria-hidden />
           </button>
         </footer>
       ) : null}

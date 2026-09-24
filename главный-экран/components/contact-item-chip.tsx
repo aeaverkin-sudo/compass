@@ -367,7 +367,7 @@ export function ContactItemChipList({
       <div className={cn("w-full", className)} data-card-chip-list={listId} data-card-content>
         {composed.zones.map((zone) => (
           <section key={zone.id} className="border-b-[0.5px] border-[#111] py-[18px]">
-            <div className="grid grid-cols-[92px_minmax(0,1fr)] items-start gap-x-3">
+            <div className="grid grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-4">
               <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
                 {zone.title}
               </span>
