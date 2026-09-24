@@ -37,9 +37,9 @@ function heroLineSize(lines: string[], width: number, height: number, weight = 6
   const shown = lines.filter((line) => line.length > 0);
   const count = shown.length > 1 ? 2 : 1;
   const maxW = shown.reduce((widest, line) => Math.max(widest, measureAt(ctx, line, 100, weight)), 0);
-  const widthFont = maxW > 0 ? (100 * width) / maxW : 60;
+  const widthFont = maxW > 0 ? (100 * width) / maxW : 44;
   const heightFont = height / count;
-  const max = weight === 400 ? 19 : 60;
+  const max = weight === 400 ? 19 : 44;
   const min = weight === 400 ? 10 : 16;
   return Math.min(max, Math.max(min, Math.min(widthFont, heightFont)));
 }
@@ -139,13 +139,25 @@ function HeroName({
       {onChange ? (
         <textarea
           value={value}
-          rows={lineCount}
+          rows={2}
+          enterKeyHint="enter"
           placeholder="Name or portfolio title"
           aria-label="Name or portfolio title"
           data-no-swipe
           onChange={(event) => onChange(clampNameLines(event.target.value))}
           onFocus={(event) => holdScroll(event.currentTarget)}
           onPointerDown={(event) => event.stopPropagation()}
+          onBeforeInput={(event) => {
+            const native = event.nativeEvent;
+            if (native.inputType !== "insertLineBreak") return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (value.includes("\n")) return;
+            const start = event.currentTarget.selectionStart ?? value.length;
+            const end = event.currentTarget.selectionEnd ?? start;
+            onChange(clampNameLines(`${value.slice(0, start)}\n${value.slice(end)}`));
+          }}
+          onKeyDownCapture={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             event.stopPropagation();
             if (event.key !== "Enter") return;
@@ -158,7 +170,8 @@ function HeroName({
           onClick={(event) => event.stopPropagation()}
           className={cn(
             "compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-hidden bg-transparent p-0 text-left text-[#111] outline-none placeholder:text-[#C8C8C8]",
-            wrapWord ? "whitespace-pre-wrap break-all" : "whitespace-nowrap",
+            value.includes("\n") || wrapWord ? "whitespace-pre-wrap" : "whitespace-nowrap",
+            wrapWord && "break-all",
           )}
           style={lineStyle}
         />
@@ -215,8 +228,8 @@ function EditorialHeader({
           <div className="relative h-full min-h-0 min-w-0 flex-1">
             {showPlus ? <div className="absolute top-0 right-0 z-10">{nextScan}</div> : null}
             <div
-              className="absolute inset-x-0 top-0 overflow-x-hidden overflow-y-visible"
-              style={{ bottom: positionTitle ? ROLE_RESERVE_PX : 0 }}
+              className="absolute top-0 left-0 overflow-x-hidden overflow-y-visible"
+              style={{ bottom: positionTitle ? ROLE_RESERVE_PX : 0, right: showPlus ? 30 : 0 }}
             >
               <HeroName
                 value={card.displayName}

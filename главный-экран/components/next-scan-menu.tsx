@@ -106,7 +106,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   };
 
   return (
-    <div className={cn("relative shrink-0", bare ? "z-10 -mt-[5px]" : compact ? "" : "absolute right-3 top-3 z-10")}>
+    <div className={cn("relative shrink-0", bare ? "z-10" : compact ? "" : "absolute right-3 top-3 z-10")}>
       <button
         type="button"
         data-card-content
@@ -124,7 +124,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
           open && "z-[60]",
         )}
       >
-        <Plus className={cn(bare ? "size-6 text-[#111]" : "size-4 text-label")} strokeWidth={1} aria-hidden />
+        <Plus className={cn(bare ? "size-5 text-[#111]" : "size-4 text-label")} strokeWidth={1} aria-hidden />
         {addons.length > 0 ? (
           <span
             className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-none text-white"
