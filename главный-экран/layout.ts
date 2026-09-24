@@ -14,8 +14,10 @@ export const CARD_PHOTO_RADIUS_PX = 21;
 export const CARD_HEADER_NAME_SIZE_PX = 21;
 export const CARD_NAME_GAP_PX = 8;
 
-/** Library stack gap. The browse card top stays on this old rhythm. */
+/** Library stack gap. */
 export const QR_GAP_SYMMETRIC_PX = 18;
+/** Extra 0.5mm between the QR and the rule, and between the rule and the photo. */
+export const RULE_GAP_PX = QR_GAP_SYMMETRIC_PX + 96 / 25.4 / 2;
 /** Browse QR, grown into the existing slot so it sits higher. The card does not move. */
 export const BROWSE_QR_SIZE = 150;
 /** Slot from the safe area to the rule: 18 + 134 + 18. */
@@ -73,7 +75,7 @@ export function layoutTop(offsetPx: number) {
 }
 
 export function browseStackTopPx(safeTop: number) {
-  return safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  return safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
 }
 
 export function browseCardHeightPx(viewportH: number, safeTop: number) {
@@ -83,7 +85,7 @@ export function browseCardHeightPx(viewportH: number, safeTop: number) {
 }
 
 export function browseCardHeight() {
-  const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
   return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
 }

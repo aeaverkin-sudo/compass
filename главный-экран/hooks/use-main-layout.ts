@@ -8,7 +8,7 @@ import {
   libraryStackTopPx,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
-  QR_GAP_SYMMETRIC_PX,
+  RULE_GAP_PX,
   SHEET_INSET,
 } from "../layout";
 
@@ -48,7 +48,7 @@ function computeLayout(): MainLayout | null {
   const viewportH = document.documentElement.clientHeight || window.innerHeight;
   const safeTop = readSafeAreaInset("top");
   const qrTop = safeTop + HEADER_RHYTHM_PX;
-  const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const browseHeight = browseCardHeightPx(viewportH, safeTop);
   const libraryHeight = libraryCardHeightPx(viewportH, safeTop);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
