@@ -92,11 +92,6 @@ function HeroName({
     </div>
   );
 }
-  const trimmed = name.trim();
-  const space = trimmed.indexOf(" ");
-  if (space < 0) return [trimmed, ""] as const;
-  return [trimmed.slice(0, space), trimmed.slice(space + 1)] as const;
-}
 
 function splitHeroName(name: string) {
   const trimmed = name.trim();
