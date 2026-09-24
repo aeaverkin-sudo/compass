@@ -115,7 +115,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   };
 
   return (
-    <div className={cn("relative shrink-0", bare ? "z-10" : compact ? "" : "absolute right-3 top-3 z-10")}>
+    <div className={cn("relative shrink-0", bare ? "absolute right-0 top-[18px] z-10" : compact ? "" : "absolute right-3 top-3 z-10")}>
       <button
         type="button"
         data-card-content
@@ -129,7 +129,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
         onPointerDown={(event) => event.stopPropagation()}
         className={cn(
           "relative transition-opacity active:opacity-60",
-          bare ? "flex size-6 items-center justify-center" : "compass-icon-circle size-8",
+          bare ? "flex size-8 items-center justify-center" : "compass-icon-circle size-8",
           open && "z-[60]",
         )}
       >
