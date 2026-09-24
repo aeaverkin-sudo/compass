@@ -126,21 +126,23 @@ function EditorialHeader({
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative py-[22px]">
-        <div className="grid grid-cols-[minmax(0,1fr)_105px] items-stretch gap-3 pr-9" style={{ height: HERO_PHOTO_PX }}>
-          <HeroName first={first} second={second} onChange={onDisplayNameChange} />
+        <div className="flex items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
+          <div className="min-w-0 flex-1">
+            <HeroName first={first} second={second} onChange={onDisplayNameChange} />
+          </div>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : card.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img data-card-content src={card.photo} alt="" className="size-[105px] object-cover" />
+            <img data-card-content src={card.photo} alt="" className="size-[105px] shrink-0 object-cover" />
           ) : null}
+          {showPlus ? <div className="ml-2 shrink-0 self-start">{nextScan}</div> : null}
         </div>
         {positionTitle ? (
           <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
             {positionTitle}
           </p>
         ) : null}
-        {showPlus ? nextScan : null}
       </div>
     </div>
   );
