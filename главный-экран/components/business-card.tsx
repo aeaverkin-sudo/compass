@@ -66,7 +66,7 @@ function HeroName({
   const [size, setSize] = useState(58);
   const [first, second] = splitHeroName(value);
   const empty = value.trim().length === 0;
-  const twoLines = empty || second.length > 0;
+  const twoLines = empty || value.includes("\n");
 
   useLayoutEffect(() => {
     const box = boxRef.current;
@@ -98,16 +98,21 @@ function HeroName({
           </span>
         ) : null}
         <span className={cn(lineClass, "text-[#111]")} style={lineStyle}>
-          {second || first || "\u00a0"}
+          {twoLines ? second || "\u00a0" : first || "\u00a0"}
         </span>
       </div>
       {onChange ? (
-        <input
+        <textarea
           value={value}
-          onChange={(event) => onChange(event.target.value)}
+          rows={2}
+          onChange={(event) => onChange(event.target.value.replace(/\n{2,}/g, "\n").split("\n").slice(0, 2).join("\n"))}
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === "Enter" && value.includes("\n")) event.preventDefault();
+          }}
           onClick={(event) => event.stopPropagation()}
           aria-label="Name"
-          className="compass-input absolute inset-0 h-full w-full bg-transparent text-transparent caret-[#111] outline-none"
+          className="compass-input absolute inset-0 h-full w-full resize-none bg-transparent text-transparent caret-[#111] outline-none"
           style={{ fontSize: size }}
         />
       ) : null}
@@ -116,9 +121,9 @@ function HeroName({
 }
 
 function splitHeroName(name: string) {
-  const space = name.indexOf(" ");
-  if (space < 0) return [name, ""] as const;
-  return [name.slice(0, space), name.slice(space + 1)] as const;
+  const breakAt = name.indexOf("\n");
+  if (breakAt < 0) return [name, ""] as const;
+  return [name.slice(0, breakAt), name.slice(breakAt + 1).replace(/\n/g, " ")] as const;
 }
 
 function EditorialHeader({

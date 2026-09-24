@@ -72,7 +72,7 @@ export async function generateCardPdf(snapshot: CardSnapshot): Promise<Uint8Arra
     }
   }
 
-  page.drawText(snapshot.displayName, {
+  page.drawText(snapshot.displayName.replace(/\n/g, " "), {
     x: 50,
     y,
     size: 22,
@@ -166,6 +166,6 @@ export async function generateCardPdf(snapshot: CardSnapshot): Promise<Uint8Arra
 }
 
 export function cardPdfFilename(snapshot: CardSnapshot) {
-  const safeName = snapshot.displayName.replace(/[^\w\s-]/g, "").trim();
+  const safeName = snapshot.displayName.replace(/\n/g, " ").replace(/[^\w\s-]/g, "").trim();
   return `${safeName || "compass-card"}.pdf`;
 }
