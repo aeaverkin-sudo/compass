@@ -13,23 +13,28 @@ import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, type MainScreenMode } from "../layout";
 
-function heroLineSize(lines: string[], width: number) {
-  if (!width) return 58;
+const HERO_PHOTO_PX = 105;
+
+function heroLineSize(lines: string[], width: number, height: number) {
+  if (!width || !height) return 58;
   const probe = document.createElement("span");
   probe.style.cssText =
-    "position:absolute;visibility:hidden;white-space:nowrap;font-weight:300;letter-spacing:-0.045em;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif";
+    "position:absolute;visibility:hidden;white-space:nowrap;font-weight:300;letter-spacing:-0.045em;line-height:0.88;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif";
   document.body.appendChild(probe);
+  const shown = lines.filter((line) => line.trim().length > 0);
+  const count = Math.max(shown.length, 1);
   let lo = 16;
   let hi = 58;
   let best = 16;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
     probe.style.fontSize = `${mid}px`;
-    const tooWide = lines.some((line) => {
-      probe.textContent = line || " ";
+    const tooWide = shown.some((line) => {
+      probe.textContent = line;
       return probe.offsetWidth > width;
     });
-    if (tooWide) hi = mid - 1;
+    const tooTall = count * mid * 0.88 > height;
+    if (tooWide || tooTall) hi = mid - 1;
     else {
       best = mid;
       lo = mid + 1;
@@ -54,7 +59,7 @@ function HeroName({
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box) return;
-    const fit = () => setSize(heroLineSize([first, second], box.clientWidth));
+    const fit = () => setSize(heroLineSize([first, second], box.clientWidth, Math.max(box.clientHeight - 8, 16)));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
@@ -62,10 +67,10 @@ function HeroName({
   }, [first, second]);
 
   const lineClass =
-    "block w-full overflow-hidden bg-transparent whitespace-nowrap text-left leading-[0.88] font-light tracking-[-0.045em] text-[#111] outline-none";
+    "block w-full overflow-hidden bg-transparent whitespace-nowrap text-center leading-[0.88] font-light tracking-[-0.045em] text-[#111] outline-none";
 
   return (
-    <div ref={boxRef} data-card-content className="min-w-0">
+    <div ref={boxRef} data-card-content className="flex h-full min-w-0 flex-col items-center justify-center">
       {onChange ? (
         <>
           <input
@@ -121,22 +126,20 @@ function EditorialHeader({
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative py-[22px]">
-        <div className="grid grid-cols-[minmax(0,1fr)_105px] items-start gap-3 pr-9">
-          <div>
-            <HeroName first={first} second={second} onChange={onDisplayNameChange} />
-            {positionTitle ? (
-              <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
-                {positionTitle}
-              </p>
-            ) : null}
-          </div>
+        <div className="grid grid-cols-[minmax(0,1fr)_105px] items-stretch gap-3 pr-9" style={{ height: HERO_PHOTO_PX }}>
+          <HeroName first={first} second={second} onChange={onDisplayNameChange} />
           {onPhotoChange ? (
-            <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={105} borderRadiusPx={0} />
+            <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : card.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img data-card-content src={card.photo} alt="" className="size-[105px] object-cover" />
           ) : null}
         </div>
+        {positionTitle ? (
+          <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
+            {positionTitle}
+          </p>
+        ) : null}
         {showPlus ? nextScan : null}
       </div>
     </div>
