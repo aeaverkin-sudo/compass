@@ -88,13 +88,15 @@ export function MainScreen() {
       if (composerOpen) return;
       const target = event.target as HTMLElement;
       if (target.closest("[data-no-swipe], input, textarea")) return;
+      const preview = target.closest<HTMLElement>("[data-preview-scroll]");
+      if (direction === "down" && preview && preview.scrollHeight <= preview.clientHeight + 2) return;
 
       const startX = event.clientX;
       const startY = event.clientY;
       const pointerId = event.pointerId;
       const startedAt = performance.now();
       const zone = event.currentTarget.getBoundingClientRect();
-      const scroller = target.closest<HTMLElement>(".compass-library-list-scroll, [data-card-chip-list]");
+      const scroller = target.closest<HTMLElement>(".compass-library-list-scroll, [data-preview-scroll], [data-card-chip-list]");
       const scrollTop = scroller?.scrollTop ?? 0;
 
       const clear = () => {

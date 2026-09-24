@@ -390,7 +390,7 @@ export function ContactItemChipList({
   }
 
   return (
-    <div className={cn("relative min-h-0 w-full flex-1", className)}>
+    <div className={cn(compact ? "relative w-full" : "relative min-h-0 w-full flex-1", className)}>
       <div
         ref={listRef}
         data-card-content
@@ -407,7 +407,7 @@ export function ContactItemChipList({
           if (compact && onReorder) event.preventDefault();
         }}
         className={cn(
-          "compass-preview-scroll mt-3 grid h-full w-full min-w-0 grid-cols-[92px_minmax(0,1fr)] items-start gap-x-1.5 overflow-x-hidden overflow-y-auto",
+          "compass-preview-scroll mt-3 grid w-full min-w-0 grid-cols-[92px_minmax(0,1fr)] items-start gap-x-1.5 overflow-x-hidden",
           lift?.active && "touch-none overflow-hidden",
         )}
       >

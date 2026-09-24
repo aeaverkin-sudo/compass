@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
@@ -371,7 +371,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const articleRef = useRef<HTMLElement | null>(null);
+  const previewScrollRef = useRef<HTMLDivElement | null>(null);
   const [scrolledUnderQr, setScrolledUnderQr] = useState(false);
+  const [previewPull, setPreviewPull] = useState(0);
+  const [previewPulling, setPreviewPulling] = useState(false);
 
   const handleCommitOrder = useCallback(
     (orderedIds: string[]) => {
@@ -379,6 +382,53 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     },
     [card.id, setCardItemOrder],
   );
+
+  useEffect(() => {
+    if (!compact) return;
+    const el = previewScrollRef.current;
+    if (!el) return;
+    let pointerId = -1;
+    let startY = 0;
+    let dragging = false;
+    const fits = () => el.scrollHeight <= el.clientHeight + 1;
+    const down = (event: PointerEvent) => {
+      if (!fits()) return;
+      const target = event.target as HTMLElement;
+      if (target.closest("input, textarea")) return;
+      pointerId = event.pointerId;
+      startY = event.clientY;
+      dragging = true;
+    };
+    const move = (event: PointerEvent) => {
+      if (!dragging || event.pointerId !== pointerId) return;
+      if (!fits()) {
+        dragging = false;
+        setPreviewPulling(false);
+        setPreviewPull(0);
+        return;
+      }
+      const dy = event.clientY - startY;
+      if (Math.abs(dy) < 5) return;
+      setPreviewPulling(true);
+      setPreviewPull(Math.sign(dy) * Math.min(Math.abs(dy) * 0.42, 64));
+    };
+    const up = (event: PointerEvent) => {
+      if (event.pointerId !== pointerId) return;
+      dragging = false;
+      setPreviewPulling(false);
+      setPreviewPull(0);
+    };
+    el.addEventListener("pointerdown", down);
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+    document.addEventListener("pointercancel", up);
+    return () => {
+      el.removeEventListener("pointerdown", down);
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.removeEventListener("pointercancel", up);
+    };
+  }, [compact]);
 
   const handleClick = (event: MouseEvent<HTMLElement>) => {
     if ((event.target as HTMLElement).closest("[data-card-content]")) return;
@@ -396,7 +446,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       className={cn(
         "compass-layer flex w-full cursor-default flex-col",
         compact
-          ? "compass-card compass-card-library min-h-0 w-full min-w-0 items-center justify-start overflow-x-hidden px-5 pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
+          ? "compass-card compass-card-library min-h-0 w-full min-w-0 items-center justify-start overflow-hidden px-5 pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
           : "relative min-h-0 overflow-hidden bg-white text-[#111]",
       )}
       style={
@@ -411,14 +461,28 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }
     >
       <div
+        ref={compact ? previewScrollRef : undefined}
+        data-preview-scroll={compact ? "" : undefined}
         className={cn(
           "flex min-h-0 flex-1 flex-col",
+          compact && "touch-pan-y overflow-x-hidden overflow-y-auto",
           !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)] pb-8",
         )}
         onScroll={
           compact
             ? undefined
             : (event) => setScrolledUnderQr(event.currentTarget.scrollTop > 2)
+        }
+      >
+      <div
+        className={compact ? "flex flex-col" : "contents"}
+        style={
+          compact
+            ? {
+                transform: previewPull ? `translateY(${previewPull}px)` : undefined,
+                transition: previewPulling ? "none" : "transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+              }
+            : undefined
         }
       >
       {compact ? (
@@ -481,6 +545,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           </button>
         </footer>
       ) : null}
+      </div>
       </div>
       {!compact && scrolledUnderQr ? (
         <div
