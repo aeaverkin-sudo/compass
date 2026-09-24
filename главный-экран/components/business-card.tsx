@@ -16,7 +16,6 @@ import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, QR_GAP_SYMMETRIC_PX, type M
 
 const HERO_PHOTO_PX = 128;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-const ROLE_RESERVE_PX = 26;
 
 function splitHeroName(name: string) {
   const breakAt = name.indexOf("\n");
@@ -225,23 +224,19 @@ function EditorialHeader({
             // eslint-disable-next-line @next/next/no-img-element
             <img data-card-content src={card.photo} alt="" className="size-[128px] shrink-0 object-cover" />
           ) : null}
-          <div className="relative h-full min-h-0 min-w-0 flex-1">
+          <div className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
             {showPlus ? <div className="absolute top-0 right-0 z-10">{nextScan}</div> : null}
-            <div
-              className="absolute top-0 left-0 overflow-x-hidden overflow-y-visible"
-              style={{ bottom: positionTitle ? ROLE_RESERVE_PX : 0, right: showPlus ? 30 : 0 }}
-            >
+            <div className="min-w-0" style={{ paddingRight: showPlus ? 20 : 0 }}>
               <HeroName
                 value={card.displayName}
                 onChange={onDisplayNameChange}
-                boxHeight={HERO_PHOTO_PX - (positionTitle ? ROLE_RESERVE_PX : 0)}
+                boxHeight={HERO_PHOTO_PX - (positionTitle ? 18 : 4)}
               />
             </div>
             {positionTitle ? (
               <p
                 data-card-content
-                className="absolute inset-x-0 bottom-0 flex items-end text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase"
-                style={{ height: ROLE_RESERVE_PX }}
+                className="mt-1 text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase"
               >
                 {positionTitle}
               </p>
