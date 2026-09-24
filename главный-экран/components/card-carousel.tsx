@@ -272,7 +272,7 @@ export function CardCarousel({
               key={slideId}
               className={cn(
                 "compass-carousel-slide h-full shrink-0 snap-center overflow-hidden transition-opacity duration-300",
-                index !== activeIndex && !isBrowse && "opacity-50",
+                index !== activeIndex && "opacity-50",
               )}
               style={{ width: slideWidthPx }}
             >
