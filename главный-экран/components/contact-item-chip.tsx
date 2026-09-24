@@ -450,7 +450,9 @@ export function ContactItemChipList({
                     zoneGap && "mt-3",
                   )}
                 />
-                {zoneEnd ? <div className="col-span-2 mt-3 border-b-[0.5px] border-[#111]" /> : null}
+                {zoneEnd && zoneIndex < composed.zones.length - 1 ? (
+                  <div className="col-span-2 mt-3 border-b-[0.5px] border-[#111]" />
+                ) : null}
               </Fragment>
             );
           }),
