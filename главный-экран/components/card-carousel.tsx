@@ -94,7 +94,8 @@ export function CardCarousel({
     if (!node || !multiSlide) return;
 
     const sync = () => {
-      setContainerWidth(node.clientWidth);
+      const width = isBrowse ? node.clientWidth : document.documentElement.clientWidth;
+      setContainerWidth(width);
     };
     sync();
 
@@ -106,7 +107,7 @@ export function CardCarousel({
       observer.disconnect();
       window.removeEventListener("resize", sync);
     };
-  }, [multiSlide]);
+  }, [multiSlide, isBrowse]);
 
   const scrollLeftForIndex = useCallback(
     (index: number) => {

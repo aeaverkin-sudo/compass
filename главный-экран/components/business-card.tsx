@@ -446,7 +446,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       className={cn(
         "compass-layer flex w-full cursor-default flex-col",
         compact
-          ? "compass-card compass-card-library min-h-0 w-full min-w-0 items-center justify-start overflow-hidden px-5 pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
+          ? "compass-card compass-card-library min-h-0 w-full min-w-0 justify-start overflow-hidden pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
           : "relative min-h-0 overflow-hidden bg-white text-[#111]",
       )}
       style={
@@ -465,7 +465,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         data-preview-scroll={compact ? "" : undefined}
         className={cn(
           "flex min-h-0 flex-1 flex-col",
-          compact && "compass-card-scroll touch-pan-y overflow-x-hidden overflow-y-auto",
+          compact && "compass-card-scroll w-full touch-pan-y overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)]",
           !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)] pb-8",
         )}
         onScroll={
@@ -475,7 +475,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         }
       >
       <div
-        className={compact ? "flex flex-col" : "contents"}
+        className={compact ? "flex w-full flex-col" : "contents"}
         style={
           compact
             ? {
