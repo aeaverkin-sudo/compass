@@ -168,16 +168,12 @@ body {
   background: var(--background-ready);
 }
 
-.compass-carousel:not(.compass-carousel-editorial) .compass-carousel-slide {
-  border: none;
-  box-shadow: none;
-}
-
+.compass-carousel:not(.compass-carousel-editorial) .compass-carousel-slide,
 .compass-library-panel-top {
-  background: var(--sheet);
   border: none;
   border-radius: var(--block-radius);
   box-shadow: none;
+  background: linear-gradient(to bottom, transparent 0, #fff 32px);
 }
 
 .compass-library-panel-bottom {

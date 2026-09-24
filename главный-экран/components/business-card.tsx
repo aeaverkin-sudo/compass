@@ -12,7 +12,7 @@ import { composeCard } from "@/shared/services/card-zones";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
-import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, RULE_GAP_PX, type MainScreenMode } from "../layout";
+import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, LIBRARY_NAME_FADE_PX, RULE_GAP_PX, type MainScreenMode } from "../layout";
 
 const HERO_PHOTO_PX = 128;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -403,7 +403,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         compact
           ? {
               height: libraryCardHeightPx,
-              paddingTop: 16,
+              paddingTop: LIBRARY_NAME_FADE_PX,
             }
           : {
               height: browseCardHeight(),
