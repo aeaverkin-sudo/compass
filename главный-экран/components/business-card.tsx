@@ -70,7 +70,7 @@ function HeroName({
     "block w-full overflow-hidden bg-transparent whitespace-nowrap text-left leading-[0.88] font-light tracking-[-0.045em] text-[#111] outline-none";
 
   return (
-    <div ref={boxRef} data-card-content className="flex h-full min-w-0 flex-col items-start justify-center">
+    <div ref={boxRef} data-card-content className="flex h-full min-w-0 flex-col items-start justify-between">
       {onChange ? (
         <>
           <input
