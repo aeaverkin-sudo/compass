@@ -47,8 +47,8 @@ export const PANEL_BORDER_WIDTH_PX = 1;
 
 export const LAYER_TRANSITION_MS = 460;
 
-/** A short sliver of the next card: past its side padding, not a second column of text. */
-export const CARD_CAROUSEL_PEEK_PX = 34;
+/** Enough of the next card that its content, not only its side padding, stays on screen. */
+export const CARD_CAROUSEL_PEEK_PX = 56;
 export const CARD_CAROUSEL_GAP_PX = 8;
 export const MAX_CARDS = 2;
 

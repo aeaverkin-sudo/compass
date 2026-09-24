@@ -13,7 +13,7 @@ import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, type MainScreenMode } from "../layout";
 
-const HERO_PHOTO_PX = 96;
+const HERO_PHOTO_PX = 105;
 
 function measureHeroLine(text: string, size: number) {
   if (typeof document === "undefined") return { width: size, ascent: size * 0.72 };
@@ -96,7 +96,7 @@ function HeroName({
   };
 
   return (
-    <div ref={boxRef} data-card-content className="flex min-w-0 flex-col justify-between" style={{ height: HERO_PHOTO_PX }}>
+    <div ref={boxRef} data-card-content className="flex h-[105px] min-w-0 flex-col justify-between">
       {line(first, Boolean(onChange), (next) => onChange?.([next, second].filter(Boolean).join(" ")))}
       {line(second, Boolean(onChange), (next) => onChange?.([first, next].filter(Boolean).join(" ")))}
     </div>
@@ -140,10 +140,10 @@ function EditorialHeader({
           ) : null}
         </div>
         {onPhotoChange ? (
-          <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
+          <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={105} borderRadiusPx={0} />
         ) : card.photo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img data-card-content src={card.photo} alt="" className="shrink-0 object-cover" style={{ width: HERO_PHOTO_PX, height: HERO_PHOTO_PX }} />
+          <img data-card-content src={card.photo} alt="" className="size-[105px] shrink-0 object-cover" />
         ) : null}
       </div>
       {showPlus ? (
