@@ -87,7 +87,7 @@ function ContactItemChipRow({
 
   const line = row.axis ? `${row.axis} / ${row.value}` : row.value;
   const classNames = cn(
-    "compass-type-value min-w-0 whitespace-nowrap text-left text-foreground select-none",
+    "compass-type-value min-w-0 break-words text-left text-foreground select-none",
     lifted &&
       motion &&
       "origin-center scale-[1.03] rounded-full bg-sheet px-1.5 shadow-[0_10px_22px_rgba(20,20,20,0.14)] ring-1 ring-[rgba(20,20,20,0.28)] transition-[transform,box-shadow] duration-200 ease-out motion-reduce:scale-100 motion-reduce:transition-none motion-reduce:shadow-none",
@@ -129,7 +129,7 @@ function ContactItemChipRow({
 function EditorialValue({ row }: { row: CardDisplayRow }) {
   const line = row.axis ? `${row.axis} / ${row.value}` : row.value;
   const body = (
-    <span className="block min-w-0 whitespace-nowrap text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] no-underline">
+    <span className="block min-w-0 break-words text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] no-underline">
       {line}
     </span>
   );
@@ -142,7 +142,7 @@ function EditorialValue({ row }: { row: CardDisplayRow }) {
         target="_blank"
         rel="noopener noreferrer"
         onClick={(event) => event.stopPropagation()}
-        className="no-underline"
+        className="block min-w-0 no-underline"
       >
         {body}
       </a>
@@ -364,9 +364,9 @@ export function ContactItemChipList({
 
   if (!compact) {
     return (
-      <div className={cn("w-full", className)} data-card-chip-list={listId} data-card-content>
+      <div className={cn("w-full min-w-0 overflow-hidden", className)} data-card-chip-list={listId} data-card-content>
         {composed.zones.map((zone) => (
-          <section key={zone.id} className="border-b-[0.5px] border-[#111] py-[18px]">
+          <section key={zone.id} className="min-w-0 overflow-hidden border-b-[0.5px] border-[#111] py-[18px]">
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-1.5">
               <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
                 {zone.title}
