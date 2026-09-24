@@ -403,7 +403,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         compact
           ? {
               height: libraryCardHeightPx,
-              paddingTop: 28,
+              paddingTop: 16,
             }
           : {
               height: browseCardHeight(),
