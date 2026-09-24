@@ -297,7 +297,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                         {index + 1}
                       </span>
                       <NextScanAddonIcon type={addon.type} />
-                      <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
+                      <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[12px] text-foreground">
                         {addonPreview(addon)}
                       </span>
                     </button>
@@ -370,9 +370,6 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   {recording ? `Recording · ${secondsLeft}s` : "Add a voice note"}
                 </button>
                 {voiceHint ? <p className="px-3 pb-1 text-[10px] text-hint">{voiceHint}</p> : null}
-                {addons.length === 0 ? (
-                  <p className="px-3 py-2 text-[10px] text-hint">For the next scan only.</p>
-                ) : null}
               </>
             ) : null}
 

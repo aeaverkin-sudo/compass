@@ -31,7 +31,7 @@ function measureRaw(ctx: CanvasRenderingContext2D, line: string, size: number, w
 function widthFontFor(ctx: CanvasRenderingContext2D, line: string, width: number, weight: number) {
   const raw = measureRaw(ctx, line, 100, weight);
   if (raw <= 0) return 44;
-  const tracking = Math.max(0, line.length - 1);
+  const tracking = weight === 600 ? Math.max(0, line.length - 1) : 0;
   return ((width + tracking) * 100) / raw;
 }
 
@@ -47,6 +47,30 @@ function heroLineSize(lines: string[], width: number, height: number, weight = 6
   const max = weight === 400 ? 19 : 44;
   const min = weight === 400 ? 10 : 16;
   return Math.min(max, Math.max(min, Math.min(widthFont, heightFont)));
+}
+
+const PLACEHOLDER = "Name or portfolio title";
+
+function textWidth(text: string, size: number, weight: number) {
+  const probe = document.createElement("span");
+  probe.textContent = text;
+  probe.style.cssText = `position:absolute;left:-9999px;white-space:nowrap;font-family:${HERO_FONT};font-weight:${weight};font-size:${size}px;line-height:1;letter-spacing:${weight === 600 ? "-1px" : "0px"}`;
+  document.body.appendChild(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return width;
+}
+
+function fitToWidth(text: string, width: number, weight: number, max: number, min: number) {
+  if (!width) return min;
+  let lo = min;
+  let hi = max;
+  for (let step = 0; step < 14; step += 1) {
+    const mid = (lo + hi) / 2;
+    if (textWidth(text, mid, weight) <= width) lo = mid;
+    else hi = mid;
+  }
+  return lo;
 }
 
 function wordNeedsWrap(word: string, width: number) {
@@ -86,13 +110,23 @@ function HeroName({
       const width = box.clientWidth;
       if (!value) {
         setWrapWord(false);
-        setSize(heroLineSize(["Name or portfolio title"], width, boxHeight, 400));
+        setSize(fitToWidth(PLACEHOLDER, Math.max(0, width - 4), 400, 19, 8));
         return;
       }
-      const wrap = wordNeedsWrap(value, width);
-      setWrapWord(wrap);
-      const lines = value.includes("\n") ? [first, second] : wrap ? [...splitLongWord(value)] : [value];
-      setSize(heroLineSize(lines, width, Math.max(16, boxHeight - 4)));
+      const lines = value.includes("\n") ? [first, second].filter((line) => line.length > 0) : [value];
+      const count = value.includes("\n") ? 2 : 1;
+      const widthSize = lines.reduce(
+        (tightest, line) => Math.min(tightest, fitToWidth(line, Math.max(0, width - 2), 600, 44, 8)),
+        44,
+      );
+      const heightSize = Math.max(8, boxHeight - 4) / count;
+      setWrapWord(false);
+      setSize(Math.min(44, widthSize, heightSize));
+      const area = box.querySelector("textarea");
+      if (area) {
+        area.scrollTop = 0;
+        area.scrollLeft = 0;
+      }
     };
     fit();
     const observer = new ResizeObserver(fit);
@@ -107,7 +141,7 @@ function HeroName({
   }, [boxHeight, first, second, value]);
 
   const lineStyle = empty
-    ? { fontSize: 19, lineHeight: 1, fontWeight: 400, height: 19 }
+    ? { fontSize: size, lineHeight: 1, fontWeight: 400, height: size }
     : {
         fontSize: size,
         lineHeight: 1,
@@ -140,16 +174,30 @@ function HeroName({
   };
 
   return (
-    <div ref={boxRef} data-card-content className="flex h-full w-full min-w-0 items-end overflow-x-hidden overflow-y-visible">
+    <div ref={boxRef} data-card-content className="relative flex h-full w-full min-w-0 items-end overflow-x-hidden overflow-y-visible">
       {onChange ? (
+        <>
+        {empty ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute bottom-0 left-0 whitespace-nowrap text-[#C8C8C8]"
+            style={{ fontSize: size, fontWeight: 400, lineHeight: 1 }}
+          >
+            {PLACEHOLDER}
+          </span>
+        ) : null}
         <textarea
           value={value}
           rows={2}
           enterKeyHint="enter"
-          placeholder="Name or portfolio title"
+          placeholder=""
           aria-label="Name or portfolio title"
           data-no-swipe
-          onChange={(event) => onChange(clampNameLines(event.target.value))}
+          onChange={(event) => {
+            event.currentTarget.scrollTop = 0;
+            event.currentTarget.scrollLeft = 0;
+            onChange(clampNameLines(event.target.value));
+          }}
           onFocus={(event) => holdScroll(event.currentTarget)}
           onPointerDown={(event) => event.stopPropagation()}
           onBeforeInput={(event) => {
@@ -173,13 +221,10 @@ function HeroName({
             onChange(clampNameLines(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className={cn(
-            "compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-hidden bg-transparent p-0 text-left text-[#111] outline-none placeholder:text-[#C8C8C8]",
-            value.includes("\n") || wrapWord ? "whitespace-pre-wrap" : "whitespace-nowrap",
-            wrapWord && "break-all",
-          )}
-          style={lineStyle}
+          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-hidden bg-transparent p-0 text-left whitespace-pre text-[#111] outline-none"
+          style={empty ? { ...lineStyle, color: "transparent", caretColor: "#111" } : lineStyle}
         />
+        </>
       ) : (
         <div
           className={cn(
@@ -189,7 +234,7 @@ function HeroName({
           style={lineStyle}
         >
           {empty ? (
-            <div className="text-[#C8C8C8]">Name or portfolio title</div>
+            <div className="whitespace-nowrap text-[#C8C8C8]">{PLACEHOLDER}</div>
           ) : twoLines ? (
             <>
               <div className="overflow-hidden whitespace-nowrap">{first || "\u00a0"}</div>
