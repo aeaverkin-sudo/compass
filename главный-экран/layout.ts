@@ -14,8 +14,10 @@ export const CARD_PHOTO_RADIUS_PX = 21;
 export const CARD_HEADER_NAME_SIZE_PX = 21;
 export const CARD_NAME_GAP_PX = 8;
 
-/** Equal gap: safe-area bottom → QR top, and QR bottom → card top. */
+/** Gap from the safe area to the QR. The Dynamic Island sits ~11px above that inset. */
 export const QR_GAP_SYMMETRIC_PX = 18;
+/** Extra drop so the first rule sits as far below the QR as the island sits above it. */
+export const QR_TO_LINE_EXTRA_PX = 11;
 
 /** Browse card bottom ≈ this % of viewport (green mockup outline). */
 export const CARD_BOTTOM_TARGET_LVH = 73;
@@ -45,8 +47,8 @@ export const PANEL_BORDER_WIDTH_PX = 1;
 
 export const LAYER_TRANSITION_MS = 460;
 
-/** Visible tail of the next card in browse carousel (keep small — max card size). */
-export const CARD_CAROUSEL_PEEK_PX = 24;
+/** Enough of the next card that its content, not only its side padding, stays on screen. */
+export const CARD_CAROUSEL_PEEK_PX = 56;
 export const CARD_CAROUSEL_GAP_PX = 8;
 export const MAX_CARDS = 2;
 
@@ -67,7 +69,7 @@ export function layoutTop(offsetPx: number) {
 }
 
 export function browseStackTopPx(safeTop: number) {
-  return safeTop + QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  return safeTop + QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX + QR_TO_LINE_EXTRA_PX;
 }
 
 export function browseCardHeightPx(viewportH: number, safeTop: number) {
@@ -77,7 +79,7 @@ export function browseCardHeightPx(viewportH: number, safeTop: number) {
 }
 
 export function browseCardHeight() {
-  const stackTopBelowSafe = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  const stackTopBelowSafe = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX + QR_TO_LINE_EXTRA_PX;
   const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
   return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
 }

@@ -13,29 +13,38 @@ import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, type MainScreenMode } from "../layout";
 
-function heroLineSize(lines: string[], width: number) {
+const HERO_PHOTO_PX = 105;
+
+function measureHeroLine(text: string, size: number) {
+  if (typeof document === "undefined") return { width: size, ascent: size * 0.72 };
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return { width: size, ascent: size * 0.72 };
+  ctx.font = `300 ${size}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
+  const metrics = ctx.measureText(text || " ");
+  const spacing = -0.045 * size * Math.max(text.length - 1, 0);
+  return {
+    width: metrics.width + spacing,
+    ascent: metrics.actualBoundingBoxAscent || size * 0.72,
+  };
+}
+
+function heroLineSize(lines: string[], width: number, height: number) {
   if (!width) return 58;
-  const probe = document.createElement("span");
-  probe.style.cssText =
-    "position:absolute;visibility:hidden;white-space:nowrap;font-weight:300;letter-spacing:-0.045em;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif";
-  document.body.appendChild(probe);
   let lo = 16;
   let hi = 58;
   let best = 16;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    probe.style.fontSize = `${mid}px`;
-    const tooWide = lines.some((line) => {
-      probe.textContent = line || " ";
-      return probe.offsetWidth > width;
-    });
-    if (tooWide) hi = mid - 1;
+    const measured = lines.map((line) => measureHeroLine(line, mid));
+    const tooWide = measured.some((line) => line.width > width);
+    const tooTall = measured.reduce((sum, line) => sum + line.ascent, 0) > height;
+    if (tooWide || tooTall) hi = mid - 1;
     else {
       best = mid;
       lo = mid + 1;
     }
   }
-  probe.remove();
   return best;
 }
 
@@ -50,45 +59,46 @@ function HeroName({
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(58);
+  const ascent = measureHeroLine(first || second || " ", size).ascent;
 
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box) return;
-    const fit = () => setSize(heroLineSize([first, second], box.clientWidth));
+    const fit = () => setSize(heroLineSize([first, second], box.clientWidth, HERO_PHOTO_PX));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
     return () => observer.disconnect();
   }, [first, second]);
 
-  const lineClass =
-    "block w-full overflow-hidden bg-transparent whitespace-nowrap text-left leading-[0.88] font-light tracking-[-0.045em] text-[#111] outline-none";
+  const line = (value: string, editable: boolean, onLine: (next: string) => void) => {
+    const field = editable ? (
+      <input
+        value={value}
+        onChange={(event) => onLine(event.target.value)}
+        onClick={(event) => event.stopPropagation()}
+        className="compass-input block w-full bg-transparent whitespace-nowrap text-left font-light tracking-[-0.045em] text-[#111] outline-none"
+        style={{ fontSize: size, lineHeight: `${size}px`, height: size, marginTop: ascent - size }}
+      />
+    ) : (
+      <span
+        className="block w-full whitespace-nowrap text-left font-light tracking-[-0.045em] text-[#111]"
+        style={{ fontSize: size, lineHeight: `${size}px`, height: size, marginTop: ascent - size }}
+      >
+        {value}
+      </span>
+    );
+    return (
+      <div className="overflow-hidden" style={{ height: ascent }}>
+        {field}
+      </div>
+    );
+  };
 
   return (
-    <div ref={boxRef} data-card-content className="min-w-0">
-      {onChange ? (
-        <>
-          <input
-            value={first}
-            onChange={(event) => onChange([event.target.value, second].filter(Boolean).join(" "))}
-            onClick={(event) => event.stopPropagation()}
-            className={cn("compass-input", lineClass)}
-            style={{ fontSize: size }}
-          />
-          <input
-            value={second}
-            onChange={(event) => onChange([first, event.target.value].filter(Boolean).join(" "))}
-            onClick={(event) => event.stopPropagation()}
-            className={cn("compass-input", lineClass)}
-            style={{ fontSize: size }}
-          />
-        </>
-      ) : (
-        <>
-          <span className={lineClass} style={{ fontSize: size }}>{first}</span>
-          {second ? <span className={lineClass} style={{ fontSize: size }}>{second}</span> : null}
-        </>
-      )}
+    <div ref={boxRef} data-card-content className="flex h-[105px] min-w-0 flex-col justify-between">
+      {line(first, Boolean(onChange), (next) => onChange?.([next, second].filter(Boolean).join(" ")))}
+      {line(second, Boolean(onChange), (next) => onChange?.([first, next].filter(Boolean).join(" ")))}
     </div>
   );
 }
@@ -118,29 +128,27 @@ function EditorialHeader({
   const [first, second] = splitHeroName(card.displayName);
 
   return (
-    <div className="w-full">
+    <div className="relative w-full">
       <div className="border-t-[0.5px] border-[#111]" />
-      <div className="relative py-[22px]">
-        <div className="flex items-start">
-          <div className="min-w-0 flex-1 pr-3">
-            <div className="h-[105px] overflow-hidden">
-              <HeroName first={first} second={second} onChange={onDisplayNameChange} />
-            </div>
-            {positionTitle ? (
-              <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
-                {positionTitle}
-              </p>
-            ) : null}
-          </div>
-          {onPhotoChange ? (
-            <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={105} borderRadiusPx={0} />
-          ) : card.photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img data-card-content src={card.photo} alt="" className="size-[105px] shrink-0 object-cover" />
+      <div className="flex items-start py-[22px] pr-5">
+        <div className="min-w-0 flex-1 pr-3">
+          <HeroName first={first} second={second} onChange={onDisplayNameChange} />
+          {positionTitle ? (
+            <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
+              {positionTitle}
+            </p>
           ) : null}
-          {showPlus ? <div className="ml-[8px] shrink-0">{nextScan}</div> : null}
         </div>
+        {onPhotoChange ? (
+          <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={105} borderRadiusPx={0} />
+        ) : card.photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img data-card-content src={card.photo} alt="" className="size-[105px] shrink-0 object-cover" />
+        ) : null}
       </div>
+      {showPlus ? (
+        <div className="absolute top-[22px] right-0 z-10 -mt-[5px] translate-x-1/2">{nextScan}</div>
+      ) : null}
     </div>
   );
 }
@@ -248,7 +256,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }
     >
       <div
-        className={cn("flex min-h-0 flex-1 flex-col", !compact && "overflow-y-auto px-[clamp(18px,6.1vw,22px)] pb-8")}
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          !compact && "overflow-y-auto px-[clamp(18px,6.1vw,22px)] pr-[calc(clamp(18px,6.1vw,22px)+12px)] pb-8",
+        )}
         onScroll={
           compact
             ? undefined
