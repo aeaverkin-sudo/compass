@@ -365,8 +365,14 @@ export function ContactItemChipList({
   if (!compact) {
     return (
       <div className={cn("w-full min-w-0", className)} data-card-chip-list={listId} data-card-content>
-        {composed.zones.map((zone) => (
-          <section key={zone.id} className="min-w-0 border-b-[0.5px] border-[#111] py-[18px]">
+        {composed.zones.map((zone, zoneIndex) => (
+          <section
+            key={zone.id}
+            className={cn(
+              "min-w-0 py-[18px]",
+              zoneIndex < composed.zones.length - 1 && "border-b-[0.5px] border-[#111]",
+            )}
+          >
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-1.5">
               <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
                 {zone.title}
