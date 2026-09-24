@@ -19,12 +19,13 @@ function heroLineSize(lines: string[], width: number, height: number) {
   if (!width || !height) return 58;
   const probe = document.createElement("span");
   probe.style.cssText =
-    "position:absolute;visibility:hidden;white-space:nowrap;font-weight:300;letter-spacing:-0.045em;line-height:0.88;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif";
+    "position:absolute;visibility:hidden;white-space:nowrap;font-weight:300;letter-spacing:-0.045em;line-height:0.8;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif";
   document.body.appendChild(probe);
   const shown = lines.filter((line) => line.trim().length > 0);
   const count = Math.max(shown.length, 1);
+  const fill = Math.floor(height / (count * 0.8));
   let lo = 16;
-  let hi = 58;
+  let hi = Math.max(fill, 16);
   let best = 16;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
@@ -33,8 +34,7 @@ function heroLineSize(lines: string[], width: number, height: number) {
       probe.textContent = line;
       return probe.offsetWidth > width;
     });
-    const tooTall = count * mid * 0.88 > height;
-    if (tooWide || tooTall) hi = mid - 1;
+    if (tooWide) hi = mid - 1;
     else {
       best = mid;
       lo = mid + 1;
@@ -52,7 +52,7 @@ function capInset(size: number) {
   ctx.font = `300 ${size}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
   const metrics = ctx.measureText("A");
   const ink = metrics.actualBoundingBoxAscent + (metrics.actualBoundingBoxDescent || 0);
-  return ((size * 0.88) - ink) / 2;
+  return ((size * 0.8) - ink) / 2;
 }
 
 function HeroName({
@@ -78,15 +78,16 @@ function HeroName({
   }, [first, second]);
 
   const lineClass =
-    "block w-full overflow-hidden bg-transparent whitespace-nowrap text-left leading-[0.88] font-light tracking-[-0.045em] text-[#111] outline-none";
+    "block w-full overflow-hidden bg-transparent whitespace-nowrap text-left font-light tracking-[-0.045em] text-[#111] outline-none";
   const twoLines = second.trim().length > 0;
   const lift = twoLines ? capInset(size) : 0;
+  const lineStyle = { fontSize: size, lineHeight: 0.8 };
 
   return (
     <div
       ref={boxRef}
       data-card-content
-      className={cn("flex h-full min-w-0 flex-col items-start", twoLines ? "justify-between" : "justify-end")}
+      className={cn("flex h-full w-full min-w-0 flex-col items-start", twoLines ? "justify-between" : "justify-end")}
     >
       {onChange ? (
         <>
@@ -95,20 +96,20 @@ function HeroName({
             onChange={(event) => onChange([event.target.value, second].filter(Boolean).join(" "))}
             onClick={(event) => event.stopPropagation()}
             className={cn("compass-input", lineClass)}
-            style={{ fontSize: size, marginTop: -lift }}
+            style={{ ...lineStyle, marginTop: -lift }}
           />
           <input
             value={second}
             onChange={(event) => onChange([first, event.target.value].filter(Boolean).join(" "))}
             onClick={(event) => event.stopPropagation()}
             className={cn("compass-input", lineClass)}
-            style={{ fontSize: size }}
+            style={lineStyle}
           />
         </>
       ) : (
         <>
-          <span className={lineClass} style={{ fontSize: size, marginTop: -lift }}>{first}</span>
-          {second ? <span className={lineClass} style={{ fontSize: size }}>{second}</span> : null}
+          <span className={lineClass} style={{ ...lineStyle, marginTop: -lift }}>{first}</span>
+          {second ? <span className={lineClass} style={lineStyle}>{second}</span> : null}
         </>
       )}
     </div>
@@ -143,7 +144,7 @@ function EditorialHeader({
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative py-[22px]">
-        <div className="flex items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
+        <div className="flex items-stretch gap-2" style={{ height: HERO_PHOTO_PX }}>
           <div className="min-w-0 flex-1">
             <HeroName first={first} second={second} onChange={onDisplayNameChange} />
           </div>
