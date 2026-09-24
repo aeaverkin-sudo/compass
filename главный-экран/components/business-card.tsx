@@ -465,7 +465,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         data-preview-scroll={compact ? "" : undefined}
         className={cn(
           "flex min-h-0 flex-1 flex-col",
-          compact && "touch-pan-y overflow-x-hidden overflow-y-auto",
+          compact && "compass-card-scroll touch-pan-y overflow-x-hidden overflow-y-auto",
           !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)] pb-8",
         )}
         onScroll={
