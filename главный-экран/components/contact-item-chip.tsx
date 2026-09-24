@@ -401,7 +401,7 @@ export function ContactItemChipList({
           if (compact && onReorder) event.preventDefault();
         }}
         className={cn(
-          "mt-3 grid h-full min-h-0 grid-cols-[72px_minmax(0,1fr)] items-start gap-x-1.5 overflow-x-hidden overflow-y-auto",
+          "mt-3 grid h-full min-h-0 grid-cols-[92px_minmax(0,1fr)] items-start gap-x-1.5 overflow-x-hidden overflow-y-auto",
           lift?.active && "touch-none overflow-hidden",
         )}
       >
@@ -429,7 +429,6 @@ export function ContactItemChipList({
                   className={cn(
                     "pt-1 text-[11px] font-normal leading-none tracking-[0.1em] whitespace-nowrap text-[#999] uppercase",
                     zoneGap && "mt-3",
-                    zoneEnd && "border-b-[0.5px] border-[#111] pb-3",
                   )}
                 >
                   {rowIndex === 0 ? zone.title : null}
@@ -447,11 +446,11 @@ export function ContactItemChipList({
                     color: "#111",
                   }}
                   className={cn(
-                    "text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]",
+                    "min-w-0 text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]",
                     zoneGap && "mt-3",
-                    zoneEnd && "border-b-[0.5px] border-[#111] pb-3",
                   )}
                 />
+                {zoneEnd ? <div className="col-span-2 mt-3 border-b-[0.5px] border-[#111]" /> : null}
               </Fragment>
             );
           }),
