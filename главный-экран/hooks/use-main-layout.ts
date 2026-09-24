@@ -6,7 +6,7 @@ import {
   libraryCardHeightPx,
   librarySheetTopPx,
   libraryStackTopPx,
-  QR_GAP_SYMMETRIC_PX,
+  HEADER_RHYTHM_PX,
   QR_SIZE,
   SHEET_INSET,
 } from "../layout";
@@ -46,8 +46,8 @@ function computeLayout(): MainLayout | null {
   // viewport and stays stable when the iOS keyboard shrinks the visual viewport.
   const viewportH = document.documentElement.clientHeight || window.innerHeight;
   const safeTop = readSafeAreaInset("top");
-  const qrTop = safeTop + QR_GAP_SYMMETRIC_PX;
-  const cardTopBrowse = qrTop + QR_SIZE + QR_GAP_SYMMETRIC_PX;
+  const qrTop = safeTop + HEADER_RHYTHM_PX;
+  const cardTopBrowse = qrTop + QR_SIZE + HEADER_RHYTHM_PX;
   const browseHeight = browseCardHeightPx(viewportH, safeTop);
   const libraryHeight = libraryCardHeightPx(viewportH, safeTop);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
