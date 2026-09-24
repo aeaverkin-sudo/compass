@@ -180,7 +180,7 @@ function HeroName({
         {empty ? (
           <span
             aria-hidden
-            className="pointer-events-none absolute bottom-0 left-0 whitespace-nowrap text-[#C8C8C8]"
+            className="pointer-events-none absolute bottom-0 left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[#C8C8C8]"
             style={{ fontSize: size, fontWeight: 400, lineHeight: 1 }}
           >
             {PLACEHOLDER}
@@ -234,7 +234,7 @@ function HeroName({
           style={lineStyle}
         >
           {empty ? (
-            <div className="whitespace-nowrap text-[#C8C8C8]">{PLACEHOLDER}</div>
+            <div className="whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[#C8C8C8]">{PLACEHOLDER}</div>
           ) : twoLines ? (
             <>
               <div className="overflow-hidden whitespace-nowrap">{first || "\u00a0"}</div>
