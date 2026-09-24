@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, FileText, Mic, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Camera, FileText, Mic, Plus, Trash2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -33,8 +33,8 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   const [textMode, setTextMode] = useState(false);
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
-  const [redoId, setRedoId] = useState<string | null>(null);
   const [pickingSelfie, setPickingSelfie] = useState(false);
+  const [viewing, setViewing] = useState<NextScanAddon | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
   const atMax = addons.length >= MAX_NEXT_SCAN_NOTES;
@@ -50,7 +50,8 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
     setOpen(false);
     setTextMode(false);
     setText("");
-    setRedoId(null);
+    setViewing(null);
+    window.speechSynthesis?.cancel();
   };
 
   useEffect(() => {
@@ -59,14 +60,14 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   }, [textMode]);
 
   const addAddon = (type: NextScanAddon["type"], content: string) => {
+    if (addons.length >= MAX_NEXT_SCAN_NOTES) return;
     const next: NextScanAddon = {
-      id: redoId ?? nanoid(),
+      id: nanoid(),
       type,
       content,
       createdAt: new Date().toISOString(),
     };
-    const without = redoId ? addons.filter((addon) => addon.id !== redoId) : addons;
-    onSetAddons([...without, next]);
+    onSetAddons([...addons, next]);
     closeMenu();
   };
 
@@ -74,23 +75,13 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
     onSetAddons(addons.filter((addon) => addon.id !== id));
   };
 
-  const startRedo = (addon: NextScanAddon) => {
-    removeAddon(addon.id);
-    setRedoId(addon.id);
-    if (addon.type === "text") {
-      setText(addon.content);
-      setTextMode(true);
-      return;
-    }
-    if (addon.type === "selfie") {
-      void pickSelfie();
-      return;
-    }
-    setRecording(true);
-    window.setTimeout(() => {
-      setRecording(false);
-      addAddon("voice", MOCK_VOICE_TRANSCRIPTION);
-    }, 1200);
+  const openAddon = (addon: NextScanAddon) => {
+    setTextMode(false);
+    setViewing(addon);
+    if (addon.type !== "voice") return;
+    window.speechSynthesis?.cancel();
+    const utterance = new SpeechSynthesisUtterance(addon.content);
+    window.speechSynthesis?.speak(utterance);
   };
 
   const pickSelfie = () => {
@@ -162,33 +153,50 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
             role="dialog"
             aria-label="Next scan"
           >
-            {addons.length > 0 && !textMode ? (
+            {viewing ? (
+              <div className="p-2">
+                {viewing.type === "selfie" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={viewing.content} alt="" className="mb-2 w-full object-cover" />
+                ) : (
+                  <p className="mb-2 text-[13px] leading-[1.35] text-foreground">{viewing.content}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.speechSynthesis?.cancel();
+                    setViewing(null);
+                  }}
+                  className="text-[13px] font-medium text-foreground"
+                >
+                  Back
+                </button>
+              </div>
+            ) : null}
+
+            {addons.length > 0 && !textMode && !viewing ? (
               <ul className="mb-1 divide-y divide-hairline/25 border-b border-hairline/25 pb-1">
                 {addons.map((addon, index) => (
-                  <li
-                    key={addon.id}
-                    className="flex items-center gap-2 rounded-lg px-2 py-2"
-                  >
-                    <span
-                      className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-medium text-white"
-                    >
-                      {index + 1}
-                    </span>
-                    <NextScanAddonIcon type={addon.type} />
-                    <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
-                      {addonPreview(addon)}
-                    </span>
+                  <li key={addon.id} className="flex items-center gap-2 rounded-lg px-2 py-2">
                     <button
                       type="button"
-                      onClick={() => startRedo(addon)}
-                      className="shrink-0 p-1 text-hint transition-opacity active:opacity-60"
-                      aria-label="Redo note"
+                      onClick={() => openAddon(addon)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     >
-                      <RotateCcw className="size-3.5" strokeWidth={1.25} aria-hidden />
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-medium text-white">
+                        {index + 1}
+                      </span>
+                      <NextScanAddonIcon type={addon.type} />
+                      <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">
+                        {addonPreview(addon)}
+                      </span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => removeAddon(addon.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        removeAddon(addon.id);
+                      }}
                       className="shrink-0 p-1 text-hint transition-opacity active:opacity-60"
                       aria-label="Delete note"
                     >
@@ -215,17 +223,14 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   onClick={() => addAddon("text", text.trim())}
                   className="text-[13px] font-medium text-foreground disabled:opacity-40"
                 >
-                  {redoId ? "Save" : "Add"}
+                  Add
                 </button>
               </div>
-            ) : !atMax ? (
+            ) : !atMax && !viewing ? (
               <>
                 <button
                   type="button"
-                  onClick={() => {
-                    setRedoId(null);
-                    setTextMode(true);
-                  }}
+                  onClick={() => setTextMode(true)}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] text-foreground transition-opacity active:opacity-60"
                 >
                   <FileText className="size-4" strokeWidth={1.25} aria-hidden />
@@ -234,10 +239,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                 <button
                   type="button"
                   disabled={pickingSelfie}
-                  onClick={() => {
-                    setRedoId(null);
-                    pickSelfie();
-                  }}
+                  onClick={() => pickSelfie()}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] text-foreground transition-opacity active:opacity-60 disabled:opacity-50"
                 >
                   <Camera className="size-4" strokeWidth={1.25} aria-hidden />
@@ -245,10 +247,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setRedoId(null);
-                    handleVoice();
-                  }}
+                  onClick={() => handleVoice()}
                   disabled={recording}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] text-foreground transition-opacity active:opacity-60 disabled:opacity-50"
                 >
@@ -261,7 +260,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
               </>
             ) : null}
 
-            {atMax && !textMode ? (
+            {atMax && !textMode && !viewing ? (
               <p className="px-3 py-2 text-[10px] text-hint">
                 Maximum {MAX_NEXT_SCAN_NOTES} notes for next scan.
               </p>
