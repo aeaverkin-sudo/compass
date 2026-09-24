@@ -404,7 +404,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       <div
         className={cn(
           "flex min-h-0 flex-1 flex-col",
-          !compact && "compass-card-scroll overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)] pb-8",
+          !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)] pb-8",
         )}
         onScroll={
           compact
