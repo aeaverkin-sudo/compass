@@ -14,8 +14,14 @@ export const CARD_PHOTO_RADIUS_PX = 21;
 export const CARD_HEADER_NAME_SIZE_PX = 21;
 export const CARD_NAME_GAP_PX = 8;
 
-/** Equal gap: safe-area bottom → QR top, and QR bottom → card top. */
+/** Library stack gap. The browse card top stays on this old rhythm. */
 export const QR_GAP_SYMMETRIC_PX = 18;
+/** Browse QR, grown into the existing slot so it sits higher. The card does not move. */
+export const BROWSE_QR_SIZE = 150;
+/** Slot from the safe area to the rule: 18 + 134 + 18. */
+export const HEADER_SLOT_PX = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
+/** Equal gap: island → QR, QR → rule, rule → photo. */
+export const HEADER_RHYTHM_PX = (HEADER_SLOT_PX - BROWSE_QR_SIZE) / 2;
 
 /** Browse card bottom ≈ this % of viewport (green mockup outline). */
 export const CARD_BOTTOM_TARGET_LVH = 73;
