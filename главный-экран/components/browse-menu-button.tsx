@@ -22,15 +22,13 @@ export function BrowseMenuButton({ centerYpx, mode, onTap }: BrowseMenuButtonPro
       className="pointer-events-auto absolute left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 px-2 py-2 transition-opacity active:opacity-60"
       style={{ top: layoutTop(centerYpx) }}
     >
-      {[0, 1].map((index) => (
+      {[0, 1, 2].map((index) => (
         <span
           key={index}
           aria-hidden
           className={cn(
-            "size-2 rounded-full",
-            index === activeIndex
-              ? "bg-foreground"
-              : "border border-[#D8D2C4] bg-transparent",
+            "size-2 rounded-full border bg-transparent",
+            index === activeIndex ? "border-[#111]" : "border-[#D8D2C4]",
           )}
         />
       ))}

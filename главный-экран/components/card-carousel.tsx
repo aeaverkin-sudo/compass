@@ -225,8 +225,6 @@ export function CardCarousel({
         onPhotoChange={(photo) => handlePhotoChange(card.id, photo)}
         onDisplayNameChange={(displayName) => onUpdateCard(card.id, { displayName })}
         onCardUpdate={(data) => onUpdateCard(card.id, data)}
-        cardIndex={index}
-        cardCount={cards.length}
       />
     );
   };
@@ -248,8 +246,6 @@ export function CardCarousel({
         onPhotoChange={(photo) => handlePhotoChange(activeCard.id, photo)}
         onDisplayNameChange={(displayName) => onUpdateCard(activeCard.id, { displayName })}
         onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
-        cardIndex={activeIndex}
-        cardCount={cards.length}
       />
     );
   }

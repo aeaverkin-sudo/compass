@@ -135,19 +135,10 @@ function EditorialValue({
   zoneId: string;
   first: boolean;
 }) {
-  const webLead = zoneId === "web" && first;
-  const marked = zoneId === "social" || zoneId === "files" || zoneId === "lifestyle";
+  const line = row.axis ? `${row.axis} / ${row.value}` : row.value;
   const body = (
-    <span className="text-[15.5px] leading-[1.45] tracking-[-0.015em] text-[#111]">
-      {marked && row.axis ? (
-        <>
-          <span className="font-light text-[#777]">{row.axis}</span>
-          <span className="font-light text-[#222]"> / </span>
-          <span className={webLead ? "font-medium" : "font-normal"}>{row.value}</span>
-        </>
-      ) : (
-        <span className={webLead ? "font-medium underline" : "font-normal"}>{row.value}</span>
-      )}
+    <span className={cn("block whitespace-nowrap text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]", zoneId === "web" && first && "underline")}>
+      {line}
     </span>
   );
 
@@ -375,14 +366,11 @@ export function ContactItemChipList({
   if (!compact) {
     return (
       <div className={cn("w-full", className)} data-card-chip-list={listId} data-card-content>
-        {composed.zones.map((zone, zoneIndex) => (
+        {composed.zones.map((zone) => (
           <section key={zone.id} className="border-b-[0.5px] border-[#111] py-[18px]">
-            <div className="grid grid-cols-[34px_102px_minmax(0,1fr)] items-start">
-              <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] text-[#111]">
-                {String(zoneIndex + 2).padStart(2, "0")}
-              </span>
-              <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] text-[#111] uppercase">
-                / {zone.title}
+            <div className="grid grid-cols-[92px_minmax(0,1fr)] items-start gap-x-3">
+              <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
+                {zone.title}
               </span>
               <div className="flex flex-col gap-[6px]">
                 {zone.rows.map((row, rowIndex) => (

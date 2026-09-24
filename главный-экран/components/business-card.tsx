@@ -23,7 +23,6 @@ function splitHeroName(name: string) {
 function EditorialHeader({
   card,
   positionTitle,
-  shareToken,
   showPlus,
   nextScan,
   onPhotoChange,
@@ -31,39 +30,15 @@ function EditorialHeader({
 }: {
   card: Card;
   positionTitle?: string;
-  shareToken: string;
   showPlus: boolean;
   nextScan: ReactNode;
   onPhotoChange?: (photo: string | null) => void;
   onDisplayNameChange?: (displayName: string) => void;
 }) {
   const [first, second] = splitHeroName(card.displayName);
-  const share = () => {
-    const url = `${window.location.origin}/api/share/${shareToken}/pdf`;
-    if (navigator.share) {
-      void navigator.share({ title: card.displayName, url }).catch(() => undefined);
-      return;
-    }
-    void navigator.clipboard?.writeText(url);
-  };
 
   return (
     <div className="w-full">
-      <div className="flex h-11 items-center justify-between border-y-[0.5px] border-[#111]">
-        <p className="text-[11px] leading-none font-normal tracking-[0.12em]">
-          01 <span className="px-2">/</span> CONTACT
-        </p>
-        <button
-          type="button"
-          data-card-content
-          data-no-swipe
-          onClick={share}
-          className="flex items-center gap-2 text-[11px] leading-none font-normal tracking-[0.1em]"
-        >
-          SHARE
-          <Share className="size-3.5" strokeWidth={1.25} aria-hidden />
-        </button>
-      </div>
       <div className="relative py-[22px]">
         <div className="grid grid-cols-[minmax(0,1fr)_105px] items-start gap-3 pr-9">
           <div>
@@ -142,8 +117,6 @@ type BusinessCardProps = {
   onPhotoChange?: (photo: string | null) => void;
   onDisplayNameChange?: (displayName: string) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
-  cardIndex?: number;
-  cardCount?: number;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -156,8 +129,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onPhotoChange,
     onDisplayNameChange,
     onCardUpdate,
-    cardIndex = 0,
-    cardCount = 1,
   },
   ref,
 ) {
@@ -193,7 +164,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         "compass-layer flex w-full cursor-default flex-col",
         compact
           ? "compass-card compass-card-library min-h-0 items-center justify-start px-5 pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
-          : "relative min-h-0 overflow-x-hidden overflow-y-auto bg-white px-[clamp(24px,6.1vw,28px)] pb-6 text-[#111]",
+          : "relative min-h-0 overflow-hidden bg-white text-[#111]",
       )}
       style={
         compact
@@ -206,6 +177,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }
       }
     >
+      <div className={cn("flex min-h-0 flex-1 flex-col", !compact && "overflow-y-auto px-[clamp(24px,6.1vw,28px)] pb-8")}>
       {compact ? (
         <CompactHeader
           card={card}
@@ -217,7 +189,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         <EditorialHeader
           card={card}
           positionTitle={position?.title}
-          shareToken={shareToken}
           showPlus={Boolean(onCardUpdate && card.displayName.trim() && card.photo)}
           nextScan={
             onCardUpdate && card.displayName.trim() && card.photo ? (
@@ -248,13 +219,31 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             <br />
             Portfolio
           </p>
-          <p className="flex items-center gap-3 text-[10px] tracking-[0.1em]">
-            <span aria-hidden>{cardIndex === 0 ? "● ○" : "○ ●"}</span>
-            <span>
-              {String(cardIndex + 1).padStart(2, "0")} / {String(Math.max(cardCount, 1)).padStart(2, "0")}
-            </span>
-          </p>
+          <button
+            type="button"
+            data-card-content
+            data-no-swipe
+            aria-label="Share"
+            onClick={() => {
+              const url = `${window.location.origin}/api/share/${shareToken}/pdf`;
+              if (navigator.share) {
+                void navigator.share({ title: card.displayName, url }).catch(() => undefined);
+                return;
+              }
+              void navigator.clipboard?.writeText(url);
+            }}
+            className="text-[#111]"
+          >
+            <Share className="size-4" strokeWidth={1.25} aria-hidden />
+          </button>
         </footer>
+      ) : null}
+      </div>
+      {!compact ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t from-white to-transparent"
+        />
       ) : null}
 
     </article>
