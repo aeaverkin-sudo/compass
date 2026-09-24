@@ -60,7 +60,8 @@ function HeroName({
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box || empty) return;
-    const fit = () => setSize(heroLineSize(twoLines ? [first, second] : [value], box.clientWidth, boxHeight));
+    const fit = () =>
+      setSize(heroLineSize(twoLines ? [first, second] : [value], box.clientWidth, Math.max(16, boxHeight - 4)));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
@@ -77,23 +78,37 @@ function HeroName({
     ? { fontSize: 19, lineHeight: 1, fontWeight: 400, height: 19 }
     : {
         fontSize: size,
-        lineHeight: 0.9,
+        lineHeight: 1,
         fontWeight: 600,
         letterSpacing: "-1px",
-        height: size * lineCount * 0.9,
+        height: size * lineCount,
       };
 
   const holdScroll = (node: HTMLTextAreaElement) => {
     const scroller = node.closest<HTMLElement>(".compass-card-scroll");
     const top = scroller?.scrollTop ?? 0;
-    requestAnimationFrame(() => {
+    const pin = () => {
       if (scroller) scroller.scrollTop = top;
       window.scrollTo(0, 0);
-    });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    pin();
+    requestAnimationFrame(pin);
+    window.addEventListener("scroll", pin, { passive: true });
+    window.visualViewport?.addEventListener("scroll", pin);
+    window.visualViewport?.addEventListener("resize", pin);
+    const stop = () => {
+      window.removeEventListener("scroll", pin);
+      window.visualViewport?.removeEventListener("scroll", pin);
+      window.visualViewport?.removeEventListener("resize", pin);
+      node.removeEventListener("blur", stop);
+    };
+    node.addEventListener("blur", stop);
   };
 
   return (
-    <div ref={boxRef} data-card-content className="flex h-full w-full min-w-0 items-end overflow-hidden">
+    <div ref={boxRef} data-card-content className="flex h-full w-full min-w-0 items-end overflow-x-hidden overflow-y-visible">
       {onChange ? (
         <textarea
           value={value}
@@ -112,7 +127,7 @@ function HeroName({
             onChange(clampNameLines(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-hidden whitespace-nowrap bg-transparent p-0 text-left text-[#111] outline-none placeholder:text-[#C8C8C8]"
+          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-hidden whitespace-nowrap bg-transparent p-0 text-left text-[#111] outline-none placeholder:text-[#C8C8C8]"
           style={lineStyle}
         />
       ) : (
@@ -162,7 +177,7 @@ function EditorialHeader({
           <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
             {showPlus ? <div className="absolute top-0 right-0 z-10">{nextScan}</div> : null}
             <div
-              className="absolute inset-x-0 top-0 overflow-hidden"
+              className="absolute inset-x-0 top-0 overflow-x-hidden overflow-y-visible"
               style={{ bottom: positionTitle ? ROLE_RESERVE_PX : 0 }}
             >
               <HeroName
