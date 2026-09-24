@@ -70,7 +70,7 @@ function HeroName({
   useLayoutEffect(() => {
     const box = boxRef.current;
     if (!box) return;
-    const fit = () => setSize(heroLineSize([first, second], box.clientWidth, Math.max(box.clientHeight - 8, 16)));
+    const fit = () => setSize(heroLineSize([first, second], box.clientWidth, box.clientHeight));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(box);
@@ -79,10 +79,15 @@ function HeroName({
 
   const lineClass =
     "block w-full overflow-hidden bg-transparent whitespace-nowrap text-left leading-[0.88] font-light tracking-[-0.045em] text-[#111] outline-none";
-  const lift = capInset(size);
+  const twoLines = second.trim().length > 0;
+  const lift = twoLines ? capInset(size) : 0;
 
   return (
-    <div ref={boxRef} data-card-content className="flex h-full min-w-0 flex-col items-start justify-between">
+    <div
+      ref={boxRef}
+      data-card-content
+      className={cn("flex h-full min-w-0 flex-col items-start", twoLines ? "justify-between" : "justify-end")}
+    >
       {onChange ? (
         <>
           <input
