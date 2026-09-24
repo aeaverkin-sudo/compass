@@ -126,25 +126,24 @@ function ContactItemChipRow({
   );
 }
 
-function EditorialValue({
-  row,
-  zoneId,
-  first,
-}: {
-  row: CardDisplayRow;
-  zoneId: string;
-  first: boolean;
-}) {
+function EditorialValue({ row }: { row: CardDisplayRow }) {
   const line = row.axis ? `${row.axis} / ${row.value}` : row.value;
   const body = (
-    <span className={cn("block whitespace-nowrap text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]", zoneId === "web" && first && "underline")}>
+    <span className="block min-w-0 break-words text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] no-underline">
       {line}
     </span>
   );
 
   if (row.item && row.url) {
     return (
-      <a data-card-content href={row.url} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
+      <a
+        data-card-content
+        href={row.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(event) => event.stopPropagation()}
+        className="no-underline"
+      >
         {body}
       </a>
     );
@@ -372,9 +371,9 @@ export function ContactItemChipList({
               <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
                 {zone.title}
               </span>
-              <div className="flex flex-col gap-[6px]">
-                {zone.rows.map((row, rowIndex) => (
-                  <EditorialValue key={row.key} row={row} zoneId={zone.id} first={rowIndex === 0} />
+              <div className="flex min-w-0 flex-col gap-[6px]">
+                {zone.rows.map((row) => (
+                  <EditorialValue key={row.key} row={row} />
                 ))}
               </div>
             </div>

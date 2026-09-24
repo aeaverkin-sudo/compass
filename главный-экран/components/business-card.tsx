@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useRef, type MouseEvent, type ReactNode } from "react";
+import { forwardRef, useCallback, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
@@ -12,6 +12,91 @@ import { composeCard } from "@/shared/services/card-zones";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, type MainScreenMode } from "../layout";
+
+function heroLineSize(lines: string[], width: number) {
+  if (!width) return 58;
+  const probe = document.createElement("span");
+  probe.style.cssText =
+    "position:absolute;visibility:hidden;white-space:nowrap;font-weight:300;letter-spacing:-0.045em;font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif";
+  document.body.appendChild(probe);
+  let lo = 16;
+  let hi = 58;
+  let best = 16;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    probe.style.fontSize = `${mid}px`;
+    const tooWide = lines.some((line) => {
+      probe.textContent = line || " ";
+      return probe.offsetWidth > width;
+    });
+    if (tooWide) hi = mid - 1;
+    else {
+      best = mid;
+      lo = mid + 1;
+    }
+  }
+  probe.remove();
+  return best;
+}
+
+function HeroName({
+  first,
+  second,
+  onChange,
+}: {
+  first: string;
+  second: string;
+  onChange?: (displayName: string) => void;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState(58);
+
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const fit = () => setSize(heroLineSize([first, second], box.clientWidth));
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [first, second]);
+
+  const lineClass =
+    "block w-full overflow-hidden bg-transparent whitespace-nowrap text-left leading-[0.88] font-light tracking-[-0.045em] text-[#111] outline-none";
+
+  return (
+    <div ref={boxRef} data-card-content className="min-w-0">
+      {onChange ? (
+        <>
+          <input
+            value={first}
+            onChange={(event) => onChange([event.target.value, second].filter(Boolean).join(" "))}
+            onClick={(event) => event.stopPropagation()}
+            className={cn("compass-input", lineClass)}
+            style={{ fontSize: size }}
+          />
+          <input
+            value={second}
+            onChange={(event) => onChange([first, event.target.value].filter(Boolean).join(" "))}
+            onClick={(event) => event.stopPropagation()}
+            className={cn("compass-input", lineClass)}
+            style={{ fontSize: size }}
+          />
+        </>
+      ) : (
+        <>
+          <span className={lineClass} style={{ fontSize: size }}>{first}</span>
+          {second ? <span className={lineClass} style={{ fontSize: size }}>{second}</span> : null}
+        </>
+      )}
+    </div>
+  );
+}
+  const trimmed = name.trim();
+  const space = trimmed.indexOf(" ");
+  if (space < 0) return [trimmed, ""] as const;
+  return [trimmed.slice(0, space), trimmed.slice(space + 1)] as const;
+}
 
 function splitHeroName(name: string) {
   const trimmed = name.trim();
@@ -39,24 +124,11 @@ function EditorialHeader({
 
   return (
     <div className="w-full">
+      <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative py-[22px]">
         <div className="grid grid-cols-[minmax(0,1fr)_105px] items-start gap-3 pr-9">
           <div>
-            {onDisplayNameChange ? (
-              <textarea
-                data-card-content
-                rows={2}
-                value={second ? `${first}\n${second}` : first}
-                onChange={(event) => onDisplayNameChange(event.target.value.replace(/\n+/g, " "))}
-                onClick={(event) => event.stopPropagation()}
-                className="compass-input w-full resize-none bg-transparent text-left text-[clamp(48px,13vw,58px)] leading-[0.88] font-light tracking-[-0.045em] text-[#111] outline-none"
-              />
-            ) : (
-              <p data-card-content className="text-left text-[clamp(48px,13vw,58px)] leading-[0.88] font-light tracking-[-0.045em]">
-                <span className="block">{first}</span>
-                {second ? <span className="block">{second}</span> : null}
-              </p>
-            )}
+            <HeroName first={first} second={second} onChange={onDisplayNameChange} />
             {positionTitle ? (
               <p data-card-content className="mt-3 text-[15px] leading-none font-light tracking-[0.1em] uppercase">
                 {positionTitle}
@@ -139,6 +211,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const articleRef = useRef<HTMLElement | null>(null);
+  const [scrolledUnderQr, setScrolledUnderQr] = useState(false);
 
   const handleCommitOrder = useCallback(
     (orderedIds: string[]) => {
@@ -177,7 +250,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }
       }
     >
-      <div className={cn("flex min-h-0 flex-1 flex-col", !compact && "overflow-y-auto px-[clamp(24px,6.1vw,28px)] pb-8")}>
+      <div
+        className={cn("flex min-h-0 flex-1 flex-col", !compact && "overflow-y-auto px-[clamp(24px,6.1vw,28px)] pb-8")}
+        onScroll={
+          compact
+            ? undefined
+            : (event) => setScrolledUnderQr(event.currentTarget.scrollTop > 2)
+        }
+      >
       {compact ? (
         <CompactHeader
           card={card}
@@ -239,6 +319,12 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         </footer>
       ) : null}
       </div>
+      {!compact && scrolledUnderQr ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-white to-transparent"
+        />
+      ) : null}
       {!compact ? (
         <div
           aria-hidden
