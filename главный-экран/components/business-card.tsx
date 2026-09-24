@@ -23,9 +23,16 @@ function splitHeroName(name: string) {
   return [name.slice(0, breakAt), name.slice(breakAt + 1).replace(/\n/g, "")] as const;
 }
 
-function measureAt(ctx: CanvasRenderingContext2D, line: string, size: number, weight: number) {
+function measureRaw(ctx: CanvasRenderingContext2D, line: string, size: number, weight: number) {
   ctx.font = `${weight} ${size}px ${HERO_FONT}`;
-  return ctx.measureText(line).width - Math.max(0, line.length - 1);
+  return ctx.measureText(line).width;
+}
+
+function widthFontFor(ctx: CanvasRenderingContext2D, line: string, width: number, weight: number) {
+  const raw = measureRaw(ctx, line, 100, weight);
+  if (raw <= 0) return 44;
+  const tracking = Math.max(0, line.length - 1);
+  return ((width + tracking) * 100) / raw;
 }
 
 function heroLineSize(lines: string[], width: number, height: number, weight = 600) {
@@ -35,8 +42,7 @@ function heroLineSize(lines: string[], width: number, height: number, weight = 6
   if (!ctx) return 16;
   const shown = lines.filter((line) => line.length > 0);
   const count = shown.length > 1 ? 2 : 1;
-  const maxW = shown.reduce((widest, line) => Math.max(widest, measureAt(ctx, line, 100, weight)), 0);
-  const widthFont = maxW > 0 ? (100 * width) / maxW : 44;
+  const widthFont = shown.reduce((tightest, line) => Math.min(tightest, widthFontFor(ctx, line, width, weight)), 44);
   const heightFont = height / count;
   const max = weight === 400 ? 19 : 44;
   const min = weight === 400 ? 10 : 16;
@@ -48,7 +54,7 @@ function wordNeedsWrap(word: string, width: number) {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) return false;
-  return measureAt(ctx, word, 16, 600) > width;
+  return measureRaw(ctx, word, 16, 600) - Math.max(0, word.length - 1) > width;
 }
 
 function splitLongWord(word: string) {
@@ -226,7 +232,7 @@ function EditorialHeader({
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
             {showPlus ? <div className="absolute top-0 right-0 z-10">{nextScan}</div> : null}
-            <div className="min-w-0" style={{ paddingRight: showPlus ? 20 : 0 }}>
+            <div className="w-full min-w-0">
               <HeroName
                 value={card.displayName}
                 onChange={onDisplayNameChange}
