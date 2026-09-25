@@ -509,7 +509,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           />
         </div>
       ) : null}
-      <div className={cn("relative flex min-h-0 flex-1 flex-col", !compact && editing && "bg-[#c5e8f7]")}>
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         ref={compact ? previewScrollRef : undefined}
         data-preview-scroll={compact ? "" : undefined}
@@ -517,7 +517,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           "flex min-h-0 flex-1 flex-col",
           compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)]",
           !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)] pb-8",
-          !compact && editing && "bg-[#c5e8f7]",
         )}
         onScroll={
           compact
@@ -618,8 +617,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         <div
           aria-hidden
           className={cn(
-            "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t to-transparent",
-            editing ? "from-[#c5e8f7]" : "from-white",
+            "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t from-white to-transparent",
           )}
         />
       ) : null}
