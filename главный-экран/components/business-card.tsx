@@ -555,6 +555,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         onChooseHeader={
           onCardUpdate
             ? (itemId) => {
+                if (card.headerItemId === itemId) {
+                  onCardUpdate({ headerItemId: undefined, title: "" });
+                  return;
+                }
                 const item = items.find((entry) => entry.id === itemId);
                 if (!item) return;
                 onCardUpdate({ headerItemId: itemId, title: item.value.trim() });

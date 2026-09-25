@@ -203,7 +203,13 @@ export function CardEditList({ card, items }: { card: Card; items: ContactItem[]
                     onRemove={() => removeItemFromCard(card.id, item.id)}
                     onChoose={
                       isHeaderRole(row)
-                        ? () => updateCard(card.id, { headerItemId: item.id, title: item.value.trim() })
+                        ? () => {
+                            if (card.headerItemId === item.id) {
+                              updateCard(card.id, { headerItemId: undefined, title: "" });
+                              return;
+                            }
+                            updateCard(card.id, { headerItemId: item.id, title: item.value.trim() });
+                          }
                         : undefined
                     }
                   />
