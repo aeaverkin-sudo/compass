@@ -391,8 +391,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     let startY = 0;
     let dragging = false;
     const fits = () => el.scrollHeight <= el.clientHeight + 1;
+    const atTop = () => el.scrollTop <= 0;
+    const atBottom = () => el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
     const down = (event: PointerEvent) => {
-      if (!fits()) return;
       const target = event.target as HTMLElement;
       if (target.closest("input, textarea")) return;
       pointerId = event.pointerId;
@@ -401,16 +402,17 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     };
     const move = (event: PointerEvent) => {
       if (!dragging || event.pointerId !== pointerId) return;
-      if (!fits()) {
-        dragging = false;
+      const dy = event.clientY - startY;
+      const pastEdge = fits() || (dy > 0 && atTop()) || (dy < 0 && atBottom());
+      if (!pastEdge) {
         setPreviewPulling(false);
         setPreviewPull(0);
         return;
       }
-      const dy = event.clientY - startY;
       if (Math.abs(dy) < 5) return;
+      if (event.cancelable) event.preventDefault();
       setPreviewPulling(true);
-      setPreviewPull(Math.sign(dy) * Math.min(Math.abs(dy) * 0.42, 64));
+      setPreviewPull(Math.sign(dy) * Math.min(Math.abs(dy) * 0.45, 72));
     };
     const up = (event: PointerEvent) => {
       if (event.pointerId !== pointerId) return;
@@ -419,7 +421,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       setPreviewPull(0);
     };
     el.addEventListener("pointerdown", down);
-    document.addEventListener("pointermove", move);
+    document.addEventListener("pointermove", move, { passive: false });
     document.addEventListener("pointerup", up);
     document.addEventListener("pointercancel", up);
     return () => {

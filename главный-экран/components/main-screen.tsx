@@ -87,9 +87,7 @@ export function MainScreen() {
     (event: ReactPointerEvent<HTMLElement>, direction: "down" | "up") => {
       if (composerOpen) return;
       const target = event.target as HTMLElement;
-      if (target.closest("[data-no-swipe], input, textarea")) return;
-      const preview = target.closest<HTMLElement>("[data-preview-scroll]");
-      if (direction === "down" && preview && preview.scrollHeight <= preview.clientHeight + 2) return;
+      if (target.closest("[data-no-swipe], input, textarea, [data-preview-scroll]")) return;
 
       const startX = event.clientX;
       const startY = event.clientY;
