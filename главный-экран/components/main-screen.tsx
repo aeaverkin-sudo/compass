@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { layoutTop, SHEET_INSET } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -38,6 +38,32 @@ export function MainScreen() {
   const showAddSlide = canAddMoreCards(cards);
 
   useShareSync();
+
+  useEffect(() => {
+    const blockSelection = (event: Event) => {
+      const node = event.target;
+      const el = node instanceof Element ? node : node instanceof Node ? node.parentElement : null;
+      if (!el?.closest(".compass-main")) return;
+      if (el.closest("input, textarea, [contenteditable='true']")) return;
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();
+    };
+    const clearOnPress = (event: Event) => {
+      const node = event.target;
+      const el = node instanceof Element ? node : node instanceof Node ? node.parentElement : null;
+      if (!el?.closest("button, a")) return;
+      if (el.closest("input, textarea")) return;
+      window.getSelection()?.removeAllRanges();
+    };
+    document.addEventListener("selectstart", blockSelection, true);
+    document.addEventListener("contextmenu", blockSelection, true);
+    document.addEventListener("pointerdown", clearOnPress, true);
+    return () => {
+      document.removeEventListener("selectstart", blockSelection, true);
+      document.removeEventListener("contextmenu", blockSelection, true);
+      document.removeEventListener("pointerdown", clearOnPress, true);
+    };
+  }, []);
 
   const pdfUrl = useMemo(() => buildPdfUrl(shareToken), [shareToken]);
   const layout = useMainLayout();
