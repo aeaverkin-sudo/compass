@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { groupLibrary, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
@@ -278,8 +278,13 @@ function EditRow({
   onConfirm: (next: string) => void;
   onErase: () => void;
 }) {
+  const fieldRef = useRef<HTMLInputElement>(null);
+  const pressedLong = useRef(false);
+  const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
+  const [draft, setDraft] = useState(value);
   const longPress = useLongPress(() => {
+    pressedLong.current = true;
     setHolding(false);
     window.getSelection()?.removeAllRanges();
     onArmDelete();
@@ -289,42 +294,96 @@ function EditRow({
     longPress.onPointerUp();
   };
 
+  useLayoutEffect(() => {
+    if (!editing) return;
+    const field = fieldRef.current;
+    if (!field) return;
+    field.readOnly = false;
+    field.focus({ preventScroll: true });
+    const end = field.value.length;
+    field.setSelectionRange(end, end);
+  }, [editing]);
+
   const lineClass = cn(
     "min-w-0 py-[3px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]",
     !first && "col-start-2",
   );
 
+  const beginEdit = (field: HTMLInputElement) => {
+    openedAt.current = Date.now();
+    setDraft(value);
+    field.readOnly = false;
+    field.blur();
+    field.focus({ preventScroll: true });
+    const end = field.value.length;
+    field.setSelectionRange(end, end);
+    onEdit();
+  };
+
   return (
     <>
-      {editing ? (
-        <div className={cn(lineClass, "flex min-w-0 items-baseline gap-1")} style={{ color: "#111" }}>
-          {axis ? <span className="shrink-0">{axis} /</span> : null}
-          <RowTextField initial={value} onConfirm={onConfirm} onErase={onErase} />
-        </div>
-      ) : (
-      <button
-        type="button"
-        className={cn(lineClass, "break-words select-none [-webkit-touch-callout:none]", holding && "opacity-40")}
-        style={{ color: onCard ? "#111" : OFF_CARD }}
-        onPointerDown={(event) => {
-          if (deleteReady) return;
-          setHolding(true);
-          longPress.onPointerDown(event);
-        }}
-        onPointerMove={longPress.onPointerMove}
-        onPointerUp={release}
-        onPointerCancel={release}
-        onPointerLeave={release}
-        onClick={(event) => {
-          longPress.onClick(event);
-          if (event.defaultPrevented || deleteReady) return;
-          onEdit();
-        }}
-        onContextMenu={longPress.onContextMenu}
-      >
-        {text}
-      </button>
-      )}
+      <div className={cn(lineClass, "flex min-w-0 items-baseline gap-1")}>
+        {axis ? (
+          <span className="shrink-0" style={{ color: onCard ? "#111" : OFF_CARD }}>
+            {axis} /
+          </span>
+        ) : null}
+        <input
+          ref={fieldRef}
+          value={editing ? draft : value}
+          readOnly={!editing}
+          enterKeyHint="done"
+          aria-label={editing ? "Edit row" : text}
+          data-no-swipe
+          onPointerDown={(event) => {
+            if (editing || deleteReady) return;
+            pressedLong.current = false;
+            setHolding(true);
+            longPress.onPointerDown(event);
+          }}
+          onPointerMove={longPress.onPointerMove}
+          onPointerUp={(event) => {
+            release();
+            if (editing || pressedLong.current || deleteReady) return;
+            beginEdit(event.currentTarget);
+          }}
+          onPointerCancel={release}
+          onContextMenu={longPress.onContextMenu}
+          onChange={(event) => {
+            if (!editing) return;
+            const next = event.target.value;
+            if (!next.trim()) {
+              onErase();
+              return;
+            }
+            setDraft(next);
+          }}
+          onKeyDown={(event) => {
+            if (!editing || event.key !== "Enter") return;
+            event.preventDefault();
+            onConfirm(event.currentTarget.value);
+          }}
+          onBlur={(event) => {
+            if (!editing) return;
+            if (Date.now() - openedAt.current < 700) {
+              event.currentTarget.focus({ preventScroll: true });
+              return;
+            }
+            onConfirm(event.currentTarget.value);
+          }}
+          className={cn(
+            "compass-input m-0 min-w-0 flex-1 bg-transparent p-0 text-[16px] leading-[1.45] font-normal tracking-[-0.015em] outline-none",
+            !editing && "select-none [-webkit-touch-callout:none]",
+            holding && "opacity-40",
+          )}
+          style={{
+            color: editing || onCard ? "#111" : OFF_CARD,
+            caretColor: "#111",
+            WebkitUserSelect: editing ? "text" : "none",
+            userSelect: editing ? "text" : "none",
+          }}
+        />
+      </div>
       <div className="flex items-center justify-end">
         {deleteReady ? (
           <button
@@ -341,81 +400,5 @@ function EditRow({
         )}
       </div>
     </>
-  );
-}
-
-function RowTextField({
-  initial,
-  onConfirm,
-  onErase,
-}: {
-  initial: string;
-  onConfirm: (next: string) => void;
-  onErase: () => void;
-}) {
-  const fieldRef = useRef<HTMLInputElement>(null);
-  const closed = useRef(false);
-  const [draft, setDraft] = useState(initial);
-
-  useEffect(() => {
-    const field = fieldRef.current;
-    if (!field) return;
-    field.focus({ preventScroll: true });
-    const end = field.value.length;
-    field.setSelectionRange(end, end);
-
-    const reveal = () => {
-      window.scrollTo(0, 0);
-      const scroller = field.closest<HTMLElement>(".compass-card-scroll");
-      const viewport = window.visualViewport;
-      if (!scroller || !viewport) return;
-      const rect = field.getBoundingClientRect();
-      const limit = viewport.offsetTop + viewport.height - 12;
-      if (rect.bottom > limit) scroller.scrollTop += rect.bottom - limit;
-    };
-
-    reveal();
-    window.visualViewport?.addEventListener("resize", reveal);
-    window.visualViewport?.addEventListener("scroll", reveal);
-    return () => {
-      window.visualViewport?.removeEventListener("resize", reveal);
-      window.visualViewport?.removeEventListener("scroll", reveal);
-    };
-  }, []);
-
-  const finish = (next: string) => {
-    if (closed.current) return;
-    closed.current = true;
-    const trimmed = next.trim();
-    if (!trimmed) onErase();
-    else onConfirm(trimmed);
-  };
-
-  return (
-    <input
-      ref={fieldRef}
-      value={draft}
-      enterKeyHint="done"
-      aria-label="Edit row"
-      data-no-swipe
-      onChange={(event) => {
-        const next = event.target.value;
-        if (!next.trim()) {
-          finish("");
-          return;
-        }
-        setDraft(next);
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter") return;
-        event.preventDefault();
-        finish(event.currentTarget.value);
-      }}
-      onBlur={(event) => {
-        if (closed.current) return;
-        finish(event.currentTarget.value);
-      }}
-      className="compass-input m-0 min-w-0 flex-1 bg-transparent p-0 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] outline-none"
-    />
   );
 }
