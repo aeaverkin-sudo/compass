@@ -114,7 +114,12 @@ export function PhotoSlotPicker({
             onPhotoChange(null);
             setEditing(false);
           }}
-          className="absolute top-1.5 right-1.5 z-10 flex items-center justify-center transition-opacity active:opacity-60"
+          className={cn(
+            "absolute z-10 flex items-center justify-center transition-opacity active:opacity-60",
+            sizePx >= LANDING_PHOTO_SIZE_PX - 1
+              ? "-top-[3px] -right-[3px] size-9"
+              : "-top-[1.5px] -right-[1.5px] size-[30px]",
+          )}
         >
           <X className={removeIconSize} strokeWidth={1.25} aria-hidden />
         </button>
