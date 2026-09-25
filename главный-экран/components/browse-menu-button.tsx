@@ -1,24 +1,31 @@
 "use client";
 
-import { layoutTop, type MainScreenMode } from "../layout";
+import { useLongPress } from "@/shared/hooks/use-long-press";
+import { layoutTop } from "../layout";
+
+const HOLD_MS = 500;
 
 type BrowseMenuButtonProps = {
   centerYpx: number;
-  mode: MainScreenMode;
-  onTap: () => void;
+  onHold: () => void;
 };
 
-export function BrowseMenuButton({ centerYpx, mode, onTap }: BrowseMenuButtonProps) {
-  const expanded = mode === "library";
+export function BrowseMenuButton({ centerYpx, onHold }: BrowseMenuButtonProps) {
+  const hold = useLongPress(onHold, HOLD_MS);
 
   return (
     <button
       type="button"
-      aria-label={expanded ? "Close content menu" : "Open content menu"}
-      aria-expanded={expanded}
-      onClick={onTap}
-      className="pointer-events-auto absolute left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 px-2 py-2 transition-opacity active:opacity-60"
+      aria-label="Hold to edit"
+      className="pointer-events-auto absolute left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 px-2 py-2"
       style={{ top: layoutTop(centerYpx) }}
+      onPointerDown={hold.onPointerDown}
+      onPointerMove={hold.onPointerMove}
+      onPointerUp={hold.onPointerUp}
+      onPointerCancel={hold.onPointerCancel}
+      onPointerLeave={hold.onPointerLeave}
+      onClick={hold.onClick}
+      onContextMenu={hold.onContextMenu}
     >
       {[0, 1].map((index) => (
         <span

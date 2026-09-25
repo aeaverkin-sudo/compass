@@ -27,6 +27,7 @@ type CardCarouselProps = {
   onActiveIndexChange: (index: number) => void;
   onUpdateCard: (id: string, data: Partial<Card>) => void;
   onEmptyAreaTap: () => void;
+  editing?: boolean;
 };
 
 function CarouselSpacer({ width }: { width: number }) {
@@ -61,6 +62,7 @@ export function CardCarousel({
   onActiveIndexChange,
   onUpdateCard,
   onEmptyAreaTap,
+  editing = false,
 }: CardCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
@@ -223,6 +225,7 @@ export function CardCarousel({
         onPhotoChange={(photo) => handlePhotoChange(card.id, photo)}
         onDisplayNameChange={(displayName) => onUpdateCard(card.id, { displayName })}
         onCardUpdate={(data) => onUpdateCard(card.id, data)}
+        editing={editing}
       />
     );
   };
@@ -244,6 +247,7 @@ export function CardCarousel({
         onPhotoChange={(photo) => handlePhotoChange(activeCard.id, photo)}
         onDisplayNameChange={(displayName) => onUpdateCard(activeCard.id, { displayName })}
         onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
+        editing={editing}
       />
     );
   }

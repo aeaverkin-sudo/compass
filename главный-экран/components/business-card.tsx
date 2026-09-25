@@ -8,6 +8,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
+import { CardEditList } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
@@ -348,8 +349,7 @@ type BusinessCardProps = {
   onPhotoChange?: (photo: string | null) => void;
   onDisplayNameChange?: (displayName: string) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
-  /** Trial only. Replaces the browse section list; the header stays the same. */
-  browseList?: ReactNode;
+  editing?: boolean;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -362,7 +362,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onPhotoChange,
     onDisplayNameChange,
     onCardUpdate,
-    browseList,
+    editing = false,
   },
   ref,
 ) {
@@ -509,7 +509,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           />
         </div>
       ) : null}
-      <div className={cn("relative flex min-h-0 flex-1 flex-col", !compact && browseList && "bg-[#c5e8f7]")}>
+      <div className={cn("relative flex min-h-0 flex-1 flex-col", !compact && editing && "bg-[#c5e8f7]")}>
       <div
         ref={compact ? previewScrollRef : undefined}
         data-preview-scroll={compact ? "" : undefined}
@@ -517,7 +517,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           "flex min-h-0 flex-1 flex-col",
           compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)]",
           !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)] pb-8",
-          !compact && browseList && "bg-[#c5e8f7]",
+          !compact && editing && "bg-[#c5e8f7]",
         )}
         onScroll={
           compact
@@ -544,8 +544,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
 
-      {!compact && browseList ? (
-        browseList
+      {!compact && editing ? (
+        <CardEditList card={card} items={library} />
       ) : (
       <ContactItemChipList
         items={items}
@@ -565,7 +565,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       />
       )}
 
-      {!compact && !browseList ? (
+      {!compact && !editing ? (
         <footer className="mt-4 flex items-end justify-between">
           <p className="text-[9.5px] leading-[1.15] font-normal tracking-[0.08em] uppercase">
             {card.displayName || "Name"}
@@ -619,7 +619,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           aria-hidden
           className={cn(
             "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t to-transparent",
-            browseList ? "from-[#c5e8f7]" : "from-white",
+            editing ? "from-[#c5e8f7]" : "from-white",
           )}
         />
       ) : null}
