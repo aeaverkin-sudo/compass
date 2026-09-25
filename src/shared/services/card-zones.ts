@@ -8,6 +8,8 @@ export const CARD_ZONES = [
   { id: "social", title: "Social" },
   { id: "files", title: "Files" },
   { id: "lifestyle", title: "Lifestyle" },
+  { id: "position", title: "Position" },
+  { id: "contact", title: "Contact" },
   { id: "additional", title: "Additional" },
 ] as const;
 
@@ -54,6 +56,8 @@ const SOCIAL_TYPES = new Set<ContactType>([
   "telegram",
   "whatsapp",
 ]);
+
+const CONTACT_TYPES = new Set<ContactType>(["email", "phone"]);
 
 const FILE_AXIS: Partial<Record<ContactType, string>> = {
   pdf: "PDF",
@@ -132,6 +136,8 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   if (SOCIAL_TYPES.has(item.type)) return "social";
   if (isAttachmentType(item.type)) return "files";
   if (item.type === "spotify") return "lifestyle";
+  if (CONTACT_TYPES.has(item.type)) return "contact";
+  if (isExplicitPosition(item) || (item.type === "text" && parseDescription(item.value).position)) return "position";
   return "additional";
 }
 

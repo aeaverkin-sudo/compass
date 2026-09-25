@@ -86,7 +86,7 @@ const mixed = composeCard([
 assert.equal(mixed.position, null);
 assert.deepEqual(
   mixed.zones.map((zone) => zone.id),
-  ["web", "additional"],
+  ["web", "position"],
 );
 assert.equal(mixed.zones[1]?.rows[0]?.value, "angel investor, ex-product at HSE");
 
@@ -95,8 +95,8 @@ const explicit = composeCard([
   item("d", "text", "likes jazz"),
 ]);
 assert.equal(explicit.position, null);
-assert.equal(explicit.zones[0]?.rows.some((row) => row.value === "Founder"), true);
-assert.equal(explicit.zones[0]?.rows.some((row) => row.value === "likes jazz"), true);
+assert.equal(explicit.zones.find((zone) => zone.id === "position")?.rows[0]?.value, "Founder");
+assert.equal(explicit.zones.find((zone) => zone.id === "additional")?.rows[0]?.value, "likes jazz");
 
 const partner = parseDescription("Managing Partner at North");
 assert.equal(partner.position?.title, "Managing Partner");
@@ -115,7 +115,7 @@ const library = groupLibrary([
 ]);
 assert.deepEqual(
   library.map((zone) => zone.id),
-  ["web", "social", "files", "lifestyle", "additional"],
+  ["web", "social", "files", "lifestyle", "contact"],
 );
 
 console.log("card-zones ok");
