@@ -3,6 +3,7 @@
 import { Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { BusinessCard } from "@main/components/business-card";
+import { CardDraftFields } from "@main/components/card-draft-fields";
 import { LibraryComposer } from "@main/components/library-composer";
 import { QrZone } from "@main/components/qr-zone";
 import { useMainLayout } from "@main/hooks/use-main-layout";
@@ -215,7 +216,11 @@ export function TestCardScreen() {
         }
       } else if (currentCardIndex > 0) {
         setCurrentCardIndex(currentCardIndex - 1);
+      } else {
+        return;
       }
+      setEditing(false);
+      setDeleteReadyId(null);
     };
     document.addEventListener("pointerup", up);
   };
@@ -225,6 +230,7 @@ export function TestCardScreen() {
   }
 
   const pdfUrl = `${typeof window === "undefined" ? "" : window.location.origin}/api/share/${shareToken}/pdf`;
+  const draft = currentCardIndex > 0 && (!card.photo || !card.displayName.trim());
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-white text-[#111]" onPointerDown={beginSwipe}>
@@ -238,6 +244,12 @@ export function TestCardScreen() {
           zIndex: 20,
         }}
       >
+        {draft ? (
+          <CardDraftFields
+            card={card}
+            onUpdate={(data) => updateCard(card.id, data)}
+          />
+        ) : (
         <BusinessCard
           card={card}
           library={contactItems}
@@ -320,9 +332,10 @@ export function TestCardScreen() {
             ) : undefined
           }
         />
+        )}
       </div>
 
-      {ready && !editing ? (
+      {ready && !editing && !draft ? (
         <button
           type="button"
           aria-label="Hold to edit"
@@ -341,7 +354,7 @@ export function TestCardScreen() {
         </button>
       ) : null}
 
-      {editing ? (
+      {editing && !draft ? (
         <button
           type="button"
           className="absolute left-1/2 z-30 -translate-x-1/2 -translate-y-1/2 px-4 py-2 text-[#111] uppercase"
