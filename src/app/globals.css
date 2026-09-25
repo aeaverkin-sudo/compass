@@ -235,8 +235,6 @@ body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
-  overflow-x: auto;
-  overflow-y: clip;
 }
 
 .compass-carousel:focus-within {
@@ -246,9 +244,8 @@ body {
 
 .compass-card-scroll {
   min-height: 0;
-  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   scrollbar-width: none;
 }
 
