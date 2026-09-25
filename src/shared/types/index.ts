@@ -64,6 +64,8 @@ export interface Card {
   contactItemIds: string[];
   /** When true, card rows keep the user's manual order instead of auto shelves. */
   itemOrderManual?: boolean;
+  /** Contact item shown under the name. Absent until the user picks one. */
+  headerItemId?: string;
   nextScanAddons: NextScanAddon[];
   createdAt: string;
   updatedAt: string;

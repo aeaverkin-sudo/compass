@@ -11,7 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { cn } from "@/lib/utils";
-import { composeCard, type CardDisplayRow } from "@/shared/services/card-zones";
+import { composeCard, parseDescription, type CardDisplayRow } from "@/shared/services/card-zones";
 import type { ContactItem } from "@/shared/types";
 
 export type ContactItemChipSize = "browse" | "compact";
@@ -75,12 +75,14 @@ function ContactItemChipRow({
   lifted,
   style,
   className,
+  onChooseHeader,
 }: {
   row: CardDisplayRow;
   size: ContactItemChipSize;
   lifted: boolean;
   style?: CSSProperties;
   className?: string;
+  onChooseHeader?: (itemId: string) => void;
 }) {
   const compact = size === "compact";
   const motion = typeof window !== "undefined" && prefersMotion();
@@ -118,6 +120,14 @@ function ContactItemChipRow({
     <span
       data-card-content
       {...(row.item ? { "data-preview-row": row.item.id } : {})}
+      onClick={
+        isHeaderRole(row) && onChooseHeader && row.item
+          ? (event) => {
+              event.stopPropagation();
+              onChooseHeader(row.item!.id);
+            }
+          : undefined
+      }
       className={classNames}
       style={style}
     >
@@ -126,8 +136,16 @@ function ContactItemChipRow({
   );
 }
 
-function EditorialValue({ row }: { row: CardDisplayRow }) {
+function isHeaderRole(row: CardDisplayRow) {
+  if (!row.item) return false;
+  if (row.item.type === "position") return true;
+  if (row.item.type !== "text") return false;
+  return Boolean(parseDescription(row.value).position);
+}
+
+function EditorialValue({ row, onChooseHeader }: { row: CardDisplayRow; onChooseHeader?: (itemId: string) => void }) {
   const line = row.axis ? `${row.axis} / ${row.value}` : row.value;
+  const choose = onChooseHeader && isHeaderRole(row);
   const body = (
     <span className="block min-w-0 break-words text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] no-underline">
       {line}
@@ -149,7 +167,21 @@ function EditorialValue({ row }: { row: CardDisplayRow }) {
     );
   }
 
-  return <span data-card-content>{body}</span>;
+  return (
+    <span
+      data-card-content
+      onClick={
+        choose && row.item
+          ? (event) => {
+              event.stopPropagation();
+              onChooseHeader?.(row.item!.id);
+            }
+          : undefined
+      }
+    >
+      {body}
+    </span>
+  );
 }
 
 export function ContactItemChipList({
@@ -158,12 +190,14 @@ export function ContactItemChipList({
   className,
   listId,
   onReorder,
+  onChooseHeader,
 }: {
   items: ContactItem[];
   size: ContactItemChipSize;
   className?: string;
   listId?: string;
   onReorder?: (orderedIds: string[]) => void;
+  onChooseHeader?: (itemId: string) => void;
 }) {
   const compact = size === "compact";
   const listRef = useRef<HTMLDivElement>(null);
@@ -379,7 +413,7 @@ export function ContactItemChipList({
               </span>
               <div className="flex min-w-0 flex-col gap-[6px]">
                 {zone.rows.map((row) => (
-                  <EditorialValue key={row.key} row={row} />
+                  <EditorialValue key={row.key} row={row} onChooseHeader={onChooseHeader} />
                 ))}
               </div>
             </div>
@@ -455,6 +489,7 @@ export function ContactItemChipList({
                     "min-w-0 text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]",
                     zoneGap && "mt-3",
                   )}
+                  onChooseHeader={onChooseHeader}
                 />
                 {zoneEnd && zoneIndex < composed.zones.length - 1 ? (
                   <div className="col-span-2 mt-3 border-b-[0.5px] border-[#111]" />

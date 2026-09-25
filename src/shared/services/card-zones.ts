@@ -158,45 +158,9 @@ export function parseDescription(text: string): { position: PositionLine | null;
 }
 
 export function composeCard(items: ContactItem[]): { position: PositionLine | null; zones: CardZoneSection[] } {
-  const explicit = items.find((item) => isExplicitPosition(item) && item.value.trim());
-  let position: PositionLine | null = explicit ? { title: explicit.value.trim() } : null;
-  const consumed = new Set<string>();
-  if (explicit) consumed.add(explicit.id);
-
-  const remainderById = new Map<string, string[]>();
-  for (const item of items) {
-    if (item.type !== "text" || isExplicitPosition(item)) continue;
-    const parsed = parseDescription(item.value);
-    if (!parsed.position) continue;
-    if (!position) position = parsed.position;
-    consumed.add(item.id);
-    remainderById.set(item.id, parsed.remainders);
-  }
-
   const buckets = new Map<CardZoneId, CardDisplayRow[]>();
-  for (const item of items) {
-    if (isExplicitPosition(item)) continue;
-    if (consumed.has(item.id)) {
-      const lines = remainderById.get(item.id) ?? [];
-      const rows = buckets.get("additional") ?? [];
-      lines.forEach((text, index) => {
-        const value = text.trim();
-        if (!value || value === "+") return;
-        rows.push({
-          key: `${item.id}:rest:${index}`,
-          item: null,
-          axis: "",
-          value,
-          url: "",
-        });
-      });
-      buckets.set("additional", rows);
-      continue;
-    }
-    pushDisplayed(buckets, item);
-  }
-
-  return { position, zones: sectionsFrom(buckets) };
+  for (const item of items) pushDisplayed(buckets, item);
+  return { position: null, zones: sectionsFrom(buckets) };
 }
 
 export function groupLibrary(items: ContactItem[]): CardZoneSection[] {

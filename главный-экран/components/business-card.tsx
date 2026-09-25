@@ -8,7 +8,6 @@ import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
-import { composeCard } from "@/shared/services/card-zones";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
@@ -367,7 +366,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const shareToken = useAppStore((state) => state.user.shareToken);
   const items = getCardItems(card, library);
-  const position = composeCard(items).position;
+  const chosen = items.find((item) => item.id === card.headerItemId);
+  const positionTitle = chosen?.value.trim() || undefined;
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const articleRef = useRef<HTMLElement | null>(null);
@@ -490,14 +490,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {compact ? (
         <CompactHeader
           card={card}
-          positionTitle={position?.title}
-          positionCompany={position?.company}
+          positionTitle={positionTitle}
           onDisplayNameChange={onDisplayNameChange}
         />
       ) : (
         <EditorialHeader
           card={card}
-          positionTitle={position?.title}
+          positionTitle={positionTitle}
           showPlus={Boolean(onCardUpdate && card.photo)}
           nextScan={
             onCardUpdate && card.photo ? (
@@ -519,6 +518,15 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         className={compact ? "pb-2" : undefined}
         listId={card.id}
         onReorder={compact ? handleCommitOrder : undefined}
+        onChooseHeader={
+          onCardUpdate
+            ? (itemId) => {
+                const item = items.find((entry) => entry.id === itemId);
+                if (!item) return;
+                onCardUpdate({ headerItemId: itemId, title: item.value.trim() });
+              }
+            : undefined
+        }
       />
 
       {!compact ? (

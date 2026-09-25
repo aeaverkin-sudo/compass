@@ -76,27 +76,27 @@ const noFiles = composeCard([item("s", "instagram", "@one")]);
 assert.ok(!noFiles.zones.some((zone) => zone.id === "files"));
 
 const bio = composeCard([item("d", "text", "Founder and CEO of Compass")]);
-assert.equal(bio.position?.title, "Founder & CEO");
-assert.equal(bio.position?.company, "Compass");
-assert.equal(bio.zones.length, 0);
+assert.equal(bio.position, null);
+assert.equal(bio.zones[0]?.rows[0]?.value, "Founder and CEO of Compass");
 
 const mixed = composeCard([
   item("d", "text", "angel investor, ex-product at HSE"),
   item("w", "website", "https://compass.com"),
 ]);
-assert.equal(mixed.position?.title, "Angel Investor");
+assert.equal(mixed.position, null);
 assert.deepEqual(
   mixed.zones.map((zone) => zone.id),
   ["web", "additional"],
 );
-assert.equal(mixed.zones[1]?.rows[0]?.value, "ex-Product @ HSE");
+assert.equal(mixed.zones[1]?.rows[0]?.value, "angel investor, ex-product at HSE");
 
 const explicit = composeCard([
   item("p", "position", "Founder"),
   item("d", "text", "likes jazz"),
 ]);
-assert.deepEqual(explicit.position, { title: "Founder" });
-assert.equal(explicit.zones[0]?.rows[0]?.value, "likes jazz");
+assert.equal(explicit.position, null);
+assert.equal(explicit.zones[0]?.rows.some((row) => row.value === "Founder"), true);
+assert.equal(explicit.zones[0]?.rows.some((row) => row.value === "likes jazz"), true);
 
 const partner = parseDescription("Managing Partner at North");
 assert.equal(partner.position?.title, "Managing Partner");
