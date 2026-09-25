@@ -486,6 +486,27 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }
       }
     >
+      {!compact ? (
+        <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-1mm)]">
+          <EditorialHeader
+            card={card}
+            positionTitle={positionTitle}
+            showPlus={Boolean(onCardUpdate && card.photo)}
+            nextScan={
+              onCardUpdate && card.photo ? (
+                <NextScanMenu
+                  bare
+                  addons={nextScanAddons}
+                  onSetAddons={(addons) => onCardUpdate({ nextScanAddons: addons })}
+                />
+              ) : null
+            }
+            onPhotoChange={onPhotoChange}
+            onDisplayNameChange={onDisplayNameChange}
+          />
+        </div>
+      ) : null}
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <div
         ref={compact ? previewScrollRef : undefined}
         data-preview-scroll={compact ? "" : undefined}
@@ -517,24 +538,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           positionTitle={positionTitle}
           onDisplayNameChange={onDisplayNameChange}
         />
-      ) : (
-        <EditorialHeader
-          card={card}
-          positionTitle={positionTitle}
-          showPlus={Boolean(onCardUpdate && card.photo)}
-          nextScan={
-            onCardUpdate && card.photo ? (
-              <NextScanMenu
-                bare
-                addons={nextScanAddons}
-                onSetAddons={(addons) => onCardUpdate({ nextScanAddons: addons })}
-              />
-            ) : null
-          }
-          onPhotoChange={onPhotoChange}
-          onDisplayNameChange={onDisplayNameChange}
-        />
-      )}
+      ) : null}
 
       <ContactItemChipList
         items={items}
@@ -581,6 +585,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ) : null}
       </div>
       </div>
+      {!compact && scrolledUnderQr ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-white to-transparent"
+        />
+      ) : null}
+      </div>
       {compact && (previewFade.top || previewPull < 0) ? (
         <div
           aria-hidden
@@ -593,12 +604,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-white to-transparent"
           style={{ height: 48 }}
-        />
-      ) : null}
-      {!compact && scrolledUnderQr ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-white to-transparent"
         />
       ) : null}
       {!compact ? (
