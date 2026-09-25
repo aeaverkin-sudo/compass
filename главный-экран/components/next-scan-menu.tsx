@@ -24,9 +24,9 @@ type NextScanMenuProps = {
 };
 
 function NextScanAddonIcon({ type }: { type: NextScanAddon["type"] }) {
-  if (type === "text") return <FileText className="size-3.5" strokeWidth={1.25} aria-hidden />;
-  if (type === "voice") return <Mic className="size-3.5" strokeWidth={1.25} aria-hidden />;
-  return <Camera className="size-3.5" strokeWidth={1.25} aria-hidden />;
+  if (type === "text") return <FileText className="size-4" strokeWidth={1} aria-hidden />;
+  if (type === "voice") return <Mic className="size-4" strokeWidth={1} aria-hidden />;
+  return <Camera className="size-4" strokeWidth={1} aria-hidden />;
 }
 
 function addonPreview(addon: NextScanAddon): string {
@@ -289,7 +289,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
             onPointerDown={(event) => event.stopPropagation()}
           />
           <div
-            className="compass-block compass-sky absolute right-0 top-full z-50 mt-2 w-64 rounded-[22px] p-2"
+            className="compass-block compass-sky absolute right-0 top-full z-50 mt-2 w-64 p-2"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
             role="dialog"
@@ -301,7 +301,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={viewing.content} alt="" className="mb-2 w-full object-cover" />
                 ) : (
-                  <p className="mb-2 text-[13px] leading-[1.35] text-foreground">{viewing.content}</p>
+                  <p className="mb-2 text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]">{viewing.content}</p>
                 )}
                 <button
                   type="button"
@@ -309,7 +309,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                     window.speechSynthesis?.cancel();
                     setViewing(null);
                   }}
-                  className="text-[13px] font-medium text-foreground"
+                  className="text-[11px] font-normal leading-none tracking-[0.1em] text-[#111] uppercase"
                 >
                   Back
                 </button>
@@ -317,9 +317,9 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
             ) : null}
 
             {addons.length > 0 && !textMode && !viewing ? (
-              <ul className="mb-1 divide-y divide-hairline/25 border-b border-hairline/25 pb-1">
+              <ul className="mb-1 border-b-[0.5px] border-[#111] pb-1">
                 {addons.map((addon, index) => (
-                  <li key={addon.id} className="flex items-center gap-2 rounded-lg px-2 py-2">
+                  <li key={addon.id} className="flex items-center gap-2 border-b-[0.5px] border-[#111] px-2 py-2 last:border-b-0">
                     <button
                       type="button"
                       onClick={addon.type === "voice" ? undefined : () => openAddon(addon)}
@@ -332,13 +332,13 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                         addon.type === "voice" && "touch-none select-none",
                       )}
                     >
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-medium text-white">
+                      <span className="w-4 shrink-0 text-[11px] font-normal leading-none tracking-[0.1em] text-[#999]">
                         {index + 1}
                       </span>
                       <span className={cn(playingId === addon.id && "animate-pulse text-[#E8640C]")}>
                         <NextScanAddonIcon type={addon.type} />
                       </span>
-                      <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[12px] text-foreground">
+                      <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]">
                         {addonPreview(addon)}
                       </span>
                     </button>
@@ -351,7 +351,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                       className="shrink-0 p-1 text-hint transition-opacity active:opacity-60"
                       aria-label="Delete note"
                     >
-                      <Trash2 className="size-3.5" strokeWidth={1.25} aria-hidden />
+                      <Trash2 className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
                     </button>
                   </li>
                 ))}
@@ -366,13 +366,13 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   onChange={(event) => setText(event.target.value)}
                   placeholder="Short note…"
                   rows={3}
-                  className="compass-input mb-2 w-full resize-none border-b border-hairline/30 bg-transparent text-[16px] leading-[1.35] outline-none placeholder:text-hint"
+                  className="compass-input mb-2 w-full resize-none border-b-[0.5px] border-[#111] bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
                 />
                 <button
                   type="button"
                   disabled={!text.trim()}
                   onClick={() => addAddon("text", text.trim())}
-                  className="text-[13px] font-medium text-foreground disabled:opacity-40"
+                  className="text-[11px] font-normal leading-none tracking-[0.1em] text-[#111] uppercase disabled:opacity-40"
                 >
                   Add
                 </button>
@@ -383,9 +383,9 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                 <button
                   type="button"
                   onClick={() => setTextMode(true)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] text-foreground transition-opacity active:opacity-60"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] transition-opacity active:opacity-60"
                 >
-                  <FileText className="size-4" strokeWidth={1.25} aria-hidden />
+                  <FileText className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
                   Add a short text
                 </button>
                 ) : null}
@@ -394,9 +394,9 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   type="button"
                   disabled={pickingSelfie}
                   onClick={() => pickSelfie()}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] text-foreground transition-opacity active:opacity-60 disabled:opacity-50"
+                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] transition-opacity active:opacity-60 disabled:opacity-50"
                 >
-                  <Camera className="size-4" strokeWidth={1.25} aria-hidden />
+                  <Camera className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
                   {pickingSelfie ? "Opening camera…" : "Add a selfie"}
                 </button>
                 ) : null}
@@ -410,19 +410,19 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   }}
                   onPointerCancel={stopVoice}
                   onContextMenu={(event) => event.preventDefault()}
-                  className="flex w-full touch-none items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] text-foreground select-none"
+                  className="flex w-full touch-none items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] select-none"
                 >
-                  <Mic className={cn("size-4", recording && "animate-pulse text-[#E8640C]")} strokeWidth={1.25} aria-hidden />
+                  <Mic className={cn("size-4 text-[#111]", recording && "animate-pulse text-[#E8640C]")} strokeWidth={1} aria-hidden />
                   {recording ? `Recording · ${secondsLeft}s` : "Add a voice note"}
                 </button>
                 ) : null}
-                {voiceHint ? <p className="px-3 pb-1 text-[10px] text-hint">{voiceHint}</p> : null}
-                <p className="px-3 py-2 text-[10px] text-[#111]">* For the next scan only.</p>
+                {voiceHint ? <p className="px-3 pb-1 text-[11px] font-normal leading-none tracking-[0.1em] text-[#999] uppercase">{voiceHint}</p> : null}
+                <p className="px-3 py-2 text-[11px] font-normal leading-none tracking-[0.1em] text-[#111]">* For the next scan only.</p>
               </>
             ) : null}
 
             {atMax && !textMode && !viewing ? (
-              <p className="px-3 py-2 text-[10px] text-hint">
+              <p className="px-3 py-2 text-[11px] font-normal leading-none tracking-[0.1em] text-[#999] uppercase">
                 Maximum {MAX_NEXT_SCAN_NOTES} notes for next scan.
               </p>
             ) : null}
