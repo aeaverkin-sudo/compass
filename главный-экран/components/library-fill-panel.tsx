@@ -463,14 +463,14 @@ export function LibraryFillPanel({
               {listScrollFade.top ? (
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-[#F4F1EC] to-transparent"
+                  className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-[#C5E8F7] to-transparent"
                   style={{ height: 56 }}
                 />
               ) : null}
               {listScrollFade.bottom ? (
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-b from-transparent to-[#F4F1EC]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-b from-transparent to-[#C5E8F7]"
                   style={{ height: 40 }}
                 />
               ) : null}
