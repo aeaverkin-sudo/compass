@@ -490,7 +490,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }
     >
       {!compact ? (
-        <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-1mm)]">
+        <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
           <EditorialHeader
             card={card}
             positionTitle={positionTitle}
@@ -515,8 +515,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         data-preview-scroll={compact ? "" : undefined}
         className={cn(
           "flex min-h-0 flex-1 flex-col",
-          compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)]",
-          !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)] pb-8",
+          compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
+          !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)] pb-8",
         )}
         onScroll={
           compact
