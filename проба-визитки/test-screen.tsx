@@ -344,8 +344,15 @@ export function TestCardScreen() {
       {editing ? (
         <button
           type="button"
-          className="absolute left-1/2 z-30 -translate-x-1/2 -translate-y-1/2 px-4 py-2 text-[11px] font-normal tracking-[0.1em] text-[#111] uppercase"
-          style={{ top: layoutTop(layout.browseMenuCenterY) }}
+          className="absolute left-1/2 z-30 -translate-x-1/2 -translate-y-1/2 px-4 py-2 text-[#111] uppercase"
+          style={{
+            top: layoutTop(layout.browseMenuCenterY),
+            fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+            fontWeight: 600,
+            fontSize: 44,
+            letterSpacing: "-1px",
+            lineHeight: 1,
+          }}
           onClick={() => {
             setEditing(false);
             setDeleteReadyId(null);
