@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, Plus, X } from "lucide-react";
-import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { BusinessCard } from "@main/components/business-card";
 import { LibraryComposer } from "@main/components/library-composer";
 import { QrZone } from "@main/components/qr-zone";
@@ -149,6 +149,17 @@ export function TestCardScreen() {
     [card, contactItems, editing],
   );
   const editingItem = editingId ? contactItems.find((item) => item.id === editingId) ?? null : null;
+
+  useEffect(() => {
+    if (!deleteReadyId) return;
+    const dismiss = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-delete-marker]")) return;
+      setDeleteReadyId(null);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [deleteReadyId]);
 
   const include = useCallback(
     (itemId: string) => {
@@ -403,7 +414,7 @@ function Row({
       <button
         type="button"
         className={cn(
-          "min-w-0 py-[3px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] break-words",
+          "min-w-0 py-[3px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] break-words select-none [-webkit-touch-callout:none]",
           placed,
           holding && "opacity-40",
         )}
@@ -429,7 +440,7 @@ function Row({
       {editing ? (
         <div className="flex items-center justify-end">
           {deleteReady ? (
-            <button type="button" aria-label="Delete" onClick={onDelete} className="flex size-5 items-center justify-center">
+            <button type="button" data-delete-marker aria-label="Delete" onClick={onDelete} className="flex size-5 items-center justify-center">
               <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
             </button>
           ) : (
