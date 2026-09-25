@@ -170,9 +170,9 @@ export function CardEditList({ card, items }: { card: Card; items: ContactItem[]
           key={section.id}
           className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b-[0.5px] border-[#111]")}
         >
-          <div className="grid grid-cols-[86px_minmax(0,1fr)_26px] items-start gap-x-1.5">
+          <div className="grid grid-cols-[86px_minmax(0,1fr)_26px] items-baseline gap-x-[14px]">
             <span
-              className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap uppercase"
+              className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap uppercase"
               style={{ color: section.included ? "#999" : OFF_CARD }}
             >
               {section.title}

@@ -407,8 +407,8 @@ export function ContactItemChipList({
               zoneIndex < composed.zones.length - 1 && "border-b-[0.5px] border-[#111]",
             )}
           >
-            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-1.5">
-              <span className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
+            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
+              <span className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
                 {zone.title}
               </span>
               <div className="flex min-w-0 flex-col gap-[6px]">

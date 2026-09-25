@@ -268,7 +268,7 @@ function EditorialHeader({
     <div className="w-full">
       <div className="border-t-[0.5px] border-[#111]" />
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
-        <div className="flex shrink-0 items-stretch gap-2" style={{ height: HERO_PHOTO_PX }}>
+        <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : card.photo ? (
