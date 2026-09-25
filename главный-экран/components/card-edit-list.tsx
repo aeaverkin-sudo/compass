@@ -214,20 +214,19 @@ export function CardEditList({ card, items }: { card: Card; items: ContactItem[]
         </section>
       ))}
       {editingItem ? (
-        <div className={cn("py-3", sections.length > 0 && "mt-2 border-t-[0.5px] border-[#111]")}>
-          <LibraryComposer
-            item={editingItem}
-            attachmentError={attachmentError}
-            onValueChange={(value) => updateContactItem(editingItem.id, { value })}
-            onLabelChange={(label) => updateContactItem(editingItem.id, { label })}
-            onAttachment={(file, dataUrl) => {
-              const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
-              if (!result.ok) setAttachmentError(result.message);
-              else setAttachmentError(null);
-            }}
-            onBlur={closeComposer}
-          />
-        </div>
+        <LibraryComposer
+          viewportDock
+          item={editingItem}
+          attachmentError={attachmentError}
+          onValueChange={(value) => updateContactItem(editingItem.id, { value })}
+          onLabelChange={(label) => updateContactItem(editingItem.id, { label })}
+          onAttachment={(file, dataUrl) => {
+            const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
+            if (!result.ok) setAttachmentError(result.message);
+            else setAttachmentError(null);
+          }}
+          onBlur={closeComposer}
+        />
       ) : (
         <div
           className={cn(

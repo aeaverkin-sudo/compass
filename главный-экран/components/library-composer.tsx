@@ -2,6 +2,7 @@
 
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { autoLinkDisplay, canRenameLinkDisplay, customDisplayName } from "@/shared/services/link-display";
 import type { ContactItem } from "@/shared/types";
@@ -19,6 +20,8 @@ type LibraryComposerProps = {
   item: ContactItem;
   contentWidthPx?: number;
   attachmentError?: string | null;
+  /** Pin the field to the viewport, above the keyboard. The card traps position:fixed. */
+  viewportDock?: boolean;
   onValueChange: (value: string) => void;
   onLabelChange: (label: string) => void;
   onAttachment: (file: File, dataUrl: string) => void;
@@ -29,6 +32,7 @@ export function LibraryComposer({
   item,
   contentWidthPx,
   attachmentError,
+  viewportDock = false,
   onValueChange,
   onLabelChange,
   onAttachment,
@@ -39,7 +43,7 @@ export function LibraryComposer({
   const pickingRef = useRef(false);
   const mountedAt = useRef(0);
   const { keyboardOpen, keyboardInset } = useVisualViewport();
-  const dockedAboveKeyboard = keyboardOpen;
+  const dockedAboveKeyboard = viewportDock || keyboardOpen;
   const hasPhotoPreview = item.type === "photo" && item.url.startsWith("data:");
   const showName = canRenameLinkDisplay(item);
 
@@ -110,13 +114,13 @@ export function LibraryComposer({
 
   const pillWidthStyle = contentWidthPx ? { width: contentWidthPx, maxWidth: "100%" } : undefined;
 
-  return (
+  const field = (
     <div
       ref={rootRef}
       className={cn(
         "w-full",
         dockedAboveKeyboard
-          ? "pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4"
+          ? "pointer-events-none fixed inset-x-0 z-40 flex justify-center bg-white px-[calc(clamp(24px,6.1vw,28px)-3mm)]"
           : "relative z-10 shrink-0",
       )}
       style={
@@ -192,4 +196,10 @@ export function LibraryComposer({
       </div>
     </div>
   );
+
+  if (viewportDock && typeof document !== "undefined") {
+    return createPortal(field, document.body);
+  }
+
+  return field;
 }
