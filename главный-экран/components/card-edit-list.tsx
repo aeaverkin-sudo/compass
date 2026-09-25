@@ -4,14 +4,9 @@ import { Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import {
-  groupLibrary,
-  isExplicitPosition,
-  parseDescription,
-  type CardDisplayRow,
-  type CardZoneId,
-} from "@/shared/services/card-zones";
+import { groupLibrary, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
 import { isContactFilled } from "@/shared/services/contact-item";
+import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { LibraryComposer } from "./library-composer";
@@ -29,13 +24,6 @@ type EditSection = {
 
 function lineOf(row: CardDisplayRow) {
   return row.axis ? `${row.axis} / ${row.value}` : row.value;
-}
-
-function isHeaderRole(row: CardDisplayRow) {
-  if (!row.item) return false;
-  if (row.item.type === "position" || isExplicitPosition(row.item)) return true;
-  if (row.item.type !== "text") return false;
-  return Boolean(parseDescription(row.value).position);
 }
 
 function buildSections(card: Card, items: ContactItem[]): EditSection[] {
@@ -107,6 +95,7 @@ export function CardEditList({ card, items }: { card: Card; items: ContactItem[]
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [textEditId, setTextEditId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const openedAt = useRef(0);
@@ -136,7 +125,29 @@ export function CardEditList({ card, items }: { card: Card; items: ContactItem[]
     [addItemToCard, card.id, setCardItemOrder],
   );
 
+  const saveRowText = (item: ContactItem, shown: string, next: string) => {
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === shown) return;
+    const stored =
+      customDisplayName(item) ||
+      (shown !== item.value.trim() &&
+        item.type !== "text" &&
+        item.type !== "position" &&
+        item.type !== "email" &&
+        item.type !== "phone");
+    updateContactItem(item.id, stored ? { label: trimmed } : { value: trimmed });
+    if (card.headerItemId === item.id) updateCard(card.id, { title: trimmed });
+  };
+
+  const eraseRow = (itemId: string) => {
+    if (card.headerItemId === itemId) updateCard(card.id, { headerItemId: undefined, title: "" });
+    setTextEditId(null);
+    setDeleteReadyId(null);
+    deleteContactItem(itemId);
+  };
+
   const openComposer = () => {
+    setTextEditId(null);
     const id = addContactItem();
     if (!id) return;
     openedAt.current = Date.now();
@@ -174,27 +185,25 @@ export function CardEditList({ card, items }: { card: Card; items: ContactItem[]
                   <EditRow
                     key={item.id}
                     text={lineOf(row)}
+                    value={row.value}
+                    axis={row.axis}
                     onCard={onCard}
                     first={rowIndex === 0}
+                    editing={textEditId === item.id}
                     deleteReady={deleteReadyId === item.id}
                     onArmDelete={() => setDeleteReadyId(item.id)}
-                    onDelete={() => {
-                      setDeleteReadyId(null);
-                      deleteContactItem(item.id);
-                    }}
+                    onDelete={() => eraseRow(item.id)}
                     onAdd={() => include(item.id)}
                     onRemove={() => removeItemFromCard(card.id, item.id)}
-                    onChoose={
-                      isHeaderRole(row)
-                        ? () => {
-                            if (card.headerItemId === item.id) {
-                              updateCard(card.id, { headerItemId: undefined, title: "" });
-                              return;
-                            }
-                            updateCard(card.id, { headerItemId: item.id, title: item.value.trim() });
-                          }
-                        : undefined
-                    }
+                    onEdit={() => {
+                      setDeleteReadyId(null);
+                      setTextEditId(item.id);
+                    }}
+                    onConfirm={(next) => {
+                      saveRowText(item, row.value, next);
+                      setTextEditId(null);
+                    }}
+                    onErase={() => eraseRow(item.id)}
                   />
                 );
               })}
@@ -240,24 +249,34 @@ export function CardEditList({ card, items }: { card: Card; items: ContactItem[]
 
 function EditRow({
   text,
+  value,
+  axis,
   onCard,
   first,
+  editing,
   deleteReady,
   onArmDelete,
   onDelete,
   onAdd,
   onRemove,
-  onChoose,
+  onEdit,
+  onConfirm,
+  onErase,
 }: {
   text: string;
+  value: string;
+  axis: string;
   onCard: boolean;
   first: boolean;
+  editing: boolean;
   deleteReady: boolean;
   onArmDelete: () => void;
   onDelete: () => void;
   onAdd: () => void;
   onRemove: () => void;
-  onChoose?: () => void;
+  onEdit: () => void;
+  onConfirm: (next: string) => void;
+  onErase: () => void;
 }) {
   const [holding, setHolding] = useState(false);
   const longPress = useLongPress(() => {
@@ -270,15 +289,22 @@ function EditRow({
     longPress.onPointerUp();
   };
 
+  const lineClass = cn(
+    "min-w-0 py-[3px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]",
+    !first && "col-start-2",
+  );
+
   return (
     <>
+      {editing ? (
+        <div className={cn(lineClass, "flex min-w-0 items-baseline gap-1")} style={{ color: "#111" }}>
+          {axis ? <span className="shrink-0">{axis} /</span> : null}
+          <RowTextField initial={value} onConfirm={onConfirm} onErase={onErase} />
+        </div>
+      ) : (
       <button
         type="button"
-        className={cn(
-          "min-w-0 py-[3px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] break-words select-none [-webkit-touch-callout:none]",
-          !first && "col-start-2",
-          holding && "opacity-40",
-        )}
+        className={cn(lineClass, "break-words select-none [-webkit-touch-callout:none]", holding && "opacity-40")}
         style={{ color: onCard ? "#111" : OFF_CARD }}
         onPointerDown={(event) => {
           if (deleteReady) return;
@@ -292,12 +318,13 @@ function EditRow({
         onClick={(event) => {
           longPress.onClick(event);
           if (event.defaultPrevented || deleteReady) return;
-          onChoose?.();
+          onEdit();
         }}
         onContextMenu={longPress.onContextMenu}
       >
         {text}
       </button>
+      )}
       <div className="flex items-center justify-end">
         {deleteReady ? (
           <button
@@ -314,5 +341,81 @@ function EditRow({
         )}
       </div>
     </>
+  );
+}
+
+function RowTextField({
+  initial,
+  onConfirm,
+  onErase,
+}: {
+  initial: string;
+  onConfirm: (next: string) => void;
+  onErase: () => void;
+}) {
+  const fieldRef = useRef<HTMLInputElement>(null);
+  const closed = useRef(false);
+  const [draft, setDraft] = useState(initial);
+
+  useEffect(() => {
+    const field = fieldRef.current;
+    if (!field) return;
+    field.focus({ preventScroll: true });
+    const end = field.value.length;
+    field.setSelectionRange(end, end);
+
+    const reveal = () => {
+      window.scrollTo(0, 0);
+      const scroller = field.closest<HTMLElement>(".compass-card-scroll");
+      const viewport = window.visualViewport;
+      if (!scroller || !viewport) return;
+      const rect = field.getBoundingClientRect();
+      const limit = viewport.offsetTop + viewport.height - 12;
+      if (rect.bottom > limit) scroller.scrollTop += rect.bottom - limit;
+    };
+
+    reveal();
+    window.visualViewport?.addEventListener("resize", reveal);
+    window.visualViewport?.addEventListener("scroll", reveal);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", reveal);
+      window.visualViewport?.removeEventListener("scroll", reveal);
+    };
+  }, []);
+
+  const finish = (next: string) => {
+    if (closed.current) return;
+    closed.current = true;
+    const trimmed = next.trim();
+    if (!trimmed) onErase();
+    else onConfirm(trimmed);
+  };
+
+  return (
+    <input
+      ref={fieldRef}
+      value={draft}
+      enterKeyHint="done"
+      aria-label="Edit row"
+      data-no-swipe
+      onChange={(event) => {
+        const next = event.target.value;
+        if (!next.trim()) {
+          finish("");
+          return;
+        }
+        setDraft(next);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        finish(event.currentTarget.value);
+      }}
+      onBlur={(event) => {
+        if (closed.current) return;
+        finish(event.currentTarget.value);
+      }}
+      className="compass-input m-0 min-w-0 flex-1 bg-transparent p-0 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] outline-none"
+    />
   );
 }
