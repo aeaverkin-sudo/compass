@@ -283,6 +283,7 @@ function EditRow({
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
   const [draft, setDraft] = useState(value);
+  const [fades, setFades] = useState(false);
   const longPress = useLongPress(() => {
     pressedLong.current = true;
     setHolding(false);
@@ -303,6 +304,24 @@ function EditRow({
     const end = field.value.length;
     field.setSelectionRange(end, end);
   }, [editing]);
+
+  useLayoutEffect(() => {
+    const field = fieldRef.current;
+    if (!field) return;
+    const measure = () => {
+      if (editing) {
+        setFades(false);
+        return;
+      }
+      field.scrollLeft = 0;
+      const next = field.scrollWidth > field.clientWidth + 1;
+      setFades((current) => (current === next ? current : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(field);
+    return () => observer.disconnect();
+  }, [editing, value]);
 
   const lineClass = cn(
     "min-w-0 py-[3px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]",
@@ -328,6 +347,7 @@ function EditRow({
             {axis} /
           </span>
         ) : null}
+        <div className="relative min-w-0 flex-1">
         <input
           ref={fieldRef}
           value={editing ? draft : value}
@@ -372,8 +392,8 @@ function EditRow({
             onConfirm(event.currentTarget.value);
           }}
           className={cn(
-            "compass-input m-0 min-w-0 flex-1 bg-transparent p-0 text-[16px] leading-[1.45] font-normal tracking-[-0.015em] outline-none",
-            !editing && "select-none [-webkit-touch-callout:none]",
+            "compass-input m-0 w-full min-w-0 bg-transparent p-0 text-[16px] leading-[1.45] font-normal tracking-[-0.015em] outline-none",
+            !editing && "overflow-hidden whitespace-nowrap select-none [-webkit-touch-callout:none]",
             holding && "opacity-40",
           )}
           style={{
@@ -383,8 +403,15 @@ function EditRow({
             userSelect: editing ? "text" : "none",
           }}
         />
+        {!editing && fades ? (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-r from-transparent to-white"
+          />
+        ) : null}
+        </div>
       </div>
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end self-center">
         {deleteReady ? (
           <button
             type="button"
