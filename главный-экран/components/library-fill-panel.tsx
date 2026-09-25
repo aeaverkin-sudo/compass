@@ -149,15 +149,15 @@ function CardToggleButton({
       onClick={longPress.onClick}
       onContextMenu={longPress.onContextMenu}
       className={cn(
-        "relative flex size-[25.3px] shrink-0 touch-none items-center justify-center rounded-full border-0 bg-sheet transition-transform duration-200 ease-out select-none before:absolute before:-inset-2 before:content-[''] motion-reduce:transform-none motion-reduce:transition-none",
-        holding && "scale-90 bg-[rgba(20,20,20,0.06)] shadow-[0_6px_14px_rgba(20,20,20,0.14)]",
+        "relative flex size-5 shrink-0 touch-none items-center justify-center border-0 bg-transparent transition-transform duration-200 ease-out select-none before:absolute before:-inset-2 before:content-[''] motion-reduce:transform-none motion-reduce:transition-none",
+        holding && "scale-90",
         pulsing && "compass-toggle-pulse",
       )}
     >
       {onCard ? (
-        <Minus className="size-[13.8px] text-foreground" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+        <Minus className="size-5 text-[#111]" strokeWidth={FILL_ICON_STROKE} aria-hidden />
       ) : (
-        <Plus className="size-[13.8px] text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+        <Plus className="size-5 text-[#111]" strokeWidth={FILL_ICON_STROKE} aria-hidden />
       )}
     </button>
   );
@@ -489,11 +489,11 @@ export function LibraryFillPanel({
               aria-label="Add contact row"
               onClick={handleAddRow}
               className={cn(
-                "compass-icon-circle size-[25.3px] shrink-0 border-0 transition-opacity active:opacity-60",
+                "flex size-5 shrink-0 items-center justify-center border-0 bg-transparent transition-opacity active:opacity-60",
                 filledRows.length > 0 && "mt-2",
               )}
             >
-              <Plus className="size-[13.8px] text-label" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+              <Plus className="size-5 text-[#111]" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
           </div>
         </div>
