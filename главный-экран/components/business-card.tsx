@@ -509,7 +509,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           />
         </div>
       ) : null}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className={cn("relative flex min-h-0 flex-1 flex-col", !compact && browseList && "bg-[#c5e8f7]")}>
       <div
         ref={compact ? previewScrollRef : undefined}
         data-preview-scroll={compact ? "" : undefined}
@@ -517,6 +517,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           "flex min-h-0 flex-1 flex-col",
           compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)]",
           !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-1mm)] pb-8",
+          !compact && browseList && "bg-[#c5e8f7]",
         )}
         onScroll={
           compact
@@ -564,7 +565,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       />
       )}
 
-      {!compact ? (
+      {!compact && !browseList ? (
         <footer className="mt-4 flex items-end justify-between">
           <p className="text-[9.5px] leading-[1.15] font-normal tracking-[0.08em] uppercase">
             {card.displayName || "Name"}
@@ -616,7 +617,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {!compact ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t from-white to-transparent"
+          className={cn(
+            "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t to-transparent",
+            browseList ? "from-[#c5e8f7]" : "from-white",
+          )}
         />
       ) : null}
 

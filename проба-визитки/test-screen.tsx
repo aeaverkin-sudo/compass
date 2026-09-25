@@ -286,7 +286,7 @@ export function TestCardScreen() {
                   </section>
                 ))}
                 {editingItem ? (
-                  <div className="py-3">
+                  <div className="mt-2 border-t-[0.5px] border-[#111] py-3">
                     <LibraryComposer
                       item={editingItem}
                       attachmentError={attachmentError}
@@ -301,7 +301,7 @@ export function TestCardScreen() {
                     />
                   </div>
                 ) : (
-                  <div className="flex justify-center pt-8 pb-2">
+                  <div className="mt-2 flex justify-center border-t-[0.5px] border-[#111] pt-6 pb-2">
                     <AddButton onClick={openComposer} />
                   </div>
                 )}
@@ -354,9 +354,9 @@ function AddButton({ onClick }: { onClick: () => void }) {
       data-no-swipe
       aria-label="Add"
       onClick={onClick}
-      className="flex size-5 items-center justify-center bg-transparent"
+      className="flex size-7 items-center justify-center bg-transparent"
     >
-      <Plus className="size-5 text-[#111]" strokeWidth={1} aria-hidden />
+      <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
     </button>
   );
 }
