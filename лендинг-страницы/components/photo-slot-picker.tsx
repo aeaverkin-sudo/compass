@@ -76,7 +76,7 @@ export function PhotoSlotPicker({
     <div ref={rootRef} className={cn("relative shrink-0", className)} style={slotStyle}>
       <div
         className={cn(
-          "flex size-full items-center justify-center overflow-hidden border border-[rgba(20,20,20,0.55)]",
+          "flex size-full items-center justify-center overflow-hidden",
           surfaceClassName,
         )}
         style={{ borderRadius: borderRadiusPx }}
