@@ -142,7 +142,7 @@ export function LibraryComposer({
           </p>
         ) : null}
 
-        <div className="flex items-center gap-2 border-b-[0.5px] border-[#111] py-2">
+        <div className="flex items-center gap-[11px] border-b-[0.5px] border-[#111] py-2">
           {hasPhotoPreview ? (
             <img
               src={item.url}
@@ -155,9 +155,9 @@ export function LibraryComposer({
               aria-label="Add photo or file"
               onMouseDown={(event) => event.preventDefault()}
               onClick={handleAttach}
-              className="flex size-5 shrink-0 items-center justify-center text-[#111] transition-opacity active:opacity-60"
+              className="flex size-7 shrink-0 items-center justify-center text-[#111] transition-opacity active:opacity-60"
             >
-              <Plus className="size-5 text-[#111]" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+              <Plus className="size-7 text-[#111]" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
           )}
 
@@ -170,7 +170,7 @@ export function LibraryComposer({
               aria-label="Contact field"
               onChange={(event) => onValueChange(event.target.value)}
               onBlur={handleBlur}
-              className="compass-input block w-full resize-none overflow-y-auto bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:font-normal placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
+              className="compass-input block w-full resize-none overflow-y-auto bg-transparent text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
             />
             {showName ? (
               <input
@@ -180,7 +180,7 @@ export function LibraryComposer({
                 aria-label="Display name"
                 onChange={(event) => onLabelChange(event.target.value)}
                 onBlur={handleBlur}
-                className="compass-input mt-1 block w-full truncate border-t border-hairline/40 bg-transparent pt-1 text-[13px] leading-[1.3] text-foreground outline-none placeholder:font-normal placeholder:text-hint"
+                className="compass-input mt-1 block w-full truncate border-t border-hairline/40 bg-transparent pt-1 text-[18.2px] leading-[1.3] text-foreground outline-none placeholder:font-normal placeholder:text-hint"
               />
             ) : null}
           </div>
