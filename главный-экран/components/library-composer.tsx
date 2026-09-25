@@ -3,7 +3,6 @@
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { EMPTY_CONTACT_PLACEHOLDER } from "@/shared/services/contact-item";
 import { autoLinkDisplay, canRenameLinkDisplay, customDisplayName } from "@/shared/services/link-display";
 import type { ContactItem } from "@/shared/types";
 import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
@@ -139,17 +138,12 @@ export function LibraryComposer({
           </p>
         ) : null}
 
-        <div
-          className={cn(
-            "compass-block flex items-center gap-2 rounded-[22px] px-3 py-2",
-            dockedAboveKeyboard && "rounded-b-none border-b-0 shadow-none",
-          )}
-        >
+        <div className="flex items-center gap-2 border-b-[0.5px] border-[#111] py-2">
           {hasPhotoPreview ? (
             <img
               src={item.url}
               alt=""
-              className="size-10 shrink-0 rounded-[12px] object-cover"
+              className="size-10 shrink-0 object-cover"
             />
           ) : (
             <button
@@ -157,9 +151,9 @@ export function LibraryComposer({
               aria-label="Add photo or file"
               onMouseDown={(event) => event.preventDefault()}
               onClick={handleAttach}
-              className="flex size-8 shrink-0 items-center justify-center transition-opacity active:opacity-60"
+              className="flex size-5 shrink-0 items-center justify-center text-[#111] transition-opacity active:opacity-60"
             >
-              <Plus className="size-5 text-hairline" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+              <Plus className="size-5 text-[#111]" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
           )}
 
@@ -168,14 +162,11 @@ export function LibraryComposer({
               ref={textareaRef}
               rows={1}
               value={item.value}
-              placeholder={hasPhotoPreview ? item.label || "Photo" : EMPTY_CONTACT_PLACEHOLDER}
+              placeholder={hasPhotoPreview ? item.label || "Photo" : "Add"}
               aria-label="Contact field"
               onChange={(event) => onValueChange(event.target.value)}
               onBlur={handleBlur}
-              className={cn(
-                "compass-input block w-full resize-none overflow-y-auto bg-transparent text-[16px] leading-[1.35] text-foreground outline-none",
-                "placeholder:font-normal placeholder:text-hint",
-              )}
+              className="compass-input block w-full resize-none overflow-y-auto bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:font-normal placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
             />
             {showName ? (
               <input
