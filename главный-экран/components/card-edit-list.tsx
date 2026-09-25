@@ -67,7 +67,7 @@ function buildSections(card: Card, items: ContactItem[]): EditSection[] {
   ];
 }
 
-function HoldMark({
+function RowMark({
   onCard,
   onAdd,
   onRemove,
@@ -76,33 +76,16 @@ function HoldMark({
   onAdd: () => void;
   onRemove: () => void;
 }) {
-  const [holding, setHolding] = useState(false);
-  const longPress = useLongPress(() => {
-    setHolding(false);
-    if (onCard) onRemove();
-    else onAdd();
-  }, HOLD_MS);
-  const release = () => {
-    setHolding(false);
-    longPress.onPointerUp();
-  };
-
   return (
     <button
       type="button"
       data-no-swipe
-      aria-label={onCard ? "Hold to remove from card" : "Hold to add to card"}
-      onPointerDown={(event) => {
-        setHolding(true);
-        longPress.onPointerDown(event);
+      aria-label={onCard ? "Remove from card" : "Add to card"}
+      onClick={() => {
+        if (onCard) onRemove();
+        else onAdd();
       }}
-      onPointerMove={longPress.onPointerMove}
-      onPointerUp={release}
-      onPointerCancel={release}
-      onPointerLeave={release}
-      onClick={longPress.onClick}
-      onContextMenu={longPress.onContextMenu}
-      className={cn("flex size-5 shrink-0 items-center justify-center bg-transparent", holding && "scale-90")}
+      className="flex size-5 shrink-0 items-center justify-center bg-transparent"
     >
       {onCard ? (
         <Minus className="size-5 text-[#111]" strokeWidth={1} aria-hidden />
@@ -327,7 +310,7 @@ function EditRow({
             <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
           </button>
         ) : (
-          <HoldMark onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
+          <RowMark onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
         )}
       </div>
     </>
