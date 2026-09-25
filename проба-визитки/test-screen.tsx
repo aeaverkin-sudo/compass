@@ -2,17 +2,14 @@
 
 import { Minus, Plus, X } from "lucide-react";
 import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
+import { BusinessCard } from "@main/components/business-card";
 import { LibraryComposer } from "@main/components/library-composer";
-import { NextScanMenu } from "@main/components/next-scan-menu";
 import { QrZone } from "@main/components/qr-zone";
 import { useMainLayout } from "@main/hooks/use-main-layout";
 import { useShareSync } from "@main/hooks/use-share-sync";
-import { layoutTop, RULE_GAP_PX } from "@main/layout";
+import { layoutTop } from "@main/layout";
 import { cn } from "@/lib/utils";
-import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { getNextScanAddons } from "@/shared/services/card-snapshot";
 import { groupLibrary, isExplicitPosition, parseDescription, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
 import { isContactFilled } from "@/shared/services/contact-item";
 import {
@@ -24,8 +21,6 @@ import {
 import type { Card, ContactItem } from "@/shared/types";
 
 const HOLD_MS = 500;
-const PHOTO_PX = 128;
-const SIDE = "px-[calc(clamp(24px,6.1vw,28px)-1mm)]";
 const OFF_CARD = "#C8C8C8";
 const DELETE_RED = "#E23B2F";
 
@@ -146,7 +141,6 @@ export function TestCardScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
-  const [scrolled, setScrolled] = useState(false);
   const openedAt = useRef(0);
 
   const ready = Boolean(card && isCardReady(card));
@@ -154,11 +148,7 @@ export function TestCardScreen() {
     () => (card ? buildSections(card, contactItems, editing) : []),
     [card, contactItems, editing],
   );
-  const onCardCount = card?.contactItemIds.length ?? 0;
   const editingItem = editingId ? contactItems.find((item) => item.id === editingId) ?? null : null;
-  const positionTitle = card
-    ? contactItems.find((item) => item.id === card.headerItemId)?.value.trim() || undefined
-    : undefined;
 
   const include = useCallback(
     (itemId: string) => {
@@ -179,19 +169,6 @@ export function TestCardScreen() {
     setAttachmentError(null);
     setEditingId(id);
     setEditing(true);
-  };
-
-  const onAddPress = () => {
-    if (!card) return;
-    const second = currentCardIndex > 0;
-    const hasSpare = contactItems.some(
-      (item) => isContactFilled(item) && !card.contactItemIds.includes(item.id),
-    );
-    if (second && hasSpare && !editing) {
-      setEditing(true);
-      return;
-    }
-    openComposer();
   };
 
   const closeComposer = () => {
@@ -237,152 +214,102 @@ export function TestCardScreen() {
   }
 
   const pdfUrl = `${typeof window === "undefined" ? "" : window.location.origin}/api/share/${shareToken}/pdf`;
-  const showCenterPlus = ready && onCardCount === 0 && !editing && !editingItem;
 
   return (
     <main className="fixed inset-0 overflow-hidden bg-white text-[#111]" onPointerDown={beginSwipe}>
       <QrZone url={pdfUrl} visible={ready} topOffsetPx={layout.qrTop} />
-      <article
-        className="absolute flex flex-col overflow-hidden bg-white"
+      <div
+        className="absolute overflow-hidden"
         style={{
           top: layoutTop(layout.cardTopBrowse),
-          height: layout.browseCardHeight,
           left: layout.edgeInsetBrowse,
           right: layout.edgeInsetBrowse,
+          zIndex: 20,
         }}
       >
-        <div className={cn("shrink-0", SIDE)}>
-          <div className="border-t-[0.5px] border-[#111]" />
-          <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
-            <div className="flex items-stretch gap-2" style={{ height: PHOTO_PX }}>
-              <PhotoSlotPicker
-                photo={card.photo ?? null}
-                onPhotoChange={(photo) => updateCard(card.id, { photo: photo ?? undefined })}
-                sizePx={PHOTO_PX}
-                borderRadiusPx={0}
-              />
-              <div className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
-                {card.photo ? (
-                  <div className="absolute top-0 right-0 z-10">
-                    <NextScanMenu
-                      bare
-                      addons={getNextScanAddons(card)}
-                      onSetAddons={(addons) => updateCard(card.id, { nextScanAddons: addons })}
+        <BusinessCard
+          card={card}
+          library={contactItems}
+          mode="browse"
+          onEmptyAreaTap={() => undefined}
+          onPhotoChange={(photo) => updateCard(card.id, { photo: photo ?? undefined })}
+          onDisplayNameChange={(displayName) => updateCard(card.id, { displayName })}
+          onCardUpdate={(data) => updateCard(card.id, data)}
+          browseList={
+            editing ? (
+              <div>
+                {sections.map((section, index) => (
+                  <section
+                    key={section.id}
+                    className={cn(
+                      "py-[18px]",
+                      index < sections.length - 1 && "border-b-[0.5px] border-[#111]",
+                    )}
+                  >
+                    <div className="grid grid-cols-[86px_minmax(0,1fr)_26px] items-start gap-x-1.5">
+                      <span
+                        className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap uppercase"
+                        style={{ color: section.included ? "#999" : OFF_CARD }}
+                      >
+                        {section.title}
+                      </span>
+                      <div className="contents">
+                        {section.rows.map(({ row, onCard }, rowIndex) => {
+                          const item = row.item;
+                          if (!item) return null;
+                          return (
+                            <Row
+                              key={item.id}
+                              item={item}
+                              text={lineOf(row)}
+                              onCard={onCard}
+                              first={rowIndex === 0}
+                              editing
+                              deleteReady={deleteReadyId === item.id}
+                              onArmDelete={() => setDeleteReadyId(item.id)}
+                              onDelete={() => {
+                                setDeleteReadyId(null);
+                                deleteContactItem(item.id);
+                              }}
+                              onAdd={() => include(item.id)}
+                              onRemove={() => removeItemFromCard(card.id, item.id)}
+                              onChoose={
+                                isHeaderRole(row)
+                                  ? () => updateCard(card.id, { headerItemId: item.id, title: item.value.trim() })
+                                  : undefined
+                              }
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </section>
+                ))}
+                {editingItem ? (
+                  <div className="py-3">
+                    <LibraryComposer
+                      item={editingItem}
+                      attachmentError={attachmentError}
+                      onValueChange={(value) => updateContactItem(editingItem.id, { value })}
+                      onLabelChange={(label) => updateContactItem(editingItem.id, { label })}
+                      onAttachment={(file, dataUrl) => {
+                        const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
+                        if (!result.ok) setAttachmentError(result.message);
+                        else setAttachmentError(null);
+                      }}
+                      onBlur={closeComposer}
                     />
                   </div>
-                ) : null}
-                <NameOrTitleField
-                  value={card.displayName}
-                  onChange={(displayName) => updateCard(card.id, { displayName })}
-                  fontSizePx={positionTitle ? 32 : 36}
-                  className="font-semibold tracking-[-1px] text-[#111]"
-                />
-                {positionTitle ? (
-                  <p className="mt-1 text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase">
-                    {positionTitle}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative min-h-0 flex-1">
-          <div
-            className={cn("compass-card-scroll h-full overflow-x-hidden overflow-y-auto pb-16", SIDE)}
-            onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 2)}
-          >
-            {sections.map((section, index) => (
-              <section
-                key={section.id}
-                className={cn(
-                  "py-[18px]",
-                  index < sections.length - 1 && "border-b-[0.5px] border-[#111]",
-                )}
-              >
-                <div
-                  className={cn(
-                    "grid items-start gap-x-1.5",
-                    editing ? "grid-cols-[86px_minmax(0,1fr)_26px]" : "grid-cols-[86px_minmax(0,1fr)]",
-                  )}
-                >
-                  <span
-                    className="pt-[4px] text-[11px] font-normal tracking-[0.1em] whitespace-nowrap uppercase"
-                    style={{ color: section.included ? "#999" : OFF_CARD }}
-                  >
-                    {section.title}
-                  </span>
-                  <div className="contents">
-                    {section.rows.map(({ row, onCard }, rowIndex) => {
-                      const item = row.item;
-                      if (!item) return null;
-                      const text = lineOf(row);
-                      return (
-                        <Row
-                          key={item.id}
-                          item={item}
-                          text={text}
-                          onCard={onCard}
-                          first={rowIndex === 0}
-                          editing={editing}
-                          deleteReady={deleteReadyId === item.id}
-                          onArmDelete={() => setDeleteReadyId(item.id)}
-                          onDelete={() => {
-                            setDeleteReadyId(null);
-                            deleteContactItem(item.id);
-                          }}
-                          onAdd={() => include(item.id)}
-                          onRemove={() => removeItemFromCard(card.id, item.id)}
-                          onChoose={
-                            isHeaderRole(row)
-                              ? () => updateCard(card.id, { headerItemId: item.id, title: item.value.trim() })
-                              : undefined
-                          }
-                        />
-                      );
-                    })}
+                ) : (
+                  <div className="flex justify-center pt-8 pb-2">
+                    <AddButton onClick={openComposer} />
                   </div>
-                </div>
-              </section>
-            ))}
-
-            {editingItem ? (
-              <div className="py-3">
-                <LibraryComposer
-                  item={editingItem}
-                  attachmentError={attachmentError}
-                  onValueChange={(value) => updateContactItem(editingItem.id, { value })}
-                  onLabelChange={(label) => updateContactItem(editingItem.id, { label })}
-                  onAttachment={(file, dataUrl) => {
-                    const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
-                    if (!result.ok) setAttachmentError(result.message);
-                    else setAttachmentError(null);
-                  }}
-                  onBlur={closeComposer}
-                />
+                )}
               </div>
-            ) : null}
-
-            {showCenterPlus ? (
-              <div className="flex justify-center py-10">
-                <AddButton onClick={onAddPress} />
-              </div>
-            ) : null}
-
-            {editing && !editingItem ? (
-              <div className="flex justify-center py-6">
-                <AddButton onClick={openComposer} />
-              </div>
-            ) : null}
-          </div>
-          {scrolled ? (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-white to-transparent"
-            />
-          ) : null}
-        </div>
-      </article>
+            ) : undefined
+          }
+        />
+      </div>
 
       {ready && !editing ? (
         <button

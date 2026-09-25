@@ -348,6 +348,8 @@ type BusinessCardProps = {
   onPhotoChange?: (photo: string | null) => void;
   onDisplayNameChange?: (displayName: string) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
+  /** Trial only. Replaces the browse section list; the header stays the same. */
+  browseList?: ReactNode;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -360,6 +362,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onPhotoChange,
     onDisplayNameChange,
     onCardUpdate,
+    browseList,
   },
   ref,
 ) {
@@ -540,6 +543,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
 
+      {!compact && browseList ? (
+        browseList
+      ) : (
       <ContactItemChipList
         items={items}
         size={compact ? "compact" : "browse"}
@@ -556,6 +562,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             : undefined
         }
       />
+      )}
 
       {!compact ? (
         <footer className="mt-4 flex items-end justify-between">
