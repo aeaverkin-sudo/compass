@@ -421,12 +421,15 @@ export function LibraryFillPanel({
       >
         {!composerOpen ? (
         <div className="flex min-h-0 flex-1 flex-col">
+          <p className="shrink-0 px-1 pt-3 text-[11px] font-normal leading-none tracking-[0.1em] text-[#999] uppercase">
+            Library
+          </p>
           {filledRows.length > 0 ? (
             <div className="relative min-h-0 flex-1">
               <div
                 ref={listScrollRef}
                 onScroll={syncListScrollFade}
-                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[86px_minmax(0,1fr)_26px] items-baseline gap-x-1.5 gap-y-[7px] pt-[22px]"
+                className="compass-library-list-scroll grid h-full min-h-0 auto-rows-min grid-cols-[86px_minmax(0,1fr)_26px] items-baseline gap-x-1.5 gap-y-[7px] pt-3"
               >
                 {zones.map((zone, zoneIndex) =>
                   zone.rows.map((row, rowIndex) => {
@@ -460,14 +463,14 @@ export function LibraryFillPanel({
               {listScrollFade.top ? (
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-[#C5E8F7] to-transparent"
+                  className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-[#F4F1EC] to-transparent"
                   style={{ height: 56 }}
                 />
               ) : null}
               {listScrollFade.bottom ? (
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-b from-transparent to-[#C5E8F7]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-b from-transparent to-[#F4F1EC]"
                   style={{ height: 40 }}
                 />
               ) : null}
