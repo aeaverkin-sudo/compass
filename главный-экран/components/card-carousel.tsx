@@ -35,7 +35,7 @@ function CarouselSpacer({ width }: { width: number }) {
 }
 
 function isDraftCard(card: Card, index: number) {
-  return index > 0 && (!card.photo || !card.displayName.trim());
+  return index > 0 && card.contactItemIds.length === 0 && (!card.photo || !card.displayName.trim());
 }
 
 const EMPTY_DRAFT: Card = {
