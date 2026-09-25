@@ -57,6 +57,20 @@ body {
   overscroll-behavior: none;
 }
 
+.compass-main,
+.compass-main * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.compass-main input,
+.compass-main textarea,
+.compass-main [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .compass-type-name {
   font-weight: 500;
   letter-spacing: -0.5px;

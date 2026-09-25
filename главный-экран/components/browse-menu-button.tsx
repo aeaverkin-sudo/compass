@@ -17,9 +17,13 @@ export function BrowseMenuButton({ centerYpx, onHold }: BrowseMenuButtonProps) {
     <button
       type="button"
       aria-label="Hold to edit"
-      className="pointer-events-auto absolute left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 px-2 py-2"
-      style={{ top: layoutTop(centerYpx) }}
-      onPointerDown={hold.onPointerDown}
+      className="pointer-events-auto absolute left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 px-2 py-2 select-none [-webkit-touch-callout:none]"
+      style={{ top: layoutTop(centerYpx), WebkitUserSelect: "none", userSelect: "none" }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        window.getSelection()?.removeAllRanges();
+        hold.onPointerDown(event);
+      }}
       onPointerMove={hold.onPointerMove}
       onPointerUp={hold.onPointerUp}
       onPointerCancel={hold.onPointerCancel}
