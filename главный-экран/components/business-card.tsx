@@ -375,6 +375,20 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const [scrolledUnderQr, setScrolledUnderQr] = useState(false);
   const [previewPull, setPreviewPull] = useState(0);
   const [previewPulling, setPreviewPulling] = useState(false);
+  const [previewFade, setPreviewFade] = useState({ top: false, bottom: false });
+
+  const syncPreviewFade = useCallback(() => {
+    const el = previewScrollRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    const next = {
+      top: el.scrollTop > 2,
+      bottom: maxScroll > 1 && el.scrollTop < maxScroll - 1,
+    };
+    setPreviewFade((current) =>
+      current.top === next.top && current.bottom === next.bottom ? current : next,
+    );
+  }, []);
 
   const handleCommitOrder = useCallback(
     (orderedIds: string[]) => {
@@ -382,6 +396,16 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     },
     [card.id, setCardItemOrder],
   );
+
+  useEffect(() => {
+    if (!compact) return;
+    const el = previewScrollRef.current;
+    if (!el) return;
+    syncPreviewFade();
+    const observer = new ResizeObserver(syncPreviewFade);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [compact, items, syncPreviewFade]);
 
   useEffect(() => {
     if (!compact) return;
@@ -448,7 +472,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       className={cn(
         "compass-layer flex w-full cursor-default flex-col",
         compact
-          ? "compass-card compass-card-library min-h-0 w-full min-w-0 justify-start overflow-hidden pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
+          ? "compass-card compass-card-library relative min-h-0 w-full min-w-0 justify-start overflow-hidden pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
           : "relative min-h-0 overflow-hidden bg-white text-[#111]",
       )}
       style={
@@ -472,7 +496,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         )}
         onScroll={
           compact
-            ? undefined
+            ? syncPreviewFade
             : (event) => setScrolledUnderQr(event.currentTarget.scrollTop > 2)
         }
       >
@@ -557,6 +581,20 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ) : null}
       </div>
       </div>
+      {compact && (previewFade.top || previewPull < 0) ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-white to-transparent"
+          style={{ height: 64 }}
+        />
+      ) : null}
+      {compact && (previewFade.bottom || previewPull > 0) ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-white to-transparent"
+          style={{ height: 48 }}
+        />
+      ) : null}
       {!compact && scrolledUnderQr ? (
         <div
           aria-hidden
