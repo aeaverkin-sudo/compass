@@ -21,33 +21,35 @@ function cacheKey(input: { publicToken: string; displayName: string; notes?: Del
   return `${input.publicToken}\n${input.displayName}\n${notes}`;
 }
 
-const readyFiles = new Map<string, File>();
-const pendingFiles = new Map<string, Promise<File>>();
+type ReadyPdf = { blob: Blob; filename: string };
+
+const readyFiles = new Map<string, ReadyPdf>();
+const pendingFiles = new Map<string, Promise<ReadyPdf>>();
 
 export function peekPublicCardPdf(input: {
   publicToken: string;
   displayName: string;
   notes?: DeliveredNote[];
-}): File | null {
+}): ReadyPdf | null {
   return readyFiles.get(cacheKey(input)) ?? null;
 }
 
-/** Start the PDF download. The finished file stays available after the card remounts. */
+/** Start the PDF download. The finished bytes stay available after the card remounts. */
 export function primePublicCardPdf(input: {
   publicToken: string;
   displayName: string;
   notes?: DeliveredNote[];
-}): Promise<File> {
+}): Promise<ReadyPdf> {
   const key = cacheKey(input);
   const ready = readyFiles.get(key);
   if (ready) return Promise.resolve(ready);
   const pending = pendingFiles.get(key);
   if (pending) return pending;
-  const task = loadPublicCardPdfFile(input).then(
-    (file) => {
-      readyFiles.set(key, file);
+  const task = loadPublicCardPdf(input).then(
+    (readyPdf) => {
+      readyFiles.set(key, readyPdf);
       pendingFiles.delete(key);
-      return file;
+      return readyPdf;
     },
     (error) => {
       pendingFiles.delete(key);
@@ -58,11 +60,16 @@ export function primePublicCardPdf(input: {
   return task;
 }
 
-export async function loadPublicCardPdfFile(input: {
+/** iOS only accepts a File built in the same turn as the tap. */
+export function fileFromReadyPdf(ready: ReadyPdf): File {
+  return new File([ready.blob], ready.filename, { type: "application/pdf" });
+}
+
+export async function loadPublicCardPdf(input: {
   publicToken: string;
   displayName: string;
   notes?: DeliveredNote[];
-}): Promise<File> {
+}): Promise<ReadyPdf> {
   const response = await fetch(`/api/c/${encodeURIComponent(input.publicToken)}/pdf`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -74,7 +81,7 @@ export async function loadPublicCardPdfFile(input: {
   const filename =
     filenameFromDisposition(response.headers.get("Content-Disposition")) ||
     `${input.displayName.replace(/\n/g, " ").trim() || "card"}.pdf`;
-  return new File([blob], filename, { type: "application/pdf" });
+  return { blob, filename };
 }
 
 function downloadPdfFile(file: File) {
@@ -94,21 +101,14 @@ function downloadPdfFile(file: File) {
  * iOS only opens the sheet if share() runs in the same turn as the tap,
  * so this must not wait on the network.
  */
-export function sharePdfFile(file: File, title: string) {
-  const shareData: ShareData = {
-    files: [file],
-    title: title.replace(/\s+/g, " ").trim() || "Portfolio",
-  };
-  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-    try {
-      void navigator.share(shareData).catch((error) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        downloadPdfFile(file);
-      });
-      return;
-    } catch {
-      // share() rejected in this turn; fall through to a download.
-    }
+export function sharePdfFile(file: File) {
+  const shareData: ShareData = { files: [file] };
+  if (typeof navigator !== "undefined" && navigator.canShare?.(shareData)) {
+    void navigator.share(shareData).catch((error) => {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      downloadPdfFile(file);
+    });
+    return;
   }
   downloadPdfFile(file);
 }

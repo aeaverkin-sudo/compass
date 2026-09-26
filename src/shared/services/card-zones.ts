@@ -355,7 +355,7 @@ function pushDisplayed(buckets: Map<CardZoneId, CardDisplayRow[]>, item: Contact
     item,
     axis: split.axis,
     value: split.value,
-    url: item.url,
+    url: item.attachmentId ? `/f/${item.attachmentId}` : item.url,
   });
   buckets.set(zone, rows);
 }

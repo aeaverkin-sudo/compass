@@ -5,7 +5,7 @@ import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { peekPublicCardPdf, primePublicCardPdf, sharePdfFile } from "@/shared/services/save-public-card-pdf";
+import { fileFromReadyPdf, peekPublicCardPdf, primePublicCardPdf, sharePdfFile } from "@/shared/services/save-public-card-pdf";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
@@ -517,12 +517,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       displayName: card.displayName,
       notes: deliveredNotes,
     };
-    const file = peekPublicCardPdf(input);
-    if (!file) {
+    const readyPdf = peekPublicCardPdf(input);
+    if (!readyPdf) {
       void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
+      window.open(`/api/c/${encodeURIComponent(card.publicToken)}/pdf`, "_blank", "noopener,noreferrer");
       return;
     }
-    sharePdfFile(file, card.displayName);
+    sharePdfFile(fileFromReadyPdf(readyPdf));
   };
 
   useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);
@@ -715,14 +716,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         }
       >
       <div
-        className={compact ? "flex w-full flex-col" : "flex w-full grow flex-col pb-16"}
+        className={compact ? "flex w-full flex-col" : "flex w-full grow flex-col"}
         style={
           compact
             ? {
                 transform: previewPull ? `translateY(${previewPull}px)` : undefined,
                 transition: previewPulling ? "none" : "transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1)",
               }
-            : undefined
+            : { paddingBottom: Math.max(0, TOP_VEIL_PX - 2) }
         }
       >
       {compact ? (

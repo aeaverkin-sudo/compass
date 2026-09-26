@@ -44,6 +44,10 @@ function parseNotes(value: unknown): DeliveredNote[] {
  * Notes are whatever this viewer already received — no second consume.
  * Nothing is written to Storage.
  */
+export async function GET(request: Request, context: RouteProps) {
+  return POST(new Request(request.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }), context);
+}
+
 export async function POST(request: Request, context: RouteProps) {
   const { publicToken } = await context.params;
 
@@ -137,7 +141,7 @@ export async function POST(request: Request, context: RouteProps) {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      "Content-Disposition": `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
       "Cache-Control": "no-store",
       "Content-Length": String(bodyBytes.byteLength),
     },
