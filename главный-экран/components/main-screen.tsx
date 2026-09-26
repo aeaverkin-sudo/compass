@@ -110,36 +110,37 @@ export function MainScreen() {
 
       {layout && editing ? (
         <div
-          className="absolute z-30 flex items-center justify-between bg-white px-5 shadow-[0_8px_28px_rgba(17,17,17,0.08)]"
-          style={{
-            left: 14,
-            right: 14,
-            top: layoutTop(layout.browseMenuCenterY),
-            height: 64,
-            transform: "translateY(-50%)",
-            borderRadius: 22,
-            fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-          }}
+          className="absolute inset-x-0 bottom-0 z-30 bg-white"
+          style={{ top: layoutTop(layout.cardBottomBrowse) }}
         >
-          <button
-            type="button"
-            className="flex items-center gap-2 py-3 text-[13px] leading-none font-medium tracking-[0.14em] text-[#111] uppercase"
-            aria-label="Add field"
-            onClick={() => requestEditComposer()}
-          >
-            <span aria-hidden>+</span>
-            Add field
-          </button>
-          <button
-            type="button"
-            className="py-3 text-[13px] leading-none font-medium tracking-[0.14em] text-[#111] uppercase"
-            onClick={() => {
-              setComposeOnMount(false);
-              setEditing(false);
+          <div
+            className="flex items-center justify-between px-[calc(clamp(24px,6.1vw,28px)-3mm)]"
+            style={{
+              transform: `translateY(calc(${layout.browseMenuCenterY - layout.cardBottomBrowse}px - 50%))`,
+              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
             }}
           >
-            Done
-          </button>
+            <button
+              type="button"
+              className="flex items-center gap-2 py-3 text-[#111]"
+              aria-label="Add field"
+              onClick={() => requestEditComposer()}
+            >
+              <Plus className="size-6" strokeWidth={1} aria-hidden />
+              <span className="text-[17px] leading-none font-normal tracking-[-0.02em]">Field</span>
+            </button>
+            <button
+              type="button"
+              className="py-3 text-[#111] uppercase"
+              style={{ fontWeight: 600, fontSize: 32, letterSpacing: "-1px", lineHeight: 1 }}
+              onClick={() => {
+                setComposeOnMount(false);
+                setEditing(false);
+              }}
+            >
+              OK
+            </button>
+          </div>
         </div>
       ) : null}
 
