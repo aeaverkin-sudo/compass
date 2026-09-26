@@ -480,7 +480,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const bare = !compact && ready && items.length === 0 && !editing;
   const articleRef = useRef<HTMLElement | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
-  const [scrolledUnderQr, setScrolledUnderQr] = useState(false);
   const [previewPull, setPreviewPull] = useState(0);
   const [previewPulling, setPreviewPulling] = useState(false);
   const [previewFade, setPreviewFade] = useState({ top: false, bottom: false });
@@ -655,11 +654,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
           !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)] pb-8",
         )}
-        onScroll={
-          compact
-            ? syncPreviewFade
-            : (event) => setScrolledUnderQr(event.currentTarget.scrollTop > 2)
-        }
+        onScroll={compact ? syncPreviewFade : undefined}
       >
       <div
         className={compact ? "flex w-full flex-col" : "contents"}
@@ -710,12 +705,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ) : null}
       </div>
       </div>
-      {!compact && scrolledUnderQr ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-white to-transparent"
-        />
-      ) : null}
       </div>
       {compact && (previewFade.top || previewPull < 0) ? (
         <div
@@ -731,13 +720,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           style={{ height: 48 }}
         />
       ) : null}
-      {!compact && !bare ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t from-white to-transparent"
-        />
-      ) : null}
-
     </article>
   );
 });
