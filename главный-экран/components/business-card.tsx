@@ -9,6 +9,7 @@ import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
+import { publicCardUrl } from "@/shared/services/public-card-url";
 import { CardEditList } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
@@ -412,14 +413,16 @@ function CompactHeader({
   );
 }
 
+import { publicCardUrl } from "@/shared/services/public-card-url";
+
 function CardShareFooter({
   name,
-  shareToken,
+  publicToken,
   className,
   hideShare = false,
 }: {
   name: string;
-  shareToken: string;
+  publicToken: string;
   className?: string;
   hideShare?: boolean;
 }) {
@@ -437,7 +440,8 @@ function CardShareFooter({
         data-no-swipe
         aria-label="Share"
         onClick={() => {
-          const url = `${window.location.origin}/api/share/${shareToken}/pdf`;
+          if (!publicToken) return;
+          const url = publicCardUrl(publicToken);
           if (navigator.share) {
             void navigator.share({ title: name, url }).catch(() => undefined);
             return;
@@ -489,7 +493,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   ref,
 ) {
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
-  const shareToken = useAppStore((state) => state.user.shareToken);
   const items = getCardItems(card, library);
   const chosen = items.find((item) => item.id === card.headerItemId);
   const positionTitle = chosen?.value.trim() || card.title.trim() || undefined;
@@ -666,7 +669,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               </p>
             ) : null}
           </div>
-          <CardShareFooter name={card.displayName} shareToken={shareToken} hideShare={readOnly} className="pb-6" />
+          <CardShareFooter name={card.displayName} publicToken={card.publicToken} hideShare={readOnly} className="pb-6" />
         </div>
       ) : null}
       <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
@@ -729,7 +732,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       )}
 
       {!compact && !editing && ready ? (
-        <CardShareFooter name={card.displayName} shareToken={shareToken} hideShare={readOnly} className="mt-4" />
+        <CardShareFooter name={card.displayName} publicToken={card.publicToken} hideShare={readOnly} className="mt-4" />
       ) : null}
       </div>
       </div>
