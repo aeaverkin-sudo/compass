@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { DeliveredNote } from "@/shared/services/notes-types";
+import { savePublicCardPdf } from "@/shared/services/save-public-card-pdf";
 import { BusinessCard } from "@main/components/business-card";
 import type { Card, ContactItem } from "@/shared/types";
 
@@ -17,6 +18,7 @@ type PublicCardClientProps = {
  */
 export function PublicCardClient({ card, items, publicToken }: PublicCardClientProps) {
   const [notes, setNotes] = useState<DeliveredNote[]>([]);
+  const [savingPdf, setSavingPdf] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +42,18 @@ export function PublicCardClient({ card, items, publicToken }: PublicCardClientP
       mode="browse"
       readOnly
       deliveredNotes={notes}
+      savingPdf={savingPdf}
+      onSavePdf={() => {
+        if (savingPdf || !publicToken) return;
+        setSavingPdf(true);
+        void savePublicCardPdf({
+          publicToken,
+          displayName: card.displayName,
+          notes,
+        })
+          .catch((error) => console.error("[pdf] save failed", error))
+          .finally(() => setSavingPdf(false));
+      }}
     />
   );
 }

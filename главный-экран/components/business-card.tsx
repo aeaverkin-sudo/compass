@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Plus, Share } from "lucide-react";
+import { Download, Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
@@ -423,11 +423,15 @@ function CardShareFooter({
   publicToken,
   className,
   hideShare = false,
+  onSavePdf,
+  savingPdf = false,
 }: {
   name: string;
   publicToken: string;
   className?: string;
   hideShare?: boolean;
+  onSavePdf?: () => void;
+  savingPdf?: boolean;
 }) {
   return (
     <footer className={cn("flex items-end justify-between", className)}>
@@ -436,7 +440,19 @@ function CardShareFooter({
         <br />
         Portfolio
       </p>
-      {hideShare ? null : (
+      {onSavePdf ? (
+        <button
+          type="button"
+          data-card-content
+          data-no-swipe
+          aria-label="Save to Files"
+          disabled={savingPdf || !publicToken}
+          onClick={() => onSavePdf()}
+          className="text-[#111] disabled:opacity-40"
+        >
+          <Download className="size-4" strokeWidth={1.25} aria-hidden />
+        </button>
+      ) : hideShare ? null : (
       <button
         type="button"
         data-card-content
@@ -477,6 +493,9 @@ type BusinessCardProps = {
   readOnly?: boolean;
   /** One-time notes delivered to the first real viewer. */
   deliveredNotes?: DeliveredNote[];
+  /** Public /c/: save the portfolio PDF (iOS Files / download). */
+  onSavePdf?: () => void;
+  savingPdf?: boolean;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -495,6 +514,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     composeOnMount = false,
     readOnly = false,
     deliveredNotes = [],
+    onSavePdf,
+    savingPdf = false,
   },
   ref,
 ) {
@@ -739,7 +760,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       )}
 
       {!compact && !editing && ready && items.length > 0 ? (
-        <CardShareFooter name={card.displayName} publicToken={card.publicToken} hideShare={readOnly} className="mt-auto shrink-0 pt-6" />
+        <CardShareFooter
+          name={card.displayName}
+          publicToken={card.publicToken}
+          hideShare={readOnly && !onSavePdf}
+          onSavePdf={onSavePdf}
+          savingPdf={savingPdf}
+          className="mt-auto shrink-0 pt-6"
+        />
       ) : null}
       {!compact && !editing ? (
         <NotesRubric
