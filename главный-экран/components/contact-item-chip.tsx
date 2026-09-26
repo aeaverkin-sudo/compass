@@ -11,7 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { cn } from "@/lib/utils";
-import { composeCard, parseDescription, type CardDisplayRow } from "@/shared/services/card-zones";
+import { composeCard, isChoosableHeader, type CardDisplayRow } from "@/shared/services/card-zones";
 import type { ContactItem } from "@/shared/types";
 
 export type ContactItemChipSize = "browse" | "compact";
@@ -137,10 +137,7 @@ function ContactItemChipRow({
 }
 
 function isHeaderRole(row: CardDisplayRow) {
-  if (!row.item) return false;
-  if (row.item.type === "position") return true;
-  if (row.item.type !== "text") return false;
-  return Boolean(parseDescription(row.value).position);
+  return Boolean(row.item && isChoosableHeader(row.item));
 }
 
 function EditorialValue({ row, onChooseHeader }: { row: CardDisplayRow; onChooseHeader?: (itemId: string) => void }) {

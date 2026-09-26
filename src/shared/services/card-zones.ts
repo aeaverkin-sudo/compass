@@ -141,6 +141,11 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   return "additional";
 }
 
+/** A row in the position zone. Its text may be a role, a person's name, or a company. */
+export function isChoosableHeader(item: ContactItem) {
+  return zoneForItem(item) === "position";
+}
+
 export function parseDescription(text: string): { position: PositionLine | null; remainders: string[] } {
   const source = text.trim();
   if (!source) return { position: null, remainders: [] };

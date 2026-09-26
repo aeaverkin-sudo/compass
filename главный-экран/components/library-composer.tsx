@@ -4,6 +4,8 @@ import { Plus } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { isChoosableHeader } from "@/shared/services/card-zones";
+import { detectContactType } from "@/shared/services/contact-item";
 import { autoLinkDisplay, canRenameLinkDisplay, customDisplayName } from "@/shared/services/link-display";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
 import type { ContactItem } from "@/shared/types";
@@ -30,6 +32,8 @@ type LibraryComposerProps = {
   onLabelChange: (label: string) => void;
   onAttachment: (file: File, dataUrl: string) => void;
   onBlur: () => void;
+  /** Keep this plain line in the position zone, even when it is a name or a company. */
+  onHeaderZone?: (inZone: boolean) => void;
 };
 
 export function LibraryComposer({
@@ -41,6 +45,7 @@ export function LibraryComposer({
   onLabelChange,
   onAttachment,
   onBlur,
+  onHeaderZone,
 }: LibraryComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -51,6 +56,9 @@ export function LibraryComposer({
   const photoSrc = itemPhotoSrc(item);
   const hasPhotoPreview = Boolean(photoSrc);
   const showName = canRenameLinkDisplay(item);
+  const plainLine = Boolean(item.value.trim()) && detectContactType(item.value) === "text";
+  const inHeaderZone = item.type === "position" || (item.type === "text" && isChoosableHeader(item));
+  const showHeaderZone = Boolean(onHeaderZone) && !hasPhotoPreview && (plainLine || item.type === "position");
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -193,6 +201,21 @@ export function LibraryComposer({
                 onBlur={handleBlur}
                 className="compass-input mt-1 block w-full truncate border-t border-hairline/40 bg-transparent pt-1 text-[18.2px] leading-[1.3] text-foreground outline-none placeholder:font-normal placeholder:text-hint"
               />
+            ) : null}
+            {showHeaderZone ? (
+              <button
+                type="button"
+                aria-pressed={inHeaderZone}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  if (item.type === "position") onHeaderZone?.(false);
+                  else if (!inHeaderZone) onHeaderZone?.(true);
+                }}
+                className="mt-2 bg-transparent text-[11px] leading-none font-normal tracking-[0.1em] uppercase"
+                style={{ color: inHeaderZone ? "#111" : "#999" }}
+              >
+                Position
+              </button>
             ) : null}
           </div>
         </div>

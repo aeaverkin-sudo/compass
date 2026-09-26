@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { ContactItem, ContactType } from "@/shared/types";
-import { detectContactType } from "./contact-item";
-import { composeCard, groupLibrary, parseDescription } from "./card-zones";
+import { detectContactType, normalizeContactItem } from "./contact-item";
+import { composeCard, groupLibrary, isChoosableHeader, parseDescription } from "./card-zones";
 
 function item(id: string, type: ContactType, value: string, extra: Partial<ContactItem> = {}): ContactItem {
   return {
@@ -106,6 +106,28 @@ assert.equal(partner.position?.company, "North");
 const officer = parseDescription("chief executive officer of Compass");
 assert.equal(officer.position?.title, "CEO");
 assert.equal(officer.position?.company, "Compass");
+
+const person = item("person", "position", "Anton Averkin");
+const firm = item("firm", "position", "Compass");
+const loose = item("loose", "text", "Anton Averkin");
+const identity = composeCard([person, firm, item("role", "text", "Founder"), loose]);
+assert.deepEqual(
+  identity.zones.map((zone) => zone.id),
+  ["position", "additional"],
+);
+assert.deepEqual(
+  identity.zones.find((zone) => zone.id === "position")?.rows.map((row) => row.value),
+  ["Anton Averkin", "Compass", "Founder"],
+);
+assert.equal(isChoosableHeader(person), true);
+assert.equal(isChoosableHeader(firm), true);
+assert.equal(isChoosableHeader(loose), false);
+
+const keptName = normalizeContactItem(person, "Anton Averkin");
+assert.equal(keptName.type, "position");
+assert.equal(keptName.value, "Anton Averkin");
+const keptFirm = normalizeContactItem(firm, "Compass");
+assert.equal(keptFirm.type, "position");
 
 const library = groupLibrary([
   item("w", "website", "https://a.com"),

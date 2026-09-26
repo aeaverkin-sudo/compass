@@ -237,6 +237,9 @@ export function CardEditList({
             else setAttachmentError(null);
           }}
           onBlur={closeComposer}
+          onHeaderZone={(inZone) =>
+            updateContactItem(editingItem.id, { type: inZone ? "position" : "text", url: "" })
+          }
         />
       ) : (
         <div

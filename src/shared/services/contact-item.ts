@@ -127,14 +127,26 @@ export function normalizeContactItem(item: ContactItem, value: string): ContactI
   const shortcut = parseTypedShortcut(trimmed);
   let url = trimmed;
 
-  if (type === "text") url = "";
+  const keptKind = item.type === "position" && type === "text";
+  const resolved = keptKind ? item.type : type;
+  const label = isAttachmentType(resolved) ? item.label : keptCustomLabel(item, resolved);
+
+  if (keptKind) {
+    return {
+      ...item,
+      type: item.type,
+      label,
+      value: trimmed,
+      url: "",
+    };
+  }
+
+  if (type === "text" || type === "position") url = "";
   else if (type === "email") url = `mailto:${trimmed}`;
   else if (type === "phone") url = `tel:${trimmed.replace(/\s/g, "")}`;
   else if (isAttachmentType(type)) url = trimmed.startsWith("data:") ? trimmed : item.url || trimmed;
   else if (shortcut) url = profileUrlForType(shortcut.type, shortcut.handle) ?? "";
   else if (!trimmed.startsWith("http") && !trimmed.startsWith("data:")) url = `https://${trimmed}`;
-
-  const label = isAttachmentType(type) ? item.label : keptCustomLabel(item, type);
 
   return {
     ...item,
