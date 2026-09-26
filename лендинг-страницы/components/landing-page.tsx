@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 import { useAppStore } from "@/shared/store/app-store";
-import { AvatarPicker } from "./avatar-picker";
+import { CARD_HEADER_NAME_SIZE_PX, CARD_PHOTO_RADIUS_PX, CARD_PHOTO_SIZE_PX } from "@main/layout";
 import { ConfirmButton } from "./confirm-button";
-import { NameFields } from "./name-fields";
+import { PhotoSlotPicker } from "./photo-slot-picker";
 
 function isFilled(value: string) {
   return value.trim().length > 0;
@@ -43,16 +44,28 @@ export function LandingPage() {
 
   return (
     <main className="compass-main flex h-lvh flex-col overflow-hidden bg-transparent">
-      <div className="flex w-full flex-col items-center px-8 pt-[max(1.25rem,env(safe-area-inset-top))]">
-        <div className="flex w-full max-w-xs flex-col items-center">
-          <div className="mb-[1.5cm]">
-            <AvatarPicker photo={photo} onPhotoChange={setPhoto} />
-          </div>
-          <NameFields name={name} onNameChange={setName} />
-        </div>
+      <div className="flex flex-1 flex-col items-center justify-center px-8 pb-[14vh]">
+        <PhotoSlotPicker
+          photo={photo}
+          onPhotoChange={setPhoto}
+          sizePx={CARD_PHOTO_SIZE_PX}
+          borderRadiusPx={CARD_PHOTO_RADIUS_PX}
+          surfaceClassName="bg-background"
+        />
+        <label
+          className="mt-[2.3em] w-full max-w-xs text-center"
+          style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
+        >
+          <NameOrTitleField
+            value={name}
+            onChange={setName}
+            fontSizePx={CARD_HEADER_NAME_SIZE_PX}
+            className="px-0 py-0 text-center"
+          />
+        </label>
       </div>
 
-      <div className="mt-auto flex items-center justify-center px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="flex items-center justify-center px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         {ready ? <ConfirmButton onClick={handleConfirm} /> : null}
       </div>
     </main>

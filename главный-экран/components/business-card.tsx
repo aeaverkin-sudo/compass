@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Share } from "lucide-react";
+import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import { useAppStore } from "@/shared/store/app-store";
@@ -394,6 +394,43 @@ function CompactHeader({
   );
 }
 
+function CardShareFooter({
+  name,
+  shareToken,
+  className,
+}: {
+  name: string;
+  shareToken: string;
+  className?: string;
+}) {
+  return (
+    <footer className={cn("flex items-end justify-between", className)}>
+      <p className="text-[9.5px] leading-[1.15] font-normal tracking-[0.08em] uppercase">
+        {name || "Name"}
+        <br />
+        Portfolio
+      </p>
+      <button
+        type="button"
+        data-card-content
+        data-no-swipe
+        aria-label="Share"
+        onClick={() => {
+          const url = `${window.location.origin}/api/share/${shareToken}/pdf`;
+          if (navigator.share) {
+            void navigator.share({ title: name, url }).catch(() => undefined);
+            return;
+          }
+          void navigator.clipboard?.writeText(url);
+        }}
+        className="text-[#111]"
+      >
+        <Share className="size-4" strokeWidth={1.25} aria-hidden />
+      </button>
+    </footer>
+  );
+}
+
 type BusinessCardProps = {
   card: Card;
   library: ContactItem[];
@@ -404,6 +441,9 @@ type BusinessCardProps = {
   onDisplayNameChange?: (displayName: string) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
   editing?: boolean;
+  fillHint?: boolean;
+  onFill?: () => void;
+  composeOnMount?: boolean;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -417,6 +457,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onDisplayNameChange,
     onCardUpdate,
     editing = false,
+    fillHint = false,
+    onFill,
+    composeOnMount = false,
   },
   ref,
 ) {
@@ -429,6 +472,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const nextScanAddons = getNextScanAddons(card);
   const ready = cardIsReady(card);
   const blank = !card.photo && !card.displayName.trim();
+  const bare = !compact && ready && items.length === 0 && !editing;
   const articleRef = useRef<HTMLElement | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
   const [scrolledUnderQr, setScrolledUnderQr] = useState(false);
@@ -574,7 +618,29 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           )}
         </div>
       ) : null}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      {bare ? (
+        <div className="flex min-h-0 flex-1 flex-col px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
+          <div className="flex flex-1 flex-col items-center justify-center">
+            <button
+              type="button"
+              data-card-content
+              data-no-swipe
+              aria-label="Add"
+              onClick={onFill}
+              className="flex size-7 items-center justify-center bg-transparent"
+            >
+              <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
+            </button>
+            {fillHint ? (
+              <p className="compass-block compass-sky mt-5 max-w-[240px] px-3 py-2.5 text-center text-[13px] leading-[1.35] font-normal text-[#111]">
+                Add contacts, professional details, and files.
+              </p>
+            ) : null}
+          </div>
+          <CardShareFooter name={card.displayName} shareToken={shareToken} className="pb-6" />
+        </div>
+      ) : null}
+      <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
       <div
         ref={compact ? previewScrollRef : undefined}
         data-preview-scroll={compact ? "" : undefined}
@@ -609,7 +675,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ) : null}
 
       {!compact && editing ? (
-        <CardEditList card={card} items={library} />
+        <CardEditList card={card} items={library} composeOnMount={composeOnMount} />
       ) : (
       <ContactItemChipList
         items={items}
@@ -634,30 +700,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       )}
 
       {!compact && !editing && ready ? (
-        <footer className="mt-4 flex items-end justify-between">
-          <p className="text-[9.5px] leading-[1.15] font-normal tracking-[0.08em] uppercase">
-            {card.displayName || "Name"}
-            <br />
-            Portfolio
-          </p>
-          <button
-            type="button"
-            data-card-content
-            data-no-swipe
-            aria-label="Share"
-            onClick={() => {
-              const url = `${window.location.origin}/api/share/${shareToken}/pdf`;
-              if (navigator.share) {
-                void navigator.share({ title: card.displayName, url }).catch(() => undefined);
-                return;
-              }
-              void navigator.clipboard?.writeText(url);
-            }}
-            className="text-[#111]"
-          >
-            <Share className="size-4" strokeWidth={1.25} aria-hidden />
-          </button>
-        </footer>
+        <CardShareFooter name={card.displayName} shareToken={shareToken} className="mt-4" />
       ) : null}
       </div>
       </div>
@@ -682,12 +725,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           style={{ height: 48 }}
         />
       ) : null}
-      {!compact ? (
+      {!compact && !bare ? (
         <div
           aria-hidden
-          className={cn(
-            "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t from-white to-transparent",
-          )}
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t from-white to-transparent"
         />
       ) : null}
 

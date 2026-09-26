@@ -27,6 +27,9 @@ type CardCarouselProps = {
   onUpdateCard: (id: string, data: Partial<Card>) => void;
   onEmptyAreaTap: () => void;
   editing?: boolean;
+  fillHint?: boolean;
+  onFill?: (cardId: string) => void;
+  composeOnMount?: boolean;
 };
 
 function CarouselSpacer({ width }: { width: number }) {
@@ -58,6 +61,9 @@ export function CardCarousel({
   onUpdateCard,
   onEmptyAreaTap,
   editing = false,
+  fillHint = false,
+  onFill,
+  composeOnMount = false,
 }: CardCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
@@ -205,6 +211,7 @@ export function CardCarousel({
     onPhoto: (photo: string | null) => void,
     onName: (displayName: string) => void,
     onUpdate: (data: Partial<Card>) => void,
+    hint: boolean,
   ) => (
     <BusinessCard
       card={card}
@@ -216,6 +223,9 @@ export function CardCarousel({
       onDisplayNameChange={onName}
       onCardUpdate={onUpdate}
       editing={editing && card.id !== ADD_SLIDE_ID}
+      fillHint={hint}
+      onFill={onFill ? () => onFill(card.id) : undefined}
+      composeOnMount={composeOnMount && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id}
     />
   );
 
@@ -229,6 +239,7 @@ export function CardCarousel({
         (data) => {
           if (cards[1]) onUpdateCard(cards[1].id, data);
         },
+        false,
       );
     }
 
@@ -238,6 +249,7 @@ export function CardCarousel({
       (photo) => handlePhotoChange(card.id, photo),
       (displayName) => onUpdateCard(card.id, { displayName }),
       (data) => onUpdateCard(card.id, data),
+      fillHint && index === 0,
     );
   };
 
@@ -255,6 +267,9 @@ export function CardCarousel({
         onDisplayNameChange={(displayName) => onUpdateCard(activeCard.id, { displayName })}
         onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
         editing={editing}
+        fillHint={fillHint && activeIndex === 0}
+        onFill={onFill ? () => onFill(activeCard.id) : undefined}
+        composeOnMount={composeOnMount}
       />
     );
   }

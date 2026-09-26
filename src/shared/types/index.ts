@@ -86,5 +86,7 @@ export interface User {
   onboarded: boolean;
   /** True once the one-time library ("fill") intro has been shown on the main screen. */
   mainIntroSeen: boolean;
+  /** True after the first empty card's blue hint has been used. */
+  emptyFillHintSeen?: boolean;
   shareToken: string;
 }

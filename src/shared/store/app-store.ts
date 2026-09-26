@@ -39,6 +39,7 @@ interface AppState {
   resetApp: () => void;
   completeOnboarding: (payload: OnboardingPayload) => void;
   markMainIntroSeen: () => void;
+  markEmptyFillHintSeen: () => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
   updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo">>) => void;
@@ -115,6 +116,11 @@ export const useAppStore = create<AppState>()(
       markMainIntroSeen: () => {
         if (get().user.mainIntroSeen) return;
         set({ user: { ...get().user, mainIntroSeen: true } });
+      },
+
+      markEmptyFillHintSeen: () => {
+        if (get().user.emptyFillHintSeen) return;
+        set({ user: { ...get().user, emptyFillHintSeen: true } });
       },
 
       setCurrentCardIndex: (index) => {

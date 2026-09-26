@@ -84,7 +84,15 @@ function RowMark({
   );
 }
 
-export function CardEditList({ card, items }: { card: Card; items: ContactItem[] }) {
+export function CardEditList({
+  card,
+  items,
+  composeOnMount = false,
+}: {
+  card: Card;
+  items: ContactItem[];
+  composeOnMount?: boolean;
+}) {
   const updateCard = useAppStore((state) => state.updateCard);
   const addContactItem = useAppStore((state) => state.addContactItem);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
@@ -159,9 +167,17 @@ export function CardEditList({ card, items }: { card: Card; items: ContactItem[]
     if (!editingId) return;
     if (Date.now() - openedAt.current < 450) return;
     const item = useAppStore.getState().contactItems.find((row) => row.id === editingId);
-    if (item && !isContactFilled(item)) deleteContactItem(editingId);
+    if (item && isContactFilled(item) && composeOnMount) include(editingId);
+    else if (item && !isContactFilled(item)) deleteContactItem(editingId);
     setEditingId(null);
   };
+
+  useEffect(() => {
+    if (!composeOnMount) return;
+    openComposer();
+    // The empty card asks for the writing line once, as it opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [composeOnMount]);
 
   return (
     <div data-card-chip-list={card.id} data-card-content>

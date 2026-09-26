@@ -5,6 +5,7 @@ import { layoutTop, SHEET_INSET } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { useShareSync } from "../hooks/use-share-sync";
+import { isContactFilled } from "@/shared/services/contact-item";
 import {
   canAddMoreCards,
   isCardReady,
@@ -28,7 +29,10 @@ export function MainScreen() {
   const setCurrentCardIndex = useAppStore((state) => state.setCurrentCardIndex);
   const updateCard = useAppStore((state) => state.updateCard);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
+  const emptyFillHintSeen = useAppStore((state) => state.user.emptyFillHintSeen);
+  const markEmptyFillHintSeen = useAppStore((state) => state.markEmptyFillHintSeen);
   const [editing, setEditing] = useState(false);
+  const [composeOnMount, setComposeOnMount] = useState(false);
 
   const shownCard = cards[currentCardIndex] ?? null;
   const cardReady = Boolean(shownCard && isCardReady(shownCard));
@@ -37,8 +41,21 @@ export function MainScreen() {
   useShareSync();
 
   useEffect(() => {
-    if (!cards[currentCardIndex]) setEditing(false);
+    if (!cards[currentCardIndex]) {
+      setEditing(false);
+      setComposeOnMount(false);
+    }
   }, [cards, currentCardIndex]);
+
+  useEffect(() => {
+    const first = cards[0];
+    if (!first || emptyFillHintSeen) return;
+    const filled = first.contactItemIds.some((id) => {
+      const item = contactItems.find((entry) => entry.id === id);
+      return Boolean(item && isContactFilled(item));
+    });
+    if (filled) markEmptyFillHintSeen();
+  }, [cards, contactItems, emptyFillHintSeen, markEmptyFillHintSeen]);
 
   useEffect(() => {
     const blockSelection = (event: Event) => {
@@ -90,6 +107,7 @@ export function MainScreen() {
           centerYpx={layout.browseMenuCenterY}
           onHold={() => {
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
+            setComposeOnMount(false);
             setEditing(true);
           }}
         />
@@ -107,7 +125,10 @@ export function MainScreen() {
             letterSpacing: "-1px",
             lineHeight: 1,
           }}
-          onClick={() => setEditing(false)}
+          onClick={() => {
+            setComposeOnMount(false);
+            setEditing(false);
+          }}
         >
           OK
         </button>
@@ -131,6 +152,15 @@ export function MainScreen() {
             edgeInsetPx={edgeInsetBrowse}
             canAddCard={showAddSlide}
             editing={editing}
+            fillHint={!emptyFillHintSeen}
+            composeOnMount={composeOnMount}
+            onFill={(cardId) => {
+              const index = cards.findIndex((card) => card.id === cardId);
+              if (index === 0) markEmptyFillHintSeen();
+              if (index > 0) setCurrentCardIndex(index);
+              setComposeOnMount(!contactItems.some(isContactFilled));
+              setEditing(true);
+            }}
             onActiveIndexChange={setCurrentCardIndex}
             onUpdateCard={updateCard}
             onEmptyAreaTap={() => undefined}
