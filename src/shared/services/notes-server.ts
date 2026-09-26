@@ -7,8 +7,11 @@ import {
   loadAttachment,
   removeStoredObject,
 } from "@/shared/services/attachment-api";
-import { TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
+import { SIGNED_READ_SECONDS, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
+import type { DeliveredNote } from "@/shared/services/notes-types";
+
+export type { DeliveredNote } from "@/shared/services/notes-types";
 
 export const NOTES_PENDING_MS = 14 * 24 * 60 * 60 * 1000;
 export const NOTE_TEXT_MAX = 280;
@@ -225,4 +228,81 @@ export async function writePendingNotes(cardId: string, ownerId: string, input: 
       await dropFile(ownerId, file.attachment_id, transferId);
     }
   }
+}
+
+/** First real viewer wins. Returns notes once; a second call gets []. */
+export async function consumePendingNotes(cardId: string): Promise<DeliveredNote[]> {
+  const { data: transferId, error } = await admin().rpc("consume_pending_transfer", {
+    p_card_id: cardId,
+  });
+  if (error) throw new Error(error.message);
+  if (!transferId || typeof transferId !== "string") return [];
+
+  const { data: items, error: itemsError } = await admin()
+    .from("transfer_items")
+    .select("id, type, content, attachment_id, sort_order")
+    .eq("transfer_id", transferId)
+    .order("sort_order");
+  if (itemsError) throw new Error(itemsError.message);
+
+  try {
+    await admin().from("card_events").insert({ card_id: cardId, type: "transfer_consumed" });
+  } catch {
+    // Visit already counted; delivery is what matters.
+  }
+
+  const notes: DeliveredNote[] = [];
+  for (const row of items ?? []) {
+    const type = row.type as NextScanAddonType;
+    if (type !== "text" && type !== "selfie" && type !== "voice") continue;
+
+    if (type === "text") {
+      notes.push({
+        id: row.id as string,
+        type,
+        content: ((row.content as string | null) ?? "").trim(),
+        url: "",
+        expired: false,
+      });
+      continue;
+    }
+
+    const attachmentId = row.attachment_id as string | null;
+    if (!attachmentId) {
+      notes.push({ id: row.id as string, type, content: "", url: "", expired: true });
+      continue;
+    }
+
+    const file = await loadAttachment(attachmentId);
+    if (!file || file.bucket !== TRANSFER_ASSETS_BUCKET || file.status !== "ready") {
+      notes.push({ id: row.id as string, type, content: "", url: "", expired: true });
+      continue;
+    }
+
+    const signed = await admin()
+      .storage.from(TRANSFER_ASSETS_BUCKET)
+      .createSignedUrl(file.storage_path, SIGNED_READ_SECONDS);
+    const url = signed.error || !signed.data?.signedUrl ? "" : signed.data.signedUrl;
+    notes.push({
+      id: row.id as string,
+      type,
+      content: "",
+      url,
+      expired: !url,
+    });
+  }
+
+  const ordered = orderNextScanAddons(
+    notes.map((note) => ({
+      id: note.id,
+      type: note.type,
+      content: note.content,
+      createdAt: "",
+    })),
+  );
+  const byId = new Map(notes.map((note) => [note.id, note]));
+  return ordered.flatMap((note) => {
+    const full = byId.get(note.id);
+    return full ? [full] : [];
+  });
 }

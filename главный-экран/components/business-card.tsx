@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, 
 import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
+import type { DeliveredNote } from "@/shared/services/notes-types";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
@@ -472,6 +473,8 @@ type BusinessCardProps = {
   composeOnMount?: boolean;
   /** Public /c/ page: same card, no QR, plus, or share. */
   readOnly?: boolean;
+  /** One-time notes delivered to the first real viewer. */
+  deliveredNotes?: DeliveredNote[];
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -489,6 +492,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onFill,
     composeOnMount = false,
     readOnly = false,
+    deliveredNotes = [],
   },
   ref,
 ) {

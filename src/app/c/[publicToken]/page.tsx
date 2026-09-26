@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BusinessCard } from "@main/components/business-card";
+import { PublicCardClient } from "@main/components/public-card-client";
 import { loadPublicCard, logPublicCardOpen } from "@/shared/services/public-card";
 
 export const dynamic = "force-dynamic";
@@ -23,11 +23,10 @@ export default async function PublicCardPage({ params }: PageProps) {
 
   return (
     <main className="compass-main min-h-lvh bg-white">
-      <BusinessCard
+      <PublicCardClient
         card={loaded.card}
-        library={loaded.items}
-        mode="browse"
-        readOnly
+        items={loaded.items}
+        publicToken={publicToken}
       />
     </main>
   );
