@@ -48,6 +48,13 @@ export function ensureCardIdentity(card: Card): Card {
   };
 }
 
+/** Public surface: name plus a stored photo. A local preview is not enough for /c/. */
+export function statusForPublish(card: Card): CardStatus {
+  if (card.status === "archived" || card.status === "suspended") return card.status;
+  if (card.isPublic && card.displayName.trim() && card.photoAttachmentId) return "published";
+  return "draft";
+}
+
 function overlayScalars(local: Card, row: CardRow): Card {
   const remotePhotoId = row.photo_attachment_id ?? undefined;
   return {
@@ -150,7 +157,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
         owner_id: ownerId,
         display_name: card.displayName,
         title: card.title,
-        status: card.status,
+        status: statusForPublish(card),
         public_token: card.publicToken,
         qr_version: card.qrVersion,
         is_public: card.isPublic ?? false,
@@ -233,14 +240,18 @@ async function runHydrate() {
   const remote = (data ?? []) as CardRow[];
   const { useAppStore } = await import("@/shared/store/app-store");
   const local = useAppStore.getState().cards;
-  const merged = mergeCardScalars(local, remote);
+  const merged = mergeCardScalars(local, remote).map((card) => {
+    const status = statusForPublish(card);
+    return status === card.status ? card : { ...card, status };
+  });
   const unchanged =
     merged.length === local.length && merged.every((card, index) => scalarsEqual(card, local[index]!));
 
   if (!unchanged) useAppStore.setState({ cards: merged });
 
   const remoteIds = new Set(remote.map((row) => row.id));
-  const toUpload = merged.filter((card) => !remoteIds.has(card.id));
+  const remoteStatus = new Map(remote.map((row) => [row.id, row.status]));
+  const toUpload = merged.filter((card) => !remoteIds.has(card.id) || remoteStatus.get(card.id) !== card.status);
   await Promise.all(toUpload.map((card) => upsertCardScalars(card)));
 
   const { hydrateCardItems } = await import("@/shared/services/card-items-sync");
