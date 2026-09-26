@@ -33,10 +33,16 @@ export async function savePublicCardPdf(input: {
     `${input.displayName.replace(/\n/g, " ").trim() || "card"}.pdf`;
   const file = new File([blob], filename, { type: "application/pdf" });
 
+  // Prefer sharing the file (Telegram gets a PDF, not a link).
   const shareData: ShareData = { files: [file], title: input.displayName };
   if (typeof navigator !== "undefined" && navigator.canShare?.(shareData)) {
-    await navigator.share(shareData);
-    return;
+    try {
+      await navigator.share(shareData);
+      return;
+    } catch (error) {
+      // User cancelled — stop. Other errors fall through to download.
+      if (error instanceof DOMException && error.name === "AbortError") return;
+    }
   }
 
   const url = URL.createObjectURL(blob);
@@ -48,7 +54,11 @@ export async function savePublicCardPdf(input: {
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
+
+    // iOS Safari often ignores download=; opening the blob still lets the user save the file.
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIos) window.open(url, "_blank", "noopener,noreferrer");
   } finally {
-    window.setTimeout(() => URL.revokeObjectURL(url), 2_000);
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 }
