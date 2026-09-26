@@ -17,6 +17,7 @@ export type AttachmentRow = {
   storage_path: string;
   mime: string;
   byte_size: number;
+  original_name: string | null;
   status: AttachmentStatus;
 };
 
@@ -101,7 +102,7 @@ export async function loadAttachment(id: string): Promise<AttachmentRow | null> 
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from("attachments")
-    .select("id, owner_id, bucket, storage_path, mime, byte_size, status")
+    .select("id, owner_id, bucket, storage_path, mime, byte_size, original_name, status")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new Error(error.message);

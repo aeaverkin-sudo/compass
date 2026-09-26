@@ -42,10 +42,15 @@ function asStatus(value: string): CardStatus {
 }
 
 /** Name, a ready stored photo, and is_public. Archived and suspended stay private. */
-function isListed(row: CardRow): boolean {
+export function cardIsPubliclyServed(row: {
+  is_public: boolean;
+  status: string;
+  display_name: string | null;
+  photo_attachment_id: string | null;
+}): boolean {
   if (!row.is_public) return false;
   if (row.status === "archived" || row.status === "suspended") return false;
-  return Boolean(row.display_name.trim() && row.photo_attachment_id);
+  return Boolean(row.display_name?.trim() && row.photo_attachment_id);
 }
 
 function publicUrl(url: string | null, attachmentId: string | null, readyIds: Set<string>): string {
@@ -83,7 +88,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
     .maybeSingle();
   if (error) throw new Error(error.message);
   const row = data as CardRow | null;
-  if (!row || !isListed(row) || !row.photo_attachment_id) return null;
+  if (!row || !cardIsPubliclyServed(row) || !row.photo_attachment_id) return null;
 
   const readyIds = await readyAttachmentIds([row.photo_attachment_id]);
   if (!readyIds.has(row.photo_attachment_id)) return null;
@@ -148,6 +153,41 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
 
   return { card, items, ownerId: row.owner_id };
 });
+
+/** True when this file is the photo or a visible item on a public ready card. */
+export async function attachmentIsPublic(attachmentId: string): Promise<boolean> {
+  const admin = createAdminSupabaseClient();
+  const columns = "is_public, status, display_name, photo_attachment_id";
+
+  const { data: photoCards, error: photoError } = await admin
+    .from("cards")
+    .select(columns)
+    .eq("photo_attachment_id", attachmentId)
+    .limit(5);
+  if (photoError) throw new Error(photoError.message);
+  if ((photoCards ?? []).some((card) => cardIsPubliclyServed(card))) return true;
+
+  const { data: itemRows, error: itemError } = await admin
+    .from("items")
+    .select("id")
+    .eq("attachment_id", attachmentId);
+  if (itemError) throw new Error(itemError.message);
+  const itemIds = (itemRows ?? []).map((item) => item.id as string);
+  if (itemIds.length === 0) return false;
+
+  const { data: links, error: linkError } = await admin
+    .from("card_items")
+    .select("card_id")
+    .in("item_id", itemIds)
+    .eq("visible", true);
+  if (linkError) throw new Error(linkError.message);
+  const cardIds = [...new Set((links ?? []).map((link) => link.card_id as string))];
+  if (cardIds.length === 0) return false;
+
+  const { data: cards, error: cardError } = await admin.from("cards").select(columns).in("id", cardIds);
+  if (cardError) throw new Error(cardError.message);
+  return (cards ?? []).some((card) => cardIsPubliclyServed(card));
+}
 
 /** Counts a visit. The owner's own session is not a visit. Messenger crawlers still count. */
 export async function logPublicCardOpen(cardId: string, ownerId: string): Promise<void> {

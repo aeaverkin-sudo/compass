@@ -65,3 +65,15 @@ export function byteLimitForMime(mime: string): number | null {
   if (isVideoMime(mime)) return VIDEO_BYTE_LIMIT;
   return null;
 }
+
+const SERVABLE_MIMES = new Set<string>([
+  ...IMAGE_MIMES,
+  ...DOCUMENT_MIMES,
+  ...AUDIO_MIMES,
+  ...VIDEO_MIMES,
+]);
+
+/** Types we will sign for a stranger. HTML and SVG are not in this set. */
+export function isServableMime(mime: string): boolean {
+  return SERVABLE_MIMES.has(mime);
+}
