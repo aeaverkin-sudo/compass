@@ -143,10 +143,17 @@ export async function migrateLocalMedia(): Promise<void> {
       const ready = await uploadAttachment({ file, kind: "card-photo", cardId: card.id });
       const latest = useAppStore.getState().cards.find((entry) => entry.id === card.id);
       if (latest?.photo !== preview) continue;
-      useAppStore.getState().updateCard(card.id, {
+      const { scheduleCardUpsert } = await import("@/shared/services/card-sync");
+      const next = {
+        ...latest,
         photo: undefined,
         photoAttachmentId: ready.attachmentId,
+        updatedAt: new Date().toISOString(),
+      };
+      useAppStore.setState({
+        cards: useAppStore.getState().cards.map((entry) => (entry.id === card.id ? next : entry)),
       });
+      scheduleCardUpsert(next, { pulse: false });
     } catch (error) {
       console.error("[card-photo] migrate failed", error);
     }
@@ -168,7 +175,7 @@ export async function migrateLocalMedia(): Promise<void> {
       const saved = nextItems.find((entry) => entry.id === item.id);
       if (saved?.attachmentId !== ready.attachmentId) continue;
       useAppStore.setState({ contactItems: nextItems });
-      scheduleItemUpsert(saved);
+      scheduleItemUpsert(saved, { pulse: false });
     } catch (error) {
       console.error("[attachment] migrate failed", error);
     }

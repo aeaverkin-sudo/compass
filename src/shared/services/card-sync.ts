@@ -177,13 +177,19 @@ export async function upsertCardScalars(card: Card): Promise<void> {
 }
 
 /** Coalesce keystroke updates. The latest card object wins. */
-export function scheduleCardUpsert(card: Card) {
+export function scheduleCardUpsert(card: Card, options?: { pulse?: boolean }) {
   const previous = pendingUpserts.get(card.id);
   if (previous) clearTimeout(previous.timer);
 
+  const pulse = options?.pulse !== false;
   const timer = setTimeout(() => {
     pendingUpserts.delete(card.id);
     void upsertCardScalars(card);
+    if (pulse) {
+      void import("@/shared/lib/live-qr-pulse").then(({ requestLiveQrPulse }) => {
+        requestLiveQrPulse(card.id);
+      });
+    }
   }, UPSERT_DEBOUNCE_MS);
 
   pendingUpserts.set(card.id, { timer, card });
@@ -262,6 +268,9 @@ async function runHydrate() {
 
   const { hydrateNotes } = await import("@/shared/services/notes-sync");
   await hydrateNotes();
+
+  const { armLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
+  armLiveQrPulse();
 }
 
 /** Pull server scalars after the anonymous session exists. Safe to call more than once. */

@@ -288,6 +288,7 @@ export const useAppStore = create<AppState>()(
 
       deleteContactItem: (itemId) => {
         const now = new Date().toISOString();
+        const touched = get().cards.filter((card) => card.contactItemIds.includes(itemId)).map((card) => card.id);
         set({
           contactItems: get()
             .contactItems.filter((item) => item.id !== itemId)
@@ -299,6 +300,12 @@ export const useAppStore = create<AppState>()(
           })),
         });
         void deleteItemRow(itemId);
+        const currentId = get().cards[get().currentCardIndex]?.id;
+        if (currentId && touched.includes(currentId)) {
+          void import("@/shared/lib/live-qr-pulse").then(({ requestLiveQrPulse }) => {
+            requestLiveQrPulse(currentId);
+          });
+        }
       },
 
       updateSecondCardDraft: (data) => {

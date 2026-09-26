@@ -109,12 +109,22 @@ async function upsertLinks(card: Card) {
   await Promise.all(card.contactItemIds.map((itemId, index) => upsertLink(card.id, itemId, index)));
 }
 
-export function scheduleItemUpsert(item: ContactItem) {
+export function scheduleItemUpsert(item: ContactItem, options?: { pulse?: boolean }) {
   const previous = pendingItemUpserts.get(item.id);
   if (previous) clearTimeout(previous.timer);
+  const pulse = options?.pulse !== false;
   const timer = setTimeout(() => {
     pendingItemUpserts.delete(item.id);
-    void upsertItemRow(item).catch((error) => console.error("[card-items] item upsert failed", error));
+    void upsertItemRow(item)
+      .then(async () => {
+        if (!pulse) return;
+        const { useAppStore } = await import("@/shared/store/app-store");
+        const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
+        const state = useAppStore.getState();
+        const card = state.cards[state.currentCardIndex];
+        if (card?.contactItemIds.includes(item.id)) requestLiveQrPulse(card.id);
+      })
+      .catch((error) => console.error("[card-items] item upsert failed", error));
   }, UPSERT_DEBOUNCE_MS);
   pendingItemUpserts.set(item.id, { timer, item });
 }
@@ -125,6 +135,8 @@ export async function syncItemOnCard(card: Card, item: ContactItem) {
     await upsertCardScalars(card);
     await upsertItemRow(item);
     await upsertLinks(card);
+    const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
+    requestLiveQrPulse(card.id);
   } catch (error) {
     console.error("[card-items] sync failed", error);
   }
@@ -136,6 +148,8 @@ export async function syncCardLinkOrder(card: Card, items: ContactItem[]) {
     const onCard = new Set(card.contactItemIds);
     await Promise.all(items.filter((item) => onCard.has(item.id)).map((item) => upsertItemRow(item)));
     await upsertLinks(card);
+    const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
+    requestLiveQrPulse(card.id);
   } catch (error) {
     console.error("[card-items] reorder failed", error);
   }
@@ -147,6 +161,8 @@ export async function unlinkItem(cardId: string, itemId: string) {
     const supabase = createBrowserSupabaseClient();
     const { error } = await supabase.from("card_items").delete().eq("card_id", cardId).eq("item_id", itemId);
     if (error) console.error("[card-items] unlink failed", error.message);
+    const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
+    requestLiveQrPulse(cardId);
   } catch (error) {
     console.error("[card-items] unlink failed", error);
   }
