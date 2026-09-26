@@ -6,5 +6,7 @@ export type DeliveredNote = {
   content: string;
   /** Short-lived signed URL for selfie/voice. Empty when the file is gone. */
   url: string;
+  /** Storage id for selfie/voice. Used by the PDF route; not a public /f/ link. */
+  attachmentId?: string;
   expired: boolean;
 };

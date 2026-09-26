@@ -110,3 +110,14 @@ export async function loadAttachment(id: string): Promise<AttachmentRow | null> 
   if (!data) return null;
   return data as AttachmentRow;
 }
+
+/** Ready object bytes from either private bucket. */
+export async function downloadAttachmentBytes(
+  row: AttachmentRow,
+): Promise<Uint8Array | null> {
+  if (row.status !== "ready") return null;
+  const admin = createAdminSupabaseClient();
+  const downloaded = await admin.storage.from(row.bucket).download(row.storage_path);
+  if (downloaded.error || !downloaded.data) return null;
+  return new Uint8Array(await downloaded.data.arrayBuffer());
+}

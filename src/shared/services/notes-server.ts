@@ -275,7 +275,14 @@ export async function consumePendingNotes(cardId: string): Promise<DeliveredNote
 
     const file = await loadAttachment(attachmentId);
     if (!file || file.bucket !== TRANSFER_ASSETS_BUCKET || file.status !== "ready") {
-      notes.push({ id: row.id as string, type, content: "", url: "", expired: true });
+      notes.push({
+        id: row.id as string,
+        type,
+        content: "",
+        url: "",
+        attachmentId,
+        expired: true,
+      });
       continue;
     }
 
@@ -288,6 +295,7 @@ export async function consumePendingNotes(cardId: string): Promise<DeliveredNote
       type,
       content: "",
       url,
+      attachmentId,
       expired: !url,
     });
   }
