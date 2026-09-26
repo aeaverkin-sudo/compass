@@ -31,7 +31,7 @@ export function BrowseMenuButton({ centerYpx, onHold }: BrowseMenuButtonProps) {
       onClick={hold.onClick}
       onContextMenu={hold.onContextMenu}
     >
-      {[0, 1].map((index) => (
+      {[0, 1, 2].map((index) => (
         <span
           key={index}
           aria-hidden
