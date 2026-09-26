@@ -416,10 +416,12 @@ function CardShareFooter({
   name,
   shareToken,
   className,
+  hideShare = false,
 }: {
   name: string;
   shareToken: string;
   className?: string;
+  hideShare?: boolean;
 }) {
   return (
     <footer className={cn("flex items-end justify-between", className)}>
@@ -428,6 +430,7 @@ function CardShareFooter({
         <br />
         Portfolio
       </p>
+      {hideShare ? null : (
       <button
         type="button"
         data-card-content
@@ -445,6 +448,7 @@ function CardShareFooter({
       >
         <Share className="size-4" strokeWidth={1.25} aria-hidden />
       </button>
+      )}
     </footer>
   );
 }
@@ -462,6 +466,8 @@ type BusinessCardProps = {
   fillHint?: boolean;
   onFill?: () => void;
   composeOnMount?: boolean;
+  /** Public /c/ page: same card, no QR, plus, or share. */
+  readOnly?: boolean;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -478,6 +484,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     fillHint = false,
     onFill,
     composeOnMount = false,
+    readOnly = false,
   },
   ref,
 ) {
@@ -485,7 +492,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const shareToken = useAppStore((state) => state.user.shareToken);
   const items = getCardItems(card, library);
   const chosen = items.find((item) => item.id === card.headerItemId);
-  const positionTitle = chosen?.value.trim() || undefined;
+  const positionTitle = chosen?.value.trim() || card.title.trim() || undefined;
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const ready = cardIsReady(card);
@@ -603,7 +610,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               paddingTop: LIBRARY_NAME_FADE_PX,
             }
           : {
-              height: browseCardHeight(),
+              height: readOnly
+                ? "calc(100lvh - env(safe-area-inset-top))"
+                : browseCardHeight(),
             }
       }
     >
@@ -639,6 +648,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {bare ? (
         <div className="flex min-h-0 flex-1 flex-col px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
           <div className="flex flex-1 flex-col items-center justify-center">
+            {readOnly ? null : (
             <button
               type="button"
               data-card-content
@@ -649,13 +659,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             >
               <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
             </button>
+            )}
             {fillHint ? (
               <p className="compass-block compass-sky mt-5 max-w-[240px] px-3 py-2.5 text-center text-[13px] leading-[1.35] font-normal text-[#111]">
                 Add contacts, professional details, and files.
               </p>
             ) : null}
           </div>
-          <CardShareFooter name={card.displayName} shareToken={shareToken} className="pb-6" />
+          <CardShareFooter name={card.displayName} shareToken={shareToken} hideShare={readOnly} className="pb-6" />
         </div>
       ) : null}
       <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
@@ -718,7 +729,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       )}
 
       {!compact && !editing && ready ? (
-        <CardShareFooter name={card.displayName} shareToken={shareToken} className="mt-4" />
+        <CardShareFooter name={card.displayName} shareToken={shareToken} hideShare={readOnly} className="mt-4" />
       ) : null}
       </div>
       </div>
