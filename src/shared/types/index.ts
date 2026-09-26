@@ -47,6 +47,8 @@ export interface ContactItem {
   label: string;
   value: string;
   url: string;
+  /** Pool file pointer (`items.attachment_id`). Set only once the upload is ready. */
+  attachmentId?: string;
   order: number;
 }
 
@@ -56,6 +58,8 @@ export interface Card {
   id: string;
   displayName: string;
   photo?: string;
+  /** Card avatar in Storage. The picture is served from `/f/{id}`. */
+  photoAttachmentId?: string;
   title: string;
   status: CardStatus;
   /** Public QR token (`cards.public_token`). Not the legacy `User.shareToken`. */

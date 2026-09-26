@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "@/shared/store/app-store";
+import { uploadAttachment } from "@/shared/services/attachment-upload";
 import type { Card, ContactItem } from "@/shared/types";
 import { cn } from "@/lib/utils";
 import {
@@ -134,10 +135,30 @@ export function CardCarousel({
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
 
   const handleDraftUpdate = useCallback(
-    (data: Partial<Pick<Card, "displayName" | "photo">>) => {
+    (data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>) => {
       updateSecondCardDraft(data);
     },
     [updateSecondCardDraft],
+  );
+
+  const savePickedPhoto = useCallback(
+    (cardId: string, photo: string | null, file?: File) => {
+      if (!photo || !file) {
+        onUpdateCard(cardId, { photo: undefined, photoAttachmentId: undefined });
+        return;
+      }
+      onUpdateCard(cardId, { photo });
+      void uploadAttachment({ file, kind: "card-photo", cardId })
+        .then((ready) => {
+          const current = useAppStore.getState().cards.find((card) => card.id === cardId);
+          if (current?.photo !== photo) return;
+          onUpdateCard(cardId, { photo: undefined, photoAttachmentId: ready.attachmentId });
+        })
+        .catch((error: unknown) => {
+          console.error("[card-photo]", error);
+        });
+    },
+    [onUpdateCard],
   );
 
   useEffect(() => {
@@ -200,15 +221,15 @@ export function CardCarousel({
   };
 
   const handlePhotoChange = useCallback(
-    (cardId: string, photo: string | null) => {
-      onUpdateCard(cardId, { photo: photo ?? undefined });
+    (cardId: string, photo: string | null, file?: File) => {
+      savePickedPhoto(cardId, photo, file);
     },
-    [onUpdateCard],
+    [savePickedPhoto],
   );
 
   const renderCard = (
     card: Card,
-    onPhoto: (photo: string | null) => void,
+    onPhoto: (photo: string | null, file?: File) => void,
     onName: (displayName: string) => void,
     onUpdate: (data: Partial<Card>) => void,
     hint: boolean,
@@ -234,7 +255,16 @@ export function CardCarousel({
       const draft = cards[1] ?? EMPTY_DRAFT;
       return renderCard(
         draft,
-        (photo) => handleDraftUpdate({ photo: photo ?? undefined }),
+        (photo, file) => {
+          if (!photo || !file) {
+            handleDraftUpdate({ photo: undefined, photoAttachmentId: undefined });
+            return;
+          }
+          handleDraftUpdate({ photo });
+          const cardId = useAppStore.getState().cards[1]?.id;
+          if (!cardId) return;
+          savePickedPhoto(cardId, photo, file);
+        },
         (displayName) => handleDraftUpdate({ displayName }),
         (data) => {
           if (cards[1]) onUpdateCard(cards[1].id, data);
@@ -246,7 +276,7 @@ export function CardCarousel({
     const card = cards[index]!;
     return renderCard(
       card,
-      (photo) => handlePhotoChange(card.id, photo),
+      (photo, file) => handlePhotoChange(card.id, photo, file),
       (displayName) => onUpdateCard(card.id, { displayName }),
       (data) => onUpdateCard(card.id, data),
       fillHint && index === 0,
@@ -263,7 +293,7 @@ export function CardCarousel({
         mode={mode}
         libraryCardHeightPx={libraryCardHeightPx}
         onEmptyAreaTap={handleEmptyAreaTap}
-        onPhotoChange={(photo) => handlePhotoChange(activeCard.id, photo)}
+        onPhotoChange={(photo, file) => handlePhotoChange(activeCard.id, photo, file)}
         onDisplayNameChange={(displayName) => onUpdateCard(activeCard.id, { displayName })}
         onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
         editing={editing}

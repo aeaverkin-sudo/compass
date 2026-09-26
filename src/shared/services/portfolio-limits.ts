@@ -1,4 +1,10 @@
 import type { Card, ContactItem, ContactType } from "@/shared/types";
+import {
+  AUDIO_BYTE_LIMIT,
+  DOCUMENT_BYTE_LIMIT,
+  IMAGE_BYTE_LIMIT,
+  VIDEO_BYTE_LIMIT,
+} from "@/shared/services/attachment-limits";
 
 /** Attachment-like types stored as files (data URLs in `url`). */
 export const ATTACHMENT_TYPES = [
@@ -32,13 +38,13 @@ export const PORTFOLIO_LIMITS = {
   cardPhotoJpegQuality: 0.82,
   /** Per-type attachment ceilings (before base64 overhead). */
   maxBytesByType: {
-    pdf: 8 * 1024 * 1024,
-    photo: 4 * 1024 * 1024,
-    presentation: 10 * 1024 * 1024,
-    document: 5 * 1024 * 1024,
-    spreadsheet: 5 * 1024 * 1024,
-    audio: 8 * 1024 * 1024,
-    video: 15 * 1024 * 1024,
+    pdf: DOCUMENT_BYTE_LIMIT,
+    photo: IMAGE_BYTE_LIMIT,
+    presentation: DOCUMENT_BYTE_LIMIT,
+    document: DOCUMENT_BYTE_LIMIT,
+    spreadsheet: DOCUMENT_BYTE_LIMIT,
+    audio: AUDIO_BYTE_LIMIT,
+    video: VIDEO_BYTE_LIMIT,
   } as const satisfies Record<AttachmentContactType, number>,
   /** Portfolio image attachments — higher res than card avatar. */
   maxAttachmentImagePx: 2048,
@@ -61,7 +67,11 @@ export function estimateDataUrlBytes(dataUrl: string): number {
 
 export function countCardAttachments(card: Card, items: ContactItem[]): number {
   const ids = new Set(card.contactItemIds);
-  return items.filter((item) => ids.has(item.id) && isAttachmentType(item.type) && item.url).length;
+  return items.filter((item) => ids.has(item.id) && itemHasStoredFile(item)).length;
+}
+
+function itemHasStoredFile(item: ContactItem): boolean {
+  return isAttachmentType(item.type) && (Boolean(item.attachmentId) || item.url.startsWith("data:"));
 }
 
 export function totalCardAttachmentBytes(card: Card, items: ContactItem[]): number {
@@ -104,27 +114,13 @@ export function validatePortfolioAttachment(
 
   const cardItems = items.filter((item) => card.contactItemIds.includes(item.id));
   const existingAttachments = cardItems.filter(
-    (item) => isAttachmentType(item.type) && item.url && item.id !== replacingItemId,
+    (item) => itemHasStoredFile(item) && item.id !== replacingItemId,
   );
 
   if (existingAttachments.length >= PORTFOLIO_LIMITS.maxAttachmentsPerCard) {
     return {
       ok: false,
       message: `Up to ${PORTFOLIO_LIMITS.maxAttachmentsPerCard} attachments per card.`,
-    };
-  }
-
-  const projectedTotal =
-    totalCardAttachmentBytes(card, items) -
-    (replacingItemId
-      ? estimateDataUrlBytes(cardItems.find((item) => item.id === replacingItemId)?.url ?? "")
-      : 0) +
-    file.size;
-
-  if (projectedTotal > PORTFOLIO_LIMITS.maxTotalAttachmentBytesPerCard) {
-    return {
-      ok: false,
-      message: `Total attachments exceed ${formatBytes(PORTFOLIO_LIMITS.maxTotalAttachmentBytesPerCard)} per card.`,
     };
   }
 

@@ -15,6 +15,7 @@ import {
   validatePortfolioAttachment,
 } from "@/shared/services/portfolio-limits";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
+import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { ensureCardIdentity, scheduleCardUpsert } from "@/shared/services/card-sync";
 import {
   deleteItemRow,
@@ -24,11 +25,13 @@ import {
   syncItemOnCard,
   unlinkItem,
 } from "@/shared/services/card-items-sync";
+import { cardHasPhoto } from "@/shared/services/card-photo";
 import type { Card, ContactItem, User } from "@/shared/types";
 
 type OnboardingPayload = {
-  photo: string;
   displayName: string;
+  photoAttachmentId: string;
+  cardId?: string;
 };
 
 interface AppState {
@@ -42,7 +45,7 @@ interface AppState {
   markEmptyFillHintSeen: () => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
-  updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo">>) => void;
+  updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>) => void;
   /** Add an empty draft to the library pool (not bound to any card). One draft at a time. */
   addContactItem: () => string | null;
   updateContactItem: (itemId: string, data: Partial<Pick<ContactItem, "value" | "label">>) => void;
@@ -67,6 +70,20 @@ function createInitialUser(): User {
   };
 }
 
+function cardForDisk(card: Card): Card {
+  if (card.photoAttachmentId && card.photo?.startsWith("data:")) {
+    return { ...card, photo: undefined };
+  }
+  return card;
+}
+
+function itemForDisk(item: ContactItem): ContactItem {
+  if (item.attachmentId && item.url.startsWith("data:")) {
+    return { ...item, url: "" };
+  }
+  return item;
+}
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -85,15 +102,15 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      completeOnboarding: ({ photo, displayName }) => {
+      completeOnboarding: ({ photoAttachmentId, displayName, cardId }) => {
         const now = new Date().toISOString();
         const name = displayName.trim();
         const existing = get().cards[0];
 
         const primary = ensureCardIdentity({
-          id: existing?.id ?? crypto.randomUUID(),
+          id: cardId ?? existing?.id ?? crypto.randomUUID(),
           displayName: name,
-          photo,
+          photoAttachmentId,
           title: existing?.title ?? "",
           status: existing?.status ?? "draft",
           publicToken: existing?.publicToken ?? "",
@@ -185,6 +202,26 @@ export const useAppStore = create<AppState>()(
             item.id === itemId ? contactItemFromAttachment(item, file, dataUrl) : item,
           ),
         });
+
+        void uploadAttachment({ file, kind: attachmentType, cardId })
+          .then((ready) => {
+            const nextItems = get().contactItems.map((item) =>
+              item.id === itemId
+                ? {
+                    ...item,
+                    attachmentId: ready.attachmentId,
+                    url: item.url.startsWith("data:") ? "" : item.url,
+                  }
+                : item,
+            );
+            set({ contactItems: nextItems });
+            const saved = nextItems.find((item) => item.id === itemId);
+            if (saved) scheduleItemUpsert(saved);
+          })
+          .catch((error: unknown) => {
+            console.error("[attachment]", error);
+          });
+
         return { ok: true };
       },
 
@@ -348,9 +385,9 @@ export const useAppStore = create<AppState>()(
       },
       partialize: (state) => ({
         user: state.user,
-        cards: state.cards,
+        cards: state.cards.map(cardForDisk),
         currentCardIndex: state.currentCardIndex,
-        contactItems: state.contactItems,
+        contactItems: state.contactItems.map(itemForDisk),
       }),
     },
   ),
@@ -366,5 +403,5 @@ export function canAddMoreCards(cards: Card[]): boolean {
 }
 
 export function isCardReady(card: Card | null): card is Card {
-  return Boolean(card?.displayName.trim() && card.photo);
+  return Boolean(card?.displayName.trim() && cardHasPhoto(card));
 }

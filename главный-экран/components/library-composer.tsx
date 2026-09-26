@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { autoLinkDisplay, canRenameLinkDisplay, customDisplayName } from "@/shared/services/link-display";
+import { itemPhotoSrc } from "@/shared/services/card-photo";
 import type { ContactItem } from "@/shared/types";
 import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
@@ -44,7 +45,8 @@ export function LibraryComposer({
   const mountedAt = useRef(0);
   const { keyboardOpen, keyboardInset } = useVisualViewport();
   const dockedAboveKeyboard = viewportDock || keyboardOpen;
-  const hasPhotoPreview = item.type === "photo" && item.url.startsWith("data:");
+  const photoSrc = itemPhotoSrc(item);
+  const hasPhotoPreview = Boolean(photoSrc);
   const showName = canRenameLinkDisplay(item);
 
   const resizeTextarea = useCallback(() => {
@@ -143,9 +145,10 @@ export function LibraryComposer({
         ) : null}
 
         <div className="flex items-center gap-[11px] border-b-[0.5px] border-[#111] py-2">
-          {hasPhotoPreview ? (
+          {hasPhotoPreview && photoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={item.url}
+              src={photoSrc}
               alt=""
               className="size-10 shrink-0 object-cover"
             />

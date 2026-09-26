@@ -4,6 +4,7 @@ import { Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { groupLibrary } from "@/shared/services/card-zones";
+import { itemPhotoSrc } from "@/shared/services/card-photo";
 import {
   isContactFilled,
   isItemOnCard,
@@ -206,6 +207,7 @@ function FilledRow({
   };
   const gap = spaced ? "mt-3" : undefined;
   const line = mark ? `${mark} / ${value}` : value;
+  const photoSrc = itemPhotoSrc(item);
 
   return (
     <>
@@ -252,8 +254,9 @@ function FilledRow({
             onCard ? "text-label" : "text-foreground",
           )}
         >
-          {item.type === "photo" && item.url.startsWith("data:") ? (
-            <img src={item.url} alt="" className="mr-2 inline-block size-8 rounded-[10px] object-cover align-middle" />
+          {photoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoSrc} alt="" className="mr-2 inline-block size-8 rounded-[10px] object-cover align-middle" />
           ) : null}
           {line}
         </button>

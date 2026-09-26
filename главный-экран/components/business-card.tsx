@@ -8,6 +8,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
+import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
 import { CardEditList } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
@@ -262,7 +263,7 @@ function HeroName({
 }
 
 function cardIsReady(card: Card) {
-  return Boolean(card.photo && card.displayName.trim());
+  return Boolean(cardHasPhoto(card) && card.displayName.trim());
 }
 
 function EditorialHeader({
@@ -279,19 +280,20 @@ function EditorialHeader({
   showRule: boolean;
   showPlus: boolean;
   nextScan: ReactNode;
-  onPhotoChange?: (photo: string | null) => void;
+  onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
 }) {
+  const photoSrc = cardPhotoSrc(card);
   return (
     <div className="w-full">
       {showRule ? <div className="border-t-[0.5px] border-[#111]" /> : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
-            <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
-          ) : card.photo ? (
+            <PhotoSlotPicker photo={photoSrc} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
+          ) : photoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img data-card-content src={card.photo} alt="" className="size-[128px] shrink-0 object-cover" />
+            <img data-card-content src={photoSrc} alt="" className="size-[128px] shrink-0 object-cover" />
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
             {showPlus ? (
@@ -325,14 +327,14 @@ function EmptyPortfolioStart({
   onDisplayNameChange,
 }: {
   card: Card;
-  onPhotoChange?: (photo: string | null) => void;
+  onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
 }) {
   return (
     <div className="flex w-full flex-col items-center" style={{ paddingTop: CARD_PHOTO_TOP_PX }}>
       {onPhotoChange ? (
         <PhotoSlotPicker
-          photo={card.photo ?? null}
+          photo={cardPhotoSrc(card)}
           onPhotoChange={onPhotoChange}
           sizePx={CARD_PHOTO_SIZE_PX}
           borderRadiusPx={CARD_PHOTO_RADIUS_PX}
@@ -440,7 +442,7 @@ type BusinessCardProps = {
   mode: MainScreenMode;
   libraryCardHeightPx?: number;
   onEmptyAreaTap: () => void;
-  onPhotoChange?: (photo: string | null) => void;
+  onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
   editing?: boolean;
@@ -474,7 +476,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const ready = cardIsReady(card);
-  const blank = !card.photo && !card.displayName.trim();
+  const blank = !cardHasPhoto(card) && !card.displayName.trim();
   const bare = !compact && ready && items.length === 0 && !editing;
   const articleRef = useRef<HTMLElement | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);

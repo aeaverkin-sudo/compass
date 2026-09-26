@@ -14,6 +14,7 @@ type ItemRow = {
   label: string;
   value: string;
   url: string;
+  attachment_id: string | null;
 };
 
 type LinkRow = {
@@ -81,6 +82,7 @@ async function upsertItemRow(item: ContactItem) {
       label: item.label,
       value: textValue(item),
       url: textUrl(item),
+      attachment_id: item.attachmentId ?? null,
     },
     { onConflict: "id", defaultToNull: false },
   );
@@ -166,12 +168,14 @@ function asType(value: string): ContactType {
 }
 
 function mergeItem(local: ContactItem | undefined, row: ItemRow, order: number): ContactItem {
+  const remoteAttachmentId = row.attachment_id ?? undefined;
   return {
     id: row.id,
     type: asType(row.type),
     label: row.label ?? "",
     value: row.value ?? "",
-    url: local?.url.startsWith("data:") ? local.url : (row.url ?? ""),
+    url: remoteAttachmentId ? "" : local?.url.startsWith("data:") ? local.url : (row.url ?? ""),
+    attachmentId: remoteAttachmentId ?? local?.attachmentId,
     order: local?.order ?? order,
   };
 }
@@ -187,7 +191,7 @@ export async function hydrateCardItems() {
   const supabase = createBrowserSupabaseClient();
   const { data: itemData, error: itemError } = await supabase
     .from("items")
-    .select("id, type, label, value, url")
+    .select("id, type, label, value, url, attachment_id")
     .eq("owner_id", userId);
   if (itemError) {
     console.error("[card-items] load failed", itemError.message);

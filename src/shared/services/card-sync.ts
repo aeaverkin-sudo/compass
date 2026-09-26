@@ -15,12 +15,14 @@ type CardRow = {
   status: string;
   public_token: string;
   qr_version: number;
+  is_public: boolean;
+  photo_attachment_id: string | null;
   created_at: string;
   updated_at: string;
 };
 
 const CARD_COLUMNS =
-  "id, display_name, title, status, public_token, qr_version, created_at, updated_at";
+  "id, display_name, title, status, public_token, qr_version, is_public, photo_attachment_id, created_at, updated_at";
 
 const pendingUpserts = new Map<string, { timer: ReturnType<typeof setTimeout>; card: Card }>();
 let hydrateTask: Promise<void> | null = null;
@@ -47,6 +49,7 @@ export function ensureCardIdentity(card: Card): Card {
 }
 
 function overlayScalars(local: Card, row: CardRow): Card {
+  const remotePhotoId = row.photo_attachment_id ?? undefined;
   return {
     ...local,
     id: row.id,
@@ -55,6 +58,9 @@ function overlayScalars(local: Card, row: CardRow): Card {
     status: asStatus(row.status),
     publicToken: row.public_token,
     qrVersion: row.qr_version,
+    isPublic: row.is_public,
+    photoAttachmentId: remotePhotoId ?? local.photoAttachmentId,
+    photo: remotePhotoId ? undefined : local.photo,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -68,6 +74,8 @@ function shellFromRow(row: CardRow): Card {
     status: asStatus(row.status),
     publicToken: row.public_token,
     qrVersion: row.qr_version,
+    isPublic: row.is_public,
+    photoAttachmentId: row.photo_attachment_id ?? undefined,
     contactItemIds: [],
     nextScanAddons: [],
     createdAt: row.created_at,
@@ -107,6 +115,9 @@ function scalarsEqual(a: Card, b: Card) {
     a.status === b.status &&
     a.publicToken === b.publicToken &&
     a.qrVersion === b.qrVersion &&
+    a.isPublic === b.isPublic &&
+    a.photoAttachmentId === b.photoAttachmentId &&
+    a.photo === b.photo &&
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt
   );
@@ -124,7 +135,7 @@ async function currentUserId() {
   return data.user.id;
 }
 
-/** Upsert scalar columns only. Never sends photo or item fields. */
+/** Upsert scalar columns only. The avatar is `photo_attachment_id`, never the image bytes. */
 export async function upsertCardScalars(card: Card): Promise<void> {
   try {
     if (!isCardUuid(card.id)) return;
@@ -142,10 +153,12 @@ export async function upsertCardScalars(card: Card): Promise<void> {
         status: card.status,
         public_token: card.publicToken,
         qr_version: card.qrVersion,
+        is_public: card.isPublic ?? false,
+        photo_attachment_id: card.photoAttachmentId ?? null,
         created_at: card.createdAt,
         updated_at: card.updatedAt,
       },
-      // Omitted columns (photo_attachment_id, item_order_manual) keep their defaults
+      // Omitted columns (item_order_manual) keep their defaults
       // on insert and are not overwritten on conflict.
       { onConflict: "id", defaultToNull: false },
     );
@@ -232,6 +245,9 @@ async function runHydrate() {
 
   const { hydrateCardItems } = await import("@/shared/services/card-items-sync");
   await hydrateCardItems();
+
+  const { migrateLocalMedia } = await import("@/shared/services/attachment-upload");
+  await migrateLocalMedia();
 }
 
 /** Pull server scalars after the anonymous session exists. Safe to call more than once. */

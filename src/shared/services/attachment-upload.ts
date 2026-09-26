@@ -105,3 +105,55 @@ async function errorText(response: Response): Promise<string> {
     return "Upload failed";
   }
 }
+
+export async function fileFromDataUrl(dataUrl: string, filename: string): Promise<File> {
+  const blob = await (await fetch(dataUrl)).blob();
+  const mime = blob.type || dataUrl.slice(5, dataUrl.indexOf(";")) || "application/octet-stream";
+  return new File([blob], filename, { type: mime });
+}
+
+/** Upload leftover data URLs once, then drop them. A failed file stays local and retries next visit. */
+export async function migrateLocalMedia(): Promise<void> {
+  const { useAppStore } = await import("@/shared/store/app-store");
+  const { scheduleItemUpsert } = await import("@/shared/services/card-items-sync");
+  const { isAttachmentType } = await import("@/shared/services/portfolio-limits");
+
+  for (const card of useAppStore.getState().cards) {
+    const preview = card.photo;
+    if (!preview?.startsWith("data:")) continue;
+    try {
+      const file = await fileFromDataUrl(preview, "card-photo.jpg");
+      const ready = await uploadAttachment({ file, kind: "card-photo", cardId: card.id });
+      const latest = useAppStore.getState().cards.find((entry) => entry.id === card.id);
+      if (latest?.photo !== preview) continue;
+      useAppStore.getState().updateCard(card.id, {
+        photo: undefined,
+        photoAttachmentId: ready.attachmentId,
+      });
+    } catch (error) {
+      console.error("[card-photo] migrate failed", error);
+    }
+  }
+
+  const cards = useAppStore.getState().cards;
+  for (const item of useAppStore.getState().contactItems) {
+    const preview = item.url;
+    if (!preview.startsWith("data:") || item.attachmentId || !isAttachmentType(item.type)) continue;
+    const cardId = cards.find((card) => card.contactItemIds.includes(item.id))?.id;
+    try {
+      const file = await fileFromDataUrl(preview, item.value || "file");
+      const ready = await uploadAttachment({ file, kind: item.type, cardId });
+      const nextItems = useAppStore.getState().contactItems.map((entry) =>
+        entry.id === item.id && entry.url === preview
+          ? { ...entry, attachmentId: ready.attachmentId, url: "" }
+          : entry,
+      );
+      const saved = nextItems.find((entry) => entry.id === item.id);
+      if (saved?.attachmentId !== ready.attachmentId) continue;
+      useAppStore.setState({ contactItems: nextItems });
+      scheduleItemUpsert(saved);
+    } catch (error) {
+      console.error("[attachment] migrate failed", error);
+    }
+  }
+}

@@ -4,7 +4,7 @@ import { LANDING_PHOTO_SIZE_PX, photoRadiusForSize, PhotoSlotPicker } from "./ph
 
 type AvatarPickerProps = {
   photo: string | null;
-  onPhotoChange: (photo: string | null) => void;
+  onPhotoChange: (photo: string | null, file?: File) => void;
 };
 
 export function AvatarPicker({ photo, onPhotoChange }: AvatarPickerProps) {

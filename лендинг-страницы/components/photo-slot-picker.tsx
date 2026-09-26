@@ -16,7 +16,7 @@ export function photoRadiusForSize(sizePx: number) {
 
 type PhotoSlotPickerProps = {
   photo: string | null;
-  onPhotoChange: (photo: string | null) => void;
+  onPhotoChange: (photo: string | null, file?: File) => void;
   sizePx?: number;
   borderRadiusPx?: number;
   className?: string;
@@ -39,8 +39,8 @@ export function PhotoSlotPicker({
 
   const pickPhoto = () => {
     openNativePhotoPicker(
-      (nextPhoto) => {
-        onPhotoChange(nextPhoto);
+      (nextPhoto, file) => {
+        onPhotoChange(nextPhoto, file);
         setEditing(false);
       },
       () => setEditing(false),
