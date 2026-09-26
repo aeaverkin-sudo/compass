@@ -24,7 +24,6 @@ import {
   CARD_PHOTO_TOP_PX,
   LIBRARY_NAME_FADE_PX,
   RULE_GAP_PX,
-  WHITE_FIELD_GAP_PX,
   type MainScreenMode,
 } from "../layout";
 
@@ -306,7 +305,7 @@ function EditorialHeader({
   return (
     <div className="w-full">
       {showRule ? <div className="border-t-[0.5px] border-[#111]" /> : null}
-      <div className="relative" style={{ paddingTop: RULE_GAP_PX, paddingBottom: WHITE_FIELD_GAP_PX }}>
+      <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={photoSrc} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />

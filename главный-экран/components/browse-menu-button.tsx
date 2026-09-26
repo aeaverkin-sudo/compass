@@ -1,6 +1,6 @@
 "use client";
 
-import { BROWSE_DOT_PX, layoutTop } from "../layout";
+import { layoutTop } from "../layout";
 
 type BrowseMenuButtonProps = {
   centerYpx: number;
@@ -25,12 +25,7 @@ export function BrowseMenuButton({ centerYpx, onTap }: BrowseMenuButtonProps) {
       onContextMenu={(event) => event.preventDefault()}
     >
       {[0, 1].map((index) => (
-        <span
-          key={index}
-          aria-hidden
-          className="rounded-full bg-[#111]"
-          style={{ width: BROWSE_DOT_PX, height: BROWSE_DOT_PX }}
-        />
+        <span key={index} aria-hidden className="size-[9.2px] rounded-full bg-[#111]" />
       ))}
     </button>
   );
