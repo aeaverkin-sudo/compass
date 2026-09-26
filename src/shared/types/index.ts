@@ -60,6 +60,8 @@ export interface Card {
   status: CardStatus;
   /** Public QR token (`cards.public_token`). Not the legacy `User.shareToken`. */
   publicToken: string;
+  /** First card is public. Extra cards are not. Not shown in the UI yet. */
+  isPublic?: boolean;
   qrVersion: number;
   contactItemIds: string[];
   /** When true, card rows keep the user's manual order instead of auto shelves. */

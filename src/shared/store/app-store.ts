@@ -100,6 +100,7 @@ export const useAppStore = create<AppState>()(
           qrVersion: existing?.qrVersion ?? 1,
           contactItemIds: existing?.contactItemIds ?? [],
           itemOrderManual: existing?.itemOrderManual,
+          isPublic: true,
           nextScanAddons: existing?.nextScanAddons ?? [],
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
@@ -277,6 +278,7 @@ export const useAppStore = create<AppState>()(
             publicToken: "",
             qrVersion: 1,
             contactItemIds: [],
+            isPublic: false,
             nextScanAddons: [],
             createdAt: now,
             updatedAt: now,
@@ -300,7 +302,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "compass-storage-v4",
-      version: 8,
+      version: 9,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 5) {
@@ -334,6 +336,13 @@ export const useAppStore = create<AppState>()(
           );
           state.cards = rekeyed.cards;
           state.contactItems = rekeyed.items;
+        }
+        if (version < 9) {
+          const cards = (state.cards as Card[] | undefined) ?? [];
+          state.cards = cards.map((card, index) => ({
+            ...card,
+            isPublic: card.isPublic ?? index === 0,
+          }));
         }
         return state as unknown as AppState;
       },
