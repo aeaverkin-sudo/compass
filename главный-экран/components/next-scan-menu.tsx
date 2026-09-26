@@ -366,6 +366,8 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   onChange={(event) => setText(event.target.value)}
                   placeholder="Short note…"
                   rows={3}
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="compass-input mb-2 w-full resize-none border-b-[0.5px] border-[#111] bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
                 />
                 <button

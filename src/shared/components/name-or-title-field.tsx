@@ -33,6 +33,8 @@ export function NameOrTitleField({
       aria-label="Name or portfolio title"
       autoComplete="name"
       autoCapitalize="words"
+      autoCorrect="off"
+      spellCheck={false}
       onChange={(event) => onChange(clampNameLines(event.target.value))}
       onKeyDown={(event) => {
         event.stopPropagation();

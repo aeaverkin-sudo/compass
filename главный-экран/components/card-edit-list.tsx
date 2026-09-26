@@ -385,6 +385,8 @@ function EditRow({
           readOnly={!editing}
           enterKeyHint="done"
           aria-label={editing ? "Edit row" : text}
+          autoCorrect="off"
+          spellCheck={false}
           data-no-swipe
           onChange={(event) => {
             if (!editing) return;

@@ -220,6 +220,8 @@ function HeroName({
           enterKeyHint="enter"
           placeholder=""
           aria-label="Name or portfolio title"
+          autoCorrect="off"
+          spellCheck={false}
           data-no-swipe
           onChange={(event) => {
             event.currentTarget.scrollTop = 0;

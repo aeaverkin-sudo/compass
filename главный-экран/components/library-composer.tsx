@@ -175,6 +175,8 @@ export function LibraryComposer({
               value={item.value}
               placeholder={hasPhotoPreview ? item.label || "Photo" : ADD_PLACEHOLDER}
               aria-label="Contact field"
+              autoCorrect="off"
+              spellCheck={false}
               onChange={(event) => onValueChange(event.target.value)}
               onBlur={handleBlur}
               className="compass-input block w-full resize-none overflow-y-auto bg-transparent p-0 text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:tracking-normal placeholder:text-[#999] placeholder:normal-case"
@@ -185,6 +187,8 @@ export function LibraryComposer({
                 value={customDisplayName(item) ? item.label : ""}
                 placeholder={autoLinkDisplay(item) || "Name"}
                 aria-label="Display name"
+                autoCorrect="off"
+                spellCheck={false}
                 onChange={(event) => onLabelChange(event.target.value)}
                 onBlur={handleBlur}
                 className="compass-input mt-1 block w-full truncate border-t border-hairline/40 bg-transparent pt-1 text-[18.2px] leading-[1.3] text-foreground outline-none placeholder:font-normal placeholder:text-hint"
