@@ -45,6 +45,62 @@ async function resizeImageToDataUrl(
   }
 }
 
+async function resizeImageToBlob(
+  file: File,
+  maxPx: number,
+  mime: "image/jpeg" | "image/png",
+  quality?: number,
+): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const longest = Math.max(bitmap.width, bitmap.height);
+    const scale = longest > maxPx ? maxPx / longest : 1;
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, mime, quality);
+    });
+    return blob ?? file;
+  } catch {
+    return file;
+  }
+}
+
+/** Image bytes for the upload route. Canvas redraw drops EXIF; the server strips it again. */
+export async function prepareImageUploadBlob(
+  file: File,
+  kind: "card-photo" | "photo",
+): Promise<Blob> {
+  if (!file.type.startsWith("image/") || file.type === "image/svg+xml") return file;
+  if (kind === "card-photo") {
+    return resizeImageToBlob(
+      file,
+      PORTFOLIO_LIMITS.maxCardPhotoPx,
+      "image/jpeg",
+      PORTFOLIO_LIMITS.cardPhotoJpegQuality,
+    );
+  }
+  const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
+  return resizeImageToBlob(
+    file,
+    PORTFOLIO_LIMITS.maxAttachmentImagePx,
+    mime,
+    mime === "image/jpeg" ? PORTFOLIO_LIMITS.attachmentJpegQuality : undefined,
+  );
+}
+
 /** Card avatar — small JPEG, sized for localStorage with two cards. */
 export async function prepareCardPhotoForStorage(file: File): Promise<string> {
   if (!file.type.startsWith("image/")) {

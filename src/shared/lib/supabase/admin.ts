@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * Service-role client. Server only — do not import from client components.
- * Bypasses RLS. Not used until later storage phases.
+ * Bypasses RLS. Used by the attachment routes only.
  */
 export function createAdminSupabaseClient() {
   if (typeof window !== "undefined") {
