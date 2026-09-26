@@ -5,7 +5,7 @@ import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { loadPublicCardPdfFile, sharePdfFile } from "@/shared/services/save-public-card-pdf";
+import { peekPublicCardPdf, primePublicCardPdf, sharePdfFile } from "@/shared/services/save-public-card-pdf";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
@@ -495,7 +495,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const ready = cardIsReady(card);
-  const pdfFileRef = useRef<File | null>(null);
   const notesRef = useRef(deliveredNotes);
   notesRef.current = deliveredNotes;
   const notesKey = deliveredNotes
@@ -504,49 +503,26 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
 
   useEffect(() => {
     if (compact || editing || !ready || !card.publicToken) return;
-    let cancelled = false;
-    pdfFileRef.current = null;
-    void loadPublicCardPdfFile({
+    void primePublicCardPdf({
       publicToken: card.publicToken,
       displayName: card.displayName,
       notes: notesRef.current,
-    })
-      .then((file) => {
-        if (!cancelled) pdfFileRef.current = file;
-      })
-      .catch((error) => console.error("[pdf] prepare failed", error));
-    return () => {
-      cancelled = true;
-    };
+    }).catch((error) => console.error("[pdf] prepare failed", error));
   }, [compact, editing, ready, card.publicToken, card.displayName, notesKey]);
 
   const handleShare = () => {
     if (!card.publicToken) return;
-    const readyFile = pdfFileRef.current;
-    if (readyFile) {
-      sharePdfFile(readyFile, card.displayName);
-      return;
-    }
-    const popup = window.open("about:blank", "_blank");
-    void loadPublicCardPdfFile({
+    const input = {
       publicToken: card.publicToken,
       displayName: card.displayName,
       notes: deliveredNotes,
-    })
-      .then((file) => {
-        pdfFileRef.current = file;
-        if (popup && !popup.closed) {
-          const url = URL.createObjectURL(file);
-          popup.location.href = url;
-          window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-          return;
-        }
-        sharePdfFile(file, card.displayName);
-      })
-      .catch((error) => {
-        console.error("[pdf] save failed", error);
-        popup?.close();
-      });
+    };
+    const file = peekPublicCardPdf(input);
+    if (!file) {
+      void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
+      return;
+    }
+    sharePdfFile(file, card.displayName);
   };
 
   useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);
