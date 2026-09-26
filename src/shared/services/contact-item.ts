@@ -1,5 +1,6 @@
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import {
+  attachmentTypeForName,
   detectAttachmentType,
   inferAttachmentLabel,
   matchServicePrefix,
@@ -45,14 +46,19 @@ function detectDataUrlType(value: string): ContactType | null {
 }
 
 function detectUrlPathType(value: string): ContactType | null {
-  if (/\.pdf(?:$|[?#])/i.test(value)) return "pdf";
-  if (/\.(ppt|pptx|key)(?:$|[?#])/i.test(value)) return "presentation";
-  if (/\.(doc|docx|txt|rtf)(?:$|[?#])/i.test(value)) return "document";
-  if (/\.(xls|xlsx|csv)(?:$|[?#])/i.test(value)) return "spreadsheet";
-  if (/\.(mp3|m4a|wav)(?:$|[?#])/i.test(value)) return "audio";
-  if (/\.(mp4|mov|m4v)(?:$|[?#])/i.test(value)) return "video";
-  if (/\.(png|jpe?g|gif|webp|heic|svg)(?:$|[?#])/i.test(value)) return "photo";
-  return null;
+  return attachmentTypeForName(value);
+}
+
+/** Host-only addresses whose last label is also a file extension, e.g. studio.ai. */
+const HOST_FILE_TLDS = new Set(["ai"]);
+
+function isHostOnlyAddress(value: string) {
+  const path = value.split(/[?#]/)[0] ?? value;
+  const stripped = path.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/\/+$/, "");
+  if (stripped.includes("/")) return false;
+  const extension = stripped.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+  if (!extension || !HOST_FILE_TLDS.has(extension)) return false;
+  return /^(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(stripped);
 }
 
 function parseTypedShortcut(raw: string): { type: ContactType; handle: string } | null {
@@ -82,10 +88,13 @@ export function detectContactType(raw: string): ContactType {
   const shortcut = parseTypedShortcut(value);
   if (shortcut) return shortcut.type;
 
+  const namedFile = attachmentTypeForName(value);
+  if (namedFile && !value.includes("\n") && !isHostOnlyAddress(value)) return namedFile;
+
   if (!DOMAIN.test(value)) return "text";
 
   const pathType = detectUrlPathType(value);
-  if (pathType) return pathType;
+  if (pathType && !isHostOnlyAddress(value)) return pathType;
 
   try {
     const host = new URL(value.startsWith("http") ? value : `https://${value}`).hostname;

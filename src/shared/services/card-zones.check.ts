@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import type { ContactItem, ContactType } from "@/shared/types";
+import { detectContactType } from "./contact-item";
 import { composeCard, groupLibrary, parseDescription } from "./card-zones";
 
 function item(id: string, type: ContactType, value: string, extra: Partial<ContactItem> = {}): ContactItem {
@@ -117,5 +118,16 @@ assert.deepEqual(
   library.map((zone) => zone.id),
   ["web", "social", "files", "lifestyle", "contact"],
 );
+
+assert.equal(detectContactType("instagram.com/studio"), "instagram");
+assert.equal(detectContactType("open.spotify.com/track/1"), "spotify");
+assert.equal(detectContactType("lookbook.pdf"), "pdf");
+assert.equal(detectContactType("portrait.CR2"), "photo");
+assert.equal(detectContactType("notes.docx"), "document");
+assert.equal(detectContactType("reel.mov"), "video");
+assert.equal(detectContactType("voice.wav"), "audio");
+assert.equal(detectContactType("budget.xlsx"), "spreadsheet");
+assert.equal(detectContactType("studio.ai"), "website");
+assert.equal(detectContactType("https://cdn.example.com/logo.ai"), "document");
 
 console.log("card-zones ok");

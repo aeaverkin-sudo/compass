@@ -311,37 +311,64 @@ export const SOCIAL_DOMAIN_MAP: ReadonlyArray<[string, ContactType]> = [
   ["play.google.com", "playstore"],
 ];
 
+/** Extension → file rubric. One list, used for uploads and pasted filenames. */
+const FILE_EXTENSIONS: Record<AttachmentContactType, readonly string[]> = {
+  pdf: ["pdf"],
+  photo: [
+    "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "svg", "bmp", "tif", "tiff", "avif", "ico",
+    "raw", "cr2", "cr3", "nef", "arw", "dng", "raf", "orf", "rw2", "pef", "srw",
+  ],
+  presentation: ["ppt", "pptx", "key", "odp"],
+  document: [
+    "doc", "docx", "txt", "rtf", "odt", "pages", "md", "tex",
+    "ai", "psd", "indd", "sketch", "fig", "xd", "eps", "afdesign",
+    "zip", "rar", "7z",
+  ],
+  spreadsheet: ["xls", "xlsx", "csv", "ods", "numbers", "tsv"],
+  audio: ["mp3", "m4a", "wav", "aac", "flac", "aiff", "aif", "ogg", "wma", "alac", "opus", "caf"],
+  video: ["mp4", "mov", "m4v", "avi", "mkv", "webm", "wmv", "mpg", "mpeg", "mts", "m2ts", "3gp"],
+};
+
+const EXTENSION_TYPE = new Map<string, AttachmentContactType>(
+  (Object.entries(FILE_EXTENSIONS) as [AttachmentContactType, readonly string[]][]).flatMap(
+    ([type, extensions]) => extensions.map((extension) => [extension, type] as const),
+  ),
+);
+
+/** Last extension of a filename or URL, ignoring ?query and #hash. */
+export function attachmentTypeForName(name: string): AttachmentContactType | null {
+  const path = name.split(/[?#]/)[0] ?? name;
+  const extension = path.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase();
+  if (!extension) return null;
+  return EXTENSION_TYPE.get(extension) ?? null;
+}
+
 const MIME_TO_ATTACHMENT: ReadonlyArray<[string | RegExp, AttachmentContactType]> = [
   ["application/pdf", "pdf"],
-  [/^image\//, "photo"],
+  ["image/vnd.adobe.photoshop", "document"],
+  ["application/postscript", "document"],
+  ["application/illustrator", "document"],
+  ["application/zip", "document"],
+  ["application/x-zip-compressed", "document"],
+  ["application/vnd.rar", "document"],
+  ["application/x-7z-compressed", "document"],
   ["application/vnd.ms-powerpoint", "presentation"],
-  [
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "presentation",
-  ],
+  ["application/vnd.openxmlformats-officedocument.presentationml.presentation", "presentation"],
+  ["application/vnd.oasis.opendocument.presentation", "presentation"],
   ["application/msword", "document"],
   ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "document"],
-  ["text/plain", "document"],
+  ["application/vnd.oasis.opendocument.text", "document"],
   ["application/rtf", "document"],
+  ["text/plain", "document"],
+  ["text/markdown", "document"],
   ["application/vnd.ms-excel", "spreadsheet"],
   ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "spreadsheet"],
+  ["application/vnd.oasis.opendocument.spreadsheet", "spreadsheet"],
   ["text/csv", "spreadsheet"],
-  ["audio/mpeg", "audio"],
-  ["audio/mp4", "audio"],
-  ["audio/wav", "audio"],
-  ["audio/x-wav", "audio"],
-  ["video/mp4", "video"],
-  ["video/quicktime", "video"],
-];
-
-const EXT_TO_ATTACHMENT: ReadonlyArray<[RegExp, AttachmentContactType]> = [
-  [/\.pdf$/i, "pdf"],
-  [/\.(png|jpe?g|gif|webp|heic|heif|svg)$/i, "photo"],
-  [/\.(ppt|pptx|key)$/i, "presentation"],
-  [/\.(doc|docx|txt|rtf)$/i, "document"],
-  [/\.(xls|xlsx|csv)$/i, "spreadsheet"],
-  [/\.(mp3|m4a|wav)$/i, "audio"],
-  [/\.(mp4|mov|m4v)$/i, "video"],
+  ["text/tab-separated-values", "spreadsheet"],
+  [/^audio\//, "audio"],
+  [/^video\//, "video"],
+  [/^image\//, "photo"],
 ];
 
 /** Filename hints → display label (left column / PDF export). */
@@ -360,42 +387,26 @@ const FILENAME_LABEL_RULES: ReadonlyArray<[RegExp, string]> = [
   [/team/i, "Team"],
   [/demo/i, "Demo"],
   [/intro/i, "Intro"],
+  [/show[-_]?reel|reel/i, "Showreel"],
+  [/treatment/i, "Treatment"],
+  [/storyboard/i, "Storyboard"],
+  [/mood[-_]?board/i, "Moodboard"],
+  [/lookbook/i, "Lookbook"],
+  [/invoice/i, "Invoice"],
+  [/contract/i, "Contract"],
+  [/\bnda\b/i, "NDA"],
+  [/\bscript\b/i, "Script"],
 ];
 
 /** iOS — extension list avoids the Photo Library / Take Photo action sheet. */
-export const PORTFOLIO_GALLERY_ACCEPT = ".jpg,.jpeg,.png,.heic,.heif,.webp";
+export const PORTFOLIO_GALLERY_ACCEPT = FILE_EXTENSIONS.photo.map((extension) => `.${extension}`).join(",");
 
-/** Documents/media only — no image/* (images go through gallery picker). */
-export const PORTFOLIO_FILE_ACCEPT = [
-  "application/pdf",
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/csv",
-  "text/plain",
-  "audio/mpeg",
-  "audio/mp4",
-  "audio/wav",
-  "video/mp4",
-  "video/quicktime",
-  ".pdf",
-  ".ppt",
-  ".pptx",
-  ".doc",
-  ".docx",
-  ".xls",
-  ".xlsx",
-  ".csv",
-  ".txt",
-  ".mp3",
-  ".m4a",
-  ".wav",
-  ".mp4",
-  ".mov",
-].join(",");
+/** Documents and media. Images stay on the gallery picker. */
+export const PORTFOLIO_FILE_ACCEPT = (
+  ["pdf", "presentation", "document", "spreadsheet", "audio", "video"] as const
+)
+  .flatMap((type) => FILE_EXTENSIONS[type].map((extension) => `.${extension}`))
+  .join(",");
 
 /** @deprecated Use PORTFOLIO_FILE_ACCEPT */
 export const PORTFOLIO_DOCUMENT_ACCEPT = PORTFOLIO_FILE_ACCEPT;
@@ -409,9 +420,8 @@ export function detectAttachmentType(file: File): AttachmentContactType {
     }
   }
 
-  for (const [pattern, type] of EXT_TO_ATTACHMENT) {
-    if (pattern.test(file.name)) return type;
-  }
+  const named = attachmentTypeForName(file.name);
+  if (named) return named;
 
   if (file.type.startsWith("image/")) return "photo";
   return "document";
