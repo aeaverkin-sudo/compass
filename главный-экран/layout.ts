@@ -28,8 +28,8 @@ export const HEADER_RHYTHM_PX = (HEADER_SLOT_PX - BROWSE_QR_SIZE) / 2;
 /** Browse card bottom ≈ this % of viewport (green mockup outline). */
 export const CARD_BOTTOM_TARGET_LVH = 73;
 
-/** Trim browse card bottom edge (px; negative extends downward). −84 = prior −46 plus +1 cm. */
-export const CARD_BOTTOM_RAISE_PX = -84;
+/** Trim browse card bottom edge (px; negative extends downward). −84, then 1mm lower. */
+export const CARD_BOTTOM_RAISE_PX = -84 - 96 / 25.4;
 
 /** Base overlap of the library preview onto the QR zone. */
 export const QR_OVERLAP_LIBRARY_BASE_PX = 112;
