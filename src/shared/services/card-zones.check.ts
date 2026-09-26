@@ -86,9 +86,9 @@ const mixed = composeCard([
 assert.equal(mixed.position, null);
 assert.deepEqual(
   mixed.zones.map((zone) => zone.id),
-  ["web", "position"],
+  ["position", "web"],
 );
-assert.equal(mixed.zones[1]?.rows[0]?.value, "angel investor, ex-product at HSE");
+assert.equal(mixed.zones[0]?.rows[0]?.value, "angel investor, ex-product at HSE");
 
 const explicit = composeCard([
   item("p", "position", "Founder"),

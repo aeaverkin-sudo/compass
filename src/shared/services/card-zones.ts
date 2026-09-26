@@ -4,11 +4,11 @@ import { isAttachmentType } from "./portfolio-limits";
 import { typeLabel } from "./portfolio-catalog";
 
 export const CARD_ZONES = [
+  { id: "position", title: "Position" },
   { id: "web", title: "Web" },
   { id: "social", title: "Social" },
   { id: "files", title: "Files" },
   { id: "lifestyle", title: "Lifestyle" },
-  { id: "position", title: "Position" },
   { id: "contact", title: "Contact" },
   { id: "additional", title: "Additional" },
 ] as const;

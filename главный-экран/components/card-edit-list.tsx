@@ -49,10 +49,7 @@ function buildSections(card: Card, items: ContactItem[]): EditSection[] {
     };
   });
 
-  return [
-    ...sections.filter((section) => section.included),
-    ...sections.filter((section) => !section.included && section.rows.length > 0),
-  ];
+  return sections.filter((section) => section.rows.length > 0);
 }
 
 function RowMark({
