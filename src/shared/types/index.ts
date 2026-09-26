@@ -5,6 +5,8 @@ export interface NextScanAddon {
   type: NextScanAddonType;
   content: string;
   createdAt: string;
+  /** Ready file in transfer-assets. Text notes leave this unset. */
+  attachmentId?: string;
 }
 
 /** One-time notes/selfie delivered on the next share view only. */
