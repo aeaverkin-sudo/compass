@@ -14,6 +14,8 @@ import { publicCardUrl } from "@/shared/services/public-card-url";
 import { CardEditList } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
+import { NotesRubric } from "./notes-rubric";
+import { useOwnerNotesDelivery } from "../hooks/use-owner-notes-delivery";
 import { clampNameLines, NameOrTitleField } from "@/shared/components/name-or-title-field";
 import {
   TOP_VEIL_PX,
@@ -503,6 +505,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const ready = cardIsReady(card);
+  useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);
   const blank = !cardHasPhoto(card) && !card.displayName.trim();
   const bare = !compact && ready && items.length === 0 && !editing;
   const articleRef = useRef<HTMLElement | null>(null);
@@ -737,6 +740,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
 
       {!compact && !editing && ready && items.length > 0 ? (
         <CardShareFooter name={card.displayName} publicToken={card.publicToken} hideShare={readOnly} className="mt-auto shrink-0 pt-6" />
+      ) : null}
+      {!compact && !editing ? (
+        <NotesRubric
+          ownerNotes={readOnly ? undefined : nextScanAddons}
+          deliveredNotes={readOnly ? deliveredNotes : undefined}
+          className={items.length === 0 ? "mt-auto" : undefined}
+        />
       ) : null}
       </div>
       </div>
