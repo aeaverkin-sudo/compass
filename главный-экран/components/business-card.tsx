@@ -18,7 +18,6 @@ import {
   CARD_PHOTO_RADIUS_PX,
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
-  HERO_TO_SECTION_PX,
   LIBRARY_NAME_FADE_PX,
   RULE_GAP_PX,
   type MainScreenMode,
@@ -273,7 +272,6 @@ function EditorialHeader({
   nextScan,
   onPhotoChange,
   onDisplayNameChange,
-  belowPhotoPx,
 }: {
   card: Card;
   positionTitle?: string;
@@ -282,12 +280,11 @@ function EditorialHeader({
   nextScan: ReactNode;
   onPhotoChange?: (photo: string | null) => void;
   onDisplayNameChange?: (displayName: string) => void;
-  belowPhotoPx: number;
 }) {
   return (
     <div className="w-full">
       {showRule ? <div className="border-t-[0.5px] border-[#111]" /> : null}
-      <div className="relative" style={{ paddingTop: RULE_GAP_PX, paddingBottom: belowPhotoPx }}>
+      <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
@@ -608,7 +605,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               positionTitle={positionTitle}
               showRule={ready}
               showPlus={Boolean(onCardUpdate && ready)}
-              belowPhotoPx={editing ? 22 : HERO_TO_SECTION_PX}
               nextScan={
                 onCardUpdate && ready ? (
                   <NextScanMenu

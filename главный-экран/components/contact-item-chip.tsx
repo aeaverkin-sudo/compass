@@ -436,8 +436,7 @@ export function ContactItemChipList({
           <section
             key={zone.id}
             className={cn(
-              "min-w-0",
-              zoneIndex === 0 ? "pt-0 pb-[18px]" : "py-[18px]",
+              "min-w-0 py-[18px]",
               zoneIndex < composed.zones.length - 1 && "border-b-[0.5px] border-[#111]",
             )}
           >
