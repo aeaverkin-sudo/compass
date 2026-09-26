@@ -1,11 +1,11 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { savePublicCardPdf } from "@/shared/services/save-public-card-pdf";
+import { loadPublicCardPdfFile, sharePdfFile } from "@/shared/services/save-public-card-pdf";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
@@ -420,35 +420,30 @@ function CompactHeader({
 
 function CardShareFooter({
   name,
-  publicToken,
   className,
-  onSavePdf,
-  savingPdf = false,
+  onShare,
 }: {
   name: string;
-  publicToken: string;
   className?: string;
-  onSavePdf?: () => void;
-  savingPdf?: boolean;
+  onShare?: () => void;
 }) {
   return (
-    <footer className={cn("flex items-end justify-between gap-3", className)}>
+    <footer className={cn("flex items-end justify-between", className)}>
       <p className="text-[9.5px] leading-[1.15] font-normal tracking-[0.08em] uppercase">
         {name || "Name"}
         <br />
         Portfolio
       </p>
-      {onSavePdf ? (
+      {onShare ? (
         <button
           type="button"
           data-card-content
           data-no-swipe
-          aria-label="Save PDF"
-          disabled={savingPdf || !publicToken}
-          onClick={() => onSavePdf()}
-          className="text-[11px] leading-none font-normal tracking-[0.1em] text-[#111] uppercase disabled:opacity-40"
+          aria-label="Share"
+          onClick={onShare}
+          className="text-[#111]"
         >
-          {savingPdf ? "…" : "PDF"}
+          <Share className="size-4" strokeWidth={1.25} aria-hidden />
         </button>
       ) : null}
     </footer>
@@ -472,9 +467,6 @@ type BusinessCardProps = {
   readOnly?: boolean;
   /** One-time notes delivered to the first real viewer. */
   deliveredNotes?: DeliveredNote[];
-  /** Optional override for PDF save. Defaults to the live /c/ PDF route. */
-  onSavePdf?: () => void;
-  savingPdf?: boolean;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -493,8 +485,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     composeOnMount = false,
     readOnly = false,
     deliveredNotes = [],
-    onSavePdf,
-    savingPdf: savingPdfProp = false,
   },
   ref,
 ) {
@@ -505,22 +495,59 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const ready = cardIsReady(card);
-  const [savingPdfLocal, setSavingPdfLocal] = useState(false);
-  const savingPdf = savingPdfProp || savingPdfLocal;
+  const pdfFileRef = useRef<File | null>(null);
+  const notesRef = useRef(deliveredNotes);
+  notesRef.current = deliveredNotes;
+  const notesKey = deliveredNotes
+    .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
+    .join("|");
 
-  const handleSavePdf =
-    onSavePdf ??
-    (() => {
-      if (savingPdf || !card.publicToken) return;
-      setSavingPdfLocal(true);
-      void savePublicCardPdf({
-        publicToken: card.publicToken,
-        displayName: card.displayName,
-        notes: deliveredNotes,
+  useEffect(() => {
+    if (compact || editing || !ready || !card.publicToken) return;
+    let cancelled = false;
+    pdfFileRef.current = null;
+    void loadPublicCardPdfFile({
+      publicToken: card.publicToken,
+      displayName: card.displayName,
+      notes: notesRef.current,
+    })
+      .then((file) => {
+        if (!cancelled) pdfFileRef.current = file;
       })
-        .catch((error) => console.error("[pdf] save failed", error))
-        .finally(() => setSavingPdfLocal(false));
-    });
+      .catch((error) => console.error("[pdf] prepare failed", error));
+    return () => {
+      cancelled = true;
+    };
+  }, [compact, editing, ready, card.publicToken, card.displayName, notesKey]);
+
+  const handleShare = () => {
+    if (!card.publicToken) return;
+    const readyFile = pdfFileRef.current;
+    if (readyFile) {
+      sharePdfFile(readyFile, card.displayName);
+      return;
+    }
+    const popup = window.open("about:blank", "_blank");
+    void loadPublicCardPdfFile({
+      publicToken: card.publicToken,
+      displayName: card.displayName,
+      notes: deliveredNotes,
+    })
+      .then((file) => {
+        pdfFileRef.current = file;
+        if (popup && !popup.closed) {
+          const url = URL.createObjectURL(file);
+          popup.location.href = url;
+          window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+          return;
+        }
+        sharePdfFile(file, card.displayName);
+      })
+      .catch((error) => {
+        console.error("[pdf] save failed", error);
+        popup?.close();
+      });
+  };
 
   useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);
   const blank = !cardHasPhoto(card) && !card.displayName.trim();
@@ -758,9 +785,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {!compact && !editing && ready && (items.length > 0 || Boolean(card.publicToken)) ? (
         <CardShareFooter
           name={card.displayName}
-          publicToken={card.publicToken}
-          onSavePdf={card.publicToken ? handleSavePdf : undefined}
-          savingPdf={savingPdf}
+          onShare={card.publicToken ? handleShare : undefined}
           className="mt-auto shrink-0 pt-6"
         />
       ) : null}

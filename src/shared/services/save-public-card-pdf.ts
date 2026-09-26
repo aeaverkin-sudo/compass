@@ -14,12 +14,11 @@ function filenameFromDisposition(header: string | null): string | null {
   return plain?.[1]?.trim().replace(/^"|"$/g, "") || null;
 }
 
-/** Fetch the public-card PDF and hand it to Share / Save to Files / download. */
-export async function savePublicCardPdf(input: {
+export async function loadPublicCardPdfFile(input: {
   publicToken: string;
   displayName: string;
   notes?: DeliveredNote[];
-}): Promise<void> {
+}): Promise<File> {
   const response = await fetch(`/api/c/${encodeURIComponent(input.publicToken)}/pdf`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -31,34 +30,34 @@ export async function savePublicCardPdf(input: {
   const filename =
     filenameFromDisposition(response.headers.get("Content-Disposition")) ||
     `${input.displayName.replace(/\n/g, " ").trim() || "card"}.pdf`;
-  const file = new File([blob], filename, { type: "application/pdf" });
+  return new File([blob], filename, { type: "application/pdf" });
+}
 
-  // Prefer sharing the file (Telegram gets a PDF, not a link).
-  const shareData: ShareData = { files: [file], title: input.displayName };
+function downloadPdfFile(file: File) {
+  const url = URL.createObjectURL(file);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = file.name;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/**
+ * Share a PDF that is already in memory.
+ * iOS only opens the sheet if share() runs in the same turn as the tap,
+ * so this must not wait on the network.
+ */
+export function sharePdfFile(file: File, title: string) {
+  const shareData: ShareData = { files: [file], title };
   if (typeof navigator !== "undefined" && navigator.canShare?.(shareData)) {
-    try {
-      await navigator.share(shareData);
-      return;
-    } catch (error) {
-      // User cancelled — stop. Other errors fall through to download.
+    void navigator.share(shareData).catch((error) => {
       if (error instanceof DOMException && error.name === "AbortError") return;
-    }
+      downloadPdfFile(file);
+    });
+    return;
   }
-
-  const url = URL.createObjectURL(blob);
-  try {
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.rel = "noopener";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-
-    // iOS Safari often ignores download=; opening the blob still lets the user save the file.
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    if (isIos) window.open(url, "_blank", "noopener,noreferrer");
-  } finally {
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  }
+  downloadPdfFile(file);
 }
