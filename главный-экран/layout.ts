@@ -25,11 +25,32 @@ export const HEADER_SLOT_PX = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_P
 /** Equal gap: island → QR, QR → rule, rule → photo. */
 export const HEADER_RHYTHM_PX = (HEADER_SLOT_PX - BROWSE_QR_SIZE) / 2;
 
-/** Browse card bottom ≈ this % of viewport (green mockup outline). */
-export const CARD_BOTTOM_TARGET_LVH = 73;
+/**
+ * White shared by three edges, measured where the picture is gone:
+ * the rule to the photo, the photo to the position glyphs, and the
+ * bottom veil's solid white (the card edge) to the dots.
+ */
+export const ZONE_GAP_PX = RULE_GAP_PX;
 
-/** Trim browse card bottom edge (px; negative extends downward). −84 = prior −46 plus +1 cm. */
-export const CARD_BOTTOM_RAISE_PX = -84;
+/** Browse page dots, outer edge to outer edge. */
+export const BROWSE_DOT_PX = 9.2;
+
+/** Zone 3 is twice the shared gap, then 1mm lower. */
+export const ZONE3_LOWER_PX = 96 / 25.4;
+export const ZONE3_PX = ZONE_GAP_PX * 2 - ZONE3_LOWER_PX;
+
+/** From the veil's solid edge down to the top of the dots. */
+export const ZONE4_PX = ZONE_GAP_PX;
+
+/** Card edge to the bottom of the screen: zone 4, the dots, zone 3. */
+export const CARD_BOTTOM_GAP_PX = ZONE4_PX + BROWSE_DOT_PX + ZONE3_PX;
+
+/**
+ * Helvetica Neue 15.5px / 1.45: line-box top to the glyph top.
+ * Photo edge to that glyph top is ZONE_GAP_PX.
+ */
+export const SECTION_INK_INSET_PX = 5.67;
+export const HERO_TO_SECTION_PX = ZONE_GAP_PX - SECTION_INK_INSET_PX;
 
 /** Base overlap of the library preview onto the QR zone. */
 export const QR_OVERLAP_LIBRARY_BASE_PX = 112;
@@ -84,15 +105,12 @@ export function browseStackTopPx(safeTop: number) {
 }
 
 export function browseCardHeightPx(viewportH: number, safeTop: number) {
-  return Math.round(
-    (viewportH * CARD_BOTTOM_TARGET_LVH) / 100 - browseStackTopPx(safeTop) - CARD_BOTTOM_RAISE_PX,
-  );
+  return Math.round(viewportH - CARD_BOTTOM_GAP_PX - browseStackTopPx(safeTop));
 }
 
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
-  const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
-  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
+  return `calc(100lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px - ${CARD_BOTTOM_GAP_PX}px)`;
 }
 
 export function libraryStackTopPx(safeTop: number) {
