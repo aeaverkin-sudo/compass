@@ -34,6 +34,9 @@ export const CARD_BOTTOM_RAISE_PX = -84 - (96 / 25.4) * 2;
 /** Drop of the bottom white plate: the veil, the dots, and OK. The card stays. 1mm, then 2mm lower. */
 export const BOTTOM_PLATE_DROP_PX = (96 / 25.4) * 3;
 
+/** Browse top veil: solid white to clear in 3mm. */
+export const TOP_VEIL_PX = (96 / 25.4) * 3;
+
 /** Base overlap of the library preview onto the QR zone. */
 export const QR_OVERLAP_LIBRARY_BASE_PX = 112;
 
