@@ -11,8 +11,17 @@ import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot
 import { CardEditList } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
-import { clampNameLines } from "@/shared/components/name-or-title-field";
-import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, LIBRARY_NAME_FADE_PX, RULE_GAP_PX, type MainScreenMode } from "../layout";
+import { clampNameLines, NameOrTitleField } from "@/shared/components/name-or-title-field";
+import {
+  browseCardHeight,
+  CARD_HEADER_NAME_SIZE_PX,
+  CARD_PHOTO_RADIUS_PX,
+  CARD_PHOTO_SIZE_PX,
+  CARD_PHOTO_TOP_PX,
+  LIBRARY_NAME_FADE_PX,
+  RULE_GAP_PX,
+  type MainScreenMode,
+} from "../layout";
 
 const HERO_PHOTO_PX = 128;
 /** One letter starts here; from the third it shrinks to the name column. */
@@ -251,9 +260,14 @@ function HeroName({
   );
 }
 
+function cardIsReady(card: Card) {
+  return Boolean(card.photo && card.displayName.trim());
+}
+
 function EditorialHeader({
   card,
   positionTitle,
+  showRule,
   showPlus,
   nextScan,
   onPhotoChange,
@@ -261,6 +275,7 @@ function EditorialHeader({
 }: {
   card: Card;
   positionTitle?: string;
+  showRule: boolean;
   showPlus: boolean;
   nextScan: ReactNode;
   onPhotoChange?: (photo: string | null) => void;
@@ -268,7 +283,7 @@ function EditorialHeader({
 }) {
   return (
     <div className="w-full">
-      <div className="border-t-[0.5px] border-[#111]" />
+      {showRule ? <div className="border-t-[0.5px] border-[#111]" /> : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
@@ -297,6 +312,43 @@ function EditorialHeader({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function EmptyPortfolioStart({
+  card,
+  onPhotoChange,
+  onDisplayNameChange,
+}: {
+  card: Card;
+  onPhotoChange?: (photo: string | null) => void;
+  onDisplayNameChange?: (displayName: string) => void;
+}) {
+  return (
+    <div className="flex w-full flex-col items-center" style={{ paddingTop: CARD_PHOTO_TOP_PX }}>
+      {onPhotoChange ? (
+        <PhotoSlotPicker
+          photo={card.photo ?? null}
+          onPhotoChange={onPhotoChange}
+          sizePx={CARD_PHOTO_SIZE_PX}
+          borderRadiusPx={CARD_PHOTO_RADIUS_PX}
+        />
+      ) : null}
+      {onDisplayNameChange ? (
+        <label
+          className="w-full text-center"
+          style={{ marginTop: "2.3em", fontSize: CARD_HEADER_NAME_SIZE_PX }}
+          data-card-content
+        >
+          <NameOrTitleField
+            value={card.displayName}
+            onChange={onDisplayNameChange}
+            fontSizePx={CARD_HEADER_NAME_SIZE_PX}
+            className="px-0 py-0 text-center"
+          />
+        </label>
+      ) : null}
     </div>
   );
 }
@@ -375,6 +427,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const positionTitle = chosen?.value.trim() || undefined;
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
+  const ready = cardIsReady(card);
+  const blank = !card.photo && !card.displayName.trim();
   const articleRef = useRef<HTMLElement | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
   const [scrolledUnderQr, setScrolledUnderQr] = useState(false);
@@ -493,22 +547,31 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     >
       {!compact ? (
         <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
-          <EditorialHeader
-            card={card}
-            positionTitle={positionTitle}
-            showPlus={Boolean(onCardUpdate && card.photo)}
-            nextScan={
-              onCardUpdate && card.photo ? (
-                <NextScanMenu
-                  bare
-                  addons={nextScanAddons}
-                  onSetAddons={(addons) => onCardUpdate({ nextScanAddons: addons })}
-                />
-              ) : null
-            }
-            onPhotoChange={onPhotoChange}
-            onDisplayNameChange={onDisplayNameChange}
-          />
+          {blank ? (
+            <EmptyPortfolioStart
+              card={card}
+              onPhotoChange={onPhotoChange}
+              onDisplayNameChange={onDisplayNameChange}
+            />
+          ) : (
+            <EditorialHeader
+              card={card}
+              positionTitle={positionTitle}
+              showRule={ready}
+              showPlus={Boolean(onCardUpdate && ready)}
+              nextScan={
+                onCardUpdate && ready ? (
+                  <NextScanMenu
+                    bare
+                    addons={nextScanAddons}
+                    onSetAddons={(addons) => onCardUpdate({ nextScanAddons: addons })}
+                  />
+                ) : null
+              }
+              onPhotoChange={onPhotoChange}
+              onDisplayNameChange={onDisplayNameChange}
+            />
+          )}
         </div>
       ) : null}
       <div className="relative flex min-h-0 flex-1 flex-col">
@@ -570,7 +633,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       />
       )}
 
-      {!compact && !editing ? (
+      {!compact && !editing && ready ? (
         <footer className="mt-4 flex items-end justify-between">
           <p className="text-[9.5px] leading-[1.15] font-normal tracking-[0.08em] uppercase">
             {card.displayName || "Name"}

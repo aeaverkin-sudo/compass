@@ -12,7 +12,6 @@ import {
   type MainScreenMode,
 } from "../layout";
 import { BusinessCard } from "./business-card";
-import { CardDraftFields } from "./card-draft-fields";
 
 const ADD_SLIDE_ID = "__add__";
 
@@ -32,10 +31,6 @@ type CardCarouselProps = {
 
 function CarouselSpacer({ width }: { width: number }) {
   return <div aria-hidden className="shrink-0" style={{ width }} />;
-}
-
-function isDraftCard(card: Card, index: number) {
-  return index > 0 && card.contactItemIds.length === 0 && (!card.photo || !card.displayName.trim());
 }
 
 const EMPTY_DRAFT: Card = {
@@ -174,7 +169,7 @@ export function CardCarousel({
     let closestIndex = 0;
     let closestDistance = Number.POSITIVE_INFINITY;
 
-    for (let i = 0; i < cards.length; i++) {
+    for (let i = 0; i < slideIds.length; i++) {
       const slideCenter = sidePaddingPx + i * step + slideWidthPx / 2;
       const distance = Math.abs(viewportCenter - slideCenter);
       if (distance < closestDistance) {
@@ -205,38 +200,50 @@ export function CardCarousel({
     [onUpdateCard],
   );
 
+  const renderCard = (
+    card: Card,
+    onPhoto: (photo: string | null) => void,
+    onName: (displayName: string) => void,
+    onUpdate: (data: Partial<Card>) => void,
+  ) => (
+    <BusinessCard
+      card={card}
+      library={contactItems}
+      mode={mode}
+      libraryCardHeightPx={libraryCardHeightPx}
+      onEmptyAreaTap={handleEmptyAreaTap}
+      onPhotoChange={onPhoto}
+      onDisplayNameChange={onName}
+      onCardUpdate={onUpdate}
+      editing={editing && card.id !== ADD_SLIDE_ID}
+    />
+  );
+
   const renderSlide = (slideId: string, index: number) => {
     if (slideId === ADD_SLIDE_ID) {
-      return <CardDraftFields card={cards[1] ?? EMPTY_DRAFT} onUpdate={handleDraftUpdate} />;
+      const draft = cards[1] ?? EMPTY_DRAFT;
+      return renderCard(
+        draft,
+        (photo) => handleDraftUpdate({ photo: photo ?? undefined }),
+        (displayName) => handleDraftUpdate({ displayName }),
+        (data) => {
+          if (cards[1]) onUpdateCard(cards[1].id, data);
+        },
+      );
     }
 
     const card = cards[index]!;
-    if (isDraftCard(card, index)) {
-      return <CardDraftFields card={card} onUpdate={(data) => onUpdateCard(card.id, data)} />;
-    }
-
-    return (
-      <BusinessCard
-        card={card}
-        library={contactItems}
-        mode={mode}
-        libraryCardHeightPx={libraryCardHeightPx}
-        onEmptyAreaTap={handleEmptyAreaTap}
-        onPhotoChange={(photo) => handlePhotoChange(card.id, photo)}
-        onDisplayNameChange={(displayName) => onUpdateCard(card.id, { displayName })}
-        onCardUpdate={(data) => onUpdateCard(card.id, data)}
-        editing={editing}
-      />
+    return renderCard(
+      card,
+      (photo) => handlePhotoChange(card.id, photo),
+      (displayName) => onUpdateCard(card.id, { displayName }),
+      (data) => onUpdateCard(card.id, data),
     );
   };
 
   if (!activeCard) return null;
 
   if (!multiSlide) {
-    if (isBrowse && isDraftCard(activeCard, activeIndex)) {
-      return <CardDraftFields card={activeCard} onUpdate={(data) => onUpdateCard(activeCard.id, data)} />;
-    }
-
     return (
       <BusinessCard
         card={activeCard}

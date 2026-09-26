@@ -8,7 +8,6 @@ import { useShareSync } from "../hooks/use-share-sync";
 import {
   canAddMoreCards,
   isCardReady,
-  selectActiveCard,
   useAppStore,
 } from "@/shared/store/app-store";
 import { CardCarousel } from "./card-carousel";
@@ -28,16 +27,18 @@ export function MainScreen() {
   const shareToken = useAppStore((state) => state.user.shareToken);
   const setCurrentCardIndex = useAppStore((state) => state.setCurrentCardIndex);
   const updateCard = useAppStore((state) => state.updateCard);
+  const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
   const [editing, setEditing] = useState(false);
 
-  const activeCard = useMemo(
-    () => selectActiveCard(cards, currentCardIndex),
-    [cards, currentCardIndex],
-  );
-  const cardReady = Boolean(activeCard && isCardReady(activeCard));
+  const shownCard = cards[currentCardIndex] ?? null;
+  const cardReady = Boolean(shownCard && isCardReady(shownCard));
   const showAddSlide = canAddMoreCards(cards);
 
   useShareSync();
+
+  useEffect(() => {
+    if (!cards[currentCardIndex]) setEditing(false);
+  }, [cards, currentCardIndex]);
 
   useEffect(() => {
     const blockSelection = (event: Event) => {
@@ -68,7 +69,7 @@ export function MainScreen() {
   const pdfUrl = useMemo(() => buildPdfUrl(shareToken), [shareToken]);
   const layout = useMainLayout();
 
-  if (!activeCard) {
+  if (cards.length === 0) {
     return <div className="fixed inset-0 bg-background" aria-hidden />;
   }
 
@@ -88,7 +89,7 @@ export function MainScreen() {
         <BrowseMenuButton
           centerYpx={layout.browseMenuCenterY}
           onHold={() => {
-            if (!cardReady) return;
+            if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
             setEditing(true);
           }}
         />
