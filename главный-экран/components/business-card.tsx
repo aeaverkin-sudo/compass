@@ -293,7 +293,9 @@ function EditorialHeader({
             <img data-card-content src={card.photo} alt="" className="size-[128px] shrink-0 object-cover" />
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
-            {showPlus ? <div className="absolute top-0 right-0 z-10">{nextScan}</div> : null}
+            {showPlus ? (
+              <div className="absolute top-0 right-0 z-10 translate-x-[12px] -translate-y-[12px]">{nextScan}</div>
+            ) : null}
             <div className="w-full min-w-0">
               <HeroName
                 value={card.displayName}
