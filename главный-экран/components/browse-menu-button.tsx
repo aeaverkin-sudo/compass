@@ -17,7 +17,7 @@ export function BrowseMenuButton({ centerYpx, onHold }: BrowseMenuButtonProps) {
     <button
       type="button"
       aria-label="Hold to edit"
-      className="pointer-events-auto absolute left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-[3px] px-2 py-2 select-none [-webkit-touch-callout:none]"
+      className="pointer-events-auto absolute left-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 px-2 py-2 select-none [-webkit-touch-callout:none]"
       style={{ top: layoutTop(centerYpx), WebkitUserSelect: "none", userSelect: "none" }}
       onPointerDown={(event) => {
         event.preventDefault();
@@ -31,11 +31,11 @@ export function BrowseMenuButton({ centerYpx, onHold }: BrowseMenuButtonProps) {
       onClick={hold.onClick}
       onContextMenu={hold.onContextMenu}
     >
-      {[0, 1, 2].map((index) => (
+      {[0, 1].map((index) => (
         <span
           key={index}
           aria-hidden
-          className="size-[7px] rounded-full bg-[#111]"
+          className="size-[9.2px] rounded-full bg-[#111]"
         />
       ))}
     </button>
