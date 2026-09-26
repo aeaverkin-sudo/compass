@@ -413,8 +413,6 @@ function CompactHeader({
   );
 }
 
-import { publicCardUrl } from "@/shared/services/public-card-url";
-
 function CardShareFooter({
   name,
   publicToken,
@@ -462,7 +460,7 @@ type BusinessCardProps = {
   library: ContactItem[];
   mode: MainScreenMode;
   libraryCardHeightPx?: number;
-  onEmptyAreaTap: () => void;
+  onEmptyAreaTap?: () => void;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
@@ -588,6 +586,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   }, [compact]);
 
   const handleClick = (event: MouseEvent<HTMLElement>) => {
+    if (!onEmptyAreaTap) return;
     if ((event.target as HTMLElement).closest("[data-card-content]")) return;
     onEmptyAreaTap();
   };

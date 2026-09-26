@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { layoutTop, SHEET_INSET } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
-import { useShareSync } from "../hooks/use-share-sync";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import {
@@ -30,8 +29,6 @@ export function MainScreen() {
   const shownCard = cards[currentCardIndex] ?? null;
   const cardReady = Boolean(shownCard && isCardReady(shownCard));
   const showAddSlide = canAddMoreCards(cards);
-
-  useShareSync();
 
   useEffect(() => {
     if (!cards[currentCardIndex]) {

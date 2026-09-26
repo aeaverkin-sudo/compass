@@ -28,7 +28,6 @@ export default async function PublicCardPage({ params }: PageProps) {
         library={loaded.items}
         mode="browse"
         readOnly
-        onEmptyAreaTap={() => undefined}
       />
     </main>
   );
