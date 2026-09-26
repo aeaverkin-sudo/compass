@@ -10,6 +10,9 @@ import type { ContactItem } from "@/shared/types";
 import { useVisualViewport } from "@landing/hooks/use-visual-viewport";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
+const ADD_FIELD_FONT_PX = 18.2;
+const ADD_FIELD_LINE = 1.35;
+const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 const FILL_ICON_STROKE = 1;
 const TEXTAREA_MAX_PX = 120;
 const KEYBOARD_DOCK_PADDING_PX = 0;
@@ -144,7 +147,7 @@ export function LibraryComposer({
           </p>
         ) : null}
 
-        <div className="flex items-center gap-[11px] border-b-[0.5px] border-[#111] py-2">
+        <div className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
           {hasPhotoPreview && photoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -158,7 +161,8 @@ export function LibraryComposer({
               aria-label="Add photo or file"
               onMouseDown={(event) => event.preventDefault()}
               onClick={handleAttach}
-              className="flex size-7 shrink-0 items-center justify-center text-[#111] transition-opacity active:opacity-60"
+              className="flex w-7 shrink-0 items-center justify-center text-[#111] transition-opacity active:opacity-60"
+              style={{ height: ADD_FIELD_FONT_PX * ADD_FIELD_LINE }}
             >
               <Plus className="size-7 text-[#111]" strokeWidth={FILL_ICON_STROKE} aria-hidden />
             </button>
@@ -169,11 +173,11 @@ export function LibraryComposer({
               ref={textareaRef}
               rows={1}
               value={item.value}
-              placeholder={hasPhotoPreview ? item.label || "Photo" : "Add"}
+              placeholder={hasPhotoPreview ? item.label || "Photo" : ADD_PLACEHOLDER}
               aria-label="Contact field"
               onChange={(event) => onValueChange(event.target.value)}
               onBlur={handleBlur}
-              className="compass-input block w-full resize-none overflow-y-auto bg-transparent text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
+              className="compass-input block w-full resize-none overflow-y-auto bg-transparent p-0 text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:tracking-normal placeholder:text-[#999] placeholder:normal-case"
             />
             {showName ? (
               <input

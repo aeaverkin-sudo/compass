@@ -29,6 +29,15 @@ const HERO_PHOTO_PX = 128;
 /** One letter starts here; from the third it shrinks to the name column. */
 const HERO_NAME_MAX_PX = 78;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+/** Role line under the name. Its box bottom sits on the photo's bottom edge. */
+const HERO_ROLE_PX = 11;
+/** Clear space after the descenders, before the role. */
+const HERO_ROLE_GAP_PX = 4;
+/**
+ * Ink of g/y/p below a line-height of 1.
+ * Helvetica Neue 600, "greg" at 78px: the tail ends 7px under the line box.
+ */
+const HERO_DESCENDER_OVERFLOW = 7 / 78;
 
 function splitHeroName(name: string) {
   const breakAt = name.indexOf("\n");
@@ -102,11 +111,12 @@ function splitLongWord(word: string) {
 function HeroName({
   value,
   onChange,
-  boxHeight,
+  roleBelow,
 }: {
   value: string;
   onChange?: (displayName: string) => void;
-  boxHeight: number;
+  /** Reserve the descender and a gap so the role sits clear of g, y, p. */
+  roleBelow?: boolean;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(16);
@@ -132,7 +142,8 @@ function HeroName({
         (tightest, line) => Math.min(tightest, fitToWidth(line, Math.max(0, width - 2), 600, HERO_NAME_MAX_PX, 8)),
         HERO_NAME_MAX_PX,
       );
-      const heightSize = Math.max(8, boxHeight - 4) / count;
+      const gap = roleBelow ? HERO_ROLE_GAP_PX : 0;
+      const heightSize = Math.max(8, (box.clientHeight - gap) / (count + (roleBelow ? HERO_DESCENDER_OVERFLOW : 0)));
       setWrapWord(false);
       setSize(Math.min(HERO_NAME_MAX_PX, widthSize, heightSize));
       const area = box.querySelector("textarea");
@@ -151,8 +162,9 @@ function HeroName({
       observer.disconnect();
       window.removeEventListener("orientationchange", onTurn);
     };
-  }, [boxHeight, first, second, value]);
+  }, [first, roleBelow, second, value]);
 
+  const rolePad = roleBelow ? size * HERO_DESCENDER_OVERFLOW + HERO_ROLE_GAP_PX : 0;
   const lineStyle = empty
     ? { fontSize: size, lineHeight: 1, fontWeight: 400, height: size }
     : {
@@ -160,7 +172,9 @@ function HeroName({
         lineHeight: 1,
         fontWeight: 600,
         letterSpacing: "-1px",
-        height: size * lineCount,
+        boxSizing: "border-box" as const,
+        height: size * lineCount + rolePad,
+        paddingBottom: rolePad,
       };
 
   const holdScroll = (node: HTMLTextAreaElement) => {
@@ -187,7 +201,7 @@ function HeroName({
   };
 
   return (
-    <div ref={boxRef} data-card-content className="relative flex h-full w-full min-w-0 items-end overflow-x-hidden overflow-y-visible">
+    <div ref={boxRef} data-card-content className="relative flex min-h-0 w-full min-w-0 flex-1 items-end overflow-x-hidden overflow-y-visible">
       {onChange ? (
         <>
         {empty ? (
@@ -295,21 +309,20 @@ function EditorialHeader({
             // eslint-disable-next-line @next/next/no-img-element
             <img data-card-content src={photoSrc} alt="" className="size-[128px] shrink-0 object-cover" />
           ) : null}
-          <div className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
+          <div className="relative flex h-full min-w-0 flex-1 flex-col">
             {showPlus ? (
               <div className="absolute top-0 right-0 z-10 translate-x-[6px] -translate-y-[6px]">{nextScan}</div>
             ) : null}
-            <div className="w-full min-w-0">
-              <HeroName
-                value={card.displayName}
-                onChange={onDisplayNameChange}
-                boxHeight={HERO_PHOTO_PX - (positionTitle ? 18 : 4)}
-              />
-            </div>
+            <HeroName
+              value={card.displayName}
+              onChange={onDisplayNameChange}
+              roleBelow={Boolean(positionTitle)}
+            />
             {positionTitle ? (
               <p
                 data-card-content
-                className="mt-1 text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase"
+                className="m-0 shrink-0 text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase"
+                style={{ height: HERO_ROLE_PX }}
               >
                 {positionTitle}
               </p>

@@ -143,39 +143,6 @@ function isHeaderRole(row: CardDisplayRow) {
   return Boolean(parseDescription(row.value).position);
 }
 
-function isProseRow(row: CardDisplayRow) {
-  return row.item?.type === "text" && !row.axis && !row.url;
-}
-
-type ZoneBlock = { kind: "prose"; rows: CardDisplayRow[] } | { kind: "line"; row: CardDisplayRow };
-
-function zoneBlocks(zoneId: string, rows: CardDisplayRow[]): ZoneBlock[] {
-  if (zoneId !== "additional") return rows.map((row) => ({ kind: "line", row }));
-  const blocks: ZoneBlock[] = [];
-  for (const row of rows) {
-    if (!isProseRow(row)) {
-      blocks.push({ kind: "line", row });
-      continue;
-    }
-    const last = blocks[blocks.length - 1];
-    if (last?.kind === "prose") last.rows.push(row);
-    else blocks.push({ kind: "prose", rows: [row] });
-  }
-  return blocks;
-}
-
-function EditorialProse({ rows }: { rows: CardDisplayRow[] }) {
-  const text = rows
-    .map((row) => row.value.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .join(" ");
-  return (
-    <p className="m-0 w-full min-w-0 text-justify text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] break-words text-[#111] hyphens-auto">
-      {text}
-    </p>
-  );
-}
-
 function EditorialValue({ row, onChooseHeader }: { row: CardDisplayRow; onChooseHeader?: (itemId: string) => void }) {
   const line = row.axis ? `${row.axis} / ${row.value}` : row.value;
   const choose = onChooseHeader && isHeaderRole(row);
@@ -445,13 +412,9 @@ export function ContactItemChipList({
                 {zone.title}
               </span>
               <div className="flex min-w-0 flex-col gap-[6px]">
-                {zoneBlocks(zone.id, zone.rows).map((block) =>
-                  block.kind === "prose" ? (
-                    <EditorialProse key={block.rows.map((row) => row.key).join("|")} rows={block.rows} />
-                  ) : (
-                    <EditorialValue key={block.row.key} row={block.row} onChooseHeader={onChooseHeader} />
-                  ),
-                )}
+                {zone.rows.map((row) => (
+                  <EditorialValue key={row.key} row={row} onChooseHeader={onChooseHeader} />
+                ))}
               </div>
             </div>
           </section>
