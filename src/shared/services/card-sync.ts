@@ -259,6 +259,9 @@ async function runHydrate() {
 
   const { migrateLocalMedia } = await import("@/shared/services/attachment-upload");
   await migrateLocalMedia();
+
+  const { hydrateNotes } = await import("@/shared/services/notes-sync");
+  await hydrateNotes();
 }
 
 /** Pull server scalars after the anonymous session exists. Safe to call more than once. */

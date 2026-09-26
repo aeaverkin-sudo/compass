@@ -17,6 +17,7 @@ import {
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { ensureCardIdentity, scheduleCardUpsert } from "@/shared/services/card-sync";
+import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
   deleteItemRow,
   rekeyContactItems,
@@ -158,6 +159,7 @@ export const useAppStore = create<AppState>()(
           cards: get().cards.map((card) => (card.id === id ? next : card)),
         });
         scheduleCardUpsert(next);
+        if ("nextScanAddons" in data) scheduleNotesSync(next);
       },
 
       addContactItem: () => {

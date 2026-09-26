@@ -4,6 +4,7 @@ import { Camera, FileText, Mic, Plus, Trash2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { cn } from "@/lib/utils";
+import { orderNextScanAddons } from "@/shared/services/notes-order";
 import { MAX_NEXT_SCAN_NOTES, type NextScanAddon } from "@/shared/types";
 import { openSelfiePicker } from "@landing/components/photo-input-utils";
 
@@ -27,6 +28,14 @@ function NextScanAddonIcon({ type }: { type: NextScanAddon["type"] }) {
   if (type === "text") return <FileText className="size-4" strokeWidth={1} aria-hidden />;
   if (type === "voice") return <Mic className="size-4" strokeWidth={1} aria-hidden />;
   return <Camera className="size-4" strokeWidth={1} aria-hidden />;
+}
+
+function mediaSrc(addon: NextScanAddon): string {
+  if (addon.content.startsWith("data:") || addon.content.startsWith("blob:") || addon.content.startsWith("/f/")) {
+    return addon.content;
+  }
+  if (addon.attachmentId) return `/f/${addon.attachmentId}`;
+  return "";
 }
 
 function addonPreview(addon: NextScanAddon): string {
@@ -121,7 +130,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
       content,
       createdAt: new Date().toISOString(),
     };
-    onSetAddons([...addons, next]);
+    onSetAddons(orderNextScanAddons([...addons, next]));
     closeMenu();
   };
 
@@ -148,8 +157,9 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
     event.currentTarget.setPointerCapture(event.pointerId);
     stopPlayback();
     setPlayingId(addon.id);
-    if (addon.content.startsWith("data:") || addon.content.startsWith("blob:")) {
-      const audio = new Audio(addon.content);
+    const src = mediaSrc(addon);
+    if (src) {
+      const audio = new Audio(src);
       audioRef.current = audio;
       void audio.play().catch(() => {
         setPlayingId(null);
@@ -299,7 +309,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
               <div className="p-2">
                 {viewing.type === "selfie" ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={viewing.content} alt="" className="mb-2 w-full object-cover" />
+                  <img src={mediaSrc(viewing)} alt="" className="mb-2 aspect-square w-full object-cover" />
                 ) : (
                   <p className="mb-2 text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]">{viewing.content}</p>
                 )}
@@ -318,7 +328,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
 
             {addons.length > 0 && !textMode && !viewing ? (
               <ul className="mb-1 border-b-[0.5px] border-[#111] pb-1">
-                {addons.map((addon, index) => (
+                {orderNextScanAddons(addons).map((addon, index) => (
                   <li key={addon.id} className="flex items-center gap-2 border-b-[0.5px] border-[#111] px-2 py-2 last:border-b-0">
                     <button
                       type="button"
