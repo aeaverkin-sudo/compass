@@ -10,7 +10,8 @@ export interface NextScanAddon {
 }
 
 /** One-time notes/selfie delivered on the next share view only. */
-export const MAX_NEXT_SCAN_NOTES = 3;
+/** One text and one selfie for the next scan. Voice stays in the schema for later. */
+export const MAX_NEXT_SCAN_NOTES = 2;
 
 export type ContactType =
   | "instagram"
