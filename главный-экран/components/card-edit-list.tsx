@@ -435,10 +435,11 @@ function EditRow({
             type="button"
             data-delete-marker
             aria-label="Delete"
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={onDelete}
-            className="flex size-5 items-center justify-center"
+            className="relative z-10 -m-2.5 flex size-10 items-center justify-center"
           >
-            <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
+            <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
           </button>
         ) : (
           <RowMark onCard={onCard} onAdd={onAdd} onRemove={onRemove} />

@@ -225,10 +225,11 @@ function FilledRow({
             type="button"
             data-delete-marker
             aria-label="Delete item"
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={onDelete}
-            className="shrink-0 text-foreground"
+            className="relative z-10 -m-[7px] flex size-7 shrink-0 items-center justify-center text-foreground"
           >
-            <X className="size-3.5" strokeWidth={1.5} aria-hidden />
+            <X className="pointer-events-none size-3.5" strokeWidth={1.5} aria-hidden />
           </button>
         ) : null}
         <button
