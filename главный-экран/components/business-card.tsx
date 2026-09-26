@@ -15,8 +15,8 @@ import { clampNameLines } from "@/shared/components/name-or-title-field";
 import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, LIBRARY_NAME_FADE_PX, RULE_GAP_PX, type MainScreenMode } from "../layout";
 
 const HERO_PHOTO_PX = 128;
-/** One letter is twice the old 44px cap; from the third it shrinks to the name column. */
-const HERO_NAME_MAX_PX = 88;
+/** One letter starts here; from the third it shrinks to the name column. */
+const HERO_NAME_MAX_PX = 78;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function splitHeroName(name: string) {
