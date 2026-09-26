@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { layoutTop, SHEET_INSET } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -85,6 +85,37 @@ export function MainScreen() {
 
   const pdfUrl = useMemo(() => buildPdfUrl(shareToken), [shareToken]);
   const layout = useMainLayout();
+  const [menuCenterY, setMenuCenterY] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!layout) return;
+    const measure = () => {
+      const viewportH = document.documentElement.clientHeight || window.innerHeight;
+      const scrollers = [...document.querySelectorAll(".compass-card-scroll")];
+      const scroller =
+        scrollers.find((node) => {
+          const rect = node.getBoundingClientRect();
+          return rect.left < window.innerWidth / 2 && rect.right > window.innerWidth / 2;
+        }) ?? scrollers[0];
+      if (!(scroller instanceof HTMLElement)) {
+        setMenuCenterY(layout.browseMenuCenterY);
+        return;
+      }
+      const rect = scroller.getBoundingClientRect();
+      const pad = Number.parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
+      const contentBottom = rect.top + scroller.scrollHeight - pad - scroller.scrollTop;
+      const fieldTop = Math.min(contentBottom, rect.bottom);
+      setMenuCenterY((fieldTop + viewportH) / 2);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    document.querySelectorAll(".compass-card-scroll").forEach((node) => observer.observe(node));
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [layout, cards, contactItems, currentCardIndex, editing]);
 
   if (cards.length === 0) {
     return <div className="fixed inset-0 bg-background" aria-hidden />;
@@ -104,7 +135,7 @@ export function MainScreen() {
 
       {layout && !editing ? (
         <BrowseMenuButton
-          centerYpx={layout.browseMenuCenterY}
+          centerYpx={menuCenterY ?? layout.browseMenuCenterY}
           onHold={() => {
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
             setComposeOnMount(false);
@@ -118,7 +149,7 @@ export function MainScreen() {
           type="button"
           className="absolute left-1/2 z-30 -translate-x-1/2 -translate-y-1/2 px-4 py-2 text-[#111] uppercase"
           style={{
-            top: layoutTop(layout.browseMenuCenterY),
+            top: layoutTop(menuCenterY ?? layout.browseMenuCenterY),
             fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
             fontWeight: 600,
             fontSize: 44,
