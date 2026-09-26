@@ -73,12 +73,13 @@ export async function insertAttachment(row: {
   byteSize: number;
   originalName: string | null;
   status: AttachmentStatus;
+  bucket?: string;
 }): Promise<void> {
   const admin = createAdminSupabaseClient();
   const { error } = await admin.from("attachments").insert({
     id: row.id,
     owner_id: row.ownerId,
-    bucket: CARD_ATTACHMENTS_BUCKET,
+    bucket: row.bucket ?? CARD_ATTACHMENTS_BUCKET,
     storage_path: row.path,
     mime: row.mime,
     byte_size: row.byteSize,
@@ -93,9 +94,9 @@ export async function deleteAttachment(id: string, ownerId: string): Promise<voi
   await admin.from("attachments").delete().eq("id", id).eq("owner_id", ownerId);
 }
 
-export async function removeStoredObject(path: string): Promise<void> {
+export async function removeStoredObject(path: string, bucket = CARD_ATTACHMENTS_BUCKET): Promise<void> {
   const admin = createAdminSupabaseClient();
-  await admin.storage.from(CARD_ATTACHMENTS_BUCKET).remove([path]);
+  await admin.storage.from(bucket).remove([path]);
 }
 
 export async function loadAttachment(id: string): Promise<AttachmentRow | null> {

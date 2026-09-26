@@ -5,6 +5,7 @@ import { isUuid, loadAttachment, safeOriginalName } from "@/shared/services/atta
 import {
   CARD_ATTACHMENTS_BUCKET,
   SIGNED_READ_SECONDS,
+  TRANSFER_ASSETS_BUCKET,
   isServableMime,
 } from "@/shared/services/attachment-limits";
 import { attachmentIsPublic } from "@/shared/services/public-card";
@@ -50,10 +51,22 @@ export async function GET(
     return NextResponse.json({ error: "Could not read the file" }, { status: 500 });
   }
 
-  if (!row || row.bucket !== CARD_ATTACHMENTS_BUCKET || row.status !== "ready") return notFound();
+  if (!row || row.status !== "ready") return notFound();
 
   const viewer = await viewerId();
   const owner = viewer === row.owner_id;
+
+  if (row.bucket === TRANSFER_ASSETS_BUCKET) {
+    if (!owner) return notFound();
+    const admin = createAdminSupabaseClient();
+    const signed = await admin.storage.from(row.bucket).createSignedUrl(row.storage_path, SIGNED_READ_SECONDS);
+    if (signed.error || !signed.data?.signedUrl) {
+      return NextResponse.json({ error: "Could not open the file" }, { status: 500 });
+    }
+    return NextResponse.redirect(signed.data.signedUrl, 302);
+  }
+
+  if (row.bucket !== CARD_ATTACHMENTS_BUCKET) return notFound();
   if (!owner) {
     if (!isServableMime(row.mime)) return notFound();
     try {

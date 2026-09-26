@@ -10,6 +10,28 @@ export const VIDEO_BYTE_LIMIT = 50 * 1024 * 1024;
 export const BUFFERED_BODY_LIMIT = 16 * 1024 * 1024;
 
 export const CARD_ATTACHMENTS_BUCKET = "card-attachments";
+export const TRANSFER_ASSETS_BUCKET = "transfer-assets";
+
+/** Browser recordings are webm. file-type labels that container video/webm. */
+export const VOICE_NOTE_MIMES = [
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/x-m4a",
+  "audio/ogg",
+  "audio/aac",
+  "audio/webm",
+  "video/webm",
+] as const;
+
+export function isTransferNoteKind(value: string): value is "selfie" | "voice" {
+  return value === "selfie" || value === "voice";
+}
+
+export function transferMimeAllowed(kind: "selfie" | "voice", mime: string): boolean {
+  const base = mime.split(";")[0]?.trim() ?? mime;
+  if (kind === "selfie") return (IMAGE_MIMES as readonly string[]).includes(base);
+  return (VOICE_NOTE_MIMES as readonly string[]).includes(base);
+}
 
 /** Owner-only redirect lifetime for `/f/{id}`. */
 export const SIGNED_READ_SECONDS = 600;

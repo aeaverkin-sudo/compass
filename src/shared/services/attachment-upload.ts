@@ -16,6 +16,23 @@ export type ReadyAttachment = {
  * While this promise is in flight the card shows «загружается» and does not
  * store the id — a pending row is not a picture.
  */
+/** Selfie or voice into transfer-assets. The transfer must already be pending. */
+export async function uploadTransferAsset(input: {
+  file: File;
+  kind: "selfie" | "voice";
+  transferId: string;
+}): Promise<ReadyAttachment> {
+  const body = new FormData();
+  const payload = input.kind === "selfie" ? await prepareImageUploadBlob(input.file, "photo") : input.file;
+  const name = input.file.name || (input.kind === "selfie" ? "selfie.jpg" : "voice");
+  body.append("file", payload, name);
+  body.append("kind", input.kind);
+  body.append("transferId", input.transferId);
+
+  const response = await fetch("/api/attachments", { method: "POST", body });
+  return readReady(response);
+}
+
 export async function uploadAttachment(input: {
   file: File;
   kind: UploadKind;
