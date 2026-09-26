@@ -4,9 +4,9 @@ import { isAttachmentType } from "./portfolio-limits";
 import { typeLabel } from "./portfolio-catalog";
 
 export const CARD_ZONES = [
-  { id: "position", title: "Position" },
   { id: "name", title: "Name" },
   { id: "company", title: "Company" },
+  { id: "position", title: "Position" },
   { id: "web", title: "Web" },
   { id: "social", title: "Social" },
   { id: "files", title: "Files" },
@@ -166,16 +166,149 @@ function isCompanyLine(text: string) {
   return LEGAL_SUFFIX.test(last);
 }
 
-/** A whole line that is a person's name: two or three capitalized words, not a sentence. */
+const NAME_PARTICLES = new Set([
+  "van",
+  "von",
+  "de",
+  "da",
+  "di",
+  "del",
+  "della",
+  "dei",
+  "der",
+  "den",
+  "ten",
+  "ter",
+  "la",
+  "le",
+  "du",
+  "dos",
+  "das",
+  "do",
+  "bin",
+  "ibn",
+  "al",
+  "el",
+  "st",
+  "saint",
+  "оглы",
+  "кызы",
+  "заде",
+]);
+
+const NAME_HONORIFICS = new Set(["mr", "mrs", "ms", "miss", "dr", "prof", "sir", "dame"]);
+
+const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv"]);
+
+/** Words that make a line a note, not a given name plus a surname. */
+const NOT_A_PERSON_NAME = new Set([
+  "the",
+  "and",
+  "or",
+  "for",
+  "with",
+  "from",
+  "this",
+  "that",
+  "these",
+  "those",
+  "our",
+  "your",
+  "their",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "a",
+  "an",
+  "of",
+  "to",
+  "in",
+  "on",
+  "at",
+  "by",
+  "as",
+  "new",
+  "app",
+  "we",
+  "you",
+  "it",
+  "my",
+  "his",
+  "her",
+  "its",
+]);
+
+type NameTokenKind = "honorific" | "suffix" | "particle" | "initial" | "name" | "junk";
+
+/**
+ * A whole line that is a person's name.
+ * Needs a given name and a surname: two to four name words, an initial may stand in
+ * for one of them. Particles (van, de, оглы), a leading title, and a trailing Jr/III
+ * may sit around that pair. "Averkin, Anton" counts. A sentence does not.
+ */
 function isPersonName(text: string) {
-  const words = lineWords(text);
-  if (words.length < 2 || words.length > 3) return false;
-  return words.every(isNameWord);
+  const trimmed = text.trim();
+  if (!trimmed || /[\d@/\\()[\]{}!?;&:#]/.test(trimmed)) return false;
+  if ((trimmed.match(/,/g) ?? []).length > 1) return false;
+
+  const words = lineWords(trimmed.replace(/,/g, " "));
+  if (words.length < 2 || words.length > 7) return false;
+
+  const allCapsLine = !/[\p{Ll}]/u.test(trimmed) && /[\p{Lu}]/u.test(trimmed);
+  const kinds = words.map((word) => classifyNameToken(word, allCapsLine));
+
+  let start = 0;
+  let end = kinds.length;
+  if (kinds[0] === "honorific") start = 1;
+  if (end - start >= 2 && kinds[end - 1] === "suffix") end -= 1;
+
+  const body = kinds.slice(start, end);
+  if (body.length === 0) return false;
+
+  let names = 0;
+  let initials = 0;
+  let particles = 0;
+  for (const kind of body) {
+    if (kind === "name") names += 1;
+    else if (kind === "initial") initials += 1;
+    else if (kind === "particle") particles += 1;
+    else return false;
+  }
+
+  const parts = names + initials;
+  return names >= 1 && parts >= 2 && parts <= 4 && particles <= 2;
 }
 
-function isNameWord(word: string) {
-  if (!/^[\p{Lu}][\p{L}'’-]+$/u.test(word)) return false;
-  return word.toLocaleUpperCase() !== word;
+function classifyNameToken(word: string, allCapsLine: boolean): NameTokenKind {
+  const bare = word.replace(/\.+$/u, "");
+  const lower = bare.toLocaleLowerCase();
+  if (/^[\p{Lu}]\.?$/u.test(word)) return "initial";
+  if (!lower || NOT_A_PERSON_NAME.has(lower)) return "junk";
+  if (NAME_HONORIFICS.has(lower) && /^[\p{L}]+\.?$/u.test(word)) return "honorific";
+  if (NAME_SUFFIXES.has(lower) && /^(?:jr|sr|ii|iii|iv)\.?$/iu.test(word)) return "suffix";
+  if (isNameParticle(word, lower, allCapsLine)) return "particle";
+  if (isTitleNameWord(bare) || isAllCapsNameWord(bare)) return "name";
+  return "junk";
+}
+
+function isNameParticle(word: string, lower: string, allCapsLine: boolean) {
+  if (!NAME_PARTICLES.has(lower)) return false;
+  if (/^[\p{Ll}]+$/u.test(word)) return true;
+  if (allCapsLine && /^[\p{Lu}]+\.?$/u.test(word)) return true;
+  return (lower === "st" || lower === "saint") && /^[\p{Lu}][\p{Ll}]*\.?$/u.test(word);
+}
+
+/** Anton, McDonald, Anne-Marie, O'Brien, Антон. */
+function isTitleNameWord(word: string) {
+  return /^(?:[\p{Lu}][\p{Ll}]*)(?:[\p{Lu}][\p{Ll}]*|['’-][\p{Lu}][\p{Ll}]*)*$/u.test(word) && word.length >= 2;
+}
+
+/** ANTON, AVERKIN, ANNE-MARIE. */
+function isAllCapsNameWord(word: string) {
+  return /^[\p{Lu}]{2,}(?:['’-][\p{Lu}]{2,})*$/u.test(word);
 }
 
 export function parseDescription(text: string): { position: PositionLine | null; remainders: string[] } {

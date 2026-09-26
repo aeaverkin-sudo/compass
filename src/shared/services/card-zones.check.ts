@@ -116,7 +116,7 @@ const round = item("round", "text", "Searching for pre-seed (200k)");
 const identity = composeCard([round, pitch, named, company, person, firm, item("role", "text", "Founder")]);
 assert.deepEqual(
   identity.zones.map((zone) => zone.id),
-  ["position", "name", "company", "additional"],
+  ["name", "company", "position", "additional"],
 );
 assert.deepEqual(
   identity.zones.find((zone) => zone.id === "position")?.rows.map((row) => row.value),
@@ -137,8 +137,50 @@ assert.deepEqual(
 assert.equal(isChoosableHeader(named), true);
 assert.equal(isChoosableHeader(company), true);
 assert.equal(isChoosableHeader(pitch), false);
-assert.equal(isChoosableHeader(item("ru", "text", "Антон Аверкин")), true);
 assert.equal(isChoosableHeader(item("inc", "text", "Compass Inc.")), true);
+
+function zoneOf(value: string) {
+  return composeCard([item("z", "text", value)]).zones[0]?.id;
+}
+
+for (const value of [
+  "Anton Averkin",
+  "Антон Аверкин",
+  "Антон Сергеевич Аверкин",
+  "ANTON AVERKIN",
+  "Anton AVERKIN",
+  "Anton A. Averkin",
+  "A. Averkin",
+  "Anton A.",
+  "Averkin, Anton",
+  "Ludwig van Beethoven",
+  "Charles de Gaulle",
+  "Anne-Marie Curie",
+  "Conan O'Brien",
+  "Anton Averkin Jr.",
+  "Dr. Anton Averkin",
+  "Jean-Luc Picard",
+  "Али Алиев оглы",
+]) {
+  assert.equal(zoneOf(value), "name", value);
+}
+
+for (const value of [
+  "likes jazz",
+  "hello from berlin",
+  "Aded is a modern marketplace",
+  "Searching for pre-seed (200k)",
+  "Anton",
+  "A. B.",
+  "van Gogh",
+  "New York",
+  "St. Petersburg",
+]) {
+  assert.equal(zoneOf(value), "additional", value);
+}
+
+assert.equal(zoneOf("Managing Partner"), "position");
+assert.equal(zoneOf("ADED LLC"), "company");
 
 const keptName = normalizeContactItem(person, "Anton Averkin");
 assert.equal(keptName.type, "position");
