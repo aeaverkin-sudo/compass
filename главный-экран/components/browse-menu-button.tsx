@@ -3,7 +3,7 @@
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { layoutTop } from "../layout";
 
-const HOLD_MS = 500;
+const HOLD_MS = 200;
 
 type BrowseMenuButtonProps = {
   centerYpx: number;
@@ -35,7 +35,7 @@ export function BrowseMenuButton({ centerYpx, onHold }: BrowseMenuButtonProps) {
         <span
           key={index}
           aria-hidden
-          className="size-[9.2px] rounded-full border border-[#D8D2C4] bg-transparent"
+          className="size-[9.2px] rounded-full border border-[#111] bg-transparent"
         />
       ))}
     </button>
