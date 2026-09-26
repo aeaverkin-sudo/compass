@@ -294,7 +294,7 @@ function EditorialHeader({
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
             {showPlus ? (
-              <div className="absolute top-0 right-0 z-10">{nextScan}</div>
+              <div className="absolute top-0 right-0 z-10 translate-x-[6px] -translate-y-[6px]">{nextScan}</div>
             ) : null}
             <div className="w-full min-w-0">
               <HeroName
