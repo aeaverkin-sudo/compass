@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
-import { isUuid, loadAttachment, safeOriginalName } from "@/shared/services/attachment-api";
 import {
-  CARD_ATTACHMENTS_BUCKET,
-  SIGNED_READ_SECONDS,
-  TRANSFER_ASSETS_BUCKET,
-  isServableMime,
-} from "@/shared/services/attachment-limits";
+  downloadAttachmentBytes,
+  isUuid,
+  loadAttachment,
+  safeOriginalName,
+  type AttachmentRow,
+} from "@/shared/services/attachment-api";
+import { CARD_ATTACHMENTS_BUCKET, TRANSFER_ASSETS_BUCKET, isServableMime } from "@/shared/services/attachment-limits";
 import { attachmentIsPublic } from "@/shared/services/public-card";
 
 export const runtime = "nodejs";
@@ -31,10 +31,26 @@ async function viewerId(): Promise<string | null> {
   }
 }
 
+function fileResponse(row: AttachmentRow, bytes: Uint8Array) {
+  const filename = downloadName(row.original_name, row.id);
+  const ascii = filename.replace(/[^\x20-\x7E]/g, "_");
+  const body = Uint8Array.from(bytes);
+  return new NextResponse(body, {
+    status: 200,
+    headers: {
+      "Content-Type": row.mime || "application/octet-stream",
+      "Content-Disposition": `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      "Cache-Control": "private, no-store",
+      "Content-Length": String(body.byteLength),
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
 /**
- * Ready files only. The owner is redirected to a short-lived signed URL.
- * Anyone else gets the file only when it sits on a public ready card,
- * with Content-Disposition: attachment and a mime from the upload allowlist.
+ * Ready files only. Bytes are read from Storage and returned here,
+ * so the browser opens the file on this site instead of a storage host.
+ * Strangers get a file only when it sits on a public ready card.
  * Everything else is 404, so a private id does not leak.
  */
 export async function GET(
@@ -58,16 +74,9 @@ export async function GET(
 
   if (row.bucket === TRANSFER_ASSETS_BUCKET) {
     if (!owner) return notFound();
-    const admin = createAdminSupabaseClient();
-    const signed = await admin.storage.from(row.bucket).createSignedUrl(row.storage_path, SIGNED_READ_SECONDS);
-    if (signed.error || !signed.data?.signedUrl) {
-      return NextResponse.json({ error: "Could not open the file" }, { status: 500 });
-    }
-    return NextResponse.redirect(signed.data.signedUrl, 302);
-  }
-
-  if (row.bucket !== CARD_ATTACHMENTS_BUCKET) return notFound();
-  if (!owner) {
+  } else if (row.bucket !== CARD_ATTACHMENTS_BUCKET) {
+    return notFound();
+  } else if (!owner) {
     if (!isServableMime(row.mime)) return notFound();
     try {
       if (!(await attachmentIsPublic(attachmentId))) return notFound();
@@ -76,15 +85,7 @@ export async function GET(
     }
   }
 
-  const admin = createAdminSupabaseClient();
-  const signed = await admin.storage.from(row.bucket).createSignedUrl(
-    row.storage_path,
-    SIGNED_READ_SECONDS,
-    owner ? undefined : { download: downloadName(row.original_name, row.id) },
-  );
-  if (signed.error || !signed.data?.signedUrl) {
-    return NextResponse.json({ error: "Could not open the file" }, { status: 500 });
-  }
-
-  return NextResponse.redirect(signed.data.signedUrl, 302);
+  const bytes = await downloadAttachmentBytes(row);
+  if (!bytes) return NextResponse.json({ error: "Could not open the file" }, { status: 500 });
+  return fileResponse(row, bytes);
 }

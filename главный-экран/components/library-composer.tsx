@@ -28,7 +28,8 @@ type LibraryComposerProps = {
   viewportDock?: boolean;
   onValueChange: (value: string) => void;
   onLabelChange: (label: string) => void;
-  onAttachment: (file: File, dataUrl: string) => void;
+  /** Return false to keep the field open (the file was rejected). */
+  onAttachment: (file: File, dataUrl: string) => boolean;
   onBlur: () => void;
 };
 
@@ -100,8 +101,9 @@ export function LibraryComposer({
 
     openContactAttachmentPicker(
       (dataUrl, file) => {
-        onAttachment(file, dataUrl);
-        restoreFocus();
+        pickingRef.current = false;
+        const accepted = onAttachment(file, dataUrl);
+        if (!accepted) textareaRef.current?.focus({ preventScroll: true });
       },
       restoreFocus,
     );

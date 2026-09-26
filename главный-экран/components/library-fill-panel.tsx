@@ -404,9 +404,11 @@ export function LibraryFillPanel({
               const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
               if (!result.ok) {
                 setAttachmentError(result.message);
-                return;
+                return false;
               }
               setAttachmentError(null);
+              setEditingId(null);
+              return true;
             }}
             onBlur={handleComposerBlur}
           />

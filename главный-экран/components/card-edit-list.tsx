@@ -233,8 +233,13 @@ export function CardEditList({
           onLabelChange={(label) => updateContactItem(editingItem.id, { label })}
           onAttachment={(file, dataUrl) => {
             const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
-            if (!result.ok) setAttachmentError(result.message);
-            else setAttachmentError(null);
+            if (!result.ok) {
+              setAttachmentError(result.message);
+              return false;
+            }
+            setAttachmentError(null);
+            setEditingId(null);
+            return true;
           }}
           onBlur={closeComposer}
         />

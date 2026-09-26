@@ -520,7 +520,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     const readyPdf = peekPublicCardPdf(input);
     if (!readyPdf) {
       void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
-      window.open(`/api/c/${encodeURIComponent(card.publicToken)}/pdf`, "_blank", "noopener,noreferrer");
       return;
     }
     sharePdfFile(fileFromReadyPdf(readyPdf));
