@@ -9,6 +9,7 @@ import { isContactFilled } from "@/shared/services/contact-item";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
+import { subscribeEditComposer } from "../edit-composer";
 import { LibraryComposer } from "./library-composer";
 
 const HOLD_MS = 500;
@@ -85,10 +86,13 @@ export function CardEditList({
   card,
   items,
   composeOnMount = false,
+  fieldRequests = false,
 }: {
   card: Card;
   items: ContactItem[];
   composeOnMount?: boolean;
+  /** This card is the one on screen, so the plate's Field button opens here. */
+  fieldRequests?: boolean;
 }) {
   const updateCard = useAppStore((state) => state.updateCard);
   const addContactItem = useAppStore((state) => state.addContactItem);
@@ -151,14 +155,19 @@ export function CardEditList({
     deleteContactItem(itemId);
   };
 
-  const openComposer = () => {
+  const openComposer = useCallback(() => {
     setTextEditId(null);
     const id = addContactItem();
     if (!id) return;
     openedAt.current = Date.now();
     setAttachmentError(null);
     setEditingId(id);
-  };
+  }, [addContactItem]);
+
+  useEffect(() => {
+    if (!fieldRequests) return;
+    return subscribeEditComposer(openComposer);
+  }, [fieldRequests, openComposer]);
 
   const closeComposer = () => {
     if (!editingId) return;
@@ -238,24 +247,7 @@ export function CardEditList({
           }}
           onBlur={closeComposer}
         />
-      ) : (
-        <div
-          className={cn(
-            "flex justify-center pt-6 pb-2",
-            sections.length > 0 && "mt-2 border-t-[0.5px] border-[#111]",
-          )}
-        >
-          <button
-            type="button"
-            data-no-swipe
-            aria-label="Add"
-            onClick={openComposer}
-            className="flex size-7 items-center justify-center bg-transparent"
-          >
-            <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
-          </button>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

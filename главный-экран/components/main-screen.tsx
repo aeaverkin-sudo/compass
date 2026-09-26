@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus } from "lucide-react";
 import { layoutTop, SHEET_INSET } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { getCardItems } from "@/shared/services/card-snapshot";
 import { publicCardUrl } from "@/shared/services/public-card-url";
+import { requestEditComposer } from "../edit-composer";
 import {
   canAddMoreCards,
   isCardReady,
@@ -107,24 +109,39 @@ export function MainScreen() {
       ) : null}
 
       {layout && editing ? (
-        <button
-          type="button"
-          className="absolute left-1/2 z-30 -translate-x-1/2 -translate-y-1/2 px-4 py-2 text-[#111] uppercase"
-          style={{
-            top: layoutTop(layout.browseMenuCenterY),
-            fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-            fontWeight: 600,
-            fontSize: 44,
-            letterSpacing: "-1px",
-            lineHeight: 1,
-          }}
-          onClick={() => {
-            setComposeOnMount(false);
-            setEditing(false);
-          }}
+        <div
+          className="absolute inset-x-0 bottom-0 z-30 bg-white"
+          style={{ top: layoutTop(layout.cardBottomBrowse) }}
         >
-          OK
-        </button>
+          <div
+            className="flex items-center justify-between px-[calc(clamp(24px,6.1vw,28px)-3mm)]"
+            style={{
+              transform: `translateY(calc(${layout.browseMenuCenterY - layout.cardBottomBrowse}px - 50%))`,
+              fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+            }}
+          >
+            <button
+              type="button"
+              className="flex items-center gap-2 py-3 text-[#111]"
+              aria-label="Add field"
+              onClick={() => requestEditComposer()}
+            >
+              <Plus className="size-6" strokeWidth={1} aria-hidden />
+              <span className="text-[17px] leading-none font-normal tracking-[-0.02em]">Field</span>
+            </button>
+            <button
+              type="button"
+              className="py-3 text-[#111] uppercase"
+              style={{ fontWeight: 600, fontSize: 32, letterSpacing: "-1px", lineHeight: 1 }}
+              onClick={() => {
+                setComposeOnMount(false);
+                setEditing(false);
+              }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {layout && cardTopBrowse !== undefined ? (

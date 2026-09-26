@@ -470,6 +470,8 @@ type BusinessCardProps = {
   fillHint?: boolean;
   onFill?: () => void;
   composeOnMount?: boolean;
+  /** Plate “Field” opens the composer on this card. */
+  fieldRequests?: boolean;
   /** Public /c/ page: same card, no QR, plus, or share. */
   readOnly?: boolean;
 };
@@ -488,6 +490,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     fillHint = false,
     onFill,
     composeOnMount = false,
+    fieldRequests = false,
     readOnly = false,
   },
   ref,
@@ -707,7 +710,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ) : null}
 
       {!compact && editing ? (
-        <CardEditList card={card} items={library} composeOnMount={composeOnMount} />
+        <CardEditList card={card} items={library} composeOnMount={composeOnMount} fieldRequests={fieldRequests} />
       ) : (
       <ContactItemChipList
         items={items}

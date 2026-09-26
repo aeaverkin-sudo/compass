@@ -244,6 +244,7 @@ export function CardCarousel({
       onDisplayNameChange={onName}
       onCardUpdate={onUpdate}
       editing={editing && card.id !== ADD_SLIDE_ID}
+      fieldRequests={editing && cards[activeIndex]?.id === card.id}
       fillHint={hint}
       onFill={onFill ? () => onFill(card.id) : undefined}
       composeOnMount={composeOnMount && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id}
@@ -297,6 +298,7 @@ export function CardCarousel({
         onDisplayNameChange={(displayName) => onUpdateCard(activeCard.id, { displayName })}
         onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
         editing={editing}
+        fieldRequests={editing}
         fillHint={fillHint && activeIndex === 0}
         onFill={onFill ? () => onFill(activeCard.id) : undefined}
         composeOnMount={composeOnMount}
