@@ -66,15 +66,20 @@ export function NotesRubric({ ownerNotes, deliveredNotes, className }: NotesRubr
 
   if (notes.length === 0) return null;
 
+  const typeLabel = (type: NoteView["type"]) => (type === "selfie" ? "Selfie" : "Text");
+
   return (
     <section className={cn("shrink-0 pt-6", className)} aria-label="Notes">
       <div aria-hidden className="h-px bg-[#111]" />
-      <p className="pt-3 text-[11px] font-light leading-none tracking-[0.1em] text-[#777] uppercase">
+      <p className="pt-3 text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
         Notes
       </p>
-      <ul className="mt-3 flex flex-wrap items-start gap-4">
+      <ul className="mt-3 flex flex-wrap items-start gap-5">
         {notes.map((note) => (
           <li key={note.id} className="min-w-0">
+            <p className="mb-1.5 text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
+              {typeLabel(note.type)}
+            </p>
             {note.type === "selfie" ? (
               note.expired || !note.mediaUrl ? (
                 <div
