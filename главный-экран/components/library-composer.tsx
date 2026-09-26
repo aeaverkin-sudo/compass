@@ -47,7 +47,7 @@ export function LibraryComposer({
   const pickingRef = useRef(false);
   const mountedAt = useRef(0);
   const { keyboardOpen, keyboardInset } = useVisualViewport();
-  const dockedAboveKeyboard = viewportDock || keyboardOpen;
+  const dockedAboveKeyboard = keyboardOpen;
   const photoSrc = itemPhotoSrc(item);
   const hasPhotoPreview = Boolean(photoSrc);
   const showName = canRenameLinkDisplay(item);
@@ -208,7 +208,7 @@ export function LibraryComposer({
     </div>
   );
 
-  if (viewportDock && typeof document !== "undefined") {
+  if (viewportDock && dockedAboveKeyboard && typeof document !== "undefined") {
     return createPortal(field, document.body);
   }
 
