@@ -98,7 +98,7 @@ export function MainScreen() {
       {layout && !editing && !hideDots ? (
         <BrowseMenuButton
           centerYpx={layout.browseMenuCenterY}
-          onHold={() => {
+          onTap={() => {
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
             setComposeOnMount(false);
             setEditing(true);
@@ -118,7 +118,9 @@ export function MainScreen() {
             letterSpacing: "-0.85px",
             lineHeight: 1,
           }}
-          onClick={() => {
+          onPointerDown={(event) => event.preventDefault()}
+          onPointerUp={(event) => {
+            if (event.pointerType === "mouse" && event.button !== 0) return;
             setComposeOnMount(false);
             setEditing(false);
           }}
