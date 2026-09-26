@@ -631,7 +631,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               card={card}
               positionTitle={positionTitle}
               showRule={ready}
-              showPlus={Boolean(onCardUpdate && ready)}
+              showPlus={Boolean(onCardUpdate && ready && items.length > 0)}
               nextScan={
                 onCardUpdate && ready ? (
                   <NextScanMenu
@@ -668,7 +668,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               </p>
             ) : null}
           </div>
-          <CardShareFooter name={card.displayName} publicToken={card.publicToken} hideShare={readOnly} className="pb-6" />
         </div>
       ) : null}
       <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
@@ -678,7 +677,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         className={cn(
           "flex min-h-0 flex-1 flex-col",
           compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
-          !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)] pb-8",
+          !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
         )}
         onScroll={
           compact
@@ -687,7 +686,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         }
       >
       <div
-        className={compact ? "flex w-full flex-col" : "contents"}
+        className={compact ? "flex w-full flex-col" : "flex w-full grow flex-col pb-16"}
         style={
           compact
             ? {
@@ -730,8 +729,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       />
       )}
 
-      {!compact && !editing && ready ? (
-        <CardShareFooter name={card.displayName} publicToken={card.publicToken} hideShare={readOnly} className="mt-4" />
+      {!compact && !editing && ready && items.length > 0 ? (
+        <CardShareFooter name={card.displayName} publicToken={card.publicToken} hideShare={readOnly} className="mt-auto shrink-0 pt-6" />
       ) : null}
       </div>
       </div>

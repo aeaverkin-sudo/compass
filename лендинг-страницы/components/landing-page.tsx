@@ -88,7 +88,7 @@ export function LandingPage() {
         </label>
       </div>
 
-      <div className="flex items-center justify-center px-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="flex items-center justify-center px-8 pb-[calc(max(1.5rem,env(safe-area-inset-bottom))+1cm)]">
         {saveError ? (
           <p className="mb-3 px-6 text-center text-[12px] leading-snug text-[#111]">{saveError}</p>
         ) : null}

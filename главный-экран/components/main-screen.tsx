@@ -5,6 +5,7 @@ import { layoutTop, SHEET_INSET } from "../layout";
 import { BrowseMenuButton } from "./browse-menu-button";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
+import { getCardItems } from "@/shared/services/card-snapshot";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import {
   canAddMoreCards,
@@ -28,6 +29,8 @@ export function MainScreen() {
 
   const shownCard = cards[currentCardIndex] ?? null;
   const cardReady = Boolean(shownCard && isCardReady(shownCard));
+  const shownHasBody = Boolean(shownCard && getCardItems(shownCard, contactItems).length > 0);
+  const hideDots = cardReady && !shownHasBody;
   const showAddSlide = canAddMoreCards(cards);
 
   useEffect(() => {
@@ -92,7 +95,7 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {layout && !editing ? (
+      {layout && !editing && !hideDots ? (
         <BrowseMenuButton
           centerYpx={layout.browseMenuCenterY}
           onHold={() => {
