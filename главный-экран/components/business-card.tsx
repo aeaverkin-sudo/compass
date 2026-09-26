@@ -23,9 +23,12 @@ import {
   type MainScreenMode,
 } from "../layout";
 
-const HERO_PHOTO_PX = 128;
-/** One letter starts here; from the third it shrinks to the name column. */
-const HERO_NAME_MAX_PX = 78;
+/** 15% under the previous 128px photo. */
+const HERO_PHOTO_PX = 109;
+/** One letter starts here; from the third it shrinks to the name column. 15% under 78. */
+const HERO_NAME_MAX_PX = 66;
+/** Photo gave up 19px; that space stays in the gap, plus 4px so the name axis sits further right. */
+const HERO_NAME_GAP_PX = 35;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function splitHeroName(name: string) {
@@ -285,12 +288,18 @@ function EditorialHeader({
     <div className="w-full">
       {showRule ? <div className="border-t-[0.5px] border-[#111]" /> : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
-        <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
+        <div className="flex shrink-0 items-stretch" style={{ height: HERO_PHOTO_PX, gap: HERO_NAME_GAP_PX }}>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={card.photo ?? null} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : card.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img data-card-content src={card.photo} alt="" className="size-[128px] shrink-0 object-cover" />
+            <img
+              data-card-content
+              src={card.photo}
+              alt=""
+              className="shrink-0 object-cover"
+              style={{ width: HERO_PHOTO_PX, height: HERO_PHOTO_PX }}
+            />
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col justify-end">
             {showPlus ? (
@@ -300,7 +309,7 @@ function EditorialHeader({
               <HeroName
                 value={card.displayName}
                 onChange={onDisplayNameChange}
-                boxHeight={HERO_PHOTO_PX - (positionTitle ? 18 : 4)}
+                boxHeight={HERO_PHOTO_PX - (positionTitle ? 15 : 3)}
               />
             </div>
             {positionTitle ? (
