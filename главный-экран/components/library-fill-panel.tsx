@@ -408,9 +408,6 @@ export function LibraryFillPanel({
               setAttachmentError(null);
             }}
             onBlur={handleComposerBlur}
-            onHeaderZone={(inZone) =>
-              updateContactItem(editingItem.id, { type: inZone ? "position" : "text", url: "" })
-            }
           />
         </div>
       ) : null}

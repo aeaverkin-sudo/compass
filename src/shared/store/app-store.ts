@@ -48,10 +48,7 @@ interface AppState {
   updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>) => void;
   /** Add an empty draft to the library pool (not bound to any card). One draft at a time. */
   addContactItem: () => string | null;
-  updateContactItem: (
-    itemId: string,
-    data: Partial<Pick<ContactItem, "value" | "label" | "type" | "url">>,
-  ) => void;
+  updateContactItem: (itemId: string, data: Partial<Pick<ContactItem, "value" | "label">>) => void;
   updateContactItemAttachment: (
     cardId: string,
     itemId: string,

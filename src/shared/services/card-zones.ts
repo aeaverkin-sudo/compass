@@ -5,6 +5,8 @@ import { typeLabel } from "./portfolio-catalog";
 
 export const CARD_ZONES = [
   { id: "position", title: "Position" },
+  { id: "name", title: "Name" },
+  { id: "company", title: "Company" },
   { id: "web", title: "Web" },
   { id: "social", title: "Social" },
   { id: "files", title: "Files" },
@@ -131,6 +133,9 @@ export function isExplicitPosition(item: ContactItem) {
   return item.type === "position" || item.label.trim().toLowerCase() === "position";
 }
 
+const LEGAL_SUFFIX =
+  /^(?:l\.?l\.?c\.?|inc\.?|incorporated|ltd\.?|limited|gmbh|corp\.?|corporation|llp|plc|ag|s\.?a\.?|sas|oy|ab|bv|nv|pty|lp|pllc|ug|kg|co\.?|company)$/i;
+
 export function zoneForItem(item: ContactItem): CardZoneId {
   if (WEB_TYPES.has(item.type)) return "web";
   if (SOCIAL_TYPES.has(item.type)) return "social";
@@ -138,12 +143,39 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   if (item.type === "spotify") return "lifestyle";
   if (CONTACT_TYPES.has(item.type)) return "contact";
   if (isExplicitPosition(item) || (item.type === "text" && parseDescription(item.value).position)) return "position";
+  if (item.type === "text" && isCompanyLine(item.value)) return "company";
+  if (item.type === "text" && isPersonName(item.value)) return "name";
   return "additional";
 }
 
-/** A row in the position zone. Its text may be a role, a person's name, or a company. */
+/** Position, name, or company row. A tap places that one line under the portfolio title. */
 export function isChoosableHeader(item: ContactItem) {
-  return zoneForItem(item) === "position";
+  const zone = zoneForItem(item);
+  return zone === "position" || zone === "name" || zone === "company";
+}
+
+function lineWords(text: string) {
+  return text.trim().split(/\s+/).filter(Boolean);
+}
+
+/** A whole line that is a company, the way a role word marks a position. */
+function isCompanyLine(text: string) {
+  const words = lineWords(text);
+  if (words.length === 0 || words.length > 6) return false;
+  const last = words[words.length - 1]?.replace(/\.+$/, "") ?? "";
+  return LEGAL_SUFFIX.test(last);
+}
+
+/** A whole line that is a person's name: two or three capitalized words, not a sentence. */
+function isPersonName(text: string) {
+  const words = lineWords(text);
+  if (words.length < 2 || words.length > 3) return false;
+  return words.every(isNameWord);
+}
+
+function isNameWord(word: string) {
+  if (!/^[\p{Lu}][\p{L}'’-]+$/u.test(word)) return false;
+  return word.toLocaleUpperCase() !== word;
 }
 
 export function parseDescription(text: string): { position: PositionLine | null; remainders: string[] } {

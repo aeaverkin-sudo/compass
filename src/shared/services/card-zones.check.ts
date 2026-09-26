@@ -109,19 +109,36 @@ assert.equal(officer.position?.company, "Compass");
 
 const person = item("person", "position", "Anton Averkin");
 const firm = item("firm", "position", "Compass");
-const loose = item("loose", "text", "Anton Averkin");
-const identity = composeCard([person, firm, item("role", "text", "Founder"), loose]);
+const named = item("named", "text", "Anton Averkin");
+const company = item("company", "text", "ADED LLC");
+const pitch = item("pitch", "text", "Aded is a modern marketplace");
+const round = item("round", "text", "Searching for pre-seed (200k)");
+const identity = composeCard([round, pitch, named, company, person, firm, item("role", "text", "Founder")]);
 assert.deepEqual(
   identity.zones.map((zone) => zone.id),
-  ["position", "additional"],
+  ["position", "name", "company", "additional"],
 );
 assert.deepEqual(
   identity.zones.find((zone) => zone.id === "position")?.rows.map((row) => row.value),
   ["Anton Averkin", "Compass", "Founder"],
 );
-assert.equal(isChoosableHeader(person), true);
-assert.equal(isChoosableHeader(firm), true);
-assert.equal(isChoosableHeader(loose), false);
+assert.deepEqual(
+  identity.zones.find((zone) => zone.id === "name")?.rows.map((row) => row.value),
+  ["Anton Averkin"],
+);
+assert.deepEqual(
+  identity.zones.find((zone) => zone.id === "company")?.rows.map((row) => row.value),
+  ["ADED LLC"],
+);
+assert.deepEqual(
+  identity.zones.find((zone) => zone.id === "additional")?.rows.map((row) => row.value),
+  ["Searching for pre-seed (200k)", "Aded is a modern marketplace"],
+);
+assert.equal(isChoosableHeader(named), true);
+assert.equal(isChoosableHeader(company), true);
+assert.equal(isChoosableHeader(pitch), false);
+assert.equal(isChoosableHeader(item("ru", "text", "Антон Аверкин")), true);
+assert.equal(isChoosableHeader(item("inc", "text", "Compass Inc.")), true);
 
 const keptName = normalizeContactItem(person, "Anton Averkin");
 assert.equal(keptName.type, "position");
