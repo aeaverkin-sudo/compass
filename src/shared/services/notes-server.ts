@@ -314,3 +314,35 @@ export async function consumePendingNotes(cardId: string): Promise<DeliveredNote
     return full ? [full] : [];
   });
 }
+
+/** Selfie files that belong to a consumed transfer on this card. Blocks id guessing. */
+export async function consumedNoteAttachmentIds(
+  cardId: string,
+  attachmentIds: string[],
+): Promise<Set<string>> {
+  const unique = [...new Set(attachmentIds.filter((id) => isUuid(id)))];
+  if (unique.length === 0) return new Set();
+
+  const { data: transfers, error } = await admin()
+    .from("card_transfers")
+    .select("id")
+    .eq("card_id", cardId)
+    .eq("status", "consumed");
+  if (error) throw new Error(error.message);
+  const transferIds = (transfers ?? []).map((row) => row.id as string);
+  if (transferIds.length === 0) return new Set();
+
+  const { data: items, error: itemsError } = await admin()
+    .from("transfer_items")
+    .select("attachment_id")
+    .in("transfer_id", transferIds)
+    .in("attachment_id", unique)
+    .eq("type", "selfie");
+  if (itemsError) throw new Error(itemsError.message);
+
+  return new Set(
+    (items ?? [])
+      .map((row) => row.attachment_id as string | null)
+      .filter((id): id is string => Boolean(id)),
+  );
+}
