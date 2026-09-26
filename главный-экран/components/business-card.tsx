@@ -15,6 +15,8 @@ import { clampNameLines } from "@/shared/components/name-or-title-field";
 import { browseCardHeight, CARD_HEADER_NAME_SIZE_PX, LIBRARY_NAME_FADE_PX, RULE_GAP_PX, type MainScreenMode } from "../layout";
 
 const HERO_PHOTO_PX = 128;
+/** One letter is twice the old 44px cap; from the third it shrinks to the name column. */
+const HERO_NAME_MAX_PX = 88;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 function splitHeroName(name: string) {
@@ -116,12 +118,12 @@ function HeroName({
       const lines = value.includes("\n") ? [first, second].filter((line) => line.length > 0) : [value];
       const count = value.includes("\n") ? 2 : 1;
       const widthSize = lines.reduce(
-        (tightest, line) => Math.min(tightest, fitToWidth(line, Math.max(0, width - 2), 600, 44, 8)),
-        44,
+        (tightest, line) => Math.min(tightest, fitToWidth(line, Math.max(0, width - 2), 600, HERO_NAME_MAX_PX, 8)),
+        HERO_NAME_MAX_PX,
       );
       const heightSize = Math.max(8, boxHeight - 4) / count;
       setWrapWord(false);
-      setSize(Math.min(44, widthSize, heightSize));
+      setSize(Math.min(HERO_NAME_MAX_PX, widthSize, heightSize));
       const area = box.querySelector("textarea");
       if (area) {
         area.scrollTop = 0;
