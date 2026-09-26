@@ -17,3 +17,15 @@ alter table public.cards
 -- File pointer on the pool row. One upload serves every card that links the item.
 alter table public.items
   add column if not exists attachment_id uuid references public.attachments(id) on delete set null;
+
+-- Video uploads stay pending until the client confirms the object.
+-- Quota counts ready rows only. Default ready keeps a direct insert valid.
+alter table public.attachments
+  add column if not exists status text not null default 'ready';
+
+alter table public.attachments
+  drop constraint if exists attachments_status_check;
+
+alter table public.attachments
+  add constraint attachments_status_check
+  check (status in ('pending', 'ready'));
