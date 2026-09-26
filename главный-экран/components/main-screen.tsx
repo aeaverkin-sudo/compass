@@ -114,8 +114,8 @@ export function MainScreen() {
             top: layoutTop(layout.browseMenuCenterY),
             fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
             fontWeight: 600,
-            fontSize: 44,
-            letterSpacing: "-1px",
+            fontSize: 37.4,
+            letterSpacing: "-0.85px",
             lineHeight: 1,
           }}
           onClick={() => {
