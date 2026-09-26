@@ -35,7 +35,7 @@ export function BrowseMenuButton({ centerYpx, onHold }: BrowseMenuButtonProps) {
         <span
           key={index}
           aria-hidden
-          className="size-[7px] rounded-full border border-[#111] bg-transparent"
+          className="size-[7px] rounded-full bg-[#111]"
         />
       ))}
     </button>
