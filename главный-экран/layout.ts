@@ -31,8 +31,9 @@ export const CARD_BOTTOM_TARGET_LVH = 73;
 /** Trim browse card bottom edge (px; negative extends downward). −84, then 2mm lower. */
 export const CARD_BOTTOM_RAISE_PX = -84 - (96 / 25.4) * 2;
 
-/** Drop of the bottom white plate: the veil, the dots, and OK. The card stays. 1mm, then 2mm lower. */
-export const BOTTOM_PLATE_DROP_PX = (96 / 25.4) * 3;
+/** Drop of the bottom plate: the veil, the dots, and OK. The card text stays.
+ *  2mm was about 8px and did not read, so the plate sits one line lower (8mm). */
+export const BOTTOM_PLATE_DROP_PX = (96 / 25.4) * 8;
 
 /** Base overlap of the library preview onto the QR zone. */
 export const QR_OVERLAP_LIBRARY_BASE_PX = 112;
