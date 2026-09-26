@@ -341,7 +341,25 @@ function EditRow({
 
   return (
     <>
-      <div className={cn(lineClass, "flex min-w-0 items-baseline gap-1")}>
+      <div
+        className={cn(lineClass, "flex min-w-0 items-baseline gap-1", holding && "opacity-40")}
+        onPointerDown={(event) => {
+          if (editing || deleteReady) return;
+          pressedLong.current = false;
+          setHolding(true);
+          longPress.onPointerDown(event);
+        }}
+        onPointerMove={longPress.onPointerMove}
+        onPointerUp={(event) => {
+          release();
+          const field = fieldRef.current;
+          if (!field || editing || pressedLong.current || deleteReady) return;
+          if (!(event.target instanceof Node) || !field.contains(event.target)) return;
+          beginEdit(field);
+        }}
+        onPointerCancel={release}
+        onContextMenu={longPress.onContextMenu}
+      >
         {axis ? (
           <span className="shrink-0" style={{ color: onCard ? "#111" : OFF_CARD }}>
             {axis} /
@@ -355,20 +373,6 @@ function EditRow({
           enterKeyHint="done"
           aria-label={editing ? "Edit row" : text}
           data-no-swipe
-          onPointerDown={(event) => {
-            if (editing || deleteReady) return;
-            pressedLong.current = false;
-            setHolding(true);
-            longPress.onPointerDown(event);
-          }}
-          onPointerMove={longPress.onPointerMove}
-          onPointerUp={(event) => {
-            release();
-            if (editing || pressedLong.current || deleteReady) return;
-            beginEdit(event.currentTarget);
-          }}
-          onPointerCancel={release}
-          onContextMenu={longPress.onContextMenu}
           onChange={(event) => {
             if (!editing) return;
             const next = event.target.value;
@@ -394,7 +398,6 @@ function EditRow({
           className={cn(
             "compass-input m-0 w-full min-w-0 bg-transparent p-0 text-[16px] leading-[1.45] font-normal tracking-[-0.015em] outline-none",
             !editing && "overflow-hidden whitespace-nowrap select-none [-webkit-touch-callout:none]",
-            holding && "opacity-40",
           )}
           style={{
             color: editing || onCard ? "#111" : OFF_CARD,
