@@ -31,11 +31,15 @@ export const CARD_BOTTOM_TARGET_LVH = 73;
 /** Trim browse card bottom edge (px; negative extends downward). −84, then 2mm lower. */
 export const CARD_BOTTOM_RAISE_PX = -84 - (96 / 25.4) * 2;
 
-/** Drop of the bottom white plate: the veil, the dots, and OK. The card stays. 1mm, then 2mm lower. */
+/** Drop of the bottom veil. The card stays. 1mm, then 2mm lower. */
 export const BOTTOM_PLATE_DROP_PX = (96 / 25.4) * 3;
 
 /** Browse top veil: solid white to clear in 3mm. */
 export const TOP_VEIL_PX = (96 / 25.4) * 3;
+
+/** Clear white under the photo, and from the card edge to the edit dots. */
+export const WHITE_FIELD_GAP_PX = 22;
+export const BROWSE_DOT_PX = 9.2;
 
 /** Base overlap of the library preview onto the QR zone. */
 export const QR_OVERLAP_LIBRARY_BASE_PX = 112;
