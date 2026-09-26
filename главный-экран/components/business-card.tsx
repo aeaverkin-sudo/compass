@@ -13,6 +13,7 @@ import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
 import { clampNameLines, NameOrTitleField } from "@/shared/components/name-or-title-field";
 import {
+  BOTTOM_PLATE_DROP_PX,
   browseCardHeight,
   CARD_HEADER_NAME_SIZE_PX,
   CARD_PHOTO_RADIUS_PX,
@@ -731,6 +732,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t from-white to-transparent"
+          style={{ transform: `translateY(${BOTTOM_PLATE_DROP_PX}px)` }}
         />
       ) : null}
 
