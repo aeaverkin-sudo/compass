@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { Plus, Share } from "lucide-react";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
@@ -11,7 +11,6 @@ import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
-import { publicCardUrl } from "@/shared/services/public-card-url";
 import { CardEditList } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NextScanMenu } from "./next-scan-menu";
@@ -423,14 +422,12 @@ function CardShareFooter({
   name,
   publicToken,
   className,
-  showShare = true,
   onSavePdf,
   savingPdf = false,
 }: {
   name: string;
   publicToken: string;
   className?: string;
-  showShare?: boolean;
   onSavePdf?: () => void;
   savingPdf?: boolean;
 }) {
@@ -441,41 +438,19 @@ function CardShareFooter({
         <br />
         Portfolio
       </p>
-      <div className="flex items-center gap-4">
-        {onSavePdf ? (
-          <button
-            type="button"
-            data-card-content
-            data-no-swipe
-            aria-label="Save PDF"
-            disabled={savingPdf || !publicToken}
-            onClick={() => onSavePdf()}
-            className="text-[11px] leading-none font-normal tracking-[0.1em] text-[#111] uppercase disabled:opacity-40"
-          >
-            {savingPdf ? "…" : "PDF"}
-          </button>
-        ) : null}
-        {showShare ? (
-          <button
-            type="button"
-            data-card-content
-            data-no-swipe
-            aria-label="Share link"
-            onClick={() => {
-              if (!publicToken) return;
-              const url = publicCardUrl(publicToken);
-              if (navigator.share) {
-                void navigator.share({ title: name, url }).catch(() => undefined);
-                return;
-              }
-              void navigator.clipboard?.writeText(url);
-            }}
-            className="text-[#111]"
-          >
-            <Share className="size-4" strokeWidth={1.25} aria-hidden />
-          </button>
-        ) : null}
-      </div>
+      {onSavePdf ? (
+        <button
+          type="button"
+          data-card-content
+          data-no-swipe
+          aria-label="Save PDF"
+          disabled={savingPdf || !publicToken}
+          onClick={() => onSavePdf()}
+          className="text-[11px] leading-none font-normal tracking-[0.1em] text-[#111] uppercase disabled:opacity-40"
+        >
+          {savingPdf ? "…" : "PDF"}
+        </button>
+      ) : null}
     </footer>
   );
 }
@@ -784,7 +759,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         <CardShareFooter
           name={card.displayName}
           publicToken={card.publicToken}
-          showShare={!readOnly}
           onSavePdf={card.publicToken ? handleSavePdf : undefined}
           savingPdf={savingPdf}
           className="mt-auto shrink-0 pt-6"
