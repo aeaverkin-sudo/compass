@@ -30,7 +30,7 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
         <button
           type="button"
           aria-label="Add"
-          className="inline-flex items-baseline justify-self-start self-baseline py-2"
+          className="inline-flex items-baseline justify-self-start self-baseline py-2 text-[15.5px] leading-none font-normal tracking-normal"
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => onAdd?.()}
         >
@@ -61,7 +61,7 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
         </button>
       )}
       {editing ? (
-        <button type="button" className="inline-flex items-baseline justify-self-end self-baseline px-2 py-2 leading-none" onClick={() => onDone?.()}>
+        <button type="button" className="inline-flex items-baseline justify-self-end self-baseline px-2 py-2 text-[11px] leading-[1.45] font-normal tracking-[0.1em] uppercase" onClick={() => onDone?.()}>
           OK
         </button>
       ) : (
