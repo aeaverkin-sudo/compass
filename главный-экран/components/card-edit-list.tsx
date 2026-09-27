@@ -326,12 +326,18 @@ function AddLine({
       </div>
       {open
         ? createPortal(
+            // White from the line to the screen bottom, so nothing of the card shows
+            // between the line and the keyboard or through the keyboard's glass.
             <div
               ref={lineRef}
               data-no-swipe
-              className="fixed z-50 flex items-start gap-[11px] border-b-[0.5px] border-[#111] bg-white py-2"
-              style={{ left: frame.left, width: frame.width, bottom: dockBottom }}
+              className="fixed inset-x-0 bottom-0 z-50 bg-white"
+              style={{ paddingBottom: dockBottom }}
             >
+              <div
+                className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2"
+                style={{ marginLeft: frame.left, width: frame.width }}
+              >
               <button
                 type="button"
                 data-no-swipe
@@ -356,6 +362,7 @@ function AddLine({
                   if (!pickingRef.current) close();
                 }}
               />
+              </div>
             </div>,
             document.body,
           )
