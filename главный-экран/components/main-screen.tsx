@@ -96,49 +96,47 @@ export function MainScreen() {
       </div>
 
       {layout ? (
+        // The sky plate runs to the physical screen bottom; its controls sit on its middle line.
         <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex flex-col"
           style={{ top: layoutTop(layout.cardBottomBrowse) }}
         >
-          <div className="shrink-0 bg-gradient-to-b from-transparent to-sky" style={{ height: TOP_VEIL_PX }} />
-          <div className="flex-1 bg-sky" />
+          <div aria-hidden className="shrink-0 bg-gradient-to-b from-transparent to-sky" style={{ height: TOP_VEIL_PX }} />
+          <div aria-hidden className="flex-1 bg-sky" />
+
+          {!editing && !hideNav ? (
+            <BottomNav
+              insetPx={browseCarousel ? carouselSidePaddingPx(window.innerWidth, true) : edgeInsetBrowse}
+              onEdit={() => {
+                if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
+                setComposeOnMount(false);
+                setEditing(true);
+              }}
+            />
+          ) : null}
+
+          {editing ? (
+            <button
+              type="button"
+              className="pointer-events-auto absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-2 text-[#111] uppercase"
+              style={{
+                fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                fontWeight: 600,
+                fontSize: 37.4,
+                letterSpacing: "-0.85px",
+                lineHeight: 1,
+              }}
+              onPointerDown={(event) => event.preventDefault()}
+              onPointerUp={(event) => {
+                if (event.pointerType === "mouse" && event.button !== 0) return;
+                setComposeOnMount(false);
+                setEditing(false);
+              }}
+            >
+              OK
+            </button>
+          ) : null}
         </div>
-      ) : null}
-
-      {layout && !editing && !hideNav ? (
-        <BottomNav
-          centerYpx={layout.browseMenuCenterY}
-          insetPx={browseCarousel ? carouselSidePaddingPx(window.innerWidth, true) : edgeInsetBrowse}
-          onEdit={() => {
-            if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
-            setComposeOnMount(false);
-            setEditing(true);
-          }}
-        />
-      ) : null}
-
-      {layout && editing ? (
-        <button
-          type="button"
-          className="absolute left-1/2 z-30 -translate-x-1/2 -translate-y-1/2 px-4 py-2 text-[#111] uppercase"
-          style={{
-            top: layoutTop(layout.browseMenuCenterY),
-            fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-            fontWeight: 600,
-            fontSize: 37.4,
-            letterSpacing: "-0.85px",
-            lineHeight: 1,
-          }}
-          onPointerDown={(event) => event.preventDefault()}
-          onPointerUp={(event) => {
-            if (event.pointerType === "mouse" && event.button !== 0) return;
-            setComposeOnMount(false);
-            setEditing(false);
-          }}
-        >
-          OK
-        </button>
       ) : null}
 
       {layout && cardTopBrowse !== undefined ? (
