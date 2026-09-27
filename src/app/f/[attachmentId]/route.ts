@@ -1,24 +1,19 @@
 import { NextResponse } from "next/server";
+import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { isUuid, loadAttachment } from "@/shared/services/attachment-api";
 import {
-  downloadAttachmentBytes,
-  isUuid,
-  loadAttachment,
-  safeOriginalName,
-  type AttachmentRow,
-} from "@/shared/services/attachment-api";
-import { CARD_ATTACHMENTS_BUCKET, TRANSFER_ASSETS_BUCKET, isServableMime } from "@/shared/services/attachment-limits";
+  CARD_ATTACHMENTS_BUCKET,
+  SIGNED_READ_SECONDS,
+  TRANSFER_ASSETS_BUCKET,
+  isServableMime,
+} from "@/shared/services/attachment-limits";
 import { attachmentIsPublic } from "@/shared/services/public-card";
 
 export const runtime = "nodejs";
 
 function notFound() {
   return NextResponse.json({ error: "Not found" }, { status: 404 });
-}
-
-function downloadName(originalName: string | null, id: string): string {
-  const cleaned = (safeOriginalName(originalName) ?? id).replace(/["\\;]/g, "");
-  return cleaned || id;
 }
 
 async function viewerId(): Promise<string | null> {
@@ -31,27 +26,11 @@ async function viewerId(): Promise<string | null> {
   }
 }
 
-function fileResponse(row: AttachmentRow, bytes: Uint8Array) {
-  const filename = downloadName(row.original_name, row.id);
-  const ascii = filename.replace(/[^\x20-\x7E]/g, "_");
-  const body = Uint8Array.from(bytes);
-  return new NextResponse(body, {
-    status: 200,
-    headers: {
-      "Content-Type": row.mime || "application/octet-stream",
-      "Content-Disposition": `inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
-      "Cache-Control": "private, no-store",
-      "Content-Length": String(body.byteLength),
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
-}
-
 /**
- * Ready files only. Bytes are read from Storage and returned here,
- * so the browser opens the file on this site instead of a storage host.
- * Strangers get a file only when it sits on a public ready card.
- * Everything else is 404, so a private id does not leak.
+ * Redirect to a short-lived signed URL. Storage serves the object directly,
+ * so images load from the CDN and PDFs preview inline with range support.
+ * The owner sees any of their files; a stranger only sees a servable file that
+ * sits on a public ready card. Everything else is 404, so a private id never leaks.
  */
 export async function GET(
   _request: Request,
@@ -66,11 +45,9 @@ export async function GET(
   } catch {
     return NextResponse.json({ error: "Could not read the file" }, { status: 500 });
   }
-
   if (!row || row.status !== "ready") return notFound();
 
-  const viewer = await viewerId();
-  const owner = viewer === row.owner_id;
+  const owner = (await viewerId()) === row.owner_id;
 
   if (row.bucket === TRANSFER_ASSETS_BUCKET) {
     if (!owner) return notFound();
@@ -85,7 +62,10 @@ export async function GET(
     }
   }
 
-  const bytes = await downloadAttachmentBytes(row);
-  if (!bytes) return NextResponse.json({ error: "Could not open the file" }, { status: 500 });
-  return fileResponse(row, bytes);
+  const admin = createAdminSupabaseClient();
+  const signed = await admin.storage.from(row.bucket).createSignedUrl(row.storage_path, SIGNED_READ_SECONDS);
+  if (signed.error || !signed.data?.signedUrl) {
+    return NextResponse.json({ error: "Could not open the file" }, { status: 500 });
+  }
+  return NextResponse.redirect(signed.data.signedUrl, 302);
 }

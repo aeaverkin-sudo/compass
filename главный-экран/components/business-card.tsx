@@ -518,11 +518,15 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       notes: deliveredNotes,
     };
     const readyPdf = peekPublicCardPdf(input);
-    if (!readyPdf) {
-      void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
+    if (readyPdf) {
+      sharePdfFile(fileFromReadyPdf(readyPdf));
       return;
     }
-    sharePdfFile(fileFromReadyPdf(readyPdf));
+    // Not prebuilt yet: build, then share. iOS may drop the gesture after the
+    // await, in which case sharePdfFile opens the PDF instead.
+    void primePublicCardPdf(input)
+      .then((pdf) => sharePdfFile(fileFromReadyPdf(pdf)))
+      .catch((error) => console.error("[pdf] share failed", error));
   };
 
   useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);
