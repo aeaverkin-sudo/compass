@@ -33,8 +33,8 @@ export const CARD_BOTTOM_RAISE_PX = -84 - (96 / 25.4) * 2;
 
 /** Drop of the dots and OK. The card stays. */
 export const BOTTOM_PLATE_DROP_PX = (96 / 25.4) * 3;
-/** The sky plate starts this far below the card edge. */
-export const BOTTOM_PLATE_LOWER_PX = (96 / 25.4) * 2;
+/** The sky plate starts this far below the card edge. 2mm was invisible under the fade. */
+export const BOTTOM_PLATE_LOWER_PX = (96 / 25.4) * 8;
 
 /** Browse veils: solid white to clear in 3mm. Top and bottom share this. */
 export const TOP_VEIL_PX = (96 / 25.4) * 3;
