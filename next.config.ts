@@ -19,7 +19,8 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       {
-        source: "/((?!_next/static).*)",
+        // Stored files (/f/…) set their own caching.
+        source: "/((?!_next/static|f/).*)",
         headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
       },
     ];
