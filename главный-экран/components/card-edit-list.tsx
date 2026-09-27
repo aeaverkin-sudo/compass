@@ -170,15 +170,15 @@ export function CardEditList({
           hidden={composing}
           className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b-[0.5px] border-[#111]")}
         >
-          <div className="grid grid-cols-[86px_minmax(0,1fr)_26px] items-baseline gap-x-[14px]">
+          <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
             <span
               className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap uppercase"
               style={{ color: section.included ? "#999" : OFF_CARD }}
             >
               {section.title}
             </span>
-            <div className="contents">
-              {section.rows.map(({ row, onCard }, rowIndex) => {
+            <div className="flex min-w-0 flex-col gap-[6px]">
+              {section.rows.map(({ row, onCard }) => {
                 const item = row.item;
                 if (!item) return null;
                 return (
@@ -186,9 +186,7 @@ export function CardEditList({
                     key={item.id}
                     text={lineOf(row)}
                     value={row.value}
-                    axis={row.axis}
                     onCard={onCard}
-                    first={rowIndex === 0}
                     editing={textEditId === item.id}
                     deleteReady={deleteReadyId === item.id}
                     onArmDelete={() => setDeleteReadyId(item.id)}
@@ -454,9 +452,7 @@ function AddLine({
 function EditRow({
   text,
   value,
-  axis,
   onCard,
-  first,
   editing,
   deleteReady,
   onArmDelete,
@@ -469,9 +465,7 @@ function EditRow({
 }: {
   text: string;
   value: string;
-  axis: string;
   onCard: boolean;
-  first: boolean;
   editing: boolean;
   deleteReady: boolean;
   onArmDelete: () => void;
@@ -482,7 +476,7 @@ function EditRow({
   onConfirm: (next: string) => void;
   onErase: () => void;
 }) {
-  const fieldRef = useRef<HTMLInputElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<WrapFieldHandle>(null);
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
@@ -514,11 +508,6 @@ function EditRow({
     return () => observer.disconnect();
   }, [editing, value]);
 
-  const lineClass = cn(
-    "min-w-0 py-[3px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]",
-    !first && "col-start-2",
-  );
-
   const beginEdit = () => {
     openedAt.current = Date.now();
     flushSync(() => {
@@ -528,71 +517,59 @@ function EditRow({
   };
 
   return (
-    <>
-      <div
-        className={cn(lineClass, "flex min-w-0 items-baseline gap-1", holding && "opacity-40")}
-        onPointerDown={(event) => {
-          if (editing || deleteReady) return;
-          pressedLong.current = false;
-          setHolding(true);
-          longPress.onPointerDown(event);
-        }}
-        onPointerMove={longPress.onPointerMove}
-        onPointerUp={(event) => {
-          release();
-          const field = fieldRef.current;
-          if (!field || editing || pressedLong.current || deleteReady) return;
-          if (!(event.target instanceof Node) || !field.contains(event.target)) return;
-          beginEdit();
-        }}
-        onPointerCancel={release}
-        onContextMenu={longPress.onContextMenu}
-      >
-        {axis ? (
-          <span className="shrink-0" style={{ color: onCard ? "#111" : OFF_CARD }}>
-            {axis} /
-          </span>
-        ) : null}
-        {editing ? (
-          <WrapField
-            ref={editorRef}
-            initial={draft}
-            label="Edit row"
-            autoFocus
-            className="text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]"
-            onTextChange={(next) => {
-              if (!next.trim()) onErase();
-            }}
-            onDone={onConfirm}
-            onBlur={(next) => {
-              if (Date.now() - openedAt.current < 700) {
-                editorRef.current?.focusEnd();
-                return;
-              }
-              onConfirm(next);
-            }}
-          />
-        ) : (
-          <div className="relative min-w-0 flex-1">
-            <input
-              ref={fieldRef}
-              value={value}
-              readOnly
-              aria-label={text}
-              data-no-swipe
-              className="compass-input m-0 w-full min-w-0 overflow-hidden bg-transparent p-0 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap outline-none select-none [-webkit-touch-callout:none]"
-              style={{ color: onCard ? "#111" : OFF_CARD }}
-            />
-            {fades ? (
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-r from-transparent to-white"
-              />
-            ) : null}
-          </div>
-        )}
-      </div>
-      <div className="flex items-center justify-end self-center">
+    <div className={cn("relative min-w-0", holding && "opacity-40")}>
+      {editing ? (
+        <WrapField
+          ref={editorRef}
+          initial={draft}
+          label="Edit row"
+          autoFocus
+          className="text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]"
+          onTextChange={(next) => {
+            if (!next.trim()) onErase();
+          }}
+          onDone={onConfirm}
+          onBlur={(next) => {
+            if (Date.now() - openedAt.current < 700) {
+              editorRef.current?.focusEnd();
+              return;
+            }
+            onConfirm(next);
+          }}
+        />
+      ) : (
+        <div
+          ref={fieldRef}
+          aria-label={text}
+          data-no-swipe
+          className="block min-w-0 overflow-hidden pr-[26px] text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap select-none"
+          style={{ color: onCard ? "#111" : OFF_CARD }}
+          onPointerDown={(event) => {
+            if (deleteReady) return;
+            pressedLong.current = false;
+            setHolding(true);
+            longPress.onPointerDown(event);
+          }}
+          onPointerMove={longPress.onPointerMove}
+          onPointerUp={(event) => {
+            release();
+            if (pressedLong.current || deleteReady) return;
+            if (!(event.target instanceof Node) || !fieldRef.current?.contains(event.target)) return;
+            beginEdit();
+          }}
+          onPointerCancel={release}
+          onContextMenu={longPress.onContextMenu}
+        >
+          {text}
+        </div>
+      )}
+      {fades && !editing ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-[26px] w-4 bg-gradient-to-r from-transparent to-white"
+        />
+      ) : null}
+      <div className="absolute inset-y-0 right-0 flex items-center">
         {deleteReady ? (
           <button
             type="button"
@@ -608,6 +585,6 @@ function EditRow({
           <RowMark onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
         )}
       </div>
-    </>
+    </div>
   );
 }
