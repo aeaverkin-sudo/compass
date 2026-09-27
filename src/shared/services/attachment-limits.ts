@@ -80,6 +80,13 @@ export function isImageMime(mime: string): boolean {
   return (IMAGE_MIMES as readonly string[]).includes(mime);
 }
 
+const OFFICE_DOC_MIMES = (DOCUMENT_MIMES as readonly string[]).filter((m) => m !== "application/pdf");
+
+/** Office formats a browser cannot render — shown via the Microsoft Office web viewer. */
+export function isOfficeDocMime(mime: string): boolean {
+  return OFFICE_DOC_MIMES.includes(mime);
+}
+
 /** Types a browser can render on its own — everything else is offered as a download. */
 export function isInlineViewableMime(mime: string): boolean {
   return mime === "application/pdf" || isImageMime(mime) || isVideoMime(mime) || (AUDIO_MIMES as readonly string[]).includes(mime);

@@ -8,6 +8,7 @@ import {
   TRANSFER_ASSETS_BUCKET,
   isImageMime,
   isInlineViewableMime,
+  isOfficeDocMime,
   isServableMime,
 } from "@/shared/services/attachment-limits";
 import { attachmentIsPublic } from "@/shared/services/public-card";
@@ -37,6 +38,13 @@ async function viewerId(): Promise<string | null> {
   }
 }
 
+/** Public https origin, honouring Render's proxy headers so external viewers can fetch us. */
+function publicOrigin(request: Request): string {
+  const proto = request.headers.get("x-forwarded-proto") ?? "https";
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  return host ? `${proto}://${host}` : new URL(request.url).origin;
+}
+
 function dispositionHeader(row: AttachmentRow): string {
   const filename = downloadName(row.original_name, row.id);
   const ascii = filename.replace(/[^\x20-\x7E]/g, "_");
@@ -47,9 +55,9 @@ function dispositionHeader(row: AttachmentRow): string {
 
 /**
  * Serves a stored file.
- * Images redirect straight to the CDN for speed. Everything else is proxied from
- * this domain — PDFs open inline, office files download for the native viewer —
- * with Range forwarded so previews can seek.
+ * Images redirect straight to the CDN for speed. PDFs/audio/video are proxied inline
+ * from this domain with Range forwarded so previews can seek. Office files open in the
+ * Microsoft Office web viewer, which fetches the raw bytes back from `?raw=1`.
  * The owner sees any of their files; a stranger only a servable file on a public card.
  */
 export async function GET(
@@ -79,6 +87,15 @@ export async function GET(
     } catch {
       return serverError("Could not read the file");
     }
+  }
+
+  // Office files can't render in a browser — open them in Microsoft's web viewer,
+  // which pulls the raw bytes back from this same route (`?raw=1`).
+  const wantRaw = new URL(request.url).searchParams.get("raw") === "1";
+  if (isOfficeDocMime(row.mime) && !wantRaw) {
+    const rawUrl = `${publicOrigin(request)}/f/${attachmentId}?raw=1`;
+    const viewer = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(rawUrl)}`;
+    return NextResponse.redirect(viewer, 302);
   }
 
   const admin = createAdminSupabaseClient();
