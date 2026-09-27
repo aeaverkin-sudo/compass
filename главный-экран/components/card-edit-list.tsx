@@ -49,10 +49,6 @@ type EditSection = {
   rows: { row: CardDisplayRow; onCard: boolean }[];
 };
 
-function lineOf(row: CardDisplayRow) {
-  return row.axis ? `${row.axis} / ${row.value}` : row.value;
-}
-
 function buildSections(card: Card, items: ContactItem[]): EditSection[] {
   const onCard = new Set(card.contactItemIds);
   const order = new Map(card.contactItemIds.map((id, index) => [id, index]));
@@ -193,7 +189,6 @@ export function CardEditList({
                 return (
                   <EditRow
                     key={item.id}
-                    text={lineOf(row)}
                     value={row.value}
                     axis={row.axis}
                     onCard={onCard}
@@ -416,7 +411,6 @@ function AddLine({
 }
 
 function EditRow({
-  text,
   value,
   axis,
   onCard,
@@ -431,7 +425,6 @@ function EditRow({
   onConfirm,
   onErase,
 }: {
-  text: string;
   value: string;
   axis: string;
   onCard: boolean;
@@ -446,12 +439,12 @@ function EditRow({
   onConfirm: (next: string) => void;
   onErase: () => void;
 }) {
-  const fieldRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
   const [draft, setDraft] = useState(value);
-  const [fades, setFades] = useState(false);
   const longPress = useLongPress(() => {
     pressedLong.current = true;
     setHolding(false);
@@ -463,11 +456,11 @@ function EditRow({
     longPress.onPointerUp();
   };
 
+  // Runs inside the tap's flushSync, so iOS still counts the focus as user-initiated.
   useLayoutEffect(() => {
     if (!editing) return;
     const field = fieldRef.current;
     if (!field) return;
-    field.readOnly = false;
     field.focus({ preventScroll: true });
     const end = field.value.length;
     field.setSelectionRange(end, end);
@@ -475,36 +468,23 @@ function EditRow({
 
   useLayoutEffect(() => {
     const field = fieldRef.current;
-    if (!field) return;
-    const measure = () => {
-      if (editing) {
-        setFades(false);
-        return;
-      }
-      field.scrollLeft = 0;
-      const next = field.scrollWidth > field.clientWidth + 1;
-      setFades((current) => (current === next ? current : next));
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(field);
-    return () => observer.disconnect();
-  }, [editing, value]);
+    if (!editing || !field) return;
+    field.style.height = "0px";
+    field.style.height = `${field.scrollHeight}px`;
+  }, [editing, draft]);
 
   const lineClass = cn(
     "min-w-0 py-[3px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]",
     !first && "col-start-2",
   );
+  const textClass = "block min-w-0 flex-1 break-words";
 
-  const beginEdit = (field: HTMLInputElement) => {
+  const beginEdit = () => {
     openedAt.current = Date.now();
-    setDraft(value);
-    field.readOnly = false;
-    field.blur();
-    field.focus({ preventScroll: true });
-    const end = field.value.length;
-    field.setSelectionRange(end, end);
-    onEdit();
+    flushSync(() => {
+      setDraft(value);
+      onEdit();
+    });
   };
 
   return (
@@ -520,10 +500,10 @@ function EditRow({
         onPointerMove={longPress.onPointerMove}
         onPointerUp={(event) => {
           release();
-          const field = fieldRef.current;
-          if (!field || editing || pressedLong.current || deleteReady) return;
-          if (!(event.target instanceof Node) || !field.contains(event.target)) return;
-          beginEdit(field);
+          const shown = textRef.current;
+          if (!shown || editing || pressedLong.current || deleteReady) return;
+          if (!(event.target instanceof Node) || !shown.contains(event.target)) return;
+          beginEdit();
         }}
         onPointerCancel={release}
         onContextMenu={longPress.onContextMenu}
@@ -533,58 +513,53 @@ function EditRow({
             {axis} /
           </span>
         ) : null}
-        <div className="relative min-w-0 flex-1">
-        <input
-          ref={fieldRef}
-          value={editing ? draft : value}
-          readOnly={!editing}
-          enterKeyHint="done"
-          aria-label={editing ? "Edit row" : text}
-          autoCorrect="off"
-          spellCheck={false}
-          data-no-swipe
-          onChange={(event) => {
-            if (!editing) return;
-            const next = event.target.value;
-            if (!next.trim()) {
-              onErase();
-              return;
-            }
-            setDraft(next);
-          }}
-          onKeyDown={(event) => {
-            if (!editing || event.key !== "Enter") return;
-            event.preventDefault();
-            onConfirm(event.currentTarget.value);
-          }}
-          onBlur={(event) => {
-            if (!editing) return;
-            if (Date.now() - openedAt.current < 700) {
-              event.currentTarget.focus({ preventScroll: true });
-              return;
-            }
-            onConfirm(event.currentTarget.value);
-          }}
-          className={cn(
-            "compass-input m-0 w-full min-w-0 bg-transparent p-0 text-[16px] leading-[1.45] font-normal tracking-[-0.015em] outline-none",
-            !editing && "overflow-hidden whitespace-nowrap select-none [-webkit-touch-callout:none]",
-          )}
-          style={{
-            color: editing || onCard ? "#111" : OFF_CARD,
-            caretColor: "#111",
-            WebkitUserSelect: editing ? "text" : "none",
-            userSelect: editing ? "text" : "none",
-          }}
-        />
-        {!editing && fades ? (
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-r from-transparent to-white"
+        {editing ? (
+          <textarea
+            ref={fieldRef}
+            rows={1}
+            value={draft}
+            enterKeyHint="done"
+            aria-label="Edit row"
+            autoCorrect="off"
+            spellCheck={false}
+            data-no-swipe
+            onChange={(event) => {
+              const next = event.target.value.replace(/\s*\n\s*/g, " ");
+              if (!next.trim()) {
+                onErase();
+                return;
+              }
+              setDraft(next);
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              onConfirm(event.currentTarget.value);
+            }}
+            onBlur={(event) => {
+              if (Date.now() - openedAt.current < 700) {
+                event.currentTarget.focus({ preventScroll: true });
+                return;
+              }
+              onConfirm(event.currentTarget.value);
+            }}
+            className={cn(
+              textClass,
+              "compass-input m-0 w-full resize-none overflow-hidden bg-transparent p-0 text-[#111] caret-[#111] outline-none",
+            )}
           />
-        ) : null}
-        </div>
+        ) : (
+          <span
+            ref={textRef}
+            className={cn(textClass, "select-none [-webkit-touch-callout:none]")}
+            style={{ color: onCard ? "#111" : OFF_CARD }}
+          >
+            {value}
+          </span>
+        )}
       </div>
-      <div className="flex items-center justify-end self-center">
+      {/* One line box tall, so the mark stays level with the first line of wrapped text. */}
+      <div className="flex h-[28.5px] items-center justify-end self-start">
         {deleteReady ? (
           <button
             type="button"
