@@ -76,6 +76,15 @@ export function isVideoMime(mime: string): boolean {
   return (VIDEO_MIMES as readonly string[]).includes(mime);
 }
 
+export function isImageMime(mime: string): boolean {
+  return (IMAGE_MIMES as readonly string[]).includes(mime);
+}
+
+/** Types a browser can render on its own — everything else is offered as a download. */
+export function isInlineViewableMime(mime: string): boolean {
+  return mime === "application/pdf" || isImageMime(mime) || isVideoMime(mime) || (AUDIO_MIMES as readonly string[]).includes(mime);
+}
+
 export function mimeAllowedForKind(kind: SmallAttachmentKind, mime: string): boolean {
   return KIND_MIMES[kind].includes(mime);
 }

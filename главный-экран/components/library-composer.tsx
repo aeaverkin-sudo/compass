@@ -44,10 +44,16 @@ export function LibraryComposer({
   const rootRef = useRef<HTMLDivElement>(null);
   const pickingRef = useRef(false);
   const mountedAt = useRef(0);
+  const heldInset = useRef(0);
   const { keyboardInset } = useVisualViewport();
   const photoSrc = itemPhotoSrc(item);
   const hasPhotoPreview = Boolean(photoSrc);
   const showName = canRenameLinkDisplay(item);
+
+  // The native file picker collapses the keyboard. Hold the last docked height
+  // so the field stays put instead of dropping to the floor and springing back.
+  if (!pickingRef.current && keyboardInset > 0) heldInset.current = keyboardInset;
+  const dockBottom = pickingRef.current ? heldInset.current : keyboardInset;
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -112,8 +118,8 @@ export function LibraryComposer({
   const field = (
     <div
       ref={rootRef}
-      className="pointer-events-none fixed inset-x-0 z-40 flex justify-center bg-white px-[calc(clamp(24px,6.1vw,28px)-3mm)]"
-      style={{ bottom: keyboardInset }}
+      className="pointer-events-none fixed inset-x-0 z-40 flex justify-center bg-white px-[calc(clamp(24px,6.1vw,28px)-3mm)] transition-[bottom] duration-200 ease-out"
+      style={{ bottom: dockBottom }}
     >
       <div className="pointer-events-auto relative w-full">
         {attachmentError ? (
@@ -168,7 +174,7 @@ export function LibraryComposer({
           </div>
         </div>
 
-        {keyboardInset > 0 ? (
+        {dockBottom > 0 ? (
           <div
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-full z-10 bg-gradient-to-b from-sheet via-sheet/55 to-transparent"

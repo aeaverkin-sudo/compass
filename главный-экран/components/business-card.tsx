@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { fileFromReadyPdf, peekPublicCardPdf, primePublicCardPdf, sharePdfFile } from "@/shared/services/save-public-card-pdf";
+import { publicCardUrl } from "@/shared/services/public-card-url";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
@@ -422,10 +423,12 @@ function CardShareFooter({
   name,
   className,
   onShare,
+  onPrepareShare,
 }: {
   name: string;
   className?: string;
   onShare?: () => void;
+  onPrepareShare?: () => void;
 }) {
   return (
     <footer className={cn("flex items-end justify-between", className)}>
@@ -440,6 +443,7 @@ function CardShareFooter({
           data-card-content
           data-no-swipe
           aria-label="Share"
+          onPointerDown={onPrepareShare}
           onClick={onShare}
           className="text-[#111]"
         >
@@ -510,23 +514,35 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     }).catch((error) => console.error("[pdf] prepare failed", error));
   }, [compact, editing, ready, card.publicToken, card.displayName, notesKey]);
 
+  const shareInput = () =>
+    card.publicToken
+      ? { publicToken: card.publicToken, displayName: card.displayName, notes: deliveredNotes }
+      : null;
+
+  const primeShare = () => {
+    const input = shareInput();
+    if (!input) return;
+    void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
+  };
+
   const handleShare = () => {
-    if (!card.publicToken) return;
-    const input = {
-      publicToken: card.publicToken,
-      displayName: card.displayName,
-      notes: deliveredNotes,
-    };
+    const input = shareInput();
+    if (!input) return;
     const readyPdf = peekPublicCardPdf(input);
     if (readyPdf) {
       sharePdfFile(fileFromReadyPdf(readyPdf));
       return;
     }
-    // Not prebuilt yet: build, then share. iOS may drop the gesture after the
-    // await, in which case sharePdfFile opens the PDF instead.
-    void primePublicCardPdf(input)
-      .then((pdf) => sharePdfFile(fileFromReadyPdf(pdf)))
-      .catch((error) => console.error("[pdf] share failed", error));
+    // The PDF is still building (rare — it is prepared while the card is open).
+    // Open the sheet now with the link so the button is never dead, and cache the
+    // file so the next tap sends the PDF itself.
+    void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
+    const url = publicCardUrl(input.publicToken);
+    if (typeof navigator !== "undefined" && navigator.share) {
+      void navigator.share({ url }).catch(() => undefined);
+    } else {
+      void navigator.clipboard?.writeText(url);
+    }
   };
 
   useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);
@@ -766,6 +782,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         <CardShareFooter
           name={card.displayName}
           onShare={card.publicToken ? handleShare : undefined}
+          onPrepareShare={card.publicToken ? primeShare : undefined}
           className="mt-auto shrink-0 pt-6"
         />
       ) : null}
