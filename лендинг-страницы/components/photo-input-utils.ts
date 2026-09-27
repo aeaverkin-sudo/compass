@@ -32,25 +32,12 @@ function openFileInputPicker(
 ) {
   const input = mountPickerInput(accept, capture);
   let closed = false;
-  const openedAt = Date.now();
 
   const close = () => {
     if (closed) return;
     closed = true;
-    window.removeEventListener("focus", onWindowFocus);
     input.remove();
     onDismiss?.();
-  };
-
-  const onWindowFocus = () => {
-    window.setTimeout(() => {
-      if (closed) return;
-      // iOS fires focus when the native sheet opens — ignore early events.
-      if (Date.now() - openedAt < 500) return;
-      // File chosen — change handler owns cleanup after async prepare.
-      if (input.files?.length) return;
-      close();
-    }, 200);
   };
 
   input.addEventListener(
@@ -67,10 +54,10 @@ function openFileInputPicker(
     },
     { once: true },
   );
-  // Dismissing the iOS attach menu with a tap beside it keeps window focus, so only `cancel` tells.
+  // A tap beside the iOS menu fires `cancel`. A window focus event also fires while the
+  // menu is still open, and treating that as a dismiss drops the keyboard a moment later.
   input.addEventListener("cancel", close, { once: true });
 
-  window.addEventListener("focus", onWindowFocus);
   // Must run synchronously in the tap handler — iOS drops user activation otherwise.
   input.click();
 }

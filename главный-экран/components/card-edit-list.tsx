@@ -23,7 +23,6 @@ const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 const FIELD_MAX_PX = 120;
 const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
-const REFOCUS_MS = 120;
 
 type EditSection = {
   id: CardZoneId;
@@ -358,10 +357,13 @@ function AddLine({
   };
 
   const refocus = () => {
+    const field = fieldRef.current;
+    field?.focus({ preventScroll: true });
+    // Stay "picking" through the blur guard, so the dismiss blur does not close the line.
     window.setTimeout(() => {
+      if (document.activeElement !== field) field?.focus({ preventScroll: true });
       picking.current = false;
-      fieldRef.current?.focus({ preventScroll: true });
-    }, REFOCUS_MS);
+    }, BLUR_GUARD_MS);
   };
 
   const pickFile = () => {
@@ -378,8 +380,10 @@ function AddLine({
         setError(result.message);
       }
     }, refocus);
-    // Still inside the tap: if iOS moved focus anyway, taking it back keeps the keyboard up.
-    fieldRef.current?.focus({ preventScroll: true });
+    // Still inside the tap. A second focus() after the menu opens makes iOS
+    // drop the keyboard once the menu has settled, so only reclaim a focus that was lost.
+    const field = fieldRef.current;
+    if (field && document.activeElement !== field) field.focus({ preventScroll: true });
   };
 
   return (

@@ -30,21 +30,20 @@ export function useKeyboardDock(active: boolean) {
     const viewport = window.visualViewport;
     let held = 0;
     const sync = () => {
-      pinPage();
       const next = keyboardInset();
       // The file menu hides the keyboard. Keep the line where the keyboard was.
       if (next > KEYBOARD_MIN_PX) held = next;
       if (held > 0) setInset(held);
     };
+    // One correction if iOS already shifted the page. Scrolling again while the
+    // keyboard is up — including on later viewport changes — dismisses it.
+    if (window.scrollY !== 0 || document.documentElement.scrollTop !== 0) pinPage();
     sync();
-    window.addEventListener("scroll", pinPage, { passive: true });
     viewport?.addEventListener("resize", sync);
     viewport?.addEventListener("scroll", sync);
     return () => {
-      window.removeEventListener("scroll", pinPage);
       viewport?.removeEventListener("resize", sync);
       viewport?.removeEventListener("scroll", sync);
-      pinPage();
       setInset(0);
     };
   }, [active]);
