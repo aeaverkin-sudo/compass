@@ -274,7 +274,7 @@ function EditorialHeader({
             <PhotoSlotPicker photo={photoSrc} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
           ) : photoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img data-card-content src={photoSrc} alt="" className="size-[128px] shrink-0 object-cover" />
+            <img data-card-content src={photoSrc} alt="" fetchPriority="high" className="size-[128px] shrink-0 object-cover" />
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col">
             {showPlus ? (

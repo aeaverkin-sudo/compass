@@ -15,6 +15,8 @@ import { attachmentIsPublic } from "@/shared/services/public-card";
 
 export const runtime = "nodejs";
 
+const IMMUTABLE_CACHE = "private, max-age=31536000, immutable";
+
 function notFound() {
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
@@ -55,7 +57,8 @@ function dispositionHeader(row: AttachmentRow): string {
 
 /**
  * Serves a stored file.
- * Images redirect straight to the CDN for speed. PDFs/audio/video are proxied inline
+ * Images are sent from here with a year-long private cache, so a repeat visit is instant.
+ * PDFs/audio/video are proxied inline
  * from this domain with Range forwarded so previews can seek. Office files open in the
  * Microsoft Office web viewer, which fetches the raw bytes back from `?raw=1`.
  * The owner sees any of their files; a stranger only a servable file on a public card.
@@ -67,15 +70,22 @@ export async function GET(
   const { attachmentId } = await context.params;
   if (!isUuid(attachmentId)) return notFound();
 
+  // Bytes behind an id never change, so a cached copy is always current.
+  const etag = `"${attachmentId}"`;
+  if (request.headers.get("if-none-match") === etag) {
+    return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": IMMUTABLE_CACHE } });
+  }
+
   let row: AttachmentRow | null;
+  let viewer: string | null;
   try {
-    row = await loadAttachment(attachmentId);
+    [row, viewer] = await Promise.all([loadAttachment(attachmentId), viewerId()]);
   } catch {
     return serverError("Could not read the file");
   }
   if (!row || row.status !== "ready") return notFound();
 
-  const owner = (await viewerId()) === row.owner_id;
+  const owner = viewer === row.owner_id;
   if (row.bucket === TRANSFER_ASSETS_BUCKET) {
     if (!owner) return notFound();
   } else if (row.bucket !== CARD_ATTACHMENTS_BUCKET) {
@@ -99,11 +109,23 @@ export async function GET(
   }
 
   const admin = createAdminSupabaseClient();
+
+  if (isImageMime(row.mime)) {
+    const image = await admin.storage.from(row.bucket).download(row.storage_path);
+    if (image.error || !image.data) return serverError("Could not open the file");
+    return new NextResponse(image.data, {
+      headers: {
+        "Content-Type": row.mime,
+        "Content-Length": String(image.data.size),
+        "Content-Disposition": dispositionHeader(row),
+        "Cache-Control": IMMUTABLE_CACHE,
+        ETag: etag,
+      },
+    });
+  }
+
   const signed = await admin.storage.from(row.bucket).createSignedUrl(row.storage_path, SIGNED_READ_SECONDS);
   if (signed.error || !signed.data?.signedUrl) return serverError("Could not open the file");
-
-  // Images load from the CDN directly (cached, no proxy hop).
-  if (isImageMime(row.mime)) return NextResponse.redirect(signed.data.signedUrl, 302);
 
   const range = request.headers.get("range");
   const upstream = await fetch(signed.data.signedUrl, range ? { headers: { Range: range } } : {});
