@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { carouselSidePaddingPx, layoutTop, SHEET_INSET, TOP_VEIL_PX } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -27,6 +27,8 @@ export function MainScreen() {
   const [editing, setEditing] = useState(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
   const openAddRef = useRef<(() => void) | null>(null);
+  const [composing, setComposing] = useState(false);
+  const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
   const shownCard = cards[currentCardIndex] ?? null;
   const cardReady = Boolean(shownCard && isCardReady(shownCard));
@@ -96,7 +98,7 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {layout ? (
+      {layout && !composing ? (
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col"
@@ -107,7 +109,7 @@ export function MainScreen() {
         </div>
       ) : null}
 
-      {layout && (editing || !hideNav) ? (
+      {layout && !composing && (editing || !hideNav) ? (
         <BottomNav
           centerYpx={layout.browseMenuCenterY}
           insetPx={browseCarousel ? carouselSidePaddingPx(window.innerWidth, true) : edgeInsetBrowse}
@@ -145,6 +147,7 @@ export function MainScreen() {
             fillHint={!emptyFillHintSeen}
             composeOnMount={composeOnMount}
             openAddRef={openAddRef}
+            onComposingChange={onComposingChange}
             onFill={(cardId) => {
               const index = cards.findIndex((card) => card.id === cardId);
               if (index === 0) markEmptyFillHintSeen();

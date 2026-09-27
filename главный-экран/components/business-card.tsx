@@ -428,6 +428,7 @@ type BusinessCardProps = {
   onFill?: () => void;
   composeOnMount?: boolean;
   openAddRef?: RefObject<(() => void) | null>;
+  onComposingChange?: (open: boolean) => void;
   /** Public /c/ page: same card, no QR, plus, or share link. */
   readOnly?: boolean;
   /** One-time notes delivered to the first real viewer. */
@@ -449,6 +450,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onFill,
     composeOnMount = false,
     openAddRef,
+    onComposingChange,
     readOnly = false,
     deliveredNotes = [],
   },
@@ -712,7 +714,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ) : null}
 
       {!compact && editing ? (
-        <CardEditList card={card} items={library} composeOnMount={composeOnMount} openAddRef={openAddRef} />
+        <CardEditList
+          card={card}
+          items={library}
+          composeOnMount={composeOnMount}
+          openAddRef={openAddRef}
+          onComposingChange={onComposingChange}
+        />
       ) : (
       <ContactItemChipList
         items={items}

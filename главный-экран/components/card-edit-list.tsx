@@ -96,11 +96,13 @@ export function CardEditList({
   items,
   composeOnMount = false,
   openAddRef,
+  onComposingChange,
 }: {
   card: Card;
   items: ContactItem[];
   composeOnMount?: boolean;
   openAddRef?: RefObject<(() => void) | null>;
+  onComposingChange?: (open: boolean) => void;
 }) {
   const updateCard = useAppStore((state) => state.updateCard);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
@@ -112,6 +114,8 @@ export function CardEditList({
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
+
+  useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
   const sections = useMemo(() => buildSections(card, items), [card, items]);
 
@@ -212,7 +216,10 @@ export function CardEditList({
         openOnMount={composeOnMount}
         openAddRef={openAddRef}
         onFocus={() => setTextEditId(null)}
-        onOpenChange={setComposing}
+        onOpenChange={(open) => {
+          setComposing(open);
+          onComposingChange?.(open);
+        }}
         onAdded={(itemId) => {
           if (composeOnMount) include(itemId);
         }}

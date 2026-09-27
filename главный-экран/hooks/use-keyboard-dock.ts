@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+/** A keyboard is at least this tall; smaller viewport changes are the browser chrome. */
+const KEYBOARD_MIN_PX = 120;
+
 /** Distance from the bottom of the layout viewport up to the top of the keyboard. */
 function keyboardInset() {
   const viewport = window.visualViewport;
@@ -25,9 +28,13 @@ export function useKeyboardDock(active: boolean) {
   useEffect(() => {
     if (!active) return;
     const viewport = window.visualViewport;
+    let held = 0;
     const sync = () => {
       pinPage();
-      setInset(keyboardInset());
+      const next = keyboardInset();
+      // The file menu hides the keyboard. Keep the line where the keyboard was.
+      if (next > KEYBOARD_MIN_PX) held = next;
+      if (held > 0) setInset(held);
     };
     sync();
     window.addEventListener("scroll", pinPage, { passive: true });
