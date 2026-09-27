@@ -447,6 +447,7 @@ function EditRow({
   onErase: () => void;
 }) {
   const fieldRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
@@ -463,24 +464,27 @@ function EditRow({
     longPress.onPointerUp();
   };
 
+  // Runs inside the tap's flushSync, so iOS still treats the focus as user-initiated
+  // and raises the keyboard. The caret starts at the end of the full text.
   useLayoutEffect(() => {
     if (!editing) return;
-    const field = fieldRef.current;
-    if (!field) return;
-    field.readOnly = false;
-    field.focus({ preventScroll: true });
-    const end = field.value.length;
-    field.setSelectionRange(end, end);
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus({ preventScroll: true });
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
   }, [editing]);
+
+  const editedText = () => (editorRef.current?.textContent ?? "").replace(/\s*\n\s*/g, " ");
 
   useLayoutEffect(() => {
     const field = fieldRef.current;
     if (!field) return;
     const measure = () => {
-      if (editing) {
-        setFades(false);
-        return;
-      }
       field.scrollLeft = 0;
       const next = field.scrollWidth > field.clientWidth + 1;
       setFades((current) => (current === next ? current : next));
@@ -496,15 +500,12 @@ function EditRow({
     !first && "col-start-2",
   );
 
-  const beginEdit = (field: HTMLInputElement) => {
+  const beginEdit = () => {
     openedAt.current = Date.now();
-    setDraft(value);
-    field.readOnly = false;
-    field.blur();
-    field.focus({ preventScroll: true });
-    const end = field.value.length;
-    field.setSelectionRange(end, end);
-    onEdit();
+    flushSync(() => {
+      setDraft(value);
+      onEdit();
+    });
   };
 
   return (
@@ -523,7 +524,7 @@ function EditRow({
           const field = fieldRef.current;
           if (!field || editing || pressedLong.current || deleteReady) return;
           if (!(event.target instanceof Node) || !field.contains(event.target)) return;
-          beginEdit(field);
+          beginEdit();
         }}
         onPointerCancel={release}
         onContextMenu={longPress.onContextMenu}
@@ -533,56 +534,56 @@ function EditRow({
             {axis} /
           </span>
         ) : null}
-        <div className="relative min-w-0 flex-1">
-        <input
-          ref={fieldRef}
-          value={editing ? draft : value}
-          readOnly={!editing}
-          enterKeyHint="done"
-          aria-label={editing ? "Edit row" : text}
-          autoCorrect="off"
-          spellCheck={false}
-          data-no-swipe
-          onChange={(event) => {
-            if (!editing) return;
-            const next = event.target.value;
-            if (!next.trim()) {
-              onErase();
-              return;
-            }
-            setDraft(next);
-          }}
-          onKeyDown={(event) => {
-            if (!editing || event.key !== "Enter") return;
-            event.preventDefault();
-            onConfirm(event.currentTarget.value);
-          }}
-          onBlur={(event) => {
-            if (!editing) return;
-            if (Date.now() - openedAt.current < 700) {
-              event.currentTarget.focus({ preventScroll: true });
-              return;
-            }
-            onConfirm(event.currentTarget.value);
-          }}
-          className={cn(
-            "compass-input m-0 w-full min-w-0 bg-transparent p-0 text-[16px] leading-[1.45] font-normal tracking-[-0.015em] outline-none",
-            !editing && "overflow-hidden whitespace-nowrap select-none [-webkit-touch-callout:none]",
-          )}
-          style={{
-            color: editing || onCard ? "#111" : OFF_CARD,
-            caretColor: "#111",
-            WebkitUserSelect: editing ? "text" : "none",
-            userSelect: editing ? "text" : "none",
-          }}
-        />
-        {!editing && fades ? (
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-r from-transparent to-white"
-          />
-        ) : null}
-        </div>
+        {editing ? (
+          <div
+            ref={editorRef}
+            role="textbox"
+            aria-label="Edit row"
+            aria-multiline
+            contentEditable="plaintext-only"
+            suppressContentEditableWarning
+            enterKeyHint="done"
+            autoCorrect="off"
+            spellCheck={false}
+            data-no-swipe
+            onInput={() => {
+              if (!editedText().trim()) onErase();
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              onConfirm(editedText());
+            }}
+            onBlur={(event) => {
+              if (Date.now() - openedAt.current < 700) {
+                event.currentTarget.focus({ preventScroll: true });
+                return;
+              }
+              onConfirm(editedText());
+            }}
+            className="compass-input min-w-0 flex-1 text-[16px] leading-[1.45] font-normal tracking-[-0.015em] break-words whitespace-pre-wrap text-[#111] caret-[#111] outline-none select-text"
+          >
+            {draft}
+          </div>
+        ) : (
+          <div className="relative min-w-0 flex-1">
+            <input
+              ref={fieldRef}
+              value={value}
+              readOnly
+              aria-label={text}
+              data-no-swipe
+              className="compass-input m-0 w-full min-w-0 overflow-hidden bg-transparent p-0 text-[16px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap outline-none select-none [-webkit-touch-callout:none]"
+              style={{ color: onCard ? "#111" : OFF_CARD }}
+            />
+            {fades ? (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-r from-transparent to-white"
+              />
+            ) : null}
+          </div>
+        )}
       </div>
       <div className="flex items-center justify-end self-center">
         {deleteReady ? (
