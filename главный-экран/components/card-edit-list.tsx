@@ -226,7 +226,6 @@ export function CardEditList({
       ))}
       {editingItem ? (
         <LibraryComposer
-          viewportDock
           item={editingItem}
           attachmentError={attachmentError}
           onValueChange={(value) => updateContactItem(editingItem.id, { value })}

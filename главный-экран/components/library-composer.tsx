@@ -3,7 +3,6 @@
 import { Plus } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { cn } from "@/lib/utils";
 import { autoLinkDisplay, canRenameLinkDisplay, customDisplayName } from "@/shared/services/link-display";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
 import type { ContactItem } from "@/shared/types";
@@ -13,19 +12,14 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 const ADD_FIELD_FONT_PX = 18.2;
 const ADD_FIELD_LINE = 1.35;
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-const FILL_ICON_STROKE = 1;
 const TEXTAREA_MAX_PX = 120;
-const KEYBOARD_DOCK_PADDING_PX = 0;
 const BLUR_GUARD_MS = 300;
 /** Masks the seam between the composer pill and the iOS input accessory bar. */
 const DOCK_SEAM_FADE_PX = 22;
 
 type LibraryComposerProps = {
   item: ContactItem;
-  contentWidthPx?: number;
   attachmentError?: string | null;
-  /** Pin the field to the viewport, above the keyboard. The card traps position:fixed. */
-  viewportDock?: boolean;
   onValueChange: (value: string) => void;
   onLabelChange: (label: string) => void;
   /** Return false to keep the field open (the file was rejected). */
@@ -33,11 +27,14 @@ type LibraryComposerProps = {
   onBlur: () => void;
 };
 
+/**
+ * A single writing line, always docked to the bottom of the viewport and
+ * riding the keyboard via `keyboardInset`. The node is portaled to <body> once
+ * and never reparented, so focus holds and the keyboard does not drop.
+ */
 export function LibraryComposer({
   item,
-  contentWidthPx,
   attachmentError,
-  viewportDock = false,
   onValueChange,
   onLabelChange,
   onAttachment,
@@ -47,8 +44,7 @@ export function LibraryComposer({
   const rootRef = useRef<HTMLDivElement>(null);
   const pickingRef = useRef(false);
   const mountedAt = useRef(0);
-  const { keyboardOpen, keyboardInset } = useVisualViewport();
-  const dockedAboveKeyboard = keyboardOpen;
+  const { keyboardInset } = useVisualViewport();
   const photoSrc = itemPhotoSrc(item);
   const hasPhotoPreview = Boolean(photoSrc);
   const showName = canRenameLinkDisplay(item);
@@ -69,19 +65,17 @@ export function LibraryComposer({
     textareaRef.current?.focus({ preventScroll: true });
   }, [item.id]);
 
-  // iOS scrolls the visual viewport to the focused field — pin the page back
-  // so the composer stays in the visible frame instead of flying off-screen.
+  // iOS scrolls the layout viewport to the focused field — pin it back so the
+  // docked composer stays in frame instead of sliding away.
   useEffect(() => {
     const lock = () => {
       window.scrollTo(0, 0);
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
     };
-
     lock();
     window.addEventListener("scroll", lock, { passive: true });
     window.visualViewport?.addEventListener("scroll", lock);
-
     return () => {
       window.removeEventListener("scroll", lock);
       window.visualViewport?.removeEventListener("scroll", lock);
@@ -89,23 +83,20 @@ export function LibraryComposer({
     };
   }, []);
 
-  const restoreFocus = useCallback(() => {
-    window.setTimeout(() => {
-      pickingRef.current = false;
-      textareaRef.current?.focus({ preventScroll: true });
-    }, 120);
-  }, []);
-
   const handleAttach = () => {
     pickingRef.current = true;
-
     openContactAttachmentPicker(
       (dataUrl, file) => {
         pickingRef.current = false;
         const accepted = onAttachment(file, dataUrl);
         if (!accepted) textareaRef.current?.focus({ preventScroll: true });
       },
-      restoreFocus,
+      () => {
+        window.setTimeout(() => {
+          pickingRef.current = false;
+          textareaRef.current?.focus({ preventScroll: true });
+        }, 120);
+      },
     );
   };
 
@@ -113,36 +104,18 @@ export function LibraryComposer({
     window.setTimeout(() => {
       if (Date.now() - mountedAt.current < 450) return;
       if (pickingRef.current) return;
-      if (textareaRef.current && document.activeElement === textareaRef.current) return;
       if (rootRef.current?.contains(document.activeElement)) return;
       onBlur();
     }, BLUR_GUARD_MS);
   };
 
-  const pillWidthStyle = contentWidthPx ? { width: contentWidthPx, maxWidth: "100%" } : undefined;
-
   const field = (
     <div
       ref={rootRef}
-      className={cn(
-        "w-full",
-        dockedAboveKeyboard
-          ? "pointer-events-none fixed inset-x-0 z-40 flex justify-center bg-white px-[calc(clamp(24px,6.1vw,28px)-3mm)]"
-          : "relative z-10 shrink-0",
-      )}
-      style={
-        dockedAboveKeyboard
-          ? { bottom: keyboardInset + KEYBOARD_DOCK_PADDING_PX }
-          : undefined
-      }
+      className="pointer-events-none fixed inset-x-0 z-40 flex justify-center bg-white px-[calc(clamp(24px,6.1vw,28px)-3mm)]"
+      style={{ bottom: keyboardInset }}
     >
-      <div
-        className={cn(
-          "relative w-full",
-          dockedAboveKeyboard && "pointer-events-auto shrink-0",
-        )}
-        style={pillWidthStyle}
-      >
+      <div className="pointer-events-auto relative w-full">
         {attachmentError ? (
           <p className="mb-2 px-1 text-center text-[12px] leading-snug text-destructive">
             {attachmentError}
@@ -152,11 +125,7 @@ export function LibraryComposer({
         <div className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
           {hasPhotoPreview && photoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photoSrc}
-              alt=""
-              className="size-10 shrink-0 object-cover"
-            />
+            <img src={photoSrc} alt="" className="size-10 shrink-0 object-cover" />
           ) : (
             <button
               type="button"
@@ -166,7 +135,7 @@ export function LibraryComposer({
               className="flex w-7 shrink-0 items-center justify-center text-[#111] transition-opacity active:opacity-60"
               style={{ height: ADD_FIELD_FONT_PX * ADD_FIELD_LINE }}
             >
-              <Plus className="size-7 text-[#111]" strokeWidth={FILL_ICON_STROKE} aria-hidden />
+              <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
             </button>
           )}
 
@@ -199,7 +168,7 @@ export function LibraryComposer({
           </div>
         </div>
 
-        {dockedAboveKeyboard ? (
+        {keyboardInset > 0 ? (
           <div
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-full z-10 bg-gradient-to-b from-sheet via-sheet/55 to-transparent"
@@ -210,9 +179,6 @@ export function LibraryComposer({
     </div>
   );
 
-  if (viewportDock && dockedAboveKeyboard && typeof document !== "undefined") {
-    return createPortal(field, document.body);
-  }
-
-  return field;
+  if (typeof document === "undefined") return null;
+  return createPortal(field, document.body);
 }
