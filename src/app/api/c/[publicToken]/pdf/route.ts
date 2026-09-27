@@ -19,6 +19,14 @@ function jsonFail(status: number, error: string) {
   return NextResponse.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+/** Public https origin. Render's own request URL is internal, so the proxy headers win. */
+function publicOrigin(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwarded || request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "https";
+  return host ? `${proto}://${host}` : new URL(request.url).origin;
+}
+
 function parseNotes(value: unknown): DeliveredNote[] {
   if (!Array.isArray(value)) return [];
   const notes: DeliveredNote[] = [];
@@ -45,7 +53,12 @@ function parseNotes(value: unknown): DeliveredNote[] {
  * Nothing is written to Storage.
  */
 export async function GET(request: Request, context: RouteProps) {
-  return POST(new Request(request.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }), context);
+  const headers = new Headers({ "Content-Type": "application/json" });
+  for (const name of ["x-forwarded-proto", "x-forwarded-host", "host"]) {
+    const value = request.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  return POST(new Request(request.url, { method: "POST", headers, body: "{}" }), context);
 }
 
 export async function POST(request: Request, context: RouteProps) {
@@ -126,6 +139,7 @@ export async function POST(request: Request, context: RouteProps) {
       photoMime,
       notes,
       noteImages,
+      origin: publicOrigin(request),
     });
   } catch (error) {
     console.error("[pdf] generate failed", error);

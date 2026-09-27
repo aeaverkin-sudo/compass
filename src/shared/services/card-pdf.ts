@@ -43,6 +43,8 @@ export type PublicCardPdfInput = {
   notes?: DeliveredNote[];
   /** Selfie bytes keyed by attachment id. */
   noteImages?: Record<string, { bytes: Uint8Array; mime: string }>;
+  /** Public site origin, so `/f/…` links work inside a saved PDF. */
+  origin: string;
 };
 
 /**
@@ -199,12 +201,12 @@ function wrapLines(text: string, font: PDFFont, size: number, maxWidth: number):
   return lines;
 }
 
-function absoluteUrl(raw: string): string | null {
+function absoluteUrl(raw: string, origin: string): string | null {
   const value = raw.trim();
   if (!value) return null;
   if (/^https?:\/\//i.test(value)) return value;
   if (/^mailto:/i.test(value) || /^tel:/i.test(value)) return value;
-  if (value.startsWith("/")) return null;
+  if (value.startsWith("/")) return origin ? `${origin}${value}` : null;
   if (value.includes("@") && !value.includes(" ")) return `mailto:${value}`;
   if (/^\+?[\d\s().-]{6,}$/.test(value)) return `tel:${value.replace(/[^\d+]/g, "")}`;
   if (/^[\w.-]+\.[\w.-]+/.test(value)) return `https://${value}`;
@@ -314,7 +316,7 @@ export async function generatePublicCardPdf(input: PublicCardPdfInput): Promise<
       const label = row.axis.trim();
       const value = rowValue(row).slice(0, 500);
       if (!value) continue;
-      const href = absoluteUrl(row.url) ?? absoluteUrl(value);
+      const href = absoluteUrl(row.url, input.origin) ?? absoluteUrl(value, input.origin);
       if (label) {
         ensureSpace(cursor, 14);
         cursor.page.drawText(label.toUpperCase(), {
