@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { autoLinkDisplay, canRenameLinkDisplay, customDisplayName } from "@/shared/services/link-display";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
@@ -13,8 +13,10 @@ const ADD_FIELD_FONT_PX = 18.2;
 const ADD_FIELD_LINE = 1.35;
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 const TEXTAREA_MAX_PX = 120;
-const BLUR_GUARD_MS = 300;
-/** Masks the seam between the composer pill and the iOS input accessory bar. */
+/** Below this the keyboard is closed — sit on the screen edge, not a phantom gap. */
+const KEYBOARD_FLOOR_PX = 40;
+const BLUR_SETTLE_MS = 120;
+/** Masks the seam between the line and the iOS keyboard accessory bar. */
 const DOCK_SEAM_FADE_PX = 22;
 
 type LibraryComposerProps = {
@@ -28,9 +30,9 @@ type LibraryComposerProps = {
 };
 
 /**
- * A single writing line, always docked to the bottom of the viewport and
- * riding the keyboard via `keyboardInset`. The node is portaled to <body> once
- * and never reparented, so focus holds and the keyboard does not drop.
+ * One writing line, portaled to <body> and pinned to the top of the keyboard.
+ * Position comes only from the visual viewport. The page is never scrolled and
+ * the line is never frozen in place — both of those detach the caret from the field.
  */
 export function LibraryComposer({
   item,
@@ -42,88 +44,74 @@ export function LibraryComposer({
 }: LibraryComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const pickingRef = useRef(false);
-  const mountedAt = useRef(0);
-  const [picking, setPicking] = useState(false);
-  const [heldInset, setHeldInset] = useState(0);
+  const sheetOpen = useRef(false);
+  const blurTimer = useRef<number | null>(null);
   const { keyboardInset } = useVisualViewport();
   const photoSrc = itemPhotoSrc(item);
   const hasPhotoPreview = Boolean(photoSrc);
   const showName = canRenameLinkDisplay(item);
+  const dockBottom = keyboardInset < KEYBOARD_FLOOR_PX ? 0 : keyboardInset;
 
-  // The native file picker collapses the keyboard. While it is open we freeze the
-  // dock at the height captured on tap so the field stays put instead of dropping
-  // to the floor and springing back.
-  const dockBottom = picking ? heldInset : keyboardInset;
-
-  const resizeTextarea = useCallback(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, TEXTAREA_MAX_PX)}px`;
+  const placeCaret = useCallback(() => {
+    const field = textareaRef.current;
+    if (!field) return;
+    field.focus({ preventScroll: true });
+    const end = field.value.length;
+    field.setSelectionRange(end, end);
   }, []);
 
-  useEffect(() => {
+  const resizeTextarea = useCallback(() => {
+    const field = textareaRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, TEXTAREA_MAX_PX)}px`;
+  }, []);
+
+  useLayoutEffect(() => {
+    resizeTextarea();
+    placeCaret();
+  }, [item.id, placeCaret, resizeTextarea]);
+
+  useLayoutEffect(() => {
     resizeTextarea();
   }, [item.value, resizeTextarea]);
 
-  useEffect(() => {
-    mountedAt.current = Date.now();
-    textareaRef.current?.focus({ preventScroll: true });
-  }, [item.id]);
-
-  // iOS scrolls the layout viewport to the focused field — pin it back so the
-  // docked composer stays in frame instead of sliding away.
-  useEffect(() => {
-    const lock = () => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    };
-    lock();
-    window.addEventListener("scroll", lock, { passive: true });
-    window.visualViewport?.addEventListener("scroll", lock);
-    return () => {
-      window.removeEventListener("scroll", lock);
-      window.visualViewport?.removeEventListener("scroll", lock);
-      lock();
-    };
-  }, []);
+  const clearBlurTimer = () => {
+    if (blurTimer.current === null) return;
+    window.clearTimeout(blurTimer.current);
+    blurTimer.current = null;
+  };
 
   const handleAttach = () => {
-    pickingRef.current = true;
-    setHeldInset(keyboardInset);
-    setPicking(true);
+    clearBlurTimer();
+    sheetOpen.current = true;
     openContactAttachmentPicker(
       (dataUrl, file) => {
-        pickingRef.current = false;
-        setPicking(false);
+        sheetOpen.current = false;
         const accepted = onAttachment(file, dataUrl);
-        if (!accepted) textareaRef.current?.focus({ preventScroll: true });
+        if (!accepted) placeCaret();
       },
       () => {
-        window.setTimeout(() => {
-          pickingRef.current = false;
-          setPicking(false);
-          textareaRef.current?.focus({ preventScroll: true });
-        }, 120);
+        sheetOpen.current = false;
+        placeCaret();
       },
     );
   };
 
   const handleBlur = () => {
-    window.setTimeout(() => {
-      if (Date.now() - mountedAt.current < 450) return;
-      if (pickingRef.current) return;
+    clearBlurTimer();
+    blurTimer.current = window.setTimeout(() => {
+      blurTimer.current = null;
+      if (sheetOpen.current) return;
       if (rootRef.current?.contains(document.activeElement)) return;
       onBlur();
-    }, BLUR_GUARD_MS);
+    }, BLUR_SETTLE_MS);
   };
 
   const field = (
     <div
       ref={rootRef}
-      className="pointer-events-none fixed inset-x-0 z-40 flex justify-center bg-white px-[calc(clamp(24px,6.1vw,28px)-3mm)] transition-[bottom] duration-200 ease-out"
+      className="pointer-events-none fixed inset-x-0 z-40 flex justify-center bg-white px-[calc(clamp(24px,6.1vw,28px)-3mm)]"
       style={{ bottom: dockBottom }}
     >
       <div className="pointer-events-auto relative w-full">
@@ -141,7 +129,7 @@ export function LibraryComposer({
             <button
               type="button"
               aria-label="Add photo or file"
-              onMouseDown={(event) => event.preventDefault()}
+              onPointerDown={(event) => event.preventDefault()}
               onClick={handleAttach}
               className="flex w-7 shrink-0 items-center justify-center text-[#111] transition-opacity active:opacity-60"
               style={{ height: ADD_FIELD_FONT_PX * ADD_FIELD_LINE }}
@@ -159,6 +147,7 @@ export function LibraryComposer({
               aria-label="Contact field"
               autoCorrect="off"
               spellCheck={false}
+              enterKeyHint="done"
               onChange={(event) => onValueChange(event.target.value)}
               onBlur={handleBlur}
               className="compass-input block w-full resize-none overflow-y-auto bg-transparent p-0 text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:tracking-normal placeholder:text-[#999] placeholder:normal-case"
