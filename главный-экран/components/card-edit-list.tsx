@@ -240,8 +240,6 @@ function AddLine({
   const anchorRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<WrapFieldHandle>(null);
-  const pickingRef = useRef(false);
-
   useKeyboardDock(open, lineRef, setDockBottom);
 
   /** The docked line spans exactly the card column the + sits in. */
@@ -286,23 +284,19 @@ function AddLine({
     fieldRef.current?.focusEnd();
   };
 
+  // The native picker always takes the keyboard away on iOS, so the docked line
+  // closes with it instead of hanging mid-screen.
   const pickFile = () => {
-    pickingRef.current = true;
-    const settle = () => {
-      pickingRef.current = false;
-      close();
-    };
     openContactAttachmentPicker((dataUrl, file) => {
       const id = addContactItem();
-      if (id) {
-        const result = updateContactItemAttachment(cardId, id, file, dataUrl);
-        if (!result.ok) {
-          deleteContactItem(id);
-          setError(result.message);
-        }
+      if (!id) return;
+      const result = updateContactItemAttachment(cardId, id, file, dataUrl);
+      if (!result.ok) {
+        deleteContactItem(id);
+        setError(result.message);
       }
-      settle();
-    }, settle);
+    });
+    close();
   };
 
   return (
@@ -358,9 +352,7 @@ function AddLine({
                 onFocus={onFocus}
                 onTextChange={() => setError(null)}
                 onDone={() => fieldRef.current?.element()?.blur()}
-                onBlur={() => {
-                  if (!pickingRef.current) close();
-                }}
+                onBlur={close}
               />
               </div>
             </div>,
