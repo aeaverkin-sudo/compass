@@ -109,6 +109,7 @@ export function CardEditList({
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
+  const [composing, setComposing] = useState(false);
 
   const sections = useMemo(() => buildSections(card, items), [card, items]);
 
@@ -160,6 +161,7 @@ export function CardEditList({
       {sections.map((section, index) => (
         <section
           key={section.id}
+          hidden={composing}
           className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b-[0.5px] border-[#111]")}
         >
           <div className="grid grid-cols-[86px_minmax(0,1fr)_26px] items-baseline gap-x-[14px]">
@@ -208,6 +210,7 @@ export function CardEditList({
         openOnMount={composeOnMount}
         divided={sections.length > 0}
         onFocus={() => setTextEditId(null)}
+        onOpenChange={setComposing}
         onAdded={(itemId) => {
           if (composeOnMount) include(itemId);
         }}
@@ -218,20 +221,23 @@ export function CardEditList({
 
 /**
  * The only way to create a new row. At rest it is a single centred +.
- * Tapping it docks one writing line above the keyboard. Text stays here until the line
- * is left, so nothing half-typed reaches the card. A picked file joins the same line.
+ * Tapping it docks one writing line above the keyboard. Text stays here until Done,
+ * so nothing half-typed reaches the card. A picked file joins the same line.
  */
 function AddLine({
   cardId,
   openOnMount,
   divided,
   onFocus,
+  onOpenChange,
   onAdded,
 }: {
   cardId: string;
   openOnMount: boolean;
   divided: boolean;
   onFocus: () => void;
+  /** While open, the card shows only the QR, the photo and the name above the line. */
+  onOpenChange: (open: boolean) => void;
   onAdded: (itemId: string) => void;
 }) {
   const addContactItem = useAppStore((state) => state.addContactItem);
@@ -262,11 +268,13 @@ function AddLine({
     openedAt.current = Date.now();
     setError(null);
     setOpen(true);
+    onOpenChange(true);
   };
 
   // The empty card asks for the line once, as it opens.
   useLayoutEffect(() => {
     if (openOnMount) startDocking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openOnMount]);
 
   // Layout phase: mounted from a tap, the focus still counts as the user's and raises the keyboard.
@@ -305,10 +313,22 @@ function AddLine({
     setText("");
     setFileItemId(null);
     setOpen(false);
+    onOpenChange(false);
   };
 
-  // iOS may hand focus around while the keyboard settles or a picker is up; the line
-  // closes only once focus has really left it.
+  // No tap may take focus from the field: the keyboard, the line and the caret stay put
+  // (closing the attach menu included). Only Done leaves the line.
+  useEffect(() => {
+    if (!open) return;
+    const keepFocus = (event: MouseEvent) => {
+      if (event.target !== fieldRef.current) event.preventDefault();
+    };
+    document.addEventListener("mousedown", keepFocus, true);
+    return () => document.removeEventListener("mousedown", keepFocus, true);
+  }, [open]);
+
+  // iOS may hand focus around while the keyboard settles or a full-screen picker is up;
+  // the line closes only once focus has really left it.
   const handleBlur = () => {
     window.setTimeout(() => {
       if (picking.current) return;
@@ -345,7 +365,7 @@ function AddLine({
     <>
       <div
         ref={anchorRef}
-        className={cn("pt-6 pb-2", divided && "mt-2 border-t-[0.5px] border-[#111]")}
+        className={cn("pt-6 pb-2", divided && "mt-2 border-t-[0.5px] border-[#111]", open && "invisible")}
       >
         <div className="flex justify-center">
           <button
@@ -382,7 +402,6 @@ function AddLine({
                       type="button"
                       data-no-swipe
                       aria-label="Add photo or file"
-                      onMouseDown={(event) => event.preventDefault()}
                       onClick={pickFile}
                       className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
                     >

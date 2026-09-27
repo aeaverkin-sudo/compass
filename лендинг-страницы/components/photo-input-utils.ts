@@ -67,6 +67,8 @@ function openFileInputPicker(
     },
     { once: true },
   );
+  // Dismissing the iOS attach menu with a tap beside it keeps window focus, so only `cancel` tells.
+  input.addEventListener("cancel", close, { once: true });
 
   window.addEventListener("focus", onWindowFocus);
   // Must run synchronously in the tap handler — iOS drops user activation otherwise.
