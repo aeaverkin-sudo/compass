@@ -46,7 +46,7 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
       ) : (
         <button
           type="button"
-          className="justify-self-center px-2 py-2"
+          className="justify-self-center px-2 py-2 uppercase"
           onPointerDown={(event) => {
             event.preventDefault();
             window.getSelection()?.removeAllRanges();
