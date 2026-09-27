@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
+import { carouselSidePaddingPx, layoutTop, SHEET_INSET, TOP_VEIL_PX } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
@@ -98,9 +98,12 @@ export function MainScreen() {
       {layout ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-sky"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col"
           style={{ top: layoutTop(layout.cardBottomBrowse) }}
-        />
+        >
+          <div className="shrink-0 bg-gradient-to-b from-transparent to-sky" style={{ height: TOP_VEIL_PX }} />
+          <div className="flex-1 bg-sky" />
+        </div>
       ) : null}
 
       {layout && !editing && !hideNav ? (
