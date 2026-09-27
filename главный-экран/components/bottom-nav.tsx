@@ -1,12 +1,13 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { layoutTop } from "../layout";
 
 type BottomNavProps = {
   centerYpx: number;
   /** Distance from each screen edge to the card, so the labels sit on the card's column. */
   insetPx: number;
-  /** Edit mode: + on the left opens the writing line, Ok on the right leaves editing. */
+  /** Edit mode: + on the left opens the writing line, OK on the right leaves editing. */
   editing?: boolean;
   onEdit: () => void;
   onAdd?: () => void;
@@ -34,7 +35,7 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => onAdd?.()}
         >
-          +
+          <Plus className="size-[17px] text-[#111]" strokeWidth={1} aria-hidden />
         </button>
       ) : (
         <span aria-current="page" className="justify-self-start py-2">
@@ -62,7 +63,7 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
       )}
       {editing ? (
         <button type="button" className="justify-self-end px-2 py-2" onClick={() => onDone?.()}>
-          Ok
+          OK
         </button>
       ) : (
         <span className="justify-self-end py-2">Network</span>
