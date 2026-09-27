@@ -83,15 +83,16 @@ export function openNativePhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => v
   openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss);
 }
 
-/**
- * Contact attachment — native iOS sheet (Photo Library / Take Photo / Choose File).
- * `image/*` in accept keeps the media sheet; Choose File still allows documents/media.
- */
-export function openContactAttachmentPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openFileInputPicker(
-    `image/*,${PORTFOLIO_FILE_ACCEPT}`,
-    (file) => prepareAttachmentForStorage(file, detectAttachmentType(file)),
-    onPhoto,
-    onDismiss,
-  );
+function prepareContactAttachment(file: File) {
+  return prepareAttachmentForStorage(file, detectAttachmentType(file));
+}
+
+/** Contact photo. iOS still shows its own Photo Library / Take Photo sheet for images. */
+export function openContactPhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openFileInputPicker("image/*", prepareContactAttachment, onPhoto, onDismiss);
+}
+
+/** Contact document or media file. Without image types iOS opens Files directly. */
+export function openContactFilePicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openFileInputPicker(PORTFOLIO_FILE_ACCEPT, prepareContactAttachment, onPhoto, onDismiss);
 }
