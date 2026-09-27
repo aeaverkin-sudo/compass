@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { layoutTop, SHEET_INSET } from "../layout";
-import { BrowseMenuButton } from "./browse-menu-button";
+import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
+import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { getCardItems } from "@/shared/services/card-snapshot";
@@ -30,7 +30,7 @@ export function MainScreen() {
   const shownCard = cards[currentCardIndex] ?? null;
   const cardReady = Boolean(shownCard && isCardReady(shownCard));
   const shownHasBody = Boolean(shownCard && getCardItems(shownCard, contactItems).length > 0);
-  const hideDots = cardReady && !shownHasBody;
+  const hideNav = cardReady && !shownHasBody;
   const showAddSlide = canAddMoreCards(cards);
 
   useEffect(() => {
@@ -95,10 +95,11 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {layout && !editing && !hideDots ? (
-        <BrowseMenuButton
+      {layout && !editing && !hideNav ? (
+        <BottomNav
           centerYpx={layout.browseMenuCenterY}
-          onTap={() => {
+          insetPx={browseCarousel ? carouselSidePaddingPx(window.innerWidth, true) : edgeInsetBrowse}
+          onEdit={() => {
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
             setComposeOnMount(false);
             setEditing(true);
