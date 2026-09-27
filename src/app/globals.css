@@ -12,6 +12,7 @@
   --hint: #a6a29a;
   --sheet: #ffffff;
   --divider: #edeae1;
+  --sky: #c5e8f7;
   --border: rgba(20, 20, 20, 0.55);
   --toggle-off: #d8d5cc;
   --toggle-dot-off: #d8d2c4;
@@ -44,6 +45,7 @@ html.compass-ready {
   --color-sheet: var(--sheet);
   --color-label: var(--label);
   --color-divider: var(--divider);
+  --color-sky: var(--sky);
   --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
@@ -197,7 +199,7 @@ body {
 
 .compass-block.compass-sky,
 .compass-library-list {
-  background: #c5e8f7;
+  background: var(--sky);
   border: none;
   border-radius: 0;
   box-shadow: none;

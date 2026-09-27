@@ -776,7 +776,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {!compact && !bare ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-white to-transparent"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-sky to-transparent"
           style={{ height: TOP_VEIL_PX }}
         />
       ) : null}
