@@ -213,6 +213,50 @@ function absoluteUrl(raw: string, origin: string): string | null {
   return null;
 }
 
+/** A stored file, whichever zone it landed in. The link is `/f/{id}`, not the zone name. */
+function storedFileHref(
+  row: { item: ContactItem | null; url: string },
+  origin: string,
+): string | null {
+  const url = row.url.trim();
+  if (url.startsWith("/f/")) return absoluteUrl(url, origin);
+  const id = row.item?.attachmentId;
+  if (id) return absoluteUrl(`/f/${id}`, origin);
+  return null;
+}
+
+function drawFileOpen(cursor: Cursor, label: string, href: string) {
+  const size = 11;
+  const prefix = `${label} — `;
+  const action = "Open →";
+  ensureSpace(cursor, size + 6);
+  const prefixWidth = cursor.font.widthOfTextAtSize(prefix, size);
+  cursor.page.drawText(prefix, {
+    x: MARGIN,
+    y: cursor.y,
+    size,
+    font: cursor.font,
+    color: INK,
+  });
+  const actionWidth = cursor.font.widthOfTextAtSize(action, size);
+  const actionX = MARGIN + prefixWidth;
+  cursor.page.drawText(action, {
+    x: actionX,
+    y: cursor.y,
+    size,
+    font: cursor.font,
+    color: ACCENT,
+  });
+  cursor.page.drawLine({
+    start: { x: actionX, y: cursor.y - 1 },
+    end: { x: actionX + actionWidth, y: cursor.y - 1 },
+    thickness: 0.4,
+    color: ACCENT,
+  });
+  addUriLink(cursor.page, href, actionX, cursor.y - 2, actionWidth, size + 4);
+  cursor.y -= size + 6;
+}
+
 function rowValue(row: { item: ContactItem | null; value: string; url: string }): string {
   if (row.item) {
     const shown = linkDisplay(row.item).trim();
@@ -316,6 +360,12 @@ export async function generatePublicCardPdf(input: PublicCardPdfInput): Promise<
       const label = row.axis.trim();
       const value = rowValue(row).slice(0, 500);
       if (!value) continue;
+      const fileHref = storedFileHref(row, input.origin);
+      if (fileHref) {
+        drawFileOpen(cursor, (label || value).slice(0, 80), fileHref);
+        cursor.y -= 6;
+        continue;
+      }
       const href = absoluteUrl(row.url, input.origin) ?? absoluteUrl(value, input.origin);
       if (label) {
         ensureSpace(cursor, 14);
