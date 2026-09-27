@@ -1,7 +1,9 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import fontkit from "@pdf-lib/fontkit";
 import {
   PDFDocument,
   PDFString,
-  StandardFonts,
   rgb,
   type PDFFont,
   type PDFImage,
@@ -42,6 +44,24 @@ export type PublicCardPdfInput = {
   /** Selfie bytes keyed by attachment id. */
   noteImages?: Record<string, { bytes: Uint8Array; mime: string }>;
 };
+
+/**
+ * The standard PDF fonts are Latin-only and throw on Cyrillic.
+ * Arimo shares Helvetica's metrics and covers Latin, Cyrillic and Greek.
+ */
+const FONT_DIR = path.join(process.cwd(), "public", "fonts");
+let fontFiles: Promise<{ regular: Uint8Array; bold: Uint8Array }> | null = null;
+
+function loadFontFiles() {
+  fontFiles ??= Promise.all([
+    readFile(path.join(FONT_DIR, "Arimo-Regular.ttf")),
+    readFile(path.join(FONT_DIR, "Arimo-Bold.ttf")),
+  ]).then(([regular, bold]) => ({ regular, bold }));
+  fontFiles.catch(() => {
+    fontFiles = null;
+  });
+  return fontFiles;
+}
 
 type Cursor = {
   doc: PDFDocument;
@@ -233,8 +253,10 @@ function drawLinkedLine(
 
 export async function generatePublicCardPdf(input: PublicCardPdfInput): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+  doc.registerFontkit(fontkit);
+  const files = await loadFontFiles();
+  const font = await doc.embedFont(files.regular, { subset: true });
+  const fontBold = await doc.embedFont(files.bold, { subset: true });
   const first = doc.addPage([PAGE_W, PAGE_H]);
   const cursor: Cursor = { doc, page: first, y: PAGE_H - MARGIN, font, fontBold };
 
