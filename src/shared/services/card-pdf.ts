@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import fontkit from "@pdf-lib/fontkit";
+import QRCode from "qrcode";
 import {
   PDFDocument,
   PDFString,
@@ -34,7 +35,7 @@ const CONTENT_W = PAGE_W - MARGIN * 2;
 const PHOTO = 96;
 
 export type PublicCardPdfInput = {
-  card: Pick<Card, "displayName" | "title" | "photoAttachmentId">;
+  card: Pick<Card, "displayName" | "title" | "photoAttachmentId" | "publicToken">;
   items: ContactItem[];
   /** Photo bytes already loaded from Storage. */
   photoBytes?: Uint8Array | null;
@@ -297,6 +298,92 @@ function drawLinkedLine(
   }
 }
 
+const QR_PT = 96;
+
+/** Black, high correction, and the library's quiet zone. Orange at this size fails scanners. */
+async function embedLiveQr(doc: PDFDocument, url: string): Promise<PDFImage> {
+  const png = await QRCode.toBuffer(url, {
+    errorCorrectionLevel: "H",
+    margin: 4,
+    width: 512,
+    color: { dark: "#000000", light: "#FFFFFF" },
+  });
+  return doc.embedPng(png);
+}
+
+function drawInvitation(cursor: Cursor, name: string, liveUrl: string, qr: PDFImage) {
+  const textX = MARGIN + QR_PT + 16;
+  const textW = CONTENT_W - QR_PT - 16;
+  const blurbLines = wrapLines(
+    `Follow ${name} and find people in your professional network.`,
+    cursor.font,
+    10,
+    textW,
+  );
+  const followLines = wrapLines(`FOLLOW ${name.toUpperCase()} →`, cursor.font, 11, textW);
+  const textHeight = 18 + blurbLines.length * 13 + 4 + followLines.length * 15 + 16;
+  const block = Math.max(QR_PT, textHeight);
+  ensureSpace(cursor, block + 12);
+  cursor.y -= 8;
+
+  const top = cursor.y;
+  cursor.page.drawImage(qr, { x: MARGIN, y: top - QR_PT, width: QR_PT, height: QR_PT });
+  addUriLink(cursor.page, liveUrl, MARGIN, top - QR_PT, QR_PT, QR_PT);
+
+  let y = top - 2;
+  cursor.page.drawText("Keep this connection.", {
+    x: textX,
+    y: y - 12,
+    size: 12,
+    font: cursor.fontBold,
+    color: INK,
+    maxWidth: textW,
+  });
+  y -= 20;
+  for (const line of blurbLines) {
+    cursor.page.drawText(line, {
+      x: textX,
+      y: y - 10,
+      size: 10,
+      font: cursor.font,
+      color: INK,
+      maxWidth: textW,
+    });
+    y -= 13;
+  }
+  y -= 4;
+  for (const line of followLines) {
+    const width = Math.min(cursor.font.widthOfTextAtSize(line, 11), textW);
+    cursor.page.drawText(line, {
+      x: textX,
+      y: y - 11,
+      size: 11,
+      font: cursor.font,
+      color: ACCENT,
+      maxWidth: textW,
+    });
+    cursor.page.drawLine({
+      start: { x: textX, y: y - 12 },
+      end: { x: textX + width, y: y - 12 },
+      thickness: 0.4,
+      color: ACCENT,
+    });
+    addUriLink(cursor.page, liveUrl, textX, y - 13, width, 15);
+    y -= 15;
+  }
+  y -= 4;
+  cursor.page.drawText("Search · Connect · Remember", {
+    x: textX,
+    y: y - 9,
+    size: 9,
+    font: cursor.font,
+    color: MUTED,
+    maxWidth: textW,
+  });
+
+  cursor.y = top - block - 8;
+}
+
 export async function generatePublicCardPdf(input: PublicCardPdfInput): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
@@ -411,6 +498,13 @@ export async function generatePublicCardPdf(input: PublicCardPdfInput): Promise<
       drawLinkedLine(cursor, "Selfie unavailable", null, 10, MUTED);
       cursor.y -= 8;
     }
+  }
+
+  const token = input.card.publicToken.trim();
+  if (token && input.origin) {
+    const liveUrl = `${input.origin}/c/${token}`;
+    const qr = await embedLiveQr(doc, liveUrl);
+    drawInvitation(cursor, name, liveUrl, qr);
   }
 
   return doc.save();
