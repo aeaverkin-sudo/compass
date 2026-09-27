@@ -72,12 +72,21 @@ export function openNativePhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => v
   openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss);
 }
 
-/** Contact attachment — the browser's own file picker for photos, documents and media. */
-export function openContactAttachmentPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+function openPreparedAttachment(accept: string, onPhoto: PhotoHandler, onDismiss?: () => void) {
   openFileInputPicker(
-    `image/*,${PORTFOLIO_FILE_ACCEPT}`,
+    accept,
     (file) => prepareAttachmentForStorage(file, detectAttachmentType(file)),
     onPhoto,
     onDismiss,
   );
+}
+
+/** Photo library. The line's own menu chooses this, not the mixed Apple sheet. */
+export function openContactPhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openPreparedAttachment("image/*", onPhoto, onDismiss);
+}
+
+/** Documents and media, without photos. */
+export function openContactFilePicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openPreparedAttachment(PORTFOLIO_FILE_ACCEPT, onPhoto, onDismiss);
 }

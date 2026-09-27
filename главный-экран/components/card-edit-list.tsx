@@ -1,6 +1,6 @@
 "use client";
 
-import { File as FileIcon, Minus, Plus, X } from "lucide-react";
+import { Camera, File as FileIcon, FileText, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
-import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
+import { openContactFilePicker, openContactPhotoPicker } from "@landing/components/photo-input-utils";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 
 const HOLD_MS = 500;
@@ -253,6 +253,7 @@ function AddLine({
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
 
   const [open, setOpen] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
   const [text, setText] = useState("");
   const [fileItemId, setFileItemId] = useState<string | null>(null);
@@ -330,6 +331,7 @@ function AddLine({
     commit();
     setText("");
     setFileItemId(null);
+    setAttachOpen(false);
     setOpen(false);
     onOpenChange(false);
   };
@@ -366,9 +368,11 @@ function AddLine({
     }, BLUR_GUARD_MS);
   };
 
-  const pickFile = () => {
+  const takeAttachment = (kind: "photo" | "file") => {
+    setAttachOpen(false);
     picking.current = true;
-    openContactAttachmentPicker((dataUrl, file) => {
+    const openPicker = kind === "photo" ? openContactPhotoPicker : openContactFilePicker;
+    openPicker((dataUrl, file) => {
       const id = addContactItem();
       if (!id) return;
       const result = updateContactItemAttachment(cardId, id, file, dataUrl);
@@ -380,8 +384,6 @@ function AddLine({
         setError(result.message);
       }
     }, refocus);
-    // Still inside the tap. A second focus() after the menu opens makes iOS
-    // drop the keyboard once the menu has settled, so only reclaim a focus that was lost.
     const field = fieldRef.current;
     if (field && document.activeElement !== field) field.focus({ preventScroll: true });
   };
@@ -408,16 +410,55 @@ function AddLine({
                   ) : fileItem ? (
                     <FileIcon className="size-7 shrink-0 text-[#111]" strokeWidth={1} aria-hidden />
                   ) : (
-                    <button
-                      type="button"
-                      data-no-swipe
-                      aria-label="Add photo or file"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={pickFile}
-                      className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
-                    >
-                      <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
-                    </button>
+                    <div className="relative shrink-0">
+                      {attachOpen ? (
+                        <>
+                          <button
+                            type="button"
+                            className="fixed inset-0 z-40"
+                            aria-label="Close"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => setAttachOpen(false)}
+                          />
+                          <div
+                            className="compass-block compass-sky absolute bottom-full left-0 z-50 mb-2 w-64 p-2"
+                            role="dialog"
+                            aria-label="Add photo or file"
+                            onMouseDown={(event) => event.preventDefault()}
+                          >
+                            <button
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => takeAttachment("photo")}
+                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] transition-opacity active:opacity-60"
+                            >
+                              <Camera className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
+                              Add a photo
+                            </button>
+                            <button
+                              type="button"
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => takeAttachment("file")}
+                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] transition-opacity active:opacity-60"
+                            >
+                              <FileText className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
+                              Add a file
+                            </button>
+                          </div>
+                        </>
+                      ) : null}
+                      <button
+                        type="button"
+                        data-no-swipe
+                        aria-label="Add photo or file"
+                        aria-expanded={attachOpen}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => setAttachOpen((current) => !current)}
+                        className="relative z-50 flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
+                      >
+                        <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
+                      </button>
+                    </div>
                   )}
                   <textarea
                     ref={fieldRef}
