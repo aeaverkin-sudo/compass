@@ -30,7 +30,7 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
         <button
           type="button"
           aria-label="Add"
-          className="justify-self-start py-2 text-[24px]"
+          className="justify-self-start py-2 text-[26.4px]"
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => onAdd?.()}
         >
