@@ -359,6 +359,8 @@ function AddLine({
         setError(result.message);
       }
     }, refocus);
+    // Still inside the tap: if iOS moved focus anyway, taking it back keeps the keyboard up.
+    fieldRef.current?.focus({ preventScroll: true });
   };
 
   return (
@@ -402,6 +404,7 @@ function AddLine({
                       type="button"
                       data-no-swipe
                       aria-label="Add photo or file"
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={pickFile}
                       className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
                     >
