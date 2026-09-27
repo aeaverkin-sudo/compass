@@ -546,7 +546,7 @@ function EditRow({
           ref={fieldRef}
           aria-label={text}
           data-no-swipe
-          className="block min-w-0 overflow-hidden pr-[26px] text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap select-none"
+          className="mr-[26px] block min-w-0 overflow-hidden text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap select-none"
           style={{ color: onCard ? "#111" : OFF_CARD }}
           onPointerDown={(event) => {
             if (deleteReady) return;
