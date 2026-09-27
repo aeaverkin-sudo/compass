@@ -1,7 +1,7 @@
 "use client";
 
 import { File as FileIcon, Minus, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
@@ -95,10 +95,12 @@ export function CardEditList({
   card,
   items,
   composeOnMount = false,
+  openAddRef,
 }: {
   card: Card;
   items: ContactItem[];
   composeOnMount?: boolean;
+  openAddRef?: RefObject<(() => void) | null>;
 }) {
   const updateCard = useAppStore((state) => state.updateCard);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
@@ -208,7 +210,7 @@ export function CardEditList({
       <AddLine
         cardId={card.id}
         openOnMount={composeOnMount}
-        divided={sections.length > 0}
+        openAddRef={openAddRef}
         onFocus={() => setTextEditId(null)}
         onOpenChange={setComposing}
         onAdded={(itemId) => {
@@ -227,14 +229,15 @@ export function CardEditList({
 function AddLine({
   cardId,
   openOnMount,
-  divided,
+  openAddRef,
   onFocus,
   onOpenChange,
   onAdded,
 }: {
   cardId: string;
   openOnMount: boolean;
-  divided: boolean;
+  /** The plate's +. Called inside the tap, so the focus still raises the keyboard. */
+  openAddRef?: RefObject<(() => void) | null>;
   onFocus: () => void;
   /** While open, the card shows only the QR, the photo and the name above the line. */
   onOpenChange: (open: boolean) => void;
@@ -261,7 +264,7 @@ function AddLine({
   const dockBottom = useKeyboardDock(open);
   const filePhoto = fileItem ? itemPhotoSrc(fileItem) : null;
 
-  /** The docked line spans exactly the card column the + sits in. */
+  /** The docked line spans exactly the card column. */
   const startDocking = () => {
     const rect = anchorRef.current?.getBoundingClientRect();
     if (rect) setFrame({ left: rect.left, width: rect.width });
@@ -270,6 +273,17 @@ function AddLine({
     setOpen(true);
     onOpenChange(true);
   };
+
+  useEffect(() => {
+    if (!openAddRef) return;
+    openAddRef.current = () => {
+      flushSync(startDocking);
+      fieldRef.current?.focus({ preventScroll: true });
+    };
+    return () => {
+      openAddRef.current = null;
+    };
+  });
 
   // The empty card asks for the line once, as it opens.
   useLayoutEffect(() => {
@@ -365,22 +379,7 @@ function AddLine({
 
   return (
     <>
-      <div
-        ref={anchorRef}
-        className={cn("pt-6 pb-2", divided && "mt-2 border-t-[0.5px] border-[#111]", open && "invisible")}
-      >
-        <div className="flex justify-center">
-          <button
-            type="button"
-            data-no-swipe
-            aria-label="Add"
-            onClick={() => flushSync(startDocking)}
-            className="flex size-7 items-center justify-center bg-transparent"
-          >
-            <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
-          </button>
-        </div>
-      </div>
+      <div ref={anchorRef} className="h-0" aria-hidden />
       {open
         ? createPortal(
             // White from the line to the screen bottom, so nothing of the card shows

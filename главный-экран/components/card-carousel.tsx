@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import type { Card, ContactItem } from "@/shared/types";
@@ -30,6 +30,8 @@ type CardCarouselProps = {
   fillHint?: boolean;
   onFill?: (cardId: string) => void;
   composeOnMount?: boolean;
+  /** The visible card's add line. The plate's + calls it inside the tap. */
+  openAddRef?: RefObject<(() => void) | null>;
 };
 
 function CarouselSpacer({ width }: { width: number }) {
@@ -63,6 +65,7 @@ export function CardCarousel({
   fillHint = false,
   onFill,
   composeOnMount = false,
+  openAddRef,
 }: CardCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
@@ -245,6 +248,7 @@ export function CardCarousel({
       fillHint={hint}
       onFill={onFill ? () => onFill(card.id) : undefined}
       composeOnMount={composeOnMount && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id}
+      openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
     />
   );
 
@@ -298,6 +302,7 @@ export function CardCarousel({
         fillHint={fillHint && activeIndex === 0}
         onFill={onFill ? () => onFill(activeCard.id) : undefined}
         composeOnMount={composeOnMount}
+        openAddRef={openAddRef}
       />
     );
   }

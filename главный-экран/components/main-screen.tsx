@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { carouselSidePaddingPx, layoutTop, SHEET_INSET, TOP_VEIL_PX } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -26,6 +26,7 @@ export function MainScreen() {
   const markEmptyFillHintSeen = useAppStore((state) => state.markEmptyFillHintSeen);
   const [editing, setEditing] = useState(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
+  const openAddRef = useRef<(() => void) | null>(null);
 
   const shownCard = cards[currentCardIndex] ?? null;
   const cardReady = Boolean(shownCard && isCardReady(shownCard));
@@ -106,39 +107,22 @@ export function MainScreen() {
         </div>
       ) : null}
 
-      {layout && !editing && !hideNav ? (
+      {layout && (editing || !hideNav) ? (
         <BottomNav
           centerYpx={layout.browseMenuCenterY}
           insetPx={browseCarousel ? carouselSidePaddingPx(window.innerWidth, true) : edgeInsetBrowse}
+          editing={editing}
           onEdit={() => {
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
             setComposeOnMount(false);
             setEditing(true);
           }}
-        />
-      ) : null}
-
-      {layout && editing ? (
-        <button
-          type="button"
-          className="absolute left-1/2 z-30 -translate-x-1/2 -translate-y-1/2 px-4 py-2 text-[#111] uppercase"
-          style={{
-            top: layoutTop(layout.browseMenuCenterY),
-            fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-            fontWeight: 600,
-            fontSize: 37.4,
-            letterSpacing: "-0.85px",
-            lineHeight: 1,
-          }}
-          onPointerDown={(event) => event.preventDefault()}
-          onPointerUp={(event) => {
-            if (event.pointerType === "mouse" && event.button !== 0) return;
+          onAdd={() => openAddRef.current?.()}
+          onDone={() => {
             setComposeOnMount(false);
             setEditing(false);
           }}
-        >
-          OK
-        </button>
+        />
       ) : null}
 
       {layout && cardTopBrowse !== undefined ? (
@@ -160,6 +144,7 @@ export function MainScreen() {
             editing={editing}
             fillHint={!emptyFillHintSeen}
             composeOnMount={composeOnMount}
+            openAddRef={openAddRef}
             onFill={(cardId) => {
               const index = cards.findIndex((card) => card.id === cardId);
               if (index === 0) markEmptyFillHintSeen();

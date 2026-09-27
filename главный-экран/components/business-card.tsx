@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
 import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
@@ -427,6 +427,7 @@ type BusinessCardProps = {
   fillHint?: boolean;
   onFill?: () => void;
   composeOnMount?: boolean;
+  openAddRef?: RefObject<(() => void) | null>;
   /** Public /c/ page: same card, no QR, plus, or share link. */
   readOnly?: boolean;
   /** One-time notes delivered to the first real viewer. */
@@ -447,6 +448,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     fillHint = false,
     onFill,
     composeOnMount = false,
+    openAddRef,
     readOnly = false,
     deliveredNotes = [],
   },
@@ -710,7 +712,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ) : null}
 
       {!compact && editing ? (
-        <CardEditList card={card} items={library} composeOnMount={composeOnMount} />
+        <CardEditList card={card} items={library} composeOnMount={composeOnMount} openAddRef={openAddRef} />
       ) : (
       <ContactItemChipList
         items={items}
