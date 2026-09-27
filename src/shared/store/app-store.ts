@@ -118,7 +118,6 @@ export const useAppStore = create<AppState>()(
           qrVersion: existing?.qrVersion ?? 1,
           contactItemIds: existing?.contactItemIds ?? [],
           itemOrderManual: existing?.itemOrderManual,
-          isPublic: true,
           nextScanAddons: existing?.nextScanAddons ?? [],
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
@@ -299,13 +298,12 @@ export const useAppStore = create<AppState>()(
             updatedAt: now,
           })),
         });
-        void deleteItemRow(itemId);
         const currentId = get().cards[get().currentCardIndex]?.id;
-        if (currentId && touched.includes(currentId)) {
-          void import("@/shared/lib/live-qr-pulse").then(({ requestLiveQrPulse }) => {
-            requestLiveQrPulse(currentId);
-          });
-        }
+        void deleteItemRow(itemId).then(async () => {
+          if (!currentId || !touched.includes(currentId)) return;
+          const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
+          requestLiveQrPulse(currentId);
+        });
       },
 
       updateSecondCardDraft: (data) => {
@@ -324,7 +322,6 @@ export const useAppStore = create<AppState>()(
             publicToken: "",
             qrVersion: 1,
             contactItemIds: [],
-            isPublic: false,
             nextScanAddons: [],
             createdAt: now,
             updatedAt: now,
@@ -382,13 +379,6 @@ export const useAppStore = create<AppState>()(
           );
           state.cards = rekeyed.cards;
           state.contactItems = rekeyed.items;
-        }
-        if (version < 9) {
-          const cards = (state.cards as Card[] | undefined) ?? [];
-          state.cards = cards.map((card, index) => ({
-            ...card,
-            isPublic: card.isPublic ?? index === 0,
-          }));
         }
         return state as unknown as AppState;
       },

@@ -1,4 +1,50 @@
 import type { DeliveredNote } from "@/shared/services/notes-types";
+import { subscribeLiveQrPulse } from "@/shared/lib/live-qr-pulse";
+
+export type CardPdfInput = {
+  cardId: string;
+  publicToken: string;
+  displayName: string;
+  notes?: DeliveredNote[];
+};
+
+type ReadyPdf = { blob: Blob; filename: string };
+
+type CardPdfEntry = {
+  /** Bumped on every server-side change to the card. Older builds are discarded. */
+  generation: number;
+  key?: string;
+  ready?: ReadyPdf;
+  pending?: Promise<ReadyPdf>;
+};
+
+const entries = new Map<string, CardPdfEntry>();
+const staleListeners = new Set<(cardId: string) => void>();
+
+function entryFor(cardId: string): CardPdfEntry {
+  let entry = entries.get(cardId);
+  if (!entry) {
+    entry = { generation: 0 };
+    entries.set(cardId, entry);
+  }
+  return entry;
+}
+
+if (typeof window !== "undefined") {
+  subscribeLiveQrPulse((cardId) => {
+    const entry = entryFor(cardId);
+    entries.set(cardId, { generation: entry.generation + 1 });
+    staleListeners.forEach((listener) => listener(cardId));
+  });
+}
+
+/** Fires after the card's saved content changed and its PDF must be rebuilt. */
+export function subscribeCardPdfStale(listener: (cardId: string) => void) {
+  staleListeners.add(listener);
+  return () => {
+    staleListeners.delete(listener);
+  };
+}
 
 function filenameFromDisposition(header: string | null): string | null {
   if (!header) return null;
@@ -14,68 +60,20 @@ function filenameFromDisposition(header: string | null): string | null {
   return plain?.[1]?.trim().replace(/^"|"$/g, "") || null;
 }
 
-function cacheKey(input: { publicToken: string; displayName: string; notes?: DeliveredNote[] }) {
+function inputKey(input: CardPdfInput) {
   const notes = (input.notes ?? [])
     .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
     .join("|");
-  return `${input.publicToken}\n${input.displayName}\n${notes}`;
+  return `${input.publicToken}\n${notes}`;
 }
 
-type ReadyPdf = { blob: Blob; filename: string };
-
-const readyFiles = new Map<string, ReadyPdf>();
-const pendingFiles = new Map<string, Promise<ReadyPdf>>();
-
-export function peekPublicCardPdf(input: {
-  publicToken: string;
-  displayName: string;
-  notes?: DeliveredNote[];
-}): ReadyPdf | null {
-  return readyFiles.get(cacheKey(input)) ?? null;
-}
-
-/** Start the PDF download. The finished bytes stay available after the card remounts. */
-export function primePublicCardPdf(input: {
-  publicToken: string;
-  displayName: string;
-  notes?: DeliveredNote[];
-}): Promise<ReadyPdf> {
-  const key = cacheKey(input);
-  const ready = readyFiles.get(key);
-  if (ready) return Promise.resolve(ready);
-  const pending = pendingFiles.get(key);
-  if (pending) return pending;
-  const task = loadPublicCardPdf(input).then(
-    (readyPdf) => {
-      readyFiles.set(key, readyPdf);
-      pendingFiles.delete(key);
-      return readyPdf;
-    },
-    (error) => {
-      pendingFiles.delete(key);
-      throw error;
-    },
-  );
-  pendingFiles.set(key, task);
-  return task;
-}
-
-/** iOS only accepts a File built in the same turn as the tap. */
-export function fileFromReadyPdf(ready: ReadyPdf): File {
-  return new File([ready.blob], ready.filename, { type: "application/pdf" });
-}
-
-export async function loadPublicCardPdf(input: {
-  publicToken: string;
-  displayName: string;
-  notes?: DeliveredNote[];
-}): Promise<ReadyPdf> {
+async function loadPublicCardPdf(input: CardPdfInput): Promise<ReadyPdf> {
   const response = await fetch(`/api/c/${encodeURIComponent(input.publicToken)}/pdf`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ notes: input.notes ?? [] }),
   });
-  if (!response.ok) throw new Error("Could not build the PDF");
+  if (!response.ok) throw new Error(`Could not build the PDF (${response.status})`);
 
   const blob = await response.blob();
   const filename =
@@ -84,7 +82,40 @@ export async function loadPublicCardPdf(input: {
   return { blob, filename };
 }
 
-function downloadPdfFile(file: File) {
+function peekPublicCardPdf(input: CardPdfInput): ReadyPdf | null {
+  const entry = entries.get(input.cardId);
+  return entry?.key === inputKey(input) ? (entry.ready ?? null) : null;
+}
+
+/** Build the PDF ahead of the tap so the share sheet can open instantly. */
+export function primePublicCardPdf(input: CardPdfInput): Promise<ReadyPdf> {
+  const key = inputKey(input);
+  const entry = entryFor(input.cardId);
+  if (entry.key === key && entry.ready) return Promise.resolve(entry.ready);
+  if (entry.key === key && entry.pending) return entry.pending;
+
+  const generation = entry.generation;
+  const task = loadPublicCardPdf(input).then((ready) => {
+    const current = entries.get(input.cardId);
+    if (current?.generation === generation && current.key === key) {
+      entries.set(input.cardId, { generation, key, ready });
+    }
+    return ready;
+  });
+  entries.set(input.cardId, { generation, key, pending: task });
+  task.catch(() => {
+    const current = entries.get(input.cardId);
+    if (current?.pending === task) entries.set(input.cardId, { generation });
+  });
+  return task;
+}
+
+function toFile(ready: ReadyPdf): File {
+  return new File([ready.blob], ready.filename, { type: "application/pdf" });
+}
+
+/** Last resort when the share sheet is unavailable: the PDF opens in the browser's own viewer. */
+function openPdf(file: File) {
   const url = URL.createObjectURL(file);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -96,19 +127,30 @@ function downloadPdfFile(file: File) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-/**
- * Share a PDF that is already in memory.
- * iOS only opens the sheet if share() runs in the same turn as the tap,
- * so this must not wait on the network.
- */
-export function sharePdfFile(file: File) {
+function shareFile(file: File) {
   const shareData: ShareData = { files: [file] };
-  if (typeof navigator !== "undefined" && navigator.canShare?.(shareData)) {
-    void navigator.share(shareData).catch((error) => {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      downloadPdfFile(file);
-    });
+  if (typeof navigator === "undefined" || !navigator.canShare?.(shareData)) {
+    openPdf(file);
     return;
   }
-  downloadPdfFile(file);
+  void navigator.share(shareData).catch((error) => {
+    if (error instanceof DOMException && error.name === "AbortError") return;
+    openPdf(file);
+  });
+}
+
+/**
+ * Share the card as a PDF file — never as a link.
+ * iOS opens the sheet only when share() runs in the tap itself, so the file is
+ * normally prebuilt. If it is still building, the file is shared the moment it lands.
+ */
+export function shareCardPdf(input: CardPdfInput) {
+  const ready = peekPublicCardPdf(input);
+  if (ready) {
+    shareFile(toFile(ready));
+    return;
+  }
+  void primePublicCardPdf(input)
+    .then((built) => shareFile(toFile(built)))
+    .catch((error) => console.error("[pdf] share failed", error));
 }

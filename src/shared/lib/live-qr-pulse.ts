@@ -8,6 +8,7 @@ export function armLiveQrPulse() {
   armed = true;
 }
 
+/** Call once a change to this card has landed on the server. */
 export function requestLiveQrPulse(cardId: string) {
   if (!armed || typeof window === "undefined" || !cardId) return;
   listeners.forEach((listener) => listener(cardId));

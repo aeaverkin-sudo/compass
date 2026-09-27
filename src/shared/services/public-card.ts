@@ -138,7 +138,6 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
     title: row.title?.trim() ?? "",
     status: asCardStatus(row.status),
     publicToken: row.public_token,
-    isPublic: true,
     qrVersion: 1,
     photoAttachmentId: row.photo_attachment_id,
     contactItemIds: items.map((item) => item.id),

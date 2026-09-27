@@ -5,8 +5,7 @@ import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { fileFromReadyPdf, peekPublicCardPdf, primePublicCardPdf, sharePdfFile } from "@/shared/services/save-public-card-pdf";
-import { publicCardUrl } from "@/shared/services/public-card-url";
+import { primePublicCardPdf, shareCardPdf, subscribeCardPdfStale } from "@/shared/services/save-public-card-pdf";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
@@ -464,21 +463,32 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
     .join("|");
 
+  const [pdfGeneration, setPdfGeneration] = useState(0);
+
+  useEffect(
+    () =>
+      subscribeCardPdfStale((cardId) => {
+        if (cardId === card.id) setPdfGeneration((value) => value + 1);
+      }),
+    [card.id],
+  );
+
+  const shareInput = () =>
+    card.publicToken
+      ? { cardId: card.id, publicToken: card.publicToken, displayName: card.displayName, notes: deliveredNotes }
+      : null;
+
   useEffect(() => {
     if (compact || editing || !ready || !card.publicToken) return;
     void primePublicCardPdf({
+      cardId: card.id,
       publicToken: card.publicToken,
       displayName: card.displayName,
       notes: deliveredNotes,
     }).catch((error) => console.error("[pdf] prepare failed", error));
     // notesKey is the content-stable stand-in for deliveredNotes (a fresh array each render).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compact, editing, ready, card.publicToken, card.displayName, notesKey]);
-
-  const shareInput = () =>
-    card.publicToken
-      ? { publicToken: card.publicToken, displayName: card.displayName, notes: deliveredNotes }
-      : null;
+  }, [compact, editing, ready, card.id, card.publicToken, notesKey, pdfGeneration]);
 
   const primeShare = () => {
     const input = shareInput();
@@ -488,22 +498,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
 
   const handleShare = () => {
     const input = shareInput();
-    if (!input) return;
-    const readyPdf = peekPublicCardPdf(input);
-    if (readyPdf) {
-      sharePdfFile(fileFromReadyPdf(readyPdf));
-      return;
-    }
-    // The PDF is still building (rare — it is prepared while the card is open).
-    // Open the sheet now with the link so the button is never dead, and cache the
-    // file so the next tap sends the PDF itself.
-    void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
-    const url = publicCardUrl(input.publicToken);
-    if (typeof navigator !== "undefined" && navigator.share) {
-      void navigator.share({ url }).catch(() => undefined);
-    } else {
-      void navigator.clipboard?.writeText(url);
-    }
+    if (input) shareCardPdf(input);
   };
 
   useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);

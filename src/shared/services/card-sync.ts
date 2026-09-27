@@ -44,10 +44,10 @@ export function ensureCardIdentity(card: Card): Card {
   };
 }
 
-/** Public surface: name plus a stored photo. A local preview is not enough for /c/. */
+/** A card with a QR is public: name plus a stored photo. A local preview is not enough for /c/. */
 export function statusForPublish(card: Card): CardStatus {
   if (card.status === "archived" || card.status === "suspended") return card.status;
-  if (card.isPublic && card.displayName.trim() && card.photoAttachmentId) return "published";
+  if (card.displayName.trim() && card.photoAttachmentId) return "published";
   return "draft";
 }
 
@@ -61,7 +61,6 @@ function overlayScalars(local: Card, row: CardRow): Card {
     status: asCardStatus(row.status),
     publicToken: row.public_token,
     qrVersion: row.qr_version,
-    isPublic: row.is_public,
     photoAttachmentId: remotePhotoId ?? local.photoAttachmentId,
     photo: remotePhotoId ? undefined : local.photo,
     createdAt: row.created_at,
@@ -77,7 +76,6 @@ function shellFromRow(row: CardRow): Card {
     status: asCardStatus(row.status),
     publicToken: row.public_token,
     qrVersion: row.qr_version,
-    isPublic: row.is_public,
     photoAttachmentId: row.photo_attachment_id ?? undefined,
     contactItemIds: [],
     nextScanAddons: [],
@@ -118,7 +116,6 @@ function scalarsEqual(a: Card, b: Card) {
     a.status === b.status &&
     a.publicToken === b.publicToken &&
     a.qrVersion === b.qrVersion &&
-    a.isPublic === b.isPublic &&
     a.photoAttachmentId === b.photoAttachmentId &&
     a.photo === b.photo &&
     a.createdAt === b.createdAt &&
@@ -156,7 +153,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
         status: statusForPublish(card),
         public_token: card.publicToken,
         qr_version: card.qrVersion,
-        is_public: card.isPublic ?? false,
+        is_public: true,
         photo_attachment_id: card.photoAttachmentId ?? null,
         created_at: card.createdAt,
         updated_at: card.updatedAt,
@@ -180,12 +177,11 @@ export function scheduleCardUpsert(card: Card, options?: { pulse?: boolean }) {
   const pulse = options?.pulse !== false;
   const timer = setTimeout(() => {
     pendingUpserts.delete(card.id);
-    void upsertCardScalars(card);
-    if (pulse) {
-      void import("@/shared/lib/live-qr-pulse").then(({ requestLiveQrPulse }) => {
-        requestLiveQrPulse(card.id);
-      });
-    }
+    void upsertCardScalars(card).then(async () => {
+      if (!pulse) return;
+      const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
+      requestLiveQrPulse(card.id);
+    });
   }, UPSERT_DEBOUNCE_MS);
 
   pendingUpserts.set(card.id, { timer, card });
@@ -251,9 +247,11 @@ async function runHydrate() {
 
   if (!unchanged) useAppStore.setState({ cards: merged });
 
-  const remoteIds = new Set(remote.map((row) => row.id));
-  const remoteStatus = new Map(remote.map((row) => [row.id, row.status]));
-  const toUpload = merged.filter((card) => !remoteIds.has(card.id) || remoteStatus.get(card.id) !== card.status);
+  const remoteById = new Map(remote.map((row) => [row.id, row]));
+  const toUpload = merged.filter((card) => {
+    const row = remoteById.get(card.id);
+    return !row || row.status !== card.status || !row.is_public;
+  });
   await Promise.all(toUpload.map((card) => upsertCardScalars(card)));
 
   const { hydrateCardItems } = await import("@/shared/services/card-items-sync");
