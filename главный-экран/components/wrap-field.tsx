@@ -16,8 +16,7 @@ function flatten(value: string) {
 }
 
 /**
- * The one text field of the card editor: a single paragraph that wraps by words.
- * Both adding a new row and editing an existing row use it, so they look and behave alike.
+ * The in-place editor of an existing card row: a single paragraph that wraps by words.
  * Uncontrolled on purpose — React never rewrites the text while the caret is inside.
  */
 export function WrapField({

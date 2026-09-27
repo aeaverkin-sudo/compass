@@ -1,6 +1,6 @@
 "use client";
 
-import { Minus, Plus, X } from "lucide-react";
+import { File as FileIcon, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,8 @@ import { isContactFilled } from "@/shared/services/contact-item";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
-import { initialKeyboardInset, useKeyboardDock } from "@main/hooks/use-keyboard-dock";
+import { itemPhotoSrc } from "@/shared/services/card-photo";
+import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 
@@ -18,6 +19,11 @@ const HOLD_MS = 500;
 const OFF_CARD = "#C8C8C8";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
+/** The add line grows upward to this height, then scrolls inside. */
+const FIELD_MAX_PX = 120;
+const BLUR_GUARD_MS = 300;
+const OPEN_GUARD_MS = 450;
+const REFOCUS_MS = 120;
 
 type EditSection = {
   id: CardZoneId;
@@ -212,8 +218,8 @@ export function CardEditList({
 
 /**
  * The only way to create a new row. At rest it is a single centred +.
- * Tapping it turns that spot into one input that owns focus until it is left.
- * Text lives here until it is committed, so nothing half-typed reaches the card.
+ * Tapping it docks one writing line above the keyboard. Text stays here until the line
+ * is left, so nothing half-typed reaches the card. A picked file joins the same line.
  */
 function AddLine({
   cardId,
@@ -235,18 +241,25 @@ function AddLine({
 
   const [open, setOpen] = useState(false);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
-  const [dockBottom, setDockBottom] = useState(0);
+  const [text, setText] = useState("");
+  const [fileItemId, setFileItemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fileItem = useAppStore((state) =>
+    fileItemId ? state.contactItems.find((item) => item.id === fileItemId) : undefined,
+  );
   const anchorRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
-  const fieldRef = useRef<WrapFieldHandle>(null);
-  useKeyboardDock(open, lineRef, setDockBottom);
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const picking = useRef(false);
+  const openedAt = useRef(0);
+  const dockBottom = useKeyboardDock(open);
+  const filePhoto = fileItem ? itemPhotoSrc(fileItem) : null;
 
   /** The docked line spans exactly the card column the + sits in. */
   const startDocking = () => {
     const rect = anchorRef.current?.getBoundingClientRect();
     if (rect) setFrame({ left: rect.left, width: rect.width });
-    setDockBottom(initialKeyboardInset());
+    openedAt.current = Date.now();
     setError(null);
     setOpen(true);
   };
@@ -256,10 +269,25 @@ function AddLine({
     if (openOnMount) startDocking();
   }, [openOnMount]);
 
-  const commitText = () => {
+  // Layout phase: mounted from a tap, the focus still counts as the user's and raises the keyboard.
+  useLayoutEffect(() => {
+    if (open) fieldRef.current?.focus({ preventScroll: true });
+  }, [open]);
+
+  useLayoutEffect(() => {
     const field = fieldRef.current;
-    const value = field?.text().trim() ?? "";
-    field?.clear();
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
+  }, [text, open]);
+
+  const commit = () => {
+    const value = text.trim();
+    if (fileItemId) {
+      if (value) updateContactItem(fileItemId, { label: value });
+      onAdded(fileItemId);
+      return;
+    }
     if (!value) return;
     const id = addContactItem();
     if (!id) return;
@@ -273,30 +301,44 @@ function AddLine({
   };
 
   const close = () => {
-    commitText();
+    commit();
+    setText("");
+    setFileItemId(null);
     setOpen(false);
   };
 
-  // iOS raises the keyboard only when focus lands inside the tap itself, so the line
-  // must be mounted (and already above the keyboard) before this handler returns.
-  const openLine = () => {
-    flushSync(startDocking);
-    fieldRef.current?.focusEnd();
+  // iOS may hand focus around while the keyboard settles or a picker is up; the line
+  // closes only once focus has really left it.
+  const handleBlur = () => {
+    window.setTimeout(() => {
+      if (picking.current) return;
+      if (Date.now() - openedAt.current < OPEN_GUARD_MS) return;
+      if (lineRef.current?.contains(document.activeElement)) return;
+      close();
+    }, BLUR_GUARD_MS);
   };
 
-  // The native picker always takes the keyboard away on iOS, so the docked line
-  // closes with it instead of hanging mid-screen.
+  const refocus = () => {
+    window.setTimeout(() => {
+      picking.current = false;
+      fieldRef.current?.focus({ preventScroll: true });
+    }, REFOCUS_MS);
+  };
+
   const pickFile = () => {
+    picking.current = true;
     openContactAttachmentPicker((dataUrl, file) => {
       const id = addContactItem();
       if (!id) return;
       const result = updateContactItemAttachment(cardId, id, file, dataUrl);
-      if (!result.ok) {
+      if (result.ok) {
+        setFileItemId(id);
+        setError(null);
+      } else {
         deleteContactItem(id);
         setError(result.message);
       }
-    });
-    close();
+    }, refocus);
   };
 
   return (
@@ -305,13 +347,12 @@ function AddLine({
         ref={anchorRef}
         className={cn("pt-6 pb-2", divided && "mt-2 border-t-[0.5px] border-[#111]")}
       >
-        {error ? <p className="mb-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
         <div className="flex justify-center">
           <button
             type="button"
             data-no-swipe
             aria-label="Add"
-            onClick={openLine}
+            onClick={() => flushSync(startDocking)}
             className="flex size-7 items-center justify-center bg-transparent"
           >
             <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
@@ -328,32 +369,51 @@ function AddLine({
               className="fixed inset-x-0 bottom-0 z-50 bg-white"
               style={{ paddingBottom: dockBottom }}
             >
-              <div
-                className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2"
-                style={{ marginLeft: frame.left, width: frame.width }}
-              >
-              <button
-                type="button"
-                data-no-swipe
-                aria-label="Add photo or file"
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={pickFile}
-                className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
-              >
-                <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
-              </button>
-              <WrapField
-                ref={fieldRef}
-                label={ADD_PLACEHOLDER}
-                placeholder={ADD_PLACEHOLDER}
-                autoFocus={openOnMount}
-                className="text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em]"
-                placeholderClassName="text-[15.4px] leading-[24.6px] font-normal text-[#999]"
-                onFocus={onFocus}
-                onTextChange={() => setError(null)}
-                onDone={() => fieldRef.current?.element()?.blur()}
-                onBlur={close}
-              />
+              <div style={{ marginLeft: frame.left, width: frame.width }}>
+                {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
+                <div className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
+                  {filePhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={filePhoto} alt="" className="size-10 shrink-0 object-cover" />
+                  ) : fileItem ? (
+                    <FileIcon className="size-7 shrink-0 text-[#111]" strokeWidth={1} aria-hidden />
+                  ) : (
+                    <button
+                      type="button"
+                      data-no-swipe
+                      aria-label="Add photo or file"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={pickFile}
+                      className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
+                    >
+                      <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
+                    </button>
+                  )}
+                  <textarea
+                    ref={fieldRef}
+                    rows={1}
+                    value={text}
+                    placeholder={fileItem ? fileItem.value : ADD_PLACEHOLDER}
+                    aria-label={ADD_PLACEHOLDER}
+                    enterKeyHint="done"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-no-swipe
+                    onChange={(event) => {
+                      setText(event.target.value.replace(/\s*\n\s*/g, " "));
+                      setError(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }}
+                    onFocus={onFocus}
+                    onBlur={handleBlur}
+                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:text-[#999]"
+                  />
+                </div>
               </div>
             </div>,
             document.body,
