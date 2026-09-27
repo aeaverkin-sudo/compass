@@ -1,8 +1,8 @@
 "use client";
 
-import { File as FileIcon, Image as ImageIcon, Minus, Plus, X } from "lucide-react";
+import { Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { groupLibrary, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
@@ -10,39 +10,14 @@ import { isContactFilled } from "@/shared/services/contact-item";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
-import { openContactFilePicker, openContactPhotoPicker } from "@landing/components/photo-input-utils";
+import { initialKeyboardInset, useKeyboardDock } from "@main/hooks/use-keyboard-dock";
+import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 
 const HOLD_MS = 500;
 const OFF_CARD = "#C8C8C8";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-const ADD_GAP_PX = 12;
-/** A keyboard is at least this tall; smaller viewport changes are browser chrome. */
-const KEYBOARD_MIN_PX = 120;
-/** Until the keyboard reports its height, keep the line above where any iPhone keyboard ends. */
-const PRE_KEYBOARD_BOTTOM = 0.45;
-
-/**
- * Scroll only the card body so the add line sits just above the keyboard.
- * The line is lifted before the keyboard rises, so iOS never pans the whole page.
- */
-function placeAddLine(line: HTMLElement) {
-  const scroller = line.closest<HTMLElement>(".compass-card-scroll");
-  if (!scroller) return;
-  const viewport = window.visualViewport;
-  const visibleTop = viewport?.offsetTop ?? 0;
-  const visibleHeight = viewport?.height ?? window.innerHeight;
-  const keyboardUp = window.innerHeight - visibleHeight > KEYBOARD_MIN_PX;
-  const bottomLimit = keyboardUp
-    ? visibleTop + visibleHeight - ADD_GAP_PX
-    : window.innerHeight * PRE_KEYBOARD_BOTTOM;
-  const topLimit = Math.max(scroller.getBoundingClientRect().top, visibleTop) + ADD_GAP_PX;
-  const rect = line.getBoundingClientRect();
-  if (rect.bottom > bottomLimit) scroller.scrollTop += rect.bottom - bottomLimit;
-  else if (rect.top < topLimit) scroller.scrollTop -= topLimit - rect.top;
-}
 
 type EditSection = {
   id: CardZoneId;
@@ -258,34 +233,30 @@ function AddLine({
   const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
 
-  const [open, setOpen] = useState(openOnMount);
-  const [plateOpen, setPlateOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
+  const [dockBottom, setDockBottom] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const anchorRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<WrapFieldHandle>(null);
   const pickingRef = useRef(false);
 
-  const fieldFocused = () => {
-    const element = fieldRef.current?.element();
-    return Boolean(element && document.activeElement === element);
+  useKeyboardDock(open, lineRef, setDockBottom);
+
+  /** The docked line spans exactly the card column the + sits in. */
+  const startDocking = () => {
+    const rect = anchorRef.current?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
+    setDockBottom(initialKeyboardInset());
+    setError(null);
+    setOpen(true);
   };
 
-  const focusField = () => {
-    fieldRef.current?.focusEnd();
-    if (lineRef.current) placeAddLine(lineRef.current);
-  };
-
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!open || !viewport) return;
-    const follow = () => {
-      const line = lineRef.current;
-      const element = fieldRef.current?.element();
-      if (line && element && document.activeElement === element) placeAddLine(line);
-    };
-    viewport.addEventListener("resize", follow);
-    return () => viewport.removeEventListener("resize", follow);
-  }, [open]);
+  // The empty card asks for the line once, as it opens.
+  useLayoutEffect(() => {
+    if (openOnMount) startDocking();
+  }, [openOnMount]);
 
   const commitText = () => {
     const field = fieldRef.current;
@@ -305,55 +276,42 @@ function AddLine({
 
   const close = () => {
     commitText();
-    setPlateOpen(false);
     setOpen(false);
   };
 
-  // iOS raises the keyboard only when focus lands inside the tap itself, so the field
-  // must be in the DOM before this handler returns.
+  // iOS raises the keyboard only when focus lands inside the tap itself, so the line
+  // must be mounted (and already above the keyboard) before this handler returns.
   const openLine = () => {
-    flushSync(() => {
-      setError(null);
-      setOpen(true);
-    });
-    focusField();
+    flushSync(startDocking);
+    fieldRef.current?.focusEnd();
   };
 
-  const settleAfterPicker = () => {
-    pickingRef.current = false;
-    focusField();
-    if (!fieldFocused()) close();
-  };
-
-  const attach = (pick: typeof openContactPhotoPicker) => {
-    setPlateOpen(false);
+  const pickFile = () => {
     pickingRef.current = true;
-    pick((dataUrl, file) => {
+    const settle = () => {
+      pickingRef.current = false;
+      close();
+    };
+    openContactAttachmentPicker((dataUrl, file) => {
       const id = addContactItem();
       if (id) {
         const result = updateContactItemAttachment(cardId, id, file, dataUrl);
-        if (result.ok) {
-          setError(null);
-        } else {
+        if (!result.ok) {
           deleteContactItem(id);
           setError(result.message);
         }
       }
-      settleAfterPicker();
-    }, settleAfterPicker);
+      settle();
+    }, settle);
   };
 
-  const plateItemClass =
-    "flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] transition-opacity active:opacity-60";
-
-  const errorNote = error ? (
-    <p className="mb-2 text-[12px] leading-snug text-destructive">{error}</p>
-  ) : null;
-
-  if (!open) {
-    return (
-      <div className={cn("pt-6 pb-2", divided && "mt-2 border-t-[0.5px] border-[#111]")}>
-        {errorNote}
+  return (
+    <>
+      <div
+        ref={anchorRef}
+        className={cn("pt-6 pb-2", divided && "mt-2 border-t-[0.5px] border-[#111]")}
+      >
+        {error ? <p className="mb-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
         <div className="flex justify-center">
           <button
             type="button"
@@ -366,83 +324,42 @@ function AddLine({
           </button>
         </div>
       </div>
-    );
-  }
-
-  return (
-    <>
-      <div className={cn("pt-6 pb-2", divided && "mt-2 border-t-[0.5px] border-[#111]")}>
-        {errorNote}
-        <div ref={lineRef} className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
-          <Popover open={plateOpen} onOpenChange={setPlateOpen}>
-            <PopoverTrigger asChild>
+      {open
+        ? createPortal(
+            <div
+              ref={lineRef}
+              data-no-swipe
+              className="fixed z-50 flex items-start gap-[11px] border-b-[0.5px] border-[#111] bg-white py-2"
+              style={{ left: frame.left, width: frame.width, bottom: dockBottom }}
+            >
               <button
                 type="button"
                 data-no-swipe
                 aria-label="Add photo or file"
                 onPointerDown={(event) => event.preventDefault()}
+                onClick={pickFile}
                 className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
               >
                 <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
               </button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="top"
-              align="start"
-              sideOffset={8}
-              className="compass-block compass-sky w-64 rounded-none border-0 p-2 shadow-none"
-              onOpenAutoFocus={(event) => event.preventDefault()}
-              onCloseAutoFocus={(event) => event.preventDefault()}
-              onPointerDownOutside={(event) => {
-                // Closing the plate must not take the caret (and the keyboard) away.
-                event.detail.originalEvent.preventDefault();
-                focusField();
-              }}
-            >
-              <button
-                type="button"
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={() => attach(openContactPhotoPicker)}
-                className={plateItemClass}
-              >
-                <ImageIcon className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
-                Photo
-              </button>
-              <button
-                type="button"
-                onPointerDown={(event) => event.preventDefault()}
-                onClick={() => attach(openContactFilePicker)}
-                className={plateItemClass}
-              >
-                <FileIcon className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
-                File
-              </button>
-            </PopoverContent>
-          </Popover>
-          <WrapField
-            ref={fieldRef}
-            label={ADD_PLACEHOLDER}
-            placeholder={ADD_PLACEHOLDER}
-            autoFocus={openOnMount}
-            className="text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em]"
-            placeholderClassName="text-[15.4px] leading-[24.6px] font-normal text-[#999]"
-            onFocus={() => {
-              onFocus();
-              if (lineRef.current) placeAddLine(lineRef.current);
-            }}
-            onTextChange={() => {
-              setError(null);
-              if (lineRef.current) placeAddLine(lineRef.current);
-            }}
-            onDone={commitText}
-            onBlur={() => {
-              if (!pickingRef.current && !plateOpen) close();
-            }}
-          />
-        </div>
-      </div>
-      {/* Room below the line so the card body itself can lift it above the keyboard. */}
-      <div aria-hidden className="h-[60svh]" />
+              <WrapField
+                ref={fieldRef}
+                label={ADD_PLACEHOLDER}
+                placeholder={ADD_PLACEHOLDER}
+                autoFocus={openOnMount}
+                className="text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em]"
+                placeholderClassName="text-[15.4px] leading-[24.6px] font-normal text-[#999]"
+                onFocus={onFocus}
+                onTextChange={() => setError(null)}
+                onDone={() => fieldRef.current?.element()?.blur()}
+                onBlur={() => {
+                  if (!pickingRef.current) close();
+                }}
+              />
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
