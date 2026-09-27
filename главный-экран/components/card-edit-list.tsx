@@ -552,7 +552,7 @@ function EditRow({
             initial={draft}
             label="Edit row"
             autoFocus
-            className="text-[16px] leading-[1.45] font-normal tracking-[-0.015em]"
+            className="text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]"
             onTextChange={(next) => {
               if (!next.trim()) onErase();
             }}
@@ -573,7 +573,7 @@ function EditRow({
               readOnly
               aria-label={text}
               data-no-swipe
-              className="compass-input m-0 w-full min-w-0 overflow-hidden bg-transparent p-0 text-[16px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap outline-none select-none [-webkit-touch-callout:none]"
+              className="compass-input m-0 w-full min-w-0 overflow-hidden bg-transparent p-0 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap outline-none select-none [-webkit-touch-callout:none]"
               style={{ color: onCard ? "#111" : OFF_CARD }}
             />
             {fades ? (
