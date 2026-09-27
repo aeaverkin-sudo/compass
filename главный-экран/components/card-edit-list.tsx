@@ -9,11 +9,30 @@ import { isContactFilled } from "@/shared/services/contact-item";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
-import { LibraryComposer } from "./library-composer";
+import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
 const HOLD_MS = 500;
 const OFF_CARD = "#C8C8C8";
 const DELETE_RED = "#E23B2F";
+const ADD_PLACEHOLDER = "Add link, file, text, contact…";
+
+/** Scroll only the card body so the add line stays above the keyboard. Never the page. */
+function revealAddField(field: HTMLElement) {
+  const scroller = field.closest(".compass-card-scroll");
+  if (!(scroller instanceof HTMLElement)) return;
+  const viewport = window.visualViewport;
+  const keyboard = viewport
+    ? Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+    : 0;
+  const fieldRect = field.getBoundingClientRect();
+  const scrollerRect = scroller.getBoundingClientRect();
+  const visibleBottom = Math.min(scrollerRect.bottom, window.innerHeight - keyboard - 12);
+  if (fieldRect.bottom > visibleBottom) {
+    scroller.scrollTop += fieldRect.bottom - visibleBottom;
+  } else if (fieldRect.top < scrollerRect.top + 8) {
+    scroller.scrollTop -= scrollerRect.top + 8 - fieldRect.top;
+  }
+}
 
 type EditSection = {
   id: CardZoneId;
@@ -99,14 +118,19 @@ export function CardEditList({
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
-  const openedAt = useRef(0);
+  const addRef = useRef<HTMLInputElement>(null);
+  const draftIdRef = useRef<string | null>(null);
+  const pickingRef = useRef(false);
 
-  const sections = useMemo(() => buildSections(card, items), [card, items]);
-  const editingItem = editingId ? items.find((item) => item.id === editingId) ?? null : null;
+  const sections = useMemo(
+    () => buildSections(card, items.filter((item) => item.id !== draftId)),
+    [card, items, draftId],
+  );
+  const draft = draftId ? items.find((item) => item.id === draftId) ?? null : null;
 
   useEffect(() => {
     if (!deleteReadyId) return;
@@ -151,30 +175,100 @@ export function CardEditList({
     deleteContactItem(itemId);
   };
 
-  const openComposer = () => {
-    setTextEditId(null);
+  const ensureDraft = () => {
+    const current = draftIdRef.current;
+    if (current) {
+      const existing = useAppStore.getState().contactItems.find((item) => item.id === current);
+      if (existing) return current;
+    }
     const id = addContactItem();
-    if (!id) return;
-    openedAt.current = Date.now();
-    setAttachmentError(null);
-    setEditingId(id);
+    draftIdRef.current = id;
+    setDraftId(id);
+    return id;
   };
 
-  const closeComposer = () => {
-    if (!editingId) return;
-    if (Date.now() - openedAt.current < 450) return;
-    const item = useAppStore.getState().contactItems.find((row) => row.id === editingId);
-    if (item && isContactFilled(item) && composeOnMount) include(editingId);
-    else if (item && !isContactFilled(item)) deleteContactItem(editingId);
-    setEditingId(null);
+  const focusAdd = useCallback(() => {
+    const field = addRef.current;
+    if (!field) return;
+    field.focus({ preventScroll: true });
+    const end = field.value.length;
+    field.setSelectionRange(end, end);
+    revealAddField(field);
+  }, []);
+
+  const commitDraft = () => {
+    const id = draftIdRef.current;
+    if (!id) return;
+    const item = useAppStore.getState().contactItems.find((row) => row.id === id);
+    draftIdRef.current = null;
+    setDraftId(null);
+    if (!item || !isContactFilled(item)) {
+      if (item) deleteContactItem(id);
+      return;
+    }
+    if (composeOnMount) include(id);
+  };
+
+  const finishDraft = () => {
+    if (pickingRef.current) return;
+    if (addRef.current && document.activeElement === addRef.current) return;
+    commitDraft();
   };
 
   useEffect(() => {
+    draftIdRef.current = draftId;
+  }, [draftId]);
+
+  useEffect(() => {
+    return () => {
+      const id = draftIdRef.current;
+      if (!id) return;
+      const item = useAppStore.getState().contactItems.find((row) => row.id === id);
+      if (item && !isContactFilled(item)) deleteContactItem(id);
+    };
+  }, [deleteContactItem]);
+
+  useLayoutEffect(() => {
     if (!composeOnMount) return;
-    openComposer();
-    // The empty card asks for the writing line once, as it opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [composeOnMount]);
+    focusAdd();
+  }, [composeOnMount, focusAdd]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const onResize = () => {
+      const field = addRef.current;
+      if (!field || document.activeElement !== field) return;
+      revealAddField(field);
+    };
+    viewport.addEventListener("resize", onResize);
+    return () => viewport.removeEventListener("resize", onResize);
+  }, []);
+
+  const pickFile = () => {
+    const id = ensureDraft();
+    if (!id) return;
+    pickingRef.current = true;
+    openContactAttachmentPicker(
+      (dataUrl, file) => {
+        pickingRef.current = false;
+        const result = updateContactItemAttachment(card.id, id, file, dataUrl);
+        if (!result.ok) {
+          setAttachmentError(result.message);
+          focusAdd();
+          return;
+        }
+        setAttachmentError(null);
+        draftIdRef.current = null;
+        setDraftId(null);
+        focusAdd();
+      },
+      () => {
+        pickingRef.current = false;
+        focusAdd();
+      },
+    );
+  };
 
   return (
     <div data-card-chip-list={card.id} data-card-content>
@@ -224,42 +318,62 @@ export function CardEditList({
           </div>
         </section>
       ))}
-      {editingItem ? (
-        <LibraryComposer
-          item={editingItem}
-          attachmentError={attachmentError}
-          onValueChange={(value) => updateContactItem(editingItem.id, { value })}
-          onLabelChange={(label) => updateContactItem(editingItem.id, { label })}
-          onAttachment={(file, dataUrl) => {
-            const result = updateContactItemAttachment(card.id, editingItem.id, file, dataUrl);
-            if (!result.ok) {
-              setAttachmentError(result.message);
-              return false;
-            }
-            setAttachmentError(null);
-            setEditingId(null);
-            return true;
-          }}
-          onBlur={closeComposer}
-        />
-      ) : (
-        <div
-          className={cn(
-            "flex justify-center pt-6 pb-2",
-            sections.length > 0 && "mt-2 border-t-[0.5px] border-[#111]",
-          )}
-        >
+      <div
+        data-add-row
+        className={cn("pt-6 pb-2", sections.length > 0 && "mt-2 border-t-[0.5px] border-[#111]")}
+      >
+        {attachmentError ? (
+          <p className="mb-2 text-[12px] leading-snug text-destructive">{attachmentError}</p>
+        ) : null}
+        <div className="flex items-center gap-[11px] border-b-[0.5px] border-[#111] py-2">
           <button
             type="button"
             data-no-swipe
-            aria-label="Add"
-            onClick={openComposer}
-            className="flex size-7 items-center justify-center bg-transparent"
+            aria-label="Add photo or file"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={pickFile}
+            className="flex w-7 shrink-0 items-center justify-center text-[#111]"
           >
             <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
           </button>
+          <input
+            ref={addRef}
+            data-add-field
+            data-no-swipe
+            value={draft?.value ?? ""}
+            placeholder={ADD_PLACEHOLDER}
+            aria-label={ADD_PLACEHOLDER}
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            enterKeyHint="done"
+            onPointerDown={(event) => {
+              if (document.activeElement === addRef.current) return;
+              event.preventDefault();
+              focusAdd();
+            }}
+            onFocus={() => {
+              setTextEditId(null);
+              const field = addRef.current;
+              if (field) requestAnimationFrame(() => revealAddField(field));
+            }}
+            onChange={(event) => {
+              const id = ensureDraft();
+              if (!id) return;
+              setAttachmentError(null);
+              updateContactItem(id, { value: event.target.value });
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              commitDraft();
+              focusAdd();
+            }}
+            onBlur={finishDraft}
+            className="compass-input m-0 min-w-0 flex-1 bg-transparent p-0 text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:tracking-normal placeholder:text-[#999]"
+          />
         </div>
-      )}
+      </div>
     </div>
   );
 }
