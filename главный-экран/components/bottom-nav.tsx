@@ -1,6 +1,5 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import { layoutTop } from "../layout";
 
 type BottomNavProps = {
@@ -31,11 +30,11 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
         <button
           type="button"
           aria-label="Add"
-          className="justify-self-start py-2"
+          className="justify-self-start py-2 text-[24px]"
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => onAdd?.()}
         >
-          <Plus className="size-[17px] text-[#111]" strokeWidth={1} aria-hidden />
+          +
         </button>
       ) : (
         <span aria-current="page" className="justify-self-start py-2">
