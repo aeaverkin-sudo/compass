@@ -144,7 +144,6 @@ export function MainScreen() {
             activeIndex={currentCardIndex}
             contactItems={contactItems}
             mode="browse"
-            edgeInsetPx={edgeInsetBrowse}
             canAddCard={showAddSlide}
             editing={editing}
             fillHint={!emptyFillHintSeen}

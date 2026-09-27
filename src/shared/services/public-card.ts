@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { unstable_noStore as noStore } from "next/cache";
-import type { Card, CardStatus, ContactItem, ContactType } from "@/shared/types";
+import type { Card, ContactItem, ContactType } from "@/shared/types";
+import { asCardStatus } from "@/shared/lib/card-status";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 
@@ -35,11 +36,6 @@ export type PublicCard = {
   items: ContactItem[];
   ownerId: string;
 };
-
-function asStatus(value: string): CardStatus {
-  if (value === "published" || value === "archived" || value === "suspended") return value;
-  return "draft";
-}
 
 /** Name, a ready stored photo, and is_public. Archived and suspended stay private. */
 export function cardIsPubliclyServed(row: {
@@ -140,7 +136,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
     id: row.id,
     displayName: row.display_name,
     title: row.title?.trim() ?? "",
-    status: asStatus(row.status),
+    status: asCardStatus(row.status),
     publicToken: row.public_token,
     isPublic: true,
     qrVersion: 1,

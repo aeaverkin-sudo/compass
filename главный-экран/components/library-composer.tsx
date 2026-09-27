@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { autoLinkDisplay, canRenameLinkDisplay, customDisplayName } from "@/shared/services/link-display";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
@@ -44,16 +44,17 @@ export function LibraryComposer({
   const rootRef = useRef<HTMLDivElement>(null);
   const pickingRef = useRef(false);
   const mountedAt = useRef(0);
-  const heldInset = useRef(0);
+  const [picking, setPicking] = useState(false);
+  const [heldInset, setHeldInset] = useState(0);
   const { keyboardInset } = useVisualViewport();
   const photoSrc = itemPhotoSrc(item);
   const hasPhotoPreview = Boolean(photoSrc);
   const showName = canRenameLinkDisplay(item);
 
-  // The native file picker collapses the keyboard. Hold the last docked height
-  // so the field stays put instead of dropping to the floor and springing back.
-  if (!pickingRef.current && keyboardInset > 0) heldInset.current = keyboardInset;
-  const dockBottom = pickingRef.current ? heldInset.current : keyboardInset;
+  // The native file picker collapses the keyboard. While it is open we freeze the
+  // dock at the height captured on tap so the field stays put instead of dropping
+  // to the floor and springing back.
+  const dockBottom = picking ? heldInset : keyboardInset;
 
   const resizeTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -91,15 +92,19 @@ export function LibraryComposer({
 
   const handleAttach = () => {
     pickingRef.current = true;
+    setHeldInset(keyboardInset);
+    setPicking(true);
     openContactAttachmentPicker(
       (dataUrl, file) => {
         pickingRef.current = false;
+        setPicking(false);
         const accepted = onAttachment(file, dataUrl);
         if (!accepted) textareaRef.current?.focus({ preventScroll: true });
       },
       () => {
         window.setTimeout(() => {
           pickingRef.current = false;
+          setPicking(false);
           textareaRef.current?.focus({ preventScroll: true });
         }, 120);
       },

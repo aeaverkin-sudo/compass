@@ -21,7 +21,6 @@ type CardCarouselProps = {
   activeIndex: number;
   contactItems: ContactItem[];
   mode: MainScreenMode;
-  edgeInsetPx: number;
   canAddCard: boolean;
   libraryCardHeightPx?: number;
   onActiveIndexChange: (index: number) => void;
@@ -55,7 +54,6 @@ export function CardCarousel({
   activeIndex,
   contactItems,
   mode,
-  edgeInsetPx: _edgeInsetPx,
   canAddCard,
   libraryCardHeightPx,
   onActiveIndexChange,

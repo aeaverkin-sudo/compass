@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import type { Card, CardStatus } from "@/shared/types";
+import { asCardStatus } from "@/shared/lib/card-status";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 const UPSERT_DEBOUNCE_MS = 400;
@@ -31,11 +32,6 @@ function isCardUuid(id: string) {
   return UUID_RE.test(id);
 }
 
-function asStatus(value: string): CardStatus {
-  if (value === "published" || value === "archived" || value === "suspended") return value;
-  return "draft";
-}
-
 /** UUID id, draft status, and a public token. Leaves photo and items untouched. */
 export function ensureCardIdentity(card: Card): Card {
   return {
@@ -62,7 +58,7 @@ function overlayScalars(local: Card, row: CardRow): Card {
     id: row.id,
     displayName: row.display_name,
     title: row.title,
-    status: asStatus(row.status),
+    status: asCardStatus(row.status),
     publicToken: row.public_token,
     qrVersion: row.qr_version,
     isPublic: row.is_public,
@@ -78,7 +74,7 @@ function shellFromRow(row: CardRow): Card {
     id: row.id,
     displayName: row.display_name,
     title: row.title,
-    status: asStatus(row.status),
+    status: asCardStatus(row.status),
     publicToken: row.public_token,
     qrVersion: row.qr_version,
     isPublic: row.is_public,

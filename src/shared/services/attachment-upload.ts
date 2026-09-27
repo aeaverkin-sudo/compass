@@ -1,5 +1,5 @@
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { isVideoMime } from "@/shared/services/attachment-limits";
+import { CARD_ATTACHMENTS_BUCKET, isVideoMime } from "@/shared/services/attachment-limits";
 import { prepareImageUploadBlob } from "@/shared/services/attachment-storage";
 import type { ContactType } from "@/shared/types";
 
@@ -93,7 +93,7 @@ async function uploadVideo(file: File, cardId?: string): Promise<ReadyAttachment
 
   const supabase = createBrowserSupabaseClient();
   const uploaded = await supabase.storage
-    .from("card-attachments")
+    .from(CARD_ATTACHMENTS_BUCKET)
     .uploadToSignedUrl(ticket.path, ticket.token, file, { contentType: mime });
   if (uploaded.error) throw new Error(uploaded.error.message);
 

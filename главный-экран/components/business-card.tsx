@@ -50,32 +50,6 @@ function splitHeroName(name: string) {
   return [name.slice(0, breakAt), name.slice(breakAt + 1).replace(/\n/g, "")] as const;
 }
 
-function measureRaw(ctx: CanvasRenderingContext2D, line: string, size: number, weight: number) {
-  ctx.font = `${weight} ${size}px ${HERO_FONT}`;
-  return ctx.measureText(line).width;
-}
-
-function widthFontFor(ctx: CanvasRenderingContext2D, line: string, width: number, weight: number) {
-  const raw = measureRaw(ctx, line, 100, weight);
-  if (raw <= 0) return 44;
-  const tracking = weight === 600 ? Math.max(0, line.length - 1) : 0;
-  return ((width + tracking) * 100) / raw;
-}
-
-function heroLineSize(lines: string[], width: number, height: number, weight = 600) {
-  if (!width || !height) return 16;
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return 16;
-  const shown = lines.filter((line) => line.length > 0);
-  const count = shown.length > 1 ? 2 : 1;
-  const widthFont = shown.reduce((tightest, line) => Math.min(tightest, widthFontFor(ctx, line, width, weight)), 44);
-  const heightFont = height / count;
-  const max = weight === 400 ? 19 : 44;
-  const min = weight === 400 ? 10 : 16;
-  return Math.min(max, Math.max(min, Math.min(widthFont, heightFont)));
-}
-
 const PLACEHOLDER = "Name or portfolio title";
 
 function textWidth(text: string, size: number, weight: number) {
@@ -98,19 +72,6 @@ function fitToWidth(text: string, width: number, weight: number, max: number, mi
     else hi = mid;
   }
   return lo;
-}
-
-function wordNeedsWrap(word: string, width: number) {
-  if (!width || word.includes(" ") || word.includes("\n")) return false;
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return false;
-  return measureRaw(ctx, word, 16, 600) - Math.max(0, word.length - 1) > width;
-}
-
-function splitLongWord(word: string) {
-  const mid = Math.ceil(word.length / 2);
-  return [word.slice(0, mid), word.slice(mid)] as const;
 }
 
 function HeroName({
@@ -499,8 +460,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const ready = cardIsReady(card);
-  const notesRef = useRef(deliveredNotes);
-  notesRef.current = deliveredNotes;
   const notesKey = deliveredNotes
     .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
     .join("|");
@@ -510,8 +469,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     void primePublicCardPdf({
       publicToken: card.publicToken,
       displayName: card.displayName,
-      notes: notesRef.current,
+      notes: deliveredNotes,
     }).catch((error) => console.error("[pdf] prepare failed", error));
+    // notesKey is the content-stable stand-in for deliveredNotes (a fresh array each render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compact, editing, ready, card.publicToken, card.displayName, notesKey]);
 
   const shareInput = () =>
