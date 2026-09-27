@@ -7,7 +7,6 @@ import {
   librarySheetTopPx,
   libraryStackTopPx,
   BOTTOM_PLATE_DROP_PX,
-  BOTTOM_PLATE_LOWER_PX,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
   RULE_GAP_PX,
@@ -54,7 +53,7 @@ function computeLayout(): MainLayout | null {
   const browseHeight = browseCardHeightPx(viewportH, safeTop);
   const libraryHeight = libraryCardHeightPx(viewportH, safeTop);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
-  const browseMenuCenterY = (cardBottomBrowse + viewportH) / 2 + BOTTOM_PLATE_DROP_PX + BOTTOM_PLATE_LOWER_PX;
+  const browseMenuCenterY = (cardBottomBrowse + viewportH) / 2 + BOTTOM_PLATE_DROP_PX;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
   const cardTopLibrary = libraryStackTopPx(safeTop);
   const sheetTopLibrary = librarySheetTopPx(viewportH, safeTop);
