@@ -18,10 +18,8 @@ const HOLD_MS = 500;
 const OFF_CARD = "#C8C8C8";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-/** The add line grows upward to this height, then scrolls inside. */
+/** The writing line grows upward to this height, then scrolls inside. */
 const FIELD_MAX_PX = 120;
-/** Existing text: six lines, then the finger scrolls inside the field. */
-const ROW_FIELD_MAX_PX = Math.round(15.5 * 1.45 * 6 + 16);
 const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
 
@@ -390,12 +388,12 @@ function AddLine({
       <div ref={anchorRef} className="h-0" aria-hidden />
       {open
         ? createPortal(
-            // White from the line to the screen bottom, so nothing of the card shows
+            // Sky from the line to the screen bottom, so nothing of the card shows
             // between the line and the keyboard or through the keyboard's glass.
             <div
               ref={lineRef}
               data-no-swipe
-              className="fixed inset-x-0 bottom-0 z-50 bg-white"
+              className="fixed inset-x-0 bottom-0 z-50 bg-sky"
               style={{ paddingBottom: dockBottom }}
             >
               <div style={{ marginLeft: frame.left, width: frame.width }}>
@@ -482,7 +480,7 @@ function EditRow({
   const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLTextAreaElement>(null);
-  const dockBottom = useKeyboardDock(editing);
+  const dockBottom = useKeyboardDock(editing, true);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
@@ -504,7 +502,6 @@ function EditRow({
     const field = fieldRef.current;
     if (!field) return;
     const measure = () => {
-      field.scrollLeft = 0;
       const next = field.scrollWidth > field.clientWidth + 1;
       setFades((current) => (current === next ? current : next));
     };
@@ -534,7 +531,7 @@ function EditRow({
     const field = dockRef.current;
     if (!field) return;
     field.style.height = "auto";
-    field.style.height = `${Math.min(field.scrollHeight, ROW_FIELD_MAX_PX)}px`;
+    field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
   }, [draft, editing]);
 
   return (
@@ -544,7 +541,7 @@ function EditRow({
         aria-label={text}
         data-no-swipe
         className={cn(
-          "mr-[26px] block min-w-0 overflow-hidden text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap select-none",
+          "mr-[26px] block min-w-0 overflow-clip text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap select-none",
           editing && "invisible pointer-events-none",
         )}
         style={{ color: onCard ? "#111" : OFF_CARD }}
@@ -570,41 +567,43 @@ function EditRow({
         ? createPortal(
             <div
               data-no-swipe
-              className="fixed inset-x-0 z-50 bg-white"
-              style={{ bottom: dockBottom }}
+              className="fixed inset-x-0 bottom-0 z-50 bg-sky"
+              style={{ paddingBottom: dockBottom }}
             >
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                <textarea
-                  ref={dockRef}
-                  rows={1}
-                  value={draft}
-                  aria-label="Edit row"
-                  enterKeyHint="done"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  data-no-swipe
-                  onChange={(event) => {
-                    const next = event.target.value.replace(/\s*\n\s*/g, " ");
-                    setDraft(next);
-                    if (!next.trim()) onErase();
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter") return;
-                    event.preventDefault();
-                    onConfirm(event.currentTarget.value.replace(/\s*\n\s*/g, " "));
-                  }}
-                  onBlur={(event) => {
-                    const next = event.currentTarget.value.replace(/\s*\n\s*/g, " ");
-                    if (!next.trim()) return;
-                    if (Date.now() - openedAt.current < 700) {
-                      dockRef.current?.focus({ preventScroll: true });
-                      return;
-                    }
-                    onConfirm(next);
-                  }}
-                  className="compass-input block w-full resize-none overflow-y-auto border-b-[0.5px] border-[#111] bg-transparent py-2 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
-                />
+                <div className="border-b-[0.5px] border-[#111] py-2">
+                  <textarea
+                    ref={dockRef}
+                    rows={1}
+                    value={draft}
+                    aria-label="Edit row"
+                    enterKeyHint="done"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-no-swipe
+                    onChange={(event) => {
+                      const next = event.target.value.replace(/\s*\n\s*/g, " ");
+                      setDraft(next);
+                      if (!next.trim()) onErase();
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      onConfirm(event.currentTarget.value.replace(/\s*\n\s*/g, " "));
+                    }}
+                    onBlur={(event) => {
+                      const next = event.currentTarget.value.replace(/\s*\n\s*/g, " ");
+                      if (!next.trim()) return;
+                      if (Date.now() - openedAt.current < 700) {
+                        dockRef.current?.focus({ preventScroll: true });
+                        return;
+                      }
+                      onConfirm(next);
+                    }}
+                    className="compass-input block w-full resize-none overflow-y-auto bg-transparent text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+                  />
+                </div>
               </div>
             </div>,
             document.body,
