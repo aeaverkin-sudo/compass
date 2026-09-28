@@ -167,7 +167,7 @@ export function MainScreen() {
           editing={editing}
           onProfile={() => router.push("/profile")}
           onNetwork={() => {
-            if (needsAccount) showGate("Need an account");
+            if (needsAccount) showGate("Need an account, register here");
           }}
           onEdit={() => {
             if (frozen) return;
@@ -236,20 +236,25 @@ export function MainScreen() {
 }
 
 function GateNotice({ text, nonce, onDone }: { text: string; nonce: number; onDone: () => void }) {
+  const [fading, setFading] = useState(false);
+
   useEffect(() => {
-    const timer = window.setTimeout(onDone, 5000);
-    return () => window.clearTimeout(timer);
+    setFading(false);
+    const fade = window.setTimeout(() => setFading(true), 4000);
+    const done = window.setTimeout(onDone, 5500);
+    return () => {
+      window.clearTimeout(fade);
+      window.clearTimeout(done);
+    };
   }, [nonce, onDone]);
 
   return (
-    <p
-      className="pointer-events-auto absolute inset-x-8 top-[22%] z-40 text-center text-[28px] font-medium leading-snug"
-      style={{ color: "#F2621C" }}
+    <Link
+      href="/register"
+      className="absolute top-1/2 left-1/2 z-40 max-w-[240px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center text-[14px] font-light leading-snug text-[#111] transition-opacity duration-[1500ms] ease-out"
+      style={{ opacity: fading ? 0 : 1 }}
     >
-      {text}{" "}
-      <Link href="/register" className="underline">
-        Register
-      </Link>
-    </p>
+      {text}
+    </Link>
   );
 }
