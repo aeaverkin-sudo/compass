@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ConsentLine } from "@/shared/components/consent-line";
 import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
+import { recordConsent } from "@/shared/services/consent-client";
 import { useAppStore } from "@/shared/store/app-store";
 import { CARD_HEADER_NAME_SIZE_PX, CARD_PHOTO_RADIUS_PX, CARD_PHOTO_SIZE_PX } from "@main/layout";
 import { ConfirmButton } from "./confirm-button";
@@ -20,6 +22,7 @@ export function LandingPage() {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState(false);
 
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
 
@@ -38,7 +41,7 @@ export function LandingPage() {
   }, [ready]);
 
   const handleConfirm = () => {
-    if (saving || !photo || !photoFile || !isFilled(name)) return;
+    if (saving || !photo || !photoFile || !isFilled(name) || !accepted) return;
     const existingId = useAppStore.getState().cards[0]?.id;
     const cardId =
       existingId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existingId)
@@ -46,7 +49,8 @@ export function LandingPage() {
         : crypto.randomUUID();
     setSaving(true);
     setSaveError(null);
-    void uploadAttachment({ file: photoFile, kind: "card-photo", cardId })
+    void recordConsent("trial")
+      .then(() => uploadAttachment({ file: photoFile, kind: "card-photo", cardId }))
       .then((ready) => {
         completeOnboarding({
           displayName: name.trim(),
@@ -88,11 +92,16 @@ export function LandingPage() {
         </label>
       </div>
 
-      <div className="flex items-center justify-center px-8 pb-[calc(max(1.5rem,env(safe-area-inset-bottom))+1cm)]">
+      <div className="flex flex-col items-center justify-center px-8 pb-[calc(max(1.5rem,env(safe-area-inset-bottom))+1cm)]">
         {saveError ? (
           <p className="mb-3 px-6 text-center text-[12px] leading-snug text-[#111]">{saveError}</p>
         ) : null}
-        {ready ? <ConfirmButton onClick={handleConfirm} /> : null}
+        {ready ? (
+          <>
+            <ConsentLine checked={accepted} onCheckedChange={setAccepted} />
+            <ConfirmButton onClick={handleConfirm} disabled={!accepted || saving} />
+          </>
+        ) : null}
       </div>
     </main>
   );
