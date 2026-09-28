@@ -19,6 +19,8 @@ export type AccountStatus = {
   provider: AccountProvider;
   /** Version the person accepted. Null until a consent row exists. */
   consentVersion: string | null;
+  bytesUsed: number;
+  bytesLimit: number;
 };
 
 type ProfileClock = {
@@ -41,7 +43,7 @@ function clockFrom(row: ProfileClock | null, now = Date.now()) {
 }
 
 function statusFrom(row: ProfileClock | null, now = Date.now()): AccountStatus {
-  return { ...clockFrom(row, now), email: null, provider: null, consentVersion: null };
+  return { ...clockFrom(row, now), email: null, provider: null, consentVersion: null, bytesUsed: 0, bytesLimit: 0 };
 }
 
 async function readClock(userId: string): Promise<ProfileClock | null> {

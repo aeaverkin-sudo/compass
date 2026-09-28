@@ -6,11 +6,22 @@ import { useState } from "react";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
+import { MAX_CARDS } from "@main/layout";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
+
+function storageLine(used: number, limit: number) {
+  const asMegabytes = (bytes: number) => {
+    if (bytes <= 0) return "0 MB";
+    const megabytes = bytes / (1024 * 1024);
+    if (megabytes < 10) return `${megabytes.toFixed(megabytes < 1 ? 1 : 0)} MB`;
+    return `${Math.round(megabytes)} MB`;
+  };
+  return `${asMegabytes(used)} of ${asMegabytes(limit)}`;
+}
 
 function trialLine(hoursLeft: number | null) {
   if (hoursLeft === null) return "Trial";
@@ -22,6 +33,9 @@ export function ProfileScreen() {
   const account = useAccountStatus();
   const cards = useAppStore((state) => state.cards);
   const setCardListed = useAppStore((state) => state.setCardListed);
+  const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
+  const needsAccount = account !== null && !account.registered;
+  const atCardLimit = cards.length >= MAX_CARDS;
   const [busy, setBusy] = useState(false);
   const signedIn = account?.registered === true;
   const canChangePassword = signedIn && account?.provider === "email";
@@ -134,6 +148,34 @@ export function ProfileScreen() {
             );
           })}
         </ul>
+        {!account ? null : needsAccount ? (
+          <p className="mt-6 text-[14px] font-light">
+            <Link href="/register" className="underline">
+              Register to add more
+            </Link>
+          </p>
+        ) : atCardLimit ? (
+          <p className="mt-6 text-[14px] font-light opacity-40">Two cards on Free</p>
+        ) : (
+          <button
+            type="button"
+            className="mt-6 border border-[#111] bg-transparent px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+            onClick={() => {
+              // The column default is public. The second card has to opt out.
+              updateSecondCardDraft({ displayName: "" });
+              router.push("/main");
+            }}
+          >
+            Create card
+          </button>
+        )}
+      </section>
+
+      <section className="mt-10 max-w-xs">
+        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Storage</h2>
+        <p className="mt-3 text-[14px] font-light">
+          {account ? storageLine(account.bytesUsed, account.bytesLimit) : "…"}
+        </p>
       </section>
 
       <section className="mt-10 max-w-xs">

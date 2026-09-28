@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireOwnerId } from "@/shared/services/attachment-api";
+import { readyByteTotal, requireOwnerId } from "@/shared/services/attachment-api";
+import { ACCOUNT_BYTE_LIMIT } from "@/shared/services/attachment-limits";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { readAccountStatus, type AccountProvider, type AccountStatus } from "@/shared/services/trial";
 
@@ -35,11 +36,20 @@ export async function GET() {
       consentVersion = consent.document_version;
     }
 
+    let bytesUsed = 0;
+    try {
+      bytesUsed = await readyByteTotal(owner.id);
+    } catch (storageError) {
+      console.error("[account] storage", storageError);
+    }
+
     const status: AccountStatus = {
       ...clock,
       email: user && !user.is_anonymous ? user.email ?? null : null,
       provider: user ? providerOf(user) : null,
       consentVersion,
+      bytesUsed,
+      bytesLimit: ACCOUNT_BYTE_LIMIT,
     };
     return NextResponse.json(status, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
