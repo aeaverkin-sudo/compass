@@ -34,7 +34,6 @@ export function ProfileScreen() {
   const cards = useAppStore((state) => state.cards);
   const setCardListed = useAppStore((state) => state.setCardListed);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
-  const needsAccount = account !== null && !account.registered;
   const atCardLimit = cards.length >= MAX_CARDS;
   const [busy, setBusy] = useState(false);
   const signedIn = account?.registered === true;
@@ -57,6 +56,33 @@ export function ProfileScreen() {
     router.push("/");
   };
 
+  if (!account || !signedIn) {
+    return (
+      <main className="compass-main min-h-lvh overflow-y-auto bg-white px-8 py-12 text-[#111]">
+        <Link href="/main" className="text-[13px] font-light underline">
+          Card
+        </Link>
+        <h1 className="mt-6 text-[32px] font-light leading-tight">Profile</h1>
+        {!account ? (
+          <p className="mt-10 text-[14px] font-light">…</p>
+        ) : (
+          <section className="mt-10 max-w-xs">
+            <p className="text-[14px] font-light leading-snug">{trialLine(account.hoursLeft)}</p>
+            <Link
+              href="/register"
+              className="mt-6 inline-block border border-[#111] px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+            >
+              Register
+            </Link>
+            <p className="mt-8 text-[14px] font-light">
+              {account.consentVersion ? `Consent ${account.consentVersion}` : "Not recorded"}
+            </p>
+          </section>
+        )}
+      </main>
+    );
+  }
+
   return (
     <main className="compass-main min-h-lvh overflow-y-auto bg-white px-8 py-12 text-[#111]">
       <Link href="/main" className="text-[13px] font-light underline">
@@ -66,44 +92,20 @@ export function ProfileScreen() {
 
       <section className="mt-10 max-w-xs">
         <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Account</h2>
-        {!account ? (
-          <p className="mt-3 text-[14px] font-light">…</p>
-        ) : signedIn ? (
-          <p className="mt-3 text-[14px] font-light leading-snug">
-            {account.provider === "google"
-              ? "Signed in with Google."
-              : account.email
-                ? `Signed in as ${account.email}.`
-                : "Signed in."}
-          </p>
-        ) : (
-          <>
-            <p className="mt-3 text-[14px] font-light leading-snug">{trialLine(account.hoursLeft)}</p>
-            <p className="mt-3 text-[14px] font-light">
-              <Link href="/register" className="underline">
-                Register
-              </Link>
-              {" · "}
-              <Link href="/register" className="underline">
-                Save forever
-              </Link>
-            </p>
-          </>
-        )}
+        <p className="mt-3 text-[14px] font-light leading-snug">
+          {account.provider === "google"
+            ? "Signed in with Google."
+            : account.email
+              ? `Signed in as ${account.email}.`
+              : "Signed in."}
+        </p>
         <p className="mt-4 flex gap-4 text-[14px] font-light">
           {canChangePassword ? (
             <Link href="/account/password" className="underline">
               Change password
             </Link>
-          ) : (
-            <span className="opacity-40">Change password</span>
-          )}
-          <button
-            type="button"
-            disabled={!signedIn || busy}
-            onClick={() => void signOut()}
-            className="underline disabled:opacity-40"
-          >
+          ) : null}
+          <button type="button" disabled={busy} onClick={() => void signOut()} className="underline disabled:opacity-40">
             Sign out
           </button>
         </p>
@@ -148,13 +150,7 @@ export function ProfileScreen() {
             );
           })}
         </ul>
-        {!account ? null : needsAccount ? (
-          <p className="mt-6 text-[14px] font-light">
-            <Link href="/register" className="underline">
-              Register to add more
-            </Link>
-          </p>
-        ) : atCardLimit ? (
+        {atCardLimit ? (
           <p className="mt-6 text-[14px] font-light opacity-40">Two cards on Free</p>
         ) : (
           <button

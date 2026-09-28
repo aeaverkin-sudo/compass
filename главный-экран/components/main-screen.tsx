@@ -36,6 +36,7 @@ export function MainScreen() {
   const frozen = account?.frozen === true;
   const needsAccount = account !== null && !account.registered;
   const [accountWall, setAccountWall] = useState(false);
+  const [secondCardNotice, setSecondCardNotice] = useState(false);
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
   const shownCard = cards[currentCardIndex] ?? null;
@@ -180,7 +181,7 @@ export function MainScreen() {
           onEdit={() => {
             if (frozen) return;
             if (needsAccount && !cards[currentCardIndex]) {
-              setAccountWall(true);
+              setSecondCardNotice(true);
               return;
             }
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
@@ -218,6 +219,8 @@ export function MainScreen() {
             onComposingChange={onComposingChange}
             frozen={frozen}
             needsAccount={needsAccount}
+            trialNotice={secondCardNotice}
+            onTrialSlot={() => setSecondCardNotice(true)}
             onFill={(cardId) => {
               if (frozen) return;
               const index = cards.findIndex((card) => card.id === cardId);

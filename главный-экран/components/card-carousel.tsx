@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
 import Link from "next/link";
 import { useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
@@ -8,6 +8,9 @@ import type { Card, ContactItem } from "@/shared/types";
 import { cn } from "@/lib/utils";
 import {
   CARD_CAROUSEL_GAP_PX,
+  CARD_HEADER_NAME_SIZE_PX,
+  CARD_PHOTO_SIZE_PX,
+  CARD_PHOTO_TOP_PX,
   carouselSidePaddingPx,
   carouselSlideWidthPx,
   SHEET_INSET,
@@ -35,12 +38,65 @@ type CardCarouselProps = {
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
   frozen?: boolean;
-  /** Trial: the extra card is a register wall, not a second card. */
+  /** Trial: the extra card is a teaser. Taps ask the person to register. */
   needsAccount?: boolean;
+  /** True after a tap on the trial teaser, including Edit from the nav. */
+  trialNotice?: boolean;
+  onTrialSlot?: () => void;
 };
 
 function CarouselSpacer({ width }: { width: number }) {
   return <div aria-hidden className="shrink-0" style={{ width }} />;
+}
+
+function TrialSecondCard({ notice, onInteract }: { notice: boolean; onInteract: () => void }) {
+  const start = useRef<{ x: number; y: number } | null>(null);
+
+  const onPointerDown = (event: PointerEvent) => {
+    start.current = { x: event.clientX, y: event.clientY };
+  };
+
+  const onPointerUp = (event: PointerEvent) => {
+    const origin = start.current;
+    start.current = null;
+    if (!origin) return;
+    const dx = event.clientX - origin.x;
+    const dy = event.clientY - origin.y;
+    if (dx * dx + dy * dy > 64) return;
+    onInteract();
+  };
+
+  return (
+    <div
+      className="flex w-full flex-col items-center px-[calc(clamp(24px,6.1vw,28px)-3mm)]"
+      style={{ paddingTop: CARD_PHOTO_TOP_PX }}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+    >
+      <span className="border border-[#111]" style={{ width: CARD_PHOTO_SIZE_PX, height: CARD_PHOTO_SIZE_PX }} />
+      <p
+        className="mt-[2.3em] text-center font-light text-hint"
+        style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
+      >
+        Name
+      </p>
+      <p className="mt-8 text-[22.15px] leading-none font-light">+</p>
+      {notice ? (
+        <div className="mt-8 max-w-[240px] text-center">
+          <p className="text-[14px] font-light leading-snug text-[#111]">
+            Second card is available to registered users only.
+          </p>
+          <Link
+            href="/register"
+            className="mt-4 inline-block border border-[#111] px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            Register
+          </Link>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 const EMPTY_DRAFT: Card = {
@@ -74,6 +130,8 @@ export function CardCarousel({
   onComposingChange,
   frozen = false,
   needsAccount = false,
+  trialNotice = false,
+  onTrialSlot,
 }: CardCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
@@ -310,7 +368,7 @@ export function CardCarousel({
       frozen={frozen}
       listedLocked={cards[0]?.id === card.id}
       onListedChange={
-        card.id === ADD_SLIDE_ID
+        needsAccount || card.id === ADD_SLIDE_ID
           ? undefined
           : (listed) => useAppStore.getState().setCardListed(card.id, listed)
       }
@@ -319,16 +377,7 @@ export function CardCarousel({
 
   const renderSlide = (slideId: string, index: number) => {
     if (slideId === ADD_SLIDE_ID && needsAccount) {
-      return (
-        <div className="flex min-h-[40vh] items-center px-6">
-          <p className="text-[16px] font-light leading-snug text-[#111]">
-            Need an account.{" "}
-            <Link href="/register" className="underline">
-              Register
-            </Link>
-          </p>
-        </div>
-      );
+      return <TrialSecondCard notice={trialNotice} onInteract={() => onTrialSlot?.()} />;
     }
 
     if (slideId === ADD_SLIDE_ID) {
@@ -384,7 +433,9 @@ export function CardCarousel({
         onComposingChange={onComposingChange}
         frozen={frozen}
         listedLocked
-        onListedChange={(listed) => useAppStore.getState().setCardListed(activeCard.id, listed)}
+        onListedChange={
+          needsAccount ? undefined : (listed) => useAppStore.getState().setCardListed(activeCard.id, listed)
+        }
       />
     );
   }
