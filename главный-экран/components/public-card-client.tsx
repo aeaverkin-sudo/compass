@@ -46,7 +46,7 @@ export function PublicCardClient({ card, items, publicToken }: PublicCardClientP
       />
       <p className="px-8 py-8 text-center">
         <Link href="/register" className="text-[13px] font-light text-[#111] underline">
-          Создать свой профиль
+          Create your profile
         </Link>
       </p>
     </>

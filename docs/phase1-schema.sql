@@ -1,16 +1,16 @@
 -- ============================================================
 -- Compass — Phase 1: schema + RLS
--- Вставить целиком в Supabase → SQL Editor → Run.
--- Скрипт безопасно запускать повторно (ничего не сломает при повторе).
+-- Paste the whole file into Supabase → SQL Editor → Run.
+-- Safe to run again.
 -- ============================================================
 
--- 1. profiles — по одной строке на пользователя (аноним или email), id = id из auth
+-- 1. profiles — one row per user (anonymous or email), id = auth id
 create table if not exists public.profiles (
   id         uuid primary key references auth.users(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
--- профиль создаётся автоматически при появлении нового пользователя (в т.ч. анонима)
+-- A profile row is created when a user appears, including an anonymous one.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -29,12 +29,12 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- профили для уже существующих пользователей (твои тестовые анонимы)
+-- Profiles for users that already exist.
 insert into public.profiles (id)
 select id from auth.users
 on conflict (id) do nothing;
 
--- 2. attachments — описание файла (сами байты лягут в Storage на следующей фазе)
+-- 2. attachments — file record. The bytes go into Storage in a later phase.
 create table if not exists public.attachments (
   id            uuid primary key default gen_random_uuid(),
   owner_id      uuid not null references public.profiles(id) on delete cascade,
@@ -46,7 +46,7 @@ create table if not exists public.attachments (
   created_at    timestamptz not null default now()
 );
 
--- 3. cards — карточка. public_token — то, что кодирует QR: /c/{public_token}
+-- 3. cards. public_token is what the QR encodes: /c/{public_token}
 create table if not exists public.cards (
   id                  uuid primary key default gen_random_uuid(),
   owner_id            uuid not null references public.profiles(id) on delete cascade,
@@ -62,7 +62,7 @@ create table if not exists public.cards (
   updated_at          timestamptz not null default now()
 );
 
--- 4. card_items — пункт карточки (контакт, ссылка, файл и т.д.)
+-- 4. card_items — a line on the card (contact, link, file).
 create table if not exists public.card_items (
   id            uuid primary key default gen_random_uuid(),
   card_id       uuid not null references public.cards(id) on delete cascade,
@@ -72,11 +72,11 @@ create table if not exists public.card_items (
   url           text not null default '',
   attachment_id uuid references public.attachments(id) on delete set null,
   sort_order    integer not null default 0,
-  visible       boolean not null default true,   -- скрытые не уходят в публичную карточку
+  visible       boolean not null default true,   -- hidden rows stay off the public card
   created_at    timestamptz not null default now()
 );
 
--- 5. card_transfers — одноразовая передача «for the next scan only»
+-- 5. card_transfers — one-time handoff, "for the next scan only"
 create table if not exists public.card_transfers (
   id             uuid primary key default gen_random_uuid(),
   card_id        uuid not null references public.cards(id) on delete cascade,
@@ -88,7 +88,7 @@ create table if not exists public.card_transfers (
   created_at     timestamptz not null default now()
 );
 
--- 6. transfer_items — содержимое одноразовой передачи (текст/селфи/голос)
+-- 6. transfer_items — what the one-time handoff carries (text, selfie, voice)
 create table if not exists public.transfer_items (
   id            uuid primary key default gen_random_uuid(),
   transfer_id   uuid not null references public.card_transfers(id) on delete cascade,
@@ -98,7 +98,7 @@ create table if not exists public.transfer_items (
   created_at    timestamptz not null default now()
 );
 
--- 7. card_events — лёгкая приватная аналитика
+-- 7. card_events — light private analytics
 create table if not exists public.card_events (
   id         uuid primary key default gen_random_uuid(),
   card_id    uuid references public.cards(id) on delete cascade,
@@ -106,7 +106,7 @@ create table if not exists public.card_events (
   created_at timestamptz not null default now()
 );
 
--- индексы (ускоряют выборки)
+-- Indexes.
 create index if not exists idx_card_items_card     on public.card_items(card_id);
 create index if not exists idx_attachments_owner   on public.attachments(owner_id);
 create index if not exists idx_transfers_token     on public.card_transfers(transfer_token);
@@ -114,9 +114,9 @@ create index if not exists idx_cards_public_token  on public.cards(public_token)
 create index if not exists idx_cards_owner         on public.cards(owner_id);
 
 -- ============================================================
--- RLS — каждый видит и меняет только свои строки.
--- Публичного анонимного чтения тут НЕТ: публичная карточка
--- отдаётся через сервер (service role), это на следующих фазах.
+-- RLS — a person can read and change only their own rows.
+-- There is no public anonymous read. The public card
+-- is served by the server (service role), in a later phase.
 -- ============================================================
 alter table public.profiles       enable row level security;
 alter table public.attachments    enable row level security;

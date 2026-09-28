@@ -120,9 +120,9 @@ export function MainScreen() {
           className="absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
           style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
         >
-          Данные заморожены.{" "}
+          Frozen.{" "}
           <Link href="/register" className="underline">
-            Зарегистрируйтесь, чтобы вернуть визитку.
+            Register to restore this card.
           </Link>
         </p>
       ) : null}

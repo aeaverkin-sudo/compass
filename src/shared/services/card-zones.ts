@@ -246,7 +246,7 @@ type NameTokenKind = "honorific" | "suffix" | "particle" | "initial" | "name" | 
 /**
  * A whole line that is a person's name.
  * Needs a given name and a surname: two to four name words, an initial may stand in
- * for one of them. Particles (van, de, оглы), a leading title, and a trailing Jr/III
+ * for one of them. Particles (van, de, and the Turkic particles in the set), a leading title, and a trailing Jr/III
  * may sit around that pair. "Averkin, Anton" counts. A sentence does not.
  */
 function isPersonName(text: string) {
@@ -301,7 +301,7 @@ function isNameParticle(word: string, lower: string, allCapsLine: boolean) {
   return (lower === "st" || lower === "saint") && /^[\p{Lu}][\p{Ll}]*\.?$/u.test(word);
 }
 
-/** Anton, McDonald, Anne-Marie, O'Brien, Антон. */
+/** Anton, McDonald, Anne-Marie, O'Brien, or a Cyrillic given name. */
 function isTitleNameWord(word: string) {
   return /^(?:[\p{Lu}][\p{Ll}]*)(?:[\p{Lu}][\p{Ll}]*|['’-][\p{Lu}][\p{Ll}]*)*$/u.test(word) && word.length >= 2;
 }

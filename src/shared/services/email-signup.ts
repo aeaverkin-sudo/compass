@@ -6,7 +6,7 @@ const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_TTL_MS = 30 * 60 * 1000;
 const MAX_ATTEMPTS = 8;
 
-export const MAIL_NOT_CONNECTED = "Почта ещё не подключена";
+export const MAIL_NOT_CONNECTED = "Email isn't set up yet";
 
 export type EmailBranch =
   | { mode: "code" }

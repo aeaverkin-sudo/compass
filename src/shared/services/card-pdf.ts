@@ -543,7 +543,7 @@ export async function generateInactiveCardPdf(): Promise<Uint8Array> {
   doc.registerFontkit(fontkit);
   const font = await doc.embedFont(regular, { subset: true });
   const page = doc.addPage([PAGE_W, PAGE_H]);
-  page.drawText("Визитка неактивна", {
+  page.drawText("Card inactive", {
     x: MARGIN,
     y: PAGE_H / 2,
     size: 18,

@@ -13,7 +13,7 @@ export type ReadyAttachment = {
 
 /**
  * Resolves only after the file is ready.
- * While this promise is in flight the card shows «загружается» and does not
+ * While this promise is in flight the card shows that it is uploading and does not
  * store the id — a pending row is not a picture.
  */
 /** Selfie or voice into transfer-assets. The transfer must already be pending. */
