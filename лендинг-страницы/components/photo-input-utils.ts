@@ -33,8 +33,8 @@ function openFileInputPicker(
   const close = () => {
     if (closed) return;
     closed = true;
-    input.remove();
     onDismiss?.();
+    input.remove();
   };
 
   input.addEventListener(
