@@ -264,7 +264,7 @@ function AddLine({
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const picking = useRef(false);
   const openedAt = useRef(0);
-  const dockBottom = useKeyboardDock(open);
+  const dockBottom = useKeyboardDock(open, true);
   const filePhoto = fileItem ? itemPhotoSrc(fileItem) : null;
 
   /** The docked line spans exactly the card column. */

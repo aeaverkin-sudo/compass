@@ -14,10 +14,11 @@ function pageRoot() {
  * so its text sits on the keyboard.
  *
  * After the file sheet, iOS scrolls the visual viewport. The card is shifted back down
- * by that amount. The line is portaled outside the card, so it must drop by the same
- * amount or it stays high and covers the photo and the name.
+ * by that amount. The new-line field is portaled outside the card, so `followOffset`
+ * drops it by the same amount. An existing row keeps the full keyboard height: dropping
+ * it too lands the text on the name.
  */
-export function useKeyboardDock(active: boolean) {
+export function useKeyboardDock(active: boolean, followOffset = false) {
   const [inset, setInset] = useState(0);
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export function useKeyboardDock(active: boolean) {
       }
       if (offset < 2 && overlap > KEYBOARD_MIN_PX) remembered = overlap;
       const keyboard = remembered > 0 ? remembered : overlap;
-      setInset(Math.max(0, keyboard - offset));
+      setInset(followOffset ? Math.max(0, keyboard - offset) : keyboard);
     };
     sync();
     viewport?.addEventListener("resize", sync);
@@ -47,7 +48,7 @@ export function useKeyboardDock(active: boolean) {
       if (root instanceof HTMLElement) root.style.transform = "";
       setInset(0);
     };
-  }, [active]);
+  }, [active, followOffset]);
 
   return inset;
 }
