@@ -16,7 +16,7 @@ type BottomNavProps = {
 export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, onDone }: BottomNavProps) {
   return (
     <nav
-      className="pointer-events-auto absolute z-30 grid -translate-y-1/2 grid-cols-3 items-baseline px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase select-none [-webkit-touch-callout:none]"
+      className="pointer-events-auto absolute z-30 grid -translate-y-1/2 grid-cols-3 items-baseline px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase select-none [-webkit-touch-callout:none]"
       style={{
         top: layoutTop(centerYpx),
         left: insetPx,
@@ -30,7 +30,7 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
         <button
           type="button"
           aria-label="Add"
-          className="inline-flex items-baseline justify-self-start self-baseline py-2 text-[15.5px] leading-none font-normal tracking-normal"
+          className="inline-flex items-baseline justify-self-start self-baseline py-2 text-[16.5px] leading-none font-normal tracking-normal"
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => onAdd?.()}
         >
@@ -61,7 +61,7 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
         </button>
       )}
       {editing ? (
-        <button type="button" className="inline-flex items-baseline justify-self-end self-baseline px-2 py-2 text-[11px] leading-[1.45] font-normal tracking-[0.1em] uppercase" onClick={() => onDone?.()}>
+        <button type="button" className="inline-flex items-baseline justify-self-end self-baseline px-2 py-2 text-[12px] leading-[1.45] font-normal tracking-[0.1em] uppercase" onClick={() => onDone?.()}>
           OK
         </button>
       ) : (
