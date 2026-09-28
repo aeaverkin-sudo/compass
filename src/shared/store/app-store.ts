@@ -174,6 +174,7 @@ export const useAppStore = create<AppState>()(
         const cards = get().cards;
         const current = cards.find((card) => card.id === id);
         if (!current || current.listed === listed) return;
+        if (listed && !isCardReady(current)) return;
         if (!listed && isSolePublic(cards, id)) return;
         set({
           cards: cards.map((card) => (card.id === id ? { ...card, listed } : card)),

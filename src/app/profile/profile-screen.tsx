@@ -11,7 +11,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
-import { isSolePublic, useAppStore } from "@/shared/store/app-store";
+import { isCardReady, isSolePublic, useAppStore } from "@/shared/store/app-store";
 
 function storageLine(used: number, limit: number) {
   const asMegabytes = (bytes: number) => {
@@ -115,15 +115,16 @@ export function ProfileScreen() {
         <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Portfolios</h2>
         <ul className="mt-4 space-y-6">
           {cards.map((card) => {
-            const isPublic = card.listed !== false;
-            const locked = isSolePublic(cards, card.id);
+            const ready = isCardReady(card);
+            const isPublic = ready && card.listed !== false;
+            const locked = ready && isSolePublic(cards, card.id);
             const photo = cardPhotoSrc(card);
             return (
               <li key={card.id} className="flex gap-4">
                 {photo ? (
-                  <img src={photo} alt="" className="size-12 object-cover" />
+                  <img src={photo} alt="" className="size-12 border border-[#d4d4d4] object-cover" />
                 ) : (
-                  <span className="size-12 border border-[#111]" />
+                  <span className="size-12 border border-[#d4d4d4]" />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[16px] font-light">{card.displayName.trim() || "Untitled"}</p>
@@ -133,22 +134,30 @@ export function ProfileScreen() {
                     </span>
                     <Switch
                       checked={isPublic}
-                      disabled={locked}
+                      disabled={!ready || locked}
                       onCheckedChange={(checked) => setCardListed(card.id, checked === true)}
                       aria-label={isPublic ? "Public" : "Private"}
                       className="disabled:opacity-100"
                     />
                   </div>
-                  {locked ? (
+                  {ready ? (
+                    <>
+                      {locked ? (
+                        <p className="mt-2 text-[13px] font-light leading-snug">
+                          Your main portfolio is always public — it's how people find you.
+                        </p>
+                      ) : null}
+                      <p className={locked ? "mt-1 text-[13px] font-light leading-snug" : "mt-2 text-[13px] font-light leading-snug"}>
+                        {isPublic
+                          ? "Public — people you've connected with can see this portfolio behind your others, and find it in search."
+                          : "Private — reachable only by its direct link or QR. Kept off your profile and out of search."}
+                      </p>
+                    </>
+                  ) : (
                     <p className="mt-2 text-[13px] font-light leading-snug">
-                      Your main portfolio is always public — it's how people find you.
+                      Inactive until you add a name and a photo.
                     </p>
-                  ) : null}
-                  <p className={locked ? "mt-1 text-[13px] font-light leading-snug" : "mt-2 text-[13px] font-light leading-snug"}>
-                    {isPublic
-                      ? "Public — people you've connected with can see this portfolio behind your others, and find it in search."
-                      : "Private — reachable only by its direct link or QR. Kept off your profile and out of search."}
-                  </p>
+                  )}
                 </div>
               </li>
             );
