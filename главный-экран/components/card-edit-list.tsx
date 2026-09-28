@@ -355,21 +355,12 @@ function AddLine({
     }, BLUR_GUARD_MS);
   };
 
-  const focusLine = () => {
-    const field = fieldRef.current;
-    if (!field) return;
-    // iOS shows the keyboard for a field focused in the file sheet's cancel turn
-    // only if it is made editable in that same turn.
-    field.readOnly = true;
-    field.focus({ preventScroll: true });
-    field.readOnly = false;
-  };
-
   const refocus = () => {
-    focusLine();
+    const field = fieldRef.current;
+    field?.focus({ preventScroll: true });
     // Stay "picking" through the blur guard, so the dismiss blur does not close the line.
     window.setTimeout(() => {
-      focusLine();
+      if (document.activeElement !== field) field?.focus({ preventScroll: true });
       picking.current = false;
     }, BLUR_GUARD_MS);
   };
@@ -436,15 +427,6 @@ function AddLine({
                     autoCapitalize="off"
                     spellCheck={false}
                     data-no-swipe
-                    onPointerDown={() => {
-                      const field = fieldRef.current;
-                      const vv = window.visualViewport;
-                      if (!field || !vv || document.activeElement !== field) return;
-                      const overlap = window.innerHeight - vv.offsetTop - vv.height;
-                      if (overlap > 120) return;
-                      field.blur();
-                      focusLine();
-                    }}
                     onChange={(event) => {
                       setText(event.target.value.replace(/\s*\n\s*/g, " "));
                       setError(null);

@@ -34,7 +34,6 @@ export function useKeyboardDock(active: boolean, followOffset = false) {
         root.style.transform = offset > 1 ? `translateY(${offset}px)` : "";
       }
       if (offset < 2 && overlap > KEYBOARD_MIN_PX) remembered = overlap;
-      if (offset < 2 && overlap <= KEYBOARD_MIN_PX) remembered = 0;
       const keyboard = remembered > 0 ? remembered : overlap;
       // The new line drops with the card. An existing row just sits on the keyboard:
       // a second lift paints its text over the name.
