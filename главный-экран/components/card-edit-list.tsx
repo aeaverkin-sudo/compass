@@ -367,12 +367,17 @@ function AddLine({
     }, BLUR_GUARD_MS);
   };
 
-  const refocus = () => {
+  const raiseKeyboard = () => {
     const field = fieldRef.current;
-    field?.focus({ preventScroll: true });
-    // Stay "picking" through the blur guard, so the dismiss blur does not close the line.
+    if (!field) return;
+    field.blur();
+    field.focus({ preventScroll: true });
+  };
+
+  const refocus = () => {
+    // Same turn as the sheet's cancel, same move as a tap on the line.
+    raiseKeyboard();
     window.setTimeout(() => {
-      if (document.activeElement !== field) field?.focus({ preventScroll: true });
       picking.current = false;
     }, BLUR_GUARD_MS);
   };
@@ -407,6 +412,10 @@ function AddLine({
               data-no-swipe
               className="fixed inset-x-0 bottom-0 z-50 bg-sky"
               style={{ paddingBottom: dockBottom }}
+              onPointerDown={(event) => {
+                if (event.target instanceof Node && rowRef.current?.contains(event.target)) return;
+                close();
+              }}
             >
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
@@ -440,13 +449,11 @@ function AddLine({
                     spellCheck={false}
                     data-no-swipe
                     onPointerDown={() => {
-                      const field = fieldRef.current;
                       const vv = window.visualViewport;
-                      if (!field || !vv) return;
+                      if (!vv) return;
                       const overlap = window.innerHeight - vv.offsetTop - vv.height;
                       if (overlap > 120) return;
-                      field.blur();
-                      field.focus({ preventScroll: true });
+                      raiseKeyboard();
                     }}
                     onChange={(event) => {
                       setText(event.target.value.replace(/\s*\n\s*/g, " "));
