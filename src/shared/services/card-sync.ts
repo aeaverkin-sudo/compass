@@ -187,6 +187,12 @@ export function scheduleCardUpsert(card: Card, options?: { pulse?: boolean }) {
   pendingUpserts.set(card.id, { timer, card });
 }
 
+/** Drop queued writes. Used when signing into an existing account so the trial card is not copied over. */
+export function dropPendingCardUpserts() {
+  for (const pending of pendingUpserts.values()) clearTimeout(pending.timer);
+  pendingUpserts.clear();
+}
+
 function flushPendingUpserts() {
   for (const [id, pending] of pendingUpserts) {
     clearTimeout(pending.timer);

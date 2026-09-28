@@ -109,6 +109,11 @@ async function upsertLinks(card: Card) {
   await Promise.all(card.contactItemIds.map((itemId, index) => upsertLink(card.id, itemId, index)));
 }
 
+export function dropPendingItemUpserts() {
+  for (const pending of pendingItemUpserts.values()) clearTimeout(pending.timer);
+  pendingItemUpserts.clear();
+}
+
 export function scheduleItemUpsert(item: ContactItem, options?: { pulse?: boolean }) {
   const previous = pendingItemUpserts.get(item.id);
   if (previous) clearTimeout(previous.timer);

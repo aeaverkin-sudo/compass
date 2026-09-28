@@ -152,6 +152,11 @@ export function scheduleNotesSync(card: Card) {
   waiting.set(card.id, { timer, card });
 }
 
+export function dropPendingNotes() {
+  for (const pending of waiting.values()) clearTimeout(pending.timer);
+  waiting.clear();
+}
+
 function flushWaiting() {
   for (const [id, pending] of waiting) {
     clearTimeout(pending.timer);
