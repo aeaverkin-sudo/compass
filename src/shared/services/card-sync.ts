@@ -17,13 +17,14 @@ type CardRow = {
   public_token: string;
   qr_version: number;
   is_public: boolean;
+  listed: boolean | null;
   photo_attachment_id: string | null;
   created_at: string;
   updated_at: string;
 };
 
 const CARD_COLUMNS =
-  "id, display_name, title, status, public_token, qr_version, is_public, photo_attachment_id, created_at, updated_at";
+  "id, display_name, title, status, public_token, qr_version, is_public, listed, photo_attachment_id, created_at, updated_at";
 
 const pendingUpserts = new Map<string, { timer: ReturnType<typeof setTimeout>; card: Card }>();
 let hydrateTask: Promise<void> | null = null;
@@ -63,6 +64,7 @@ function overlayScalars(local: Card, row: CardRow): Card {
     qrVersion: row.qr_version,
     photoAttachmentId: remotePhotoId ?? local.photoAttachmentId,
     photo: remotePhotoId ? undefined : local.photo,
+    listed: row.listed ?? local.listed,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -77,6 +79,7 @@ function shellFromRow(row: CardRow): Card {
     publicToken: row.public_token,
     qrVersion: row.qr_version,
     photoAttachmentId: row.photo_attachment_id ?? undefined,
+    listed: row.listed ?? undefined,
     contactItemIds: [],
     nextScanAddons: [],
     createdAt: row.created_at,
@@ -118,6 +121,7 @@ function scalarsEqual(a: Card, b: Card) {
     a.qrVersion === b.qrVersion &&
     a.photoAttachmentId === b.photoAttachmentId &&
     a.photo === b.photo &&
+    a.listed === b.listed &&
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt
   );
@@ -154,6 +158,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
         public_token: card.publicToken,
         qr_version: card.qrVersion,
         is_public: true,
+        listed: card.listed ?? true,
         photo_attachment_id: card.photoAttachmentId ?? null,
         created_at: card.createdAt,
         updated_at: card.updatedAt,
@@ -177,14 +182,31 @@ export function scheduleCardUpsert(card: Card, options?: { pulse?: boolean }) {
   const pulse = options?.pulse !== false;
   const timer = setTimeout(() => {
     pendingUpserts.delete(card.id);
-    void upsertCardScalars(card).then(async () => {
+    void (async () => {
+      const { useAppStore } = await import("@/shared/store/app-store");
+      const live = useAppStore.getState().cards.find((entry) => entry.id === card.id) ?? card;
+      await upsertCardScalars(live);
       if (!pulse) return;
       const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
       requestLiveQrPulse(card.id);
-    });
+    })();
   }, UPSERT_DEBOUNCE_MS);
 
   pendingUpserts.set(card.id, { timer, card });
+}
+
+/** Writes Public/Private without the full upsert, which would otherwise keep the column default. */
+export function writeCardListed(cardId: string, listed: boolean) {
+  const pending = pendingUpserts.get(cardId);
+  if (pending) pending.card = { ...pending.card, listed };
+  const supabase = createBrowserSupabaseClient();
+  void supabase
+    .from("cards")
+    .update({ listed })
+    .eq("id", cardId)
+    .then(({ error }) => {
+      if (error) console.error("[card-sync] listed", error.message);
+    });
 }
 
 /** Drop queued writes. Used when signing into an existing account so the trial card is not copied over. */

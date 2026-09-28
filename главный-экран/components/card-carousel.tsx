@@ -308,6 +308,12 @@ export function CardCarousel({
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
       frozen={frozen}
+      listedLocked={cards[0]?.id === card.id}
+      onListedChange={
+        card.id === ADD_SLIDE_ID
+          ? undefined
+          : (listed) => useAppStore.getState().setCardListed(card.id, listed)
+      }
     />
   );
 
@@ -377,6 +383,8 @@ export function CardCarousel({
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}
         frozen={frozen}
+        listedLocked
+        onListedChange={(listed) => useAppStore.getState().setCardListed(activeCard.id, listed)}
       />
     );
   }

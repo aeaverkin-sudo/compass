@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
+import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts } from "@/shared/services/card-sync";
@@ -18,6 +20,8 @@ function trialLine(hoursLeft: number | null) {
 export function ProfileScreen() {
   const router = useRouter();
   const account = useAccountStatus();
+  const cards = useAppStore((state) => state.cards);
+  const setCardListed = useAppStore((state) => state.setCardListed);
   const [busy, setBusy] = useState(false);
   const signedIn = account?.registered === true;
   const canChangePassword = signedIn && account?.provider === "email";
@@ -89,6 +93,47 @@ export function ProfileScreen() {
             Sign out
           </button>
         </p>
+      </section>
+
+      <section className="mt-10 max-w-sm">
+        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">My Cards</h2>
+        <ul className="mt-4 space-y-6">
+          {cards.map((card, index) => {
+            const isMain = index === 0;
+            const isPublic = isMain || card.listed !== false;
+            const photo = cardPhotoSrc(card);
+            return (
+              <li key={card.id} className="flex gap-4">
+                {photo ? (
+                  <img src={photo} alt="" className="size-12 object-cover" />
+                ) : (
+                  <span className="size-12 border border-[#111]" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[16px] font-light">{card.displayName.trim() || "Untitled"}</p>
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="text-[12px] font-normal tracking-[0.08em] uppercase">
+                      {isPublic ? "Public" : "Private"}
+                    </span>
+                    <Switch
+                      checked={isPublic}
+                      disabled={isMain}
+                      onCheckedChange={(checked) => setCardListed(card.id, checked === true)}
+                      aria-label={isPublic ? "Public" : "Private"}
+                    />
+                  </div>
+                  <p className="mt-2 text-[13px] font-light leading-snug">
+                    {isMain
+                      ? "Your main card is always public — it's how people find you."
+                      : isPublic
+                        ? "Public — people you've connected with can see this card behind your others, and find it in search."
+                        : "Private — reachable only by its direct link or QR. Kept off your profile and out of search."}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </section>
 
       <section className="mt-10 max-w-xs">

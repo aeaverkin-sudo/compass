@@ -16,7 +16,7 @@ import {
 } from "@/shared/services/portfolio-limits";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
-import { ensureCardIdentity, scheduleCardUpsert } from "@/shared/services/card-sync";
+import { ensureCardIdentity, scheduleCardUpsert, writeCardListed } from "@/shared/services/card-sync";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
   deleteItemRow,
@@ -46,6 +46,8 @@ interface AppState {
   markEmptyFillHintSeen: () => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
+  /** Public/Private. The first card stays public. A new second card is created private. */
+  setCardListed: (id: string, listed: boolean) => void;
   updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>) => void;
   /** Add an empty draft to the library pool (not bound to any card). One draft at a time. */
   addContactItem: () => string | null;
@@ -118,6 +120,7 @@ export const useAppStore = create<AppState>()(
           qrVersion: existing?.qrVersion ?? 1,
           contactItemIds: existing?.contactItemIds ?? [],
           itemOrderManual: existing?.itemOrderManual,
+          listed: existing?.listed ?? true,
           nextScanAddons: existing?.nextScanAddons ?? [],
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
@@ -159,6 +162,17 @@ export const useAppStore = create<AppState>()(
         });
         scheduleCardUpsert(next);
         if ("nextScanAddons" in data) scheduleNotesSync(next);
+      },
+
+      setCardListed: (id, listed) => {
+        const cards = get().cards;
+        if (cards[0]?.id === id && !listed) return;
+        const current = cards.find((card) => card.id === id);
+        if (!current || current.listed === listed) return;
+        set({
+          cards: cards.map((card) => (card.id === id ? { ...card, listed } : card)),
+        });
+        writeCardListed(id, listed);
       },
 
       addContactItem: () => {
@@ -323,6 +337,7 @@ export const useAppStore = create<AppState>()(
             qrVersion: 1,
             contactItemIds: [],
             nextScanAddons: [],
+            listed: false,
             createdAt: now,
             updatedAt: now,
           });
