@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { ConsentLine } from "@/shared/components/consent-line";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
@@ -260,10 +259,7 @@ export function RegisterScreen() {
           type="button"
           disabled={busy || !accepted}
           onClick={() => void continueWithGoogle()}
-          className={cn(
-            "mt-2 min-w-[160px] self-start border border-[#111] px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase",
-            accepted ? "bg-sky" : "bg-transparent",
-          )}
+          className="mt-2 min-w-[160px] self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
         >
           Continue with Google
         </button>
@@ -341,10 +337,7 @@ export function RegisterScreen() {
         <button
           type="submit"
           disabled={busy || !accepted}
-          className={cn(
-            "mt-6 min-w-[160px] self-start border border-[#111] px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase",
-            accepted ? "bg-sky" : "bg-transparent",
-          )}
+          className="mt-6 min-w-[160px] self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
         >
           {branch === "login" ? (hasCard ? "Sign in without merging" : "Sign in") : "Continue"}
         </button>
