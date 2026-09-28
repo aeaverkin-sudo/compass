@@ -27,7 +27,9 @@ export function MainScreen() {
   const updateCard = useAppStore((state) => state.updateCard);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
   const emptyFillHintSeen = useAppStore((state) => state.user.emptyFillHintSeen);
+  const passwordHintSeen = useAppStore((state) => state.user.passwordHintSeen);
   const markEmptyFillHintSeen = useAppStore((state) => state.markEmptyFillHintSeen);
+  const markPasswordHintSeen = useAppStore((state) => state.markPasswordHintSeen);
   const [editing, setEditing] = useState(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
   const openAddRef = useRef<(() => void) | null>(null);
@@ -36,7 +38,9 @@ export function MainScreen() {
   const frozen = account?.frozen === true;
   const needsAccount = account !== null && !account.registered;
   const [gate, setGate] = useState<{ text: string; nonce: number } | null>(null);
+  const [passwordHint, setPasswordHint] = useState(false);
   const clearGate = useCallback(() => setGate(null), []);
+  const dismissPasswordHint = useCallback(() => setPasswordHint(false), []);
   const showGate = useCallback((text: string) => setGate({ text, nonce: Date.now() }), []);
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
@@ -52,6 +56,13 @@ export function MainScreen() {
       setComposeOnMount(false);
     }
   }, [cards, currentCardIndex, frozen]);
+
+  useEffect(() => {
+    if (composing || passwordHintSeen || passwordHint) return;
+    if (!account?.registered || account.provider !== "email") return;
+    markPasswordHintSeen();
+    setPasswordHint(true);
+  }, [account, composing, markPasswordHintSeen, passwordHint, passwordHintSeen]);
 
   useEffect(() => {
     const first = cards[0];
@@ -147,15 +158,8 @@ export function MainScreen() {
         </p>
       ) : null}
 
-      {account?.registered && !composing ? (
-        <p
-          className="absolute inset-x-6 z-30 text-center text-[13px] font-light text-[#111]"
-          style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
-        >
-          <Link href="/account/password" className="underline">
-            Password
-          </Link>
-        </p>
+      {passwordHint && !composing ? (
+        <InfoNotice text="You can change your password in Profile." onDone={dismissPasswordHint} />
       ) : null}
 
       {gate ? <GateNotice text={gate.text} nonce={gate.nonce} onDone={clearGate} /> : null}
@@ -232,6 +236,30 @@ export function MainScreen() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+function InfoNotice({ text, onDone }: { text: string; onDone: () => void }) {
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const appear = window.requestAnimationFrame(() => setShown(true));
+    const fade = window.setTimeout(() => setShown(false), 5000);
+    const done = window.setTimeout(onDone, 6200);
+    return () => {
+      window.cancelAnimationFrame(appear);
+      window.clearTimeout(fade);
+      window.clearTimeout(done);
+    };
+  }, [onDone]);
+
+  return (
+    <p
+      className="pointer-events-none absolute top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center text-[16px] font-normal leading-snug text-[#111] transition-opacity duration-1000 ease-out"
+      style={{ opacity: shown ? 1 : 0 }}
+    >
+      {text}
+    </p>
   );
 }
 

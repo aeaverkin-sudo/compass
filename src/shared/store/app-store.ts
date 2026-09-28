@@ -44,6 +44,7 @@ interface AppState {
   completeOnboarding: (payload: OnboardingPayload) => void;
   markMainIntroSeen: () => void;
   markEmptyFillHintSeen: () => void;
+  markPasswordHintSeen: () => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
   /** Public/Private. The first card stays public. A new second card is created private. */
@@ -142,6 +143,11 @@ export const useAppStore = create<AppState>()(
       markEmptyFillHintSeen: () => {
         if (get().user.emptyFillHintSeen) return;
         set({ user: { ...get().user, emptyFillHintSeen: true } });
+      },
+
+      markPasswordHintSeen: () => {
+        if (get().user.passwordHintSeen) return;
+        set({ user: { ...get().user, passwordHintSeen: true } });
       },
 
       setCurrentCardIndex: (index) => {

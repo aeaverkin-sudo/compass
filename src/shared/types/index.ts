@@ -100,5 +100,7 @@ export interface User {
   mainIntroSeen: boolean;
   /** True after the first empty card's blue hint has been used. */
   emptyFillHintSeen?: boolean;
+  /** True once the one-time password reminder has been shown on the portfolio. */
+  passwordHintSeen?: boolean;
   shareToken: string;
 }
