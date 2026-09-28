@@ -11,7 +11,6 @@ import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
-import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { AddOverlay } from "./add-overlay";
 
 const HOLD_MS = 500;
@@ -19,6 +18,36 @@ const OFF_CARD = "#C8C8C8";
 const DELETE_RED = "#E23B2F";
 /** The row field grows upward to this height, then scrolls inside. */
 const FIELD_MAX_PX = 120;
+/** A keyboard is at least this tall; smaller viewport changes are the browser chrome. */
+const KEYBOARD_MIN_PX = 120;
+
+/** Padding that keeps an edited row on the keyboard. Does not move the page. */
+function useRowKeyboardInset(active: boolean) {
+  const [inset, setInset] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+    const viewport = window.visualViewport;
+    let remembered = 0;
+    const sync = () => {
+      if (!viewport) return;
+      const offset = Math.max(0, viewport.offsetTop);
+      const overlap = Math.max(0, window.innerHeight - offset - viewport.height);
+      if (offset < 2 && overlap > KEYBOARD_MIN_PX) remembered = overlap;
+      setInset(remembered > 0 ? remembered : overlap);
+    };
+    sync();
+    viewport?.addEventListener("resize", sync);
+    viewport?.addEventListener("scroll", sync);
+    return () => {
+      viewport?.removeEventListener("resize", sync);
+      viewport?.removeEventListener("scroll", sync);
+      setInset(0);
+    };
+  }, [active]);
+
+  return inset;
+}
 
 type EditSection = {
   id: CardZoneId;
@@ -371,7 +400,7 @@ function EditRow({
   const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLTextAreaElement>(null);
-  const dockBottom = useKeyboardDock(editing);
+  const dockBottom = useRowKeyboardInset(editing);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
