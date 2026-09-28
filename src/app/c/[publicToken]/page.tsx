@@ -22,7 +22,7 @@ export default async function PublicCardPage({ params }: PageProps) {
   if (loaded.inactive) {
     return (
       <main className="compass-main flex min-h-lvh flex-col items-center justify-center bg-white px-8">
-        <p className="text-center text-[18px] font-light text-[#111]">Card inactive</p>
+        <p className="text-center text-[18px] font-light text-[#111]">Portfolio inactive</p>
         <Link href="/register" className="mt-6 text-[13px] font-light text-[#111] underline">
           Create your profile
         </Link>
