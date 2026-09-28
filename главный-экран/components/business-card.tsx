@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import { Lock, Plus, Share } from "lucide-react";
+import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
@@ -384,35 +384,15 @@ function CardShareFooter({
   className,
   onShare,
   onPrepareShare,
-  listed,
-  listedLocked,
-  onListedChange,
 }: {
   name: string;
   className?: string;
   onShare?: () => void;
   onPrepareShare?: () => void;
-  listed?: boolean;
-  listedLocked?: boolean;
-  onListedChange?: (listed: boolean) => void;
 }) {
-  const isPublic = listed !== false;
   return (
     <footer className={cn("flex items-end justify-between", className)}>
       <div>
-        {onListedChange ? (
-          <button
-            type="button"
-            data-card-content
-            data-no-swipe
-            disabled={listedLocked}
-            onClick={() => onListedChange(!isPublic)}
-            className="mb-1 inline-flex items-center gap-1 text-[9.5px] leading-none font-normal tracking-[0.08em] uppercase disabled:opacity-100"
-          >
-            {isPublic ? "Public" : "Private"}
-            {isPublic ? null : <Lock className="size-3" strokeWidth={1.5} aria-hidden />}
-          </button>
-        ) : null}
         <p className="text-[9.5px] leading-[1.15] font-normal tracking-[0.08em] uppercase">
           {name || "Name"}
           <br />
@@ -455,9 +435,6 @@ type BusinessCardProps = {
   readOnly?: boolean;
   /** Frozen trial: the card stays visible, share is closed. */
   frozen?: boolean;
-  /** Owner only. Omitted on the public /c/ page. */
-  listedLocked?: boolean;
-  onListedChange?: (listed: boolean) => void;
   /** One-time notes delivered to the first real viewer. */
   deliveredNotes?: DeliveredNote[];
 };
@@ -480,8 +457,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onComposingChange,
     readOnly = false,
     frozen = false,
-    listedLocked = false,
-    onListedChange,
     deliveredNotes = [],
   },
   ref,
@@ -779,9 +754,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           name={card.displayName}
           onShare={card.publicToken && !frozen ? handleShare : undefined}
           onPrepareShare={card.publicToken && !frozen ? primeShare : undefined}
-          listed={card.listed}
-          listedLocked={listedLocked}
-          onListedChange={readOnly ? undefined : onListedChange}
           className="mt-auto shrink-0 pt-6"
         />
       ) : null}

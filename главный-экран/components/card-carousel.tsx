@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
-import { isSolePublic, useAppStore } from "@/shared/store/app-store";
+import { useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import type { Card, ContactItem } from "@/shared/types";
 import { cn } from "@/lib/utils";
@@ -348,12 +348,6 @@ export function CardCarousel({
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
       frozen={frozen}
-      listedLocked={isSolePublic(cards, card.id)}
-      onListedChange={
-        needsAccount || card.id === ADD_SLIDE_ID
-          ? undefined
-          : (listed) => useAppStore.getState().setCardListed(card.id, listed)
-      }
     />
   );
 
@@ -410,10 +404,6 @@ export function CardCarousel({
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}
         frozen={frozen}
-        listedLocked={isSolePublic(cards, activeCard.id)}
-        onListedChange={
-          needsAccount ? undefined : (listed) => useAppStore.getState().setCardListed(activeCard.id, listed)
-        }
       />
     );
   }
