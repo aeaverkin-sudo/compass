@@ -13,7 +13,6 @@ import type { Card, ContactItem } from "@/shared/types";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { openContactFilePicker, openContactPhotoPicker } from "@landing/components/photo-input-utils";
-import { WrapField, type WrapFieldHandle } from "./wrap-field";
 
 const HOLD_MS = 500;
 const OFF_CARD = "#C8C8C8";
@@ -521,8 +520,11 @@ function EditRow({
   onConfirm: (next: string) => void;
   onErase: () => void;
 }) {
+  const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
-  const editorRef = useRef<WrapFieldHandle>(null);
+  const dockRef = useRef<HTMLTextAreaElement>(null);
+  const dockBottom = useKeyboardDock(editing);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
@@ -561,53 +563,93 @@ function EditRow({
     });
   };
 
+  useLayoutEffect(() => {
+    if (!editing) return;
+    const rect = rowRef.current?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: Math.max(0, rect.width - 26) });
+    dockRef.current?.focus({ preventScroll: true });
+  }, [editing]);
+
+  useLayoutEffect(() => {
+    const field = dockRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
+  }, [draft, editing]);
+
   return (
-    <div className={cn("relative min-w-0", holding && "opacity-40")}>
-      {editing ? (
-        <WrapField
-          ref={editorRef}
-          initial={draft}
-          label="Edit row"
-          autoFocus
-          className="text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]"
-          onTextChange={(next) => {
-            if (!next.trim()) onErase();
-          }}
-          onDone={onConfirm}
-          onBlur={(next) => {
-            if (Date.now() - openedAt.current < 700) {
-              editorRef.current?.focusEnd();
-              return;
-            }
-            onConfirm(next);
-          }}
-        />
-      ) : (
-        <div
-          ref={fieldRef}
-          aria-label={text}
-          data-no-swipe
-          className="mr-[26px] block min-w-0 overflow-hidden text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap select-none"
-          style={{ color: onCard ? "#111" : OFF_CARD }}
-          onPointerDown={(event) => {
-            if (deleteReady) return;
-            pressedLong.current = false;
-            setHolding(true);
-            longPress.onPointerDown(event);
-          }}
-          onPointerMove={longPress.onPointerMove}
-          onPointerUp={(event) => {
-            release();
-            if (pressedLong.current || deleteReady) return;
-            if (!(event.target instanceof Node) || !fieldRef.current?.contains(event.target)) return;
-            beginEdit();
-          }}
-          onPointerCancel={release}
-          onContextMenu={longPress.onContextMenu}
-        >
-          {text}
-        </div>
-      )}
+    <div ref={rowRef} className={cn("relative min-w-0", holding && "opacity-40")}>
+      <div
+        ref={fieldRef}
+        aria-label={text}
+        data-no-swipe
+        className={cn(
+          "mr-[26px] block min-w-0 overflow-hidden text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap select-none",
+          editing && "pointer-events-none",
+        )}
+        style={{ color: onCard ? "#111" : OFF_CARD }}
+        onPointerDown={(event) => {
+          if (editing || deleteReady) return;
+          pressedLong.current = false;
+          setHolding(true);
+          longPress.onPointerDown(event);
+        }}
+        onPointerMove={longPress.onPointerMove}
+        onPointerUp={(event) => {
+          release();
+          if (editing || pressedLong.current || deleteReady) return;
+          if (!(event.target instanceof Node) || !fieldRef.current?.contains(event.target)) return;
+          beginEdit();
+        }}
+        onPointerCancel={release}
+        onContextMenu={longPress.onContextMenu}
+      >
+        {text}
+      </div>
+      {editing
+        ? createPortal(
+            <div
+              data-no-swipe
+              className="fixed inset-x-0 bottom-0 z-50 bg-white"
+              style={{ paddingBottom: dockBottom }}
+            >
+              <div style={{ marginLeft: frame.left, width: frame.width }}>
+                <textarea
+                  ref={dockRef}
+                  rows={1}
+                  value={draft}
+                  aria-label="Edit row"
+                  enterKeyHint="done"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-no-swipe
+                  onChange={(event) => {
+                    const next = event.target.value.replace(/\s*\n\s*/g, " ");
+                    setDraft(next);
+                    if (!next.trim()) onErase();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    onConfirm(event.currentTarget.value.replace(/\s*\n\s*/g, " "));
+                  }}
+                  onBlur={(event) => {
+                    const next = event.currentTarget.value.replace(/\s*\n\s*/g, " ");
+                    if (!next.trim()) return;
+                    if (Date.now() - openedAt.current < 700) {
+                      dockRef.current?.focus({ preventScroll: true });
+                      return;
+                    }
+                    onConfirm(next);
+                  }}
+                  className="compass-input block w-full resize-none overflow-y-auto border-b-[0.5px] border-[#111] bg-transparent py-2 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+                />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       {fades && !editing ? (
         <span
           aria-hidden
