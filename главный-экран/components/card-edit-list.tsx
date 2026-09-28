@@ -261,9 +261,11 @@ function AddLine({
   );
   const anchorRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const picking = useRef(false);
   const openedAt = useRef(0);
+  const closedRef = useRef(false);
   const dockBottom = useKeyboardDock(open, true);
   const filePhoto = fileItem ? itemPhotoSrc(fileItem) : null;
 
@@ -272,6 +274,7 @@ function AddLine({
     const rect = anchorRef.current?.getBoundingClientRect();
     if (rect) setFrame({ left: rect.left, width: rect.width });
     openedAt.current = Date.now();
+    closedRef.current = false;
     setError(null);
     setOpen(true);
     onOpenChange(true);
@@ -326,6 +329,8 @@ function AddLine({
   };
 
   const close = () => {
+    if (closedRef.current) return;
+    closedRef.current = true;
     commit();
     setText("");
     setFileItemId(null);
@@ -333,15 +338,22 @@ function AddLine({
     onOpenChange(false);
   };
 
-  // No tap may take focus from the field: the keyboard, the line and the caret stay put
-  // (closing the attach menu included). Only Done leaves the line.
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  });
+
+  // A tap anywhere but the writing row leaves the line and brings the list back.
   useEffect(() => {
     if (!open) return;
-    const keepFocus = (event: MouseEvent) => {
-      if (event.target !== fieldRef.current) event.preventDefault();
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (rowRef.current?.contains(target)) return;
+      closeRef.current();
     };
-    document.addEventListener("mousedown", keepFocus, true);
-    return () => document.removeEventListener("mousedown", keepFocus, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [open]);
 
   // iOS may hand focus around while the keyboard settles or a full-screen picker is up;
@@ -398,7 +410,7 @@ function AddLine({
             >
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
-                <div className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
+                <div ref={rowRef} className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
                   {filePhoto ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={filePhoto} alt="" className="size-10 shrink-0 object-cover" />
@@ -427,6 +439,15 @@ function AddLine({
                     autoCapitalize="off"
                     spellCheck={false}
                     data-no-swipe
+                    onPointerDown={() => {
+                      const field = fieldRef.current;
+                      const vv = window.visualViewport;
+                      if (!field || !vv) return;
+                      const overlap = window.innerHeight - vv.offsetTop - vv.height;
+                      if (overlap > 120) return;
+                      field.blur();
+                      field.focus({ preventScroll: true });
+                    }}
                     onChange={(event) => {
                       setText(event.target.value.replace(/\s*\n\s*/g, " "));
                       setError(null);
