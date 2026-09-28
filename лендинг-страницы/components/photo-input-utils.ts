@@ -1,6 +1,7 @@
 import {
   detectAttachmentType,
   PORTFOLIO_FILE_ACCEPT,
+  PORTFOLIO_GALLERY_ACCEPT,
 } from "@/shared/services/portfolio-catalog";
 import {
   HIDDEN_INPUT,
@@ -81,9 +82,9 @@ function openPreparedAttachment(accept: string, onPhoto: PhotoHandler, onDismiss
   );
 }
 
-/** Photo library. The line's own menu chooses this, not the mixed Apple sheet. */
+/** Photo extensions. `image/*` is what makes iOS show Photo Library / Take Photo / Choose File. */
 export function openContactPhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openPreparedAttachment("image/*", onPhoto, onDismiss);
+  openPreparedAttachment(PORTFOLIO_GALLERY_ACCEPT, onPhoto, onDismiss);
 }
 
 /** Documents and media, without photos. */
