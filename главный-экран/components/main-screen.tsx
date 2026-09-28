@@ -235,6 +235,19 @@ export function MainScreen() {
   );
 }
 
+function NoticeText({ text }: { text: string }) {
+  const mark = "here";
+  const index = text.lastIndexOf(mark);
+  if (index === -1) return text;
+  return (
+    <>
+      {text.slice(0, index)}
+      <span className="underline">{mark}</span>
+      {text.slice(index + mark.length)}
+    </>
+  );
+}
+
 function GateNotice({ text, nonce, onDone }: { text: string; nonce: number; onDone: () => void }) {
   const [fading, setFading] = useState(false);
 
@@ -251,10 +264,10 @@ function GateNotice({ text, nonce, onDone }: { text: string; nonce: number; onDo
   return (
     <Link
       href="/register"
-      className="absolute top-1/2 left-1/2 z-40 max-w-[240px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center text-[14px] font-light leading-snug text-[#111] transition-opacity duration-[1500ms] ease-out"
+      className="absolute top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center text-[16px] font-normal leading-snug text-[#111] transition-opacity duration-[1500ms] ease-out"
       style={{ opacity: fading ? 0 : 1 }}
     >
-      {text}
+      <NoticeText text={text} />
     </Link>
   );
 }
