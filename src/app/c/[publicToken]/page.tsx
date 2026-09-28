@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicCardClient } from "@main/components/public-card-client";
 import { loadPublicCard, logPublicCardOpen } from "@/shared/services/public-card";
@@ -20,8 +21,11 @@ export default async function PublicCardPage({ params }: PageProps) {
   if (!loaded) notFound();
   if (loaded.inactive) {
     return (
-      <main className="compass-main flex min-h-lvh items-center justify-center bg-white px-8">
+      <main className="compass-main flex min-h-lvh flex-col items-center justify-center bg-white px-8">
         <p className="text-center text-[18px] font-light text-[#111]">Визитка неактивна</p>
+        <Link href="/register" className="mt-6 text-[13px] font-light text-[#111] underline">
+          Создать свой профиль
+        </Link>
       </main>
     );
   }

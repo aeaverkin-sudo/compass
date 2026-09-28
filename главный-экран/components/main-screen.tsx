@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { BOTTOM_PLATE_LOWER_PX, carouselSidePaddingPx, layoutTop, SHEET_INSET, TOP_VEIL_PX } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -31,6 +32,8 @@ export function MainScreen() {
   const [composing, setComposing] = useState(false);
   const account = useAccountStatus();
   const frozen = account?.frozen === true;
+  const needsAccount = account !== null && !account.registered;
+  const [accountWall, setAccountWall] = useState(false);
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
   const shownCard = cards[currentCardIndex] ?? null;
@@ -114,10 +117,48 @@ export function MainScreen() {
 
       {frozen && !composing ? (
         <p
-          className="pointer-events-none absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
+          className="absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
           style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
         >
-          Данные заморожены. Зарегистрируйтесь, чтобы вернуть визитку.
+          Данные заморожены.{" "}
+          <Link href="/register" className="underline">
+            Зарегистрируйтесь, чтобы вернуть визитку.
+          </Link>
+        </p>
+      ) : null}
+
+      {account?.trial && !frozen && !composing ? (
+        <p
+          className="absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
+          style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
+        >
+          Пробный период, осталось {account.hoursLeft} ч.{" "}
+          <Link href="/register" className="underline">
+            Register now
+          </Link>
+        </p>
+      ) : null}
+
+      {account?.registered && !composing ? (
+        <p
+          className="absolute inset-x-6 z-30 text-center text-[13px] font-light text-[#111]"
+          style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
+        >
+          <Link href="/account/password" className="underline">
+            Password
+          </Link>
+        </p>
+      ) : null}
+
+      {accountWall ? (
+        <p
+          className="absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
+          style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 88px)" }}
+        >
+          Need an account.{" "}
+          <Link href="/register" className="underline">
+            Register
+          </Link>
         </p>
       ) : null}
 
@@ -126,8 +167,15 @@ export function MainScreen() {
           centerYpx={layout.browseMenuCenterY}
           insetPx={browseCarousel ? carouselSidePaddingPx(window.innerWidth, true) : edgeInsetBrowse}
           editing={editing}
+          onNetwork={() => {
+            if (needsAccount) setAccountWall(true);
+          }}
           onEdit={() => {
             if (frozen) return;
+            if (needsAccount && !cards[currentCardIndex]) {
+              setAccountWall(true);
+              return;
+            }
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
             setComposeOnMount(false);
             setEditing(true);
@@ -162,6 +210,7 @@ export function MainScreen() {
             openAddRef={openAddRef}
             onComposingChange={onComposingChange}
             frozen={frozen}
+            needsAccount={needsAccount}
             onFill={(cardId) => {
               if (frozen) return;
               const index = cards.findIndex((card) => card.id === cardId);

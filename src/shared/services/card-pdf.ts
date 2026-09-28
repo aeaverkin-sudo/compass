@@ -505,6 +505,19 @@ export async function generatePublicCardPdf(input: PublicCardPdfInput): Promise<
     const liveUrl = `${input.origin}/c/${token}`;
     const qr = await embedLiveQr(doc, liveUrl);
     drawInvitation(cursor, name, liveUrl, qr);
+    const registerUrl = `${input.origin}/register`;
+    const label = "Create your profile";
+    ensureSpace(cursor, 28);
+    const labelWidth = Math.min(cursor.font.widthOfTextAtSize(label, 11), CONTENT_W);
+    cursor.page.drawText(label, {
+      x: MARGIN,
+      y: cursor.y - 16,
+      size: 11,
+      font: cursor.font,
+      color: INK,
+    });
+    addUriLink(cursor.page, registerUrl, MARGIN, cursor.y - 18, labelWidth, 16);
+    cursor.y -= 28;
   }
 
   return doc.save();

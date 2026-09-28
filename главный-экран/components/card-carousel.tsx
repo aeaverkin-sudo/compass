@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import Link from "next/link";
 import { useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import type { Card, ContactItem } from "@/shared/types";
@@ -34,6 +35,8 @@ type CardCarouselProps = {
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
   frozen?: boolean;
+  /** Trial: the extra card is a register wall, not a second card. */
+  needsAccount?: boolean;
 };
 
 function CarouselSpacer({ width }: { width: number }) {
@@ -70,6 +73,7 @@ export function CardCarousel({
   openAddRef,
   onComposingChange,
   frozen = false,
+  needsAccount = false,
 }: CardCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
@@ -308,6 +312,19 @@ export function CardCarousel({
   );
 
   const renderSlide = (slideId: string, index: number) => {
+    if (slideId === ADD_SLIDE_ID && needsAccount) {
+      return (
+        <div className="flex min-h-[40vh] items-center px-6">
+          <p className="text-[16px] font-light leading-snug text-[#111]">
+            Need an account.{" "}
+            <Link href="/register" className="underline">
+              Register
+            </Link>
+          </p>
+        </div>
+      );
+    }
+
     if (slideId === ADD_SLIDE_ID) {
       const draft = cards[1] ?? EMPTY_DRAFT;
       return renderCard(

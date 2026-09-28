@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { BusinessCard } from "@main/components/business-card";
 import type { Card, ContactItem } from "@/shared/types";
@@ -35,12 +36,19 @@ export function PublicCardClient({ card, items, publicToken }: PublicCardClientP
   }, [publicToken]);
 
   return (
-    <BusinessCard
-      card={card}
-      library={items}
-      mode="browse"
-      readOnly
-      deliveredNotes={notes}
-    />
+    <>
+      <BusinessCard
+        card={card}
+        library={items}
+        mode="browse"
+        readOnly
+        deliveredNotes={notes}
+      />
+      <p className="px-8 py-8 text-center">
+        <Link href="/register" className="text-[13px] font-light text-[#111] underline">
+          Создать свой профиль
+        </Link>
+      </p>
+    </>
   );
 }
