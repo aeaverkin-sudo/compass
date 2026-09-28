@@ -432,7 +432,7 @@ function AddLine({
                               className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] transition-opacity active:opacity-60"
                             >
                               <Camera className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
-                              Add a photo
+                              Photos
                             </button>
                             <button
                               type="button"
@@ -441,7 +441,7 @@ function AddLine({
                               className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] transition-opacity active:opacity-60"
                             >
                               <FileText className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
-                              Add a file
+                              Files
                             </button>
                           </div>
                         </>
