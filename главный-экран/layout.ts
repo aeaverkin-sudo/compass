@@ -28,8 +28,8 @@ export const HEADER_RHYTHM_PX = (HEADER_SLOT_PX - BROWSE_QR_SIZE) / 2;
 /** Browse card bottom ≈ this % of viewport (green mockup outline). */
 export const CARD_BOTTOM_TARGET_LVH = 73;
 
-/** Trim browse card bottom edge (px; negative extends downward). −84, then 2mm lower. */
-export const CARD_BOTTOM_RAISE_PX = -84 - (96 / 25.4) * 2;
+/** Trim browse card bottom edge (px; negative extends downward). −84, then 4mm lower so the sky band is 2mm shorter. */
+export const CARD_BOTTOM_RAISE_PX = -84 - (96 / 25.4) * 4;
 
 /** Drop of the dots and OK. The card stays. */
 export const BOTTOM_PLATE_DROP_PX = (96 / 25.4) * 3;
