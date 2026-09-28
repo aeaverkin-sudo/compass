@@ -501,15 +501,20 @@ function EditRow({
   useLayoutEffect(() => {
     const field = fieldRef.current;
     if (!field) return;
-    const measure = () => {
+    const pin = () => {
+      if (field.scrollLeft !== 0) field.scrollLeft = 0;
       const next = field.scrollWidth > field.clientWidth + 1;
       setFades((current) => (current === next ? current : next));
     };
-    measure();
-    const observer = new ResizeObserver(measure);
+    pin();
+    field.addEventListener("scroll", pin);
+    const observer = new ResizeObserver(pin);
     observer.observe(field);
-    return () => observer.disconnect();
-  }, [editing, value]);
+    return () => {
+      field.removeEventListener("scroll", pin);
+      observer.disconnect();
+    };
+  }, [editing, text, value]);
 
   const beginEdit = () => {
     openedAt.current = Date.now();
@@ -541,7 +546,7 @@ function EditRow({
         aria-label={text}
         data-no-swipe
         className={cn(
-          "mr-[26px] block min-w-0 overflow-clip text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap select-none",
+          "mr-[26px] block min-w-0 overflow-hidden text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap text-clip select-none",
           editing && "invisible pointer-events-none",
         )}
         style={{ color: onCard ? "#111" : OFF_CARD }}
