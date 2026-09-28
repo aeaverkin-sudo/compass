@@ -72,7 +72,7 @@ export function RegisterScreen() {
 
   const hasCard = serverHasCard || deviceHasCard(cards);
   const mergeWarning = hasCard
-    ? "This device already has a card. Signing in will not merge it into the existing account."
+    ? "This device already has a portfolio. Signing in will not merge it into the existing account."
     : null;
 
   const requireConsent = () => {

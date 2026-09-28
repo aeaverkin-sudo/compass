@@ -523,7 +523,7 @@ export async function generatePublicCardPdf(input: PublicCardPdfInput): Promise<
   return doc.save();
 }
 
-/** Safe download name. Cyrillic and emoji become empty slots; empty → card.pdf. */
+/** Safe download name. Cyrillic and emoji become empty slots; empty → portfolio.pdf. */
 export function cardPdfFilename(displayName: string) {
   const ascii = displayName
     .replace(/\n/g, " ")
@@ -533,7 +533,7 @@ export function cardPdfFilename(displayName: string) {
     .replace(/[-\s]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
-  return `${ascii || "card"}.pdf`;
+  return `${ascii || "portfolio"}.pdf`;
 }
 
 /** One page for a frozen trial. The public card is not in this file. */
@@ -543,7 +543,7 @@ export async function generateInactiveCardPdf(): Promise<Uint8Array> {
   doc.registerFontkit(fontkit);
   const font = await doc.embedFont(regular, { subset: true });
   const page = doc.addPage([PAGE_W, PAGE_H]);
-  page.drawText("Card inactive", {
+  page.drawText("Portfolio inactive", {
     x: MARGIN,
     y: PAGE_H / 2,
     size: 18,

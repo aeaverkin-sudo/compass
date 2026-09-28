@@ -76,7 +76,7 @@ export async function POST(request: Request, context: RouteProps) {
     return new NextResponse(Buffer.from(bytes), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": 'attachment; filename="card-inactive.pdf"',
+        "Content-Disposition": 'attachment; filename="portfolio-inactive.pdf"',
         "Cache-Control": "no-store",
       },
     });

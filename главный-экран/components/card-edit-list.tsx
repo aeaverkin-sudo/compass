@@ -73,7 +73,7 @@ function RowMark({
     <button
       type="button"
       data-no-swipe
-      aria-label={onCard ? "Remove from card" : "Add to card"}
+      aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
       onClick={() => {
         if (onCard) onRemove();
         else onAdd();

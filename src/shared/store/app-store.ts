@@ -166,9 +166,9 @@ export const useAppStore = create<AppState>()(
 
       setCardListed: (id, listed) => {
         const cards = get().cards;
-        if (cards[0]?.id === id && !listed) return;
         const current = cards.find((card) => card.id === id);
         if (!current || current.listed === listed) return;
+        if (!listed && isSolePublic(cards, id)) return;
         set({
           cards: cards.map((card) => (card.id === id ? { ...card, listed } : card)),
         });
@@ -200,7 +200,7 @@ export const useAppStore = create<AppState>()(
       updateContactItemAttachment: (cardId, itemId, file, dataUrl) => {
         const { cards, contactItems } = get();
         const card = cards.find((entry) => entry.id === cardId);
-        if (!card) return { ok: false, message: "Card not found." };
+        if (!card) return { ok: false, message: "Portfolio not found." };
 
         const attachmentType = detectAttachmentType(file);
         const validation = validatePortfolioAttachment(
@@ -322,38 +322,28 @@ export const useAppStore = create<AppState>()(
 
       updateSecondCardDraft: (data) => {
         const { cards } = get();
-        if (cards.length === 0) return;
+        if (cards.length === 0 || cards.length >= MAX_CARDS) return;
 
         const now = new Date().toISOString();
+        const next = ensureCardIdentity({
+          id: crypto.randomUUID(),
+          displayName: data.displayName ?? "",
+          photo: data.photo,
+          photoAttachmentId: data.photoAttachmentId,
+          title: "",
+          status: "draft",
+          publicToken: "",
+          qrVersion: 1,
+          contactItemIds: [],
+          nextScanAddons: [],
+          listed: false,
+          createdAt: now,
+          updatedAt: now,
+        });
 
-        if (cards.length < 2) {
-          const next = ensureCardIdentity({
-            id: crypto.randomUUID(),
-            displayName: data.displayName ?? "",
-            photo: data.photo,
-            title: "",
-            status: "draft",
-            publicToken: "",
-            qrVersion: 1,
-            contactItemIds: [],
-            nextScanAddons: [],
-            listed: false,
-            createdAt: now,
-            updatedAt: now,
-          });
-
-          set({
-            cards: [...cards, next],
-            currentCardIndex: 1,
-          });
-          scheduleCardUpsert(next);
-          return;
-        }
-
-        const second = cards[1]!;
-        const next = ensureCardIdentity({ ...second, ...data, updatedAt: now });
         set({
-          cards: cards.map((card) => (card.id === second.id ? next : card)),
+          cards: [...cards, next],
+          currentCardIndex: cards.length,
         });
         scheduleCardUpsert(next);
       },
@@ -414,6 +404,13 @@ export function selectActiveCard(cards: Card[], currentCardIndex: number): Card 
 
 export function canAddMoreCards(cards: Card[]): boolean {
   return cards.length > 0 && cards.length < MAX_CARDS;
+}
+
+/** True when this portfolio is public and no other portfolio is. */
+export function isSolePublic(cards: Card[], id: string): boolean {
+  const card = cards.find((entry) => entry.id === id);
+  if (!card || card.listed === false) return false;
+  return cards.filter((entry) => entry.listed !== false).length === 1;
 }
 
 export function isCardReady(card: Card | null): card is Card {

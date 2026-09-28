@@ -11,7 +11,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
-import { useAppStore } from "@/shared/store/app-store";
+import { isSolePublic, useAppStore } from "@/shared/store/app-store";
 
 function storageLine(used: number, limit: number) {
   const asMegabytes = (bytes: number) => {
@@ -60,7 +60,7 @@ export function ProfileScreen() {
     return (
       <main className="compass-main min-h-lvh overflow-y-auto bg-white px-8 py-12 text-[#111]">
         <Link href="/main" className="text-[13px] font-light underline">
-          Card
+          Back to portfolio
         </Link>
         <h1 className="mt-6 text-[32px] font-light leading-tight">Profile</h1>
         {!account ? (
@@ -86,7 +86,7 @@ export function ProfileScreen() {
   return (
     <main className="compass-main min-h-lvh overflow-y-auto bg-white px-8 py-12 text-[#111]">
       <Link href="/main" className="text-[13px] font-light underline">
-        Card
+        Back to portfolio
       </Link>
       <h1 className="mt-6 text-[32px] font-light leading-tight">Profile</h1>
 
@@ -112,11 +112,11 @@ export function ProfileScreen() {
       </section>
 
       <section className="mt-10 max-w-sm">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">My Cards</h2>
+        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Portfolios</h2>
         <ul className="mt-4 space-y-6">
-          {cards.map((card, index) => {
-            const isMain = index === 0;
-            const isPublic = isMain || card.listed !== false;
+          {cards.map((card) => {
+            const isPublic = card.listed !== false;
+            const locked = isSolePublic(cards, card.id);
             const photo = cardPhotoSrc(card);
             return (
               <li key={card.id} className="flex gap-4">
@@ -133,36 +133,38 @@ export function ProfileScreen() {
                     </span>
                     <Switch
                       checked={isPublic}
-                      disabled={isMain}
+                      disabled={locked}
                       onCheckedChange={(checked) => setCardListed(card.id, checked === true)}
                       aria-label={isPublic ? "Public" : "Private"}
+                      className="disabled:opacity-100"
                     />
                   </div>
-                  <p className="mt-2 text-[13px] font-light leading-snug">
-                    {isMain
-                      ? "Your main card is always public — it's how people find you."
-                      : isPublic
-                        ? "Public — people you've connected with can see this card behind your others, and find it in search."
-                        : "Private — reachable only by its direct link or QR. Kept off your profile and out of search."}
+                  {locked ? (
+                    <p className="mt-2 text-[13px] font-light leading-snug">
+                      Your main portfolio is always public — it's how people find you.
+                    </p>
+                  ) : null}
+                  <p className={locked ? "mt-1 text-[13px] font-light leading-snug" : "mt-2 text-[13px] font-light leading-snug"}>
+                    {isPublic
+                      ? "Public — people you've connected with can see this portfolio behind your others, and find it in search."
+                      : "Private — reachable only by its direct link or QR. Kept off your profile and out of search."}
                   </p>
                 </div>
               </li>
             );
           })}
         </ul>
-        {atCardLimit ? (
-          <p className="mt-6 text-[14px] font-light opacity-40">Two cards on Free</p>
-        ) : (
+        {atCardLimit ? null : (
           <button
             type="button"
             className="mt-6 border border-[#111] bg-transparent px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
             onClick={() => {
-              // The column default is public. The second card has to opt out.
+              // The column default is public. A new portfolio has to opt out.
               updateSecondCardDraft({ displayName: "" });
               router.push("/main");
             }}
           >
-            Create card
+            Create portfolio
           </button>
         )}
       </section>

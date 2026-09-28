@@ -68,8 +68,8 @@ export interface Card {
   /** Public QR token (`cards.public_token`). Not the legacy `User.shareToken`. */
   publicToken: string;
   /**
-   * Public when true. The first card stays public.
-   * A later card is created private (`false`) on purpose: the column default is true.
+   * Public when true. At least one portfolio per owner stays public.
+   * A new portfolio is created private (`false`): the column default is true.
    */
   listed?: boolean;
   qrVersion: number;

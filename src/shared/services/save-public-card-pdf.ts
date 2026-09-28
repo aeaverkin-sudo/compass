@@ -78,7 +78,7 @@ async function loadPublicCardPdf(input: CardPdfInput): Promise<ReadyPdf> {
   const blob = await response.blob();
   const filename =
     filenameFromDisposition(response.headers.get("Content-Disposition")) ||
-    `${input.displayName.replace(/\n/g, " ").trim() || "card"}.pdf`;
+    `${input.displayName.replace(/\n/g, " ").trim() || "portfolio"}.pdf`;
   return { blob, filename };
 }
 

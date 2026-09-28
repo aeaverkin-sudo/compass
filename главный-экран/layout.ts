@@ -69,7 +69,7 @@ export const LAYER_TRANSITION_MS = 460;
 /** Visible tail of the next card in browse carousel (keep small — max card size). */
 export const CARD_CAROUSEL_PEEK_PX = 24;
 export const CARD_CAROUSEL_GAP_PX = 8;
-export const MAX_CARDS = 2;
+export const MAX_CARDS = 3;
 
 export function carouselSlideWidthPx(viewportWidth: number, multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
   if (!multiSlide) return viewportWidth - edgeInsetPx * 2;

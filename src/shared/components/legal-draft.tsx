@@ -2,10 +2,10 @@ import Link from "next/link";
 
 const POINTS = [
   "Compass uses AI.",
-  "A card may not be used for anything illegal. That includes pornography, weapons, drugs, resale of prescription medicine, sanctioned goods, and any other illegal use.",
+  "A portfolio may not be used for anything illegal. That includes pornography, weapons, drugs, resale of prescription medicine, sanctioned goods, and any other illegal use.",
   "We store the data securely.",
-  "Do not put sensitive data on a card. A phone number or an Instagram handle is usually already public; sharing it here is voluntary.",
-  "We do not scan every card. We may check one suspicious word or item. We do not review the whole card as a routine.",
+  "Do not put sensitive data on a portfolio. A phone number or an Instagram handle is usually already public; sharing it here is voluntary.",
+  "We do not scan every portfolio. We may check one suspicious word or item. We do not review the whole portfolio as a routine.",
   "We cooperate with the authorities when the law requires it.",
   "We do not sell the data and we do not give it to third parties.",
   "Sign-in is Google, or a starter code sent by email. That code is the password until you change it. You are responsible for keeping the profile secure.",

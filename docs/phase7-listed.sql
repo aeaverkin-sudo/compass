@@ -9,6 +9,11 @@
 -- listed = false → Private. Direct link and QR only.
 -- The first card of each owner stays Public. The database puts it back
 -- if a client tries to turn it off. A later card may be either.
+--
+-- That trigger is replaced by docs/phase8-listed-at-least-one.sql
+-- (any portfolio may be private, except the last public one).
+-- If this file has not been run, run phase8 only. If this file was
+-- already run, run phase8 after it. Do not run this file after phase8.
 -- The app does not apply this file.
 -- ============================================================
 

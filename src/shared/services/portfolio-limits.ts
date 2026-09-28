@@ -120,7 +120,7 @@ export function validatePortfolioAttachment(
   if (existingAttachments.length >= PORTFOLIO_LIMITS.maxAttachmentsPerCard) {
     return {
       ok: false,
-      message: `Up to ${PORTFOLIO_LIMITS.maxAttachmentsPerCard} attachments per card.`,
+      message: `Up to ${PORTFOLIO_LIMITS.maxAttachmentsPerCard} attachments per portfolio.`,
     };
   }
 

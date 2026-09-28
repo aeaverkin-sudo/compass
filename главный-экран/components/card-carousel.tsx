@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
-import Link from "next/link";
-import { useAppStore } from "@/shared/store/app-store";
+import { isSolePublic, useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import type { Card, ContactItem } from "@/shared/types";
 import { cn } from "@/lib/utils";
@@ -38,10 +37,8 @@ type CardCarouselProps = {
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
   frozen?: boolean;
-  /** Trial: the extra card is a teaser. Taps ask the person to register. */
+  /** Trial: the extra portfolio is a teaser. Taps ask the person to register. */
   needsAccount?: boolean;
-  /** True after a tap on the trial teaser, including Edit from the nav. */
-  trialNotice?: boolean;
   onTrialSlot?: () => void;
 };
 
@@ -49,7 +46,7 @@ function CarouselSpacer({ width }: { width: number }) {
   return <div aria-hidden className="shrink-0" style={{ width }} />;
 }
 
-function TrialSecondCard({ notice, onInteract }: { notice: boolean; onInteract: () => void }) {
+function TrialSecondCard({ onInteract }: { onInteract: () => void }) {
   const start = useRef<{ x: number; y: number } | null>(null);
 
   const onPointerDown = (event: PointerEvent) => {
@@ -81,20 +78,6 @@ function TrialSecondCard({ notice, onInteract }: { notice: boolean; onInteract: 
         Name
       </p>
       <p className="mt-8 text-[22.15px] leading-none font-light">+</p>
-      {notice ? (
-        <div className="mt-8 max-w-[240px] text-center">
-          <p className="text-[14px] font-light leading-snug text-[#111]">
-            Second card is available to registered users only.
-          </p>
-          <Link
-            href="/register"
-            className="mt-4 inline-block border border-[#111] px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            Register
-          </Link>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -130,7 +113,6 @@ export function CardCarousel({
   onComposingChange,
   frozen = false,
   needsAccount = false,
-  trialNotice = false,
   onTrialSlot,
 }: CardCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -366,7 +348,7 @@ export function CardCarousel({
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
       frozen={frozen}
-      listedLocked={cards[0]?.id === card.id}
+      listedLocked={isSolePublic(cards, card.id)}
       onListedChange={
         needsAccount || card.id === ADD_SLIDE_ID
           ? undefined
@@ -377,27 +359,23 @@ export function CardCarousel({
 
   const renderSlide = (slideId: string, index: number) => {
     if (slideId === ADD_SLIDE_ID && needsAccount) {
-      return <TrialSecondCard notice={trialNotice} onInteract={() => onTrialSlot?.()} />;
+      return <TrialSecondCard onInteract={() => onTrialSlot?.()} />;
     }
 
     if (slideId === ADD_SLIDE_ID) {
-      const draft = cards[1] ?? EMPTY_DRAFT;
       return renderCard(
-        draft,
+        EMPTY_DRAFT,
         (photo, file) => {
-          if (!photo || !file) {
-            handleDraftUpdate({ photo: undefined, photoAttachmentId: undefined });
-            return;
-          }
+          if (!photo || !file) return;
+          const count = useAppStore.getState().cards.length;
           handleDraftUpdate({ photo });
-          const cardId = useAppStore.getState().cards[1]?.id;
+          const created = useAppStore.getState().cards;
+          const cardId = created.length > count ? created[created.length - 1]?.id : undefined;
           if (!cardId) return;
           savePickedPhoto(cardId, photo, file);
         },
         (displayName) => handleDraftUpdate({ displayName }),
-        (data) => {
-          if (cards[1]) onUpdateCard(cards[1].id, data);
-        },
+        () => undefined,
         false,
       );
     }
@@ -432,7 +410,7 @@ export function CardCarousel({
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}
         frozen={frozen}
-        listedLocked
+        listedLocked={isSolePublic(cards, activeCard.id)}
         onListedChange={
           needsAccount ? undefined : (listed) => useAppStore.getState().setCardListed(activeCard.id, listed)
         }

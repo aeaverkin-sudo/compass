@@ -35,8 +35,9 @@ export function MainScreen() {
   const account = useAccountStatus();
   const frozen = account?.frozen === true;
   const needsAccount = account !== null && !account.registered;
-  const [accountWall, setAccountWall] = useState(false);
-  const [secondCardNotice, setSecondCardNotice] = useState(false);
+  const [gate, setGate] = useState<{ text: string; nonce: number } | null>(null);
+  const clearGate = useCallback(() => setGate(null), []);
+  const showGate = useCallback((text: string) => setGate({ text, nonce: Date.now() }), []);
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
   const shownCard = cards[currentCardIndex] ?? null;
@@ -125,7 +126,7 @@ export function MainScreen() {
         >
           Frozen.{" "}
           <Link href="/register" className="underline">
-            Register to restore this card.
+            Register to restore this portfolio.
           </Link>
         </p>
       ) : null}
@@ -157,17 +158,7 @@ export function MainScreen() {
         </p>
       ) : null}
 
-      {accountWall ? (
-        <p
-          className="absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
-          style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 88px)" }}
-        >
-          Need an account.{" "}
-          <Link href="/register" className="underline">
-            Register
-          </Link>
-        </p>
-      ) : null}
+      {gate ? <GateNotice text={gate.text} nonce={gate.nonce} onDone={clearGate} /> : null}
 
       {layout && !composing && (editing || !hideNav) ? (
         <BottomNav
@@ -176,19 +167,25 @@ export function MainScreen() {
           editing={editing}
           onProfile={() => router.push("/profile")}
           onNetwork={() => {
-            if (needsAccount) setAccountWall(true);
+            if (needsAccount) showGate("Need an account");
           }}
           onEdit={() => {
             if (frozen) return;
             if (needsAccount && !cards[currentCardIndex]) {
-              setSecondCardNotice(true);
+              showGate("Second portfolio is available to registered users only.");
               return;
             }
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
             setComposeOnMount(false);
             setEditing(true);
           }}
-          onAdd={() => openAddRef.current?.()}
+          onAdd={() => {
+            if (needsAccount && !cards[currentCardIndex]) {
+              showGate("Second portfolio is available to registered users only.");
+              return;
+            }
+            openAddRef.current?.();
+          }}
           onDone={() => {
             setComposeOnMount(false);
             setEditing(false);
@@ -219,8 +216,7 @@ export function MainScreen() {
             onComposingChange={onComposingChange}
             frozen={frozen}
             needsAccount={needsAccount}
-            trialNotice={secondCardNotice}
-            onTrialSlot={() => setSecondCardNotice(true)}
+            onTrialSlot={() => showGate("Second portfolio is available to registered users only.")}
             onFill={(cardId) => {
               if (frozen) return;
               const index = cards.findIndex((card) => card.id === cardId);
@@ -236,5 +232,24 @@ export function MainScreen() {
         </div>
       ) : null}
     </main>
+  );
+}
+
+function GateNotice({ text, nonce, onDone }: { text: string; nonce: number; onDone: () => void }) {
+  useEffect(() => {
+    const timer = window.setTimeout(onDone, 5000);
+    return () => window.clearTimeout(timer);
+  }, [nonce, onDone]);
+
+  return (
+    <p
+      className="pointer-events-auto absolute inset-x-8 top-[22%] z-40 text-center text-[28px] font-medium leading-snug"
+      style={{ color: "#F2621C" }}
+    >
+      {text}{" "}
+      <Link href="/register" className="underline">
+        Register
+      </Link>
+    </p>
   );
 }
