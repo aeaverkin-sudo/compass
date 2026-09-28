@@ -26,6 +26,7 @@ export async function POST(_request: Request, context: RouteProps) {
     return noStore({ error: "Could not read the card" }, 500);
   }
   if (!loaded) return noStore({ error: "Not found" }, 404);
+  if (loaded.inactive) return noStore({ error: "Inactive" }, 410);
 
   try {
     const supabase = await createServerSupabaseClient();

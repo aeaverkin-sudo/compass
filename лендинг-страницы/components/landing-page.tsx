@@ -6,6 +6,7 @@ import { ConsentLine } from "@/shared/components/consent-line";
 import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { recordConsent } from "@/shared/services/consent-client";
+import { startTrialClock } from "@/shared/services/trial-client";
 import { useAppStore } from "@/shared/store/app-store";
 import { CARD_HEADER_NAME_SIZE_PX, CARD_PHOTO_RADIUS_PX, CARD_PHOTO_SIZE_PX } from "@main/layout";
 import { ConfirmButton } from "./confirm-button";
@@ -50,6 +51,7 @@ export function LandingPage() {
     setSaving(true);
     setSaveError(null);
     void recordConsent("trial")
+      .then(() => startTrialClock())
       .then(() => uploadAttachment({ file: photoFile, kind: "card-photo", cardId }))
       .then((ready) => {
         completeOnboarding({

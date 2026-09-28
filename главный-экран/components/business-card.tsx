@@ -431,6 +431,8 @@ type BusinessCardProps = {
   onComposingChange?: (open: boolean) => void;
   /** Public /c/ page: same card, no QR, plus, or share link. */
   readOnly?: boolean;
+  /** Frozen trial: the card stays visible, share is closed. */
+  frozen?: boolean;
   /** One-time notes delivered to the first real viewer. */
   deliveredNotes?: DeliveredNote[];
 };
@@ -452,6 +454,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     openAddRef,
     onComposingChange,
     readOnly = false,
+    frozen = false,
     deliveredNotes = [],
   },
   ref,
@@ -483,7 +486,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       : null;
 
   useEffect(() => {
-    if (compact || editing || !ready || !card.publicToken) return;
+    if (compact || editing || frozen || !ready || !card.publicToken) return;
     void primePublicCardPdf({
       cardId: card.id,
       publicToken: card.publicToken,
@@ -492,7 +495,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     }).catch((error) => console.error("[pdf] prepare failed", error));
     // notesKey is the content-stable stand-in for deliveredNotes (a fresh array each render).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compact, editing, ready, card.id, card.publicToken, notesKey, pdfGeneration]);
+  }, [compact, editing, frozen, ready, card.id, card.publicToken, notesKey, pdfGeneration]);
 
   const primeShare = () => {
     const input = shareInput();
@@ -747,8 +750,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {!compact && !editing && ready && (items.length > 0 || Boolean(card.publicToken)) ? (
         <CardShareFooter
           name={card.displayName}
-          onShare={card.publicToken ? handleShare : undefined}
-          onPrepareShare={card.publicToken ? primeShare : undefined}
+          onShare={card.publicToken && !frozen ? handleShare : undefined}
+          onPrepareShare={card.publicToken && !frozen ? primeShare : undefined}
           className="mt-auto shrink-0 pt-6"
         />
       ) : null}

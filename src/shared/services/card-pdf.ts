@@ -522,3 +522,20 @@ export function cardPdfFilename(displayName: string) {
     .slice(0, 80);
   return `${ascii || "card"}.pdf`;
 }
+
+/** One page for a frozen trial. The public card is not in this file. */
+export async function generateInactiveCardPdf(): Promise<Uint8Array> {
+  const { regular } = await loadFontFiles();
+  const doc = await PDFDocument.create();
+  doc.registerFontkit(fontkit);
+  const font = await doc.embedFont(regular, { subset: true });
+  const page = doc.addPage([PAGE_W, PAGE_H]);
+  page.drawText("Визитка неактивна", {
+    x: MARGIN,
+    y: PAGE_H / 2,
+    size: 18,
+    font,
+    color: INK,
+  });
+  return doc.save();
+}

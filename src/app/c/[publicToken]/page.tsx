@@ -18,6 +18,13 @@ export default async function PublicCardPage({ params }: PageProps) {
   const { publicToken } = await params;
   const loaded = await loadPublicCard(publicToken);
   if (!loaded) notFound();
+  if (loaded.inactive) {
+    return (
+      <main className="compass-main flex min-h-lvh items-center justify-center bg-white px-8">
+        <p className="text-center text-[18px] font-light text-[#111]">Визитка неактивна</p>
+      </main>
+    );
+  }
 
   await logPublicCardOpen(loaded.card.id, loaded.ownerId);
 

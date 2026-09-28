@@ -4,6 +4,7 @@ import type { Card, ContactItem, ContactType } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { ownerTrialFrozen } from "@/shared/services/trial";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
@@ -35,6 +36,8 @@ export type PublicCard = {
   card: Card;
   items: ContactItem[];
   ownerId: string;
+  /** Past the 24h trial. The page and the PDF say the card is inactive. */
+  inactive?: boolean;
 };
 
 /** Name, a ready stored photo, and is_public. Archived and suspended stay private. */
@@ -85,6 +88,26 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
   if (error) throw new Error(error.message);
   const row = data as CardRow | null;
   if (!row || !cardIsPubliclyServed(row) || !row.photo_attachment_id) return null;
+
+  if (await ownerTrialFrozen(row.owner_id)) {
+    return {
+      card: {
+        id: row.id,
+        displayName: row.display_name,
+        title: "",
+        status: asCardStatus(row.status),
+        publicToken: row.public_token,
+        qrVersion: 1,
+        contactItemIds: [],
+        nextScanAddons: [],
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      },
+      items: [],
+      ownerId: row.owner_id,
+      inactive: true,
+    };
+  }
 
   const readyIds = await readyAttachmentIds([row.photo_attachment_id]);
   if (!readyIds.has(row.photo_attachment_id)) return null;
@@ -152,7 +175,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
 /** True when this file is the photo or a visible item on a public ready card. */
 export async function attachmentIsPublic(attachmentId: string): Promise<boolean> {
   const admin = createAdminSupabaseClient();
-  const columns = "is_public, status, display_name, photo_attachment_id";
+  const columns = "owner_id, is_public, status, display_name, photo_attachment_id";
 
   const { data: photoCards, error: photoError } = await admin
     .from("cards")
@@ -160,7 +183,10 @@ export async function attachmentIsPublic(attachmentId: string): Promise<boolean>
     .eq("photo_attachment_id", attachmentId)
     .limit(5);
   if (photoError) throw new Error(photoError.message);
-  if ((photoCards ?? []).some((card) => cardIsPubliclyServed(card))) return true;
+  for (const card of photoCards ?? []) {
+    if (!cardIsPubliclyServed(card)) continue;
+    if (!(await ownerTrialFrozen(card.owner_id as string))) return true;
+  }
 
   const { data: itemRows, error: itemError } = await admin
     .from("items")
@@ -181,7 +207,11 @@ export async function attachmentIsPublic(attachmentId: string): Promise<boolean>
 
   const { data: cards, error: cardError } = await admin.from("cards").select(columns).in("id", cardIds);
   if (cardError) throw new Error(cardError.message);
-  return (cards ?? []).some((card) => cardIsPubliclyServed(card));
+  for (const card of cards ?? []) {
+    if (!cardIsPubliclyServed(card)) continue;
+    if (!(await ownerTrialFrozen(card.owner_id as string))) return true;
+  }
+  return false;
 }
 
 /** Counts a visit. The owner's own session is not a visit. Messenger crawlers still count. */

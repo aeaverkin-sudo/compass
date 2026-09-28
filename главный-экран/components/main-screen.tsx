@@ -14,6 +14,7 @@ import {
 } from "@/shared/store/app-store";
 import { CardCarousel } from "./card-carousel";
 import { QrZone } from "./qr-zone";
+import { useAccountStatus } from "@/shared/hooks/use-account-status";
 
 export function MainScreen() {
   const cards = useAppStore((state) => state.cards);
@@ -28,6 +29,8 @@ export function MainScreen() {
   const [composeOnMount, setComposeOnMount] = useState(false);
   const openAddRef = useRef<(() => void) | null>(null);
   const [composing, setComposing] = useState(false);
+  const account = useAccountStatus();
+  const frozen = account?.frozen === true;
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
   const shownCard = cards[currentCardIndex] ?? null;
@@ -37,11 +40,11 @@ export function MainScreen() {
   const showAddSlide = canAddMoreCards(cards);
 
   useEffect(() => {
-    if (!cards[currentCardIndex]) {
+    if (!cards[currentCardIndex] || frozen) {
       setEditing(false);
       setComposeOnMount(false);
     }
-  }, [cards, currentCardIndex]);
+  }, [cards, currentCardIndex, frozen]);
 
   useEffect(() => {
     const first = cards[0];
@@ -109,12 +112,22 @@ export function MainScreen() {
         </div>
       ) : null}
 
+      {frozen && !composing ? (
+        <p
+          className="pointer-events-none absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
+          style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
+        >
+          Данные заморожены. Зарегистрируйтесь, чтобы вернуть визитку.
+        </p>
+      ) : null}
+
       {layout && !composing && (editing || !hideNav) ? (
         <BottomNav
           centerYpx={layout.browseMenuCenterY}
           insetPx={browseCarousel ? carouselSidePaddingPx(window.innerWidth, true) : edgeInsetBrowse}
           editing={editing}
           onEdit={() => {
+            if (frozen) return;
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
             setComposeOnMount(false);
             setEditing(true);
@@ -148,7 +161,9 @@ export function MainScreen() {
             composeOnMount={composeOnMount}
             openAddRef={openAddRef}
             onComposingChange={onComposingChange}
+            frozen={frozen}
             onFill={(cardId) => {
+              if (frozen) return;
               const index = cards.findIndex((card) => card.id === cardId);
               if (index === 0) markEmptyFillHintSeen();
               if (index > 0) setCurrentCardIndex(index);

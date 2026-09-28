@@ -33,6 +33,7 @@ type CardCarouselProps = {
   /** The visible card's add line. The plate's + calls it inside the tap. */
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
+  frozen?: boolean;
 };
 
 function CarouselSpacer({ width }: { width: number }) {
@@ -68,6 +69,7 @@ export function CardCarousel({
   composeOnMount = false,
   openAddRef,
   onComposingChange,
+  frozen = false,
 }: CardCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
@@ -301,6 +303,7 @@ export function CardCarousel({
       composeOnMount={composeOnMount && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id}
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
+      frozen={frozen}
     />
   );
 
@@ -356,6 +359,7 @@ export function CardCarousel({
         composeOnMount={composeOnMount}
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}
+        frozen={frozen}
       />
     );
   }

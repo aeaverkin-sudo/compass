@@ -5,7 +5,7 @@ import {
   loadAttachment,
 } from "@/shared/services/attachment-api";
 import { CARD_ATTACHMENTS_BUCKET, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
-import { cardPdfFilename, generatePublicCardPdf } from "@/shared/services/card-pdf";
+import { cardPdfFilename, generateInactiveCardPdf, generatePublicCardPdf } from "@/shared/services/card-pdf";
 import { consumedNoteAttachmentIds } from "@/shared/services/notes-server";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { loadPublicCard } from "@/shared/services/public-card";
@@ -71,6 +71,16 @@ export async function POST(request: Request, context: RouteProps) {
     return jsonFail(500, "Could not read the card");
   }
   if (!loaded) return jsonFail(404, "Not found");
+  if (loaded.inactive) {
+    const bytes = await generateInactiveCardPdf();
+    return new NextResponse(Buffer.from(bytes), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": 'attachment; filename="card-inactive.pdf"',
+        "Cache-Control": "no-store",
+      },
+    });
+  }
 
   let body: unknown = {};
   try {
