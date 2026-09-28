@@ -6,6 +6,8 @@ const DAY_MS = 24 * HOUR_MS;
 export const TRIAL_MS = 24 * HOUR_MS;
 export const PURGE_AFTER_MS = 7 * DAY_MS;
 
+export type AccountProvider = "email" | "google" | null;
+
 export type AccountStatus = {
   registered: boolean;
   /** Clock has started and the person has not registered. */
@@ -13,6 +15,10 @@ export type AccountStatus = {
   /** Past 24 hours, still inside the 7-day window. */
   frozen: boolean;
   hoursLeft: number | null;
+  email: string | null;
+  provider: AccountProvider;
+  /** Version the person accepted. Null until a consent row exists. */
+  consentVersion: string | null;
 };
 
 type ProfileClock = {
@@ -21,17 +27,21 @@ type ProfileClock = {
   registered_at: string | null;
 };
 
-function statusFrom(row: ProfileClock | null, now = Date.now()): AccountStatus {
+function clockFrom(row: ProfileClock | null, now = Date.now()) {
   if (!row || row.registered_at) {
-    return { registered: Boolean(row?.registered_at), trial: false, frozen: false, hoursLeft: null };
+    return { registered: Boolean(row?.registered_at), trial: false, frozen: false, hoursLeft: null as number | null };
   }
   if (!row.draft_expires_at) {
-    return { registered: false, trial: false, frozen: false, hoursLeft: null };
+    return { registered: false, trial: false, frozen: false, hoursLeft: null as number | null };
   }
   const expires = new Date(row.draft_expires_at).getTime();
   const frozen = expires <= now;
   const hoursLeft = frozen ? 0 : Math.max(1, Math.ceil((expires - now) / HOUR_MS));
   return { registered: false, trial: true, frozen, hoursLeft };
+}
+
+function statusFrom(row: ProfileClock | null, now = Date.now()): AccountStatus {
+  return { ...clockFrom(row, now), email: null, provider: null, consentVersion: null };
 }
 
 async function readClock(userId: string): Promise<ProfileClock | null> {

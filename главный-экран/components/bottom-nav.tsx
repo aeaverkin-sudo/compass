@@ -12,9 +12,19 @@ type BottomNavProps = {
   onAdd?: () => void;
   onDone?: () => void;
   onNetwork?: () => void;
+  onProfile?: () => void;
 };
 
-export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, onDone, onNetwork }: BottomNavProps) {
+export function BottomNav({
+  centerYpx,
+  insetPx,
+  editing = false,
+  onEdit,
+  onAdd,
+  onDone,
+  onNetwork,
+  onProfile,
+}: BottomNavProps) {
   return (
     <nav
       className="pointer-events-auto absolute z-30 grid -translate-y-1/2 grid-cols-3 items-baseline px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase select-none [-webkit-touch-callout:none]"
@@ -38,9 +48,14 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
           +
         </button>
       ) : (
-        <span aria-current="page" className="justify-self-start py-2">
+        <button
+          type="button"
+          className="justify-self-start px-2 py-2 uppercase"
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={() => onProfile?.()}
+        >
           Profile
-        </span>
+        </button>
       )}
       {editing ? (
         <span />

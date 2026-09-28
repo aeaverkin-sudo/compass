@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BOTTOM_PLATE_LOWER_PX, carouselSidePaddingPx, layoutTop, SHEET_INSET, TOP_VEIL_PX } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -18,6 +19,7 @@ import { QrZone } from "./qr-zone";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 
 export function MainScreen() {
+  const router = useRouter();
   const cards = useAppStore((state) => state.cards);
   const currentCardIndex = useAppStore((state) => state.currentCardIndex);
   const contactItems = useAppStore((state) => state.contactItems);
@@ -171,6 +173,7 @@ export function MainScreen() {
           centerYpx={layout.browseMenuCenterY}
           insetPx={browseCarousel ? carouselSidePaddingPx(window.innerWidth, true) : edgeInsetBrowse}
           editing={editing}
+          onProfile={() => router.push("/profile")}
           onNetwork={() => {
             if (needsAccount) setAccountWall(true);
           }}
