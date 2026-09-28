@@ -11,11 +11,11 @@ function pageRoot() {
 
 /**
  * While `active`, returns how far a `position: fixed; bottom: 0` line must be padded
- * so its text sits on the keyboard — the same height measured when the line first opens.
+ * so its text sits on the keyboard.
  *
- * After the file sheet, iOS shifts the visual viewport. That shift is cancelled on the
- * card so the QR stays put. The line keeps the original keyboard padding: the shifted
- * measurement is smaller and drops the line under the keyboard.
+ * After the file sheet, iOS scrolls the visual viewport. The card is shifted back down
+ * by that amount. The line is portaled outside the card, so it must drop by the same
+ * amount or it stays high and covers the photo and the name.
  */
 export function useKeyboardDock(active: boolean) {
   const [inset, setInset] = useState(0);
@@ -34,7 +34,8 @@ export function useKeyboardDock(active: boolean) {
         root.style.transform = offset > 1 ? `translateY(${offset}px)` : "";
       }
       if (offset < 2 && overlap > KEYBOARD_MIN_PX) remembered = overlap;
-      setInset(remembered > 0 ? remembered : overlap);
+      const keyboard = remembered > 0 ? remembered : overlap;
+      setInset(Math.max(0, keyboard - offset));
     };
     sync();
     viewport?.addEventListener("resize", sync);
