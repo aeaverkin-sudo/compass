@@ -104,7 +104,7 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {layout && !composing ? (
+      {layout && !composing && (editing || !hideNav) ? (
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col"
@@ -130,9 +130,13 @@ export function MainScreen() {
       {account?.trial && !frozen && !composing ? (
         <p
           className="absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
-          style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
+          style={{
+            bottom: hideNav
+              ? "max(1.5rem, env(safe-area-inset-bottom))"
+              : "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)",
+          }}
         >
-          Пробный период, осталось {account.hoursLeft} ч.{" "}
+          Trial — {account.hoursLeft}h left.{" "}
           <Link href="/register" className="underline">
             Register now
           </Link>
