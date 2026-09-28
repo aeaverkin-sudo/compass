@@ -1,7 +1,7 @@
 import {
   detectAttachmentType,
-  PORTFOLIO_FILE_ACCEPT,
-  PORTFOLIO_GALLERY_ACCEPT,
+  PORTFOLIO_DOCUMENT_PICK_ACCEPT,
+  PORTFOLIO_GALLERY_MEDIA_ACCEPT,
 } from "@/shared/services/portfolio-catalog";
 import {
   HIDDEN_INPUT,
@@ -82,12 +82,12 @@ function openPreparedAttachment(accept: string, onPhoto: PhotoHandler, onDismiss
   );
 }
 
-/** Photo extensions. `image/*` is what makes iOS show Photo Library / Take Photo / Choose File. */
+/** Gallery only: photos and videos already on the phone. No camera. */
 export function openContactPhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openPreparedAttachment(PORTFOLIO_GALLERY_ACCEPT, onPhoto, onDismiss);
+  openPreparedAttachment(PORTFOLIO_GALLERY_MEDIA_ACCEPT, onPhoto, onDismiss);
 }
 
-/** Documents and media, without photos. */
+/** A file: documents and audio. Video is chosen from the gallery, not recorded here. */
 export function openContactFilePicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openPreparedAttachment(PORTFOLIO_FILE_ACCEPT, onPhoto, onDismiss);
+  openPreparedAttachment(PORTFOLIO_DOCUMENT_PICK_ACCEPT, onPhoto, onDismiss);
 }

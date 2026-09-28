@@ -401,9 +401,21 @@ const FILENAME_LABEL_RULES: ReadonlyArray<[RegExp, string]> = [
 /** iOS — extension list avoids the Photo Library / Take Photo action sheet. */
 export const PORTFOLIO_GALLERY_ACCEPT = FILE_EXTENSIONS.photo.map((extension) => `.${extension}`).join(",");
 
+/** Photos and videos already on the phone. No camera capture. */
+export const PORTFOLIO_GALLERY_MEDIA_ACCEPT = [...FILE_EXTENSIONS.photo, ...FILE_EXTENSIONS.video]
+  .map((extension) => `.${extension}`)
+  .join(",");
+
 /** Documents and media. Images stay on the gallery picker. */
 export const PORTFOLIO_FILE_ACCEPT = (
   ["pdf", "presentation", "document", "spreadsheet", "audio", "video"] as const
+)
+  .flatMap((type) => FILE_EXTENSIONS[type].map((extension) => `.${extension}`))
+  .join(",");
+
+/** A file for the card: documents and audio, not a camera and not a new video. */
+export const PORTFOLIO_DOCUMENT_PICK_ACCEPT = (
+  ["pdf", "presentation", "document", "spreadsheet", "audio"] as const
 )
   .flatMap((type) => FILE_EXTENSIONS[type].map((extension) => `.${extension}`))
   .join(",");
