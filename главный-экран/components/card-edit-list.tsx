@@ -479,6 +479,7 @@ function EditRow({
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLTextAreaElement>(null);
   const dockBottom = useKeyboardDock(editing, true);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
@@ -500,20 +501,16 @@ function EditRow({
 
   useLayoutEffect(() => {
     const field = fieldRef.current;
-    if (!field) return;
-    const pin = () => {
-      if (field.scrollLeft !== 0) field.scrollLeft = 0;
-      const next = field.scrollWidth > field.clientWidth + 1;
+    const line = lineRef.current;
+    if (!field || !line) return;
+    const measure = () => {
+      const next = line.scrollWidth > field.clientWidth + 1;
       setFades((current) => (current === next ? current : next));
     };
-    pin();
-    field.addEventListener("scroll", pin);
-    const observer = new ResizeObserver(pin);
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(field);
-    return () => {
-      field.removeEventListener("scroll", pin);
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, [editing, text, value]);
 
   const beginEdit = () => {
@@ -546,7 +543,7 @@ function EditRow({
         aria-label={text}
         data-no-swipe
         className={cn(
-          "mr-[26px] block min-w-0 overflow-hidden text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap text-clip select-none",
+          "mr-[26px] min-w-0 overflow-clip",
           editing && "invisible pointer-events-none",
         )}
         style={{ color: onCard ? "#111" : OFF_CARD }}
@@ -566,7 +563,12 @@ function EditRow({
         onPointerCancel={release}
         onContextMenu={longPress.onContextMenu}
       >
-        {text}
+        <div
+          ref={lineRef}
+          className="w-max whitespace-nowrap text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] select-none"
+        >
+          {text}
+        </div>
       </div>
       {editing
         ? createPortal(
