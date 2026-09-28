@@ -343,17 +343,34 @@ function AddLine({
     closeRef.current = close;
   });
 
-  // A tap anywhere but the writing row leaves the line and brings the list back.
+  // A tap anywhere but the writing row leaves the line. The blue plate stays up
+  // until the finger lifts, so the tap cannot fall through onto a row underneath.
   useEffect(() => {
     if (!open) return;
+    const inside = (target: EventTarget | null) => target instanceof Node && !!rowRef.current?.contains(target);
     const onPointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (rowRef.current?.contains(target)) return;
+      if (inside(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      if (inside(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const swallow = (click: Event) => {
+        click.preventDefault();
+        click.stopPropagation();
+      };
+      document.addEventListener("click", swallow, true);
+      window.setTimeout(() => document.removeEventListener("click", swallow, true), 500);
       closeRef.current();
     };
     document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerup", onPointerUp, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerup", onPointerUp, true);
+    };
   }, [open]);
 
   // iOS may hand focus around while the keyboard settles or a full-screen picker is up;
@@ -412,10 +429,6 @@ function AddLine({
               data-no-swipe
               className="fixed inset-x-0 bottom-0 z-50 bg-sky"
               style={{ paddingBottom: dockBottom }}
-              onPointerDown={(event) => {
-                if (event.target instanceof Node && rowRef.current?.contains(event.target)) return;
-                close();
-              }}
             >
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
@@ -559,10 +572,10 @@ function EditRow({
 
   useLayoutEffect(() => {
     const field = dockRef.current;
-    if (!field) return;
-    field.style.height = "auto";
+    if (!field || !editing || frame.width < 1) return;
+    field.style.height = "0px";
     field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
-  }, [draft, editing]);
+  }, [draft, editing, frame.width]);
 
   return (
     <div ref={rowRef} className={cn("relative min-w-0", holding && "opacity-40")}>
@@ -606,7 +619,7 @@ function EditRow({
               style={{ paddingBottom: dockBottom }}
             >
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                <div className="border-b-[0.5px] border-[#111] py-2">
+                <div className="flex flex-col justify-end border-b-[0.5px] border-[#111]">
                   <textarea
                     ref={dockRef}
                     rows={1}
