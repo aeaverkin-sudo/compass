@@ -600,6 +600,33 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onEmptyAreaTap();
   };
 
+  const renderCardHeader = () =>
+    blank ? (
+      <EmptyPortfolioStart
+        card={card}
+        onPhotoChange={onPhotoChange}
+        onDisplayNameChange={onDisplayNameChange}
+      />
+    ) : (
+      <EditorialHeader
+        card={card}
+        positionTitle={positionTitle}
+        showRule={ready}
+        showPlus={Boolean(onCardUpdate && ready && items.length > 0)}
+        nextScan={
+          onCardUpdate && ready ? (
+            <NextScanMenu
+              bare
+              addons={nextScanAddons}
+              onSetAddons={(addons) => onCardUpdate({ nextScanAddons: addons })}
+            />
+          ) : null
+        }
+        onPhotoChange={onPhotoChange}
+        onDisplayNameChange={onDisplayNameChange}
+      />
+    );
+
   return (
     <article
       ref={(node) => {
@@ -628,33 +655,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }
     >
       {!compact ? (
-        <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
-          {blank ? (
-            <EmptyPortfolioStart
-              card={card}
-              onPhotoChange={onPhotoChange}
-              onDisplayNameChange={onDisplayNameChange}
-            />
-          ) : (
-            <EditorialHeader
-              card={card}
-              positionTitle={positionTitle}
-              showRule={ready}
-              showPlus={Boolean(onCardUpdate && ready && items.length > 0)}
-              nextScan={
-                onCardUpdate && ready ? (
-                  <NextScanMenu
-                    bare
-                    addons={nextScanAddons}
-                    onSetAddons={(addons) => onCardUpdate({ nextScanAddons: addons })}
-                  />
-                ) : null
-              }
-              onPhotoChange={onPhotoChange}
-              onDisplayNameChange={onDisplayNameChange}
-            />
-          )}
-        </div>
+        <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-3mm)]">{renderCardHeader()}</div>
       ) : null}
       {bare ? (
         <div className="flex min-h-0 flex-1 flex-col px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
@@ -720,6 +721,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           composeOnMount={composeOnMount}
           openAddRef={openAddRef}
           onComposingChange={onComposingChange}
+          header={renderCardHeader()}
         />
       ) : (
       <ContactItemChipList
