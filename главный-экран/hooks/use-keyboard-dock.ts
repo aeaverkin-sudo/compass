@@ -11,11 +11,11 @@ function pageRoot() {
 
 /**
  * While `active`, returns how far a `position: fixed; bottom: 0` line must be padded
- * so its text sits on the keyboard.
+ * so its text sits on the keyboard — the same height measured when the line first opens.
  *
- * iOS shifts the visual viewport when the field is tapped again after the file sheet.
- * That shift hides the QR and, if the old keyboard height is kept, leaves a white gap
- * under the line. Move the card back and use the live overlap instead.
+ * After the file sheet, iOS shifts the visual viewport. That shift is cancelled on the
+ * card so the QR stays put. The line keeps the original keyboard padding: the shifted
+ * measurement is smaller and drops the line under the keyboard.
  */
 export function useKeyboardDock(active: boolean) {
   const [inset, setInset] = useState(0);
@@ -34,9 +34,7 @@ export function useKeyboardDock(active: boolean) {
         root.style.transform = offset > 1 ? `translateY(${offset}px)` : "";
       }
       if (offset < 2 && overlap > KEYBOARD_MIN_PX) remembered = overlap;
-      // Sheet hides the keyboard: keep the line at the last real keyboard height.
-      // After the sheet, iOS has scrolled: the live overlap is the right padding.
-      setInset(offset > 1 ? overlap : remembered || overlap);
+      setInset(remembered > 0 ? remembered : overlap);
     };
     sync();
     viewport?.addEventListener("resize", sync);
