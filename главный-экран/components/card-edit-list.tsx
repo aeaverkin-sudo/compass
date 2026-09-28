@@ -20,6 +20,8 @@ const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 /** The add line grows upward to this height, then scrolls inside. */
 const FIELD_MAX_PX = 120;
+/** Existing text: six lines, then the finger scrolls inside the field. */
+const ROW_FIELD_MAX_PX = Math.round(15.5 * 1.45 * 6 + 16);
 const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
 
@@ -522,8 +524,9 @@ function EditRow({
 
   useLayoutEffect(() => {
     if (!editing) return;
-    const rect = rowRef.current?.getBoundingClientRect();
-    if (rect) setFrame({ left: rect.left, width: Math.max(0, rect.width - 26) });
+    const list = rowRef.current?.closest("[data-card-chip-list]");
+    const rect = list?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
     dockRef.current?.focus({ preventScroll: true });
   }, [editing]);
 
@@ -531,7 +534,7 @@ function EditRow({
     const field = dockRef.current;
     if (!field) return;
     field.style.height = "auto";
-    field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
+    field.style.height = `${Math.min(field.scrollHeight, ROW_FIELD_MAX_PX)}px`;
   }, [draft, editing]);
 
   return (
@@ -542,7 +545,7 @@ function EditRow({
         data-no-swipe
         className={cn(
           "mr-[26px] block min-w-0 overflow-hidden text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] whitespace-nowrap select-none",
-          editing && "pointer-events-none",
+          editing && "invisible pointer-events-none",
         )}
         style={{ color: onCard ? "#111" : OFF_CARD }}
         onPointerDown={(event) => {
@@ -567,8 +570,8 @@ function EditRow({
         ? createPortal(
             <div
               data-no-swipe
-              className="fixed inset-x-0 bottom-0 z-50 bg-white"
-              style={{ paddingBottom: dockBottom }}
+              className="fixed inset-x-0 z-50 bg-white"
+              style={{ bottom: dockBottom }}
             >
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 <textarea
