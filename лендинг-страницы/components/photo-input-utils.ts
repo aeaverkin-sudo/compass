@@ -1,4 +1,4 @@
-import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
+import { detectAttachmentType, PORTFOLIO_FILE_ACCEPT } from "@/shared/services/portfolio-catalog";
 import {
   HIDDEN_INPUT,
   prepareAttachmentForStorage,
@@ -78,12 +78,7 @@ function openPreparedAttachment(accept: string, onPhoto: PhotoHandler, onDismiss
   );
 }
 
-/** Its own input. Photos and videos only, so iOS opens the library rather than a shared file picker. No capture. */
-export function openContactPhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openPreparedAttachment("image/*,video/*", onPhoto, onDismiss);
-}
-
-/** A different input. Documents only, so iOS opens Files. */
-export function openContactFilePicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openPreparedAttachment(".pdf,.doc,.docx,.ppt,.pptx", onPhoto, onDismiss);
+/** One picker: gallery for photos and video, Files for documents. No camera capture flag. */
+export function openContactAttachmentPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openPreparedAttachment(`image/*,video/*,${PORTFOLIO_FILE_ACCEPT}`, onPhoto, onDismiss);
 }
