@@ -15,7 +15,7 @@ type PublicCardClientProps = {
 /**
  * SSR shows the card with empty notes. A browser then asks once for delivery.
  * Crawlers without JS leave the pending row alone.
- * Share on the card sends the PDF; notes ride along once delivered.
+ * Notes ride along once delivered. The received card has no share control.
  */
 export function PublicCardClient({ card, items, publicToken }: PublicCardClientProps) {
   const [notes, setNotes] = useState<DeliveredNote[]>([]);
