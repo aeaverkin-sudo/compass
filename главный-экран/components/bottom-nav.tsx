@@ -30,7 +30,7 @@ export function BottomNav({ centerYpx, insetPx, editing = false, onEdit, onAdd, 
         <button
           type="button"
           aria-label="Add"
-          className="inline-flex items-baseline justify-self-start self-baseline py-2 text-[22.15px] leading-none font-normal tracking-normal"
+          className="inline-flex items-baseline justify-self-start self-baseline py-2 text-[22.15px] leading-none font-light tracking-normal"
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => onAdd?.()}
         >
