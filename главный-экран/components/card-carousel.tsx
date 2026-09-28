@@ -171,7 +171,7 @@ export function CardCarousel({
     requestAnimationFrame(() => {
       syncingScroll.current = false;
     });
-  }, [activeIndex, multiSlide, scrollToIndex, slideWidthPx]);
+  }, [activeIndex, editing, multiSlide, scrollToIndex, slideWidthPx]);
 
   useEffect(() => {
     if (!multiSlide) return;
@@ -180,18 +180,6 @@ export function CardCarousel({
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [activeIndex, multiSlide, scrollToIndex]);
-
-  const lockedScroll = useRef<number | null>(null);
-
-  useEffect(() => {
-    const node = scrollRef.current;
-    if (!editing) {
-      lockedScroll.current = null;
-      return;
-    }
-    if (!node) return;
-    lockedScroll.current = node.scrollLeft;
-  }, [editing]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -231,8 +219,8 @@ export function CardCarousel({
     const node = scrollRef.current;
     if (!node || syncingScroll.current || !multiSlide || slideWidthPx === 0) return;
     if (editing) {
-      const locked = lockedScroll.current;
-      if (locked != null && Math.abs(node.scrollLeft - locked) > 1) {
+      const locked = scrollLeftForIndex(activeIndex);
+      if (Math.abs(node.scrollLeft - locked) > 1) {
         syncingScroll.current = true;
         node.scrollLeft = locked;
         requestAnimationFrame(() => {
@@ -373,7 +361,8 @@ export function CardCarousel({
       <div
         ref={scrollRef}
         className={cn(
-          "compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background",
+          "compass-carousel h-full overflow-y-hidden bg-background",
+          editing ? "touch-pan-y overflow-x-hidden" : "snap-x snap-mandatory overflow-x-auto",
           isBrowse && "compass-carousel-editorial",
         )}
         onScroll={handleScroll}

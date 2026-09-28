@@ -408,13 +408,6 @@ export const PORTFOLIO_FILE_ACCEPT = (
   .flatMap((type) => FILE_EXTENSIONS[type].map((extension) => `.${extension}`))
   .join(",");
 
-/** Documents and audio only. No image or video types, so iOS opens Files instead of the photo sheet. */
-export const PORTFOLIO_FILES_APP_ACCEPT = (
-  ["pdf", "presentation", "document", "spreadsheet", "audio"] as const
-)
-  .flatMap((type) => FILE_EXTENSIONS[type].map((extension) => `.${extension}`))
-  .join(",");
-
 /** @deprecated Use PORTFOLIO_FILE_ACCEPT */
 export const PORTFOLIO_DOCUMENT_ACCEPT = PORTFOLIO_FILE_ACCEPT;
 

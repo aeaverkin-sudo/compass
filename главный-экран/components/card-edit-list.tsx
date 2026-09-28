@@ -1,7 +1,7 @@
 "use client";
 
-import { Minus, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { File as FileIcon, Minus, Plus, X } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
@@ -10,43 +10,18 @@ import { isContactFilled } from "@/shared/services/contact-item";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
-import { AddOverlay } from "./add-overlay";
+import { itemPhotoSrc } from "@/shared/services/card-photo";
+import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
+import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
 const HOLD_MS = 500;
 const OFF_CARD = "#C8C8C8";
 const DELETE_RED = "#E23B2F";
-/** The row field grows upward to this height, then scrolls inside. */
+const ADD_PLACEHOLDER = "Add link, file, text, contact…";
+/** The add line grows upward to this height, then scrolls inside. */
 const FIELD_MAX_PX = 120;
-/** A keyboard is at least this tall; smaller viewport changes are the browser chrome. */
-const KEYBOARD_MIN_PX = 120;
-
-/** Padding that keeps an edited row on the keyboard. Does not move the page. */
-function useRowKeyboardInset(active: boolean) {
-  const [inset, setInset] = useState(0);
-
-  useEffect(() => {
-    if (!active) return;
-    const viewport = window.visualViewport;
-    let remembered = 0;
-    const sync = () => {
-      if (!viewport) return;
-      const offset = Math.max(0, viewport.offsetTop);
-      const overlap = Math.max(0, window.innerHeight - offset - viewport.height);
-      if (offset < 2 && overlap > KEYBOARD_MIN_PX) remembered = overlap;
-      setInset(remembered > 0 ? remembered : overlap);
-    };
-    sync();
-    viewport?.addEventListener("resize", sync);
-    viewport?.addEventListener("scroll", sync);
-    return () => {
-      viewport?.removeEventListener("resize", sync);
-      viewport?.removeEventListener("scroll", sync);
-      setInset(0);
-    };
-  }, [active]);
-
-  return inset;
-}
+const BLUR_GUARD_MS = 300;
+const OPEN_GUARD_MS = 450;
 
 type EditSection = {
   id: CardZoneId;
@@ -120,15 +95,12 @@ export function CardEditList({
   composeOnMount = false,
   openAddRef,
   onComposingChange,
-  header,
 }: {
   card: Card;
   items: ContactItem[];
   composeOnMount?: boolean;
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
-  /** Same photo and name block the card already renders. */
-  header: ReactNode;
 }) {
   const updateCard = useAppStore((state) => state.updateCard);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
@@ -139,6 +111,7 @@ export function CardEditList({
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
+  const [composing, setComposing] = useState(false);
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
@@ -192,6 +165,7 @@ export function CardEditList({
       {sections.map((section, index) => (
         <section
           key={section.id}
+          hidden={composing}
           className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b-[0.5px] border-[#111]")}
         >
           <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
@@ -234,12 +208,14 @@ export function CardEditList({
         </section>
       ))}
       <AddLine
-        card={card}
-        header={header}
+        cardId={card.id}
         openOnMount={composeOnMount}
         openAddRef={openAddRef}
         onFocus={() => setTextEditId(null)}
-        onOpenChange={(open) => onComposingChange?.(open)}
+        onOpenChange={(open) => {
+          setComposing(open);
+          onComposingChange?.(open);
+        }}
         onAdded={(itemId) => {
           if (composeOnMount) include(itemId);
         }}
@@ -249,24 +225,24 @@ export function CardEditList({
 }
 
 /**
- * Opens the writing overlay. Text stays here until Done, so nothing half-typed
- * reaches the card. A picked file joins the same line.
+ * The only way to create a new row. At rest it is a single centred +.
+ * Tapping it docks one writing line above the keyboard. Text stays here until Done,
+ * so nothing half-typed reaches the card. A picked file joins the same line.
  */
 function AddLine({
-  card,
-  header,
+  cardId,
   openOnMount,
   openAddRef,
   onFocus,
   onOpenChange,
   onAdded,
 }: {
-  card: Card;
-  header: ReactNode;
+  cardId: string;
   openOnMount: boolean;
   /** The plate's +. Called inside the tap, so the focus still raises the keyboard. */
   openAddRef?: RefObject<(() => void) | null>;
   onFocus: () => void;
+  /** While open, the card shows only the QR, the photo and the name above the line. */
   onOpenChange: (open: boolean) => void;
   onAdded: (itemId: string) => void;
 }) {
@@ -275,36 +251,60 @@ function AddLine({
   const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
 
-  const [opened, setOpened] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-  const open = !dismissed && (opened || openOnMount);
+  const [open, setOpen] = useState(false);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
   const [text, setText] = useState("");
   const [fileItemId, setFileItemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileItem = useAppStore((state) =>
     fileItemId ? state.contactItems.find((item) => item.id === fileItemId) : undefined,
   );
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const picking = useRef(false);
+  const openedAt = useRef(0);
+  const dockBottom = useKeyboardDock(open);
+  const filePhoto = fileItem ? itemPhotoSrc(fileItem) : null;
 
-  const start = () => {
+  /** The docked line spans exactly the card column. */
+  const startDocking = () => {
+    const rect = anchorRef.current?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
+    openedAt.current = Date.now();
     setError(null);
-    setDismissed(false);
-    setOpened(true);
+    setOpen(true);
     onOpenChange(true);
   };
 
   useEffect(() => {
     if (!openAddRef) return;
     openAddRef.current = () => {
-      flushSync(start);
+      flushSync(startDocking);
+      fieldRef.current?.focus({ preventScroll: true });
     };
     return () => {
       openAddRef.current = null;
     };
   });
 
+  // The empty card asks for the line once, as it opens.
   useLayoutEffect(() => {
-    if (open) onOpenChange(true);
-  }, [open, onOpenChange]);
+    if (openOnMount) startDocking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openOnMount]);
+
+  // Layout phase: mounted from a tap, the focus still counts as the user's and raises the keyboard.
+  useLayoutEffect(() => {
+    if (open) fieldRef.current?.focus({ preventScroll: true });
+  }, [open]);
+
+  useLayoutEffect(() => {
+    const field = fieldRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
+  }, [text, open]);
 
   const commit = () => {
     const value = text.trim();
@@ -329,41 +329,124 @@ function AddLine({
     commit();
     setText("");
     setFileItemId(null);
-    setOpened(false);
-    setDismissed(true);
+    setOpen(false);
     onOpenChange(false);
   };
 
-  const attachFile = (dataUrl: string, file: File) => {
-    const id = addContactItem();
-    if (!id) return;
-    const result = updateContactItemAttachment(card.id, id, file, dataUrl);
-    if (result.ok) {
-      setFileItemId(id);
-      setError(null);
-    } else {
-      deleteContactItem(id);
-      setError(result.message);
-    }
+  // No tap may take focus from the field: the keyboard, the line and the caret stay put
+  // (closing the attach menu included). Only Done leaves the line.
+  useEffect(() => {
+    if (!open) return;
+    const keepFocus = (event: MouseEvent) => {
+      if (event.target !== fieldRef.current) event.preventDefault();
+    };
+    document.addEventListener("mousedown", keepFocus, true);
+    return () => document.removeEventListener("mousedown", keepFocus, true);
+  }, [open]);
+
+  // iOS may hand focus around while the keyboard settles or a full-screen picker is up;
+  // the line closes only once focus has really left it.
+  const handleBlur = () => {
+    window.setTimeout(() => {
+      if (picking.current) return;
+      if (Date.now() - openedAt.current < OPEN_GUARD_MS) return;
+      if (lineRef.current?.contains(document.activeElement)) return;
+      close();
+    }, BLUR_GUARD_MS);
   };
 
-  if (!open) return null;
+  const refocus = () => {
+    const field = fieldRef.current;
+    field?.focus({ preventScroll: true });
+    // Stay "picking" through the blur guard, so the dismiss blur does not close the line.
+    window.setTimeout(() => {
+      if (document.activeElement !== field) field?.focus({ preventScroll: true });
+      picking.current = false;
+    }, BLUR_GUARD_MS);
+  };
+
+  const takeAttachment = () => {
+    picking.current = true;
+    openContactAttachmentPicker((dataUrl, file) => {
+      const id = addContactItem();
+      if (!id) return;
+      const result = updateContactItemAttachment(cardId, id, file, dataUrl);
+      if (result.ok) {
+        setFileItemId(id);
+        setError(null);
+      } else {
+        deleteContactItem(id);
+        setError(result.message);
+      }
+    }, refocus);
+    const field = fieldRef.current;
+    if (field && document.activeElement !== field) field.focus({ preventScroll: true });
+  };
 
   return (
-    <AddOverlay
-      card={card}
-      header={header}
-      text={text}
-      error={error}
-      fileItem={fileItem}
-      onText={(value) => {
-        setText(value);
-        setError(null);
-      }}
-      onFocus={onFocus}
-      onAttachFile={attachFile}
-      onCommit={close}
-    />
+    <>
+      <div ref={anchorRef} className="h-0" aria-hidden />
+      {open
+        ? createPortal(
+            // White from the line to the screen bottom, so nothing of the card shows
+            // between the line and the keyboard or through the keyboard's glass.
+            <div
+              ref={lineRef}
+              data-no-swipe
+              className="fixed inset-x-0 bottom-0 z-50 bg-white"
+              style={{ paddingBottom: dockBottom }}
+            >
+              <div style={{ marginLeft: frame.left, width: frame.width }}>
+                {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
+                <div className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
+                  {filePhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={filePhoto} alt="" className="size-10 shrink-0 object-cover" />
+                  ) : fileItem ? (
+                    <FileIcon className="size-7 shrink-0 text-[#111]" strokeWidth={1} aria-hidden />
+                  ) : (
+                    <button
+                      type="button"
+                      data-no-swipe
+                      aria-label="Add photo or file"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={takeAttachment}
+                      className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
+                    >
+                      <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
+                    </button>
+                  )}
+                  <textarea
+                    ref={fieldRef}
+                    rows={1}
+                    value={text}
+                    placeholder={fileItem ? fileItem.value : ADD_PLACEHOLDER}
+                    aria-label={ADD_PLACEHOLDER}
+                    enterKeyHint="done"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-no-swipe
+                    onChange={(event) => {
+                      setText(event.target.value.replace(/\s*\n\s*/g, " "));
+                      setError(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }}
+                    onFocus={onFocus}
+                    onBlur={handleBlur}
+                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:text-[#999]"
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -397,7 +480,7 @@ function EditRow({
   const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLTextAreaElement>(null);
-  const dockBottom = useRowKeyboardInset(editing);
+  const dockBottom = useKeyboardDock(editing);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
   const pressedLong = useRef(false);
   const openedAt = useRef(0);

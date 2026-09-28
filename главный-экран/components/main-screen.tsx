@@ -93,7 +93,7 @@ export function MainScreen() {
   return (
     <main className="compass-main fixed inset-0 overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
-        {layout && !composing ? (
+        {layout ? (
           <QrZone url={cardUrl} visible={cardReady} topOffsetPx={layout.qrTop} />
         ) : null}
       </div>
