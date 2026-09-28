@@ -18,10 +18,17 @@ const HOLD_MS = 500;
 const OFF_CARD = "#C8C8C8";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-/** The add line grows upward to this height, then scrolls inside. */
-const FIELD_MAX_PX = 120;
-/** Existing text: six lines, then the finger scrolls inside the field. */
-const ROW_FIELD_MAX_PX = Math.round(15.5 * 1.45 * 6 + 16);
+/** Writing line. Six of these, then the finger scrolls inside the field. */
+const WRITE_LINE_PX = 18.2 * 1.35;
+const WRITE_MAX_PX = WRITE_LINE_PX * 6;
+const linedFieldStyle = {
+  lineHeight: `${WRITE_LINE_PX}px`,
+  backgroundImage: `linear-gradient(to bottom, transparent ${WRITE_LINE_PX - 0.5}px, #111 ${WRITE_LINE_PX - 0.5}px)`,
+  backgroundSize: `100% ${WRITE_LINE_PX}px`,
+  backgroundAttachment: "local" as const,
+  backgroundRepeat: "repeat-y",
+  minHeight: WRITE_LINE_PX,
+};
 const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
 
@@ -305,7 +312,7 @@ function AddLine({
     const field = fieldRef.current;
     if (!field) return;
     field.style.height = "auto";
-    field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
+    field.style.height = `${Math.min(field.scrollHeight, WRITE_MAX_PX)}px`;
   }, [text, open]);
 
   const commit = () => {
@@ -400,7 +407,7 @@ function AddLine({
             >
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
-                <div className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
+                <div className="flex items-start gap-[11px] py-2">
                   {filePhoto ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={filePhoto} alt="" className="size-10 shrink-0 object-cover" />
@@ -440,7 +447,8 @@ function AddLine({
                     }}
                     onFocus={onFocus}
                     onBlur={handleBlur}
-                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:text-[#999]"
+                    style={linedFieldStyle}
+                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-[18.2px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:text-[#999]"
                   />
                 </div>
               </div>
@@ -482,7 +490,7 @@ function EditRow({
   const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLTextAreaElement>(null);
-  const dockBottom = useKeyboardDock(editing);
+  const dockBottom = useKeyboardDock(editing, true);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
@@ -534,7 +542,7 @@ function EditRow({
     const field = dockRef.current;
     if (!field) return;
     field.style.height = "auto";
-    field.style.height = `${Math.min(field.scrollHeight, ROW_FIELD_MAX_PX)}px`;
+    field.style.height = `${Math.min(field.scrollHeight, WRITE_MAX_PX)}px`;
   }, [draft, editing]);
 
   return (
@@ -570,10 +578,10 @@ function EditRow({
         ? createPortal(
             <div
               data-no-swipe
-              className="fixed inset-x-0 z-50 bg-white"
-              style={{ bottom: dockBottom }}
+              className="fixed inset-x-0 bottom-0 z-50 bg-white"
+              style={{ paddingBottom: dockBottom }}
             >
-              <div style={{ marginLeft: frame.left, width: frame.width }}>
+              <div className="py-2" style={{ marginLeft: frame.left, width: frame.width }}>
                 <textarea
                   ref={dockRef}
                   rows={1}
@@ -603,7 +611,8 @@ function EditRow({
                     }
                     onConfirm(next);
                   }}
-                  className="compass-input block w-full resize-none overflow-y-auto border-b-[0.5px] border-[#111] bg-transparent py-2 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+                  style={linedFieldStyle}
+                  className="compass-input block w-full resize-none overflow-y-auto bg-transparent text-[18.2px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
                 />
               </div>
             </div>,
