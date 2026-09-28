@@ -1,4 +1,4 @@
-import { detectAttachmentType, PORTFOLIO_FILE_ACCEPT } from "@/shared/services/portfolio-catalog";
+import { detectAttachmentType, PORTFOLIO_FILES_APP_ACCEPT } from "@/shared/services/portfolio-catalog";
 import {
   HIDDEN_INPUT,
   prepareAttachmentForStorage,
@@ -78,7 +78,12 @@ function openPreparedAttachment(accept: string, onPhoto: PhotoHandler, onDismiss
   );
 }
 
-/** One picker: gallery for photos and video, Files for documents. No camera capture flag. */
-export function openContactAttachmentPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openPreparedAttachment(`image/*,video/*,${PORTFOLIO_FILE_ACCEPT}`, onPhoto, onDismiss);
+/** Gallery photos and videos. No capture flag, so iOS does not open the camera by itself. */
+export function openContactGalleryPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openPreparedAttachment("image/*,video/*", onPhoto, onDismiss);
+}
+
+/** Documents and audio. Opens the Files app without the photo action sheet. */
+export function openContactFilesPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
+  openPreparedAttachment(PORTFOLIO_FILES_APP_ACCEPT, onPhoto, onDismiss);
 }

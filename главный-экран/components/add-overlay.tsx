@@ -8,6 +8,7 @@ import { itemPhotoSrc } from "@/shared/services/card-photo";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import { isCardReady } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
+import { openContactFilesPicker, openContactGalleryPicker } from "@landing/components/photo-input-utils";
 import { useMainLayout } from "@main/hooks/use-main-layout";
 import { QrZone } from "./qr-zone";
 
@@ -25,8 +26,7 @@ type AddOverlayProps = {
   fileItem?: ContactItem;
   onText: (value: string) => void;
   onFocus: () => void;
-  /** Opens the current file picker. The plate replaces this in the next step. */
-  onAttach: () => void;
+  onAttachFile: (dataUrl: string, file: File) => void;
   onCommit: () => void;
 };
 
@@ -68,14 +68,20 @@ export function AddOverlay({
   fileItem,
   onText,
   onFocus,
-  onAttach,
+  onAttachFile,
   onCommit,
 }: AddOverlayProps) {
   const layout = useMainLayout();
   const box = useVisibleBox();
   const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const [plate, setPlate] = useState(false);
   const filePhoto = fileItem ? itemPhotoSrc(fileItem) : null;
   const shift = box.top;
+
+  const chooseFile = (open: (onPhoto: (dataUrl: string, file: File) => void) => void) => {
+    open((dataUrl, file) => onAttachFile(dataUrl, file));
+    setPlate(false);
+  };
 
   useLayoutEffect(() => {
     fieldRef.current?.focus({ preventScroll: true });
@@ -106,9 +112,42 @@ export function AddOverlay({
           ) : null}
         </div>
         <div className={cn("shrink-0", CARD_PAD)}>{header}</div>
-        <button type="button" aria-label="Close" className="min-h-0 flex-1" onClick={onCommit} />
+        <button
+          type="button"
+          aria-label="Close"
+          className="min-h-0 flex-1"
+          onClick={() => {
+            if (plate) setPlate(false);
+            else onCommit();
+          }}
+        />
       </div>
-      <div className={cn("shrink-0", CARD_PAD)}>
+      {plate ? (
+        <div className={cn("shrink-0 bg-white", CARD_PAD)}>
+          <div className="border-t-[0.5px] border-[#111]">
+            <button
+              type="button"
+              className="block w-full border-b-[0.5px] border-[#111] py-[14px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]"
+              onClick={() => chooseFile(openContactGalleryPicker)}
+            >
+              Фото / Видео
+            </button>
+            <button
+              type="button"
+              className="block w-full py-[14px] text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]"
+              onClick={() => chooseFile(openContactFilesPicker)}
+            >
+              Файлы
+            </button>
+          </div>
+        </div>
+      ) : null}
+      <div
+        className={cn("shrink-0", CARD_PAD)}
+        onPointerDown={() => {
+          if (plate) setPlate(false);
+        }}
+      >
         {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
         <div className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
           {filePhoto ? (
@@ -122,7 +161,8 @@ export function AddOverlay({
               data-no-swipe
               aria-label="Add photo or file"
               onMouseDown={(event) => event.preventDefault()}
-              onClick={onAttach}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={() => setPlate(true)}
               className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
             >
               <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />

@@ -10,7 +10,6 @@ import { isContactFilled } from "@/shared/services/contact-item";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
-import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 import { AddOverlay } from "./add-overlay";
 
 const HOLD_MS = 500;
@@ -335,19 +334,17 @@ function AddLine({
     onOpenChange(false);
   };
 
-  const takeAttachment = () => {
-    openContactAttachmentPicker((dataUrl, file) => {
-      const id = addContactItem();
-      if (!id) return;
-      const result = updateContactItemAttachment(card.id, id, file, dataUrl);
-      if (result.ok) {
-        setFileItemId(id);
-        setError(null);
-      } else {
-        deleteContactItem(id);
-        setError(result.message);
-      }
-    });
+  const attachFile = (dataUrl: string, file: File) => {
+    const id = addContactItem();
+    if (!id) return;
+    const result = updateContactItemAttachment(card.id, id, file, dataUrl);
+    if (result.ok) {
+      setFileItemId(id);
+      setError(null);
+    } else {
+      deleteContactItem(id);
+      setError(result.message);
+    }
   };
 
   if (!open) return null;
@@ -364,7 +361,7 @@ function AddLine({
         setError(null);
       }}
       onFocus={onFocus}
-      onAttach={takeAttachment}
+      onAttachFile={attachFile}
       onCommit={close}
     />
   );
