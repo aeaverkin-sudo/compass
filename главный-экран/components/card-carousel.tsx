@@ -171,7 +171,7 @@ export function CardCarousel({
     requestAnimationFrame(() => {
       syncingScroll.current = false;
     });
-  }, [activeIndex, multiSlide, scrollToIndex, slideWidthPx]);
+  }, [activeIndex, editing, multiSlide, scrollToIndex, slideWidthPx]);
 
   useEffect(() => {
     if (!multiSlide) return;
@@ -180,6 +180,32 @@ export function CardCarousel({
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [activeIndex, multiSlide, scrollToIndex]);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node || !editing) return;
+    let startX = 0;
+    let startY = 0;
+    const onStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+    const onMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      const dx = Math.abs(touch.clientX - startX);
+      const dy = Math.abs(touch.clientY - startY);
+      if (dx > dy) event.preventDefault();
+    };
+    node.addEventListener("touchstart", onStart, { passive: true });
+    node.addEventListener("touchmove", onMove, { passive: false });
+    return () => {
+      node.removeEventListener("touchstart", onStart);
+      node.removeEventListener("touchmove", onMove);
+    };
+  }, [editing, slideWidthPx]);
 
   const markScrolled = () => {
     scrolledRecently.current = true;
@@ -192,6 +218,17 @@ export function CardCarousel({
   const handleScroll = () => {
     const node = scrollRef.current;
     if (!node || syncingScroll.current || !multiSlide || slideWidthPx === 0) return;
+    if (editing) {
+      const locked = scrollLeftForIndex(activeIndex);
+      if (Math.abs(node.scrollLeft - locked) > 1) {
+        syncingScroll.current = true;
+        node.scrollLeft = locked;
+        requestAnimationFrame(() => {
+          syncingScroll.current = false;
+        });
+      }
+      return;
+    }
     if (node.querySelector("textarea:focus, input:focus")) return;
     const step = slideWidthPx + slideGapPx;
     const viewportCenter = node.scrollLeft + node.clientWidth / 2;
@@ -324,7 +361,8 @@ export function CardCarousel({
       <div
         ref={scrollRef}
         className={cn(
-          "compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background",
+          "compass-carousel h-full overflow-y-hidden bg-background",
+          editing ? "touch-pan-y overflow-x-hidden" : "snap-x snap-mandatory overflow-x-auto",
           isBrowse && "compass-carousel-editorial",
         )}
         onScroll={handleScroll}
@@ -338,6 +376,7 @@ export function CardCarousel({
                 "compass-carousel-slide h-full shrink-0 snap-center overflow-hidden transition-opacity duration-300",
                 !isBrowse && "min-w-0",
                 index !== activeIndex && "opacity-50",
+                editing && index !== activeIndex && "pointer-events-none",
               )}
               style={
                 isBrowse
