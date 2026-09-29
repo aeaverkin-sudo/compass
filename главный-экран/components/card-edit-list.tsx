@@ -309,6 +309,24 @@ function AddLine({
     field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
   }, [text, open]);
 
+  const dismissLine = () => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    setText("");
+    setFileItemId(null);
+    setOpen(false);
+    onOpenChange(false);
+  };
+
+  /** A chosen file leaves the writing line. The card body shows it, and OK confirms the edit. */
+  const placeFile = (itemId: string) => {
+    const value = text.trim();
+    if (value) updateContactItem(itemId, { label: value });
+    onAdded(itemId);
+    picking.current = false;
+    dismissLine();
+  };
+
   const commit = () => {
     const value = text.trim();
     if (fileItemId) {
@@ -330,12 +348,8 @@ function AddLine({
 
   const close = () => {
     if (closedRef.current) return;
-    closedRef.current = true;
     commit();
-    setText("");
-    setFileItemId(null);
-    setOpen(false);
-    onOpenChange(false);
+    dismissLine();
   };
 
   const closeRef = useRef(close);
@@ -406,13 +420,16 @@ function AddLine({
       if (!id) return;
       const result = updateContactItemAttachment(cardId, id, file, dataUrl);
       if (result.ok) {
-        setFileItemId(id);
         setError(null);
+        placeFile(id);
       } else {
         deleteContactItem(id);
         setError(result.message);
       }
-    }, refocus);
+    }, () => {
+      if (closedRef.current) return;
+      refocus();
+    });
     const field = fieldRef.current;
     if (field && document.activeElement !== field) field.focus({ preventScroll: true });
   };
