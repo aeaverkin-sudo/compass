@@ -521,6 +521,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
 
   useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);
   const blank = !cardHasPhoto(card) && !card.displayName.trim();
+  const showShareFooter = !compact && !editing && ready && (items.length > 0 || Boolean(card.publicToken));
   const bare = !compact && ready && items.length === 0 && !editing;
   const articleRef = useRef<HTMLElement | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
@@ -759,25 +760,31 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       />
       )}
 
-      {!compact && !editing && ready && (items.length > 0 || Boolean(card.publicToken)) ? (
-        <>
-          <CardShareFooter
-            name={card.displayName}
-            onShare={readOnly || !card.publicToken || frozen ? undefined : handleShare}
-            onPrepareShare={readOnly || !card.publicToken || frozen ? undefined : primeShare}
-            className="mt-auto shrink-0 pt-6"
-          />
-        </>
-      ) : null}
       {!compact && !editing ? (
         <NotesRubric
           ownerNotes={readOnly ? undefined : nextScanAddons}
           deliveredNotes={readOnly ? deliveredNotes : undefined}
-          className={items.length === 0 ? "mt-auto" : undefined}
         />
       ) : null}
-      {!compact && !editing && shareFootnote ? (
-        <div className="shrink-0 pt-3 text-center">{shareFootnote}</div>
+      {!compact && !editing && (showShareFooter || shareFootnote) ? (
+        <div className="mt-auto shrink-0 text-[13px] leading-snug">
+          {showShareFooter ? (
+            <>
+              <div aria-hidden className="h-[1lh]" />
+              <CardShareFooter
+                name={card.displayName}
+                onShare={readOnly || !card.publicToken || frozen ? undefined : handleShare}
+                onPrepareShare={readOnly || !card.publicToken || frozen ? undefined : primeShare}
+              />
+            </>
+          ) : null}
+          {shareFootnote ? (
+            <>
+              {showShareFooter ? <div aria-hidden className="h-[2lh]" /> : <div aria-hidden className="h-[1lh]" />}
+              <div className="text-center">{shareFootnote}</div>
+            </>
+          ) : null}
+        </div>
       ) : null}
       </div>
       </div>
