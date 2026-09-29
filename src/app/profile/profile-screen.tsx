@@ -177,7 +177,7 @@ export function ProfileScreen() {
         <button
           type="button"
           disabled
-          className="mt-4 border-0 bg-[#d8d5cc] px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase"
+          className="mt-4 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase disabled:opacity-100"
         >
           Upgrade
         </button>
