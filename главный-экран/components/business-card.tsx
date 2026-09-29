@@ -768,7 +768,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             onPrepareShare={readOnly || !card.publicToken || frozen ? undefined : primeShare}
             className="mt-auto shrink-0 pt-6"
           />
-          {shareFootnote ? <div className="shrink-0 pt-3 text-center">{shareFootnote}</div> : null}
         </>
       ) : null}
       {!compact && !editing ? (
@@ -777,6 +776,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           deliveredNotes={readOnly ? deliveredNotes : undefined}
           className={items.length === 0 ? "mt-auto" : undefined}
         />
+      ) : null}
+      {!compact && !editing && shareFootnote ? (
+        <div className="shrink-0 pt-3 text-center">{shareFootnote}</div>
       ) : null}
       </div>
       </div>
