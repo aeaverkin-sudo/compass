@@ -21,15 +21,15 @@ async function send(to: string, subject: string, text: string) {
 export async function sendStarterCode(to: string, code: string) {
   await send(
     to,
-    "Your Compass code",
-    `Your Compass code is ${code}.\n\nIt is your password until you change it. Keep it.`,
+    "Your passcode",
+    `Your passcode is ${code}.\n\nIt is your password until you change it. Keep it safe.\n\nCheers,\nADED team`,
   );
 }
 
 export async function sendPasswordReset(to: string, link: string) {
   await send(
     to,
-    "Reset your Compass password",
-    `Set a new Compass password:\n${link}\n\nIf you did not ask for this, ignore the message.`,
+    "Reset your password",
+    `Set a new password:\n${link}\n\nIf you didn't ask for this, ignore this message.\n\nCheers,\nADED team`,
   );
 }
