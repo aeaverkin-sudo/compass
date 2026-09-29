@@ -33,8 +33,6 @@ const HERO_PHOTO_PX = 128;
 /** One letter starts here; from the third it shrinks to the name column. */
 const HERO_NAME_MAX_PX = 78;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-/** Role line under the name. Its box bottom sits on the photo's bottom edge. */
-const HERO_ROLE_PX = 11;
 /** Clear space after the descenders, before the role. */
 const HERO_ROLE_GAP_PX = 4;
 /**
@@ -288,8 +286,7 @@ function EditorialHeader({
             {positionTitle ? (
               <p
                 data-card-content
-                className="m-0 shrink-0 text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase"
-                style={{ height: HERO_ROLE_PX }}
+                className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden text-[11px] leading-[1.25] font-normal tracking-[0.2em] text-[#999] uppercase"
               >
                 {positionTitle}
               </p>
