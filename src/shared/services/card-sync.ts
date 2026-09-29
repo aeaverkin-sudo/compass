@@ -275,6 +275,16 @@ async function runHydrate() {
 
   if (!unchanged) useAppStore.setState({ cards: merged });
 
+  const hasPortfolio = merged.some(
+    (card) => card.displayName.trim().length > 0 || Boolean(card.photoAttachmentId),
+  );
+  if (hasPortfolio) {
+    const { user } = useAppStore.getState();
+    if (!user.onboarded) {
+      useAppStore.setState({ user: { ...user, onboarded: true } });
+    }
+  }
+
   const remoteById = new Map(remote.map((row) => [row.id, row]));
   const toUpload = merged.filter((card) => {
     const row = remoteById.get(card.id);

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainScreen } from "@main/components/main-screen";
+import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -18,6 +19,7 @@ function applyMainChrome() {
 export default function MainPage() {
   const router = useRouter();
   const hydrated = useStoreHydrated();
+  const sessionReady = useSessionBootstrap();
   const onboarded = useAppStore((state) => state.user.onboarded);
 
   useEffect(() => {
@@ -25,12 +27,12 @@ export default function MainPage() {
   }, []);
 
   useEffect(() => {
-    if (hydrated && !onboarded) {
+    if (hydrated && sessionReady && !onboarded) {
       router.replace("/");
     }
-  }, [hydrated, onboarded, router]);
+  }, [hydrated, sessionReady, onboarded, router]);
 
-  if (!hydrated || !onboarded) {
+  if (!hydrated || !sessionReady || !onboarded) {
     return <div className="fixed inset-0 bg-background" aria-hidden />;
   }
 
