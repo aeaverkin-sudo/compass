@@ -217,7 +217,8 @@ export function CardEditList({
           onComposingChange?.(open);
         }}
         onAdded={(itemId) => {
-          if (composeOnMount) include(itemId);
+          const first = useAppStore.getState().cards[0];
+          if (first?.id === card.id) include(itemId);
         }}
       />
     </div>
