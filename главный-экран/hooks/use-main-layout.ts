@@ -48,12 +48,17 @@ function computeLayout(): MainLayout | null {
   // viewport and stays stable when the iOS keyboard shrinks the visual viewport.
   const viewportH = document.documentElement.clientHeight || window.innerHeight;
   const safeTop = readSafeAreaInset("top");
+  // Visible bottom in a browser = above the browser toolbar (visual viewport),
+  // not the full layout viewport which reaches under the toolbar. Buttons are
+  // only shown with the keyboard closed, so the visual viewport is safe here.
+  const visibleBottom =
+    (typeof window !== "undefined" && window.visualViewport?.height) || window.innerHeight || viewportH;
   const qrTop = safeTop + HEADER_RHYTHM_PX;
   const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const browseHeight = browseCardHeightPx(viewportH, safeTop);
   const libraryHeight = libraryCardHeightPx(viewportH, safeTop);
   const cardBottomBrowse = cardTopBrowse + browseHeight;
-  const browseMenuCenterY = (cardBottomBrowse + viewportH) / 2 + BOTTOM_PLATE_DROP_PX;
+  const browseMenuCenterY = (cardBottomBrowse + visibleBottom) / 2 + BOTTOM_PLATE_DROP_PX;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
   const cardTopLibrary = libraryStackTopPx(safeTop);
   const sheetTopLibrary = librarySheetTopPx(viewportH, safeTop);
