@@ -113,7 +113,7 @@ export function LandingPage() {
           <Link href="/register?signin=1" className="justify-self-start px-2 py-4">
             Sign in
           </Link>
-          <button type="button" className="justify-self-end px-2 py-4" onClick={() => setAboutOpen(true)}>
+          <button type="button" className="justify-self-end px-2 py-4 uppercase" onClick={() => setAboutOpen(true)}>
             About
           </button>
         </div>
