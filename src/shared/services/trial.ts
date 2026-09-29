@@ -71,8 +71,19 @@ async function readClock(userId: string): Promise<ProfileClock | null> {
     .select("draft_expires_at, purge_at, registered_at, plan")
     .eq("id", userId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
-  return (data as ProfileClock | null) ?? null;
+  if (!error) return (data as ProfileClock | null) ?? null;
+
+  // The plan column is optional until phase 9 is applied. An unset plan is free.
+  if (!/plan/i.test(error.message)) throw new Error(error.message);
+
+  const fallback = await admin
+    .from("profiles")
+    .select("draft_expires_at, purge_at, registered_at")
+    .eq("id", userId)
+    .maybeSingle();
+  if (fallback.error) throw new Error(fallback.error.message);
+  if (!fallback.data) return null;
+  return { ...(fallback.data as Omit<ProfileClock, "plan">), plan: null };
 }
 
 export async function readAccountStatus(userId: string): Promise<AccountStatus> {
