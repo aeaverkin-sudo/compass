@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import type { User } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { markSessionBootstrapComplete } from "@/shared/lib/session-bootstrap";
+import { deviceWasRegistered, markRegisteredDevice } from "@/shared/lib/registered-device";
+import { markRegistrationRequired, markSessionBootstrapComplete } from "@/shared/lib/session-bootstrap";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -13,7 +15,21 @@ function restoreRegisteredOnboarding(isAnonymous: boolean) {
   useAppStore.setState({ user: { ...state.user, onboarded: true } });
 }
 
-/** Opens an anonymous Supabase session on first visit. Renders nothing. */
+function acceptUser(user: User) {
+  if (!user.is_anonymous) markRegisteredDevice();
+  restoreRegisteredOnboarding(Boolean(user.is_anonymous));
+  console.info("[supabase] session", user.id, user.is_anonymous ? "trial" : "registered");
+  void hydrateCardsFromServer();
+}
+
+function sendRegisteredDeviceToSignIn() {
+  markRegistrationRequired();
+  const path = window.location.pathname;
+  if (path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/c/")) return;
+  window.location.replace("/register?expired=1");
+}
+
+/** Opens an anonymous Supabase session on a new device. Renders nothing. */
 export function SupabaseSession() {
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -30,18 +46,27 @@ export function SupabaseSession() {
       try {
         const { data: existing, error: existingError } = await supabase.auth.getUser();
         if (existing.user) {
-          restoreRegisteredOnboarding(Boolean(existing.user.is_anonymous));
-          console.info(
-            "[supabase] session",
-            existing.user.id,
-            existing.user.is_anonymous ? "trial" : "registered",
-          );
-          void hydrateCardsFromServer();
+          acceptUser(existing.user);
           return;
         }
 
         if (existingError && existingError.name !== "AuthSessionMissingError") {
           console.error("[supabase] session check failed", existingError.message);
+        }
+
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshed.user) {
+          acceptUser(refreshed.user);
+          return;
+        }
+        if (refreshError && refreshError.name !== "AuthSessionMissingError") {
+          console.error("[supabase] refresh failed", refreshError.message);
+        }
+
+        if (deviceWasRegistered()) {
+          console.info("[supabase] registered device, session missing");
+          sendRegisteredDeviceToSignIn();
+          return;
         }
 
         const { data, error } = await supabase.auth.signInAnonymously();
@@ -50,8 +75,7 @@ export function SupabaseSession() {
           return;
         }
 
-        console.info("[supabase] session", data.user.id, "trial");
-        void hydrateCardsFromServer();
+        acceptUser(data.user);
       } finally {
         markSessionBootstrapComplete();
       }

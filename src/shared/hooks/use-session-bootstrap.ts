@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import {
+  getRegistrationRequired,
   getSessionBootstrapReady,
   subscribeSessionBootstrap,
 } from "@/shared/lib/session-bootstrap";
@@ -13,4 +14,9 @@ export function useSessionBootstrap() {
     getSessionBootstrapReady,
     () => false,
   );
+}
+
+/** True when this device had a registered account and the session is gone. */
+export function useRegistrationRequired() {
+  return useSyncExternalStore(subscribeSessionBootstrap, getRegistrationRequired, () => false);
 }

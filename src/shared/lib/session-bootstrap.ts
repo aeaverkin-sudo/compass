@@ -1,6 +1,7 @@
 type Listener = () => void;
 
 let ready = false;
+let registrationRequired = false;
 const listeners = new Set<Listener>();
 
 /** Called once SupabaseSession finishes its first auth check. */
@@ -19,4 +20,15 @@ export function subscribeSessionBootstrap(listener: Listener) {
 
 export function getSessionBootstrapReady() {
   return ready;
+}
+
+/** A registered device lost its session. Do not open a new trial. */
+export function markRegistrationRequired() {
+  if (registrationRequired) return;
+  registrationRequired = true;
+  for (const listener of listeners) listener();
+}
+
+export function getRegistrationRequired() {
+  return registrationRequired;
 }

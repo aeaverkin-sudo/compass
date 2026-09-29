@@ -14,5 +14,20 @@ export function createBrowserSupabaseClient() {
   }
 
   browserClient = createBrowserClient(url, anonKey);
+  bindRefreshToVisibleTab(browserClient);
   return browserClient;
+}
+
+/**
+ * One tab refreshes the cookie session. A hidden tab must not refresh the same
+ * token later — Supabase treats that as reuse and revokes the whole chain.
+ * Document requests still refresh in src/proxy.ts.
+ */
+function bindRefreshToVisibleTab(client: SupabaseClient) {
+  const sync = () => {
+    if (document.visibilityState === "visible") void client.auth.startAutoRefresh();
+    else void client.auth.stopAutoRefresh();
+  };
+  document.addEventListener("visibilitychange", sync);
+  sync();
 }

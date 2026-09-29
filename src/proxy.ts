@@ -28,6 +28,7 @@ export async function proxy(request: NextRequest) {
     },
   });
 
+  // Server refresh lives here. The browser refreshes only while its tab is visible.
   await supabase.auth.getUser();
 
   return supabaseResponse;

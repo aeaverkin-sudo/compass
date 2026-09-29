@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ConsentLine } from "@/shared/components/consent-line";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
@@ -51,7 +52,10 @@ async function enterExistingAccount(signIn: () => Promise<string | null>, redire
     useAppStore.setState(snapshot);
     return error;
   }
-  if (!redirects) hydrateCardsFromServer();
+  if (!redirects) {
+    markRegisteredDevice();
+    hydrateCardsFromServer();
+  }
   return null;
 }
 
@@ -66,7 +70,9 @@ export function RegisterScreen() {
   const [branch, setBranch] = useState<Branch>("email");
   const [serverHasCard, setServerHasCard] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(params.get("error"));
+  const [message, setMessage] = useState<string | null>(
+    params.get("expired") === "1" ? "Session expired. Sign in." : params.get("error"),
+  );
   const cards = useAppStore((state) => state.cards);
 
   const hasCard = serverHasCard || deviceHasCard(cards);
@@ -172,13 +178,18 @@ export function RegisterScreen() {
         return;
       }
       const supabase = createBrowserSupabaseClient();
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: code.trim() });
-      if (error) {
+      await supabase.auth.signOut({ scope: "local" });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: code.trim(),
+      });
+      if (error || !data.session) {
         setBranch("login");
         setPassword(code.trim());
         setMessage("The code is your password. Sign in with it.");
         return;
       }
+      markRegisteredDevice();
       router.push("/main");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not check the code");
