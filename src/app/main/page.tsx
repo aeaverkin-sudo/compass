@@ -11,7 +11,7 @@ function applyMainChrome() {
 
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute("content", "#ffffff");
+    meta.setAttribute("content", "#c5e8f7");
   }
 }
 
