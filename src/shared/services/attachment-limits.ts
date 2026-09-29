@@ -1,6 +1,5 @@
-/** Phase 3 ceilings. The bucket itself is capped at 50 MB. */
+/** Per-file ceilings. The account total lives on the plan, not here. The bucket itself is capped at 50 MB. */
 
-export const ACCOUNT_BYTE_LIMIT = 500 * 1024 * 1024;
 export const IMAGE_BYTE_LIMIT = 8 * 1024 * 1024;
 export const DOCUMENT_BYTE_LIMIT = 15 * 1024 * 1024;
 export const AUDIO_BYTE_LIMIT = 10 * 1024 * 1024;

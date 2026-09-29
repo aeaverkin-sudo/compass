@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { readyByteTotal, requireOwnerId } from "@/shared/services/attachment-api";
-import { ACCOUNT_BYTE_LIMIT } from "@/shared/services/attachment-limits";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { readAccountStatus, type AccountProvider, type AccountStatus } from "@/shared/services/trial";
 
@@ -49,7 +48,6 @@ export async function GET() {
       provider: user ? providerOf(user) : null,
       consentVersion,
       bytesUsed,
-      bytesLimit: ACCOUNT_BYTE_LIMIT,
     };
     return NextResponse.json(status, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

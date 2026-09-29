@@ -1,4 +1,5 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { planCatalog, planId, planLimits, type PlanId } from "@/shared/services/plans";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -19,14 +20,19 @@ export type AccountStatus = {
   provider: AccountProvider;
   /** Version the person accepted. Null until a consent row exists. */
   consentVersion: string | null;
+  plan: PlanId;
+  portfolioLimit: number;
   bytesUsed: number;
   bytesLimit: number;
+  /** Both plans, so the profile can describe each one. The live ceilings are portfolioLimit and bytesLimit. */
+  catalog: Record<PlanId, { portfolios: number; bytes: number }>;
 };
 
 type ProfileClock = {
   draft_expires_at: string | null;
   purge_at: string | null;
   registered_at: string | null;
+  plan: string | null;
 };
 
 function clockFrom(row: ProfileClock | null, now = Date.now()) {
@@ -43,14 +49,26 @@ function clockFrom(row: ProfileClock | null, now = Date.now()) {
 }
 
 function statusFrom(row: ProfileClock | null, now = Date.now()): AccountStatus {
-  return { ...clockFrom(row, now), email: null, provider: null, consentVersion: null, bytesUsed: 0, bytesLimit: 0 };
+  const plan = planId(row?.plan);
+  const limits = planLimits(plan);
+  return {
+    ...clockFrom(row, now),
+    email: null,
+    provider: null,
+    consentVersion: null,
+    plan,
+    portfolioLimit: limits.portfolios,
+    bytesUsed: 0,
+    bytesLimit: limits.bytes,
+    catalog: planCatalog(),
+  };
 }
 
 async function readClock(userId: string): Promise<ProfileClock | null> {
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from("profiles")
-    .select("draft_expires_at, purge_at, registered_at")
+    .select("draft_expires_at, purge_at, registered_at, plan")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw new Error(error.message);

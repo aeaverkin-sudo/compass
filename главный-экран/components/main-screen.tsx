@@ -46,7 +46,8 @@ export function MainScreen() {
   const showGate = useCallback(() => setGateNonce(Date.now()), []);
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
-  const showAddSlide = canAddMoreCards(cards);
+  const portfolioLimit = account?.portfolioLimit ?? null;
+  const showAddSlide = canAddMoreCards(cards, portfolioLimit);
   const [browseIndex, setBrowseIndex] = useState(currentCardIndex);
 
   useEffect(() => {
@@ -136,8 +137,12 @@ export function MainScreen() {
         <p className="max-w-xs text-[16px] font-light leading-snug">You don&apos;t have a portfolio yet.</p>
         <button
           type="button"
-          className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
-          onClick={() => updateSecondCardDraft({ displayName: "" })}
+          className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+          disabled={portfolioLimit === null || cards.length >= portfolioLimit}
+          onClick={() => {
+            if (portfolioLimit === null) return;
+            updateSecondCardDraft({ displayName: "" }, portfolioLimit);
+          }}
         >
           Create portfolio
         </button>
@@ -201,7 +206,9 @@ export function MainScreen() {
               showGate();
               return;
             }
-            if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
+            if (!cards[currentCardIndex] && portfolioLimit !== null) {
+              updateSecondCardDraft({ displayName: "" }, portfolioLimit);
+            }
             setComposeOnMount(false);
             setEditing(true);
           }}

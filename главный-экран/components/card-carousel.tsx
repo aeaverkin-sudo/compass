@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import type { Card, ContactItem } from "@/shared/types";
@@ -146,12 +147,14 @@ export function CardCarousel({
   );
 
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
+  const portfolioLimit = useAccountStatus()?.portfolioLimit ?? null;
 
   const handleDraftUpdate = useCallback(
     (data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>) => {
-      updateSecondCardDraft(data);
+      if (portfolioLimit === null) return;
+      updateSecondCardDraft(data, portfolioLimit);
     },
-    [updateSecondCardDraft],
+    [portfolioLimit, updateSecondCardDraft],
   );
 
   const savePickedPhoto = useCallback(

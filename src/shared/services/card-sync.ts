@@ -189,7 +189,18 @@ export async function upsertCardScalars(card: Card): Promise<void> {
       { onConflict: "id", defaultToNull: false },
     );
 
-    if (error) console.error("[card-sync] upsert failed", error.message);
+    if (error) {
+      console.error("[card-sync] upsert failed", error.message);
+      if (/portfolio_limit/i.test(error.message)) {
+        const { useAppStore } = await import("@/shared/store/app-store");
+        const state = useAppStore.getState();
+        const cards = state.cards.filter((entry) => entry.id !== card.id);
+        useAppStore.setState({
+          cards,
+          currentCardIndex: Math.min(state.currentCardIndex, Math.max(cards.length - 1, 0)),
+        });
+      }
+    }
   } catch (error) {
     console.error("[card-sync] upsert failed", error);
   }

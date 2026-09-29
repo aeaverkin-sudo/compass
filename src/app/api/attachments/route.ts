@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fileTypeFromBuffer } from "file-type/core";
 import {
+  accountBytesLimit,
   insertAttachment,
   isUuid,
   quotaAllows,
@@ -73,7 +74,8 @@ async function storeTransferNote(ownerId: string, kindValue: string, transferId:
   } catch {
     return jsonFail(500, "Could not check storage quota");
   }
-  if (!quotaAllows(used, bytes.byteLength)) {
+  const bytesLimit = await accountBytesLimit(ownerId);
+  if (!quotaAllows(used, bytes.byteLength, bytesLimit)) {
     return jsonFail(413, "Account storage is full");
   }
 
@@ -169,7 +171,8 @@ export async function POST(request: Request) {
   } catch {
     return jsonFail(500, "Could not check storage quota");
   }
-  if (!quotaAllows(used, bytes.byteLength)) {
+  const bytesLimit = await accountBytesLimit(owner.id);
+  if (!quotaAllows(used, bytes.byteLength, bytesLimit)) {
     return jsonFail(413, "Account storage is full");
   }
 

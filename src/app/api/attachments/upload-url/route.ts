@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import {
+  accountBytesLimit,
   deleteAttachment,
   insertAttachment,
   quotaAllows,
@@ -60,7 +61,8 @@ export async function POST(request: Request) {
   } catch {
     return jsonFail(500, "Could not check storage quota");
   }
-  if (!quotaAllows(used, byteSize)) {
+  const bytesLimit = await accountBytesLimit(owner.id);
+  if (!quotaAllows(used, byteSize, bytesLimit)) {
     return jsonFail(413, "Account storage is full");
   }
 

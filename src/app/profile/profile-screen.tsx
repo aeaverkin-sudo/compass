@@ -6,7 +6,6 @@ import { useState } from "react";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
-import { MAX_CARDS } from "@main/layout";
 import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
@@ -35,7 +34,8 @@ export function ProfileScreen() {
   const cards = useAppStore((state) => state.cards);
   const setCardListed = useAppStore((state) => state.setCardListed);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
-  const atCardLimit = cards.length >= MAX_CARDS;
+  const portfolioLimit = account?.portfolioLimit ?? null;
+  const atCardLimit = portfolioLimit !== null && cards.length >= portfolioLimit;
   const [busy, setBusy] = useState(false);
   const signedIn = account?.registered === true;
   const canChangePassword = signedIn && account?.provider === "email";
@@ -165,19 +165,18 @@ export function ProfileScreen() {
             );
           })}
         </ul>
-        {atCardLimit ? null : (
-          <button
-            type="button"
-            className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
-            onClick={() => {
-              // The column default is public. A new portfolio has to opt out.
-              updateSecondCardDraft({ displayName: "" });
-              router.push("/main");
-            }}
-          >
-            Create portfolio
-          </button>
-        )}
+        <button
+          type="button"
+          disabled={atCardLimit || portfolioLimit === null}
+          className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+          onClick={() => {
+            if (portfolioLimit === null) return;
+            updateSecondCardDraft({ displayName: "" }, portfolioLimit);
+            router.push("/main");
+          }}
+        >
+          Create portfolio
+        </button>
       </section>
 
       <section className="mt-10 max-w-xs">

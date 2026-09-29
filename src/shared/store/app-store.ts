@@ -3,7 +3,6 @@
 import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { MAX_CARDS } from "@main/layout";
 import {
   contactItemFromAttachment,
   createEmptyContactItem,
@@ -49,7 +48,10 @@ interface AppState {
   updateCard: (id: string, data: Partial<Card>) => void;
   /** Public/Private. The first card stays public. A new second card is created private. */
   setCardListed: (id: string, listed: boolean) => void;
-  updateSecondCardDraft: (data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>) => void;
+  updateSecondCardDraft: (
+    data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>,
+    portfolioLimit: number,
+  ) => void;
   /** Add an empty draft to the library pool (not bound to any card). One draft at a time. */
   addContactItem: () => string | null;
   updateContactItem: (itemId: string, data: Partial<Pick<ContactItem, "value" | "label">>) => void;
@@ -327,9 +329,9 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      updateSecondCardDraft: (data) => {
+      updateSecondCardDraft: (data, portfolioLimit) => {
         const { cards } = get();
-        if (cards.length >= MAX_CARDS) return;
+        if (!Number.isFinite(portfolioLimit) || cards.length >= portfolioLimit) return;
 
         const now = new Date().toISOString();
         const next = ensureCardIdentity({
@@ -409,8 +411,9 @@ export function selectActiveCard(cards: Card[], currentCardIndex: number): Card 
   return cards[currentCardIndex] ?? cards[0];
 }
 
-export function canAddMoreCards(cards: Card[]): boolean {
-  return cards.length > 0 && cards.length < MAX_CARDS;
+export function canAddMoreCards(cards: Card[], portfolioLimit: number | null): boolean {
+  if (portfolioLimit === null) return false;
+  return cards.length > 0 && cards.length < portfolioLimit;
 }
 
 /** True when this portfolio is public and no other portfolio is. */

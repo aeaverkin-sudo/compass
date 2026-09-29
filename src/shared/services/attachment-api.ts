@@ -1,9 +1,7 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
-import {
-  ACCOUNT_BYTE_LIMIT,
-  CARD_ATTACHMENTS_BUCKET,
-} from "@/shared/services/attachment-limits";
+import { CARD_ATTACHMENTS_BUCKET } from "@/shared/services/attachment-limits";
+import { readAccountStatus } from "@/shared/services/trial";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -61,8 +59,12 @@ export async function readyByteTotal(ownerId: string): Promise<number> {
   return (data ?? []).reduce((sum, row) => sum + Number(row.byte_size ?? 0), 0);
 }
 
-export function quotaAllows(used: number, incoming: number): boolean {
-  return used + incoming <= ACCOUNT_BYTE_LIMIT;
+export function quotaAllows(used: number, incoming: number, limit: number): boolean {
+  return used + incoming <= limit;
+}
+
+export async function accountBytesLimit(ownerId: string): Promise<number> {
+  return (await readAccountStatus(ownerId)).bytesLimit;
 }
 
 export async function insertAttachment(row: {
