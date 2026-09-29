@@ -30,6 +30,8 @@ export type MainLayout = {
   edgeInsetLibrary: number;
   browseCardHeight: number;
   libraryCardHeight: number;
+  /** Top edge of the sky field. */
+  skyTopBrowse: number;
 };
 
 function readSafeAreaInset(edge: "top" | "bottom") {
@@ -89,11 +91,13 @@ function computeLayout(rememberedBottom: { value: number }): MainLayout | null {
   let browseHeight = browseCardHeightPx(viewportH, safeTop);
   let cardBottomBrowse = cardTopBrowse + browseHeight;
   let browseMenuCenterY = (cardBottomBrowse + viewportH) / 2 + BOTTOM_PLATE_DROP_PX;
+  let skyTopBrowse = cardBottomBrowse + BOTTOM_PLATE_LOWER_PX;
   const phoneBrowser = isPhoneBrowser();
   if (phoneBrowser) {
     const visibleBottom = Math.min(viewportH, visibleBottomPx(viewportH, rememberedBottom));
-    const skyTop = visibleBottom - Math.round(BROWSER_COMMAND_BAND_PX * 0.45);
-    cardBottomBrowse = Math.round(Math.max(cardTopBrowse + 160, skyTop - BOTTOM_PLATE_LOWER_PX));
+    skyTopBrowse = visibleBottom - Math.round(BROWSER_COMMAND_BAND_PX * 0.45);
+    // The card runs straight into the sky, with no white strip between them.
+    cardBottomBrowse = Math.round(Math.max(cardTopBrowse + 160, skyTopBrowse));
     browseHeight = cardBottomBrowse - cardTopBrowse;
     browseMenuCenterY = Math.round(visibleBottom - 8);
     document.documentElement.style.setProperty("--browse-card-h", `${Math.round(browseHeight)}px`);
@@ -120,6 +124,7 @@ function computeLayout(rememberedBottom: { value: number }): MainLayout | null {
     edgeInsetLibrary: SHEET_INSET.library.horizontal,
     browseCardHeight: browseHeight,
     libraryCardHeight: libraryHeight,
+    skyTopBrowse,
   };
 }
 

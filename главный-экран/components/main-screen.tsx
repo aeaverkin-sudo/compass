@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BOTTOM_PLATE_LOWER_PX, carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
+import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
@@ -124,8 +124,8 @@ export function MainScreen() {
           aria-hidden
           className="pointer-events-none fixed inset-x-0 z-10 bg-sky"
           style={{
-            top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX),
-            height: `calc(100lvh + 120px - ${layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX}px)`,
+            top: layoutTop(layout.skyTopBrowse),
+            height: `calc(100lvh + 120px - ${layout.skyTopBrowse}px)`,
           }}
         />
       ) : null}
