@@ -9,6 +9,14 @@ export function markRegisteredDevice() {
   }
 }
 
+export function clearRegisteredDevice() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // Private mode can block storage.
+  }
+}
+
 export function deviceWasRegistered() {
   try {
     return localStorage.getItem(KEY) === "1";

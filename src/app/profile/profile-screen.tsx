@@ -237,6 +237,11 @@ export function ProfileScreen() {
           </button>
           <span className="mt-1 block text-[13px]">Coming soon</span>
         </p>
+        <p className="mt-4 text-[14px] font-light">
+          <Link href="/account/delete" className="underline">
+            Delete account
+          </Link>
+        </p>
       </section>
 
       <section className="mt-10 max-w-xs">
