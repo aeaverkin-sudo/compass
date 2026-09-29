@@ -102,6 +102,19 @@ export function MainScreen() {
 
   const cardUrl = shownCard?.publicToken ? publicCardUrl(shownCard.publicToken) : "";
   const layout = useMainLayout();
+  const skyShown = Boolean(layout) && cards.length > 0 && !composing && (editing || !hideNav);
+
+  // Safari paints the strip behind its address bar with the page background, not with the sky div.
+  useEffect(() => {
+    const root = document.documentElement.style;
+    if (!skyShown) return;
+    root.transition = "none";
+    root.backgroundColor = "var(--sky)";
+    return () => {
+      root.removeProperty("background-color");
+      root.removeProperty("transition");
+    };
+  }, [skyShown]);
 
   if (cards.length === 0) {
     return <div className="fixed inset-0 bg-background" aria-hidden />;
