@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
+import { APP_VERSION, SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
@@ -13,14 +14,19 @@ import { dropPendingCardUpserts } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isCardReady, isSolePublic, useAppStore } from "@/shared/store/app-store";
 
+function formatBytes(bytes: number) {
+  if (bytes <= 0) return "0 MB";
+  const megabytes = bytes / (1024 * 1024);
+  if (megabytes < 10) return `${megabytes.toFixed(megabytes < 1 ? 1 : 0)} MB`;
+  return `${Math.round(megabytes)} MB`;
+}
+
 function storageLine(used: number, limit: number) {
-  const asMegabytes = (bytes: number) => {
-    if (bytes <= 0) return "0 MB";
-    const megabytes = bytes / (1024 * 1024);
-    if (megabytes < 10) return `${megabytes.toFixed(megabytes < 1 ? 1 : 0)} MB`;
-    return `${Math.round(megabytes)} MB`;
-  };
-  return `${asMegabytes(used)} of ${asMegabytes(limit)}`;
+  return `${formatBytes(used)} of ${formatBytes(limit)}`;
+}
+
+function planTitle(plan: "free" | "paid") {
+  return plan === "paid" ? "Paid" : "Free";
 }
 
 function trialLine(hoursLeft: number | null) {
@@ -113,6 +119,30 @@ export function ProfileScreen() {
         </p>
       </section>
 
+      <section className="mt-10 max-w-xs">
+        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Subscription</h2>
+        <p className="mt-3 text-[20px] font-light">{planTitle(account.plan)}</p>
+        <ul className="mt-3 space-y-1 text-[14px] font-light leading-snug">
+          <li>
+            Free — {account.catalog.free.portfolios} portfolios, {formatBytes(account.catalog.free.bytes)}
+          </li>
+          <li>
+            Paid — {account.catalog.paid.portfolios} portfolios, {formatBytes(account.catalog.paid.bytes)}
+          </li>
+        </ul>
+        <button
+          type="button"
+          disabled
+          className="mt-4 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+        >
+          Upgrade
+        </button>
+        <p className="mt-2 text-[13px] font-light">Coming soon</p>
+        {/* Stripe seam: Manage subscription and payment history.
+            Checkout and the customer portal will write profiles.plan from a webhook.
+            Do not collect card details here. */}
+      </section>
+
       <section className="mt-10 max-w-sm">
         <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Portfolios</h2>
         <ul className="mt-4 space-y-6">
@@ -180,19 +210,37 @@ export function ProfileScreen() {
       </section>
 
       <section className="mt-10 max-w-xs">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Storage</h2>
+        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Usage & Limits</h2>
+        <p className="mt-3 text-[14px] font-light">{storageLine(account.bytesUsed, account.bytesLimit)}</p>
+        <p className="mt-2 text-[14px] font-light">
+          {cards.length} of {portfolioLimit ?? "…"} portfolios
+        </p>
+        {portfolioLimit !== null && portfolioLimit - cards.length === 1 ? (
+          <p className="mt-2 text-[13px] font-light leading-snug">One portfolio left on this plan.</p>
+        ) : null}
+        {account.bytesLimit > 0 && account.bytesUsed / account.bytesLimit >= 0.8 && account.bytesUsed < account.bytesLimit ? (
+          <p className="mt-2 text-[13px] font-light leading-snug">Storage is nearly full.</p>
+        ) : null}
+      </section>
+
+      <section className="mt-10 max-w-xs">
+        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Account management</h2>
         <p className="mt-3 text-[14px] font-light">
-          {account ? storageLine(account.bytesUsed, account.bytesLimit) : "…"}
+          <button type="button" disabled className="underline disabled:opacity-40">
+            Change email
+          </button>
+          <span className="mt-1 block text-[13px]">Coming soon</span>
+        </p>
+        <p className="mt-3 text-[14px] font-light">
+          <button type="button" disabled className="underline disabled:opacity-40">
+            Export my data
+          </button>
+          <span className="mt-1 block text-[13px]">Coming soon</span>
         </p>
       </section>
 
       <section className="mt-10 max-w-xs">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Subscription</h2>
-        <p className="mt-3 text-[14px] font-light">Free</p>
-      </section>
-
-      <section className="mt-10 max-w-xs">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Legal</h2>
+        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">About & Legal</h2>
         <p className="mt-3 text-[14px] font-light">
           <Link href="/terms" className="underline">
             Terms
@@ -203,7 +251,13 @@ export function ProfileScreen() {
           </Link>
         </p>
         <p className="mt-2 text-[14px] font-light">
-          {account?.consentVersion ? `Consent ${account.consentVersion}` : "Not recorded"}
+          {account.consentVersion ? `Consent ${account.consentVersion}` : "Not recorded"}
+        </p>
+        <p className="mt-2 text-[14px] font-light">App {APP_VERSION}</p>
+        <p className="mt-2 text-[14px] font-light">
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
+            {SUPPORT_EMAIL}
+          </a>
         </p>
       </section>
     </main>
