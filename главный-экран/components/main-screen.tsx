@@ -165,12 +165,9 @@ export function MainScreen() {
       {layout && !composing && (editing || !hideNav) ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col"
-          style={{ top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX) }}
-        >
-          <div className="shrink-0 bg-gradient-to-b from-transparent to-sky" style={{ height: TOP_VEIL_PX }} />
-          <div className="flex-1 bg-sky" />
-        </div>
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-sky"
+          style={{ top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX) }}
+        />
       ) : null}
 
       {frozen && !composing ? (
