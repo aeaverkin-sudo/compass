@@ -138,20 +138,20 @@ function openPdf(file: File) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-/** Stay inside the home-screen app. Close returns to the card. */
+/**
+ * Stay inside the home-screen app.
+ * A blob or iframe PDF replaces that window on iPhone, and then there is no Close.
+ */
 function previewPdf(file: File) {
-  const url = URL.createObjectURL(file);
-  window.dispatchEvent(new CustomEvent("compass-pdf-preview", { detail: { url, name: file.name } }));
+  window.dispatchEvent(
+    new CustomEvent("compass-pdf-preview", { detail: { blob: file, name: file.name } }),
+  );
 }
 
 function shareFile(file: File) {
   const shareData: ShareData = { files: [file] };
-  const home = isHomeScreenApp();
-  if (home && typeof navigator.share === "function") {
-    void navigator.share(shareData).catch((error) => {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      previewPdf(file);
-    });
+  if (isHomeScreenApp()) {
+    previewPdf(file);
     return;
   }
   if (typeof navigator === "undefined" || !navigator.canShare?.(shareData)) {

@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# Copied from pdfjs-dist on install. Same-origin worker for the in-app PDF.
+/public/pdf.worker.min.mjs
+
 # production
 /build
 

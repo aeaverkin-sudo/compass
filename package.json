@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs",
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "mkdir -p .next/standalone/public && cp -r public/. .next/standalone/public/ && cp -r .next/static .next/standalone/.next/",
+    "postbuild": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs && mkdir -p .next/standalone/public && cp -r public/. .next/standalone/public/ && cp -r .next/static .next/standalone/.next/",
     "start": "node .next/standalone/server.js",
     "lint": "eslint"
   },
@@ -21,6 +22,7 @@
     "nanoid": "^5.1.16",
     "next": "16.3.5",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.3.289",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
     "react": "19.2.8",
