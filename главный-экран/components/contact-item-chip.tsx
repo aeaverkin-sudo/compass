@@ -11,6 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { cn } from "@/lib/utils";
+import { openHomeScreenAttachmentPdf } from "@/shared/components/pdf-preview-host";
 import { composeCard, isChoosableHeader, type CardDisplayRow } from "@/shared/services/card-zones";
 import type { ContactItem } from "@/shared/types";
 
@@ -107,7 +108,12 @@ function ContactItemChipRow({
         href={row.url}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={(event: MouseEvent) => event.stopPropagation()}
+        onClick={(event: MouseEvent) => {
+          event.stopPropagation();
+          if (row.item?.type === "pdf" && openHomeScreenAttachmentPdf(row.url, row.value || "PDF")) {
+            event.preventDefault();
+          }
+        }}
         className={classNames}
         style={style}
       >
@@ -156,7 +162,12 @@ function EditorialValue({ row, onChooseHeader }: { row: CardDisplayRow; onChoose
         href={row.url}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (row.item?.type === "pdf" && openHomeScreenAttachmentPdf(row.url, row.value || "PDF")) {
+            event.preventDefault();
+          }
+        }}
         className="block min-w-0 no-underline"
       >
         {body}

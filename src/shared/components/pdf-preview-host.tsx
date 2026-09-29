@@ -1,8 +1,39 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { isHomeScreenApp } from "@/shared/services/save-public-card-pdf";
 
-type PreviewFile = { blob: Blob; name: string };
+type PreviewFile = { id?: number; blob: Blob | null; name: string };
+
+let ticket = 0;
+
+/** Open a stored PDF inside the home-screen app. Returns false when the link should open normally. */
+export function openHomeScreenAttachmentPdf(url: string, name: string) {
+  if (typeof window === "undefined" || !isHomeScreenApp()) return false;
+  const id = ++ticket;
+  const label = name.trim() || "PDF";
+  window.dispatchEvent(new CustomEvent("compass-pdf-preview", { detail: { id, name: label, blob: null } }));
+  void fetch(url)
+    .then(async (response) => {
+      if (id !== ticket) return;
+      if (!response.ok) throw new Error("pdf");
+      const blob = await response.blob();
+      const type = (response.headers.get("content-type") ?? blob.type).split(";")[0]?.trim().toLowerCase();
+      if (type !== "application/pdf") throw new Error("pdf");
+      if (id !== ticket) return;
+      const filename = /\.pdf$/i.test(label) ? label : `${label}.pdf`;
+      window.dispatchEvent(
+        new CustomEvent("compass-pdf-preview", { detail: { id, name: filename, blob } }),
+      );
+    })
+    .catch(() => {
+      if (id !== ticket) return;
+      window.dispatchEvent(
+        new CustomEvent("compass-pdf-preview", { detail: { id, name: label, blob: null, failed: true } }),
+      );
+    });
+  return true;
+}
 
 const TAP_PX = 10;
 
@@ -15,8 +46,12 @@ export function PdfPreviewHost() {
 
   useEffect(() => {
     const onPreview = (event: Event) => {
-      const detail = (event as CustomEvent<PreviewFile>).detail;
-      if (!detail?.blob) return;
+      const detail = (event as CustomEvent<PreviewFile & { failed?: boolean }>).detail;
+      if (!detail?.name) return;
+      if (detail.failed) {
+        setFailed(true);
+        return;
+      }
       setFailed(false);
       setFile(detail);
     };
@@ -26,7 +61,8 @@ export function PdfPreviewHost() {
 
   useEffect(() => {
     const host = pagesRef.current;
-    if (!file || !host) return;
+    const blob = file?.blob;
+    if (!blob || !host) return;
     const hold: { cancel: boolean } = { cancel: false };
     host.replaceChildren();
 
@@ -34,7 +70,7 @@ export function PdfPreviewHost() {
       try {
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const data = new Uint8Array(await file.blob.arrayBuffer());
+        const data = new Uint8Array(await blob.arrayBuffer());
         const task = pdfjs.getDocument({ data });
         try {
           const doc = await task.promise;
@@ -72,9 +108,14 @@ export function PdfPreviewHost() {
 
   if (!file) return null;
 
-  const close = () => setFile(null);
+  const close = () => {
+    ticket += 1;
+    setFile(null);
+    setFailed(false);
+  };
 
   const share = () => {
+    if (!file.blob) return;
     const pdf = new File([file.blob], file.name, { type: "application/pdf" });
     if (typeof navigator.share !== "function") return;
     void navigator.share({ files: [pdf] }).catch(() => undefined);
@@ -85,7 +126,7 @@ export function PdfPreviewHost() {
       <div className="flex items-center justify-between gap-4 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
         <p className="min-w-0 truncate text-[14px] font-normal text-[#111]">{file.name}</p>
         <div className="flex shrink-0 items-center gap-5">
-          {typeof navigator.share === "function" ? (
+          {file.blob && typeof navigator.share === "function" ? (
             <button type="button" onClick={share} className="text-[14px] font-normal text-[#111] underline">
               Share
             </button>
@@ -109,6 +150,9 @@ export function PdfPreviewHost() {
         }}
       >
         <div ref={pagesRef} />
+        {!file.blob && !failed ? (
+          <p className="px-5 py-8 text-center text-[14px] font-normal text-[#111]">Opening…</p>
+        ) : null}
         {failed ? (
           <p className="px-5 py-8 text-center text-[14px] font-normal text-[#111]">Could not open this PDF.</p>
         ) : null}

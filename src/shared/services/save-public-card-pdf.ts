@@ -115,7 +115,7 @@ function toFile(ready: ReadyPdf): File {
 }
 
 /** Home-screen icon. A PDF opened in that window has no browser Back or Close. */
-function isHomeScreenApp() {
+export function isHomeScreenApp() {
   if (typeof window === "undefined") return false;
   const nav = navigator as Navigator & { standalone?: boolean };
   return (
