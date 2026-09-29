@@ -35,6 +35,11 @@ export const CARD_BOTTOM_RAISE_PX = -84 - (96 / 25.4) * 4;
 export const BOTTOM_PLATE_DROP_PX = (96 / 25.4) * 3;
 /** The sky plate starts this far below the card edge. */
 export const BOTTOM_PLATE_LOWER_PX = (96 / 25.4) * 2;
+/**
+ * Phone browser only: the command row sits in this band, on top of the address bar.
+ * The home-screen icon keeps the taller plate.
+ */
+export const BROWSER_COMMAND_BAND_PX = 56;
 
 /** Browse veils: solid white to clear in 3mm. Top and bottom share this. */
 export const TOP_VEIL_PX = (96 / 25.4) * 3;
@@ -100,7 +105,8 @@ export function browseCardHeightPx(viewportH: number, safeTop: number) {
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
-  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
+  const designed = `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
+  return `var(--browse-card-h, ${designed})`;
 }
 
 export function libraryStackTopPx(safeTop: number) {
