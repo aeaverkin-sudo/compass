@@ -62,7 +62,8 @@ export function MainScreen() {
   const browseCard = viewingAddSlide ? null : (cards[browseIndex] ?? cards[currentCardIndex] ?? null);
   const cardReady = Boolean(browseCard && isCardReady(browseCard));
   const shownHasBody = Boolean(browseCard && getCardItems(browseCard, contactItems).length > 0);
-  const hideNav = cardReady && !shownHasBody;
+  const hideNav =
+    (cardReady && !shownHasBody) || (viewingAddSlide && needsAccount);
 
   useEffect(() => {
     if (!cards[currentCardIndex] || frozen) {
