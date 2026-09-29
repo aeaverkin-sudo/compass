@@ -122,11 +122,8 @@ export function MainScreen() {
       {layout && !composing && (editing || !hideNav) ? (
         <div
           aria-hidden
-          className="pointer-events-none fixed inset-x-0 z-10 bg-sky"
-          style={{
-            top: layoutTop(layout.skyTopBrowse),
-            height: `calc(100lvh + 120px - ${layout.skyTopBrowse}px)`,
-          }}
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-sky"
+          style={{ top: layoutTop(layout.skyTopBrowse) }}
         />
       ) : null}
 
