@@ -70,7 +70,7 @@ export function ProfileScreen() {
             <p className="text-[14px] font-light leading-snug">{trialLine(account.hoursLeft)}</p>
             <Link
               href="/register"
-              className="mt-6 inline-block border border-[#111] px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+              className="mt-6 inline-block border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
             >
               Register
             </Link>
