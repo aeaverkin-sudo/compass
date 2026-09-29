@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Sheet, SheetContent } from "@/shared/components/ui/sheet";
 import { ConsentLine } from "@/shared/components/consent-line";
 import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
@@ -24,6 +26,7 @@ export function LandingPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
 
@@ -94,7 +97,7 @@ export function LandingPage() {
         </label>
       </div>
 
-      <div className="flex flex-col items-center justify-center px-8 pb-[calc(max(1.5rem,env(safe-area-inset-bottom))+1cm)]">
+      <div className="flex flex-col items-center justify-center px-8 pb-6">
         {saveError ? (
           <p className="mb-3 px-6 text-center text-[12px] leading-snug text-[#111]">{saveError}</p>
         ) : null}
@@ -105,6 +108,37 @@ export function LandingPage() {
           </>
         ) : null}
       </div>
+      <nav className="bg-sky px-[calc(clamp(24px,6.1vw,28px)-3mm)] pb-[env(safe-area-inset-bottom)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
+        <div className="grid grid-cols-2 items-baseline">
+          <Link href="/register?signin=1" className="justify-self-start px-2 py-4">
+            Sign in
+          </Link>
+          <button type="button" className="justify-self-end px-2 py-4" onClick={() => setAboutOpen(true)}>
+            About
+          </button>
+        </div>
+      </nav>
+      <Sheet open={aboutOpen} onOpenChange={setAboutOpen}>
+        <SheetContent aria-label="About">
+          <p className="max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+            ADED ME — your portfolio, your people, all in order.
+          </p>
+          <p className="mt-3 max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+            Build a few cards, share them in seconds. Everyone you meet gets a PDF of you — work, links, socials,
+            files — so you never get lost in a phone. Made for events, parties, and every good introduction. More than
+            contact details: drop in your PDFs, your links, your socials.
+          </p>
+          <p className="mt-4 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+            <Link href="/terms" className="underline">
+              Terms
+            </Link>
+            {" · "}
+            <Link href="/privacy" className="underline">
+              Privacy
+            </Link>
+          </p>
+        </SheetContent>
+      </Sheet>
     </main>
   );
 }

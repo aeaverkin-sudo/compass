@@ -68,7 +68,7 @@ export function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
-  const [branch, setBranch] = useState<Branch>("email");
+  const [branch, setBranch] = useState<Branch>(params.get("signin") === "1" ? "login" : "email");
   const [serverHasCard, setServerHasCard] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(
