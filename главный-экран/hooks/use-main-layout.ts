@@ -92,7 +92,7 @@ function computeLayout(rememberedBottom: { value: number }): MainLayout | null {
   const phoneBrowser = isPhoneBrowser();
   if (phoneBrowser) {
     const visibleBottom = Math.min(viewportH, visibleBottomPx(viewportH, rememberedBottom));
-    const plateTop = visibleBottom - BROWSER_COMMAND_BAND_PX;
+    const plateTop = visibleBottom - BROWSER_COMMAND_BAND_PX + Math.round(viewportH * 0.1);
     cardBottomBrowse = Math.round(Math.max(cardTopBrowse + 160, plateTop - BOTTOM_PLATE_LOWER_PX));
     browseHeight = cardBottomBrowse - cardTopBrowse;
     browseMenuCenterY = Math.round(plateTop + BROWSER_COMMAND_BAND_PX / 2);
