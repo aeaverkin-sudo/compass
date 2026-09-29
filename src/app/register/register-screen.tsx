@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import { ConsentLine } from "@/shared/components/consent-line";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
@@ -244,8 +246,11 @@ export function RegisterScreen() {
   };
 
   return (
-    <main className="compass-main flex min-h-lvh flex-col bg-white px-8 py-12 text-[#111]">
-      <h1 className="text-[32px] font-light leading-tight">{branch === "login" ? "Sign in" : "Register"}</h1>
+    <main className="compass-main flex min-h-lvh flex-col bg-white px-8 pt-[max(1.25rem,env(safe-area-inset-top))] pb-12 text-[#111]">
+      <Link href="/" aria-label="Back" className="-ml-2 inline-flex size-10 items-center text-[#111]">
+        <ChevronLeft className="size-6" strokeWidth={1.5} aria-hidden />
+      </Link>
+      <h1 className="mt-2 text-[32px] font-light leading-tight">{branch === "login" ? "Sign in" : "Register"}</h1>
       <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
         {branch === "login"
           ? "Enter the email and the password for this account."
