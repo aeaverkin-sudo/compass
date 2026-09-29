@@ -96,7 +96,7 @@ export function WrapField({
         suppressContentEditableWarning
         enterKeyHint="done"
         autoCorrect="off"
-        autoCapitalize="off"
+        autoCapitalize="sentences"
         spellCheck={false}
         data-no-swipe
         onInput={() => {

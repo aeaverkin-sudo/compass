@@ -121,11 +121,55 @@ export function createEmptyContactItem(order: number): ContactItem {
   };
 }
 
+const URL_HOST_TYPES = new Set<ContactType>([
+  "website",
+  "link",
+  "instagram",
+  "linkedin",
+  "meta",
+  "x",
+  "youtube",
+  "tiktok",
+  "github",
+  "behance",
+  "dribbble",
+  "spotify",
+  "calendly",
+  "appstore",
+  "playstore",
+  "telegram",
+  "whatsapp",
+]);
+
+/** Lowercase the host. Path and query stay as typed. A bare domain is all host. */
+function lowerHostname(value: string): string {
+  const match = value.match(/^((?:[a-z][a-z0-9+.-]*:\/\/)?)([^/?#]+)(.*)$/i);
+  if (!match) return value;
+  const scheme = match[1] ?? "";
+  const host = match[2] ?? "";
+  const rest = match[3] ?? "";
+  const at = host.lastIndexOf("@");
+  const auth = at >= 0 ? host.slice(0, at + 1) : "";
+  const hostPort = at >= 0 ? host.slice(at + 1) : host;
+  const portMatch = hostPort.match(/^(.*?)(:\d+)$/);
+  const name = portMatch?.[1] ?? hostPort;
+  const port = portMatch?.[2] ?? "";
+  if (!name.includes(".")) return value;
+  return `${scheme}${auth}${name.toLowerCase()}${port}${rest}`;
+}
+
+function storedContactValue(type: ContactType, value: string): string {
+  if (type === "email") return value.toLowerCase();
+  if (URL_HOST_TYPES.has(type)) return lowerHostname(value);
+  return value;
+}
+
 export function normalizeContactItem(item: ContactItem, value: string): ContactItem {
   const trimmed = value.slice(0, 2000);
   const type = detectContactType(trimmed);
+  const stored = storedContactValue(type, trimmed);
   const shortcut = parseTypedShortcut(trimmed);
-  let url = trimmed;
+  let url = stored;
 
   const keptKind = item.type === "position" && type === "text";
   const resolved = keptKind ? item.type : type;
@@ -136,23 +180,23 @@ export function normalizeContactItem(item: ContactItem, value: string): ContactI
       ...item,
       type: item.type,
       label,
-      value: trimmed,
+      value: stored,
       url: "",
     };
   }
 
   if (type === "text" || type === "position") url = "";
-  else if (type === "email") url = `mailto:${trimmed}`;
-  else if (type === "phone") url = `tel:${trimmed.replace(/\s/g, "")}`;
-  else if (isAttachmentType(type)) url = trimmed.startsWith("data:") ? trimmed : item.url || trimmed;
+  else if (type === "email") url = `mailto:${stored}`;
+  else if (type === "phone") url = `tel:${stored.replace(/\s/g, "")}`;
+  else if (isAttachmentType(type)) url = stored.startsWith("data:") ? stored : item.url || stored;
   else if (shortcut) url = profileUrlForType(shortcut.type, shortcut.handle) ?? "";
-  else if (!trimmed.startsWith("http") && !trimmed.startsWith("data:")) url = `https://${trimmed}`;
+  else if (!/^https?:/i.test(stored) && !stored.startsWith("data:")) url = `https://${stored}`;
 
   return {
     ...item,
     type,
     label,
-    value: trimmed,
+    value: stored,
     url,
   };
 }

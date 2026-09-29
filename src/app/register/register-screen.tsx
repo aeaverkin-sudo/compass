@@ -291,6 +291,7 @@ export function RegisterScreen() {
         <input
           id="register-email"
           type="email"
+          autoCapitalize="none"
           autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -309,6 +310,7 @@ export function RegisterScreen() {
             <input
               id="register-code"
               inputMode="text"
+              autoCapitalize="characters"
               autoComplete="one-time-code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
@@ -329,6 +331,7 @@ export function RegisterScreen() {
             <input
               id="register-password"
               type="password"
+              autoCapitalize="none"
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}

@@ -182,6 +182,7 @@ function HeroName({
           enterKeyHint="enter"
           placeholder=""
           aria-label="Name or portfolio title"
+          autoCapitalize="words"
           autoCorrect="off"
           spellCheck={false}
           data-no-swipe

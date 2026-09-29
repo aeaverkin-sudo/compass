@@ -51,6 +51,7 @@ export function PasswordForm({ title, hint, exchangeCode = false }: PasswordForm
         <input
           id="new-password"
           type="password"
+          autoCapitalize="none"
           autoComplete="new-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}

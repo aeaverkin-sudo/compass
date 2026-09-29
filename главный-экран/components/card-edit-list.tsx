@@ -476,7 +476,7 @@ function AddLine({
                     aria-label={ADD_PLACEHOLDER}
                     enterKeyHint="done"
                     autoCorrect="off"
-                    autoCapitalize="off"
+                    autoCapitalize="sentences"
                     spellCheck={false}
                     data-no-swipe
                     onPointerDown={() => {
@@ -645,7 +645,7 @@ function EditRow({
                     aria-label="Edit row"
                     enterKeyHint="done"
                     autoCorrect="off"
-                    autoCapitalize="off"
+                    autoCapitalize="sentences"
                     spellCheck={false}
                     data-no-swipe
                     onChange={(event) => {
