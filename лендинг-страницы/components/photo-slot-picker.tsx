@@ -21,6 +21,8 @@ type PhotoSlotPickerProps = {
   borderRadiusPx?: number;
   className?: string;
   surfaceClassName?: string;
+  /** When set, the picker does not open and this runs instead. */
+  onPickBlocked?: () => void;
 };
 
 export function PhotoSlotPicker({
@@ -30,6 +32,7 @@ export function PhotoSlotPicker({
   borderRadiusPx = photoRadiusForSize(sizePx),
   className,
   surfaceClassName = "bg-sheet",
+  onPickBlocked,
 }: PhotoSlotPickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
@@ -86,7 +89,13 @@ export function PhotoSlotPicker({
             type="button"
             data-card-content
             aria-label={photo ? "Change photo" : "Add photo"}
-            onClick={pickPhoto}
+            onClick={() => {
+              if (onPickBlocked) {
+                onPickBlocked();
+                return;
+              }
+              pickPhoto();
+            }}
             className="flex size-full items-center justify-center transition-opacity active:opacity-80"
           >
             <Plus className="size-7 text-hint" strokeWidth={1.5} aria-hidden />

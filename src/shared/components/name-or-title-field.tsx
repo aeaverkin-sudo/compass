@@ -7,6 +7,8 @@ type NameOrTitleFieldProps = {
   onChange: (value: string) => void;
   fontSizePx?: number;
   className?: string;
+  /** When set, focus does not open the field and this runs instead. */
+  onEditBlocked?: () => void;
 };
 
 export function clampNameLines(value: string) {
@@ -20,6 +22,7 @@ export function NameOrTitleField({
   onChange,
   fontSizePx = 17,
   className,
+  onEditBlocked,
 }: NameOrTitleFieldProps) {
   const twoLines = value.includes("\n");
 
@@ -44,6 +47,11 @@ export function NameOrTitleField({
         const start = event.currentTarget.selectionStart ?? value.length;
         const end = event.currentTarget.selectionEnd ?? start;
         onChange(clampNameLines(`${value.slice(0, start)}\n${value.slice(end)}`));
+      }}
+      onFocus={(event) => {
+        if (!onEditBlocked) return;
+        onEditBlocked();
+        event.currentTarget.blur();
       }}
       onClick={(event) => event.stopPropagation()}
       className={cn(

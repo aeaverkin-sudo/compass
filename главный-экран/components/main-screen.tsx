@@ -44,11 +44,25 @@ export function MainScreen() {
   const showGate = useCallback((text: string) => setGate({ text, nonce: Date.now() }), []);
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
-  const shownCard = cards[currentCardIndex] ?? null;
-  const cardReady = Boolean(shownCard && isCardReady(shownCard));
-  const shownHasBody = Boolean(shownCard && getCardItems(shownCard, contactItems).length > 0);
-  const hideNav = cardReady && !shownHasBody;
   const showAddSlide = canAddMoreCards(cards);
+  const [browseIndex, setBrowseIndex] = useState(currentCardIndex);
+
+  useEffect(() => {
+    setBrowseIndex((index) => {
+      const maxIndex = showAddSlide ? cards.length : Math.max(cards.length - 1, 0);
+      return Math.min(index, maxIndex);
+    });
+  }, [cards.length, showAddSlide]);
+
+  useEffect(() => {
+    setBrowseIndex((index) => (index >= cards.length ? index : currentCardIndex));
+  }, [currentCardIndex, cards.length]);
+
+  const viewingAddSlide = showAddSlide && browseIndex >= cards.length;
+  const browseCard = viewingAddSlide ? null : (cards[browseIndex] ?? cards[currentCardIndex] ?? null);
+  const cardReady = Boolean(browseCard && isCardReady(browseCard));
+  const shownHasBody = Boolean(browseCard && getCardItems(browseCard, contactItems).length > 0);
+  const hideNav = cardReady && !shownHasBody;
 
   useEffect(() => {
     if (!cards[currentCardIndex] || frozen) {
@@ -100,7 +114,7 @@ export function MainScreen() {
     };
   }, []);
 
-  const cardUrl = shownCard?.publicToken ? publicCardUrl(shownCard.publicToken) : "";
+  const cardUrl = browseCard?.publicToken ? publicCardUrl(browseCard.publicToken) : "";
   const layout = useMainLayout();
 
   if (cards.length === 0) {
@@ -193,7 +207,7 @@ export function MainScreen() {
         >
           <CardCarousel
             cards={cards}
-            activeIndex={currentCardIndex}
+            activeIndex={browseIndex}
             contactItems={contactItems}
             mode="browse"
             canAddCard={showAddSlide}
@@ -223,7 +237,10 @@ export function MainScreen() {
               setComposeOnMount(!contactItems.some(isContactFilled));
               setEditing(true);
             }}
-            onActiveIndexChange={setCurrentCardIndex}
+            onActiveIndexChange={(index) => {
+              setBrowseIndex(index);
+              if (index < cards.length) setCurrentCardIndex(index);
+            }}
             onUpdateCard={updateCard}
             onEmptyAreaTap={() => undefined}
           />

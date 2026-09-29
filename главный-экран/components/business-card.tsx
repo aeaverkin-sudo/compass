@@ -305,10 +305,12 @@ function EmptyPortfolioStart({
   card,
   onPhotoChange,
   onDisplayNameChange,
+  onStartBlocked,
 }: {
   card: Card;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
+  onStartBlocked?: () => void;
 }) {
   return (
     <div className="flex w-full flex-col items-center" style={{ paddingTop: CARD_PHOTO_TOP_PX }}>
@@ -318,6 +320,7 @@ function EmptyPortfolioStart({
           onPhotoChange={onPhotoChange}
           sizePx={CARD_PHOTO_SIZE_PX}
           borderRadiusPx={CARD_PHOTO_RADIUS_PX}
+          onPickBlocked={onStartBlocked}
         />
       ) : null}
       {onDisplayNameChange ? (
@@ -331,6 +334,7 @@ function EmptyPortfolioStart({
             onChange={onDisplayNameChange}
             fontSizePx={CARD_HEADER_NAME_SIZE_PX}
             className="px-0 py-0 text-center"
+            onEditBlocked={onStartBlocked}
           />
         </label>
       ) : null}
@@ -439,6 +443,8 @@ type BusinessCardProps = {
   shareFootnote?: ReactNode;
   /** One-time notes delivered to the first real viewer. */
   deliveredNotes?: DeliveredNote[];
+  /** Trial add slide: same empty start, taps ask to register. */
+  onPortfolioStartBlocked?: () => void;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -461,6 +467,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     frozen = false,
     shareFootnote,
     deliveredNotes = [],
+    onPortfolioStartBlocked,
   },
   ref,
 ) {
@@ -642,6 +649,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               card={card}
               onPhotoChange={onPhotoChange}
               onDisplayNameChange={onDisplayNameChange}
+              onStartBlocked={onPortfolioStartBlocked}
             />
           ) : (
             <EditorialHeader

@@ -1,15 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import type { Card, ContactItem } from "@/shared/types";
 import { cn } from "@/lib/utils";
 import {
   CARD_CAROUSEL_GAP_PX,
-  CARD_HEADER_NAME_SIZE_PX,
-  CARD_PHOTO_SIZE_PX,
-  CARD_PHOTO_TOP_PX,
   carouselSidePaddingPx,
   carouselSlideWidthPx,
   SHEET_INSET,
@@ -37,7 +34,7 @@ type CardCarouselProps = {
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
   frozen?: boolean;
-  /** Trial: the extra portfolio is a teaser. Taps ask the person to register. */
+  /** Trial: the add slide looks empty but taps ask the person to register. */
   needsAccount?: boolean;
   onTrialSlot?: () => void;
   /** Line under the portfolio name and share control. */
@@ -46,42 +43,6 @@ type CardCarouselProps = {
 
 function CarouselSpacer({ width }: { width: number }) {
   return <div aria-hidden className="shrink-0" style={{ width }} />;
-}
-
-function TrialSecondCard({ onInteract }: { onInteract: () => void }) {
-  const start = useRef<{ x: number; y: number } | null>(null);
-
-  const onPointerDown = (event: PointerEvent) => {
-    start.current = { x: event.clientX, y: event.clientY };
-  };
-
-  const onPointerUp = (event: PointerEvent) => {
-    const origin = start.current;
-    start.current = null;
-    if (!origin) return;
-    const dx = event.clientX - origin.x;
-    const dy = event.clientY - origin.y;
-    if (dx * dx + dy * dy > 64) return;
-    onInteract();
-  };
-
-  return (
-    <div
-      className="flex w-full flex-col items-center px-[calc(clamp(24px,6.1vw,28px)-3mm)]"
-      style={{ paddingTop: CARD_PHOTO_TOP_PX }}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-    >
-      <span className="border border-[#111]" style={{ width: CARD_PHOTO_SIZE_PX, height: CARD_PHOTO_SIZE_PX }} />
-      <p
-        className="mt-[2.3em] text-center font-light text-hint"
-        style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
-      >
-        Name
-      </p>
-      <p className="mt-8 text-[22.15px] leading-none font-light">+</p>
-    </div>
-  );
 }
 
 const EMPTY_DRAFT: Card = {
@@ -334,6 +295,7 @@ export function CardCarousel({
     onName: (displayName: string) => void,
     onUpdate: (data: Partial<Card>) => void,
     hint: boolean,
+    onPortfolioStartBlocked?: () => void,
   ) => (
     <BusinessCard
       card={card}
@@ -352,29 +314,30 @@ export function CardCarousel({
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
       frozen={frozen}
       shareFootnote={card.id === ADD_SLIDE_ID ? undefined : shareFootnote}
+      onPortfolioStartBlocked={onPortfolioStartBlocked}
     />
   );
 
   const renderSlide = (slideId: string, index: number) => {
-    if (slideId === ADD_SLIDE_ID && needsAccount) {
-      return <TrialSecondCard onInteract={() => onTrialSlot?.()} />;
-    }
-
     if (slideId === ADD_SLIDE_ID) {
+      const trialLocked = needsAccount;
       return renderCard(
         EMPTY_DRAFT,
-        (photo, file) => {
-          if (!photo || !file) return;
-          const count = useAppStore.getState().cards.length;
-          handleDraftUpdate({ photo });
-          const created = useAppStore.getState().cards;
-          const cardId = created.length > count ? created[created.length - 1]?.id : undefined;
-          if (!cardId) return;
-          savePickedPhoto(cardId, photo, file);
-        },
-        (displayName) => handleDraftUpdate({ displayName }),
+        trialLocked
+          ? () => undefined
+          : (photo, file) => {
+              if (!photo || !file) return;
+              const count = useAppStore.getState().cards.length;
+              handleDraftUpdate({ photo });
+              const created = useAppStore.getState().cards;
+              const cardId = created.length > count ? created[created.length - 1]?.id : undefined;
+              if (!cardId) return;
+              savePickedPhoto(cardId, photo, file);
+            },
+        trialLocked ? () => undefined : (displayName) => handleDraftUpdate({ displayName }),
         () => undefined,
         false,
+        trialLocked ? () => onTrialSlot?.() : undefined,
       );
     }
 
