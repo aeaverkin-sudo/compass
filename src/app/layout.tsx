@@ -5,8 +5,8 @@ import { SupabaseSession } from "@/shared/components/supabase-session";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Compass",
-  description: "Compass — landing",
+  title: "ADED",
+  description: "ADED",
   manifest: "/manifest.json",
 };
 

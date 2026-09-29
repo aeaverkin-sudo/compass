@@ -11,7 +11,7 @@ type PageProps = { params: Promise<{ publicToken: string }> };
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { publicToken } = await params;
   const loaded = await loadPublicCard(publicToken);
-  if (!loaded) return { title: "Compass" };
+  if (!loaded) return { title: "ADED" };
   return { title: loaded.card.displayName };
 }
 

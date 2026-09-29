@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const POINTS = [
-  "Compass uses AI.",
+  "ADED uses AI.",
   "A portfolio may not be used for anything illegal. That includes pornography, weapons, drugs, resale of prescription medicine, sanctioned goods, and any other illegal use.",
   "We store the data securely.",
   "Do not put sensitive data on a portfolio. A phone number or an Instagram handle is usually already public; sharing it here is voluntary.",
