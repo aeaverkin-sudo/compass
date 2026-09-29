@@ -166,7 +166,7 @@ export function ProfileScreen() {
         {atCardLimit ? null : (
           <button
             type="button"
-            className="mt-6 border border-[#111] bg-transparent px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+            className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
             onClick={() => {
               // The column default is public. A new portfolio has to opt out.
               updateSecondCardDraft({ displayName: "" });

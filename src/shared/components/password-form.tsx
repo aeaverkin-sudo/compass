@@ -59,7 +59,7 @@ export function PasswordForm({ title, hint, exchangeCode = false }: PasswordForm
         <button
           type="submit"
           disabled={busy}
-          className="mt-6 self-start border border-[#111] px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+          className="mt-6 self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
         >
           Save
         </button>
