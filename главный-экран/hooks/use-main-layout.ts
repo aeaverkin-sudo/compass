@@ -97,8 +97,11 @@ function computeLayout(rememberedBottom: { value: number }): MainLayout | null {
     browseHeight = cardBottomBrowse - cardTopBrowse;
     browseMenuCenterY = Math.round(visibleBottom - 8);
     document.documentElement.style.setProperty("--browse-card-h", `${Math.round(browseHeight)}px`);
+    // The strip behind the address bar is painted with the page background, not the sky div.
+    document.documentElement.style.backgroundColor = "var(--sky)";
   } else {
     document.documentElement.style.removeProperty("--browse-card-h");
+    document.documentElement.style.removeProperty("background-color");
   }
   const libraryHeight = libraryCardHeightPx(viewportH, safeTop);
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
@@ -153,6 +156,7 @@ export function useMainLayout() {
       viewport?.removeEventListener("resize", sync);
       viewport?.removeEventListener("scroll", sync);
       document.documentElement.style.removeProperty("--browse-card-h");
+      document.documentElement.style.removeProperty("background-color");
     };
   }, []);
 

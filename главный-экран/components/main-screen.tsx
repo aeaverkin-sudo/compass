@@ -125,7 +125,7 @@ export function MainScreen() {
           className="pointer-events-none fixed inset-x-0 z-10 bg-sky"
           style={{
             top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX),
-            height: `calc(100lvh - ${layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX}px)`,
+            height: `calc(100lvh + 120px - ${layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX}px)`,
           }}
         />
       ) : null}
