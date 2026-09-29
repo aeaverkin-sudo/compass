@@ -435,6 +435,8 @@ type BusinessCardProps = {
   readOnly?: boolean;
   /** Frozen trial: the card stays visible, share is closed. */
   frozen?: boolean;
+  /** Sits on its own line under the portfolio name and share control. */
+  shareFootnote?: ReactNode;
   /** One-time notes delivered to the first real viewer. */
   deliveredNotes?: DeliveredNote[];
 };
@@ -457,6 +459,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onComposingChange,
     readOnly = false,
     frozen = false,
+    shareFootnote,
     deliveredNotes = [],
   },
   ref,
@@ -750,12 +753,15 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       )}
 
       {!compact && !editing && ready && (items.length > 0 || Boolean(card.publicToken)) ? (
-        <CardShareFooter
-          name={card.displayName}
-          onShare={readOnly || !card.publicToken || frozen ? undefined : handleShare}
-          onPrepareShare={readOnly || !card.publicToken || frozen ? undefined : primeShare}
-          className="mt-auto shrink-0 pt-6"
-        />
+        <>
+          <CardShareFooter
+            name={card.displayName}
+            onShare={readOnly || !card.publicToken || frozen ? undefined : handleShare}
+            onPrepareShare={readOnly || !card.publicToken || frozen ? undefined : primeShare}
+            className="mt-auto shrink-0 pt-6"
+          />
+          {shareFootnote ? <div className="shrink-0 pt-3 text-center">{shareFootnote}</div> : null}
+        </>
       ) : null}
       {!compact && !editing ? (
         <NotesRubric

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import type { Card, ContactItem } from "@/shared/types";
@@ -40,6 +40,8 @@ type CardCarouselProps = {
   /** Trial: the extra portfolio is a teaser. Taps ask the person to register. */
   needsAccount?: boolean;
   onTrialSlot?: () => void;
+  /** Line under the portfolio name and share control. */
+  shareFootnote?: ReactNode;
 };
 
 function CarouselSpacer({ width }: { width: number }) {
@@ -114,6 +116,7 @@ export function CardCarousel({
   frozen = false,
   needsAccount = false,
   onTrialSlot,
+  shareFootnote,
 }: CardCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
@@ -348,6 +351,7 @@ export function CardCarousel({
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
       frozen={frozen}
+      shareFootnote={card.id === ADD_SLIDE_ID ? undefined : shareFootnote}
     />
   );
 
@@ -404,6 +408,7 @@ export function CardCarousel({
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}
         frozen={frozen}
+        shareFootnote={shareFootnote}
       />
     );
   }

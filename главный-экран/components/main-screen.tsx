@@ -142,22 +142,6 @@ export function MainScreen() {
         </p>
       ) : null}
 
-      {account?.trial && !frozen && !composing ? (
-        <p
-          className="absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
-          style={{
-            bottom: hideNav
-              ? "max(1.5rem, env(safe-area-inset-bottom))"
-              : "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)",
-          }}
-        >
-          Trial — {account.hoursLeft}h left.{" "}
-          <Link href="/register" className="underline">
-            Register now
-          </Link>
-        </p>
-      ) : null}
-
       {passwordHint && !composing ? (
         <InfoNotice text="You can change your password in Profile." onDone={dismissPasswordHint} />
       ) : null}
@@ -219,6 +203,16 @@ export function MainScreen() {
             openAddRef={openAddRef}
             onComposingChange={onComposingChange}
             frozen={frozen}
+            shareFootnote={
+              account?.trial && !frozen && !composing ? (
+                <p className="text-[13px] font-light leading-snug text-[#111]">
+                  Trial — {account.hoursLeft}h left.{" "}
+                  <Link href="/register" className="underline">
+                    Register now
+                  </Link>
+                </p>
+              ) : null
+            }
             needsAccount={needsAccount}
             onTrialSlot={() => showGate("Second portfolio is available to registered users only.")}
             onFill={(cardId) => {
