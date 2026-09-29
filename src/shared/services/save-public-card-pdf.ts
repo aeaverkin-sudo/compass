@@ -114,6 +114,17 @@ function toFile(ready: ReadyPdf): File {
   return new File([ready.blob], ready.filename, { type: "application/pdf" });
 }
 
+/** Home-screen icon. A PDF opened in that window has no browser Back or Close. */
+function isHomeScreenApp() {
+  if (typeof window === "undefined") return false;
+  const nav = navigator as Navigator & { standalone?: boolean };
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.matchMedia("(display-mode: fullscreen)").matches ||
+    nav.standalone === true
+  );
+}
+
 /** Last resort when the share sheet is unavailable: the PDF opens in the browser's own viewer. */
 function openPdf(file: File) {
   const url = URL.createObjectURL(file);
@@ -127,8 +138,22 @@ function openPdf(file: File) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+/** Stay inside the home-screen app. Close returns to the card. */
+function previewPdf(file: File) {
+  const url = URL.createObjectURL(file);
+  window.dispatchEvent(new CustomEvent("compass-pdf-preview", { detail: { url, name: file.name } }));
+}
+
 function shareFile(file: File) {
   const shareData: ShareData = { files: [file] };
+  const home = isHomeScreenApp();
+  if (home && typeof navigator.share === "function") {
+    void navigator.share(shareData).catch((error) => {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      previewPdf(file);
+    });
+    return;
+  }
   if (typeof navigator === "undefined" || !navigator.canShare?.(shareData)) {
     openPdf(file);
     return;
