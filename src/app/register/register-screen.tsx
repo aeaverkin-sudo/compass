@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ConsentLine } from "@/shared/components/consent-line";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
+import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
@@ -54,7 +55,7 @@ async function enterExistingAccount(signIn: () => Promise<string | null>, redire
   }
   if (!redirects) {
     markRegisteredDevice();
-    hydrateCardsFromServer();
+    await hydrateCardsFromServer();
   }
   return null;
 }
@@ -178,6 +179,7 @@ export function RegisterScreen() {
         return;
       }
       const supabase = createBrowserSupabaseClient();
+      ignoreNextSignedOut();
       await supabase.auth.signOut({ scope: "local" });
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
@@ -243,10 +245,35 @@ export function RegisterScreen() {
 
   return (
     <main className="compass-main flex min-h-lvh flex-col bg-white px-8 py-12 text-[#111]">
-      <h1 className="text-[32px] font-light leading-tight">Register</h1>
+      <h1 className="text-[32px] font-light leading-tight">{branch === "login" ? "Sign in" : "Register"}</h1>
       <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
-        Google, or an email. A new email gets a code. That code is the password.
+        {branch === "login"
+          ? "Enter the email and the password for this account."
+          : "Google, or an email. A new email gets a code. That code is the password."}
       </p>
+      {branch === "login" ? (
+        <button
+          type="button"
+          className="mt-6 self-start text-[14px] font-light underline"
+          onClick={() => {
+            setBranch("email");
+            setMessage(null);
+          }}
+        >
+          Create an account
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="mt-6 self-start text-[14px] font-light underline"
+          onClick={() => {
+            setBranch("login");
+            setMessage(null);
+          }}
+        >
+          Already have an account? Sign in
+        </button>
+      )}
 
       <div className="mt-8">
         <ConsentLine checked={accepted} onCheckedChange={setAccepted} id="register-consent" />
@@ -295,7 +322,7 @@ export function RegisterScreen() {
           autoComplete="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          disabled={branch !== "email"}
+          disabled={branch === "code"}
           className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none disabled:opacity-60"
         />
 

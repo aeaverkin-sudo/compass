@@ -7,6 +7,7 @@ import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { MAX_CARDS } from "@main/layout";
+import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts } from "@/shared/services/card-sync";
@@ -52,6 +53,7 @@ export function ProfileScreen() {
       currentCardIndex: 0,
       user: { ...user, onboarded: false },
     });
+    ignoreNextSignedOut();
     await createBrowserSupabaseClient().auth.signOut();
     router.push("/");
   };

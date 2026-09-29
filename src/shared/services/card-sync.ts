@@ -27,7 +27,28 @@ const CARD_COLUMNS =
   "id, display_name, title, status, public_token, qr_version, is_public, listed, photo_attachment_id, created_at, updated_at";
 
 const pendingUpserts = new Map<string, { timer: ReturnType<typeof setTimeout>; card: Card }>();
-let hydrateTask: Promise<void> | null = null;
+let hydrateChain: Promise<void> = Promise.resolve();
+let hydratesLeft = 0;
+let cardsHydrated = false;
+const cardsHydratedListeners = new Set<() => void>();
+
+function markCardsHydrated() {
+  if (cardsHydrated) return;
+  cardsHydrated = true;
+  for (const listener of cardsHydratedListeners) listener();
+}
+
+/** True after the latest server pull has finished, including a failed one. */
+export function getCardsHydrated() {
+  return cardsHydrated;
+}
+
+export function subscribeCardsHydrated(listener: () => void) {
+  cardsHydratedListeners.add(listener);
+  return () => {
+    cardsHydratedListeners.delete(listener);
+  };
+}
 
 function isCardUuid(id: string) {
   return UUID_RE.test(id);
@@ -305,16 +326,19 @@ async function runHydrate() {
   armLiveQrPulse();
 }
 
-/** Pull server scalars after the anonymous session exists. Safe to call more than once. */
-export function hydrateCardsFromServer() {
-  if (!hydrateTask) {
-    hydrateTask = runHydrate()
-      .catch((error) => {
-        console.error("[card-sync] hydrate failed", error);
-      })
-      .finally(() => {
-        hydrateTask = null;
-      });
-  }
-  return hydrateTask;
+/**
+ * Pull server scalars after a session exists. Safe to call more than once.
+ * A call that arrives while a pull is running waits, then pulls again, so a
+ * sign-in does not keep the previous account's result.
+ */
+export function hydrateCardsFromServer(): Promise<void> {
+  hydratesLeft += 1;
+  const run = hydrateChain.then(() => runHydrate()).catch((error) => {
+    console.error("[card-sync] hydrate failed", error);
+  });
+  hydrateChain = run.then(() => {
+    hydratesLeft -= 1;
+    if (hydratesLeft === 0) markCardsHydrated();
+  });
+  return hydrateChain;
 }

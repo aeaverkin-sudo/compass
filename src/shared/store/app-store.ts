@@ -329,7 +329,7 @@ export const useAppStore = create<AppState>()(
 
       updateSecondCardDraft: (data) => {
         const { cards } = get();
-        if (cards.length === 0 || cards.length >= MAX_CARDS) return;
+        if (cards.length >= MAX_CARDS) return;
 
         const now = new Date().toISOString();
         const next = ensureCardIdentity({
@@ -343,7 +343,7 @@ export const useAppStore = create<AppState>()(
           qrVersion: 1,
           contactItemIds: [],
           nextScanAddons: [],
-          listed: false,
+          listed: cards.length === 0,
           createdAt: now,
           updatedAt: now,
         });

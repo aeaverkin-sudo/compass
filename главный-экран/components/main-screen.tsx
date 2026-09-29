@@ -17,6 +17,7 @@ import {
 import { CardCarousel } from "./card-carousel";
 import { QrZone } from "./qr-zone";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
+import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 
 export function MainScreen() {
   const router = useRouter();
@@ -35,6 +36,7 @@ export function MainScreen() {
   const openAddRef = useRef<(() => void) | null>(null);
   const [composing, setComposing] = useState(false);
   const account = useAccountStatus();
+  const cardsHydrated = useCardsHydrated();
   const frozen = account?.frozen === true;
   const needsAccount = account !== null && !account.registered;
   const [gateNonce, setGateNonce] = useState<number | null>(null);
@@ -119,7 +121,28 @@ export function MainScreen() {
   const layout = useMainLayout();
 
   if (cards.length === 0) {
-    return <div className="fixed inset-0 bg-background" aria-hidden />;
+    if (!cardsHydrated) {
+      return (
+        <main
+          className="compass-main fixed inset-0 flex items-center justify-center bg-background"
+          aria-busy="true"
+        >
+          <p className="text-[14px] font-light text-[#111]">…</p>
+        </main>
+      );
+    }
+    return (
+      <main className="compass-main fixed inset-0 flex flex-col items-center justify-center bg-background px-8 text-center text-[#111]">
+        <p className="max-w-xs text-[16px] font-light leading-snug">You don&apos;t have a portfolio yet.</p>
+        <button
+          type="button"
+          className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+          onClick={() => updateSecondCardDraft({ displayName: "" })}
+        >
+          Create portfolio
+        </button>
+      </main>
+    );
   }
 
   const cardTopBrowse = layout?.cardTopBrowse;

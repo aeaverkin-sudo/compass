@@ -32,3 +32,16 @@ export function markRegistrationRequired() {
 export function getRegistrationRequired() {
   return registrationRequired;
 }
+
+let ignoredSignedOut = 0;
+
+/** The next SIGNED_OUT is ours (sign-out, or the local sign-out before a password sign-in). */
+export function ignoreNextSignedOut() {
+  ignoredSignedOut += 1;
+}
+
+export function consumeSignedOutIgnore() {
+  if (ignoredSignedOut <= 0) return false;
+  ignoredSignedOut -= 1;
+  return true;
+}

@@ -4,7 +4,12 @@ import { useEffect } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { deviceWasRegistered, markRegisteredDevice } from "@/shared/lib/registered-device";
-import { markRegistrationRequired, markSessionBootstrapComplete } from "@/shared/lib/session-bootstrap";
+import {
+  consumeSignedOutIgnore,
+  ignoreNextSignedOut,
+  markRegistrationRequired,
+  markSessionBootstrapComplete,
+} from "@/shared/lib/session-bootstrap";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -16,6 +21,13 @@ function restoreRegisteredOnboarding(isAnonymous: boolean) {
 }
 
 function acceptUser(user: User) {
+  if (user.is_anonymous && deviceWasRegistered()) {
+    console.info("[supabase] anonymous session on a registered device");
+    ignoreNextSignedOut();
+    void createBrowserSupabaseClient().auth.signOut({ scope: "local" });
+    sendRegisteredDeviceToSignIn();
+    return;
+  }
   if (!user.is_anonymous) markRegisteredDevice();
   restoreRegisteredOnboarding(Boolean(user.is_anonymous));
   console.info("[supabase] session", user.id, user.is_anonymous ? "trial" : "registered");
@@ -41,6 +53,13 @@ export function SupabaseSession() {
     }
 
     const supabase = createBrowserSupabaseClient();
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_OUT") return;
+      if (consumeSignedOutIgnore()) return;
+      if (!deviceWasRegistered()) return;
+      console.info("[supabase] registered session ended");
+      sendRegisteredDeviceToSignIn();
+    });
 
     void (async () => {
       try {
@@ -80,6 +99,10 @@ export function SupabaseSession() {
         markSessionBootstrapComplete();
       }
     })();
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   return null;
