@@ -8,7 +8,7 @@ import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { recordConsent } from "@/shared/services/consent-client";
 import { startTrialClock } from "@/shared/services/trial-client";
 import { useAppStore } from "@/shared/store/app-store";
-import { CARD_HEADER_NAME_SIZE_PX, CARD_PHOTO_RADIUS_PX, CARD_PHOTO_SIZE_PX } from "@main/layout";
+import { CARD_HEADER_NAME_SIZE_PX, CARD_PHOTO_SIZE_PX } from "@main/layout";
 import { ConfirmButton } from "./confirm-button";
 import { PhotoSlotPicker } from "./photo-slot-picker";
 
@@ -78,7 +78,7 @@ export function LandingPage() {
             setSaveError(null);
           }}
           sizePx={CARD_PHOTO_SIZE_PX}
-          borderRadiusPx={CARD_PHOTO_RADIUS_PX}
+          borderRadiusPx={0}
           surfaceClassName="bg-background"
         />
         <label

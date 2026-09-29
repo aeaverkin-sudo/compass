@@ -21,7 +21,6 @@ import {
   TOP_VEIL_PX,
   browseCardHeight,
   CARD_HEADER_NAME_SIZE_PX,
-  CARD_PHOTO_RADIUS_PX,
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
   LIBRARY_NAME_FADE_PX,
@@ -319,7 +318,7 @@ function EmptyPortfolioStart({
           photo={cardPhotoSrc(card)}
           onPhotoChange={onPhotoChange}
           sizePx={CARD_PHOTO_SIZE_PX}
-          borderRadiusPx={CARD_PHOTO_RADIUS_PX}
+          borderRadiusPx={0}
           onPickBlocked={onStartBlocked}
         />
       ) : null}
