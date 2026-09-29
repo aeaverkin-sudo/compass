@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BOTTOM_PLATE_LOWER_PX, carouselSidePaddingPx, layoutTop, SHEET_INSET, TOP_VEIL_PX } from "../layout";
+import { BOTTOM_PLATE_LOWER_PX, carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
@@ -122,12 +122,12 @@ export function MainScreen() {
       {layout && !composing && (editing || !hideNav) ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col"
-          style={{ top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX) }}
-        >
-          <div className="shrink-0 bg-gradient-to-b from-transparent to-sky" style={{ height: TOP_VEIL_PX }} />
-          <div className="flex-1 bg-sky" />
-        </div>
+          className="pointer-events-none fixed inset-x-0 z-10 bg-sky"
+          style={{
+            top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX),
+            height: `calc(100lvh - ${layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX}px)`,
+          }}
+        />
       ) : null}
 
       {frozen && !composing ? (
