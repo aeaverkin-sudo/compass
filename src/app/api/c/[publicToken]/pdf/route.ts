@@ -6,9 +6,11 @@ import {
 } from "@/shared/services/attachment-api";
 import { CARD_ATTACHMENTS_BUCKET, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
 import { cardPdfFilename, generateInactiveCardPdf, generatePublicCardPdf } from "@/shared/services/card-pdf";
-import { consumedNoteAttachmentIds } from "@/shared/services/notes-server";
+import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { consumedNoteAttachmentIds, readPendingNotes } from "@/shared/services/notes-server";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { loadPublicCard } from "@/shared/services/public-card";
+import type { NextScanAddon } from "@/shared/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +27,32 @@ function publicOrigin(request: Request): string {
   const host = forwarded || request.headers.get("host");
   const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "https";
   return host ? `${proto}://${host}` : new URL(request.url).origin;
+}
+
+function pendingAsDelivered(notes: NextScanAddon[]): DeliveredNote[] {
+  return notes.flatMap((note) => {
+    if (note.type !== "text" && note.type !== "selfie") return [];
+    return [
+      {
+        id: note.id,
+        type: note.type,
+        content: note.type === "text" ? note.content : "",
+        url: "",
+        attachmentId: note.attachmentId,
+        expired: note.type === "selfie" && !note.attachmentId,
+      },
+    ];
+  });
+}
+
+async function requestUserId(): Promise<string | null> {
+  try {
+    const supabase = await createServerSupabaseClient();
+    const { data } = await supabase.auth.getUser();
+    return data.user?.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function parseNotes(value: unknown): DeliveredNote[] {
@@ -92,25 +120,35 @@ export async function POST(request: Request, context: RouteProps) {
     body && typeof body === "object" ? (body as { notes?: unknown }).notes : undefined,
   );
 
-  let allowedSelfies = new Set<string>();
-  try {
-    allowedSelfies = await consumedNoteAttachmentIds(
-      loaded.card.id,
-      requested.flatMap((note) => (note.attachmentId ? [note.attachmentId] : [])),
-    );
-  } catch {
-    return jsonFail(500, "Could not read notes");
-  }
+  let notes: DeliveredNote[];
+  const userId = await requestUserId();
+  if (userId && userId === loaded.ownerId) {
+    try {
+      notes = pendingAsDelivered(await readPendingNotes(loaded.card.id));
+    } catch {
+      return jsonFail(500, "Could not read notes");
+    }
+  } else {
+    let allowedSelfies = new Set<string>();
+    try {
+      allowedSelfies = await consumedNoteAttachmentIds(
+        loaded.card.id,
+        requested.flatMap((note) => (note.attachmentId ? [note.attachmentId] : [])),
+      );
+    } catch {
+      return jsonFail(500, "Could not read notes");
+    }
 
-  const notes = requested
-    .filter((note) => note.type === "text" || note.type === "selfie")
-    .map((note) => {
-      if (note.type !== "selfie") return note;
-      if (!note.attachmentId || !allowedSelfies.has(note.attachmentId)) {
-        return { ...note, attachmentId: undefined, expired: true };
-      }
-      return note;
-    });
+    notes = requested
+      .filter((note) => note.type === "text" || note.type === "selfie")
+      .map((note) => {
+        if (note.type !== "selfie") return note;
+        if (!note.attachmentId || !allowedSelfies.has(note.attachmentId)) {
+          return { ...note, attachmentId: undefined, expired: true };
+        }
+        return note;
+      });
+  }
 
   let photoBytes: Uint8Array | null = null;
   let photoMime: string | null = null;

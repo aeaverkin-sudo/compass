@@ -6,6 +6,8 @@ export type CardPdfInput = {
   publicToken: string;
   displayName: string;
   notes?: DeliveredNote[];
+  /** Cache key only. Owner notes are read on the server, not from this field. */
+  revision?: string;
 };
 
 type ReadyPdf = { blob: Blob; filename: string };
@@ -64,7 +66,7 @@ function inputKey(input: CardPdfInput) {
   const notes = (input.notes ?? [])
     .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
     .join("|");
-  return `${input.publicToken}\n${notes}`;
+  return `${input.publicToken}\n${input.revision ?? ""}\n${notes}`;
 }
 
 async function loadPublicCardPdf(input: CardPdfInput): Promise<ReadyPdf> {
@@ -148,20 +150,25 @@ function previewPdf(file: File) {
   );
 }
 
-function shareFile(file: File) {
+/** True when the file was handed off. False when the share sheet is cancelled. */
+function sharePdfFile(file: File): Promise<boolean> {
   const shareData: ShareData = { files: [file] };
   if (isHomeScreenApp()) {
     previewPdf(file);
-    return;
+    return Promise.resolve(false);
   }
   if (typeof navigator === "undefined" || !navigator.canShare?.(shareData)) {
     openPdf(file);
-    return;
+    return Promise.resolve(true);
   }
-  void navigator.share(shareData).catch((error) => {
-    if (error instanceof DOMException && error.name === "AbortError") return;
-    openPdf(file);
-  });
+  return navigator.share(shareData).then(
+    () => true,
+    (error: unknown) => {
+      if (error instanceof DOMException && error.name === "AbortError") return false;
+      openPdf(file);
+      return true;
+    },
+  );
 }
 
 /**
@@ -169,13 +176,13 @@ function shareFile(file: File) {
  * iOS opens the sheet only when share() runs in the tap itself, so the file is
  * normally prebuilt. If it is still building, the file is shared the moment it lands.
  */
-export function shareCardPdf(input: CardPdfInput) {
+export function shareCardPdf(input: CardPdfInput): Promise<boolean> {
   const ready = peekPublicCardPdf(input);
-  if (ready) {
-    shareFile(toFile(ready));
-    return;
-  }
-  void primePublicCardPdf(input)
-    .then((built) => shareFile(toFile(built)))
-    .catch((error) => console.error("[pdf] share failed", error));
+  if (ready) return sharePdfFile(toFile(ready));
+  return primePublicCardPdf(input)
+    .then((built) => sharePdfFile(toFile(built)))
+    .catch((error) => {
+      console.error("[pdf] share failed", error);
+      return false;
+    });
 }

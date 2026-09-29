@@ -259,7 +259,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                     {pickingSelfie ? "Opening camera…" : "Add a selfie"}
                   </button>
                 ) : null}
-                <p className="px-3 py-2 text-[11px] font-normal leading-none tracking-[0.1em] text-[#111]">* For the next scan only.</p>
+                <p className="px-3 py-2 text-[11px] font-normal leading-none tracking-[0.1em] text-[#111]">* For the next scan or share only.</p>
               </>
             ) : null}
 

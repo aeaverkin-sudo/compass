@@ -5,6 +5,7 @@ import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
+import { notesAreSyncing } from "@/shared/services/notes-sync";
 import { primePublicCardPdf, shareCardPdf, subscribeCardPdfStale } from "@/shared/services/save-public-card-pdf";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
@@ -477,7 +478,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const ready = cardIsReady(card);
-  const notesKey = deliveredNotes
+  const ownerNotesKey = nextScanAddons
     .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
     .join("|");
 
@@ -491,32 +492,76 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     [card.id],
   );
 
-  const shareInput = () =>
-    card.publicToken
-      ? { cardId: card.id, publicToken: card.publicToken, displayName: card.displayName, notes: deliveredNotes }
-      : null;
-
-  useEffect(() => {
-    if (readOnly || compact || editing || frozen || !ready || !card.publicToken) return;
-    void primePublicCardPdf({
+  const shareInput = () => {
+    if (!card.publicToken) return null;
+    if (readOnly) {
+      return {
+        cardId: card.id,
+        publicToken: card.publicToken,
+        displayName: card.displayName,
+        notes: deliveredNotes,
+      };
+    }
+    return {
       cardId: card.id,
       publicToken: card.publicToken,
       displayName: card.displayName,
-      notes: deliveredNotes,
-    }).catch((error) => console.error("[pdf] prepare failed", error));
-    // notesKey is the content-stable stand-in for deliveredNotes (a fresh array each render).
+      revision: ownerNotesKey,
+    };
+  };
+
+  useEffect(() => {
+    if (readOnly || compact || editing || frozen || !ready || !card.publicToken) return;
+    let cancelled = false;
+    let wait: number | undefined;
+    const prepare = () => {
+      if (cancelled) return;
+      if (notesAreSyncing(card.id)) {
+        wait = window.setTimeout(prepare, 200);
+        return;
+      }
+      void primePublicCardPdf({
+        cardId: card.id,
+        publicToken: card.publicToken,
+        displayName: card.displayName,
+        revision: ownerNotesKey,
+      }).catch((error) => console.error("[pdf] prepare failed", error));
+    };
+    prepare();
+    return () => {
+      cancelled = true;
+      if (wait !== undefined) window.clearTimeout(wait);
+    };
+    // ownerNotesKey stands in for card.nextScanAddons. The server reads the pending notes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readOnly, compact, editing, frozen, ready, card.id, card.publicToken, notesKey, pdfGeneration]);
+  }, [readOnly, compact, editing, frozen, ready, card.id, card.publicToken, ownerNotesKey, pdfGeneration]);
 
   const primeShare = () => {
     const input = shareInput();
-    if (!input) return;
+    if (!input || notesAreSyncing(card.id)) return;
     void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
   };
 
   const handleShare = () => {
     const input = shareInput();
-    if (input) shareCardPdf(input);
+    if (!input) return;
+    void shareCardPdf(input).then((sent) => {
+      if (!sent || readOnly || ownerNotesKey.length === 0) return;
+      void fetch(`/api/c/${encodeURIComponent(card.publicToken)}/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "consume" }),
+      })
+        .then((response) => {
+          if (!response.ok) return;
+          useAppStore.setState({
+            cards: useAppStore.getState().cards.map((entry) =>
+              entry.id === card.id ? { ...entry, nextScanAddons: [] } : entry,
+            ),
+          });
+        })
+        .catch((error) => console.error("[notes] share consume failed", error));
+    });
   };
 
   useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);

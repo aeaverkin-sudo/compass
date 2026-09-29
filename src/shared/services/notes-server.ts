@@ -230,8 +230,8 @@ export async function writePendingNotes(cardId: string, ownerId: string, input: 
   }
 }
 
-/** First real viewer wins. Returns notes once; a second call gets []. */
-export async function consumePendingNotes(cardId: string): Promise<DeliveredNote[]> {
+/** First handoff wins. Returns notes once; a second call gets []. `via` marks a share, not a scan. */
+export async function consumePendingNotes(cardId: string, via?: "share"): Promise<DeliveredNote[]> {
   const { data: transferId, error } = await admin().rpc("consume_pending_transfer", {
     p_card_id: cardId,
   });
@@ -246,7 +246,15 @@ export async function consumePendingNotes(cardId: string): Promise<DeliveredNote
   if (itemsError) throw new Error(itemsError.message);
 
   try {
-    await admin().from("card_events").insert({ card_id: cardId, type: "transfer_consumed" });
+    const event: { card_id: string; type: string; via?: string } = {
+      card_id: cardId,
+      type: "transfer_consumed",
+    };
+    if (via) event.via = via;
+    const { error: eventError } = await admin().from("card_events").insert(event);
+    if (eventError && via) {
+      await admin().from("card_events").insert({ card_id: cardId, type: "transfer_consumed" });
+    }
   } catch {
     // Visit already counted; delivery is what matters.
   }

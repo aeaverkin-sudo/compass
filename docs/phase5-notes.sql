@@ -49,6 +49,9 @@ begin
 end;
 $$;
 
+alter table public.card_events
+  add column if not exists via text;
+
 revoke all on function public.consume_pending_transfer(uuid) from public;
 revoke all on function public.consume_pending_transfer(uuid) from anon;
 revoke all on function public.consume_pending_transfer(uuid) from authenticated;

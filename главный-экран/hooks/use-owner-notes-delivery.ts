@@ -7,7 +7,7 @@ import type { NextScanAddon } from "@/shared/types";
 const POLL_MS = 4000;
 
 /**
- * After a stranger consumes the pending transfer, the owner's local notes clear.
+ * After the note is delivered — by a scan or a share — the owner's local notes clear.
  * Skips while a local write is still in flight.
  */
 export function useOwnerNotesDelivery(cardId: string, hasNotes: boolean) {
