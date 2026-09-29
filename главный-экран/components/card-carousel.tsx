@@ -72,7 +72,7 @@ function TrialSecondCard({ onInteract }: { onInteract: () => void }) {
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
     >
-      <span style={{ width: CARD_PHOTO_SIZE_PX, height: CARD_PHOTO_SIZE_PX }} />
+      <span className="border border-[#111]" style={{ width: CARD_PHOTO_SIZE_PX, height: CARD_PHOTO_SIZE_PX }} />
       <p
         className="mt-[2.3em] text-center font-light text-hint"
         style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
