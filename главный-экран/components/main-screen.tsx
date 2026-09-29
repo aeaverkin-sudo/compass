@@ -37,11 +37,11 @@ export function MainScreen() {
   const account = useAccountStatus();
   const frozen = account?.frozen === true;
   const needsAccount = account !== null && !account.registered;
-  const [gate, setGate] = useState<{ text: string; nonce: number } | null>(null);
+  const [gateNonce, setGateNonce] = useState<number | null>(null);
   const [passwordHint, setPasswordHint] = useState(false);
-  const clearGate = useCallback(() => setGate(null), []);
+  const clearGate = useCallback(() => setGateNonce(null), []);
   const dismissPasswordHint = useCallback(() => setPasswordHint(false), []);
-  const showGate = useCallback((text: string) => setGate({ text, nonce: Date.now() }), []);
+  const showGate = useCallback(() => setGateNonce(Date.now()), []);
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
   const showAddSlide = canAddMoreCards(cards);
@@ -161,7 +161,7 @@ export function MainScreen() {
         <InfoNotice text="You can change your password in Profile." onDone={dismissPasswordHint} />
       ) : null}
 
-      {gate ? <GateNotice text={gate.text} nonce={gate.nonce} onDone={clearGate} /> : null}
+      {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}
 
       {layout && !composing && (editing || !hideNav) ? (
         <BottomNav
@@ -170,12 +170,12 @@ export function MainScreen() {
           editing={editing}
           onProfile={() => router.push("/profile")}
           onNetwork={() => {
-            if (needsAccount) showGate("Need an account, register here");
+            if (needsAccount) showGate();
           }}
           onEdit={() => {
             if (frozen) return;
             if (needsAccount && !cards[currentCardIndex]) {
-              showGate("Second portfolio is available to registered users only.");
+              showGate();
               return;
             }
             if (!cards[currentCardIndex]) updateSecondCardDraft({ displayName: "" });
@@ -184,7 +184,7 @@ export function MainScreen() {
           }}
           onAdd={() => {
             if (needsAccount && !cards[currentCardIndex]) {
-              showGate("Second portfolio is available to registered users only.");
+              showGate();
               return;
             }
             openAddRef.current?.();
@@ -229,7 +229,7 @@ export function MainScreen() {
               ) : null
             }
             needsAccount={needsAccount}
-            onTrialSlot={() => showGate("Second portfolio is available to registered users only.")}
+            onTrialSlot={() => showGate()}
             onFill={(cardId) => {
               if (frozen) return;
               const index = cards.findIndex((card) => card.id === cardId);
@@ -275,20 +275,7 @@ function InfoNotice({ text, onDone }: { text: string; onDone: () => void }) {
   );
 }
 
-function NoticeText({ text }: { text: string }) {
-  const mark = "here";
-  const index = text.lastIndexOf(mark);
-  if (index === -1) return text;
-  return (
-    <>
-      {text.slice(0, index)}
-      <span className="underline">{mark}</span>
-      {text.slice(index + mark.length)}
-    </>
-  );
-}
-
-function GateNotice({ text, nonce, onDone }: { text: string; nonce: number; onDone: () => void }) {
+function GateNotice({ nonce, onDone }: { nonce: number; onDone: () => void }) {
   const [fading, setFading] = useState(false);
 
   useEffect(() => {
@@ -307,7 +294,8 @@ function GateNotice({ text, nonce, onDone }: { text: string; nonce: number; onDo
       className="absolute top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center text-[16px] font-normal leading-snug text-[#111] transition-opacity duration-[1500ms] ease-out"
       style={{ opacity: fading ? 0 : 1 }}
     >
-      <NoticeText text={text} />
+      <span className="underline">Register</span>
+      {" to get full access."}
     </Link>
   );
 }
