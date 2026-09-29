@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { ChevronLeft } from "lucide-react";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
@@ -13,6 +14,12 @@ import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isCardReady, isSolePublic, useAppStore } from "@/shared/store/app-store";
+import { cn } from "@/lib/utils";
+
+const ZONE_LABEL =
+  "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase";
+const ZONE_VALUE =
+  "min-w-0 break-words text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]";
 
 function formatBytes(bytes: number) {
   if (bytes <= 0) return "0 MB";
@@ -32,6 +39,50 @@ function planTitle(plan: "free" | "paid") {
 function trialLine(hoursLeft: number | null) {
   if (hoursLeft === null) return "Trial";
   return `Trial — ${hoursLeft}h left.`;
+}
+
+function ProfileShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
+      <div className="relative flex h-14 items-center justify-center pt-[env(safe-area-inset-top)]">
+        <Link
+          href="/main"
+          aria-label="Back to portfolio"
+          className="absolute left-0 inline-flex size-10 items-center justify-start text-[#111]"
+        >
+          <ChevronLeft className="size-6" strokeWidth={1.5} aria-hidden />
+        </Link>
+        <h1 className="text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">Profile</h1>
+      </div>
+      {children}
+    </main>
+  );
+}
+
+function Zone({
+  label,
+  children,
+  align = "baseline",
+  rule = false,
+}: {
+  label: string;
+  children: ReactNode;
+  align?: "baseline" | "start";
+  rule?: boolean;
+}) {
+  return (
+    <section className={cn("min-w-0 py-[18px]", rule && "border-b-[0.5px] border-[#111]")}>
+      <div
+        className={cn(
+          "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]",
+          align === "start" ? "items-start" : "items-baseline",
+        )}
+      >
+        <span className={ZONE_LABEL}>{label}</span>
+        <div className="min-w-0">{children}</div>
+      </div>
+    </section>
+  );
 }
 
 export function ProfileScreen() {
@@ -66,48 +117,42 @@ export function ProfileScreen() {
 
   if (!account || !signedIn) {
     return (
-      <main className="compass-main min-h-lvh overflow-y-auto bg-white px-8 py-12 text-[#111]">
-        <Link href="/main" className="text-[13px] font-light underline">
-          Back to portfolio
-        </Link>
-        <h1 className="mt-6 text-[32px] font-light leading-tight">Profile</h1>
+      <ProfileShell>
         {!account ? (
-          <p className="mt-10 text-[14px] font-light">…</p>
+          <p className={cn("py-[18px]", ZONE_VALUE)}>…</p>
         ) : (
-          <section className="mt-10 max-w-xs">
-            <p className="text-[14px] font-light leading-snug">{trialLine(account.hoursLeft)}</p>
+          <div className="py-[18px]">
+            <p className={ZONE_VALUE}>{trialLine(account.hoursLeft)}</p>
             <Link
               href="/register"
-              className="mt-6 inline-block border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+              className="mt-6 inline-block border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase"
             >
               Register
             </Link>
-            <p className="mt-8 text-[14px] font-light">
+            <p className={cn("mt-8", ZONE_VALUE)}>
               {account.consentVersion ? `Consent ${account.consentVersion}` : "Not recorded"}
             </p>
-          </section>
+          </div>
         )}
-      </main>
+      </ProfileShell>
     );
   }
 
-  return (
-    <main className="compass-main min-h-lvh overflow-y-auto bg-white px-8 py-12 text-[#111]">
-      <Link href="/main" className="text-[13px] font-light underline">
-        Back to portfolio
-      </Link>
-      <h1 className="mt-6 text-[32px] font-light leading-tight">Profile</h1>
+  const nearPortfolio = portfolioLimit !== null && portfolioLimit - cards.length === 1;
+  const nearStorage =
+    account.bytesLimit > 0 && account.bytesUsed / account.bytesLimit >= 0.8 && account.bytesUsed < account.bytesLimit;
 
-      <section className="mt-10 max-w-xs">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Account</h2>
-        <p className="mt-3 text-[14px] font-light leading-snug">
+  return (
+    <ProfileShell>
+      <Zone label="Account" rule>
+        <p className={ZONE_VALUE}>
           {account.provider === "google"
             ? "Signed in with Google."
             : account.email
               ? `Signed in as ${account.email}.`
               : "Signed in."}
         </p>
-        <p className="mt-4 flex gap-4 text-[14px] font-light">
+        <p className="mt-3 flex gap-4 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
           {canChangePassword ? (
             <Link href="/account/password" className="underline">
               Change password
@@ -117,12 +162,11 @@ export function ProfileScreen() {
             Sign out
           </button>
         </p>
-      </section>
+      </Zone>
 
-      <section className="mt-10 max-w-xs">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Subscription</h2>
-        <p className="mt-3 text-[20px] font-light">{planTitle(account.plan)}</p>
-        <ul className="mt-3 space-y-1 text-[14px] font-light leading-snug">
+      <Zone label="Subscription" rule>
+        <p className={ZONE_VALUE}>{planTitle(account.plan)}</p>
+        <ul className="mt-2 space-y-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
           <li>
             Free — {account.catalog.free.portfolios} portfolios, {formatBytes(account.catalog.free.bytes)}
           </li>
@@ -133,19 +177,18 @@ export function ProfileScreen() {
         <button
           type="button"
           disabled
-          className="mt-4 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+          className="mt-4 border-0 bg-[#d8d5cc] px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase"
         >
           Upgrade
         </button>
-        <p className="mt-2 text-[13px] font-light">Coming soon</p>
+        <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
         {/* Stripe seam: Manage subscription and payment history.
             Checkout and the customer portal will write profiles.plan from a webhook.
             Do not collect card details here. */}
-      </section>
+      </Zone>
 
-      <section className="mt-10 max-w-sm">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Portfolios</h2>
-        <ul className="mt-4 space-y-6">
+      <Zone label="Portfolios" align="start" rule>
+        <ul className="space-y-6">
           {cards.map((card) => {
             const ready = isCardReady(card);
             const isPublic = ready && card.listed !== false;
@@ -156,12 +199,14 @@ export function ProfileScreen() {
                 {photo ? (
                   <img src={photo} alt="" className="size-12 border border-[#d4d4d4] object-cover" />
                 ) : (
-                  <span className="size-12 border border-[#d4d4d4]" />
+                  <span className="size-12 shrink-0 border border-[#d4d4d4]" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[16px] font-light">{card.displayName.trim() || "Untitled"}</p>
+                  <p className="truncate text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+                    {card.displayName.trim() || "Untitled"}
+                  </p>
                   <div className="mt-2 flex items-center gap-3">
-                    <span className="text-[12px] font-normal tracking-[0.08em] uppercase">
+                    <span className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase">
                       {isPublic ? "Public" : "Private"}
                     </span>
                     <Switch
@@ -175,18 +220,18 @@ export function ProfileScreen() {
                   {ready ? (
                     <>
                       {locked ? (
-                        <p className="mt-2 text-[13px] font-light leading-snug">
+                        <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">
                           Your main portfolio is always public — it's how people find you.
                         </p>
                       ) : null}
-                      <p className={locked ? "mt-1 text-[13px] font-light leading-snug" : "mt-2 text-[13px] font-light leading-snug"}>
+                      <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">
                         {isPublic
                           ? "Public — people you've connected with can see this portfolio behind your others, and find it in search."
                           : "Private — reachable only by its direct link or QR. Kept off your profile and out of search."}
                       </p>
                     </>
                   ) : (
-                    <p className="mt-2 text-[13px] font-light leading-snug">
+                    <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">
                       Inactive until you add a name and a photo.
                     </p>
                   )}
@@ -198,7 +243,7 @@ export function ProfileScreen() {
         <button
           type="button"
           disabled={atCardLimit || portfolioLimit === null}
-          className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+          className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase disabled:opacity-40"
           onClick={() => {
             if (portfolioLimit === null) return;
             updateSecondCardDraft({ displayName: "" }, portfolioLimit);
@@ -207,46 +252,43 @@ export function ProfileScreen() {
         >
           Create portfolio
         </button>
-      </section>
+      </Zone>
 
-      <section className="mt-10 max-w-xs">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Usage & Limits</h2>
-        <p className="mt-3 text-[14px] font-light">{storageLine(account.bytesUsed, account.bytesLimit)}</p>
-        <p className="mt-2 text-[14px] font-light">
+      <Zone label="Usage" rule>
+        <p className={ZONE_VALUE}>{storageLine(account.bytesUsed, account.bytesLimit)}</p>
+        <p className="mt-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
           {cards.length} of {portfolioLimit ?? "…"} portfolios
         </p>
-        {portfolioLimit !== null && portfolioLimit - cards.length === 1 ? (
-          <p className="mt-2 text-[13px] font-light leading-snug">One portfolio left on this plan.</p>
+        {nearPortfolio ? (
+          <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">One portfolio left on this plan.</p>
         ) : null}
-        {account.bytesLimit > 0 && account.bytesUsed / account.bytesLimit >= 0.8 && account.bytesUsed < account.bytesLimit ? (
-          <p className="mt-2 text-[13px] font-light leading-snug">Storage is nearly full.</p>
+        {nearStorage ? (
+          <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">Storage is nearly full.</p>
         ) : null}
-      </section>
+      </Zone>
 
-      <section className="mt-10 max-w-xs">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">Account management</h2>
-        <p className="mt-3 text-[14px] font-light">
+      <Zone label="Manage" rule>
+        <p className={ZONE_VALUE}>
           <button type="button" disabled className="underline disabled:opacity-40">
             Change email
           </button>
-          <span className="mt-1 block text-[13px]">Coming soon</span>
         </p>
-        <p className="mt-3 text-[14px] font-light">
+        <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
+        <p className="mt-3 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
           <button type="button" disabled className="underline disabled:opacity-40">
             Export my data
           </button>
-          <span className="mt-1 block text-[13px]">Coming soon</span>
         </p>
-        <p className="mt-4 text-[14px] font-light">
+        <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
+        <p className="mt-3 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
           <Link href="/account/delete" className="underline">
             Delete account
           </Link>
         </p>
-      </section>
+      </Zone>
 
-      <section className="mt-10 max-w-xs">
-        <h2 className="text-[12px] font-normal tracking-[0.08em] uppercase">About & Legal</h2>
-        <p className="mt-3 text-[14px] font-light">
+      <Zone label="About">
+        <p className={ZONE_VALUE}>
           <Link href="/terms" className="underline">
             Terms
           </Link>
@@ -255,16 +297,16 @@ export function ProfileScreen() {
             Privacy
           </Link>
         </p>
-        <p className="mt-2 text-[14px] font-light">
+        <p className="mt-2 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
           {account.consentVersion ? `Consent ${account.consentVersion}` : "Not recorded"}
         </p>
-        <p className="mt-2 text-[14px] font-light">App {APP_VERSION}</p>
-        <p className="mt-2 text-[14px] font-light">
+        <p className="mt-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">App {APP_VERSION}</p>
+        <p className="mt-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
           <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
             {SUPPORT_EMAIL}
           </a>
         </p>
-      </section>
-    </main>
+      </Zone>
+    </ProfileShell>
   );
 }
