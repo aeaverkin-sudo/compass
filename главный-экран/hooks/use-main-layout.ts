@@ -68,6 +68,15 @@ function isPhoneBrowser() {
  * Bottom of the area above the address bar, in layout pixels.
  * A keyboard gap is ignored so the plate does not jump while typing.
  */
+function largeViewportPx() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;top:0;height:100lvh;visibility:hidden;pointer-events:none";
+  document.documentElement.appendChild(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height;
+}
+
 function visibleBottomPx(viewportH: number, remembered: { value: number }) {
   const viewport = window.visualViewport;
   const bottom = viewport ? Math.round(viewport.offsetTop + viewport.height) : viewportH;
@@ -92,7 +101,9 @@ function computeLayout(rememberedBottom: { value: number }): MainLayout | null {
   const phoneBrowser = isPhoneBrowser();
   if (phoneBrowser) {
     const visibleBottom = Math.min(viewportH, visibleBottomPx(viewportH, rememberedBottom));
-    const plateTop = visibleBottom - BROWSER_COMMAND_BAND_PX;
+    const fieldTop = visibleBottom - BROWSER_COMMAND_BAND_PX;
+    const fieldHeight = Math.max(BROWSER_COMMAND_BAND_PX, Math.round(largeViewportPx() - fieldTop));
+    const plateTop = fieldTop + Math.round(fieldHeight * 0.15);
     cardBottomBrowse = Math.round(Math.max(cardTopBrowse + 160, plateTop - BOTTOM_PLATE_LOWER_PX));
     browseHeight = cardBottomBrowse - cardTopBrowse;
     browseMenuCenterY = Math.round(plateTop + BROWSER_COMMAND_BAND_PX / 2);
