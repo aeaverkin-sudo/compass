@@ -223,15 +223,6 @@ export async function upsertCardScalars(card: Card): Promise<void> {
 
     if (error) {
       console.error("[card-sync] upsert failed", error.message);
-      if (/portfolio_limit/i.test(error.message)) {
-        const { useAppStore } = await import("@/shared/store/app-store");
-        const state = useAppStore.getState();
-        const cards = state.cards.filter((entry) => entry.id !== card.id);
-        useAppStore.setState({
-          cards,
-          currentCardIndex: Math.min(state.currentCardIndex, Math.max(cards.length - 1, 0)),
-        });
-      }
     }
   } catch (error) {
     console.error("[card-sync] upsert failed", error);
@@ -358,7 +349,13 @@ async function runHydrate() {
   const remoteById = new Map(remote.map((row) => [row.id, row]));
   const toUpload = merged.filter((card) => {
     const row = remoteById.get(card.id);
-    return !row || row.status !== card.status || !row.is_public || (Boolean(card.handle) && row.handle !== card.handle);
+    return (
+      !row ||
+      row.status !== card.status ||
+      !row.is_public ||
+      (row.photo_attachment_id ?? null) !== (card.photoAttachmentId ?? null) ||
+      (Boolean(card.handle) && row.handle !== card.handle)
+    );
   });
   await Promise.all(toUpload.map((card) => upsertCardScalars(card)));
 

@@ -31,6 +31,13 @@ declare
   lim integer;
   existing integer;
 begin
+  -- Upsert of a portfolio that is already stored fires this insert trigger
+  -- before the conflict update. Counting that row would reject a photo save
+  -- on the last free slot and the client would drop the portfolio.
+  if exists (select 1 from public.cards where id = new.id) then
+    return new;
+  end if;
+
   select plan into current_plan from public.profiles where id = new.owner_id;
   lim := case when current_plan = 'paid' then 10 else 3 end;
   select count(*)::integer into existing from public.cards where owner_id = new.owner_id;
