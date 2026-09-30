@@ -46,8 +46,9 @@ function ProfileShell({ children }: { children: ReactNode }) {
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
       <ConsentRefresh />
-      <div className="mt-[52px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-        <BackButton fallbackHref="/main" inline />
+      <BackButton fallbackHref="/main" pinned />
+      <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+        <span aria-hidden className="size-[22px]" />
         <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
           Profile
         </h1>

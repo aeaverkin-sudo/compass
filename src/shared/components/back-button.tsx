@@ -5,15 +5,15 @@ import { useRouter } from "next/navigation";
 type BackButtonProps = {
   /** Where to go when this page was opened directly and there is no previous screen. */
   fallbackHref: string;
-  /** Sit in the page header row. Other screens keep the fixed corner. */
-  inline?: boolean;
+  /** Profile only: stay put while the title scrolls, centered on PROFILE. */
+  pinned?: boolean;
 };
 
 /**
  * The only back control. Same icon and same screen position on every nested page.
  * Left edge is the 26px gutter. Top is 52px. The chevron itself is 22×22.
  */
-export function BackButton({ fallbackHref, inline = false }: BackButtonProps) {
+export function BackButton({ fallbackHref, pinned = false }: BackButtonProps) {
   const router = useRouter();
 
   const go = () => {
@@ -27,8 +27,8 @@ export function BackButton({ fallbackHref, inline = false }: BackButtonProps) {
       aria-label="Back"
       onClick={go}
       className={
-        inline
-          ? "flex size-11 items-center justify-start text-[#111]"
+        pinned
+          ? "fixed top-10 left-8 z-30 flex h-[22px] w-11 -translate-y-px items-center justify-start text-[#111]"
           : "fixed top-[52px] left-[26px] z-30 flex size-11 items-start justify-start text-[#111]"
       }
     >
