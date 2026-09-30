@@ -17,6 +17,32 @@ import { BusinessCard } from "./business-card";
 
 const ADD_SLIDE_ID = "__add__";
 
+/** Soft rectangular hint that another card sits off this edge. Tune on a phone. */
+const NEIGHBOR_SHADE_WIDTH_PX = 16;
+const NEIGHBOR_SHADE_HEIGHT_PX = 104;
+const NEIGHBOR_SHADE_RADIUS_PX = 6;
+const NEIGHBOR_SHADE_ALPHA = 0.15;
+const NEIGHBOR_SHADE_BLUR_PX = 7;
+const NEIGHBOR_SHADE_OFFSET_PX = 10;
+
+function NeighborShade({ side }: { side: "left" | "right" }) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute top-1/2 z-10"
+      style={{
+        width: NEIGHBOR_SHADE_WIDTH_PX,
+        height: NEIGHBOR_SHADE_HEIGHT_PX,
+        borderRadius: NEIGHBOR_SHADE_RADIUS_PX,
+        background: `rgba(0,0,0,${NEIGHBOR_SHADE_ALPHA})`,
+        filter: `blur(${NEIGHBOR_SHADE_BLUR_PX}px)`,
+        transform: "translateY(-50%)",
+        [side]: -NEIGHBOR_SHADE_OFFSET_PX,
+      }}
+    />
+  );
+}
+
 type CardCarouselProps = {
   cards: Card[];
   activeIndex: number;
@@ -403,9 +429,8 @@ export function CardCarousel({
             <div
               key={slideId}
               className={cn(
-                "compass-carousel-slide h-full shrink-0 snap-center overflow-hidden transition-opacity duration-300",
+                "compass-carousel-slide relative h-full shrink-0 snap-center overflow-hidden",
                 !isBrowse && "min-w-0",
-                index !== activeIndex && "opacity-50",
                 editing && index !== activeIndex && "pointer-events-none",
               )}
               style={
@@ -415,15 +440,25 @@ export function CardCarousel({
               }
             >
               {renderSlide(slideId, index)}
+              {isBrowse && index > 0 ? <NeighborShade side="left" /> : null}
+              {isBrowse && index < slideIds.length - 1 ? <NeighborShade side="right" /> : null}
             </div>
           ))}
           <CarouselSpacer width={sidePaddingPx} />
         </div>
       </div>
-      {isBrowse ? (
+      {isBrowse && sidePaddingPx > 0 ? (
         <>
-          <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-white to-transparent" />
-          <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-white to-transparent" />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 z-20 bg-background"
+            style={{ width: sidePaddingPx }}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 z-20 bg-background"
+            style={{ width: sidePaddingPx }}
+          />
         </>
       ) : null}
     </div>
