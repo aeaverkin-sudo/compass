@@ -7,6 +7,7 @@ export default function ChangePasswordPage() {
     <PasswordForm
       title="Password"
       hint="This replaces the starter code. You stay on the same profile."
+      fallbackHref="/profile"
     />
   );
 }

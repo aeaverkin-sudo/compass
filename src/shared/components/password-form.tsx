@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BackButton } from "@/shared/components/back-button";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 type PasswordFormProps = {
   title: string;
   hint: string;
+  fallbackHref: string;
   exchangeCode?: boolean;
 };
 
-export function PasswordForm({ title, hint, exchangeCode = false }: PasswordFormProps) {
+export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }: PasswordFormProps) {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,7 +37,8 @@ export function PasswordForm({ title, hint, exchangeCode = false }: PasswordForm
   };
 
   return (
-    <main className="compass-main flex min-h-lvh flex-col bg-white px-8 py-12 text-[#111]">
+    <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
+      <BackButton fallbackHref={fallbackHref} />
       <h1 className="text-[32px] font-light leading-tight">{title}</h1>
       <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">{hint}</p>
       <form

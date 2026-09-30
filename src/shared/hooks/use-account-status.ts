@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CONSENT_ACCEPTED_EVENT } from "@/shared/services/consent";
 import type { AccountStatus } from "@/shared/services/trial";
 
 export function useAccountStatus() {
@@ -17,8 +18,15 @@ export function useAccountStatus() {
         if (!cancelled && next) setStatus(next);
       })
       .catch(() => undefined);
+    const onAccepted = (event: Event) => {
+      const version = (event as CustomEvent<string>).detail;
+      if (typeof version !== "string") return;
+      setStatus((current) => (current ? { ...current, consentVersion: version } : current));
+    };
+    window.addEventListener(CONSENT_ACCEPTED_EVENT, onAccepted);
     return () => {
       cancelled = true;
+      window.removeEventListener(CONSENT_ACCEPTED_EVENT, onAccepted);
     };
   }, []);
 

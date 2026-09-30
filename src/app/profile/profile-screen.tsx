@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { ChevronLeft } from "lucide-react";
+import { BackButton } from "@/shared/components/back-button";
+import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
@@ -44,14 +45,9 @@ function trialLine(hoursLeft: number | null) {
 function ProfileShell({ children }: { children: ReactNode }) {
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-      <div className="relative flex h-14 items-center justify-center pt-[env(safe-area-inset-top)]">
-        <Link
-          href="/main"
-          aria-label="Back to portfolio"
-          className="absolute left-0 inline-flex size-10 items-center justify-start text-[#111]"
-        >
-          <ChevronLeft className="size-6" strokeWidth={1.5} aria-hidden />
-        </Link>
+      <BackButton fallbackHref="/main" />
+      <ConsentRefresh />
+      <div className="mt-[52px] flex h-[22px] items-center justify-center">
         <h1 className="text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">Profile</h1>
       </div>
       {children}
@@ -130,7 +126,7 @@ export function ProfileScreen() {
               Register
             </Link>
             <p className={cn("mt-8", ZONE_VALUE)}>
-              {account.consentVersion ? `Consent ${account.consentVersion}` : "Not recorded"}
+              {account.consentVersion ? `Consent v${account.consentVersion}` : "Not recorded"}
             </p>
           </div>
         )}
@@ -298,7 +294,7 @@ export function ProfileScreen() {
           </Link>
         </p>
         <p className="mt-2 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
-          {account.consentVersion ? `Consent ${account.consentVersion}` : "Not recorded"}
+          {account.consentVersion ? `Consent v${account.consentVersion}` : "Not recorded"}
         </p>
         <p className="mt-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">App {APP_VERSION}</p>
         <p className="mt-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">

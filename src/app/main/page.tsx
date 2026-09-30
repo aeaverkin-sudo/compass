@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainScreen } from "@main/components/main-screen";
+import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
@@ -40,5 +41,10 @@ export default function MainPage() {
     return <div className="compass-main fixed inset-y-0 bg-background" aria-hidden />;
   }
 
-  return <MainScreen />;
+  return (
+    <>
+      <MainScreen />
+      <ConsentRefresh />
+    </>
+  );
 }

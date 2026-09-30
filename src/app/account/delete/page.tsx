@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { BackButton } from "@/shared/components/back-button";
 import { clearRegisteredDevice } from "@/shared/lib/registered-device";
 import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -55,11 +55,9 @@ export default function DeleteAccountPage() {
   };
 
   return (
-    <main className="compass-main flex min-h-lvh flex-col bg-white px-8 py-12 text-[#111]">
-      <Link href="/profile" className="text-[13px] font-light underline">
-        Back to profile
-      </Link>
-      <h1 className="mt-6 text-[32px] font-light leading-tight">Delete account</h1>
+    <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
+      <BackButton fallbackHref="/profile" />
+      <h1 className="text-[32px] font-light leading-tight">Delete account</h1>
       <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
         This deletes the account, every portfolio, and every file. It cannot be undone.
       </p>

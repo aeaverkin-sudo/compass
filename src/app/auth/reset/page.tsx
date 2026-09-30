@@ -7,6 +7,7 @@ export default function ResetPasswordPage() {
     <PasswordForm
       title="New password"
       hint="Choose a password to replace the one from the email."
+      fallbackHref="/"
       exchangeCode
     />
   );

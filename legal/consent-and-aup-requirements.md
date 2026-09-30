@@ -2,7 +2,7 @@
 
 This is a working draft for the checkbox, `/terms`, and `/privacy`.
 It is not the final legal text. A lawyer and the GDPR AI clause come later.
-Version id in code: `2026-09-28` (`CONSENT_VERSION`).
+Version id in code: `1.0` (`TERMS_VERSION` and `PRIVACY_VERSION`, stored together as `CONSENT_VERSION`).
 
 The checkbox is off until the person turns it on. Confirm and registration stay disabled until then.
 The stored row is the version, the time, and the user id, on the trial path or the register path.
