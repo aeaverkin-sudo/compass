@@ -146,12 +146,36 @@ function isHeaderRole(row: CardDisplayRow) {
   return Boolean(row.item && isChoosableHeader(row.item));
 }
 
-function EditorialValue({ row, onChooseHeader }: { row: CardDisplayRow; onChooseHeader?: (itemId: string) => void }) {
-  const line = row.axis ? `${row.axis} / ${row.value}` : row.value;
+function EditorialValue({
+  row,
+  onChooseHeader,
+  underlineLink = false,
+}: {
+  row: CardDisplayRow;
+  onChooseHeader?: (itemId: string) => void;
+  /** Public card: underline only the link value, not the platform prefix. */
+  underlineLink?: boolean;
+}) {
+  const marked = underlineLink && Boolean(row.url);
+  const value = marked ? (
+    <span className="underline decoration-[#c9c6bf] underline-offset-[3px] [text-decoration-thickness:1px]">
+      {row.value}
+    </span>
+  ) : (
+    row.value
+  );
   const choose = onChooseHeader && isHeaderRole(row);
   const body = (
     <span className="block min-w-0 break-words text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] no-underline">
-      {line}
+      {row.axis ? (
+        <>
+          {row.axis}
+          {" / "}
+          {value}
+        </>
+      ) : (
+        value
+      )}
     </span>
   );
 
@@ -199,6 +223,7 @@ export function ContactItemChipList({
   listId,
   onReorder,
   onChooseHeader,
+  underlineLinks = false,
 }: {
   items: ContactItem[];
   size: ContactItemChipSize;
@@ -206,6 +231,8 @@ export function ContactItemChipList({
   listId?: string;
   onReorder?: (orderedIds: string[]) => void;
   onChooseHeader?: (itemId: string) => void;
+  /** Public read-only card. The owner card keeps plain values. */
+  underlineLinks?: boolean;
 }) {
   const compact = size === "compact";
   const listRef = useRef<HTMLDivElement>(null);
@@ -421,7 +448,12 @@ export function ContactItemChipList({
               </span>
               <div className="flex min-w-0 flex-col gap-[6px]">
                 {zone.rows.map((row) => (
-                  <EditorialValue key={row.key} row={row} onChooseHeader={onChooseHeader} />
+                  <EditorialValue
+                    key={row.key}
+                    row={row}
+                    onChooseHeader={onChooseHeader}
+                    underlineLink={underlineLinks}
+                  />
                 ))}
               </div>
             </div>

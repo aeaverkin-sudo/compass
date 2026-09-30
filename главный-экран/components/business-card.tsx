@@ -443,6 +443,8 @@ type BusinessCardProps = {
   deliveredNotes?: DeliveredNote[];
   /** Trial add slide: same empty start, taps ask to register. */
   onPortfolioStartBlocked?: () => void;
+  /** Public /c/ only: sky actions under the portfolio line. */
+  publicBar?: ReactNode;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -466,6 +468,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     shareFootnote,
     deliveredNotes = [],
     onPortfolioStartBlocked,
+    publicBar,
   },
   ref,
 ) {
@@ -736,6 +739,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               </p>
             ) : null}
           </div>
+          {publicBar ? <div className="mt-auto -mx-[calc(clamp(24px,6.1vw,28px)-3mm)]">{publicBar}</div> : null}
         </div>
       ) : null}
       <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
@@ -761,7 +765,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
                 transform: previewPull ? `translateY(${previewPull}px)` : undefined,
                 transition: previewPulling ? "none" : "transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1)",
               }
-            : { paddingBottom: Math.max(0, TOP_VEIL_PX - 2) }
+            : { paddingBottom: publicBar ? 0 : Math.max(0, TOP_VEIL_PX - 2) }
         }
       >
       {compact ? (
@@ -800,6 +804,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               }
             : undefined
         }
+        underlineLinks={readOnly}
       />
       )}
 
@@ -809,7 +814,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           deliveredNotes={readOnly ? deliveredNotes : undefined}
         />
       ) : null}
-      {!compact && !editing && (showShareFooter || shareFootnote) ? (
+      {!compact && !editing && (showShareFooter || shareFootnote || publicBar) ? (
         <div className="mt-auto shrink-0 text-[13px] leading-snug">
           {showShareFooter ? (
             <>
@@ -826,6 +831,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               {showShareFooter ? <div aria-hidden className="h-[2lh]" /> : <div aria-hidden className="h-[1lh]" />}
               <div className="text-center">{shareFootnote}</div>
             </>
+          ) : null}
+          {publicBar && !bare ? (
+            <div className="mt-4 -mx-[calc(clamp(24px,6.1vw,28px)-3mm)]">{publicBar}</div>
           ) : null}
         </div>
       ) : null}
