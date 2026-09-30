@@ -5,10 +5,20 @@ import { useLayoutEffect } from "react";
 /** Taller than this is the keyboard, which the edit dock already follows. */
 const KEYBOARD_MIN_PX = 120;
 
+function readSafeBottom() {
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;padding-bottom:env(safe-area-inset-bottom)";
+  document.documentElement.appendChild(probe);
+  const size = probe.getBoundingClientRect().height;
+  probe.remove();
+  return size;
+}
+
 /**
- * How many pixels the layout box extends below the visible screen.
- * Written on the root so the main sky band can lift its bottom edge
- * without resizing the card. One frame, no React render.
+ * The shell is already 100svh, so the first frame is the small viewport.
+ * visualViewport only nudges the band if that shell still slips under the toolbar.
+ * The band stays hidden until this runs, which is before the first paint.
  */
 export function VisualBottom() {
   useLayoutEffect(() => {
@@ -18,13 +28,17 @@ export function VisualBottom() {
     const write = () => {
       frame = 0;
       const vv = window.visualViewport;
-      if (!vv) {
-        root.style.setProperty("--vv-bottom", "0px");
-        return;
+      const shell = document.querySelector("main.compass-main");
+      let lift = 0;
+      if (vv && shell) {
+        const gap = shell.getBoundingClientRect().bottom - vv.height;
+        if (gap > 0 && gap < KEYBOARD_MIN_PX) lift = Math.round(gap);
       }
-      const covered = root.getBoundingClientRect().bottom - vv.height;
-      const inset = covered > KEYBOARD_MIN_PX ? 0 : Math.max(0, Math.round(covered));
-      root.style.setProperty("--vv-bottom", `${inset}px`);
+      const chrome = vv ? root.getBoundingClientRect().bottom - vv.height : 0;
+      const safe = chrome > 8 && chrome < KEYBOARD_MIN_PX ? 0 : Math.round(readSafeBottom());
+      root.style.setProperty("--vv-bottom", `${lift}px`);
+      root.style.setProperty("--band-safe", `${safe}px`);
+      root.classList.add("compass-band-ready");
     };
 
     const schedule = () => {
@@ -46,5 +60,10 @@ export function VisualBottom() {
     };
   }, []);
 
-  return null;
+  return (
+    <style>{`
+      .compass-sky-band { visibility: hidden; transition: none; }
+      html.compass-band-ready .compass-sky-band { visibility: visible; }
+    `}</style>
+  );
 }

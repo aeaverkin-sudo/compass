@@ -41,18 +41,22 @@ function readSafeAreaInset(edge: "top" | "bottom") {
   return size;
 }
 
+/** Stable small viewport. Does not grow when the browser toolbar hides. */
+function readSvh() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;top:0;height:100svh;visibility:hidden;pointer-events:none";
+  document.documentElement.appendChild(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height || window.innerHeight;
+}
+
 function computeLayout(): MainLayout | null {
   if (typeof window === "undefined") return null;
 
-  // `html` is position:fixed inset:0, so its clientHeight is the full layout
-  // viewport and stays stable when the iOS keyboard shrinks the visual viewport.
-  const viewportH = document.documentElement.clientHeight || window.innerHeight;
+  const viewportH = readSvh();
   const safeTop = readSafeAreaInset("top");
-  // Visible bottom in a browser = above the browser toolbar (visual viewport),
-  // not the full layout viewport which reaches under the toolbar. Buttons are
-  // only shown with the keyboard closed, so the visual viewport is safe here.
-  const visibleBottom =
-    (typeof window !== "undefined" && window.visualViewport?.height) || window.innerHeight || viewportH;
+  const visibleBottom = viewportH;
   const qrTop = safeTop + HEADER_RHYTHM_PX;
   const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const browseHeight = browseCardHeightPx(viewportH, safeTop);

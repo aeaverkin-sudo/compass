@@ -71,10 +71,7 @@ export function LandingPage() {
   };
 
   return (
-    <main
-      className="compass-main flex h-svh flex-col overflow-hidden bg-transparent"
-      style={{ height: "100dvh" }}
-    >
+    <main className="compass-main flex h-svh flex-col overflow-hidden bg-transparent">
       <div className="flex flex-1 flex-col items-center justify-center px-8 pb-[14vh]">
         <PhotoSlotPicker
           photo={photo}
@@ -111,7 +108,10 @@ export function LandingPage() {
           </>
         ) : null}
       </div>
-      <nav className="bg-sky px-[calc(clamp(24px,6.1vw,28px)-3mm)] pb-[env(safe-area-inset-bottom)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
+      <nav
+        className="compass-sky-band bg-sky px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase"
+        style={{ paddingBottom: "var(--band-safe, 0px)" }}
+      >
         <div className="grid grid-cols-2 items-baseline">
           <Link href="/register?signin=1" className="justify-self-start px-2 py-4">
             Sign in

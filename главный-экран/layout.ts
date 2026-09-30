@@ -99,7 +99,7 @@ export function browseCardHeightPx(viewportH: number, safeTop: number) {
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
-  return `calc(${CARD_BOTTOM_TARGET_LVH}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
+  return `calc(${CARD_BOTTOM_TARGET_LVH}svh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
 }
 
 export function libraryStackTopPx(safeTop: number) {

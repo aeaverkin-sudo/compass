@@ -159,8 +159,8 @@ function PublicCardBar({
 }) {
   return (
     <nav
-      className="bg-sky px-[calc(clamp(24px,6.1vw,28px)-3mm)] pb-[env(safe-area-inset-bottom)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase select-none [-webkit-touch-callout:none]"
-      style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
+      className="compass-sky-band bg-sky px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase select-none [-webkit-touch-callout:none]"
+      style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif', paddingBottom: "var(--band-safe, 0px)" }}
     >
       <div className="grid grid-cols-2 items-baseline">
         <button

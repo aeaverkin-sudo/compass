@@ -155,7 +155,7 @@ export function MainScreen() {
   const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
 
   return (
-    <main className="compass-main fixed inset-0 overflow-hidden bg-background">
+    <main className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
         {layout ? (
           <QrZone url={cardUrl} visible={cardReady} topOffsetPx={layout.qrTop} />
@@ -165,7 +165,7 @@ export function MainScreen() {
       {layout && !composing && (editing || !hideNav) ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-sky"
+          className="compass-sky-band pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-sky"
           style={{
             top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX),
             bottom: "var(--vv-bottom, 0px)",

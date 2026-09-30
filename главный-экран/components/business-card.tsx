@@ -39,7 +39,7 @@ const HERO_ROLE_GAP_PX = 4;
  * Ink of g/y/p below a line-height of 1.
  * Helvetica Neue 600, "greg" at 78px: the tail ends 7px under the line box.
  */
-const HERO_DESCENDER_OVERFLOW = 7 / 78;
+const HERO_DESCENDER_OVERFLOW = 0.09;
 
 function splitHeroName(name: string) {
   const breakAt = name.indexOf("\n");
@@ -106,7 +106,7 @@ function HeroName({
         HERO_NAME_MAX_PX,
       );
       const gap = roleBelow ? HERO_ROLE_GAP_PX : 0;
-      const heightSize = Math.max(8, (box.clientHeight - gap) / (count + (roleBelow ? HERO_DESCENDER_OVERFLOW : 0)));
+      const heightSize = Math.max(8, (box.clientHeight - gap) / (count + HERO_DESCENDER_OVERFLOW));
       setWrapWord(false);
       setSize(Math.min(HERO_NAME_MAX_PX, widthSize, heightSize));
       const area = box.querySelector("textarea");
@@ -127,18 +127,17 @@ function HeroName({
     };
   }, [first, roleBelow, second, value]);
 
-  const rolePad = roleBelow ? size * HERO_DESCENDER_OVERFLOW + HERO_ROLE_GAP_PX : 0;
-  const lineStyle = empty
-    ? { fontSize: size, lineHeight: 1, fontWeight: 400, height: size }
-    : {
-        fontSize: size,
-        lineHeight: 1,
-        fontWeight: 600,
-        letterSpacing: "-1px",
-        boxSizing: "border-box" as const,
-        height: size * lineCount + rolePad,
-        paddingBottom: rolePad,
-      };
+  const descender = size * HERO_DESCENDER_OVERFLOW;
+  const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
+  const lineStyle = {
+    fontSize: size,
+    lineHeight: 1,
+    fontWeight: empty ? 400 : 600,
+    letterSpacing: empty ? "0px" : "-1px",
+    boxSizing: "border-box" as const,
+    height: size * (empty ? 1 : lineCount) + rolePad,
+    paddingBottom: rolePad,
+  };
 
   const holdScroll = (node: HTMLTextAreaElement) => {
     const scroller = node.closest<HTMLElement>(".compass-card-scroll");
@@ -170,8 +169,8 @@ function HeroName({
         {empty ? (
           <span
             aria-hidden
-            className="pointer-events-none absolute bottom-0 left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[#C8C8C8]"
-            style={{ fontSize: size, fontWeight: 400, lineHeight: 1 }}
+            className="pointer-events-none absolute left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[#C8C8C8]"
+            style={{ fontSize: size, fontWeight: 400, lineHeight: 1, bottom: descender }}
           >
             {PLACEHOLDER}
           </span>
@@ -214,15 +213,15 @@ function HeroName({
             onChange(clampNameLines(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-hidden bg-transparent p-0 text-left whitespace-pre text-[#111] outline-none"
+          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre text-[#111] outline-none"
           style={empty ? { ...lineStyle, color: "transparent", caretColor: "#111" } : lineStyle}
         />
         </>
       ) : (
         <div
           className={cn(
-            "w-full overflow-x-hidden text-left text-[#111]",
-            wrapWord ? "whitespace-pre-wrap break-all" : "overflow-hidden whitespace-nowrap",
+            "w-full overflow-x-hidden overflow-y-visible text-left text-[#111]",
+            wrapWord ? "whitespace-pre-wrap break-all" : "whitespace-nowrap",
           )}
           style={lineStyle}
         >
@@ -230,11 +229,11 @@ function HeroName({
             <div className="whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[#C8C8C8]">{PLACEHOLDER}</div>
           ) : twoLines ? (
             <>
-              <div className="overflow-hidden whitespace-nowrap">{first || "\u00a0"}</div>
-              <div className="overflow-hidden whitespace-nowrap">{second || "\u00a0"}</div>
+              <div className="whitespace-nowrap">{first || "\u00a0"}</div>
+              <div className="whitespace-nowrap">{second || "\u00a0"}</div>
             </>
           ) : (
-            <div className="overflow-hidden whitespace-nowrap">{value}</div>
+            <div className="whitespace-nowrap">{value}</div>
           )}
         </div>
       )}
@@ -683,7 +682,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               paddingTop: LIBRARY_NAME_FADE_PX,
             }
           : {
-              height: readOnly ? "100dvh" : browseCardHeight(),
+              height: readOnly ? "100svh" : browseCardHeight(),
             }
       }
     >
