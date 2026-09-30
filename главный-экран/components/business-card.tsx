@@ -763,7 +763,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
                 transform: previewPull ? `translateY(${previewPull}px)` : undefined,
                 transition: previewPulling ? "none" : "transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1)",
               }
-            : { paddingBottom: publicBar ? 0 : Math.max(0, TOP_VEIL_PX - 2) }
+            : undefined
         }
       >
       {compact ? (

@@ -7,12 +7,10 @@ import {
   librarySheetTopPx,
   libraryStackTopPx,
   BOTTOM_PLATE_DROP_PX,
-  BOTTOM_PLATE_LOWER_PX,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
   RULE_GAP_PX,
   SHEET_INSET,
-  TOP_VEIL_PX,
 } from "../layout";
 
 export type MainLayout = {
@@ -78,7 +76,7 @@ function computeLayout(): MainLayout | null {
   const qrTop = safeTop + HEADER_RHYTHM_PX;
   const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const bandH = Math.max(0, Math.round(browseBandHeightPx(fullH)));
-  const cardBottomBrowse = visibleH - bandH - BOTTOM_PLATE_LOWER_PX - TOP_VEIL_PX;
+  const cardBottomBrowse = visibleH - bandH;
   const browseHeight = cardBottomBrowse - cardTopBrowse;
   const libraryHeight = libraryCardHeightPx(visibleH, safeTop);
   const browseMenuCenterY = (cardBottomBrowse + visibleBottom) / 2 + BOTTOM_PLATE_DROP_PX;

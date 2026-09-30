@@ -98,11 +98,10 @@ export function browseBandHeightPx(fullH: number) {
 
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
-  const gapBelowCard = BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
-  const offset = -CARD_BOTTOM_RAISE_PX + gapBelowCard;
-  const fallback = `calc(${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${offset}px)`;
-  // The band keeps --band-h. The card ends where that band starts, and both rise together when the toolbar lifts the bottom.
-  return `calc(100svh - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px - ${gapBelowCard}px)`;
+  const bandOffset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
+  const fallback = `calc(${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${bandOffset}px)`;
+  // The band keeps its height. The card ends on the band, so nothing white sits between them.
+  return `calc(100svh - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px)`;
 }
 
 export function libraryStackTopPx(safeTop: number) {
