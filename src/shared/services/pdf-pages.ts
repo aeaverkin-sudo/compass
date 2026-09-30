@@ -3,8 +3,6 @@ export const PDF_PAGE_W = 390;
 export const PDF_PAGE_H = 844;
 /** `/c/` inset on a 390px phone: clamp(24px, 6.1vw, 28px) − 3mm. */
 export const PDF_PAD = 24 - (3 * 96) / 25.4;
-/** Sky plaque directly under the portfolio name. */
-export const PDF_BAND_H = 52;
 
 export type PdfBlock =
   | { kind: "header" }
