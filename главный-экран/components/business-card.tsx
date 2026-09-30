@@ -261,6 +261,8 @@ function EditorialHeader({
   showRule,
   showPlus,
   nextScan,
+  sheetIndex,
+  sheetTotal,
   onPhotoChange,
   onDisplayNameChange,
 }: {
@@ -269,12 +271,23 @@ function EditorialHeader({
   showRule: boolean;
   showPlus: boolean;
   nextScan: ReactNode;
+  sheetIndex?: number;
+  sheetTotal?: number;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
 }) {
   const photoSrc = cardPhotoSrc(card);
+  const sheetMark = showRule && sheetIndex && sheetTotal ? `${sheetIndex}/${sheetTotal}` : null;
   return (
     <div className="w-full">
+      {sheetMark ? (
+        <p
+          className="m-0 mb-1 text-right text-[11px] leading-none font-normal tracking-[0.1em] text-[#999]"
+          style={{ marginRight: -6 }}
+        >
+          {sheetMark}
+        </p>
+      ) : null}
       {showRule ? <div className="border-t-[0.5px] border-[#111]" /> : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
@@ -574,6 +587,9 @@ type BusinessCardProps = {
   pdf?: boolean;
   /** Null paints every block. An array is one phone sheet. */
   pdfMask?: number[] | null;
+  /** Place among the owner's portfolios, shown above the masthead rule. */
+  sheetIndex?: number;
+  sheetTotal?: number;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -600,6 +616,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     publicBar,
     pdf = false,
     pdfMask = null,
+    sheetIndex,
+    sheetTotal,
   },
   ref,
 ) {
@@ -879,6 +897,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               card={card}
               positionTitle={positionTitle}
               showRule={ready && !readOnly}
+              sheetIndex={sheetIndex}
+              sheetTotal={sheetTotal}
               showPlus={Boolean(onCardUpdate && ready && items.length > 0)}
               nextScan={
                 onCardUpdate && ready ? (

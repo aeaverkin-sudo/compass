@@ -326,6 +326,7 @@ export function CardCarousel({
     onUpdate: (data: Partial<Card>) => void,
     hint: boolean,
     onPortfolioStartBlocked?: () => void,
+    sheet?: { index: number; total: number },
   ) => (
     <BusinessCard
       card={card}
@@ -345,6 +346,8 @@ export function CardCarousel({
       frozen={frozen}
       shareFootnote={card.id === ADD_SLIDE_ID ? undefined : shareFootnote}
       onPortfolioStartBlocked={onPortfolioStartBlocked}
+      sheetIndex={isBrowse ? sheet?.index : undefined}
+      sheetTotal={isBrowse ? sheet?.total : undefined}
     />
   );
 
@@ -378,6 +381,8 @@ export function CardCarousel({
       (displayName) => onUpdateCard(card.id, { displayName }),
       (data) => onUpdateCard(card.id, data),
       fillHint && index === 0,
+      undefined,
+      { index: index + 1, total: cards.length },
     );
   };
 
@@ -402,6 +407,8 @@ export function CardCarousel({
         onComposingChange={onComposingChange}
         frozen={frozen}
         shareFootnote={shareFootnote}
+        sheetIndex={isBrowse ? 1 : undefined}
+        sheetTotal={isBrowse ? cards.length : undefined}
       />
     );
   }
