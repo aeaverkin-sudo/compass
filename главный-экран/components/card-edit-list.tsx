@@ -497,7 +497,8 @@ function AddLine({
                     }}
                     onFocus={onFocus}
                     onBlur={handleBlur}
-                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:text-[#999]"
+                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent p-0 font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:text-[#999]"
+                    style={{ fontSize: 16, lineHeight: "normal" }}
                   />
                 </div>
               </div>
