@@ -175,6 +175,8 @@ export function CardCarousel({
 
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
   const portfolioLimit = useAccountStatus()?.portfolioLimit ?? null;
+  const sheetTotalCount =
+    portfolioLimit !== null && portfolioLimit >= cards.length ? portfolioLimit : cards.length;
 
   const handleDraftUpdate = useCallback(
     (data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>) => {
@@ -382,7 +384,7 @@ export function CardCarousel({
       (data) => onUpdateCard(card.id, data),
       fillHint && index === 0,
       undefined,
-      { index: index + 1, total: cards.length },
+      { index: index + 1, total: sheetTotalCount },
     );
   };
 
@@ -408,7 +410,7 @@ export function CardCarousel({
         frozen={frozen}
         shareFootnote={shareFootnote}
         sheetIndex={isBrowse ? 1 : undefined}
-        sheetTotal={isBrowse ? cards.length : undefined}
+        sheetTotal={isBrowse ? sheetTotalCount : undefined}
       />
     );
   }
