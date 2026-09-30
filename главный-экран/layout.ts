@@ -86,20 +86,22 @@ export function layoutTop(offsetPx: number) {
   return `${offsetPx}px`;
 }
 
-export function browseStackTopPx(safeTop: number) {
-  return safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
-}
-
-export function browseCardHeightPx(viewportH: number, safeTop: number) {
-  return Math.round(
-    (viewportH * CARD_BOTTOM_TARGET_LVH) / 100 - browseStackTopPx(safeTop) - CARD_BOTTOM_RAISE_PX,
-  );
+/**
+ * Band height on the full screen (toolbar hidden). Same on one phone in PWA, Safari and Chrome.
+ * 0.27 × lvh − 118px with the current card constants.
+ */
+export function browseBandHeightPx(fullH: number) {
+  const share = (100 - CARD_BOTTOM_TARGET_LVH) / 100;
+  const offset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
+  return fullH * share - offset;
 }
 
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const bottomExtendPx = -CARD_BOTTOM_RAISE_PX;
-  return `calc(${CARD_BOTTOM_TARGET_LVH}svh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
+  const bandShare = 100 - CARD_BOTTOM_TARGET_LVH;
+  // 100svh − 27lvh. When the toolbar is absent, lvh = svh and this is the old 73svh card.
+  return `calc(100svh - ${bandShare}lvh - env(safe-area-inset-top) - ${stackTopBelowSafe}px + ${bottomExtendPx}px)`;
 }
 
 export function libraryStackTopPx(safeTop: number) {

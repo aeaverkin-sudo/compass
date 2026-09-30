@@ -2,15 +2,17 @@
 
 import { useLayoutEffect, useState } from "react";
 import {
-  browseCardHeightPx,
+  browseBandHeightPx,
   libraryCardHeightPx,
   librarySheetTopPx,
   libraryStackTopPx,
   BOTTOM_PLATE_DROP_PX,
+  BOTTOM_PLATE_LOWER_PX,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
   RULE_GAP_PX,
   SHEET_INSET,
+  TOP_VEIL_PX,
 } from "../layout";
 
 export type MainLayout = {
@@ -41,10 +43,10 @@ function readSafeAreaInset(edge: "top" | "bottom") {
   return size;
 }
 
-/** Stable small viewport. Does not grow when the browser toolbar hides. */
-function readSvh() {
+/** `svh` is the visible height. `lvh` is the full screen, the same in every browser on this phone. */
+function readViewport(unit: "svh" | "lvh") {
   const probe = document.createElement("div");
-  probe.style.cssText = "position:fixed;top:0;height:100svh;visibility:hidden;pointer-events:none";
+  probe.style.cssText = `position:fixed;top:0;height:100${unit};visibility:hidden;pointer-events:none`;
   document.documentElement.appendChild(probe);
   const height = probe.getBoundingClientRect().height;
   probe.remove();
@@ -54,18 +56,20 @@ function readSvh() {
 function computeLayout(): MainLayout | null {
   if (typeof window === "undefined") return null;
 
-  const viewportH = readSvh();
+  const visibleH = readViewport("svh");
+  const fullH = readViewport("lvh");
   const safeTop = readSafeAreaInset("top");
-  const visibleBottom = viewportH;
+  const visibleBottom = visibleH;
   const qrTop = safeTop + HEADER_RHYTHM_PX;
   const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
-  const browseHeight = browseCardHeightPx(viewportH, safeTop);
-  const libraryHeight = libraryCardHeightPx(viewportH, safeTop);
-  const cardBottomBrowse = cardTopBrowse + browseHeight;
+  const bandH = browseBandHeightPx(fullH);
+  const cardBottomBrowse = visibleH - bandH - BOTTOM_PLATE_LOWER_PX - TOP_VEIL_PX;
+  const browseHeight = cardBottomBrowse - cardTopBrowse;
+  const libraryHeight = libraryCardHeightPx(visibleH, safeTop);
   const browseMenuCenterY = (cardBottomBrowse + visibleBottom) / 2 + BOTTOM_PLATE_DROP_PX;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
   const cardTopLibrary = libraryStackTopPx(safeTop);
-  const sheetTopLibrary = librarySheetTopPx(viewportH, safeTop);
+  const sheetTopLibrary = librarySheetTopPx(visibleH, safeTop);
 
   return {
     qrTop,

@@ -27,7 +27,7 @@ export function BottomNav({
 }: BottomNavProps) {
   return (
     <nav
-      className="pointer-events-auto absolute z-30 grid -translate-y-1/2 grid-cols-3 items-baseline px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase select-none [-webkit-touch-callout:none]"
+      className="pointer-events-auto absolute z-30 grid -translate-y-1/2 grid-cols-3 items-baseline px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase select-none [-webkit-touch-callout:none]"
       style={{
         top: layoutTop(centerYpx),
         left: insetPx,
