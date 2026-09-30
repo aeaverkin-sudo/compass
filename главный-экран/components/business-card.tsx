@@ -465,6 +465,7 @@ function CardShareFooter({
             <Dialog.Content
               aria-describedby={undefined}
               data-no-swipe
+              onOpenAutoFocus={(event) => event.preventDefault()}
               onCloseAutoFocus={(event) => event.preventDefault()}
               className="fixed z-40 w-max border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
               style={{
@@ -479,7 +480,7 @@ function CardShareFooter({
                   <Dialog.Close asChild key={choice}>
                     <button
                       type="button"
-                      className="px-2.5 py-2 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase"
+                      className="px-2.5 py-2 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase outline-none focus:outline-none focus-visible:outline-none"
                       onClick={() => onShare(choice)}
                     >
                       {label}
