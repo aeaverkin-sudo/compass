@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
@@ -13,12 +14,6 @@ import {
   subscribeCardPdfStale,
   type CardShareChoice,
 } from "@/shared/services/save-public-card-pdf";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/shared/components/ui/dropdown-menu";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { composeCard } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
@@ -395,26 +390,11 @@ function CompactHeader({
   );
 }
 
-function ShareChoiceItem({ label, onChoose }: { label: string; onChoose: () => void }) {
-  const handed = useRef(false);
-  return (
-    <DropdownMenuItem
-      onPointerUp={() => {
-        handed.current = true;
-        onChoose();
-      }}
-      onSelect={() => {
-        if (handed.current) {
-          handed.current = false;
-          return;
-        }
-        onChoose();
-      }}
-    >
-      {label}
-    </DropdownMenuItem>
-  );
-}
+const SHARE_CHOICES: { choice: CardShareChoice; label: string }[] = [
+  { choice: "link", label: "Link" },
+  { choice: "pdf", label: "PDF" },
+  { choice: "both", label: "Link + PDF" },
+];
 
 function CardShareFooter({
   name,
@@ -437,12 +417,12 @@ function CardShareFooter({
         </p>
       </div>
       {onShare ? (
-        <DropdownMenu
+        <Dialog.Root
           onOpenChange={(open) => {
             if (open) onPrepareShare?.();
           }}
         >
-          <DropdownMenuTrigger asChild>
+          <Dialog.Trigger asChild>
             <button
               type="button"
               data-card-content
@@ -453,13 +433,32 @@ function CardShareFooter({
             >
               <Share className="size-4" strokeWidth={1.25} aria-hidden />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="top" data-no-swipe onCloseAutoFocus={(event) => event.preventDefault()}>
-            <ShareChoiceItem label="Link" onChoose={() => onShare("link")} />
-            <ShareChoiceItem label="PDF" onChoose={() => onShare("pdf")} />
-            <ShareChoiceItem label="Link + PDF" onChoose={() => onShare("both")} />
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </Dialog.Trigger>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-40 bg-[#111]/20" />
+            <Dialog.Content
+              aria-describedby={undefined}
+              onCloseAutoFocus={(event) => event.preventDefault()}
+              className="fixed top-1/2 left-1/2 z-40 w-[min(280px,calc(100vw-3rem))] -translate-x-1/2 -translate-y-1/2 border-0 bg-sky px-5 py-4 text-center text-[#111] shadow-none outline-none"
+              style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
+            >
+              <Dialog.Title className="sr-only">Share</Dialog.Title>
+              <div className="flex flex-col items-center">
+                {SHARE_CHOICES.map(({ choice, label }) => (
+                  <Dialog.Close asChild key={choice}>
+                    <button
+                      type="button"
+                      className="px-3 py-2.5 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase"
+                      onClick={() => onShare(choice)}
+                    >
+                      {label}
+                    </button>
+                  </Dialog.Close>
+                ))}
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       ) : null}
     </footer>
   );
