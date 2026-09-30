@@ -22,9 +22,16 @@ function useOrigin() {
   return useSyncExternalStore(subscribe, originNow, originOnServer);
 }
 
+const LINK_LINE = {
+  textDecoration: "underline",
+  textDecorationColor: "rgba(17,17,17,0.28)",
+  textDecorationThickness: "0.5px",
+  textUnderlineOffset: "3px",
+} as const;
+
 /**
  * Sky plaque under the portfolio name. The same markup on `/c/`, `/@handle`, and the shared PDF.
- * Try it is the lighter entry. Create your account keeps the thin gray underline.
+ * Both labels are one underlined line. Try it is the heavier entry.
  */
 export function AccountBand({ inset, safe = true }: { inset?: number; safe?: boolean }) {
   const origin = useOrigin();
@@ -45,24 +52,20 @@ export function AccountBand({ inset, safe = true }: { inset?: number; safe?: boo
         paddingRight: inset,
       }}
     >
-      <div className="flex items-start justify-between gap-4 py-3.5">
-        <a href={tryHref} className="flex min-w-0 flex-col items-start no-underline">
-          <span className="text-[13px] leading-none font-normal">Try it</span>
-          <span className="mt-1 text-[10px] leading-none font-light text-[#777]">No sign-up</span>
+      <div className="flex items-baseline justify-between gap-3 py-3.5">
+        <a
+          href={tryHref}
+          className="min-w-0 text-[13px] leading-none whitespace-nowrap text-[#111]"
+          style={{ ...LINK_LINE, fontWeight: 600 }}
+        >
+          Try it — no sign-up
         </a>
-        <a href={registerHref} className="flex min-w-0 flex-col items-end text-right no-underline">
-          <span
-            className="text-[13px] leading-none font-normal"
-            style={{
-              textDecoration: "underline",
-              textDecorationColor: "rgba(17,17,17,0.28)",
-              textDecorationThickness: "0.5px",
-              textUnderlineOffset: "3px",
-            }}
-          >
-            Create your account
-          </span>
-          <span className="mt-1 text-[10px] leading-none font-light text-[#777]">Full access</span>
+        <a
+          href={registerHref}
+          className="min-w-0 text-right text-[13px] leading-none whitespace-nowrap text-[#111]"
+          style={{ ...LINK_LINE, fontWeight: 400 }}
+        >
+          Create your account
         </a>
       </div>
     </nav>
