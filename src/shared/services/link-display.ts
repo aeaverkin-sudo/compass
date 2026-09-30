@@ -158,6 +158,14 @@ function isWhatsAppHost(host: string) {
   return host === "wa.me" || host === "whatsapp.com" || host.endsWith(".whatsapp.com");
 }
 
+/** `t.me/+351…` keeps the plus. `wa.me/351…` shows it even though the link omits it. */
+function messengerPhoneFromUrl(host: string, segments: string[]): string | null {
+  const first = segments[0] ?? "";
+  if ((host === "t.me" || host === "telegram.me") && /^\+\d+$/.test(first)) return first;
+  if (isWhatsAppHost(host) && /^\d+$/.test(first)) return `+${first}`;
+  return null;
+}
+
 function handleFrom(host: string, segments: string[]): string | null {
   if (host === "youtu.be") return null;
 
@@ -213,6 +221,8 @@ function prettyLink(item: ContactItem, type: ContactType) {
   const host = hostOf(url);
   if (host === "youtu.be") return "Video";
   const segments = segmentsOf(url);
+  const phone = messengerPhoneFromUrl(host, segments);
+  if (phone) return phone;
   const handle = handleFrom(host, segments);
   if (handle) {
     if (type === "whatsapp" || isWhatsAppHost(host)) return handle;

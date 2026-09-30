@@ -6,7 +6,7 @@ import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { groupLibrary, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
-import { isContactFilled } from "@/shared/services/contact-item";
+import { isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
@@ -257,6 +257,7 @@ function AddLine({
   const [text, setText] = useState("");
   const [fileItemId, setFileItemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
   const fileItem = useAppStore((state) =>
     fileItemId ? state.contactItems.find((item) => item.id === fileItemId) : undefined,
   );
@@ -277,6 +278,7 @@ function AddLine({
     openedAt.current = Date.now();
     closedRef.current = false;
     setError(null);
+    setHint(null);
     setOpen(true);
     onOpenChange(true);
   };
@@ -333,23 +335,29 @@ function AddLine({
     if (fileItemId) {
       if (value) updateContactItem(fileItemId, { label: value });
       onAdded(fileItemId);
-      return;
+      return true;
     }
-    if (!value) return;
+    if (!value) return true;
+    const countryHint = messengerCountryHint(value);
+    if (countryHint) {
+      setHint(countryHint);
+      return false;
+    }
     const id = addContactItem();
-    if (!id) return;
+    if (!id) return true;
     updateContactItem(id, { value });
     const item = useAppStore.getState().contactItems.find((row) => row.id === id);
     if (!item || !isContactFilled(item)) {
       deleteContactItem(id);
-      return;
+      return true;
     }
     onAdded(id);
+    return true;
   };
 
   const close = () => {
     if (closedRef.current) return;
-    commit();
+    if (!commit()) return;
     dismissLine();
   };
 
@@ -450,6 +458,7 @@ function AddLine({
             >
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
+                {hint ? <p className="pt-2 text-[12px] font-light leading-snug text-[#111]">{hint}</p> : null}
                 <div ref={rowRef} className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
                   {filePhoto ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -489,6 +498,7 @@ function AddLine({
                     onChange={(event) => {
                       setText(event.target.value.replace(/\s*\n\s*/g, " "));
                       setError(null);
+                      setHint(null);
                     }}
                     onKeyDown={(event) => {
                       if (event.key !== "Enter") return;

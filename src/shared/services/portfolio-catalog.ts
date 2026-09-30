@@ -222,8 +222,11 @@ export const SERVICE_PREFIX_ALIASES: Readonly<Record<string, ContactType>> = {
   fb: "meta",
   telegram: "telegram",
   tg: "telegram",
+  тг: "telegram",
   whatsapp: "whatsapp",
   wa: "whatsapp",
+  ватсап: "whatsapp",
+  вотсап: "whatsapp",
   behance: "behance",
   dribbble: "dribbble",
   calendly: "calendly",
@@ -236,6 +239,44 @@ export function matchServicePrefix(alias: string): ContactType | null {
   const key = alias.trim().toLowerCase();
   if (SKIP_PREFIXES.has(key)) return null;
   return SERVICE_PREFIX_ALIASES[key] ?? null;
+}
+
+/** `telegram @nick`, `tg: +351…`, `ватсап +7…`. Separator is a space or a colon. */
+const MESSENGER_INPUT =
+  /^(telegram|tg|тг|whatsapp|wa|ватсап|вотсап)(?:\s*:\s*|\s+)(.+)$/iu;
+
+export function splitMessengerInput(raw: string): { type: ContactType; handle: string } | null {
+  const match = raw.trim().match(MESSENGER_INPUT);
+  if (!match) return null;
+  const type = matchServicePrefix(match[1] ?? "");
+  const handle = (match[2] ?? "").trim();
+  if ((type !== "telegram" && type !== "whatsapp") || !handle) return null;
+  return { type, handle };
+}
+
+/** A phone is a leading + and digits. Spaces, hyphens, brackets and dots are punctuation, not part of the number. */
+export function messengerPhoneDigits(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("+")) return null;
+  const body = trimmed.slice(1);
+  if (!body || !/^[\d\s().-]+$/.test(body)) return null;
+  const digits = body.replace(/[\s().-]/g, "");
+  return digits || null;
+}
+
+/** `@nick` or nick: a letter, then letters, digits or underscores. */
+export function messengerUsername(value: string): string | null {
+  const match = value.trim().match(/^@?([A-Za-z][A-Za-z0-9_]*)$/);
+  return match?.[1] ?? null;
+}
+
+/** Digits with no leading +. Not a phone — the country code has to be typed. */
+export function messengerNationalDigits(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.startsWith("+") || trimmed.startsWith("@")) return null;
+  if (!/^[\d\s().-]+$/.test(trimmed)) return null;
+  const digits = trimmed.replace(/[\s().-]/g, "");
+  return digits || null;
 }
 
 /** Canonical profile / search URL for a typed handle. */
@@ -260,11 +301,15 @@ export function profileUrlForType(type: ContactType, handle: string): string | n
       return `https://x.com/${id}`;
     case "meta":
       return `https://facebook.com/${id}`;
-    case "telegram":
-      return `https://t.me/${id}`;
+    case "telegram": {
+      const phone = messengerPhoneDigits(handle);
+      if (phone) return `https://t.me/+${phone}`;
+      const nick = messengerUsername(handle);
+      return nick ? `https://t.me/${nick}` : null;
+    }
     case "whatsapp": {
-      const digits = id.replace(/\D/g, "");
-      return digits ? `https://wa.me/${digits}` : null;
+      const phone = messengerPhoneDigits(handle);
+      return phone ? `https://wa.me/${phone}` : null;
     }
     case "behance":
       return `https://behance.net/${id}`;

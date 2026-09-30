@@ -5,7 +5,11 @@ import {
   inferAttachmentLabel,
   matchServicePrefix,
   matchSocialDomain,
+  messengerNationalDigits,
+  messengerPhoneDigits,
+  messengerUsername,
   profileUrlForType,
+  splitMessengerInput,
   typeLabel,
 } from "./portfolio-catalog";
 import { isAttachmentType, validateTextValue } from "./portfolio-limits";
@@ -61,7 +65,25 @@ function isHostOnlyAddress(value: string) {
   return /^(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}$/i.test(stripped);
 }
 
+export const MESSENGER_COUNTRY_HINT = "Add a country code, e.g. +351…";
+
+/** WhatsApp or Telegram keyword plus a number that has no leading +. No link, and no guessed country code. */
+export function messengerCountryHint(raw: string): string | null {
+  const messenger = splitMessengerInput(raw);
+  if (!messenger) return null;
+  if (messengerPhoneDigits(messenger.handle)) return null;
+  if (messenger.type === "telegram" && messengerUsername(messenger.handle)) return null;
+  if (!messengerNationalDigits(messenger.handle)) return null;
+  return MESSENGER_COUNTRY_HINT;
+}
+
 function parseTypedShortcut(raw: string): { type: ContactType; handle: string } | null {
+  const messenger = splitMessengerInput(raw);
+  if (messenger) {
+    if (!profileUrlForType(messenger.type, messenger.handle)) return null;
+    return messenger;
+  }
+
   const prefixMatch = raw.match(PREFIX);
   if (prefixMatch) {
     const type = matchServicePrefix(prefixMatch[1] ?? "");
