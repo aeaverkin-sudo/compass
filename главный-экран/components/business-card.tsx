@@ -494,7 +494,7 @@ function PdfCard({
             <EditorialHeader
               card={card}
               positionTitle={positionTitle}
-              showRule={ready}
+              showRule={false}
               showPlus={false}
               nextScan={null}
             />
@@ -854,7 +854,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             <EditorialHeader
               card={card}
               positionTitle={positionTitle}
-              showRule={ready}
+              showRule={ready && !readOnly}
               showPlus={Boolean(onCardUpdate && ready && items.length > 0)}
               nextScan={
                 onCardUpdate && ready ? (
