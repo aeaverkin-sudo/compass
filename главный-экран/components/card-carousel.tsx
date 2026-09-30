@@ -17,12 +17,14 @@ import { BusinessCard } from "./business-card";
 
 const ADD_SLIDE_ID = "__add__";
 
-/** Soft rectangular hint pinned to the screen edge, not the card. Tune on a phone. */
+/** Soft rectangular hint at the screen edge, nudged toward the card. Tune on a phone. */
 const NEIGHBOR_SHADE_WIDTH_PX = 6;
 const NEIGHBOR_SHADE_HEIGHT_PX = 156;
 const NEIGHBOR_SHADE_RADIUS_PX = 6;
 const NEIGHBOR_SHADE_ALPHA = 0.075;
 const NEIGHBOR_SHADE_BLUR_PX = 7;
+/** ~2mm on a phone, inward from the screen edge toward the card. */
+const NEIGHBOR_SHADE_SCREEN_INSET_PX = 11;
 
 function NeighborShade({ side }: { side: "left" | "right" }) {
   return (
@@ -36,7 +38,7 @@ function NeighborShade({ side }: { side: "left" | "right" }) {
         background: `rgba(0,0,0,${NEIGHBOR_SHADE_ALPHA})`,
         filter: `blur(${NEIGHBOR_SHADE_BLUR_PX}px)`,
         transform: "translateY(-50%)",
-        [side]: 0,
+        [side]: NEIGHBOR_SHADE_SCREEN_INSET_PX,
       }}
     />
   );
