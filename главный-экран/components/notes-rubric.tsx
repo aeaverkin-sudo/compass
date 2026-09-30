@@ -51,9 +51,10 @@ type NotesRubricProps = {
   ownerNotes?: NextScanAddon[];
   deliveredNotes?: DeliveredNote[];
   className?: string;
+  pdfBlock?: boolean;
 };
 
-export function NotesRubric({ ownerNotes, deliveredNotes, className }: NotesRubricProps) {
+export function NotesRubric({ ownerNotes, deliveredNotes, className, pdfBlock = false }: NotesRubricProps) {
   const notes: NoteView[] = ownerNotes?.length
     ? orderNextScanAddons(ownerNotes).flatMap((addon) => {
         const view = fromOwner(addon);
@@ -69,7 +70,7 @@ export function NotesRubric({ ownerNotes, deliveredNotes, className }: NotesRubr
   const typeLabel = (type: NoteView["type"]) => (type === "selfie" ? "Selfie" : "Text");
 
   return (
-    <section className={cn("shrink-0 pt-6", className)} aria-label="Notes">
+    <section className={cn("shrink-0 pt-6", className)} aria-label="Notes" data-pdf-block={pdfBlock ? "" : undefined}>
       <div aria-hidden className="h-px bg-[#111]" />
       <p className="pt-3 text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
         Notes

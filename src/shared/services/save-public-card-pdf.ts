@@ -18,6 +18,8 @@ type CardPdfEntry = {
   key?: string;
   ready?: ReadyPdf;
   pending?: Promise<ReadyPdf>;
+  resolve?: (ready: ReadyPdf) => void;
+  reject?: (error: unknown) => void;
 };
 
 const entries = new Map<string, CardPdfEntry>();
@@ -48,40 +50,48 @@ export function subscribeCardPdfStale(listener: (cardId: string) => void) {
   };
 }
 
-function filenameFromDisposition(header: string | null): string | null {
-  if (!header) return null;
-  const utf = /filename\*=UTF-8''([^;]+)/i.exec(header);
-  if (utf?.[1]) {
-    try {
-      return decodeURIComponent(utf[1].trim());
-    } catch {
-      /* fall through */
-    }
-  }
-  const plain = /filename="([^"]+)"/i.exec(header) ?? /filename=([^;]+)/i.exec(header);
-  return plain?.[1]?.trim().replace(/^"|"$/g, "") || null;
-}
-
 function inputKey(input: CardPdfInput) {
   const notes = (input.notes ?? [])
     .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
     .join("|");
-  return `${input.publicToken}\n${input.revision ?? ""}\n${notes}`;
+  return `${input.publicToken}\n${input.displayName}\n${input.revision ?? ""}\n${notes}`;
 }
 
-async function loadPublicCardPdf(input: CardPdfInput): Promise<ReadyPdf> {
-  const response = await fetch(`/api/c/${encodeURIComponent(input.publicToken)}/pdf`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ notes: input.notes ?? [] }),
-  });
-  if (!response.ok) throw new Error(`Could not build the PDF (${response.status})`);
+function cacheKey(input: CardPdfInput) {
+  return inputKey(input);
+}
 
-  const blob = await response.blob();
-  const filename =
-    filenameFromDisposition(response.headers.get("Content-Disposition")) ||
-    `${input.displayName.replace(/\n/g, " ").trim() || "portfolio"}.pdf`;
-  return { blob, filename };
+/** The hidden card sheets call this, then publish when the file is painted. */
+export function beginCardPdf(input: CardPdfInput): Promise<ReadyPdf> {
+  const key = cacheKey(input);
+  const entry = entryFor(input.cardId);
+  if (entry.key === key && entry.ready) return Promise.resolve(entry.ready);
+  if (entry.key === key && entry.pending) return entry.pending;
+  let resolve: (ready: ReadyPdf) => void = () => undefined;
+  let reject: (error: unknown) => void = () => undefined;
+  const pending = new Promise<ReadyPdf>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  entries.set(input.cardId, { generation: entry.generation, key, pending, resolve, reject });
+  return pending;
+}
+
+export function publishCardPdf(input: CardPdfInput, ready: ReadyPdf) {
+  const key = cacheKey(input);
+  const entry = entries.get(input.cardId);
+  if (!entry || entry.key !== key) return;
+  entry.resolve?.(ready);
+  entries.set(input.cardId, { generation: entry.generation, key, ready });
+}
+
+export function failCardPdf(input: CardPdfInput, error: unknown) {
+  const key = cacheKey(input);
+  const entry = entries.get(input.cardId);
+  if (!entry || entry.key !== key) return;
+  console.error("[pdf] paint failed", error);
+  entry.reject?.(error);
+  entries.set(input.cardId, { generation: entry.generation });
 }
 
 function peekPublicCardPdf(input: CardPdfInput): ReadyPdf | null {
@@ -89,27 +99,9 @@ function peekPublicCardPdf(input: CardPdfInput): ReadyPdf | null {
   return entry?.key === inputKey(input) ? (entry.ready ?? null) : null;
 }
 
-/** Build the PDF ahead of the tap so the share sheet can open instantly. */
+/** The file is painted from the card already on screen. This waits for that paint. */
 export function primePublicCardPdf(input: CardPdfInput): Promise<ReadyPdf> {
-  const key = inputKey(input);
-  const entry = entryFor(input.cardId);
-  if (entry.key === key && entry.ready) return Promise.resolve(entry.ready);
-  if (entry.key === key && entry.pending) return entry.pending;
-
-  const generation = entry.generation;
-  const task = loadPublicCardPdf(input).then((ready) => {
-    const current = entries.get(input.cardId);
-    if (current?.generation === generation && current.key === key) {
-      entries.set(input.cardId, { generation, key, ready });
-    }
-    return ready;
-  });
-  entries.set(input.cardId, { generation, key, pending: task });
-  task.catch(() => {
-    const current = entries.get(input.cardId);
-    if (current?.pending === task) entries.set(input.cardId, { generation });
-  });
-  return task;
+  return beginCardPdf(input);
 }
 
 function toFile(ready: ReadyPdf): File {

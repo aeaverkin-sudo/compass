@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { primePublicCardPdf, shareCardPdf, type CardPdfInput } from "@/shared/services/save-public-card-pdf";
+import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { BusinessCard } from "@main/components/business-card";
 import type { Card, ContactItem } from "@/shared/types";
@@ -86,8 +87,22 @@ export function PublicCardClient({ card, items, publicToken }: PublicCardClientP
       .catch(() => router.push("/register"));
   };
 
+  const registerUrl = typeof window === "undefined" ? "/register" : `${window.location.origin}/register`;
+
   return (
     <>
+      {notesReady ? (
+        <CardPdfSource
+          key={`${publicToken}:${notes.map((note) => `${note.id}:${note.content}`).join("|")}`}
+          input={pdfInput()}
+          registerUrl={registerUrl}
+          epoch={0}
+        >
+          {(mask) => (
+            <BusinessCard pdf pdfMask={mask} readOnly card={card} library={items} mode="browse" deliveredNotes={notes} />
+          )}
+        </CardPdfSource>
+      ) : null}
       <BusinessCard
         card={card}
         library={items}

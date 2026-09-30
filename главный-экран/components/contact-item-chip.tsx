@@ -224,6 +224,8 @@ export function ContactItemChipList({
   onReorder,
   onChooseHeader,
   underlineLinks = false,
+  pdfZoneIds = null,
+  markPdfBlocks = false,
 }: {
   items: ContactItem[];
   size: ContactItemChipSize;
@@ -233,6 +235,9 @@ export function ContactItemChipList({
   onChooseHeader?: (itemId: string) => void;
   /** Public read-only card. The owner card keeps plain values. */
   underlineLinks?: boolean;
+  /** Print sheet: only these zones, in the card's own order. */
+  pdfZoneIds?: string[] | null;
+  markPdfBlocks?: boolean;
 }) {
   const compact = size === "compact";
   const listRef = useRef<HTMLDivElement>(null);
@@ -432,11 +437,16 @@ export function ContactItemChipList({
   if (composed.zones.length === 0) return null;
 
   if (!compact) {
+    const zones = pdfZoneIds ? composed.zones.filter((zone) => pdfZoneIds.includes(zone.id)) : composed.zones;
+    if (zones.length === 0) return null;
     return (
       <div className={cn("w-full min-w-0", className)} data-card-chip-list={listId} data-card-content>
-        {composed.zones.map((zone, zoneIndex) => (
+        {zones.map((zone) => {
+          const zoneIndex = composed.zones.findIndex((entry) => entry.id === zone.id);
+          return (
           <section
             key={zone.id}
+            data-pdf-block={markPdfBlocks ? "" : undefined}
             className={cn(
               "min-w-0 py-[18px]",
               zoneIndex < composed.zones.length - 1 && "border-b-[0.5px] border-[#111]",
@@ -458,7 +468,8 @@ export function ContactItemChipList({
               </div>
             </div>
           </section>
-        ))}
+          );
+        })}
       </div>
     );
   }

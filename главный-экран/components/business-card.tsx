@@ -19,6 +19,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
+import { CardPdfSource } from "@/shared/components/card-pdf-source";
+import { composeCard } from "@/shared/services/card-zones";
+import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
@@ -462,6 +465,64 @@ function CardShareFooter({
   );
 }
 
+function PdfCard({
+  card,
+  items,
+  positionTitle,
+  ready,
+  readOnly,
+  deliveredNotes,
+  ownerNotes,
+  pdfMask,
+}: {
+  card: Card;
+  items: ContactItem[];
+  positionTitle?: string;
+  ready: boolean;
+  readOnly: boolean;
+  deliveredNotes: DeliveredNote[];
+  ownerNotes: Card["nextScanAddons"];
+  pdfMask: number[] | null;
+}) {
+  const zoneIds = composeCard(items).zones.map((zone) => zone.id);
+  const plan = pdfBlockPlan(zoneIds, pdfNotesPresent(readOnly ? deliveredNotes : ownerNotes));
+  const shown = pdfMask ? plan.filter((_, index) => pdfMask.includes(index)) : plan;
+  const zoneFilter = shown.flatMap((block) => (block.kind === "zone" ? [block.id] : []));
+  return (
+    <article data-pdf-card className="w-full shrink-0 bg-white text-[#111]" style={{ fontFamily: HERO_FONT }}>
+      <div style={{ paddingLeft: PDF_PAD, paddingRight: PDF_PAD }}>
+        {shown.some((block) => block.kind === "header") ? (
+          <div data-pdf-block="">
+            <EditorialHeader
+              card={card}
+              positionTitle={positionTitle}
+              showRule={ready}
+              showPlus={false}
+              nextScan={null}
+            />
+          </div>
+        ) : null}
+        {zoneFilter.length > 0 ? (
+          <ContactItemChipList items={items} size="browse" underlineLinks markPdfBlocks pdfZoneIds={zoneFilter} />
+        ) : null}
+        {shown.some((block) => block.kind === "notes") ? (
+          <NotesRubric
+            pdfBlock
+            ownerNotes={readOnly ? undefined : ownerNotes}
+            deliveredNotes={readOnly ? deliveredNotes : undefined}
+          />
+        ) : null}
+        {shown.some((block) => block.kind === "footer") ? (
+          <div data-pdf-block="">
+            <div aria-hidden className="h-[1lh]" />
+            <CardShareFooter name={card.displayName} />
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 type BusinessCardProps = {
   card: Card;
   library: ContactItem[];
@@ -489,6 +550,10 @@ type BusinessCardProps = {
   onPortfolioStartBlocked?: () => void;
   /** Public /c/ only: sky actions under the portfolio line. */
   publicBar?: ReactNode;
+  /** Print sheets of this same card. No QR, no share, no fixed screen height. */
+  pdf?: boolean;
+  /** Null paints every block. An array is one phone sheet. */
+  pdfMask?: number[] | null;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -513,6 +578,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     deliveredNotes = [],
     onPortfolioStartBlocked,
     publicBar,
+    pdf = false,
+    pdfMask = null,
   },
   ref,
 ) {
@@ -551,12 +618,12 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       cardId: card.id,
       publicToken: card.publicToken,
       displayName: card.displayName,
-      revision: ownerNotesKey,
+      revision: `${card.photoAttachmentId ?? ""}\n${card.title}\n${ownerNotesKey}`,
     };
   };
 
   useEffect(() => {
-    if (readOnly || compact || editing || frozen || !ready || !card.publicToken) return;
+    if (pdf || readOnly || compact || editing || frozen || !ready || !card.publicToken) return;
     let cancelled = false;
     let wait: number | undefined;
     const prepare = () => {
@@ -569,7 +636,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         cardId: card.id,
         publicToken: card.publicToken,
         displayName: card.displayName,
-        revision: ownerNotesKey,
+        revision: `${card.photoAttachmentId ?? ""}\n${card.title}\n${ownerNotesKey}`,
       }).catch((error) => console.error("[pdf] prepare failed", error));
     };
     prepare();
@@ -579,7 +646,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     };
     // ownerNotesKey stands in for card.nextScanAddons. The server reads the pending notes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readOnly, compact, editing, frozen, ready, card.id, card.publicToken, ownerNotesKey, pdfGeneration]);
+  }, [pdf, readOnly, compact, editing, frozen, ready, card.id, card.publicToken, ownerNotesKey, pdfGeneration]);
 
   const primeShare = () => {
     const input = shareInput();
@@ -610,7 +677,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     });
   };
 
-  useOwnerNotesDelivery(card.id, !readOnly && !compact && nextScanAddons.length > 0);
+  useOwnerNotesDelivery(card.id, !pdf && !readOnly && !compact && nextScanAddons.length > 0);
   const blank = !cardHasPhoto(card) && !card.displayName.trim();
   const showShareFooter = !compact && !editing && ready && (items.length > 0 || Boolean(card.publicToken));
   const bare = !compact && ready && items.length === 0 && !editing;
@@ -706,7 +773,51 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onEmptyAreaTap();
   };
 
+  if (pdf) {
+    return (
+      <PdfCard
+        card={card}
+        items={items}
+        positionTitle={positionTitle}
+        ready={ready}
+        readOnly={readOnly}
+        deliveredNotes={deliveredNotes}
+        ownerNotes={nextScanAddons}
+        pdfMask={pdfMask}
+      />
+    );
+  }
+
+  const paintPdf = !compact && !editing && !frozen && ready && Boolean(card.publicToken) && !readOnly;
+
   return (
+    <>
+    {paintPdf ? (
+      <CardPdfSource
+        key={`${card.publicToken}:${ownerNotesKey}:${pdfGeneration}:${card.displayName}:${card.photoAttachmentId ?? ""}`}
+        input={{
+          cardId: card.id,
+          publicToken: card.publicToken,
+          displayName: card.displayName,
+          revision: `${card.photoAttachmentId ?? ""}\n${card.title}\n${ownerNotesKey}`,
+        }}
+        registerUrl={typeof window === "undefined" ? "/register" : `${window.location.origin}/register`}
+        epoch={pdfGeneration}
+      >
+        {(mask) => (
+          <PdfCard
+            card={card}
+            items={items}
+            positionTitle={positionTitle}
+            ready={ready}
+            readOnly={false}
+            deliveredNotes={deliveredNotes}
+            ownerNotes={nextScanAddons}
+            pdfMask={mask}
+          />
+        )}
+      </CardPdfSource>
+    ) : null}
     <article
       ref={(node) => {
         articleRef.current = node;
@@ -906,5 +1017,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
     </article>
+    </>
   );
 });
