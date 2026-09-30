@@ -17,19 +17,18 @@ import { BusinessCard } from "./business-card";
 
 const ADD_SLIDE_ID = "__add__";
 
-/** Soft rectangular hint that another card sits off this edge. Tune on a phone. */
+/** Soft rectangular hint in the empty margin, inner edge flush with the card. Tune on a phone. */
 const NEIGHBOR_SHADE_WIDTH_PX = 16;
-const NEIGHBOR_SHADE_HEIGHT_PX = 104;
+const NEIGHBOR_SHADE_HEIGHT_PX = 156;
 const NEIGHBOR_SHADE_RADIUS_PX = 6;
-const NEIGHBOR_SHADE_ALPHA = 0.15;
+const NEIGHBOR_SHADE_ALPHA = 0.075;
 const NEIGHBOR_SHADE_BLUR_PX = 7;
-const NEIGHBOR_SHADE_OFFSET_PX = 10;
 
-function NeighborShade({ side }: { side: "left" | "right" }) {
+function NeighborShade({ side, insetPx }: { side: "left" | "right"; insetPx: number }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute top-1/2 z-10"
+      className="pointer-events-none absolute top-1/2 z-30"
       style={{
         width: NEIGHBOR_SHADE_WIDTH_PX,
         height: NEIGHBOR_SHADE_HEIGHT_PX,
@@ -37,7 +36,7 @@ function NeighborShade({ side }: { side: "left" | "right" }) {
         background: `rgba(0,0,0,${NEIGHBOR_SHADE_ALPHA})`,
         filter: `blur(${NEIGHBOR_SHADE_BLUR_PX}px)`,
         transform: "translateY(-50%)",
-        [side]: -NEIGHBOR_SHADE_OFFSET_PX,
+        [side]: insetPx - NEIGHBOR_SHADE_WIDTH_PX,
       }}
     />
   );
@@ -440,8 +439,6 @@ export function CardCarousel({
               }
             >
               {renderSlide(slideId, index)}
-              {isBrowse && index > 0 ? <NeighborShade side="left" /> : null}
-              {isBrowse && index < slideIds.length - 1 ? <NeighborShade side="right" /> : null}
             </div>
           ))}
           <CarouselSpacer width={sidePaddingPx} />
@@ -459,6 +456,8 @@ export function CardCarousel({
             className="pointer-events-none absolute inset-y-0 right-0 z-20 bg-background"
             style={{ width: sidePaddingPx }}
           />
+          {activeIndex > 0 ? <NeighborShade side="left" insetPx={sidePaddingPx} /> : null}
+          {activeIndex < slideIds.length - 1 ? <NeighborShade side="right" insetPx={sidePaddingPx} /> : null}
         </>
       ) : null}
     </div>
