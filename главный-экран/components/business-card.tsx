@@ -281,10 +281,7 @@ function EditorialHeader({
   return (
     <div className="w-full">
       {sheetMark ? (
-        <p
-          className="m-0 mb-1 text-right text-[11px] leading-none font-normal tracking-[0.1em] text-[#999]"
-          style={{ marginRight: -6 }}
-        >
+        <p className="m-0 mb-1 text-right text-[11px] leading-none font-normal tracking-[0.1em] text-[#999]">
           {sheetMark}
         </p>
       ) : null}
