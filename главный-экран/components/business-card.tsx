@@ -406,6 +406,20 @@ function CardShareFooter({
   onShare?: (choice: CardShareChoice) => void;
   onPrepareShare?: () => void;
 }) {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState({ right: 0, bottom: 0 });
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const rect = anchorRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPlace({
+      right: Math.max(0, window.innerWidth - rect.right),
+      bottom: window.innerHeight - rect.top + 8,
+    });
+  }, [open]);
+
   return (
     <footer className={cn("flex items-end justify-between", className)}>
       <div>
@@ -417,12 +431,15 @@ function CardShareFooter({
       </div>
       {onShare ? (
         <Dialog.Root
-          onOpenChange={(open) => {
-            if (open) onPrepareShare?.();
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (next) onPrepareShare?.();
           }}
         >
           <Dialog.Trigger asChild>
             <button
+              ref={anchorRef}
               type="button"
               data-card-content
               data-no-swipe
@@ -437,9 +454,14 @@ function CardShareFooter({
             <Dialog.Overlay className="fixed inset-0 z-40 bg-[#111]/20" />
             <Dialog.Content
               aria-describedby={undefined}
+              data-no-swipe
               onCloseAutoFocus={(event) => event.preventDefault()}
-              className="fixed top-1/2 left-1/2 z-40 w-[min(280px,calc(100vw-3rem))] -translate-x-1/2 -translate-y-1/2 border-0 bg-sky px-5 py-4 text-center text-[#111] shadow-none outline-none"
-              style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
+              className="fixed z-40 w-max border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
+              style={{
+                right: place.right,
+                bottom: place.bottom,
+                fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+              }}
             >
               <Dialog.Title className="sr-only">Share</Dialog.Title>
               <div className="flex flex-col items-center">
@@ -447,7 +469,7 @@ function CardShareFooter({
                   <Dialog.Close asChild key={choice}>
                     <button
                       type="button"
-                      className="px-3 py-2.5 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase"
+                      className="px-2.5 py-2 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase"
                       onClick={() => onShare(choice)}
                     >
                       {label}
