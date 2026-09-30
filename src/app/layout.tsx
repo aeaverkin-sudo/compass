@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { AppResetGate } from "@/shared/components/app-reset-gate";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
 import { SupabaseSession } from "@/shared/components/supabase-session";
+import { VisualBottom } from "@/shared/components/visual-bottom";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full font-sans antialiased">
         <AppResetGate />
         <SupabaseSession />
+        <VisualBottom />
         <PdfPreviewHost />
         {children}
       </body>

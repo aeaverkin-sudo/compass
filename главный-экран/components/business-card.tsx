@@ -674,6 +674,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         compact
           ? "compass-card compass-card-library relative min-h-0 w-full min-w-0 justify-start overflow-hidden pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
           : "relative min-h-0 overflow-hidden bg-white text-[#111]",
+        !compact && readOnly && "h-svh",
       )}
       style={
         compact
@@ -682,9 +683,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               paddingTop: LIBRARY_NAME_FADE_PX,
             }
           : {
-              height: readOnly
-                ? "calc(100lvh - env(safe-area-inset-top))"
-                : browseCardHeight(),
+              height: readOnly ? "100dvh" : browseCardHeight(),
             }
       }
     >

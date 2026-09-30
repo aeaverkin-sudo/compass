@@ -166,7 +166,10 @@ export function MainScreen() {
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-sky"
-          style={{ top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX) }}
+          style={{
+            top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX),
+            bottom: "var(--vv-bottom, 0px)",
+          }}
         />
       ) : null}
 
