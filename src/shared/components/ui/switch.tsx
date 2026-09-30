@@ -18,7 +18,7 @@ function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimi
     >
       <SwitchPrimitive.Thumb
         className={cn(
-          "pointer-events-none block size-3.5 bg-[#111]",
+          "pointer-events-none block size-3.5 bg-hairline",
           "data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0.5",
         )}
       />

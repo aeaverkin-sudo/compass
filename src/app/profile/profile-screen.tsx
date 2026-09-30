@@ -45,10 +45,12 @@ function trialLine(hoursLeft: number | null) {
 function ProfileShell({ children }: { children: ReactNode }) {
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-      <BackButton fallbackHref="/main" />
       <ConsentRefresh />
-      <div className="mt-[52px] flex h-[22px] items-center justify-center">
-        <h1 className="text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">Profile</h1>
+      <div className="mt-[52px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+        <BackButton fallbackHref="/main" inline />
+        <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
+          Profile
+        </h1>
       </div>
       {children}
     </main>
@@ -173,7 +175,7 @@ export function ProfileScreen() {
         <button
           type="button"
           disabled
-          className="mt-4 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase disabled:opacity-100"
+          className="mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] text-[11.7px] font-normal tracking-[0.14em] text-[#111] uppercase disabled:opacity-100"
         >
           Upgrade
         </button>
@@ -239,7 +241,7 @@ export function ProfileScreen() {
         <button
           type="button"
           disabled={atCardLimit || portfolioLimit === null}
-          className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase disabled:opacity-40"
+          className="mt-6 border-0 bg-sky px-[21.6px] py-[10.8px] text-[11.7px] font-normal tracking-[0.14em] text-[#111] uppercase disabled:opacity-40"
           onClick={() => {
             if (portfolioLimit === null) return;
             updateSecondCardDraft({ displayName: "" }, portfolioLimit);
