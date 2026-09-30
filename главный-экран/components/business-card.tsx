@@ -6,7 +6,19 @@ import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { notesAreSyncing } from "@/shared/services/notes-sync";
-import { primePublicCardPdf, shareCardPdf, subscribeCardPdfStale } from "@/shared/services/save-public-card-pdf";
+import { publicCardUrl } from "@/shared/services/public-card-url";
+import {
+  primePublicCardPdf,
+  shareCardChoice,
+  subscribeCardPdfStale,
+  type CardShareChoice,
+} from "@/shared/services/save-public-card-pdf";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
@@ -380,6 +392,27 @@ function CompactHeader({
   );
 }
 
+function ShareChoiceItem({ label, onChoose }: { label: string; onChoose: () => void }) {
+  const handed = useRef(false);
+  return (
+    <DropdownMenuItem
+      onPointerUp={() => {
+        handed.current = true;
+        onChoose();
+      }}
+      onSelect={() => {
+        if (handed.current) {
+          handed.current = false;
+          return;
+        }
+        onChoose();
+      }}
+    >
+      {label}
+    </DropdownMenuItem>
+  );
+}
+
 function CardShareFooter({
   name,
   className,
@@ -388,7 +421,7 @@ function CardShareFooter({
 }: {
   name: string;
   className?: string;
-  onShare?: () => void;
+  onShare?: (choice: CardShareChoice) => void;
   onPrepareShare?: () => void;
 }) {
   return (
@@ -401,17 +434,29 @@ function CardShareFooter({
         </p>
       </div>
       {onShare ? (
-        <button
-          type="button"
-          data-card-content
-          data-no-swipe
-          aria-label="Share"
-          onPointerDown={onPrepareShare}
-          onClick={onShare}
-          className="text-[#111]"
+        <DropdownMenu
+          onOpenChange={(open) => {
+            if (open) onPrepareShare?.();
+          }}
         >
-          <Share className="size-4" strokeWidth={1.25} aria-hidden />
-        </button>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              data-card-content
+              data-no-swipe
+              aria-label="Share"
+              onPointerDown={onPrepareShare}
+              className="text-[#111] outline-none"
+            >
+              <Share className="size-4" strokeWidth={1.25} aria-hidden />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top" data-no-swipe onCloseAutoFocus={(event) => event.preventDefault()}>
+            <ShareChoiceItem label="Link" onChoose={() => onShare("link")} />
+            <ShareChoiceItem label="PDF" onChoose={() => onShare("pdf")} />
+            <ShareChoiceItem label="Link + PDF" onChoose={() => onShare("both")} />
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : null}
     </footer>
   );
@@ -542,10 +587,11 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
   };
 
-  const handleShare = () => {
+  const handleShare = (choice: CardShareChoice) => {
     const input = shareInput();
     if (!input) return;
-    void shareCardPdf(input).then((sent) => {
+    const title = card.displayName.trim() || "Portfolio";
+    void shareCardChoice(input, choice, { title, url: publicCardUrl(card) }).then((sent) => {
       if (!sent || readOnly || ownerNotesKey.length === 0) return;
       void fetch(`/api/c/${encodeURIComponent(card.publicToken)}/notes`, {
         method: "POST",

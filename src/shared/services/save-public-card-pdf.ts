@@ -150,23 +150,122 @@ function previewPdf(file: File) {
   );
 }
 
+export type CardShareChoice = "link" | "pdf" | "both";
+
+export type ResolvedCardShare =
+  | { method: "share"; data: ShareData; includesFile: boolean }
+  | { method: "file"; file: File }
+  | { method: "wait" };
+
+/** What the tap can hand to the system sheet without waiting. */
+export function resolveCardShare(
+  choice: CardShareChoice,
+  link: { title: string; url: string },
+  file: File | null,
+  canShare: (data: ShareData) => boolean,
+): ResolvedCardShare {
+  const linkData: ShareData = { title: link.title, url: link.url };
+  if (choice === "link") return { method: "share", data: linkData, includesFile: false };
+  if (choice === "both") {
+    if (file) {
+      const both: ShareData = { title: link.title, url: link.url, files: [file] };
+      if (canShare(both)) return { method: "share", data: both, includesFile: true };
+    }
+    return { method: "share", data: linkData, includesFile: false };
+  }
+  if (!file) return { method: "wait" };
+  const pdf: ShareData = { files: [file] };
+  if (canShare(pdf)) return { method: "share", data: pdf, includesFile: true };
+  return { method: "file", file };
+}
+
+function canSend(data: ShareData): boolean {
+  if (typeof navigator === "undefined" || typeof navigator.share !== "function") return false;
+  if (typeof navigator.canShare !== "function") return !data.files?.length;
+  try {
+    return navigator.canShare(data);
+  } catch {
+    return false;
+  }
+}
+
+function handFile(file: File) {
+  if (isHomeScreenApp()) previewPdf(file);
+  else openPdf(file);
+}
+
+function copyLink(url: string): Promise<boolean> {
+  if (!navigator.clipboard?.writeText) return Promise.resolve(false);
+  return navigator.clipboard.writeText(url).then(
+    () => false,
+    () => false,
+  );
+}
+
 /** True when the file was handed off. False when the share sheet is cancelled. */
 function sharePdfFile(file: File): Promise<boolean> {
   const shareData: ShareData = { files: [file] };
-  if (isHomeScreenApp()) {
-    previewPdf(file);
-    return Promise.resolve(false);
-  }
-  if (typeof navigator === "undefined" || !navigator.canShare?.(shareData)) {
-    openPdf(file);
-    return Promise.resolve(true);
+  if (!canSend(shareData)) {
+    handFile(file);
+    return Promise.resolve(!isHomeScreenApp());
   }
   return navigator.share(shareData).then(
     () => true,
     (error: unknown) => {
       if (error instanceof DOMException && error.name === "AbortError") return false;
-      openPdf(file);
-      return true;
+      handFile(file);
+      return !isHomeScreenApp();
+    },
+  );
+}
+
+/**
+ * Owner share. Call from the menu item's click so `navigator.share` stays in that tap.
+ * Link is the default. Link + PDF falls back to the link when a file cannot ride along.
+ * Resolves true only when a PDF file was handed off.
+ */
+export function shareCardChoice(
+  input: CardPdfInput,
+  choice: CardShareChoice,
+  link: { title: string; url: string },
+): Promise<boolean> {
+  const title = link.title.trim() || "Portfolio";
+  const url = link.url;
+  const ready = peekPublicCardPdf(input);
+  const file = ready ? toFile(ready) : null;
+  const resolved = resolveCardShare(choice, { title, url }, file, canSend);
+
+  if (resolved.method === "wait") {
+    return primePublicCardPdf(input)
+      .then((built) => sharePdfFile(toFile(built)))
+      .catch((error) => {
+        console.error("[pdf] share failed", error);
+        return false;
+      });
+  }
+
+  if (resolved.method === "file") {
+    handFile(resolved.file);
+    return Promise.resolve(!isHomeScreenApp());
+  }
+
+  if (!canSend(resolved.data)) {
+    if (resolved.includesFile && file) {
+      handFile(file);
+      return Promise.resolve(!isHomeScreenApp());
+    }
+    return copyLink(url);
+  }
+
+  return navigator.share(resolved.data).then(
+    () => resolved.includesFile,
+    (error: unknown) => {
+      if (error instanceof DOMException && error.name === "AbortError") return false;
+      if (resolved.includesFile && file) {
+        handFile(file);
+        return !isHomeScreenApp();
+      }
+      return copyLink(url).then(() => false);
     },
   );
 }
