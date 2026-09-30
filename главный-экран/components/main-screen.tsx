@@ -118,7 +118,7 @@ export function MainScreen() {
     };
   }, []);
 
-  const cardUrl = browseCard?.publicToken ? publicCardUrl(browseCard.publicToken) : "";
+  const cardUrl = browseCard?.publicToken ? publicCardUrl(browseCard) : "";
   const layout = useMainLayout();
 
   if (cards.length === 0) {

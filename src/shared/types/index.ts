@@ -67,6 +67,8 @@ export interface Card {
   status: CardStatus;
   /** Public QR token (`cards.public_token`). Not the legacy `User.shareToken`. */
   publicToken: string;
+  /** Pretty public address: adedme.com/@handle. Empty until the name has letters. */
+  handle?: string;
   /**
    * Public when true. At least one portfolio per owner stays public.
    * A new portfolio is created private (`false`): the column default is true.

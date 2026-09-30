@@ -1,4 +1,5 @@
 import { nanoid } from "nanoid";
+import { handlesForCards, slugFromName } from "@/shared/services/card-handle";
 import type { Card, CardStatus } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -15,6 +16,7 @@ type CardRow = {
   title: string;
   status: string;
   public_token: string;
+  handle?: string | null;
   qr_version: number;
   is_public: boolean;
   listed: boolean | null;
@@ -82,6 +84,7 @@ function overlayScalars(local: Card, row: CardRow): Card {
     title: row.title,
     status: asCardStatus(row.status),
     publicToken: row.public_token,
+    handle: row.handle?.trim().toLowerCase() || local.handle,
     qrVersion: row.qr_version,
     photoAttachmentId: remotePhotoId ?? local.photoAttachmentId,
     photo: remotePhotoId ? undefined : local.photo,
@@ -98,6 +101,7 @@ function shellFromRow(row: CardRow): Card {
     title: row.title,
     status: asCardStatus(row.status),
     publicToken: row.public_token,
+    handle: row.handle?.trim().toLowerCase() || undefined,
     qrVersion: row.qr_version,
     photoAttachmentId: row.photo_attachment_id ?? undefined,
     listed: row.listed ?? undefined,
@@ -139,6 +143,7 @@ function scalarsEqual(a: Card, b: Card) {
     a.title === b.title &&
     a.status === b.status &&
     a.publicToken === b.publicToken &&
+    a.handle === b.handle &&
     a.qrVersion === b.qrVersion &&
     a.photoAttachmentId === b.photoAttachmentId &&
     a.photo === b.photo &&
@@ -169,25 +174,52 @@ export async function upsertCardScalars(card: Card): Promise<void> {
     if (!ownerId) return;
 
     const supabase = createBrowserSupabaseClient();
-    const { error } = await supabase.from("cards").upsert(
-      {
+    let handle = card.handle?.trim().toLowerCase() || null;
+    let error: { message: string; code?: string } | null = null;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const row = {
         id: card.id,
         owner_id: ownerId,
         display_name: card.displayName,
         title: card.title,
         status: statusForPublish(card),
         public_token: card.publicToken,
+        handle,
         qr_version: card.qrVersion,
         is_public: true,
         listed: card.listed ?? true,
         photo_attachment_id: card.photoAttachmentId ?? null,
         created_at: card.createdAt,
         updated_at: card.updatedAt,
-      },
-      // Omitted columns (item_order_manual) keep their defaults
-      // on insert and are not overwritten on conflict.
-      { onConflict: "id", defaultToNull: false },
-    );
+      };
+      const saved = await supabase.from("cards").upsert(row, { onConflict: "id", defaultToNull: false });
+      error = saved.error;
+      if (!error) {
+        if (handle && handle !== card.handle) {
+          const savedHandle = handle;
+          const { useAppStore } = await import("@/shared/store/app-store");
+          useAppStore.setState({
+            cards: useAppStore.getState().cards.map((entry) =>
+              entry.id === card.id ? { ...entry, handle: savedHandle } : entry,
+            ),
+          });
+        }
+        return;
+      }
+      if (error.code === "23505" && /handle/i.test(error.message)) {
+        const base = slugFromName(card.displayName);
+        if (!base) break;
+        handle = `${base}-${attempt + 2}`;
+        continue;
+      }
+      if (/handle/i.test(error.message) && /column|schema/i.test(error.message)) {
+        const { handle: _dropped, ...withoutHandle } = row;
+        void _dropped;
+        const again = await supabase.from("cards").upsert(withoutHandle, { onConflict: "id", defaultToNull: false });
+        error = again.error;
+      }
+      break;
+    }
 
     if (error) {
       console.error("[card-sync] upsert failed", error.message);
@@ -288,20 +320,26 @@ async function runHydrate() {
   if (!ownerId) return;
 
   const supabase = createBrowserSupabaseClient();
-  const { data, error } = await supabase.from("cards").select(CARD_COLUMNS).eq("owner_id", ownerId);
-
-  if (error) {
-    console.error("[card-sync] load failed", error.message);
+  const withHandle = await supabase.from("cards").select(`${CARD_COLUMNS}, handle`).eq("owner_id", ownerId);
+  const loaded =
+    withHandle.error && /handle/i.test(withHandle.error.message)
+      ? await supabase.from("cards").select(CARD_COLUMNS).eq("owner_id", ownerId)
+      : withHandle;
+  if (loaded.error) {
+    console.error("[card-sync] load failed", loaded.error.message);
     return;
   }
+  const data = loaded.data;
 
   const remote = (data ?? []) as CardRow[];
   const { useAppStore } = await import("@/shared/store/app-store");
   const local = useAppStore.getState().cards;
-  const merged = mergeCardScalars(local, remote).map((card) => {
-    const status = statusForPublish(card);
-    return status === card.status ? card : { ...card, status };
-  });
+  const merged = handlesForCards(
+    mergeCardScalars(local, remote).map((card) => {
+      const status = statusForPublish(card);
+      return status === card.status ? card : { ...card, status };
+    }),
+  );
   const unchanged =
     merged.length === local.length && merged.every((card, index) => scalarsEqual(card, local[index]!));
 
@@ -320,7 +358,7 @@ async function runHydrate() {
   const remoteById = new Map(remote.map((row) => [row.id, row]));
   const toUpload = merged.filter((card) => {
     const row = remoteById.get(card.id);
-    return !row || row.status !== card.status || !row.is_public;
+    return !row || row.status !== card.status || !row.is_public || (Boolean(card.handle) && row.handle !== card.handle);
   });
   await Promise.all(toUpload.map((card) => upsertCardScalars(card)));
 

@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
       { source: "/onboarding", destination: "/", permanent: false },
     ];
   },
+  async rewrites() {
+    return [{ source: "/@:handle", destination: "/c/h/:handle" }];
+  },
   async headers() {
     return [
       {

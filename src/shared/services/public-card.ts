@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { unstable_noStore as noStore } from "next/cache";
+import { HANDLE_RE } from "@/shared/services/card-handle";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
@@ -7,6 +8,8 @@ import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { ownerTrialFrozen } from "@/shared/services/trial";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
+const CARD_PUBLIC_COLUMNS =
+  "id, owner_id, display_name, title, status, public_token, is_public, photo_attachment_id, created_at, updated_at";
 
 type CardRow = {
   id: string;
@@ -15,6 +18,7 @@ type CardRow = {
   title: string | null;
   status: string;
   public_token: string;
+  handle?: string | null;
   is_public: boolean;
   photo_attachment_id: string | null;
   created_at: string;
@@ -73,20 +77,37 @@ async function readyAttachmentIds(ids: string[]): Promise<Set<string>> {
  * Public projection for /c/{token}. Service role only.
  * Omits owner id from the card itself; `ownerId` stays on the server to skip the owner's own card_open.
  */
+async function selectPublicRow(column: "public_token" | "handle", value: string): Promise<CardRow | null> {
+  const admin = createAdminSupabaseClient();
+  const withHandle = await admin
+    .from("cards")
+    .select(`${CARD_PUBLIC_COLUMNS}, handle`)
+    .eq(column, value)
+    .maybeSingle();
+  if (!withHandle.error) return withHandle.data as CardRow | null;
+  if (!/handle/i.test(withHandle.error.message)) throw new Error(withHandle.error.message);
+  const plain = await admin.from("cards").select(CARD_PUBLIC_COLUMNS).eq(column, value).maybeSingle();
+  if (plain.error) {
+    if (column === "handle" && /handle/i.test(plain.error.message)) return null;
+    throw new Error(plain.error.message);
+  }
+  return plain.data as CardRow | null;
+}
+
+export const loadPublicCardByHandle = cache(async (handle: string): Promise<PublicCard | null> => {
+  noStore();
+  const key = decodeURIComponent(handle).trim().toLowerCase();
+  if (!HANDLE_RE.test(key)) return null;
+  const row = await selectPublicRow("handle", key);
+  if (!row?.public_token) return null;
+  return loadPublicCard(row.public_token);
+});
+
 export const loadPublicCard = cache(async (token: string): Promise<PublicCard | null> => {
   noStore();
   if (!TOKEN_RE.test(token)) return null;
 
-  const admin = createAdminSupabaseClient();
-  const { data, error } = await admin
-    .from("cards")
-    .select(
-      "id, owner_id, display_name, title, status, public_token, is_public, photo_attachment_id, created_at, updated_at",
-    )
-    .eq("public_token", token)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  const row = data as CardRow | null;
+  const row = await selectPublicRow("public_token", token);
   if (!row || !cardIsPubliclyServed(row) || !row.photo_attachment_id) return null;
 
   if (await ownerTrialFrozen(row.owner_id)) {
@@ -97,6 +118,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
         title: "",
         status: asCardStatus(row.status),
         publicToken: row.public_token,
+        handle: row.handle?.trim().toLowerCase() || undefined,
         qrVersion: 1,
         contactItemIds: [],
         nextScanAddons: [],
@@ -112,6 +134,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
   const readyIds = await readyAttachmentIds([row.photo_attachment_id]);
   if (!readyIds.has(row.photo_attachment_id)) return null;
 
+  const admin = createAdminSupabaseClient();
   const { data: linkData, error: linkError } = await admin
     .from("card_items")
     .select("item_id, sort_order")
@@ -161,6 +184,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
     title: row.title?.trim() ?? "",
     status: asCardStatus(row.status),
     publicToken: row.public_token,
+    handle: row.handle?.trim().toLowerCase() || undefined,
     qrVersion: 1,
     photoAttachmentId: row.photo_attachment_id,
     contactItemIds: items.map((item) => item.id),

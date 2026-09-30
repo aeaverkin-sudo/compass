@@ -15,6 +15,7 @@ import {
 } from "@/shared/services/portfolio-limits";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
+import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
 import { ensureCardIdentity, scheduleCardUpsert, writeCardListed } from "@/shared/services/card-sync";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
@@ -113,7 +114,7 @@ export const useAppStore = create<AppState>()(
         const name = displayName.trim();
         const existing = get().cards[0];
 
-        const primary = ensureCardIdentity({
+        const primary = assignHandle(ensureCardIdentity({
           id: cardId ?? existing?.id ?? crypto.randomUUID(),
           displayName: name,
           photoAttachmentId,
@@ -127,7 +128,7 @@ export const useAppStore = create<AppState>()(
           nextScanAddons: existing?.nextScanAddons ?? [],
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
-        });
+        }), get().cards, true);
 
         set({
           user: { ...get().user, onboarded: true },
@@ -164,7 +165,12 @@ export const useAppStore = create<AppState>()(
         const current = get().cards.find((card) => card.id === id);
         if (!current) return;
 
-        const next = ensureCardIdentity({ ...current, ...data, updatedAt: now });
+        const nameChanged = data.displayName !== undefined && data.displayName.trim() !== current.displayName.trim();
+        const next = assignHandle(
+          ensureCardIdentity({ ...current, ...data, updatedAt: now }),
+          get().cards,
+          nameChanged || !current.handle?.trim(),
+        );
         set({
           cards: get().cards.map((card) => (card.id === id ? next : card)),
         });
@@ -334,7 +340,7 @@ export const useAppStore = create<AppState>()(
         if (!Number.isFinite(portfolioLimit) || cards.length >= portfolioLimit) return;
 
         const now = new Date().toISOString();
-        const next = ensureCardIdentity({
+        const next = assignHandle(ensureCardIdentity({
           id: crypto.randomUUID(),
           displayName: data.displayName ?? "",
           photo: data.photo,
@@ -348,7 +354,7 @@ export const useAppStore = create<AppState>()(
           listed: cards.length === 0,
           createdAt: now,
           updatedAt: now,
-        });
+        }), cards, true);
 
         set({
           cards: [...cards, next],
@@ -359,7 +365,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "compass-storage-v4",
-      version: 9,
+      version: 10,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 5) {
@@ -393,6 +399,9 @@ export const useAppStore = create<AppState>()(
           );
           state.cards = rekeyed.cards;
           state.contactItems = rekeyed.items;
+        }
+        if (version < 10) {
+          state.cards = handlesForCards((state.cards as Card[] | undefined) ?? []);
         }
         return state as unknown as AppState;
       },
