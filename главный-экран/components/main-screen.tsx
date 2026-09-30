@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BOTTOM_PLATE_LOWER_PX, carouselSidePaddingPx, layoutTop, SHEET_INSET, TOP_VEIL_PX } from "../layout";
+import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
@@ -165,10 +165,10 @@ export function MainScreen() {
       {layout && !composing && (editing || !hideNav) ? (
         <div
           aria-hidden
-          className="compass-sky-band pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-sky"
+          className="compass-sky-band pointer-events-none absolute inset-x-0 z-10 bg-sky"
           style={{
-            top: layoutTop(layout.cardBottomBrowse + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX),
             bottom: "var(--vv-bottom, 0px)",
+            height: layout.bandHeight,
           }}
         />
       ) : null}

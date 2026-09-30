@@ -27,6 +27,7 @@ export type MainLayout = {
   edgeInsetLibrary: number;
   browseCardHeight: number;
   libraryCardHeight: number;
+  bandHeight: number;
 };
 
 function readSafeAreaInset(edge: "top" | "bottom") {
@@ -43,7 +44,7 @@ function readSafeAreaInset(edge: "top" | "bottom") {
   return size;
 }
 
-/** `svh` is the visible height. `lvh` is the full screen, the same in every browser on this phone. */
+/** `svh` is the visible height. `lvh` is the large viewport. */
 function readViewport(unit: "svh" | "lvh") {
   const probe = document.createElement("div");
   probe.style.cssText = `position:fixed;top:0;height:100${unit};visibility:hidden;pointer-events:none`;
@@ -53,16 +54,30 @@ function readViewport(unit: "svh" | "lvh") {
   return height || window.innerHeight;
 }
 
+/**
+ * One screen height for this phone, in CSS pixels.
+ * Safari's `lvh` can be the short viewport while the home-screen app reports the whole screen,
+ * so a leftover band grows only there. `screen.height` does not. A desktop monitor is not the page.
+ */
+function readFullScreen() {
+  const lvh = readViewport("lvh");
+  const svh = readViewport("svh");
+  const screenH = window.screen?.height || 0;
+  const page = Math.max(lvh, svh);
+  if (screenH > 0 && Math.abs(screenH - page) <= 180) return screenH;
+  return lvh || page;
+}
+
 function computeLayout(): MainLayout | null {
   if (typeof window === "undefined") return null;
 
   const visibleH = readViewport("svh");
-  const fullH = readViewport("lvh");
+  const fullH = readFullScreen();
   const safeTop = readSafeAreaInset("top");
   const visibleBottom = visibleH;
   const qrTop = safeTop + HEADER_RHYTHM_PX;
   const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
-  const bandH = browseBandHeightPx(fullH);
+  const bandH = Math.max(0, Math.round(browseBandHeightPx(fullH)));
   const cardBottomBrowse = visibleH - bandH - BOTTOM_PLATE_LOWER_PX - TOP_VEIL_PX;
   const browseHeight = cardBottomBrowse - cardTopBrowse;
   const libraryHeight = libraryCardHeightPx(visibleH, safeTop);
@@ -83,6 +98,7 @@ function computeLayout(): MainLayout | null {
     edgeInsetLibrary: SHEET_INSET.library.horizontal,
     browseCardHeight: browseHeight,
     libraryCardHeight: libraryHeight,
+    bandHeight: bandH,
   };
 }
 
@@ -91,7 +107,9 @@ export function useMainLayout() {
 
   useLayoutEffect(() => {
     const sync = () => {
-      setLayout(computeLayout());
+      const next = computeLayout();
+      if (next) document.documentElement.style.setProperty("--band-h", `${next.bandHeight}px`);
+      setLayout(next);
     };
 
     // Recompute only on real layout changes (orientation / window size), not on
