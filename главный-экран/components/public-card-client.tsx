@@ -87,15 +87,12 @@ export function PublicCardClient({ card, items, publicToken }: PublicCardClientP
       .catch(() => router.push("/register"));
   };
 
-  const registerUrl = typeof window === "undefined" ? "/register" : `${window.location.origin}/register`;
-
   return (
     <>
       {notesReady ? (
         <CardPdfSource
           key={`${publicToken}:${notes.map((note) => `${note.id}:${note.content}`).join("|")}`}
           input={pdfInput()}
-          registerUrl={registerUrl}
           epoch={0}
         >
           {(mask) => (

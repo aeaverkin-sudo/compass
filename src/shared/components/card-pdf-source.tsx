@@ -5,11 +5,10 @@ import { createPortal } from "react-dom";
 import { cardSheetsToPdf } from "@/shared/services/card-pdf-file";
 import { cardPdfFilename } from "@/shared/services/card-pdf-name";
 import { beginCardPdf, failCardPdf, publishCardPdf, type CardPdfInput } from "@/shared/services/save-public-card-pdf";
-import { blockHeights, packPdfBlocks, PDF_BAND_H, PDF_PAD, PDF_PAGE_H, PDF_PAGE_W } from "@/shared/services/pdf-pages";
+import { blockHeights, packPdfBlocks, PDF_PAGE_H, PDF_PAGE_W } from "@/shared/services/pdf-pages";
 
 type CardPdfSourceProps = {
   input: CardPdfInput;
-  registerUrl: string;
   /** Bumps when the saved card changes, so the hidden sheets are painted again. */
   epoch: number;
   children: (mask: number[] | null) => ReactNode;
@@ -38,37 +37,11 @@ async function waitForPaint(root: HTMLElement) {
   );
 }
 
-function AccountBand({ href }: { href: string }) {
-  return (
-    <div
-      className="mt-auto flex w-full shrink-0 items-center justify-end bg-sky"
-      style={{ height: PDF_BAND_H, paddingRight: PDF_PAD, paddingLeft: PDF_PAD }}
-    >
-      <a
-        href={href}
-        className="text-[#111]"
-        style={{
-          fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-          fontWeight: 300,
-          fontSize: 13,
-          lineHeight: 1.2,
-          textDecoration: "underline",
-          textDecorationColor: "rgba(17,17,17,0.28)",
-          textDecorationThickness: "0.5px",
-          textUnderlineOffset: "3px",
-        }}
-      >
-        Get your account
-      </a>
-    </div>
-  );
-}
-
 /**
  * Hidden print of the public card. Pages are the same component as `/c/`.
- * The sky plaque, with one registration link, sits on the last sheet only.
+ * The sky plaque sits under the portfolio name, inside that same block.
  */
-export function CardPdfSource({ input, registerUrl, epoch, children }: CardPdfSourceProps) {
+export function CardPdfSource({ input, epoch, children }: CardPdfSourceProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef(input);
   inputRef.current = input;
@@ -98,7 +71,7 @@ export function CardPdfSource({ input, registerUrl, epoch, children }: CardPdfSo
         failCardPdf(inputRef.current, new Error("The card has nothing to print"));
         return;
       }
-      setGroups(packPdfBlocks(blockHeights(blocks), PDF_PAGE_H, PDF_BAND_H));
+      setGroups(packPdfBlocks(blockHeights(blocks), PDF_PAGE_H));
     })();
     return () => {
       cancel = true;
@@ -148,7 +121,6 @@ export function CardPdfSource({ input, registerUrl, epoch, children }: CardPdfSo
           style={{ width: PDF_PAGE_W, height: PDF_PAGE_H }}
         >
           {children(indexes)}
-          {page === groups.length - 1 ? <AccountBand href={registerUrl} /> : null}
         </div>
       ))
     );

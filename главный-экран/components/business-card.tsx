@@ -16,7 +16,7 @@ import {
 } from "@/shared/services/save-public-card-pdf";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { composeCard } from "@/shared/services/card-zones";
-import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
+import { PDF_BAND_H, PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
@@ -496,6 +496,39 @@ function CardShareFooter({
   );
 }
 
+function PdfAccountBand() {
+  const href = typeof window === "undefined" ? "/register" : `${window.location.origin}/register`;
+  return (
+    <div
+      className="mt-4 flex items-center justify-end bg-sky"
+      style={{
+        height: PDF_BAND_H,
+        marginLeft: -PDF_PAD,
+        marginRight: -PDF_PAD,
+        paddingLeft: PDF_PAD,
+        paddingRight: PDF_PAD,
+      }}
+    >
+      <a
+        href={href}
+        className="text-[#111]"
+        style={{
+          fontFamily: HERO_FONT,
+          fontWeight: 300,
+          fontSize: 13,
+          lineHeight: 1.2,
+          textDecoration: "underline",
+          textDecorationColor: "rgba(17,17,17,0.28)",
+          textDecorationThickness: "0.5px",
+          textUnderlineOffset: "3px",
+        }}
+      >
+        Get your account
+      </a>
+    </div>
+  );
+}
+
 function PdfCard({
   card,
   items,
@@ -547,6 +580,7 @@ function PdfCard({
           <div data-pdf-block="">
             <div aria-hidden className="h-[1lh]" />
             <CardShareFooter name={card.displayName} />
+            <PdfAccountBand />
           </div>
         ) : null}
       </div>
@@ -826,7 +860,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           displayName: card.displayName,
           revision: `${card.photoAttachmentId ?? ""}\n${card.title}\n${ownerNotesKey}`,
         }}
-        registerUrl={typeof window === "undefined" ? "/register" : `${window.location.origin}/register`}
         epoch={pdfGeneration}
       >
         {(mask) => (
