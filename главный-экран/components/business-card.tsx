@@ -823,6 +823,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         else if (ref) ref.current = node;
       }}
       onClick={handleClick}
+      data-public-card={readOnly ? "" : undefined}
       className={cn(
         "compass-layer flex w-full cursor-default flex-col",
         compact
@@ -838,6 +839,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }
           : {
               height: readOnly ? "100svh" : browseCardHeight(),
+              paddingBottom: readOnly ? "var(--public-band-bottom, 0px)" : undefined,
             }
       }
     >

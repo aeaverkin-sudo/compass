@@ -1,9 +1,23 @@
 "use client";
 
 import { useLayoutEffect } from "react";
+import { usePathname } from "next/navigation";
 
 /** Taller than this is the keyboard, which the edit dock already follows. */
 const KEYBOARD_MIN_PX = 120;
+
+/**
+ * Safari's toolbar is not part of svh. The public band lifts by whatever
+ * of the layout viewport still sits under the visible viewport.
+ */
+function publicBandLift(vv: VisualViewport | null) {
+  if (!vv || !document.querySelector("[data-public-card]")) return 0;
+  const byViewport = Math.round(window.innerHeight - vv.offsetTop - vv.height);
+  const card = document.querySelector("[data-public-card]");
+  const byCard = card ? Math.round(card.getBoundingClientRect().bottom - vv.height) : 0;
+  const gaps = [byViewport, byCard].filter((gap) => gap > 0 && gap < KEYBOARD_MIN_PX);
+  return gaps.length ? Math.max(...gaps) : 0;
+}
 
 function readSafeBottom() {
   const probe = document.createElement("div");
@@ -21,6 +35,8 @@ function readSafeBottom() {
  * The band stays hidden until this runs, which is before the first paint.
  */
 export function VisualBottom() {
+  const pathname = usePathname();
+
   useLayoutEffect(() => {
     const root = document.documentElement;
     let frame = 0;
@@ -38,6 +54,7 @@ export function VisualBottom() {
       const safe = chrome > 8 && chrome < KEYBOARD_MIN_PX ? 0 : Math.round(readSafeBottom());
       root.style.setProperty("--vv-bottom", `${lift}px`);
       root.style.setProperty("--band-safe", `${safe}px`);
+      root.style.setProperty("--public-band-bottom", `${publicBandLift(vv)}px`);
       root.classList.add("compass-band-ready");
     };
 
@@ -58,7 +75,7 @@ export function VisualBottom() {
       window.removeEventListener("orientationchange", schedule);
       window.removeEventListener("resize", schedule);
     };
-  }, []);
+  }, [pathname]);
 
   return (
     <style>{`
