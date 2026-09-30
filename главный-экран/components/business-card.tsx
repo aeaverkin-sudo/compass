@@ -393,7 +393,6 @@ function CompactHeader({
 const SHARE_CHOICES: { choice: CardShareChoice; label: string }[] = [
   { choice: "link", label: "Link" },
   { choice: "pdf", label: "PDF" },
-  { choice: "both", label: "Link + PDF" },
 ];
 
 function CardShareFooter({

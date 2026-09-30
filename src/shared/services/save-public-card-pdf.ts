@@ -142,7 +142,7 @@ function previewPdf(file: File) {
   );
 }
 
-export type CardShareChoice = "link" | "pdf" | "both";
+export type CardShareChoice = "link" | "pdf";
 
 export type ResolvedCardShare =
   | { method: "share"; data: ShareData; includesFile: boolean }
@@ -156,14 +156,8 @@ export function resolveCardShare(
   file: File | null,
   canShare: (data: ShareData) => boolean,
 ): ResolvedCardShare {
-  const linkData: ShareData = { title: link.title, url: link.url };
-  if (choice === "link") return { method: "share", data: linkData, includesFile: false };
-  if (choice === "both") {
-    if (file) {
-      const both: ShareData = { title: link.title, url: link.url, files: [file] };
-      if (canShare(both)) return { method: "share", data: both, includesFile: true };
-    }
-    return { method: "share", data: linkData, includesFile: false };
+  if (choice === "link") {
+    return { method: "share", data: { title: link.title, url: link.url }, includesFile: false };
   }
   if (!file) return { method: "wait" };
   const pdf: ShareData = { files: [file] };
@@ -213,7 +207,7 @@ function sharePdfFile(file: File): Promise<boolean> {
 
 /**
  * Owner share. Call from the menu item's click so `navigator.share` stays in that tap.
- * Link is the default. Link + PDF falls back to the link when a file cannot ride along.
+ * Link sends the URL. PDF sends the file.
  * Resolves true only when a PDF file was handed off.
  */
 export function shareCardChoice(
