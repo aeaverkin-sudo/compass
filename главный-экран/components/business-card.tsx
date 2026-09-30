@@ -968,7 +968,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
       {!compact && !editing && (showShareFooter || shareFootnote || publicBar) ? (
-        <div className="mt-auto shrink-0 text-[13px] leading-snug">
+        <div className={cn("mt-auto shrink-0 text-[13px] leading-snug", !readOnly && "pb-[2lh]")}>
           {showShareFooter ? (
             <>
               <div aria-hidden className="h-[1lh]" />
