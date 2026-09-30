@@ -183,7 +183,7 @@ function handFile(file: File) {
 function copyLink(url: string): Promise<boolean> {
   if (!navigator.clipboard?.writeText) return Promise.resolve(false);
   return navigator.clipboard.writeText(url).then(
-    () => false,
+    () => true,
     () => false,
   );
 }
@@ -208,7 +208,7 @@ function sharePdfFile(file: File): Promise<boolean> {
 /**
  * Owner share. Call from the menu item's click so `navigator.share` stays in that tap.
  * Link sends the URL. PDF sends the file.
- * Resolves true only when a PDF file was handed off.
+ * Resolves true when the link or the file was handed off. Cancel resolves false.
  */
 export function shareCardChoice(
   input: CardPdfInput,
@@ -244,14 +244,14 @@ export function shareCardChoice(
   }
 
   return navigator.share(resolved.data).then(
-    () => resolved.includesFile,
+    () => true,
     (error: unknown) => {
       if (error instanceof DOMException && error.name === "AbortError") return false;
       if (resolved.includesFile && file) {
         handFile(file);
         return !isHomeScreenApp();
       }
-      return copyLink(url).then(() => false);
+      return copyLink(url);
     },
   );
 }

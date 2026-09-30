@@ -34,7 +34,7 @@ export function PublicCardClient({ card, items, publicToken }: PublicCardClientP
       .then(async (response) => {
         if (!response.ok) return;
         const body = (await response.json()) as { notes?: DeliveredNote[]; owner?: boolean };
-        if (cancelled || body.owner || !Array.isArray(body.notes) || body.notes.length === 0) return;
+        if (cancelled || !Array.isArray(body.notes) || body.notes.length === 0) return;
         setNotes(body.notes);
       })
       .catch(() => undefined)

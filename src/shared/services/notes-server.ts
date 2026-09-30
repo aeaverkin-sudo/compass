@@ -230,34 +230,13 @@ export async function writePendingNotes(cardId: string, ownerId: string, input: 
   }
 }
 
-/** First handoff wins. Returns notes once; a second call gets []. `via` marks a share, not a scan. */
-export async function consumePendingNotes(cardId: string, via?: "share"): Promise<DeliveredNote[]> {
-  const { data: transferId, error } = await admin().rpc("consume_pending_transfer", {
-    p_card_id: cardId,
-  });
-  if (error) throw new Error(error.message);
-  if (!transferId || typeof transferId !== "string") return [];
-
+async function notesOnTransfer(transferId: string): Promise<DeliveredNote[]> {
   const { data: items, error: itemsError } = await admin()
     .from("transfer_items")
     .select("id, type, content, attachment_id, sort_order")
     .eq("transfer_id", transferId)
     .order("sort_order");
   if (itemsError) throw new Error(itemsError.message);
-
-  try {
-    const event: { card_id: string; type: string; via?: string } = {
-      card_id: cardId,
-      type: "transfer_consumed",
-    };
-    if (via) event.via = via;
-    const { error: eventError } = await admin().from("card_events").insert(event);
-    if (eventError && via) {
-      await admin().from("card_events").insert({ card_id: cardId, type: "transfer_consumed" });
-    }
-  } catch {
-    // Visit already counted; delivery is what matters.
-  }
 
   const notes: DeliveredNote[] = [];
   for (const row of items ?? []) {
@@ -321,6 +300,38 @@ export async function consumePendingNotes(cardId: string, via?: "share"): Promis
     const full = byId.get(note.id);
     return full ? [full] : [];
   });
+}
+
+/** Pending notes for the owner opening their own link. Does not burn the handoff. */
+export async function previewPendingNotes(cardId: string): Promise<DeliveredNote[]> {
+  const existing = await pendingTransfer(cardId);
+  if (!existing || !stillWaiting(existing)) return [];
+  return notesOnTransfer(existing.id);
+}
+
+/** First handoff wins. Returns notes once; a second call gets []. `via` marks a share, not a scan. */
+export async function consumePendingNotes(cardId: string, via?: "share"): Promise<DeliveredNote[]> {
+  const { data: transferId, error } = await admin().rpc("consume_pending_transfer", {
+    p_card_id: cardId,
+  });
+  if (error) throw new Error(error.message);
+  if (!transferId || typeof transferId !== "string") return [];
+
+  try {
+    const event: { card_id: string; type: string; via?: string } = {
+      card_id: cardId,
+      type: "transfer_consumed",
+    };
+    if (via) event.via = via;
+    const { error: eventError } = await admin().from("card_events").insert(event);
+    if (eventError && via) {
+      await admin().from("card_events").insert({ card_id: cardId, type: "transfer_consumed" });
+    }
+  } catch {
+    // Visit already counted; delivery is what matters.
+  }
+
+  return notesOnTransfer(transferId);
 }
 
 /** Selfie files that belong to a consumed transfer on this card. Blocks id guessing. */

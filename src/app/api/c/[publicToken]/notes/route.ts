@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadPublicCard } from "@/shared/services/public-card";
-import { consumePendingNotes } from "@/shared/services/notes-server";
+import { consumePendingNotes, previewPendingNotes } from "@/shared/services/notes-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,7 +48,15 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   if (userId && userId === loaded.ownerId) {
-    if (!consumeOnShare) return noStore({ notes: [], owner: true });
+    if (!consumeOnShare) {
+      try {
+        const notes = await previewPendingNotes(loaded.card.id);
+        return noStore({ notes, owner: true });
+      } catch (error) {
+        console.error("[notes] preview failed", error);
+        return noStore({ error: "Could not read notes" }, 500);
+      }
+    }
     try {
       const notes = await consumePendingNotes(loaded.card.id, "share");
       return noStore({ notes, owner: true });

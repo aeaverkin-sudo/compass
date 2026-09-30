@@ -10,6 +10,51 @@ const DEBOUNCE_MS = 300;
 const waiting = new Map<string, { timer: ReturnType<typeof setTimeout>; card: Card }>();
 const inFlight = new Set<string>();
 
+type NoteHandoff = { via: "link" | "pdf"; token: string };
+
+const RELEASED_KEY = "compass-released-notes";
+const handedOff = new Map<string, NoteHandoff>();
+
+function rememberHandoff() {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(RELEASED_KEY, JSON.stringify([...handedOff.entries()]));
+}
+
+function handoffFor(cardId: string): NoteHandoff | undefined {
+  if (handedOff.size === 0 && typeof window !== "undefined") {
+    try {
+      const raw = sessionStorage.getItem(RELEASED_KEY);
+      const entries = raw ? (JSON.parse(raw) as [string, NoteHandoff][]) : [];
+      for (const [id, hold] of entries) {
+        if (hold?.via === "link" || hold?.via === "pdf") handedOff.set(id, hold);
+      }
+    } catch {
+      // A broken record must not put a sent note back on the card.
+    }
+  }
+  return handedOff.get(cardId);
+}
+
+function markHandoff(cardId: string, hold: NoteHandoff) {
+  handoffFor(cardId);
+  handedOff.set(cardId, hold);
+  rememberHandoff();
+}
+
+function clearHandoff(cardId: string) {
+  handoffFor(cardId);
+  if (!handedOff.delete(cardId)) return;
+  rememberHandoff();
+}
+
+async function consumeSharedNotes(token: string) {
+  await fetch(`/api/c/${encodeURIComponent(token)}/notes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "consume" }),
+  });
+}
+
 function isCardUuid(id: string) {
   return UUID_RE.test(id);
 }
@@ -74,11 +119,19 @@ async function pushNotes(snapshot: Card) {
   try {
     const { useAppStore } = await import("@/shared/store/app-store");
     const live = () => useAppStore.getState().cards.find((card) => card.id === snapshot.id);
-    const card = live() ?? snapshot;
+    const hold = handoffFor(snapshot.id);
+    const liveCard = live();
+    const card =
+      hold && snapshot.nextScanAddons.length > 0 ? snapshot : (liveCard ?? snapshot);
     const before = signature(card.nextScanAddons);
     const ordered = orderNextScanAddons(card.nextScanAddons);
 
     if (ordered.length === 0) {
+      if (hold?.via === "link") return;
+      if (hold?.via === "pdf") {
+        await consumeSharedNotes(hold.token);
+        return;
+      }
       await putNotes(card.id, []);
       return;
     }
@@ -112,6 +165,10 @@ async function pushNotes(snapshot: Card) {
 
     await putNotes(card.id, payload);
 
+    const sent = handoffFor(card.id);
+    if (sent?.via === "pdf") await consumeSharedNotes(sent.token);
+    if (sent) return;
+
     const latest = live();
     if (!latest) return;
     if (uploaded.size > 0) {
@@ -143,6 +200,7 @@ async function pushNotes(snapshot: Card) {
 /** Push the latest notes for this card. File bytes upload before the row is saved. */
 export function scheduleNotesSync(card: Card) {
   if (!isCardUuid(card.id)) return;
+  if (card.nextScanAddons.length > 0) clearHandoff(card.id);
   const previous = waiting.get(card.id);
   if (previous) clearTimeout(previous.timer);
   const timer = setTimeout(() => {
@@ -150,6 +208,32 @@ export function scheduleNotesSync(card: Card) {
     void pushNotes(card);
   }, DEBOUNCE_MS);
   waiting.set(card.id, { timer, card });
+}
+
+/** Start a waiting upload now, so a share can carry the selfie that was just added. */
+export function flushNotesSync(cardId: string) {
+  const pending = waiting.get(cardId);
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  waiting.delete(cardId);
+  void pushNotes(pending.card);
+}
+
+/**
+ * The send already happened. Drop the notes off the card at once.
+ * A link keeps them on the server for whoever opens it. A PDF burns them, because the file already holds them.
+ */
+export function releaseOwnerNotes(cardId: string, via: "link" | "pdf", token: string) {
+  markHandoff(cardId, { via, token });
+  const pending = waiting.get(cardId);
+  if (pending) {
+    clearTimeout(pending.timer);
+    waiting.delete(cardId);
+    void pushNotes(pending.card);
+  } else if (via === "pdf" && !inFlight.has(cardId)) {
+    void consumeSharedNotes(token);
+  }
+  void writeLocal(cardId, []);
 }
 
 export function dropPendingNotes() {
@@ -181,7 +265,12 @@ export async function hydrateNotes(): Promise<void> {
         const response = await fetch(`/api/notes?cardId=${card.id}`);
         if (response.status === 404) return;
         const body = await readJson<{ notes?: NextScanAddon[] }>(response);
-        await writeLocal(card.id, body.notes ?? []);
+        const notes = body.notes ?? [];
+        if (handoffFor(card.id)) {
+          if (notes.length === 0) clearHandoff(card.id);
+          return;
+        }
+        await writeLocal(card.id, notes);
       } catch (error) {
         console.error("[notes] load failed", error);
       }

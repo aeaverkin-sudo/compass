@@ -6,7 +6,7 @@ import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { notesAreSyncing } from "@/shared/services/notes-sync";
+import { flushNotesSync, notesAreSyncing, releaseOwnerNotes } from "@/shared/services/notes-sync";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import {
   primePublicCardPdf,
@@ -685,6 +685,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   }, [pdf, readOnly, compact, editing, frozen, ready, card.id, card.publicToken, ownerNotesKey, pdfGeneration]);
 
   const primeShare = () => {
+    flushNotesSync(card.id);
     const input = shareInput();
     if (!input || notesAreSyncing(card.id)) return;
     void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
@@ -694,22 +695,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     const input = shareInput();
     if (!input) return;
     const title = card.displayName.trim() || "Portfolio";
+    const hadNotes = ownerNotesKey.length > 0;
     void shareCardChoice(input, choice, { title, url: publicCardUrl(card) }).then((sent) => {
-      if (!sent || readOnly || ownerNotesKey.length === 0) return;
-      void fetch(`/api/c/${encodeURIComponent(card.publicToken)}/notes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "consume" }),
-      })
-        .then((response) => {
-          if (!response.ok) return;
-          useAppStore.setState({
-            cards: useAppStore.getState().cards.map((entry) =>
-              entry.id === card.id ? { ...entry, nextScanAddons: [] } : entry,
-            ),
-          });
-        })
-        .catch((error) => console.error("[notes] share consume failed", error));
+      if (!sent || readOnly || !hadNotes) return;
+      releaseOwnerNotes(card.id, choice, card.publicToken);
     });
   };
 
