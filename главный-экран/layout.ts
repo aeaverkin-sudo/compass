@@ -86,20 +86,23 @@ export function layoutTop(offsetPx: number) {
   return `${offsetPx}px`;
 }
 
+/** Slimmer than the full-screen remainder: 55% of (0.27 × lvh − 118px). */
+const BAND_HEIGHT_SCALE = 0.55;
+
 /**
- * Declared band height, not the leftover under the card.
- * 0.27 × the full screen − 118px with the current card constants.
+ * Declared band height from the stable full screen (`lvh`), not the visible remainder.
+ * Same number on one phone in the home-screen app, Safari and Chrome.
  */
 export function browseBandHeightPx(fullH: number) {
   const share = (100 - CARD_BOTTOM_TARGET_LVH) / 100;
   const offset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
-  return fullH * share - offset;
+  return BAND_HEIGHT_SCALE * (fullH * share - offset);
 }
 
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const bandOffset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
-  const fallback = `calc(${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${bandOffset}px)`;
+  const fallback = `calc(${BAND_HEIGHT_SCALE} * (${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${bandOffset}px))`;
   // The band keeps its height. The card ends on the band, so nothing white sits between them.
   return `calc(100svh - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px)`;
 }
