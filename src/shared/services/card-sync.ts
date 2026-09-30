@@ -75,13 +75,23 @@ export function statusForPublish(card: Card): CardStatus {
   return "draft";
 }
 
+/** A name typed here stays when the server row is still blank. The last free slot's update can be rejected, and an empty server value must not erase it. */
+function keptText(local: string, remote: string | null | undefined): string {
+  const fromServer = remote ?? "";
+  if (!fromServer.trim() && local.trim()) return local;
+  return fromServer;
+}
+
 function overlayScalars(local: Card, row: CardRow): Card {
   const remotePhotoId = row.photo_attachment_id ?? undefined;
+  const displayName = keptText(local.displayName, row.display_name);
+  const title = keptText(local.title, row.title);
+  const keptLocalText = displayName !== (row.display_name ?? "") || title !== (row.title ?? "");
   return {
     ...local,
     id: row.id,
-    displayName: row.display_name,
-    title: row.title,
+    displayName,
+    title,
     status: asCardStatus(row.status),
     publicToken: row.public_token,
     handle: row.handle?.trim().toLowerCase() || local.handle,
@@ -90,7 +100,7 @@ function overlayScalars(local: Card, row: CardRow): Card {
     photo: remotePhotoId ? undefined : local.photo,
     listed: row.listed ?? local.listed,
     createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    updatedAt: keptLocalText && local.updatedAt > row.updated_at ? local.updatedAt : row.updated_at,
   };
 }
 
@@ -112,7 +122,7 @@ function shellFromRow(row: CardRow): Card {
   };
 }
 
-/** Keep local order. Server scalars win on the same id. Local-only cards get a UUID. */
+/** Keep local order. Server scalars win on the same id, except a blank server name. Local-only cards get a UUID. */
 export function mergeCardScalars(local: Card[], remote: CardRow[]): Card[] {
   const remoteById = new Map(remote.map((row) => [row.id, row]));
   const seen = new Set<string>();
@@ -353,6 +363,8 @@ async function runHydrate() {
       !row ||
       row.status !== card.status ||
       !row.is_public ||
+      (row.display_name ?? "") !== card.displayName ||
+      (row.title ?? "") !== card.title ||
       (row.photo_attachment_id ?? null) !== (card.photoAttachmentId ?? null) ||
       (Boolean(card.handle) && row.handle !== card.handle)
     );
