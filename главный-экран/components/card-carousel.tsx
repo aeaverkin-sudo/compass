@@ -17,14 +17,14 @@ import { BusinessCard } from "./business-card";
 
 const ADD_SLIDE_ID = "__add__";
 
-/** Soft rectangular hint in the empty margin, inner edge flush with the card. Tune on a phone. */
-const NEIGHBOR_SHADE_WIDTH_PX = 16;
+/** Soft rectangular hint pinned to the screen edge, not the card. Tune on a phone. */
+const NEIGHBOR_SHADE_WIDTH_PX = 6;
 const NEIGHBOR_SHADE_HEIGHT_PX = 156;
 const NEIGHBOR_SHADE_RADIUS_PX = 6;
 const NEIGHBOR_SHADE_ALPHA = 0.075;
 const NEIGHBOR_SHADE_BLUR_PX = 7;
 
-function NeighborShade({ side, insetPx }: { side: "left" | "right"; insetPx: number }) {
+function NeighborShade({ side }: { side: "left" | "right" }) {
   return (
     <div
       aria-hidden
@@ -36,7 +36,7 @@ function NeighborShade({ side, insetPx }: { side: "left" | "right"; insetPx: num
         background: `rgba(0,0,0,${NEIGHBOR_SHADE_ALPHA})`,
         filter: `blur(${NEIGHBOR_SHADE_BLUR_PX}px)`,
         transform: "translateY(-50%)",
-        [side]: insetPx - NEIGHBOR_SHADE_WIDTH_PX,
+        [side]: 0,
       }}
     />
   );
@@ -456,8 +456,8 @@ export function CardCarousel({
             className="pointer-events-none absolute inset-y-0 right-0 z-20 bg-background"
             style={{ width: sidePaddingPx }}
           />
-          {activeIndex > 0 ? <NeighborShade side="left" insetPx={sidePaddingPx} /> : null}
-          {activeIndex < slideIds.length - 1 ? <NeighborShade side="right" insetPx={sidePaddingPx} /> : null}
+          {activeIndex > 0 ? <NeighborShade side="left" /> : null}
+          {activeIndex < slideIds.length - 1 ? <NeighborShade side="right" /> : null}
         </>
       ) : null}
     </div>
