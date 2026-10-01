@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { AccountBand } from "@/shared/components/account-band";
+import { BackButton } from "@/shared/components/back-button";
 import { BusinessCard } from "@main/components/business-card";
 import type { Card, ContactItem } from "@/shared/types";
 
@@ -10,6 +11,8 @@ type PublicCardClientProps = {
   card: Card;
   items: ContactItem[];
   publicToken: string;
+  /** Opened from Network. Same card, back to the list, no sky plaque. */
+  inside?: boolean;
 };
 
 /**
@@ -17,7 +20,7 @@ type PublicCardClientProps = {
  * Crawlers without JS leave the pending row alone.
  * Notes ride along once delivered. The received card has no share control.
  */
-export function PublicCardClient({ card, items, publicToken }: PublicCardClientProps) {
+export function PublicCardClient({ card, items, publicToken, inside = false }: PublicCardClientProps) {
   const [notes, setNotes] = useState<DeliveredNote[]>([]);
 
   useEffect(() => {
@@ -35,16 +38,25 @@ export function PublicCardClient({ card, items, publicToken }: PublicCardClientP
     };
   }, [publicToken]);
 
-  return (
-    <>
-      <BusinessCard
-        card={card}
-        library={items}
-        mode="browse"
-        readOnly
-        deliveredNotes={notes}
-        publicBar={<AccountBand token={card.publicToken} />}
-      />
-    </>
+  const sheet = (
+    <BusinessCard
+      card={card}
+      library={items}
+      mode="browse"
+      readOnly
+      deliveredNotes={notes}
+      publicBar={inside ? undefined : <AccountBand token={card.publicToken} />}
+    />
   );
+
+  if (inside) {
+    return (
+      <div className="bg-white pt-[84px]" style={{ "--card-frame-top": "84px" } as CSSProperties}>
+        <BackButton fallbackHref="/network" />
+        {sheet}
+      </div>
+    );
+  }
+
+  return <>{sheet}</>;
 }

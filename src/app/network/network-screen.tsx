@@ -384,7 +384,7 @@ function ContactRow({
           <X className="size-4" strokeWidth={1.5} />
         </button>
       ) : (
-        <Link href={`/c/${contact.savedCardToken}`} className="text-[13px] font-normal text-[#111] underline">
+        <Link href={`/network/c/${contact.savedCardToken}`} className="text-[13px] font-normal text-[#111] underline">
           View
         </Link>
       )}

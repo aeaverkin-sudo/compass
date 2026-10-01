@@ -868,7 +868,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               paddingTop: LIBRARY_NAME_FADE_PX,
             }
           : {
-              height: readOnly ? "100svh" : browseCardHeight(),
+              height: readOnly ? "calc(100svh - var(--card-frame-top, 0px))" : browseCardHeight(),
               paddingBottom: readOnly ? "var(--public-band-bottom, 0px)" : undefined,
             }
       }
