@@ -195,11 +195,12 @@ export function NetworkScreen() {
 
       <nav
         aria-label="Network"
-        className="compass-sky-band bg-sky text-center text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase"
+        className="compass-sky-band bg-sky text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase"
         style={{ paddingBottom: "var(--band-safe, 0px)" }}
       >
-        <div className={`${GUTTER} py-4`}>
-          Event <span className="text-[#999]">·</span> Data
+        <div className={`${GUTTER} flex items-center justify-between py-3`}>
+          <span>Event</span>
+          <span>Data</span>
         </div>
       </nav>
     </main>
