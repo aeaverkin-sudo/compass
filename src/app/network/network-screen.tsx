@@ -13,6 +13,8 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { TabBand } from "@main/components/tab-band";
+import { BROWSE_QR_SIZE, HEADER_RHYTHM_PX, RULE_GAP_PX } from "@main/layout";
 
 type SortMode = "recent" | "alphabet" | "event";
 
@@ -27,8 +29,12 @@ type Contact = {
   photoUrl: string | null;
 };
 
-const GUTTER = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const HOLD_MS = 500;
+/** Same token as the profile zone label. */
+const ZONE_LABEL =
+  "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase";
+/** First rule on the card: safe area, then the QR slot, then the gap under the QR. */
+const CARD_LINE_TOP = `calc(env(safe-area-inset-top) + ${HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX}px)`;
 
 const SORTS: { id: SortMode; label: string }[] = [
   { id: "recent", label: "Recently added" },
@@ -130,11 +136,14 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const empty = contacts !== null && contacts.length === 0;
 
   return (
-    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
+    <main
+      className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]"
+      style={{ paddingBottom: "var(--vv-bottom, 0px)" }}
+    >
       <BackButton fallbackHref="/main" />
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
-      <div className={`${GUTTER} pt-[86px]`}>
-        <div className="flex items-center gap-3 border-b-[0.5px] border-[#111] py-2">
+      <div className="flex flex-col justify-end px-8" style={{ height: CARD_LINE_TOP }}>
+        <div className="flex items-center gap-3 py-2">
           <Search className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
           <input
             value={query}
@@ -164,8 +173,9 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           </DropdownMenu>
         </div>
       </div>
+      <div className="mx-8 border-t-[0.5px] border-[#111]" />
 
-      <div className={`${GUTTER} min-h-0 flex-1 overflow-y-auto`}>
+      <div className="min-h-0 flex-1 overflow-y-auto px-8">
         {empty ? (
           <p className="flex h-full items-center justify-center text-center text-[15px] font-light leading-snug text-[#999]">
             Your contact list. Exchange a card and your first contact appears here.
@@ -205,16 +215,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         )}
       </div>
 
-      <nav
-        aria-label="Network"
-        className="compass-sky-band bg-sky text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase"
-        style={{ paddingBottom: "var(--band-safe, 0px)" }}
-      >
-        <div className={`${GUTTER} flex items-center justify-between py-3`}>
-          <span>Event</span>
-          <span>Data</span>
-        </div>
-      </nav>
+      <TabBand label="Network" left="Event" right="Data" />
     </main>
   );
 }
@@ -267,7 +268,7 @@ function AlphabetList({
       {letters.map((letter) => (
         <section key={letter} className="mt-6">
           <div className="border-t-[0.5px] border-[#111] pt-2">
-            <p className="m-0 text-[11px] leading-[1.25] font-normal tracking-[0.2em] text-[#999] uppercase">{letter}</p>
+            <p className={`m-0 ${ZONE_LABEL}`}>{letter}</p>
           </div>
           <ul>
             {(groups.get(letter) ?? [])
@@ -305,7 +306,7 @@ function FlatList({
       {contacts.map((group) => (
         <section key={group.key} className="pt-4">
           {group.label ? (
-            <p className="m-0 pb-1 text-[11px] leading-[1.25] font-normal tracking-[0.2em] text-[#999] uppercase">
+            <p className={`m-0 pb-1 ${ZONE_LABEL}`}>
               {group.label}
             </p>
           ) : null}
@@ -340,7 +341,7 @@ function WaitingRow({
       <Face photoUrl={contact.photoUrl} />
       <div className="min-w-0 flex-1">
         <p className="m-0 truncate text-[15.5px] leading-[1.25] font-normal">{contact.displayName.trim() || "Untitled"}</p>
-        <p className="m-0 mt-0.5 truncate text-[12px] leading-snug font-normal">offered you their card</p>
+        <p className="m-0 mt-0.5 truncate text-[13px] leading-snug font-normal">offered you their card</p>
       </div>
       <button type="button" onClick={onAccept} className="border-0 bg-transparent text-[13px] font-normal underline">
         Accept
@@ -375,7 +376,7 @@ function ContactRow({
           {contact.displayName.trim() || "Untitled"}
         </p>
         {metaLine(contact) ? (
-          <p className="m-0 mt-0.5 truncate text-[12px] leading-snug font-normal text-[#999]">{metaLine(contact)}</p>
+          <p className="m-0 mt-0.5 truncate text-[13px] leading-snug font-normal text-[#999]">{metaLine(contact)}</p>
         ) : null}
       </div>
       {armed ? (

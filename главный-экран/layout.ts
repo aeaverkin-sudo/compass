@@ -99,6 +99,12 @@ export function browseBandHeightPx(fullH: number) {
   return BAND_HEIGHT_SCALE * (fullH * share - offset);
 }
 
+/** Same height as `browseBandHeightPx`, for the plaque before the layout hook measures the screen. */
+export function browseBandHeightCss() {
+  const offset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
+  return `calc(${BAND_HEIGHT_SCALE} * (${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${offset}px))`;
+}
+
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const bandOffset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;

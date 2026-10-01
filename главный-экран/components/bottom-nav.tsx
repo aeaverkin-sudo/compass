@@ -1,9 +1,8 @@
 "use client";
 
+import { TabBand } from "./tab-band";
+
 type BottomNavProps = {
-  centerYpx: number;
-  /** Distance from each screen edge to the card, so the labels sit on the card's column. */
-  insetPx: number;
   /** Edit mode: + on the left opens the writing line, OK on the right leaves editing. */
   editing?: boolean;
   onEdit: () => void;
@@ -14,8 +13,6 @@ type BottomNavProps = {
 };
 
 export function BottomNav({
-  centerYpx,
-  insetPx,
   editing = false,
   onEdit,
   onAdd,
@@ -24,70 +21,69 @@ export function BottomNav({
   onProfile,
 }: BottomNavProps) {
   return (
-    <nav
-      className="pointer-events-auto absolute z-30 grid -translate-y-1/2 grid-cols-3 items-baseline px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase select-none [-webkit-touch-callout:none]"
-      style={{
-        top: `calc(${centerYpx}px - var(--vv-bottom, 0px))`,
-        left: insetPx,
-        right: insetPx,
-        fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-        WebkitUserSelect: "none",
-        userSelect: "none",
-      }}
-    >
-      {editing ? (
-        <button
-          type="button"
-          aria-label="Add"
-          className="inline-flex items-baseline justify-self-start self-baseline py-2 text-[22.15px] leading-none font-light tracking-normal"
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={() => onAdd?.()}
-        >
-          +
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="justify-self-start px-2 py-2 uppercase"
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={() => onProfile?.()}
-        >
-          Profile
-        </button>
-      )}
-      {editing ? (
-        <span />
-      ) : (
-        <button
-          type="button"
-          className="justify-self-center px-2 py-2 uppercase"
-          onPointerDown={(event) => {
-            event.preventDefault();
-            window.getSelection()?.removeAllRanges();
-          }}
-          onPointerUp={(event) => {
-            if (event.pointerType === "mouse" && event.button !== 0) return;
-            onEdit();
-          }}
-          onContextMenu={(event) => event.preventDefault()}
-        >
-          Edit
-        </button>
-      )}
-      {editing ? (
-        <button type="button" className="inline-flex items-baseline justify-self-end self-baseline px-2 py-2 text-[14px] leading-[1.45] font-normal tracking-[0.1em] uppercase" onClick={() => onDone?.()}>
-          OK
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="justify-self-end px-2 py-2 uppercase"
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={() => onNetwork?.()}
-        >
-          Network
-        </button>
-      )}
-    </nav>
+    <TabBand
+      pin
+      left={
+        editing ? (
+          <button
+            type="button"
+            aria-label="Add"
+            className="inline-flex items-baseline py-2 text-[22.15px] leading-none font-light tracking-normal"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => onAdd?.()}
+          >
+            +
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="py-2 uppercase"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => onProfile?.()}
+          >
+            Profile
+          </button>
+        )
+      }
+      center={
+        editing ? undefined : (
+          <button
+            type="button"
+            className="px-2 py-2 uppercase"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              window.getSelection()?.removeAllRanges();
+            }}
+            onPointerUp={(event) => {
+              if (event.pointerType === "mouse" && event.button !== 0) return;
+              onEdit();
+            }}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            Edit
+          </button>
+        )
+      }
+      right={
+        editing ? (
+          <button
+            type="button"
+            className="py-2 text-[14px] leading-[1.45] font-normal tracking-[0.1em] uppercase"
+            onClick={() => onDone?.()}
+          >
+            OK
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="py-2 uppercase"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => onNetwork?.()}
+          >
+            Network
+          </button>
+        )
+      }
+    />
   );
 }

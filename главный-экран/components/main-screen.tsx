@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
+import { layoutTop, SHEET_INSET } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
@@ -162,17 +162,6 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {layout && !composing && (editing || !hideNav) ? (
-        <div
-          aria-hidden
-          className="compass-sky-band pointer-events-none absolute inset-x-0 z-10 bg-sky"
-          style={{
-            bottom: "var(--vv-bottom, 0px)",
-            height: layout.bandHeight,
-          }}
-        />
-      ) : null}
-
       {frozen && !composing ? (
         <p
           className="absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
@@ -193,8 +182,6 @@ export function MainScreen() {
 
       {layout && !composing && (editing || !hideNav) ? (
         <BottomNav
-          centerYpx={layout.browseMenuCenterY}
-          insetPx={browseCarousel ? carouselSidePaddingPx(window.innerWidth, true) : edgeInsetBrowse}
           editing={editing}
           onProfile={() => router.push("/profile")}
           onNetwork={() => {
