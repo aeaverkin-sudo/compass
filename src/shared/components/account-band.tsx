@@ -76,9 +76,9 @@ export function AccountBand({
           className="flex min-h-11 flex-1 touch-manipulation items-center justify-end py-3 text-right text-[#111] [-webkit-tap-highlight-color:transparent]"
         >
           <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
-            Save this
+            Save to your
             <br />
-            portfolio
+            Network
           </span>
         </a>
       </div>
