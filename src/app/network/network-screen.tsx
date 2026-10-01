@@ -138,10 +138,16 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   return (
     <main
-      className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]"
+      className="compass-main relative flex h-dvh flex-col overflow-hidden bg-white text-[#111]"
       style={{ paddingBottom: "var(--vv-bottom, 0px)" }}
     >
       <BackButton fallbackHref="/main" />
+      <div className="pointer-events-none absolute inset-x-0 top-10 z-20 grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center px-8">
+        <span aria-hidden className="size-[22px]" />
+        <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
+          Network
+        </h1>
+      </div>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="flex flex-col justify-end px-8" style={{ height: CARD_LINE_TOP }}>
         <div className="flex items-center gap-3 py-2">
