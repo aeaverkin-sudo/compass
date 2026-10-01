@@ -1,19 +1,53 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+"use client";
 
-export const metadata: Metadata = { title: "Try it — ADED" };
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
+import { deviceWasRegistered } from "@/shared/lib/registered-device";
+import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
+import { useAppStore } from "@/shared/store/app-store";
 
-/** Stub until accounts: photo and name, anonymous session, no sign-up. */
+/**
+ * Trial entry from TRY IT. An anonymous session, then the working /main screen.
+ * The 24h clock still starts on Confirm.
+ */
 export default function TryPage() {
-  return (
-    <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pt-24 text-[#111]">
-      <h1 className="text-[32px] leading-none font-light">Try it</h1>
-      <p className="mt-4 max-w-sm text-[15px] leading-snug font-light">
-        Photo and a name, then a portfolio. No sign-up. That screen is not here yet.
-      </p>
-      <Link href="/register" className="mt-8 inline-block text-[13px] font-light underline">
-        Create your account
-      </Link>
-    </main>
-  );
+  const router = useRouter();
+  const hydrated = useStoreHydrated();
+  const sessionReady = useSessionBootstrap();
+  const needsSignIn = useRegistrationRequired();
+
+  useEffect(() => {
+    if (!hydrated || !sessionReady || needsSignIn) return;
+    let cancelled = false;
+
+    void (async () => {
+      const supabase = createBrowserSupabaseClient();
+      const { data } = await supabase.auth.getUser();
+      let user = data.user;
+
+      if (!user) {
+        if (deviceWasRegistered()) return;
+        const signed = await supabase.auth.signInAnonymously();
+        if (cancelled || signed.error || !signed.data.user?.is_anonymous) return;
+        user = signed.data.user;
+      }
+
+      if (cancelled) return;
+      if (user.is_anonymous) {
+        const state = useAppStore.getState();
+        if (!state.user.onboarded) {
+          useAppStore.setState({ user: { ...state.user, onboarded: true } });
+        }
+      }
+      router.replace("/main");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, sessionReady, needsSignIn, router]);
+
+  return <div className="h-lvh bg-background" aria-hidden />;
 }
