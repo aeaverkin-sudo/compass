@@ -198,7 +198,7 @@ export function MainScreen() {
           editing={editing}
           onProfile={() => router.push("/profile")}
           onNetwork={() => {
-            if (needsAccount) showGate();
+            router.push("/network");
           }}
           onEdit={() => {
             if (frozen) return;
