@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "ADED",
   description: "ADED",
   manifest: "/manifest.json",
+  appleWebApp: { capable: true, title: "ADED", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
