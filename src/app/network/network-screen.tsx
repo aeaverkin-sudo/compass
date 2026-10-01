@@ -145,7 +145,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       <div className="pointer-events-none absolute inset-x-0 top-10 z-20 grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center px-8">
         <span aria-hidden className="size-[22px]" />
         <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
-          Network
+          Connections
         </h1>
       </div>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
