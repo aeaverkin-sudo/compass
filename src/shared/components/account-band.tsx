@@ -24,14 +24,14 @@ function useOrigin() {
 
 const LINK_LINE = {
   textDecoration: "underline",
-  textDecorationColor: "rgba(17,17,17,0.28)",
+  textDecorationColor: "rgba(119,119,119,0.45)",
   textDecorationThickness: "0.5px",
   textUnderlineOffset: "3px",
 } as const;
 
 /**
  * Sky plaque under the portfolio name. The same markup on `/c/`, `/@handle`, and the shared PDF.
- * Only TRY IT and SIGN UP are links. On the web the row sits above Safari's toolbar.
+ * The title is not a link. Try it and Sign up are. On the web the plaque sits above Safari's toolbar.
  */
 export function AccountBand({ inset, safe = true }: { inset?: number; safe?: boolean }) {
   const origin = useOrigin();
@@ -41,7 +41,7 @@ export function AccountBand({ inset, safe = true }: { inset?: number; safe?: boo
     <nav
       aria-label="Account"
       className={cn(
-        "bg-sky text-[9px] leading-none font-normal tracking-[0.1em] whitespace-nowrap text-[#111] uppercase",
+        "bg-sky text-center text-[10px] leading-none font-normal tracking-[0.14em] whitespace-nowrap uppercase",
         safe && "compass-sky-band",
         inset == null && "px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
       )}
@@ -52,19 +52,17 @@ export function AccountBand({ inset, safe = true }: { inset?: number; safe?: boo
         paddingRight: inset,
       }}
     >
-      <div className="flex items-baseline justify-between gap-3 py-3">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <a href={tryHref} className="text-[#111]" style={LINK_LINE}>
+      <div className="py-3">
+        <p className="m-0 text-[#111]">Get your portfolio</p>
+        <p className="m-0 mt-1.5 text-[#999]">
+          <a href={tryHref} className="text-[#999]" style={LINK_LINE}>
             Try it
           </a>
-          <span className="text-[#999]">Limited run</span>
-        </span>
-        <span className="flex min-w-0 items-baseline justify-end gap-2">
-          <span className="text-[#999]">Full access</span>
-          <a href={registerHref} className="text-[#111]" style={LINK_LINE}>
+          <span className="text-[#ccc]"> · </span>
+          <a href={registerHref} className="text-[#999]" style={LINK_LINE}>
             Sign up
           </a>
-        </span>
+        </p>
       </div>
     </nav>
   );
