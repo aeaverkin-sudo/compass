@@ -4,14 +4,14 @@ import { TabBand } from "@main/components/tab-band";
 const ITEM =
   "flex h-full min-h-11 w-full items-center uppercase [-webkit-tap-highlight-color:transparent]";
 
-/** Event has no screen yet. Connections is the book. Data is the counts. */
+/** Event has no screen yet. Connections is the search. Data is the counts. The book stays at /network. */
 export function NetworkTabs() {
   return (
     <TabBand
       label="Network"
       left={<span className={ITEM}>Event</span>}
       center={
-        <Link href="/network" className={`${ITEM} justify-center`}>
+        <Link href="/network/connections" className={`${ITEM} justify-center`}>
           Connections
         </Link>
       }
