@@ -23,7 +23,8 @@ function linksOn(pageEl: HTMLElement): PageLink[] {
   for (const anchor of pageEl.querySelectorAll<HTMLAnchorElement>("a[href]")) {
     const href = anchor.href;
     if (!href || href.startsWith("javascript:")) continue;
-    const rect = anchor.getBoundingClientRect();
+    const label = anchor.querySelector<HTMLElement>("[data-pdf-link]");
+    const rect = (label ?? anchor).getBoundingClientRect();
     if (rect.width < 1 || rect.height < 1) continue;
     links.push({
       url: href,
