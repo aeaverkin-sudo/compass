@@ -60,16 +60,23 @@ export function AccountBand({
         paddingRight: inset,
       }}
     >
-      <div className="flex items-start justify-between gap-3 py-3">
-        <a href={registerHref} className="text-left text-[#111]" style={LINK_LINE}>
-          Get your
-          <br />
-          portfolio
+      <div className="flex min-h-11 items-stretch">
+        <a href={registerHref} className="flex min-h-11 flex-1 items-center py-3 text-left text-[#111]">
+          <span style={LINK_LINE}>
+            Get your
+            <br />
+            portfolio
+          </span>
         </a>
-        <a href={saveHref} className="text-right text-[#111]" style={LINK_LINE}>
-          Save this
-          <br />
-          portfolio
+        <a
+          href={saveHref}
+          className="flex min-h-11 flex-1 items-center justify-end py-3 text-right text-[#111]"
+        >
+          <span style={LINK_LINE}>
+            Save this
+            <br />
+            portfolio
+          </span>
         </a>
       </div>
     </nav>

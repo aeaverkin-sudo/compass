@@ -41,10 +41,10 @@ export function TabBand({
         userSelect: "none",
       }}
     >
-      <div className="grid h-full grid-cols-3 items-center px-8">
-        <div className="justify-self-start">{left}</div>
-        <div className="justify-self-center">{center}</div>
-        <div className="justify-self-end">{right}</div>
+      <div className="flex h-full items-stretch px-8">
+        <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{left}</div>
+        {center != null ? <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{center}</div> : null}
+        <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{right}</div>
       </div>
     </nav>
   );

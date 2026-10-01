@@ -33,8 +33,9 @@ const HOLD_MS = 500;
 /** Same token as the profile zone label. */
 const ZONE_LABEL =
   "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase";
-/** First rule on the card: safe area, then the QR slot, then the gap under the QR. */
-const CARD_LINE_TOP = `calc(env(safe-area-inset-top) + ${HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX}px)`;
+/** Two lines above the card's first rule. The back arrow still clears the field by at least 16px. */
+const SEARCH_LIFT_PX = 44;
+const CARD_LINE_TOP = `calc(env(safe-area-inset-top) + ${HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX - SEARCH_LIFT_PX}px)`;
 
 const SORTS: { id: SortMode; label: string }[] = [
   { id: "recent", label: "Recently added" },
@@ -215,7 +216,11 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         )}
       </div>
 
-      <TabBand label="Network" left="Event" right="Data" />
+      <TabBand
+        label="Network"
+        left={<span className="flex h-full min-h-11 w-full items-center">Event</span>}
+        right={<span className="flex h-full min-h-11 w-full items-center justify-end">Data</span>}
+      />
     </main>
   );
 }

@@ -28,7 +28,7 @@ export function BottomNav({
           <button
             type="button"
             aria-label="Add"
-            className="inline-flex items-baseline py-2 text-[22.15px] leading-none font-light tracking-normal"
+            className="flex h-full min-h-11 w-full items-center text-[22.15px] leading-none font-light tracking-normal"
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => onAdd?.()}
           >
@@ -37,7 +37,7 @@ export function BottomNav({
         ) : (
           <button
             type="button"
-            className="py-2 uppercase"
+            className="flex h-full min-h-11 w-full items-center uppercase"
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => onProfile?.()}
           >
@@ -46,10 +46,12 @@ export function BottomNav({
         )
       }
       center={
-        editing ? undefined : (
+        editing ? (
+          <span className="h-full min-h-11 w-full" />
+        ) : (
           <button
             type="button"
-            className="px-2 py-2 uppercase"
+            className="flex h-full min-h-11 w-full items-center justify-center uppercase"
             onPointerDown={(event) => {
               event.preventDefault();
               window.getSelection()?.removeAllRanges();
@@ -68,7 +70,7 @@ export function BottomNav({
         editing ? (
           <button
             type="button"
-            className="py-2 text-[14px] leading-[1.45] font-normal tracking-[0.1em] uppercase"
+            className="flex h-full min-h-11 w-full items-center justify-end text-[14px] leading-[1.45] font-normal tracking-[0.1em] uppercase"
             onClick={() => onDone?.()}
           >
             OK
@@ -76,7 +78,7 @@ export function BottomNav({
         ) : (
           <button
             type="button"
-            className="py-2 uppercase"
+            className="flex h-full min-h-11 w-full items-center justify-end uppercase"
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => onNetwork?.()}
           >
