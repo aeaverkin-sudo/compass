@@ -108,6 +108,7 @@ export function LandingPage() {
           </>
         ) : null}
       </div>
+      {/* Locked landing band: Sign in opens the existing login, About stays the short description. */}
       <nav
         className="compass-sky-band bg-sky px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase"
         style={{ paddingBottom: "var(--band-safe, 0px)" }}

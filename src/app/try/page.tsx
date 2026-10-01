@@ -9,7 +9,8 @@ import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { isCardReady, useAppStore } from "@/shared/store/app-store";
 
 /**
- * Trial entry from TRY IT. An anonymous session, then the existing landing.
+ * Trial entry from Try it on a shared link or PDF.
+ * An anonymous session, then the existing landing: plus, name, and the Sign in / About band.
  * A phone that already flipped onboarded without a finished portfolio still sees that landing.
  * The 24h clock still starts on Confirm.
  */
