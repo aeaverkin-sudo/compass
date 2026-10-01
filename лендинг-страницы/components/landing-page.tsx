@@ -125,12 +125,19 @@ export function LandingPage() {
       <Sheet open={aboutOpen} onOpenChange={setAboutOpen}>
         <SheetContent aria-label="About">
           <p className="max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
-            ADED ME — your portfolio, your people, all in order.
+            Aded.me — Every version of you. One library.
+            <br />
+            A portfolio for every room.
           </p>
           <p className="mt-3 max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
-            Build a few cards, share them in seconds. Everyone you meet gets a PDF of you — work, links, socials,
-            files — so you never get lost in a phone. Made for events, parties, and every good introduction. More than
-            contact details: drop in your PDFs, your links, your socials.
+            Build a few cards. Share them in seconds.
+          </p>
+          <p className="mt-3 max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+            Everyone you meet gets a link or PDF of you — your work, links, socials, files, playlists — so you never
+            get lost in their phone.
+          </p>
+          <p className="mt-3 max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+            Made for events, parties, and every good introduction.
           </p>
           <p className="mt-4 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
             <Link href="/terms" className="underline">
