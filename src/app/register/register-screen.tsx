@@ -68,7 +68,6 @@ async function enterExistingAccount(signIn: () => Promise<string | null>, redire
   return null;
 }
 
-const IN_APP_HINT = "Google sign-in works in Safari or Chrome. Open this page there, or use email below.";
 const FORGOT_EMAIL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Can't find my ADED email")}`;
 const LINK_LINE = {
   textDecoration: "underline",
@@ -312,11 +311,9 @@ export function RegisterScreen() {
         <BackButton fallbackHref="/" />
         <h1 className="text-[32px] font-light leading-tight">Sign in</h1>
         <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
-          Enter your email and password, or use Google.
+          {inApp ? "Enter your email and password." : "Enter your email and password, or use Google."}
         </p>
-        {inApp ? (
-          <p className="mt-6 max-w-xs text-[14px] font-light leading-snug">{IN_APP_HINT}</p>
-        ) : (
+        {inApp ? null : (
           <button
             type="button"
             disabled={busy}
@@ -491,9 +488,7 @@ export function RegisterScreen() {
       </div>
 
       <div className="mt-8">
-        {inApp ? (
-          <p className="px-2 py-4 text-center text-[14px] leading-snug font-light text-[#111]">{IN_APP_HINT}</p>
-        ) : (
+        {inApp ? null : (
           <button
             type="button"
             onClick={() => void (taken ? signInExistingGoogle() : continueWithGoogle())}
