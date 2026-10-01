@@ -40,7 +40,7 @@ export type PublicCard = {
   card: Card;
   items: ContactItem[];
   ownerId: string;
-  /** Past the 24h trial. The page and the PDF say the card is inactive. */
+  /** Past the 60h trial. The page and the PDF say the card is inactive. */
   inactive?: boolean;
 };
 

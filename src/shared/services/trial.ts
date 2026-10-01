@@ -4,7 +4,7 @@ import { planCatalog, planId, planLimits, type PlanId } from "@/shared/services/
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
-export const TRIAL_MS = 24 * HOUR_MS;
+export const TRIAL_MS = 60 * HOUR_MS;
 export const PURGE_AFTER_MS = 7 * DAY_MS;
 
 export type AccountProvider = "email" | "google" | null;
@@ -13,7 +13,7 @@ export type AccountStatus = {
   registered: boolean;
   /** Clock has started and the person has not registered. */
   trial: boolean;
-  /** Past 24 hours, still inside the 7-day window. */
+  /** Past 60 hours, still inside the 7-day window. */
   frozen: boolean;
   hoursLeft: number | null;
   email: string | null;
@@ -90,7 +90,7 @@ export async function readAccountStatus(userId: string): Promise<AccountStatus> 
   return statusFrom(await readClock(userId));
 }
 
-/** Starts the 24h / 7d clock once. A second Confirm does not move it. */
+/** Starts the 60h / 7d clock once. A second Confirm does not move it. */
 export async function startTrialClock(userId: string): Promise<AccountStatus> {
   const current = await readClock(userId);
   if (current?.registered_at || current?.draft_expires_at) return statusFrom(current);
@@ -110,7 +110,7 @@ export async function startTrialClock(userId: string): Promise<AccountStatus> {
   return statusFrom(await readClock(userId));
 }
 
-/** True when this owner is an unregistered trial past the 24h mark. Missing columns count as open. */
+/** True when this owner is an unregistered trial past the 60h mark. Missing columns count as open. */
 export async function ownerTrialFrozen(ownerId: string): Promise<boolean> {
   try {
     return (await readAccountStatus(ownerId)).frozen;
