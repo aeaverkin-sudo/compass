@@ -6,9 +6,11 @@ import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use
 import { deviceWasRegistered } from "@/shared/lib/registered-device";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
+import { isCardReady, useAppStore } from "@/shared/store/app-store";
 
 /**
  * Trial entry from TRY IT. An anonymous session, then the existing landing.
+ * A phone that already flipped onboarded without a finished portfolio still sees that landing.
  * The 24h clock still starts on Confirm.
  */
 export default function TryPage() {
@@ -33,6 +35,11 @@ export default function TryPage() {
       }
 
       if (cancelled) return;
+      const state = useAppStore.getState();
+      const started = state.cards.some((card) => isCardReady(card));
+      if (!started && state.user.onboarded) {
+        useAppStore.setState({ user: { ...state.user, onboarded: false } });
+      }
       router.replace("/");
     })();
 
