@@ -433,8 +433,7 @@ export function RegisterScreen() {
               aria-label="Code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              placeholder="Code"
-              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[0.2em] text-[#111] caret-[#111] outline-none placeholder:tracking-normal placeholder:text-[#999]"
+              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[0.2em] text-[#111] caret-[#111] outline-none"
             />
           ) : (
             <input
@@ -446,14 +445,13 @@ export function RegisterScreen() {
               aria-label="Email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="Email"
-              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[#999]"
+              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
             />
           )}
           <p className="mt-3 text-[13px] leading-[1.45] font-normal text-[#999]">
             {onCode
-              ? `Sent to ${email.trim()}. This code is your password.`
-              : "We'll email a one-time code to this address. The code becomes your password."}
+              ? `Sent to ${email.trim()}. This code is your password. You can change it in your profile.`
+              : "We will send you a code. This code is your password. You can change it in your profile."}
           </p>
           <button
             type="submit"
