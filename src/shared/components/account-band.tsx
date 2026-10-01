@@ -68,7 +68,7 @@ export function AccountBand({
           <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
             Get your
             <br />
-            portfolio
+            profile
           </span>
         </a>
         <a

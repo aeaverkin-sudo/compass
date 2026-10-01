@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
-import { ConsentLine } from "@/shared/components/consent-line";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 import { isInAppBrowser } from "@/shared/lib/in-app-browser";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
@@ -15,8 +15,6 @@ import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { useAppStore } from "@/shared/store/app-store";
-
-type Branch = "email" | "code" | "login";
 
 /** Only the save flow may pull the person back. Anything else opens the main screen. */
 function afterAuthPath(next: string | null) {
@@ -72,6 +70,20 @@ async function enterExistingAccount(signIn: () => Promise<string | null>, redire
 
 const IN_APP_HINT = "Google sign-in works in Safari or Chrome. Open this page there, or use email below.";
 const FORGOT_EMAIL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Can't find my ADED email")}`;
+const LINK_LINE = {
+  textDecoration: "underline",
+  textDecorationColor: "rgba(17,17,17,0.45)",
+  textDecorationThickness: "0.5px",
+  textUnderlineOffset: "3px",
+} as const;
+
+function signInHref(nextPath: string, error?: string) {
+  const query = new URLSearchParams();
+  query.set("signin", "1");
+  if (nextPath.startsWith("/save/")) query.set("next", nextPath);
+  if (error) query.set("error", error);
+  return `/register?${query.toString()}`;
+}
 
 export function RegisterScreen() {
   const router = useRouter();
@@ -83,19 +95,23 @@ export function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
-  const [branch, setBranch] = useState<Branch>(signinOnly ? "login" : "email");
-  const [serverHasCard, setServerHasCard] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(
     params.get("expired") === "1" ? "Session expired. Sign in." : params.get("error"),
   );
+  const [emailStep, setEmailStep] = useState<"hidden" | "email" | "code">("hidden");
+  const [dimConsent, setDimConsent] = useState(false);
   const cards = useAppStore((state) => state.cards);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
+  const consentSaved = useRef(false);
+  const blinkTimers = useRef<number[]>([]);
 
   useEffect(() => {
     setInApp(isInAppBrowser());
   }, []);
 
-  const hasCard = serverHasCard || deviceHasCard(cards);
+  const hasCard = deviceHasCard(cards);
   const nextPath = afterAuthPath(params.get("next"));
   const registerHref = nextPath.startsWith("/save/")
     ? `/register?next=${encodeURIComponent(nextPath)}`
@@ -105,18 +121,44 @@ export function RegisterScreen() {
     ? "This device already has a portfolio. Signing in will not merge it into the existing account."
     : null;
 
-  const requireConsent = () => {
+  const blinkConsent = () => {
+    blinkTimers.current.forEach((id) => window.clearTimeout(id));
+    const frames = [true, false, true, false];
+    blinkTimers.current = frames.map((dim, index) =>
+      window.setTimeout(() => setDimConsent(dim), index * 150),
+    );
+  };
+
+  useEffect(() => {
+    return () => blinkTimers.current.forEach((id) => window.clearTimeout(id));
+  }, []);
+
+  const ensureConsent = async () => {
+    if (consentSaved.current) return;
+    await recordConsent("register");
+    consentSaved.current = true;
+  };
+
+  const agree = (on: boolean) => {
+    setAccepted(on);
+    if (!on) return;
+    void ensureConsent().catch((error) => {
+      setMessage(error instanceof Error ? error.message : "Could not save agreement");
+    });
+  };
+
+  const gate = () => {
     if (accepted) return true;
-    setMessage("Turn on the agreement first.");
+    blinkConsent();
     return false;
   };
 
   const continueWithGoogle = async () => {
-    if (!requireConsent() || busy) return;
+    if (!gate() || busy) return;
     setBusy(true);
     setMessage(null);
     try {
-      await recordConsent("register");
+      await ensureConsent();
       const supabase = createBrowserSupabaseClient();
       const { error } = await supabase.auth.linkIdentity({
         provider: "google",
@@ -132,7 +174,7 @@ export function RegisterScreen() {
 
   const signInExistingGoogle = async () => {
     if (busy) return;
-    if (!signinOnly && !requireConsent()) return;
+    if (!signinOnly && !gate()) return;
     setBusy(true);
     setMessage(null);
     const error = await enterExistingAccount(async () => {
@@ -150,11 +192,11 @@ export function RegisterScreen() {
   };
 
   const submitEmail = async () => {
-    if (!requireConsent() || busy) return;
+    if (!gate() || busy) return;
     setBusy(true);
     setMessage(null);
     try {
-      await recordConsent("register");
+      await ensureConsent();
       const response = await fetch("/api/auth/email/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -170,11 +212,11 @@ export function RegisterScreen() {
         return;
       }
       if (body.mode === "login") {
-        setServerHasCard(Boolean(body.hasCard));
-        setBranch("login");
+        router.push(signInHref(nextPath, "This email already has an account."));
         return;
       }
-      setBranch("code");
+      setEmailStep("code");
+      window.setTimeout(() => codeRef.current?.focus(), 0);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not continue");
     } finally {
@@ -198,9 +240,7 @@ export function RegisterScreen() {
         return;
       }
       if (body.mode === "login") {
-        setServerHasCard(Boolean(body.hasCard));
-        setBranch("login");
-        setMessage("This email already has an account.");
+        router.push(signInHref(nextPath, "This email already has an account."));
         return;
       }
       const supabase = createBrowserSupabaseClient();
@@ -211,9 +251,7 @@ export function RegisterScreen() {
         password: code.trim(),
       });
       if (error || !data.session) {
-        setBranch("login");
-        setPassword(code.trim());
-        setMessage("The code is your password. Sign in with it.");
+        router.push(signInHref(nextPath, "The code is your password. Sign in with it."));
         return;
       }
       markRegisteredDevice();
@@ -346,157 +384,137 @@ export function RegisterScreen() {
     );
   }
 
-  return (
-    <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
-      <BackButton fallbackHref="/" />
-      <h1 className="text-[32px] font-light leading-tight">{branch === "login" ? "Sign in" : "Register"}</h1>
-      <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
-        {branch === "login"
-          ? "Enter the email and the password for this account."
-          : "Google, or an email. A new email gets a code. That code is the password."}
-      </p>
-      {branch === "login" ? (
-        <button
-          type="button"
-          className="mt-6 self-start text-[14px] font-light underline"
-          onClick={() => {
-            setBranch("email");
-            setMessage(null);
-          }}
-        >
-          Create an account
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="mt-6 self-start text-[14px] font-light underline"
-          onClick={() => {
-            setBranch("login");
-            setMessage(null);
-          }}
-        >
-          Already have an account? Sign in
-        </button>
-      )}
+  const ink = accepted ? "#111" : "#bdbdbd";
+  const rule = accepted ? "#d7d7d7" : "#bdbdbd";
+  const openEmail = () => {
+    if (!gate()) return;
+    if (emailStep === "hidden") {
+      setEmailStep("email");
+      window.setTimeout(() => emailRef.current?.focus(), 0);
+      return;
+    }
+    if (emailStep === "email") void submitEmail();
+    else void submitCode();
+  };
 
-      <div className="mt-8">
-        <ConsentLine checked={accepted} onCheckedChange={setAccepted} id="register-consent" />
+  return (
+    <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
+      <BackButton fallbackHref="/" />
+      <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+        <span aria-hidden className="size-[22px]" />
+        <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
+          Registration
+        </h1>
       </div>
 
-      {inApp ? (
-        <p className="mt-6 max-w-xs text-[14px] font-light leading-snug">{IN_APP_HINT}</p>
-      ) : taken ? (
-        <div className="mt-2 max-w-xs">
-          <p className="text-[14px] font-light leading-snug">This Google account already has a profile.</p>
-          {mergeWarning ? <p className="mt-2 text-[14px] font-normal leading-snug">{mergeWarning}</p> : null}
+      <div className="mt-8">
+        {inApp ? (
+          <p className="px-2 py-4 text-center text-[14px] leading-snug font-light text-[#111]">{IN_APP_HINT}</p>
+        ) : (
           <button
             type="button"
-            disabled={busy || !accepted}
-            onClick={() => void signInExistingGoogle()}
-            className="mt-4 text-[14px] font-normal underline disabled:opacity-40"
+            onClick={() => void (taken ? signInExistingGoogle() : continueWithGoogle())}
+            className="flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]"
+            style={{ color: ink }}
           >
-            {hasCard ? "Sign in with Google without merging" : "Sign in with Google"}
+            Google registration
           </button>
-        </div>
-      ) : (
+        )}
+        {taken && !inApp ? (
+          <p className="px-2 pb-3 text-center text-[13px] leading-[1.45] font-normal text-[#111]">
+            This Google account already has a profile.
+            {mergeWarning ? ` ${mergeWarning}` : ""}
+          </p>
+        ) : null}
+        <div className="border-t-[0.5px] transition-colors duration-200" style={{ borderColor: rule }} />
+
         <button
           type="button"
-          disabled={busy || !accepted}
-          onClick={() => void continueWithGoogle()}
-          className="mt-2 min-w-[160px] self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+          onClick={openEmail}
+          className="flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]"
+          style={{ color: ink }}
         >
-          Continue with Google
+          Email registration
         </button>
-      )}
-
-      <form
-        className="mt-10 flex max-w-xs flex-col"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (branch === "email") void submitEmail();
-          if (branch === "code") void submitCode();
-          if (branch === "login") void submitPassword();
-        }}
-      >
-        <label className="text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="register-email">
-          Email
-        </label>
-        <input
-          id="register-email"
-          type="email"
-          autoCapitalize="none"
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          disabled={branch === "code"}
-          className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none disabled:opacity-60"
-        />
-
-        {branch === "code" ? (
-          <>
-            <p className="mt-4 text-[14px] font-light leading-snug">
-              We sent a code. It is your password. Enter it to finish.
-            </p>
-            <label className="mt-4 text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="register-code">
-              Code
-            </label>
+        {emailStep !== "hidden" ? (
+          <form
+            className="px-2 pb-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (emailStep === "code") void submitCode();
+              else void submitEmail();
+            }}
+          >
             <input
-              id="register-code"
-              inputMode="text"
-              autoCapitalize="characters"
-              autoComplete="one-time-code"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
-            />
-          </>
-        ) : null}
-
-        {branch === "login" ? (
-          <>
-            <p className="mt-4 text-[14px] font-light leading-snug">
-              This email already has an account. Enter the starter code, or the password you changed it to.
-            </p>
-            {mergeWarning ? <p className="mt-2 text-[14px] font-normal leading-snug">{mergeWarning}</p> : null}
-            <label className="mt-4 text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="register-password">
-              Password
-            </label>
-            <input
-              id="register-password"
-              type="password"
+              ref={emailRef}
+              type="email"
               autoCapitalize="none"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none"
+              autoComplete="email"
+              aria-label="Email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={emailStep === "code"}
+              placeholder="Email"
+              className="w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-light text-[#111] outline-none placeholder:text-[#999] disabled:opacity-60"
             />
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void forgotPassword()}
-              className="mt-3 self-start text-[13px] font-light underline"
-            >
-              Forgot password
-            </button>
-            <a href={FORGOT_EMAIL} className="mt-3 self-start text-[13px] font-light underline">
-              Forgot your email?
-            </a>
-          </>
+            {emailStep === "code" ? (
+              <>
+                <p className="mt-4 text-[13px] leading-[1.45] font-light text-[#111]">
+                  We sent a code. It is your password. Enter it to finish.
+                </p>
+                <input
+                  ref={codeRef}
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  autoComplete="one-time-code"
+                  aria-label="Code"
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  placeholder="Code"
+                  className="mt-3 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] text-[#111] outline-none placeholder:tracking-normal placeholder:text-[#999]"
+                />
+              </>
+            ) : null}
+          </form>
         ) : null}
+        <div className="border-t-[0.5px] transition-colors duration-200" style={{ borderColor: rule }} />
 
         <button
-          type="submit"
-          disabled={busy || !accepted}
-          className="mt-6 min-w-[160px] self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+          type="button"
+          onClick={() => {
+            if (!gate()) return;
+            router.push("/try");
+          }}
+          className="flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]"
+          style={{ color: ink }}
         >
-          {branch === "login" ? (hasCard ? "Sign in without merging" : "Sign in") : "Continue"}
+          Try without registration
         </button>
-      </form>
+        <div className="border-t-[0.5px] transition-colors duration-200" style={{ borderColor: rule }} />
+      </div>
 
+      <div className="mt-8 flex items-start gap-3">
+        <span className={dimConsent ? "opacity-20" : "opacity-100"} style={{ transition: "opacity 150ms linear" }}>
+          <Checkbox
+            id="register-consent"
+            checked={accepted}
+            onCheckedChange={(value) => agree(value === true)}
+            aria-label="I agree to the Terms & Conditions and Privacy Policy."
+            className="size-5 rounded-none border-[1.3px] border-[#111] bg-transparent"
+          />
+        </span>
+        <p
+          className="text-[13px] leading-[1.45] font-normal text-[#555]"
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest("a")) return;
+            agree(!accepted);
+          }}
+        >
+          I agree to the <Link href="/terms" style={LINK_LINE}>Terms & Conditions</Link> and{" "}
+          <Link href="/privacy" style={LINK_LINE}>Privacy Policy</Link>.
+        </p>
+      </div>
       {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
-      <Link href="/try" className="mt-10 self-start text-[14px] font-light underline">
-        Try it — without registration
-      </Link>
     </main>
   );
 }
