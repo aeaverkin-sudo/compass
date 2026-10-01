@@ -2,14 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicCardClient } from "@main/components/public-card-client";
-import { cardOpenVia, loadPublicCardByHandle, logPublicCardOpen } from "@/shared/services/public-card";
+import { ViewerMirror } from "@/shared/components/viewer-mirror";
+import { cardOpenKind, loadPublicCardByHandle, logPublicCardOpen, publicViewer } from "@/shared/services/public-card";
 import { metadataForPublicCard } from "@/shared/services/public-card-meta";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ handle: string }>;
-  searchParams: Promise<{ via?: string | string[] }>;
+  searchParams: Promise<{ src?: string | string[]; via?: string | string[] }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -34,10 +35,17 @@ export default async function PublicHandlePage({ params, searchParams }: PagePro
     );
   }
 
-  await logPublicCardOpen(loaded.card.id, loaded.ownerId, cardOpenVia((await searchParams).via));
+  const query = await searchParams;
+  await logPublicCardOpen(
+    loaded.card.id,
+    loaded.ownerId,
+    cardOpenKind(query.src ?? query.via),
+    await publicViewer(),
+  );
 
   return (
     <main className="compass-main min-h-lvh bg-white">
+      <ViewerMirror />
       <PublicCardClient card={loaded.card} items={loaded.items} publicToken={loaded.card.publicToken} />
     </main>
   );

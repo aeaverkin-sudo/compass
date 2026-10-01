@@ -333,9 +333,19 @@ export function parseDescription(text: string): { position: PositionLine | null;
   };
 }
 
-export function composeCard(items: ContactItem[]): { position: PositionLine | null; zones: CardZoneSection[] } {
+function trackedHref(token: string | undefined, itemId: string, direct: string) {
+  if (!token || !direct) return direct;
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(itemId)) return direct;
+  if (direct.startsWith("/f/") || /^https?:\/\//i.test(direct)) return `/r/${token}/${itemId}`;
+  return direct;
+}
+
+export function composeCard(
+  items: ContactItem[],
+  publicToken?: string,
+): { position: PositionLine | null; zones: CardZoneSection[] } {
   const buckets = new Map<CardZoneId, CardDisplayRow[]>();
-  for (const item of items) pushDisplayed(buckets, item);
+  for (const item of items) pushDisplayed(buckets, item, publicToken);
   return { position: null, zones: sectionsFrom(buckets) };
 }
 
@@ -345,17 +355,18 @@ export function groupLibrary(items: ContactItem[]): CardZoneSection[] {
   return sectionsFrom(buckets);
 }
 
-function pushDisplayed(buckets: Map<CardZoneId, CardDisplayRow[]>, item: ContactItem) {
+function pushDisplayed(buckets: Map<CardZoneId, CardDisplayRow[]>, item: ContactItem, publicToken?: string) {
   const split = splitPresentation(item);
   if (!split) return;
   const zone = zoneForItem(item);
   const rows = buckets.get(zone) ?? [];
+  const direct = item.attachmentId ? `/f/${item.attachmentId}` : item.url;
   rows.push({
     key: item.id,
     item,
     axis: split.axis,
     value: split.value,
-    url: item.attachmentId ? `/f/${item.attachmentId}` : item.url,
+    url: trackedHref(publicToken, item.id, direct),
   });
   buckets.set(zone, rows);
 }

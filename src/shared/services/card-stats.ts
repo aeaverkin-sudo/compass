@@ -1,5 +1,7 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isUuid } from "@/shared/services/attachment-api";
+import { linkDisplay } from "@/shared/services/link-display";
+import type { ContactItem, ContactType } from "@/shared/types";
 
 type CardRow = {
   id: string;
@@ -7,10 +9,18 @@ type CardRow = {
   is_primary?: boolean | null;
 };
 
+export type LinkOpen = {
+  label: string;
+  count: number;
+};
+
 export type CardData = {
   shared: number;
   opens: number;
+  opensViaQr: number;
   saved: number;
+  linkOpens: LinkOpen[];
+  repeatVisits: number;
 };
 
 async function ownerCards(ownerId: string): Promise<CardRow[]> {
@@ -34,31 +44,80 @@ function pickCard(rows: CardRow[], requested: string | null) {
   return rows.slice().sort((a, b) => a.created_at.localeCompare(b.created_at))[0]?.id ?? null;
 }
 
-async function countEvents(cardId: string, type: string, via?: string) {
+async function countEvents(cardId: string, types: string[]) {
   const admin = createAdminSupabaseClient();
-  let query = admin.from("card_events").select("id", { count: "exact", head: true }).eq("card_id", cardId).eq("type", type);
-  if (via) query = query.eq("via", via);
-  const { count, error } = await query;
+  const { count, error } = await admin
+    .from("card_events")
+    .select("id", { count: "exact", head: true })
+    .eq("card_id", cardId)
+    .in("type", types);
   if (error) throw new Error(error.message);
   return count ?? 0;
 }
 
-/** Shared is a sent share plus a scan of the on-screen QR. Opens is every visit. Saved is the person, not the card. */
+async function repeatVisits(cardId: string) {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.rpc("card_repeat_visits", { card: cardId });
+  if (error) {
+    console.error("[network] repeat", error.message);
+    return 0;
+  }
+  return Number(data ?? 0);
+}
+
+async function linkOpens(cardId: string): Promise<LinkOpen[]> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.rpc("card_link_opens", { card: cardId });
+  if (error) {
+    console.error("[network] link opens", error.message);
+    return [];
+  }
+  const rows = (data ?? []) as { item_id: string; opens: number }[];
+  const ids = rows.map((row) => row.item_id).filter((id) => isUuid(id));
+  if (ids.length === 0) return [];
+
+  const items = await admin.from("items").select("id, type, label, value, url").in("id", ids);
+  if (items.error) throw new Error(items.error.message);
+  const byId = new Map((items.data ?? []).map((row) => [row.id as string, row]));
+
+  return rows
+    .map((row) => {
+      const item = byId.get(row.item_id);
+      const label = item
+        ? linkDisplay({
+            id: item.id as string,
+            type: item.type as ContactType,
+            label: (item.label as string | null) ?? "",
+            value: (item.value as string | null) ?? "",
+            url: (item.url as string | null) ?? "",
+            order: 0,
+          } satisfies ContactItem)
+        : "Link";
+      return { label: label.trim() || "Link", count: Number(row.opens ?? 0) };
+    })
+    .filter((row) => row.count > 0)
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+}
+
+/** Shared is a sent share. Opens counts a visit and a QR scan. Saved is the person, not the card. */
 export async function readCardData(ownerId: string, requestedCardId: string | null): Promise<CardData> {
   const admin = createAdminSupabaseClient();
   const savedCall = await admin.rpc("connection_save_count", { subject: ownerId });
   if (savedCall.error) throw new Error(savedCall.error.message);
   const saved = Number(savedCall.data ?? 0);
 
+  const empty = { shared: 0, opens: 0, opensViaQr: 0, saved, linkOpens: [], repeatVisits: 0 };
   const cardId = pickCard(await ownerCards(ownerId), requestedCardId);
-  if (!cardId) return { shared: 0, opens: 0, saved };
+  if (!cardId) return empty;
 
-  const [opens, shares, scans] = await Promise.all([
-    countEvents(cardId, "card_open"),
-    countEvents(cardId, "share"),
-    countEvents(cardId, "card_open", "qr"),
+  const [shared, opens, opensViaQr, links, repeats] = await Promise.all([
+    countEvents(cardId, ["share"]),
+    countEvents(cardId, ["card_open", "qr_open"]),
+    countEvents(cardId, ["qr_open"]),
+    linkOpens(cardId),
+    repeatVisits(cardId),
   ]);
-  return { shared: shares + scans, opens, saved };
+  return { shared, opens, opensViaQr, saved, linkOpens: links, repeatVisits: repeats };
 }
 
 /** The owner tapped Share and the link or file actually left. A cancelled sheet does not count. */

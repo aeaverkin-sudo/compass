@@ -535,7 +535,14 @@ function PdfCard({
           </div>
         ) : null}
         {zoneFilter.length > 0 ? (
-          <ContactItemChipList items={items} size="browse" underlineLinks markPdfBlocks pdfZoneIds={zoneFilter} />
+          <ContactItemChipList
+            items={items}
+            size="browse"
+            underlineLinks
+            publicToken={card.publicToken}
+            markPdfBlocks
+            pdfZoneIds={zoneFilter}
+          />
         ) : null}
         {shown.some((block) => block.kind === "notes") ? (
           <NotesRubric
@@ -999,6 +1006,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             : undefined
         }
         underlineLinks={readOnly}
+        publicToken={card.publicToken}
       />
       )}
 

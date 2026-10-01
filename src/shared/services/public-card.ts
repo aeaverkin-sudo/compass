@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { cache } from "react";
 import { unstable_noStore as noStore } from "next/cache";
 import { HANDLE_RE } from "@/shared/services/card-handle";
@@ -5,6 +6,7 @@ import type { Card, ContactItem, ContactType } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { VIEWER_HEADER, viewerId } from "@/shared/lib/viewer";
 import { ownerTrialFrozen } from "@/shared/services/trial";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
@@ -238,14 +240,24 @@ export async function attachmentIsPublic(attachmentId: string): Promise<boolean>
   return false;
 }
 
-/** A scan of the QR on the screen. A pasted link and a printed sheet stay unmarked. */
-export function cardOpenVia(value: string | string[] | undefined): "qr" | undefined {
+/** A scan of the QR on the screen. A pasted link and a printed sheet stay a plain open. Old QR images used via=qr. */
+export function cardOpenKind(value: string | string[] | undefined): "card_open" | "qr_open" {
   const raw = Array.isArray(value) ? value[0] : value;
-  return raw === "qr" ? "qr" : undefined;
+  return raw === "qr" ? "qr_open" : "card_open";
+}
+
+export async function publicViewer(): Promise<string | undefined> {
+  const headerStore = await headers();
+  return viewerId(headerStore.get(VIEWER_HEADER));
 }
 
 /** Counts a visit. The owner's own session is not a visit. Messenger crawlers still count. */
-export async function logPublicCardOpen(cardId: string, ownerId: string, via?: "qr"): Promise<void> {
+export async function logPublicCardOpen(
+  cardId: string,
+  ownerId: string,
+  kind: "card_open" | "qr_open",
+  viewer?: string,
+): Promise<void> {
   try {
     const supabase = await createServerSupabaseClient();
     const { data } = await supabase.auth.getUser();
@@ -256,15 +268,15 @@ export async function logPublicCardOpen(cardId: string, ownerId: string, via?: "
 
   try {
     const admin = createAdminSupabaseClient();
-    const row: { card_id: string; type: string; via?: string } = { card_id: cardId, type: "card_open" };
-    if (via) row.via = via;
+    const row: { card_id: string; type: string; viewer?: string } = { card_id: cardId, type: kind };
+    if (viewer) row.viewer = viewer;
     const { error } = await admin.from("card_events").insert(row);
-    if (error && via) {
-      await admin.from("card_events").insert({ card_id: cardId, type: "card_open" });
+    if (error && viewer) {
+      await admin.from("card_events").insert({ card_id: cardId, type: kind });
       return;
     }
-    if (error) console.error("[public-card] card_open", error.message);
+    if (error) console.error("[public-card] open", error.message);
   } catch (error) {
-    console.error("[public-card] card_open", error);
+    console.error("[public-card] open", error);
   }
 }

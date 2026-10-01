@@ -1,28 +1,46 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState, type ReactNode } from "react";
 import { BackButton } from "@/shared/components/back-button";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
 import { NetworkTabs } from "../network-tabs";
 
-const LABEL =
-  "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase";
+const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase";
 
-const FROZEN = { filter: "blur(4.5px)", opacity: 0.42 } as const;
+type LinkOpen = {
+  label: string;
+  count: number;
+};
 
 type CardData = {
   shared: number;
   opens: number;
+  opensViaQr: number;
   saved: number;
+  linkOpens: LinkOpen[];
+  repeatVisits: number;
 };
 
-function Metric({ value, label, rule = true }: { value: string; label: string; rule?: boolean }) {
+function Metric({
+  value,
+  label,
+  note,
+  rule = true,
+  children,
+}: {
+  value: string;
+  label: string;
+  note?: string;
+  rule?: boolean;
+  children?: ReactNode;
+}) {
   return (
     <div className={rule ? "border-b-[0.5px] border-[#111] py-[18px]" : "py-[18px]"}>
       <p className="text-[32px] leading-none font-light text-[#111]">{value}</p>
       <p className={`mt-2 ${LABEL}`}>{label}</p>
+      {note ? <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#999]">{note}</p> : null}
+      {children}
     </div>
   );
 }
@@ -42,7 +60,7 @@ export function DataScreen() {
         return (await response.json()) as CardData;
       })
       .then((body) => {
-        if (!cancel && body && typeof body.shared === "number") setStats(body);
+        if (!cancel && body && typeof body.shared === "number" && typeof body.opens === "number") setStats(body);
       })
       .catch(() => undefined);
     return () => {
@@ -51,6 +69,7 @@ export function DataScreen() {
   }, [hydrated, cardId]);
 
   const shown = (value: number | undefined) => (stats && value !== undefined ? String(value) : "…");
+  const links = stats?.linkOpens ?? [];
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
@@ -64,35 +83,28 @@ export function DataScreen() {
         </div>
 
         <Metric value={shown(stats?.shared)} label="Shared" />
-        <Metric value={shown(stats?.opens)} label="Opens" />
-        <Metric value={shown(stats?.saved)} label="Saved" rule={false} />
-
-        <div className="mt-8">
-          <p className={LABEL}>
-            Available in{" "}
-            <Link
-              href="/profile#subscription"
-              className="underline decoration-[#999] decoration-[0.5px] underline-offset-[3px]"
-            >
-              Pro
-            </Link>
-          </p>
-          <div className="mt-3 border-t-[0.5px] border-[#111]" />
-          <div className="py-[18px]">
-            <p className={LABEL}>Link opens</p>
-            <ul className="mt-3 text-[15.5px] leading-[1.45] font-normal text-[#111]" style={FROZEN} aria-hidden>
-              <li>Behance</li>
-              <li>Telegram</li>
-              <li>Portfolio.pdf</li>
+        <Metric
+          value={shown(stats?.opens)}
+          label="Opens"
+          note={stats ? `${stats.opensViaQr} via QR` : undefined}
+        />
+        <Metric value={shown(stats?.saved)} label="Saved" />
+        <Metric value={shown(stats ? links.reduce((sum, row) => sum + row.count, 0) : undefined)} label="Link opens">
+          {links.length > 0 ? (
+            <ul className="mt-3">
+              {links.map((row, index) => (
+                <li
+                  key={`${row.label}-${index}`}
+                  className="flex items-baseline justify-between gap-4 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]"
+                >
+                  <span className="min-w-0 truncate">{row.label}</span>
+                  <span>{row.count}</span>
+                </li>
+              ))}
             </ul>
-          </div>
-          <div className="border-t-[0.5px] border-[#111] py-[18px]">
-            <p className={LABEL}>Repeat visits</p>
-            <p className="mt-3 text-[32px] leading-none font-light text-[#111]" style={FROZEN} aria-hidden>
-              18
-            </p>
-          </div>
-        </div>
+          ) : null}
+        </Metric>
+        <Metric value={shown(stats?.repeatVisits)} label="Repeat visits" rule={false} />
       </div>
       <NetworkTabs />
     </main>

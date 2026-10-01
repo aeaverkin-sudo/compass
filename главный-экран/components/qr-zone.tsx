@@ -15,8 +15,8 @@ type QrZoneProps = {
 
 /** Only the QR on the screen carries this. A shared link and a printed sheet do not. */
 function liveQrUrl(url: string) {
-  if (!url || /(?:\?|&)via=qr(?:&|$)/.test(url)) return url;
-  return `${url}${url.includes("?") ? "&" : "?"}via=qr`;
+  if (!url || /(?:\?|&)(?:src|via)=qr(?:&|$)/.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}src=qr`;
 }
 
 export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {

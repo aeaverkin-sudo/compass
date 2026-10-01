@@ -224,6 +224,7 @@ export function ContactItemChipList({
   onReorder,
   onChooseHeader,
   underlineLinks = false,
+  publicToken,
   pdfZoneIds = null,
   markPdfBlocks = false,
 }: {
@@ -235,6 +236,8 @@ export function ContactItemChipList({
   onChooseHeader?: (itemId: string) => void;
   /** Public read-only card. The owner card keeps plain values. */
   underlineLinks?: boolean;
+  /** Public token: link taps go through /r so a distributed card still counts. */
+  publicToken?: string;
   /** Print sheet: only these zones, in the card's own order. */
   pdfZoneIds?: string[] | null;
   markPdfBlocks?: boolean;
@@ -250,7 +253,7 @@ export function ContactItemChipList({
   const pendingFlip = useRef<{ tops: Map<string, number>; orderKey: string } | null>(null);
   const [lift, setLift] = useState<Lift | null>(null);
   const [fade, setFade] = useState({ top: false, bottom: false });
-  const composed = composeCard(items);
+  const composed = composeCard(items, publicToken);
   const visualItems = composed.zones.flatMap((zone) =>
     zone.rows.flatMap((row) => (row.item ? [row.item] : [])),
   );
