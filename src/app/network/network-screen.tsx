@@ -13,7 +13,7 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { TabBand } from "@main/components/tab-band";
+import { NetworkTabs } from "./network-tabs";
 import { BROWSE_QR_SIZE, HEADER_RHYTHM_PX, RULE_GAP_PX } from "@main/layout";
 
 type SortMode = "recent" | "alphabet" | "event";
@@ -222,11 +222,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         )}
       </div>
 
-      <TabBand
-        label="Network"
-        left={<span className="flex h-full min-h-11 w-full items-center">Event</span>}
-        right={<span className="flex h-full min-h-11 w-full items-center justify-end">Data</span>}
-      />
+      <NetworkTabs active="connections" />
     </main>
   );
 }

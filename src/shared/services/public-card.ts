@@ -238,8 +238,14 @@ export async function attachmentIsPublic(attachmentId: string): Promise<boolean>
   return false;
 }
 
+/** A scan of the QR on the screen. A pasted link and a printed sheet stay unmarked. */
+export function cardOpenVia(value: string | string[] | undefined): "qr" | undefined {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw === "qr" ? "qr" : undefined;
+}
+
 /** Counts a visit. The owner's own session is not a visit. Messenger crawlers still count. */
-export async function logPublicCardOpen(cardId: string, ownerId: string): Promise<void> {
+export async function logPublicCardOpen(cardId: string, ownerId: string, via?: "qr"): Promise<void> {
   try {
     const supabase = await createServerSupabaseClient();
     const { data } = await supabase.auth.getUser();
@@ -250,7 +256,13 @@ export async function logPublicCardOpen(cardId: string, ownerId: string): Promis
 
   try {
     const admin = createAdminSupabaseClient();
-    const { error } = await admin.from("card_events").insert({ card_id: cardId, type: "card_open" });
+    const row: { card_id: string; type: string; via?: string } = { card_id: cardId, type: "card_open" };
+    if (via) row.via = via;
+    const { error } = await admin.from("card_events").insert(row);
+    if (error && via) {
+      await admin.from("card_events").insert({ card_id: cardId, type: "card_open" });
+      return;
+    }
     if (error) console.error("[public-card] card_open", error.message);
   } catch (error) {
     console.error("[public-card] card_open", error);

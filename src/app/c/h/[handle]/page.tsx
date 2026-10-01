@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicCardClient } from "@main/components/public-card-client";
-import { loadPublicCardByHandle, logPublicCardOpen } from "@/shared/services/public-card";
+import { cardOpenVia, loadPublicCardByHandle, logPublicCardOpen } from "@/shared/services/public-card";
 import { metadataForPublicCard } from "@/shared/services/public-card-meta";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ handle: string }> };
+type PageProps = {
+  params: Promise<{ handle: string }>;
+  searchParams: Promise<{ via?: string | string[] }>;
+};
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { handle } = await params;
@@ -16,7 +19,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return metadataForPublicCard(loaded, `/@${key}`);
 }
 
-export default async function PublicHandlePage({ params }: PageProps) {
+export default async function PublicHandlePage({ params, searchParams }: PageProps) {
   const { handle } = await params;
   const loaded = await loadPublicCardByHandle(handle);
   if (!loaded) notFound();
@@ -31,7 +34,7 @@ export default async function PublicHandlePage({ params }: PageProps) {
     );
   }
 
-  await logPublicCardOpen(loaded.card.id, loaded.ownerId);
+  await logPublicCardOpen(loaded.card.id, loaded.ownerId, cardOpenVia((await searchParams).via));
 
   return (
     <main className="compass-main min-h-lvh bg-white">

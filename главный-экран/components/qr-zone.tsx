@@ -13,6 +13,12 @@ type QrZoneProps = {
   topOffsetPx: number;
 };
 
+/** Only the QR on the screen carries this. A shared link and a printed sheet do not. */
+function liveQrUrl(url: string) {
+  if (!url || /(?:\?|&)via=qr(?:&|$)/.test(url)) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}via=qr`;
+}
+
 export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
   const currentCardId = useAppStore((state) => state.cards[state.currentCardIndex]?.id ?? "");
   const [breathe, setBreathe] = useState(false);
@@ -46,7 +52,7 @@ export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
           }}
         >
           <QRCodeSVG
-            value={url}
+            value={liveQrUrl(url)}
             size={BROWSE_QR_SIZE}
             level="H"
             fgColor={QR_COLOR}

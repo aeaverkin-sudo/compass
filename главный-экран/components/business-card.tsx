@@ -701,6 +701,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     const title = card.displayName.trim() || "Portfolio";
     const hadNotes = ownerNotesKey.length > 0;
     void shareCardChoice(input, choice, { title, url: publicCardUrl(card) }).then((sent) => {
+      if (sent) {
+        void fetch("/api/network/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cardId: card.id }),
+        });
+      }
       if (!sent || readOnly || !hadNotes) return;
       releaseOwnerNotes(card.id, choice, card.publicToken);
     });
