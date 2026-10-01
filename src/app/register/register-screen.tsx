@@ -13,6 +13,7 @@ import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
+import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { useAppStore } from "@/shared/store/app-store";
 
 type Branch = "email" | "code" | "login";
@@ -70,6 +71,7 @@ async function enterExistingAccount(signIn: () => Promise<string | null>, redire
 }
 
 const IN_APP_HINT = "Google sign-in works in Safari or Chrome. Open this page there, or use email below.";
+const FORGOT_EMAIL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Can't find my ADED email")}`;
 
 export function RegisterScreen() {
   const router = useRouter();
@@ -325,6 +327,9 @@ export function RegisterScreen() {
           >
             Forgot password
           </button>
+          <a href={FORGOT_EMAIL} className="mt-3 self-start text-[13px] font-light underline">
+            Forgot your email?
+          </a>
           <button
             type="submit"
             disabled={busy}
@@ -473,6 +478,9 @@ export function RegisterScreen() {
             >
               Forgot password
             </button>
+            <a href={FORGOT_EMAIL} className="mt-3 self-start text-[13px] font-light underline">
+              Forgot your email?
+            </a>
           </>
         ) : null}
 

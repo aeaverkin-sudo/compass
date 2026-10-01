@@ -26,6 +26,15 @@ export async function sendStarterCode(to: string, code: string) {
   );
 }
 
+/** Proves a new address. The code is not a password. */
+export async function sendChangeCode(to: string, code: string) {
+  await send(
+    to,
+    "Confirm your email",
+    `Your code is ${code}.\n\nEnter it to confirm this address. Your password does not change.\n\nCheers,\nADED team`,
+  );
+}
+
 export async function sendPasswordReset(to: string, link: string) {
   await send(
     to,

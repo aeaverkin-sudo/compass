@@ -1,6 +1,6 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { mailConfigured, sendPasswordReset, sendStarterCode } from "@/shared/services/mail";
+import { mailConfigured, sendChangeCode, sendPasswordReset, sendStarterCode } from "@/shared/services/mail";
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_TTL_MS = 30 * 60 * 1000;
@@ -132,6 +132,93 @@ export async function verifyEmailCode(
     if (emailTaken(updateError)) {
       await admin.from("pending_email_signups").delete().eq("user_id", userId);
       return { mode: "login", hasCard: await sessionHasCard(userId) };
+    }
+    throw new Error(updateError.message);
+  }
+
+  await admin.from("pending_email_signups").delete().eq("user_id", userId);
+  return { mode: "ok" };
+}
+
+/**
+ * Asks the signed-in person to prove a new address. The starter code is only a check.
+ * It does not become the password.
+ */
+export async function startEmailChange(userId: string, rawEmail: string): Promise<{ mode: "code" }> {
+  const email = normalizeEmail(rawEmail);
+  if (!isEmail(email)) throw new Error("Enter an email");
+
+  const existing = await userIdForEmail(email);
+  if (existing === userId) throw new Error("That's already your email");
+  if (existing) throw new Error("That email is already in use");
+
+  if (!mailConfigured()) throw new Error("mail_not_configured");
+
+  const code = starterCode();
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin.from("pending_email_signups").upsert(
+    {
+      user_id: userId,
+      email,
+      code_hash: hashCode(code),
+      expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString(),
+      attempts: 0,
+      purpose: "change",
+    },
+    { onConflict: "user_id" },
+  );
+  if (error) throw new Error(error.message);
+
+  try {
+    await sendChangeCode(email, code);
+  } catch (sendError) {
+    await admin.from("pending_email_signups").delete().eq("user_id", userId);
+    throw sendError;
+  }
+
+  return { mode: "code" };
+}
+
+/** Confirms the new address and leaves the current password where it is. */
+export async function verifyEmailChange(userId: string, rawEmail: string, code: string): Promise<{ mode: "ok" }> {
+  const email = normalizeEmail(rawEmail);
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
+    .from("pending_email_signups")
+    .select("email, code_hash, expires_at, attempts, purpose")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data || data.email !== email || data.purpose !== "change") throw new Error("wrong_code");
+  if (data.attempts >= MAX_ATTEMPTS) throw new Error("rate_limited");
+  if (new Date(data.expires_at).getTime() <= Date.now()) throw new Error("expired");
+  if (!codesMatch(code.trim(), data.code_hash)) {
+    await admin
+      .from("pending_email_signups")
+      .update({ attempts: data.attempts + 1 })
+      .eq("user_id", userId);
+    throw new Error("wrong_code");
+  }
+
+  const { data: current, error: readError } = await admin.auth.admin.getUserById(userId);
+  if (readError) throw new Error(readError.message);
+  const previous = current.user?.email?.trim().toLowerCase() ?? "";
+  if (previous) {
+    const { error: archiveError } = await admin.from("email_history").insert({
+      user_id: userId,
+      email: previous,
+    });
+    if (archiveError) throw new Error(archiveError.message);
+  }
+
+  const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
+    email,
+    email_confirm: true,
+  });
+  if (updateError) {
+    if (emailTaken(updateError)) {
+      await admin.from("pending_email_signups").delete().eq("user_id", userId);
+      throw new Error("That email is already in use");
     }
     throw new Error(updateError.message);
   }

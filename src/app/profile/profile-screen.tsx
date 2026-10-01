@@ -268,11 +268,21 @@ export function ProfileScreen() {
 
       <Zone label="Manage" rule>
         <p className={ZONE_VALUE}>
-          <button type="button" disabled className="underline disabled:opacity-40">
-            Change email
-          </button>
+          {account.provider === "email" ? (
+            <Link href="/account/email" className="underline">
+              Change email
+            </Link>
+          ) : (
+            <button type="button" disabled className="underline disabled:opacity-40">
+              Change email
+            </button>
+          )}
         </p>
-        <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
+        {account.provider === "google" ? (
+          <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Managed by Google</p>
+        ) : account.provider === "email" ? null : (
+          <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
+        )}
         <p className="mt-3 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
           <button type="button" disabled className="underline disabled:opacity-40">
             Export my data
