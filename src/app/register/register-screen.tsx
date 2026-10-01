@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
 import { ConsentLine } from "@/shared/components/consent-line";
+import { isInAppBrowser } from "@/shared/lib/in-app-browser";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
@@ -68,21 +69,29 @@ async function enterExistingAccount(signIn: () => Promise<string | null>, redire
   return null;
 }
 
+const IN_APP_HINT = "Google sign-in works in Safari or Chrome. Open this page there, or use email below.";
+
 export function RegisterScreen() {
   const router = useRouter();
   const params = useSearchParams();
+  const signinOnly = params.get("signin") === "1";
   const taken = params.get("taken") === "1";
+  const [inApp, setInApp] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
-  const [branch, setBranch] = useState<Branch>(params.get("signin") === "1" ? "login" : "email");
+  const [branch, setBranch] = useState<Branch>(signinOnly ? "login" : "email");
   const [serverHasCard, setServerHasCard] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(
     params.get("expired") === "1" ? "Session expired. Sign in." : params.get("error"),
   );
   const cards = useAppStore((state) => state.cards);
+
+  useEffect(() => {
+    setInApp(isInAppBrowser());
+  }, []);
 
   const hasCard = serverHasCard || deviceHasCard(cards);
   const nextPath = afterAuthPath(params.get("next"));
@@ -117,7 +126,8 @@ export function RegisterScreen() {
   };
 
   const signInExistingGoogle = async () => {
-    if (!requireConsent() || busy) return;
+    if (busy) return;
+    if (!signinOnly && !requireConsent()) return;
     setBusy(true);
     setMessage(null);
     const error = await enterExistingAccount(async () => {
@@ -253,6 +263,78 @@ export function RegisterScreen() {
     }
   };
 
+  if (signinOnly) {
+    return (
+      <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
+        <BackButton fallbackHref="/" />
+        <h1 className="text-[32px] font-light leading-tight">Sign in</h1>
+        <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
+          Enter your email and password, or use Google.
+        </p>
+        {inApp ? (
+          <p className="mt-6 max-w-xs text-[14px] font-light leading-snug">{IN_APP_HINT}</p>
+        ) : (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void signInExistingGoogle()}
+            className="mt-6 min-w-[160px] self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+          >
+            Sign in with Google
+          </button>
+        )}
+        <form
+          className="mt-10 flex max-w-xs flex-col"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitPassword();
+          }}
+        >
+          <label className="text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="signin-email">
+            Email
+          </label>
+          <input
+            id="signin-email"
+            type="email"
+            autoCapitalize="none"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none"
+          />
+          <label className="mt-4 text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="signin-password">
+            Password
+          </label>
+          <input
+            id="signin-password"
+            type="password"
+            autoCapitalize="none"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none"
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void forgotPassword()}
+            className="mt-3 self-start text-[13px] font-light underline"
+          >
+            Forgot password
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="mt-6 min-w-[160px] self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
+          >
+            Sign in
+          </button>
+        </form>
+        {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
+      </main>
+    );
+  }
+
   return (
     <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
       <BackButton fallbackHref="/" />
@@ -290,7 +372,9 @@ export function RegisterScreen() {
         <ConsentLine checked={accepted} onCheckedChange={setAccepted} id="register-consent" />
       </div>
 
-      {taken ? (
+      {inApp ? (
+        <p className="mt-6 max-w-xs text-[14px] font-light leading-snug">{IN_APP_HINT}</p>
+      ) : taken ? (
         <div className="mt-2 max-w-xs">
           <p className="text-[14px] font-light leading-snug">This Google account already has a profile.</p>
           {mergeWarning ? <p className="mt-2 text-[14px] font-normal leading-snug">{mergeWarning}</p> : null}
