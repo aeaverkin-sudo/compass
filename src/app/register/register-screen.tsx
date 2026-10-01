@@ -75,6 +75,11 @@ const LINK_LINE = {
   textDecorationThickness: "0.5px",
   textUnderlineOffset: "3px",
 } as const;
+const SECTION_TITLE =
+  "py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] text-[#999] uppercase";
+const CHOICE =
+  "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
+const CHOICE_RULE = "border-t-[1.5px] border-[#c9c9c9]";
 
 function signInHref(nextPath: string, error?: string) {
   const query = new URLSearchParams();
@@ -308,17 +313,12 @@ export function RegisterScreen() {
       setMessage(null);
       setSignInMail(false);
     };
-    const optionClass =
-      "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] text-[#111] uppercase [-webkit-tap-highlight-color:transparent]";
     return (
       <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
         <BackButton fallbackHref="/" onBack={signInMail ? leaveSignInMail : undefined} />
-        <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-          <span aria-hidden className="size-[22px]" />
-          <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
-            Sign in
-          </h1>
-        </div>
+        <div className="mt-10">
+          <h1 className={SECTION_TITLE}>Sign in</h1>
+          <div className={CHOICE_RULE} />
         {signInMail ? (
           <form
             className="mt-8"
@@ -370,7 +370,7 @@ export function RegisterScreen() {
                 className="underline decoration-[0.5px] underline-offset-[3px]"
                 style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
               >
-                Forgot email
+                Forgot your email?
               </a>
             </p>
             <button
@@ -382,13 +382,18 @@ export function RegisterScreen() {
             </button>
           </form>
         ) : (
-          <div className="mt-8">
+          <>
             {inApp ? null : (
               <>
-                <button type="button" onClick={() => void signInExistingGoogle()} className={optionClass}>
+                <button
+                  type="button"
+                  onClick={() => void signInExistingGoogle()}
+                  className={CHOICE}
+                  style={{ color: "#111" }}
+                >
                   Sign in with Google
                 </button>
-                <div className="border-t-[0.5px] border-[#d7d7d7]" />
+                <div className={CHOICE_RULE} />
               </>
             )}
             <button
@@ -398,13 +403,15 @@ export function RegisterScreen() {
                 setSignInMail(true);
                 window.setTimeout(() => emailRef.current?.focus(), 0);
               }}
-              className={optionClass}
+              className={CHOICE}
+              style={{ color: "#111" }}
             >
-              Sign in with email
+              Sign in with Email
             </button>
-            <div className="border-t-[0.5px] border-[#d7d7d7]" />
-          </div>
+            <div className={CHOICE_RULE} />
+          </>
         )}
+        </div>
         {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug text-[#111]">{message}</p> : null}
       </main>
     );
@@ -435,7 +442,7 @@ export function RegisterScreen() {
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />
           <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
-            Registration
+            Sign up
           </h1>
         </div>
         <form
@@ -504,59 +511,48 @@ export function RegisterScreen() {
   }
 
   const ink = accepted ? "#111" : "#bdbdbd";
-  const rule = accepted ? "#d7d7d7" : "#bdbdbd";
 
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
       <BackButton fallbackHref="/" />
-      <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-        <span aria-hidden className="size-[22px]" />
-        <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
-          Registration
-        </h1>
-      </div>
-
-      <div className="mt-8">
+      <div className="mt-10">
+        <h1 className={SECTION_TITLE}>Sign up</h1>
+        <div className={CHOICE_RULE} />
         {inApp ? null : (
-          <button
-            type="button"
-            onClick={() => void (taken ? signInExistingGoogle() : continueWithGoogle())}
-            className="flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]"
-            style={{ color: ink }}
-          >
-            Google registration
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => void (taken ? signInExistingGoogle() : continueWithGoogle())}
+              className={CHOICE}
+              style={{ color: ink }}
+            >
+              Sign up with Google
+            </button>
+            {taken && !inApp ? (
+              <p className="px-2 pb-3 text-center text-[13px] leading-[1.45] font-normal text-[#111]">
+                This Google account already has a profile.
+                {mergeWarning ? ` ${mergeWarning}` : ""}
+              </p>
+            ) : null}
+            <div className={CHOICE_RULE} />
+          </>
         )}
-        {taken && !inApp ? (
-          <p className="px-2 pb-3 text-center text-[13px] leading-[1.45] font-normal text-[#111]">
-            This Google account already has a profile.
-            {mergeWarning ? ` ${mergeWarning}` : ""}
-          </p>
-        ) : null}
-        <div className="border-t-[0.5px] transition-colors duration-200" style={{ borderColor: rule }} />
-
-        <button
-          type="button"
-          onClick={openEmail}
-          className="flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]"
-          style={{ color: ink }}
-        >
-          Email registration
+        <button type="button" onClick={openEmail} className={CHOICE} style={{ color: ink }}>
+          Sign up with Email
         </button>
-        <div className="border-t-[0.5px] transition-colors duration-200" style={{ borderColor: rule }} />
-
+        <div className={CHOICE_RULE} />
         <button
           type="button"
           onClick={() => {
             if (!gate()) return;
             router.push("/try");
           }}
-          className="flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]"
+          className={CHOICE}
           style={{ color: ink }}
         >
-          Try without registration
+          Try without sign up
         </button>
-        <div className="border-t-[0.5px] transition-colors duration-200" style={{ borderColor: rule }} />
+        <div className={CHOICE_RULE} />
       </div>
 
       <div className="mt-8 flex items-start gap-3">
