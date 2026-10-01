@@ -921,7 +921,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             </button>
             )}
             {fillHint ? (
-              <p className="compass-block compass-sky mt-5 max-w-[240px] px-3 py-2.5 text-center text-[13px] leading-[1.35] font-normal text-[#111]">
+              <p className="mt-5 max-w-[240px] bg-sky px-3 py-2.5 text-center text-[13px] leading-[1.35] font-normal text-[#111]">
                 Add contacts, professional details, and files.
               </p>
             ) : null}
