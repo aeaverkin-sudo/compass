@@ -34,6 +34,21 @@ create table if not exists public.connections (
 create unique index if not exists connections_owner_card_unique
   on public.connections (owner_id, saved_card_id);
 
+-- PostgREST upsert matches a unique constraint, not a bare unique index.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'connections_owner_card_key'
+      and conrelid = 'public.connections'::regclass
+  ) then
+    alter table public.connections
+      add constraint connections_owner_card_key
+      unique using index connections_owner_card_unique;
+  end if;
+end $$;
+
 create index if not exists connections_owner_created
   on public.connections (owner_id, created_at);
 

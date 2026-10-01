@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { AccountBand } from "@/shared/components/account-band";
+import { SaveToContacts } from "@/shared/components/save-to-contacts";
 import { BusinessCard } from "@main/components/business-card";
 import type { Card, ContactItem } from "@/shared/types";
 
@@ -43,7 +44,12 @@ export function PublicCardClient({ card, items, publicToken }: PublicCardClientP
         mode="browse"
         readOnly
         deliveredNotes={notes}
-        publicBar={<AccountBand />}
+        publicBar={
+          <>
+            <SaveToContacts cardId={card.id} cardToken={card.publicToken} />
+            <AccountBand />
+          </>
+        }
       />
     </>
   );
