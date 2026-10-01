@@ -9,22 +9,28 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const origin = url.origin;
-  const next = url.searchParams.get("next") || "/main";
+  const requested = url.searchParams.get("next") || "/main";
+  const next = requested.startsWith("/") && !requested.startsWith("//") ? requested : "/main";
   const described = url.searchParams.get("error_description") || url.searchParams.get("error");
+  const keepNext = next.startsWith("/save/") ? `&next=${encodeURIComponent(next)}` : "";
   if (described) {
     const taken = /already|identity|exists/i.test(described);
-    const target = taken ? "/register?taken=1" : `/register?error=${encodeURIComponent(described)}`;
+    const target = taken
+      ? `/register?taken=1${keepNext}`
+      : `/register?error=${encodeURIComponent(described)}${keepNext}`;
     return NextResponse.redirect(new URL(target, origin));
   }
 
   const code = url.searchParams.get("code");
-  if (!code) return NextResponse.redirect(new URL("/register", origin));
+  if (!code) return NextResponse.redirect(new URL(`/register?signin=1${keepNext}`, origin));
 
   const supabase = await createServerSupabaseClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     const taken = /already|identity|exists/i.test(error.message);
-    const target = taken ? "/register?taken=1" : `/register?error=${encodeURIComponent(error.message)}`;
+    const target = taken
+      ? `/register?taken=1${keepNext}`
+      : `/register?error=${encodeURIComponent(error.message)}${keepNext}`;
     return NextResponse.redirect(new URL(target, origin));
   }
 

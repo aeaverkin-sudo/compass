@@ -24,24 +24,32 @@ function useOrigin() {
 
 const LINK_LINE = {
   textDecoration: "underline",
-  textDecorationColor: "rgba(119,119,119,0.45)",
+  textDecorationColor: "rgba(17,17,17,0.45)",
   textDecorationThickness: "0.5px",
   textUnderlineOffset: "3px",
 } as const;
 
 /**
- * Sky plaque under the portfolio name. The same markup on `/c/`, `/@handle`, and the shared PDF.
- * The title is not a link. Try it and Sign up are. On the web the plaque sits above Safari's toolbar.
+ * Two doors under the portfolio name. The same markup on `/c/`, `/@handle`, and the shared PDF.
+ * On the web the plaque sits above Safari's toolbar.
  */
-export function AccountBand({ inset, safe = true }: { inset?: number; safe?: boolean }) {
+export function AccountBand({
+  token,
+  inset,
+  safe = true,
+}: {
+  token: string;
+  inset?: number;
+  safe?: boolean;
+}) {
   const origin = useOrigin();
-  const tryHref = `${origin}/try`;
   const registerHref = `${origin}/register`;
+  const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
   return (
     <nav
       aria-label="Account"
       className={cn(
-        "bg-sky text-center text-[10px] leading-none font-normal tracking-[0.14em] whitespace-nowrap uppercase",
+        "bg-sky text-[10px] leading-[1.35] font-normal tracking-[0.14em] text-[#111] uppercase",
         safe && "compass-sky-band",
         inset == null && "px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
       )}
@@ -52,17 +60,17 @@ export function AccountBand({ inset, safe = true }: { inset?: number; safe?: boo
         paddingRight: inset,
       }}
     >
-      <div className="py-3">
-        <p className="m-0 text-[#111]">Get your portfolio</p>
-        <p className="m-0 mt-1.5 text-[#999]">
-          <a href={tryHref} className="text-[#999]" style={LINK_LINE}>
-            Try it
-          </a>
-          <span className="text-[#ccc]"> · </span>
-          <a href={registerHref} className="text-[#999]" style={LINK_LINE}>
-            Sign up
-          </a>
-        </p>
+      <div className="flex items-start justify-between gap-3 py-3">
+        <a href={registerHref} className="text-left text-[#111]" style={LINK_LINE}>
+          Get your
+          <br />
+          portfolio
+        </a>
+        <a href={saveHref} className="text-right text-[#111]" style={LINK_LINE}>
+          Save this
+          <br />
+          portfolio
+        </a>
       </div>
     </nav>
   );

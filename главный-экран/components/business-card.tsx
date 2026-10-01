@@ -549,7 +549,7 @@ function PdfCard({
             <div aria-hidden className="h-[1lh]" />
             <CardShareFooter name={card.displayName} />
             <div className="mt-4" style={{ marginLeft: -PDF_PAD, marginRight: -PDF_PAD }}>
-              <AccountBand inset={PDF_PAD} safe={false} />
+              <AccountBand token={card.publicToken} inset={PDF_PAD} safe={false} />
             </div>
           </div>
         ) : null}

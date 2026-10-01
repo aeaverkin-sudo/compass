@@ -72,6 +72,9 @@ begin
   end if;
   new.saved_owner_id := card.owner_id;
   new.saved_card_token := card.public_token;
+  if new.saved_owner_id = new.owner_id then
+    raise exception 'cannot_save_own_card' using errcode = 'P0001';
+  end if;
   if tg_op = 'INSERT' and btrim(new.display_name) = '' then
     new.display_name := card.display_name;
   end if;

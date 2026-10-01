@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
 import { ConsentLine } from "@/shared/components/consent-line";
@@ -14,6 +15,12 @@ import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
 
 type Branch = "email" | "code" | "login";
+
+/** Only the save flow may pull the person back. Anything else opens the main screen. */
+function afterAuthPath(next: string | null) {
+  if (next && next.startsWith("/save/") && !next.includes("//") && !next.includes("\\")) return next;
+  return "/main";
+}
 
 function deviceHasCard(cards: { displayName: string; photoAttachmentId?: string; photo?: string }[]) {
   return cards.some((card) => card.displayName.trim() || card.photoAttachmentId || card.photo);
@@ -78,6 +85,8 @@ export function RegisterScreen() {
   const cards = useAppStore((state) => state.cards);
 
   const hasCard = serverHasCard || deviceHasCard(cards);
+  const nextPath = afterAuthPath(params.get("next"));
+  const googleRedirect = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
   const mergeWarning = hasCard
     ? "This device already has a portfolio. Signing in will not merge it into the existing account."
     : null;
@@ -97,7 +106,7 @@ export function RegisterScreen() {
       const supabase = createBrowserSupabaseClient();
       const { error } = await supabase.auth.linkIdentity({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo: googleRedirect() },
       });
       if (error) setMessage(error.message);
     } catch (error) {
@@ -115,7 +124,7 @@ export function RegisterScreen() {
       const supabase = createBrowserSupabaseClient();
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: { redirectTo: googleRedirect() },
       });
       return oauthError?.message ?? null;
     }, true);
@@ -142,7 +151,7 @@ export function RegisterScreen() {
         return;
       }
       if (body.mode === "done") {
-        router.push("/main");
+        router.push(nextPath);
         return;
       }
       if (body.mode === "login") {
@@ -193,7 +202,7 @@ export function RegisterScreen() {
         return;
       }
       markRegisteredDevice();
-      router.push("/main");
+      router.push(nextPath);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not check the code");
     } finally {
@@ -218,7 +227,7 @@ export function RegisterScreen() {
       setMessage(error);
       return;
     }
-    router.push("/main");
+    router.push(nextPath);
   };
 
   const forgotPassword = async () => {
@@ -387,6 +396,9 @@ export function RegisterScreen() {
       </form>
 
       {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
+      <Link href="/try" className="mt-10 self-start text-[14px] font-light underline">
+        Try it — without registration
+      </Link>
     </main>
   );
 }

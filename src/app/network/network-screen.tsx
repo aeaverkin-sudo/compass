@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
+import { SkyToast } from "@/shared/components/sky-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,11 +60,14 @@ function matchesQuery(contact: Contact, query: string) {
   return haystack.includes(query);
 }
 
-export function NetworkScreen() {
+export function NetworkScreen({ addedName = null }: { addedName?: string | null }) {
   const [contacts, setContacts] = useState<Contact[] | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [armedId, setArmedId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(
+    addedName ? `${addedName} — just added to your contacts` : null,
+  );
 
   const load = async () => {
     const response = await fetch("/api/connections", { cache: "no-store" });
@@ -78,6 +82,11 @@ export function NetworkScreen() {
   useEffect(() => {
     void load();
   }, []);
+
+  useEffect(() => {
+    if (!addedName) return;
+    window.history.replaceState(null, "", "/network");
+  }, [addedName]);
 
   const pending = useMemo(() => {
     return (contacts ?? [])
@@ -101,9 +110,11 @@ export function NetworkScreen() {
       .eq("id", id)
       .eq("owner_id", data.user.id);
     if (error) return;
+    const name = contacts?.find((contact) => contact.id === id)?.displayName.trim() || "Untitled";
     setContacts((current) =>
       current?.map((contact) => (contact.id === id ? { ...contact, state: "active" } : contact)) ?? current,
     );
+    setNotice(`${name} — just added to your contacts`);
   };
 
   const remove = async (id: string) => {
@@ -121,6 +132,7 @@ export function NetworkScreen() {
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
       <BackButton fallbackHref="/main" />
+      {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className={`${GUTTER} pt-[86px]`}>
         <div className="flex items-center gap-3 border-b-[0.5px] border-[#111] py-2">
           <Search className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
