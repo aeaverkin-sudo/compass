@@ -1029,7 +1029,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {!compact && scrolledUnderQr ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-white to-transparent"
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-white to-white/0"
           style={{ height: TOP_VEIL_PX }}
         />
       ) : null}
@@ -1037,14 +1037,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {compact && (previewFade.top || previewPull < 0) ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-white to-transparent"
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-white to-white/0"
           style={{ height: 64 }}
         />
       ) : null}
       {compact && (previewFade.bottom || previewPull > 0) ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-white to-transparent"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-white to-white/0"
           style={{ height: 48 }}
         />
       ) : null}
