@@ -542,7 +542,7 @@ export function RegisterScreen() {
             checked={accepted}
             onCheckedChange={(value) => agree(value === true)}
             aria-label="I agree to the Terms & Conditions and Privacy Policy."
-            className="size-5 rounded-none border-[1.3px] border-[#111] bg-transparent"
+            className="block size-5 shrink-0 rounded-none border-0 bg-transparent p-0 leading-none focus-visible:outline-none"
             style={{ backgroundColor: accepted ? "var(--sky)" : undefined }}
           />
         </span>
