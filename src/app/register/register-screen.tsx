@@ -99,6 +99,7 @@ export function RegisterScreen() {
     params.get("expired") === "1" ? "Session expired. Sign in." : params.get("error"),
   );
   const [emailStep, setEmailStep] = useState<"hidden" | "email" | "code">("hidden");
+  const [signInMail, setSignInMail] = useState(false);
   const [dimConsent, setDimConsent] = useState(false);
   const cards = useAppStore((state) => state.cards);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -112,9 +113,6 @@ export function RegisterScreen() {
 
   const hasCard = deviceHasCard(cards);
   const nextPath = afterAuthPath(params.get("next"));
-  const registerHref = nextPath.startsWith("/save/")
-    ? `/register?next=${encodeURIComponent(nextPath)}`
-    : "/register";
   const googleRedirect = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
   const mergeWarning = hasCard
     ? "This device already has a portfolio. Signing in will not merge it into the existing account."
@@ -306,77 +304,108 @@ export function RegisterScreen() {
   };
 
   if (signinOnly) {
+    const leaveSignInMail = () => {
+      setMessage(null);
+      setSignInMail(false);
+    };
+    const optionClass =
+      "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] text-[#111] uppercase [-webkit-tap-highlight-color:transparent]";
     return (
-      <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
-        <BackButton fallbackHref="/" />
-        <h1 className="text-[32px] font-light leading-tight">Sign in</h1>
-        <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
-          {inApp ? "Enter your email and password." : "Enter your email and password, or use Google."}
-        </p>
-        {inApp ? null : (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void signInExistingGoogle()}
-            className="mt-6 min-w-[160px] self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
-          >
-            Sign in with Google
-          </button>
-        )}
-        <form
-          className="mt-10 flex max-w-xs flex-col"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submitPassword();
-          }}
-        >
-          <label className="text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="signin-email">
-            Email
-          </label>
-          <input
-            id="signin-email"
-            type="email"
-            autoCapitalize="none"
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none"
-          />
-          <label className="mt-4 text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="signin-password">
-            Password
-          </label>
-          <input
-            id="signin-password"
-            type="password"
-            autoCapitalize="none"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none"
-          />
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void forgotPassword()}
-            className="mt-3 self-start text-[13px] font-light underline"
-          >
-            Forgot password
-          </button>
-          <a href={FORGOT_EMAIL} className="mt-3 self-start text-[13px] font-light underline">
-            Forgot your email?
-          </a>
-          <button
-            type="submit"
-            disabled={busy}
-            className="mt-6 min-w-[160px] self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase"
-          >
+      <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
+        <BackButton fallbackHref="/" onBack={signInMail ? leaveSignInMail : undefined} />
+        <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+          <span aria-hidden className="size-[22px]" />
+          <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
             Sign in
-          </button>
-        </form>
-        {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
-        <Link href={registerHref} className="mt-10 self-start text-[14px] font-light underline">
-          New here? Get your portfolio
-        </Link>
+          </h1>
+        </div>
+        {signInMail ? (
+          <form
+            className="mt-8"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submitPassword();
+            }}
+          >
+            <label className="text-[12px] font-normal tracking-[0.08em] text-[#999] uppercase" htmlFor="signin-email">
+              Email
+            </label>
+            <input
+              id="signin-email"
+              ref={emailRef}
+              type="email"
+              autoCapitalize="none"
+              autoComplete="email"
+              aria-label="Email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+            />
+            <label className="mt-8 block text-[12px] font-normal tracking-[0.08em] text-[#999] uppercase" htmlFor="signin-password">
+              Password
+            </label>
+            <input
+              id="signin-password"
+              type="password"
+              autoCapitalize="none"
+              autoComplete="current-password"
+              aria-label="Password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+            />
+            <p className="mt-6 text-[13px] font-normal text-[#111]">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void forgotPassword()}
+                className="underline decoration-[0.5px] underline-offset-[3px] disabled:opacity-40"
+                style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
+              >
+                Forgot password
+              </button>
+              <span className="text-[#c2c2c2]"> / </span>
+              <a
+                href={FORGOT_EMAIL}
+                className="underline decoration-[0.5px] underline-offset-[3px]"
+                style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
+              >
+                Forgot email
+              </a>
+            </p>
+            <button
+              type="submit"
+              disabled={busy}
+              className="mt-8 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase shadow-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+            >
+              Sign in
+            </button>
+          </form>
+        ) : (
+          <div className="mt-8">
+            {inApp ? null : (
+              <>
+                <button type="button" onClick={() => void signInExistingGoogle()} className={optionClass}>
+                  Sign in with Google
+                </button>
+                <div className="border-t-[0.5px] border-[#d7d7d7]" />
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setMessage(null);
+                setSignInMail(true);
+                window.setTimeout(() => emailRef.current?.focus(), 0);
+              }}
+              className={optionClass}
+            >
+              Sign in with email
+            </button>
+            <div className="border-t-[0.5px] border-[#d7d7d7]" />
+          </div>
+        )}
+        {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug text-[#111]">{message}</p> : null}
       </main>
     );
   }
