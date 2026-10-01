@@ -95,6 +95,9 @@ export function RegisterScreen() {
 
   const hasCard = serverHasCard || deviceHasCard(cards);
   const nextPath = afterAuthPath(params.get("next"));
+  const registerHref = nextPath.startsWith("/save/")
+    ? `/register?next=${encodeURIComponent(nextPath)}`
+    : "/register";
   const googleRedirect = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
   const mergeWarning = hasCard
     ? "This device already has a portfolio. Signing in will not merge it into the existing account."
@@ -331,6 +334,9 @@ export function RegisterScreen() {
           </button>
         </form>
         {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
+        <Link href={registerHref} className="mt-10 self-start text-[14px] font-light underline">
+          New here? Get your portfolio
+        </Link>
       </main>
     );
   }
