@@ -448,14 +448,17 @@ function AddLine({
       <div ref={anchorRef} className="h-0" aria-hidden />
       {open
         ? createPortal(
-            // Sky from the line to the screen bottom, so nothing of the card shows
-            // between the line and the keyboard or through the keyboard's glass.
+            // White from the line to the screen bottom. A short fade above the text dissolves the header.
             <div
               ref={lineRef}
               data-no-swipe
-              className="fixed inset-x-0 bottom-0 z-50 bg-sky"
+              className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
               style={{ paddingBottom: dockBottom }}
             >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
+              />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
                 {hint ? <p className="pt-2 text-[12px] font-light leading-snug text-[#111]">{hint}</p> : null}
@@ -644,9 +647,13 @@ function EditRow({
         ? createPortal(
             <div
               data-no-swipe
-              className="fixed inset-x-0 bottom-0 z-50 bg-sky"
+              className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
               style={{ paddingBottom: dockBottom }}
             >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
+              />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 <div className="flex flex-col justify-end border-b-[0.5px] border-[#111]">
                   <textarea
