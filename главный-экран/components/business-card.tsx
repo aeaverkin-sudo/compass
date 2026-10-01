@@ -922,7 +922,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             )}
             {fillHint ? (
               <p className="mt-5 max-w-[240px] bg-sky px-3 py-2.5 text-center text-[13px] leading-[1.35] font-normal text-[#111]">
-                Add contacts, professional details, and files.
+                Add your contacts, links, professional details, social media, and files.
               </p>
             ) : null}
           </div>
