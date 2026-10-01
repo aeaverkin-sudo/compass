@@ -290,12 +290,14 @@ export function ProfileScreen() {
         ) : account.provider === "email" ? null : (
           <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
         )}
-        <p className="mt-3 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
-          <button type="button" disabled className="underline disabled:opacity-40">
-            Export my data
-          </button>
-        </p>
-        <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
+        <div className="hidden">
+          <p className="mt-3 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+            <button type="button" disabled className="underline disabled:opacity-40">
+              Export my data
+            </button>
+          </p>
+          <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
+        </div>
         <p className="mt-3 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
           <Link href="/account/delete" className="underline">
             Delete account
