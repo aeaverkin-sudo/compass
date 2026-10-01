@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 type BackButtonProps = {
   /** Where to go when this page was opened directly and there is no previous screen. */
   fallbackHref: string;
+  /** Stay on this page and step back inside it. History is used when this is absent. */
+  onBack?: () => void;
 };
 
 const SHOW_MS = 150;
@@ -19,7 +21,7 @@ const MOVE_PX = 8;
  * content so it stays clear of the arrow.
  * A scroll, or a touch that moves, fades the arrow. It returns when the motion stops.
  */
-export function BackButton({ fallbackHref }: BackButtonProps) {
+export function BackButton({ fallbackHref, onBack }: BackButtonProps) {
   const router = useRouter();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const idleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -28,6 +30,10 @@ export function BackButton({ fallbackHref }: BackButtonProps) {
   const [reduce, setReduce] = useState(false);
 
   const go = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
     if (window.history.length > 1) router.back();
     else router.push(fallbackHref);
   };

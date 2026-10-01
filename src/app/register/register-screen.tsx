@@ -384,18 +384,103 @@ export function RegisterScreen() {
     );
   }
 
-  const ink = accepted ? "#111" : "#bdbdbd";
-  const rule = accepted ? "#d7d7d7" : "#bdbdbd";
   const openEmail = () => {
     if (!gate()) return;
-    if (emailStep === "hidden") {
+    setMessage(null);
+    setEmailStep("email");
+    window.setTimeout(() => emailRef.current?.focus(), 0);
+  };
+
+  const leaveEmailStep = () => {
+    setMessage(null);
+    if (emailStep === "code") {
       setEmailStep("email");
       window.setTimeout(() => emailRef.current?.focus(), 0);
       return;
     }
-    if (emailStep === "email") void submitEmail();
-    else void submitCode();
+    setEmailStep("hidden");
   };
+
+  if (emailStep !== "hidden") {
+    const onCode = emailStep === "code";
+    return (
+      <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
+        <BackButton fallbackHref="/" onBack={leaveEmailStep} />
+        <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+          <span aria-hidden className="size-[22px]" />
+          <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
+            Registration
+          </h1>
+        </div>
+        <form
+          className="mt-8"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (onCode) void submitCode();
+            else void submitEmail();
+          }}
+        >
+          <label className="text-[12px] font-normal tracking-[0.08em] text-[#999] uppercase" htmlFor="register-email-field">
+            {onCode ? "Code" : "Email"}
+          </label>
+          {onCode ? (
+            <input
+              id="register-email-field"
+              ref={codeRef}
+              inputMode="text"
+              autoCapitalize="characters"
+              autoComplete="one-time-code"
+              aria-label="Code"
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              placeholder="Code"
+              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[0.2em] text-[#111] caret-[#111] outline-none placeholder:tracking-normal placeholder:text-[#999]"
+            />
+          ) : (
+            <input
+              id="register-email-field"
+              ref={emailRef}
+              type="email"
+              autoCapitalize="none"
+              autoComplete="email"
+              aria-label="Email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="Email"
+              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[#999]"
+            />
+          )}
+          <p className="mt-3 text-[13px] leading-[1.45] font-normal text-[#999]">
+            {onCode
+              ? `Sent to ${email.trim()}. This code is your password.`
+              : "We'll email a one-time code to this address. The code becomes your password."}
+          </p>
+          <button
+            type="submit"
+            disabled={busy || (onCode ? code.trim() === "" : email.trim() === "")}
+            className="mt-8 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase shadow-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+          >
+            Continue
+          </button>
+          {onCode ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void submitEmail()}
+              className="mt-10 block text-[13px] font-normal text-[#111] underline decoration-[0.5px] underline-offset-[3px] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+              style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
+            >
+              Resend code
+            </button>
+          ) : null}
+        </form>
+        {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug text-[#111]">{message}</p> : null}
+      </main>
+    );
+  }
+
+  const ink = accepted ? "#111" : "#bdbdbd";
+  const rule = accepted ? "#d7d7d7" : "#bdbdbd";
 
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
@@ -436,47 +521,6 @@ export function RegisterScreen() {
         >
           Email registration
         </button>
-        {emailStep !== "hidden" ? (
-          <form
-            className="px-2 pb-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (emailStep === "code") void submitCode();
-              else void submitEmail();
-            }}
-          >
-            <input
-              ref={emailRef}
-              type="email"
-              autoCapitalize="none"
-              autoComplete="email"
-              aria-label="Email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              disabled={emailStep === "code"}
-              placeholder="Email"
-              className="w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-light text-[#111] outline-none placeholder:text-[#999] disabled:opacity-60"
-            />
-            {emailStep === "code" ? (
-              <>
-                <p className="mt-4 text-[13px] leading-[1.45] font-light text-[#111]">
-                  We sent a code. It is your password. Enter it to finish.
-                </p>
-                <input
-                  ref={codeRef}
-                  inputMode="text"
-                  autoCapitalize="characters"
-                  autoComplete="one-time-code"
-                  aria-label="Code"
-                  value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  placeholder="Code"
-                  className="mt-3 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] text-[#111] outline-none placeholder:tracking-normal placeholder:text-[#999]"
-                />
-              </>
-            ) : null}
-          </form>
-        ) : null}
         <div className="border-t-[0.5px] transition-colors duration-200" style={{ borderColor: rule }} />
 
         <button
