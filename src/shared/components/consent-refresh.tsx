@@ -6,9 +6,29 @@ import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { CONSENT_ACCEPTED_EVENT, CONSENT_VERSION } from "@/shared/services/consent";
 import { recordConsent } from "@/shared/services/consent-client";
 
+function versionParts(value: string) {
+  return value.split(".").map((part) => Number(part));
+}
+
+/** A stored acceptance is older only when every part parses and one is behind the current text. */
+function isOlderConsent(stored: string | null, current: string) {
+  if (!stored) return false;
+  const left = versionParts(stored);
+  const right = versionParts(current);
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const earlier = left[index] ?? 0;
+    const later = right[index] ?? 0;
+    if (!Number.isFinite(earlier) || !Number.isFinite(later)) return false;
+    if (earlier < later) return true;
+    if (earlier > later) return false;
+  }
+  return false;
+}
+
 /**
- * Returning people who accepted an older text see this once, on the next entry.
- * New acceptance writes version 1.0. Terms and Privacy stay readable underneath via their own routes.
+ * A registered profile that already accepted an older text sees this once, on the next entry.
+ * A missing consent row is a first visit: the landing checkbox handles that.
  */
 export function ConsentRefresh() {
   const account = useAccountStatus();
@@ -17,14 +37,17 @@ export function ConsentRefresh() {
   const [message, setMessage] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  if (done || !account || account.consentVersion === CONSENT_VERSION) return null;
+  const needsRefresh = Boolean(
+    account?.registered && isOlderConsent(account.consentVersion, CONSENT_VERSION),
+  );
+  if (done || !needsRefresh || !account) return null;
 
   const save = async () => {
     if (!accepted || busy) return;
     setBusy(true);
     setMessage(null);
     try {
-      await recordConsent(account.registered ? "register" : "trial");
+      await recordConsent("register");
       window.dispatchEvent(new CustomEvent(CONSENT_ACCEPTED_EVENT, { detail: CONSENT_VERSION }));
       setDone(true);
     } catch (error) {
