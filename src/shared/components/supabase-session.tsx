@@ -17,6 +17,10 @@ function restoreRegisteredOnboarding(isAnonymous: boolean) {
   if (isAnonymous) return;
   const state = useAppStore.getState();
   if (state.user.onboarded) return;
+  const hasPortfolio = state.cards.some(
+    (card) => card.displayName.trim().length > 0 || Boolean(card.photoAttachmentId),
+  );
+  if (!hasPortfolio) return;
   useAppStore.setState({ user: { ...state.user, onboarded: true } });
 }
 
@@ -49,6 +53,7 @@ export function SupabaseSession() {
     if (!url || !anonKey) {
       console.error("[supabase] missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
       markSessionBootstrapComplete();
+      void hydrateCardsFromServer();
       return;
     }
 
@@ -91,6 +96,7 @@ export function SupabaseSession() {
         const { data, error } = await supabase.auth.signInAnonymously();
         if (error || !data.user) {
           console.error("[supabase] anonymous sign-in failed", error?.message ?? "no user");
+          void hydrateCardsFromServer();
           return;
         }
 

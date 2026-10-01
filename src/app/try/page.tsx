@@ -10,7 +10,7 @@ import { isCardReady, useAppStore } from "@/shared/store/app-store";
 
 /**
  * Trial entry from Try it on a shared link or PDF.
- * An anonymous session, then the existing landing: plus, name, and the Sign in / About band.
+ * An anonymous session, then the existing landing: plus and name.
  * A phone that already flipped onboarded without a finished portfolio still sees that landing.
  * The 24h clock still starts on Confirm.
  */

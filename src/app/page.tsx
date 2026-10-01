@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LandingPage } from "@landing/components/landing-page";
+import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
@@ -12,6 +13,7 @@ export default function Home() {
   const hydrated = useStoreHydrated();
   const sessionReady = useSessionBootstrap();
   const needsSignIn = useRegistrationRequired();
+  const cardsReady = useCardsHydrated();
   const onboarded = useAppStore((state) => state.user.onboarded);
 
   useEffect(() => {
@@ -20,10 +22,11 @@ export default function Home() {
       router.replace("/register?expired=1");
       return;
     }
+    if (!cardsReady) return;
     if (onboarded) router.replace("/main");
-  }, [hydrated, sessionReady, needsSignIn, onboarded, router]);
+  }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, router]);
 
-  if (!hydrated || !sessionReady || needsSignIn || onboarded) {
+  if (!hydrated || !sessionReady || needsSignIn || !cardsReady || onboarded) {
     return <div className="h-lvh bg-background" aria-hidden />;
   }
 

@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sheet, SheetContent } from "@/shared/components/ui/sheet";
-import { ConsentLine } from "@/shared/components/consent-line";
 import { NameOrTitleField } from "@/shared/components/name-or-title-field";
+import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { recordConsent } from "@/shared/services/consent-client";
 import { startTrialClock } from "@/shared/services/trial-client";
@@ -25,8 +23,6 @@ export function LandingPage() {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [accepted, setAccepted] = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
 
   const completeOnboarding = useAppStore((state) => state.completeOnboarding);
 
@@ -45,29 +41,34 @@ export function LandingPage() {
   }, [ready]);
 
   const handleConfirm = () => {
-    if (saving || !photo || !photoFile || !isFilled(name) || !accepted) return;
+    if (saving || !photo || !photoFile || !isFilled(name)) return;
     const existingId = useAppStore.getState().cards[0]?.id;
     const cardId =
       existingId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existingId)
         ? existingId
         : crypto.randomUUID();
+    const file = photoFile;
+    const displayName = name.trim();
     setSaving(true);
     setSaveError(null);
-    void recordConsent("trial")
-      .then(() => startTrialClock())
-      .then(() => uploadAttachment({ file: photoFile, kind: "card-photo", cardId }))
-      .then((ready) => {
-        completeOnboarding({
-          displayName: name.trim(),
-          photoAttachmentId: ready.attachmentId,
-          cardId,
-        });
-        router.push("/main");
-      })
-      .catch((error: unknown) => {
-        setSaving(false);
-        setSaveError(error instanceof Error ? error.message : "Could not save the photo");
+    void (async () => {
+      const { data } = await createBrowserSupabaseClient().auth.getUser();
+      const registered = Boolean(data.user && !data.user.is_anonymous);
+      if (!registered) {
+        await recordConsent("trial");
+        await startTrialClock();
+      }
+      const uploaded = await uploadAttachment({ file, kind: "card-photo", cardId });
+      completeOnboarding({
+        displayName,
+        photoAttachmentId: uploaded.attachmentId,
+        cardId,
       });
+      router.push("/main");
+    })().catch((error: unknown) => {
+      setSaving(false);
+      setSaveError(error instanceof Error ? error.message : "Could not save the photo");
+    });
   };
 
   return (
@@ -101,55 +102,8 @@ export function LandingPage() {
         {saveError ? (
           <p className="mb-3 px-6 text-center text-[12px] leading-snug text-[#111]">{saveError}</p>
         ) : null}
-        {ready ? (
-          <>
-            <ConsentLine checked={accepted} onCheckedChange={setAccepted} />
-            <ConfirmButton onClick={handleConfirm} disabled={!accepted || saving} />
-          </>
-        ) : null}
+        {ready ? <ConfirmButton onClick={handleConfirm} disabled={saving} /> : null}
       </div>
-      {/* Locked landing band: Sign in opens the existing login, About stays the short description. */}
-      <nav
-        className="compass-sky-band bg-sky px-[calc(clamp(24px,6.1vw,28px)-3mm)] text-[12px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase"
-        style={{ paddingBottom: "var(--band-safe, 0px)" }}
-      >
-        <div className="grid grid-cols-2 items-baseline">
-          <Link href="/register?signin=1" className="justify-self-start px-2 py-4">
-            Sign in
-          </Link>
-          <button type="button" className="justify-self-end px-2 py-4 uppercase" onClick={() => setAboutOpen(true)}>
-            About
-          </button>
-        </div>
-      </nav>
-      <Sheet open={aboutOpen} onOpenChange={setAboutOpen}>
-        <SheetContent aria-label="About">
-          <p className="max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
-            Aded.me — Every version of you. One library.
-            <br />
-            A portfolio for every room.
-          </p>
-          <p className="mt-3 max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
-            Build a few cards. Share them in seconds.
-          </p>
-          <p className="mt-3 max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
-            Everyone you meet gets a link or PDF of you — your work, links, socials, files, playlists — so you never
-            get lost in their phone.
-          </p>
-          <p className="mt-3 max-w-sm text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
-            Made for events, parties, and every good introduction.
-          </p>
-          <p className="mt-4 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
-            <Link href="/terms" className="underline">
-              Terms
-            </Link>
-            {" · "}
-            <Link href="/privacy" className="underline">
-              Privacy
-            </Link>
-          </p>
-        </SheetContent>
-      </Sheet>
     </main>
   );
 }

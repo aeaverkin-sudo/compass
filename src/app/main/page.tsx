@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainScreen } from "@main/components/main-screen";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
+import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
@@ -22,6 +23,7 @@ export default function MainPage() {
   const hydrated = useStoreHydrated();
   const sessionReady = useSessionBootstrap();
   const needsSignIn = useRegistrationRequired();
+  const cardsReady = useCardsHydrated();
   const onboarded = useAppStore((state) => state.user.onboarded);
 
   useEffect(() => {
@@ -34,10 +36,11 @@ export default function MainPage() {
       router.replace("/register?expired=1");
       return;
     }
+    if (!cardsReady) return;
     if (!onboarded) router.replace("/");
-  }, [hydrated, sessionReady, needsSignIn, onboarded, router]);
+  }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, router]);
 
-  if (!hydrated || !sessionReady || needsSignIn || !onboarded) {
+  if (!hydrated || !sessionReady || needsSignIn || !cardsReady || !onboarded) {
     return <div className="compass-main fixed inset-y-0 bg-background" aria-hidden />;
   }
 
