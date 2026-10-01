@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BackButton } from "@/shared/components/back-button";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { Switch } from "@/shared/components/ui/switch";
@@ -63,14 +63,16 @@ function Zone({
   children,
   align = "baseline",
   rule = false,
+  id,
 }: {
   label: string;
   children: ReactNode;
   align?: "baseline" | "start";
   rule?: boolean;
+  id?: string;
 }) {
   return (
-    <section className={cn("min-w-0 py-[18px]", rule && "border-b-[0.5px] border-[#111]")}>
+    <section id={id} className={cn("min-w-0 py-[18px]", id && "scroll-mt-16", rule && "border-b-[0.5px] border-[#111]")}>
       <div
         className={cn(
           "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]",
@@ -113,6 +115,11 @@ export function ProfileScreen() {
     await createBrowserSupabaseClient().auth.signOut();
     router.push("/");
   };
+
+  useEffect(() => {
+    if (window.location.hash !== "#subscription") return;
+    document.getElementById("subscription")?.scrollIntoView();
+  }, [account]);
 
   if (!account || !signedIn) {
     return (
@@ -163,7 +170,7 @@ export function ProfileScreen() {
         </p>
       </Zone>
 
-      <Zone label="Subscription" rule>
+      <Zone id="subscription" label="Subscription" rule>
         <p className={ZONE_VALUE}>{planTitle(account.plan)}</p>
         <ul className="mt-2 space-y-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
           <li>

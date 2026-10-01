@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { BackButton } from "@/shared/components/back-button";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
@@ -67,7 +68,15 @@ export function DataScreen() {
         <Metric value={shown(stats?.saved)} label="Saved" rule={false} />
 
         <div className="mt-8">
-          <p className={LABEL}>Available in Pro</p>
+          <p className={LABEL}>
+            Available in{" "}
+            <Link
+              href="/profile#subscription"
+              className="underline decoration-[#999] decoration-[0.5px] underline-offset-[3px]"
+            >
+              Pro
+            </Link>
+          </p>
           <div className="mt-3 border-t-[0.5px] border-[#111]" />
           <div className="py-[18px]">
             <p className={LABEL}>Link opens</p>
