@@ -58,7 +58,7 @@ export function DataScreen() {
         <BackButton fallbackHref="/network" />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />
-          <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
+          <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
             Data
           </h1>
         </div>
@@ -94,7 +94,7 @@ export function DataScreen() {
           </div>
         </div>
       </div>
-      <NetworkTabs active="data" />
+      <NetworkTabs />
     </main>
   );
 }
