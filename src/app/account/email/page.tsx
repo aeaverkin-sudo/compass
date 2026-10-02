@@ -66,8 +66,8 @@ export default function ChangeEmailPage() {
   return (
     <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
       <BackButton fallbackHref="/profile" />
-      <h1 className="text-[32px] font-light leading-tight">Email</h1>
-      <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
+      <h1 className="t-name">Email</h1>
+      <p className="mt-3 max-w-xs t-meta">
         {step === "email"
           ? "A code goes to the new address. Your password stays."
           : "Enter the code from the new address."}
@@ -80,7 +80,7 @@ export default function ChangeEmailPage() {
           else void verify();
         }}
       >
-        <label className="text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="change-email">
+        <label className="t-label" htmlFor="change-email">
           Email
         </label>
         <input
@@ -91,11 +91,11 @@ export default function ChangeEmailPage() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           disabled={step === "code"}
-          className="mt-2 border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-light outline-none disabled:opacity-60"
+          className="mt-2 border-b border-[var(--rule)] bg-transparent py-2 t-body outline-none disabled:opacity-60"
         />
         {step === "code" ? (
           <>
-            <label className="mt-4 text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="change-code">
+            <label className="mt-4 t-label" htmlFor="change-code">
               Code
             </label>
             <input
@@ -104,19 +104,19 @@ export default function ChangeEmailPage() {
               autoComplete="one-time-code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              className="mt-2 border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
+              className="mt-2 border-b border-[var(--rule)] bg-transparent py-2 t-body outline-none"
             />
           </>
         ) : null}
         <button
           type="submit"
           disabled={busy}
-          className="mt-6 self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+          className="mt-6 self-start border-0 bg-sky px-6 py-3 t-caps disabled:opacity-40"
         >
           {step === "email" ? "Continue" : "Save"}
         </button>
       </form>
-      {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
+      {message ? <p className="mt-6 max-w-xs t-meta">{message}</p> : null}
     </main>
   );
 }

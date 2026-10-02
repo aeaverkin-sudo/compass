@@ -9,11 +9,11 @@ import { NetworkBand } from "@/app/network/network-band";
 type Step = "entry" | "create" | "join";
 
 const TITLE =
-  "text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase";
+  "text-center t-caps text-[var(--ink)]";
 const ROW =
-  "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] text-[#111] uppercase [-webkit-tap-highlight-color:transparent]";
+  "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 const ENTRY_ROW =
-  "flex w-full items-center justify-center px-2 py-3 text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase [-webkit-tap-highlight-color:transparent]";
+  "flex w-full items-center justify-center px-2 py-3 text-center t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 const CREATE_FIELDS = ["Name", "Logo", "Description", "Date", "Place"] as const;
 const JOIN_OPTIONS = ["Scan QR code", "Enter code", "Open invite link"] as const;
 
@@ -98,7 +98,7 @@ export function EventEntryScreen() {
           <>
             <StickList rows={JOIN_OPTIONS.map((label) => ({ label, onClick: () => setStub(label) }))} />
             {stub ? (
-              <p className="mt-8 text-center text-[13px] leading-[1.45] font-normal text-[var(--grey)]">{stub} — coming soon</p>
+              <p className="mt-8 text-center t-meta text-[var(--grey)]">{stub} — coming soon</p>
             ) : null}
           </>
         ) : null}

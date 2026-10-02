@@ -24,7 +24,7 @@ export function SkyToast({ text, onDone }: SkyToastProps) {
 
   return (
     <p
-      className="pointer-events-none fixed top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center text-[16px] font-normal leading-snug text-[#111]"
+      className="pointer-events-none fixed top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center t-body text-[var(--ink)]"
       style={{ opacity: shown ? 1 : 0, transition: "opacity 2s ease" }}
     >
       {text}

@@ -24,7 +24,7 @@ export default async function NetworkCardPage({ params }: PageProps) {
     return (
       <main className="compass-main flex min-h-lvh flex-col items-center justify-center bg-white px-8">
         <BackButton fallbackHref="/network" />
-        <p className="text-center text-[18px] font-light text-[#111]">Portfolio inactive</p>
+        <p className="text-center t-body text-[var(--ink)]">Portfolio inactive</p>
       </main>
     );
   }

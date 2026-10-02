@@ -18,9 +18,9 @@ import { isCardReady, isSolePublic, useAppStore } from "@/shared/store/app-store
 import { cn } from "@/lib/utils";
 
 const ZONE_LABEL =
-  "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[var(--grey)] uppercase";
+  "t-label whitespace-nowrap";
 const ZONE_VALUE =
-  "min-w-0 break-words text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]";
+  "min-w-0 break-words t-body text-[var(--ink)]";
 
 function formatBytes(bytes: number) {
   if (bytes <= 0) return "0 MB";
@@ -49,7 +49,7 @@ function ProfileShell({ children }: { children: ReactNode }) {
       <BackButton fallbackHref="/main" />
       <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
         <span aria-hidden className="size-[22px]" />
-        <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
+        <h1 className="text-center t-caps text-[var(--ink)]">
           Profile
         </h1>
       </div>
@@ -140,7 +140,7 @@ export function ProfileScreen() {
             <p className={ZONE_VALUE}>{trialLine(account.hoursLeft)}</p>
             <Link
               href="/register"
-              className="mt-6 inline-block border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase"
+              className="mt-6 inline-block border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)]"
             >
               Register
             </Link>
@@ -167,7 +167,7 @@ export function ProfileScreen() {
               ? `Signed in as ${account.email}.`
               : "Signed in."}
         </p>
-        <p className="mt-3 flex gap-4 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+        <p className="mt-3 flex gap-4 t-body">
           {canChangePassword ? (
             <Link href="/account/password" className="underline">
               Change password
@@ -181,7 +181,7 @@ export function ProfileScreen() {
 
       <Zone id="subscription" label="Subscription" rule>
         <p className={ZONE_VALUE}>{planTitle(account.plan)}</p>
-        <ul className="mt-2 space-y-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
+        <ul className="mt-2 space-y-1 t-body text-[var(--ink)]">
           <li>
             Free — {account.catalog.free.portfolios} portfolios, {formatBytes(account.catalog.free.bytes)}
           </li>
@@ -192,11 +192,11 @@ export function ProfileScreen() {
         <button
           type="button"
           disabled
-          className="mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] text-[11.7px] font-normal tracking-[0.14em] text-[#111] uppercase disabled:opacity-100"
+          className="mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-100"
         >
           Upgrade
         </button>
-        <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
+        <p className="mt-2 t-meta text-[var(--ink)]">Coming soon</p>
         {/* Stripe seam: Manage subscription and payment history.
             Checkout and the customer portal will write profiles.plan from a webhook.
             Do not collect card details here. */}
@@ -217,11 +217,11 @@ export function ProfileScreen() {
                   <span className="size-12 shrink-0 border border-[#d4d4d4]" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+                  <p className="truncate t-body">
                     {card.displayName.trim() || "Untitled"}
                   </p>
                   <div className="mt-2 flex items-center gap-3">
-                    <span className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[var(--grey)] uppercase">
+                    <span className="t-label">
                       {isPublic ? "Public" : "Private"}
                     </span>
                     <Switch
@@ -235,18 +235,18 @@ export function ProfileScreen() {
                   {ready ? (
                     <>
                       {locked ? (
-                        <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">
+                        <p className="mt-2 t-meta text-[var(--ink)]">
                           Your main portfolio is always public — it's how people find you.
                         </p>
                       ) : null}
-                      <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">
+                      <p className="mt-2 t-meta text-[var(--ink)]">
                         {isPublic
                           ? "Public — people you've connected with can see this portfolio behind your others, and find it in search."
                           : "Private — reachable only by its direct link or QR. Kept off your profile and out of search."}
                       </p>
                     </>
                   ) : (
-                    <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">
+                    <p className="mt-2 t-meta text-[var(--ink)]">
                       Inactive until you add a name and a photo.
                     </p>
                   )}
@@ -258,7 +258,7 @@ export function ProfileScreen() {
         <button
           type="button"
           disabled={atCardLimit || portfolioLimit === null}
-          className="mt-6 border-0 bg-sky px-[21.6px] py-[10.8px] text-[11.7px] font-normal tracking-[0.14em] text-[#111] uppercase disabled:opacity-40"
+          className="mt-6 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40"
           onClick={() => {
             if (portfolioLimit === null) return;
             updateSecondCardDraft({ displayName: "" }, portfolioLimit);
@@ -271,20 +271,20 @@ export function ProfileScreen() {
 
       <Zone label="Usage" rule>
         <p className={ZONE_VALUE}>{storageLine(account.bytesUsed, account.bytesLimit)}</p>
-        <p className="mt-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
+        <p className="mt-1 t-body text-[var(--ink)]">
           {cards.length} of {portfolioLimit ?? "…"} portfolios
         </p>
         {nearPortfolio ? (
-          <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">One portfolio left on this plan.</p>
+          <p className="mt-2 t-meta text-[var(--ink)]">One portfolio left on this plan.</p>
         ) : null}
         {nearStorage ? (
-          <p className="mt-2 text-[13px] leading-[1.45] font-normal text-[#111]">Storage is nearly full.</p>
+          <p className="mt-2 t-meta text-[var(--ink)]">Storage is nearly full.</p>
         ) : null}
       </Zone>
 
       <Zone label="Color" rule>
         <div className="flex items-center gap-3">
-          <span className="text-[13px] leading-[1.45] font-normal tracking-[0.18em] text-[var(--grey)] uppercase">
+          <span className="t-caps text-[var(--grey)]">
             C mode
           </span>
           <Switch
@@ -292,7 +292,7 @@ export function ProfileScreen() {
             onCheckedChange={(checked) => setMonochrome(checked === true)}
             aria-label={monochrome ? "BW mode" : "C mode"}
           />
-          <span className="text-[13px] leading-[1.45] font-normal tracking-[0.18em] text-[var(--grey)] uppercase">
+          <span className="t-caps text-[var(--grey)]">
             BW mode
           </span>
         </div>
@@ -311,19 +311,19 @@ export function ProfileScreen() {
           )}
         </p>
         {account.provider === "google" ? (
-          <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Managed by Google</p>
+          <p className="mt-1 t-meta text-[var(--ink)]">Managed by Google</p>
         ) : account.provider === "email" ? null : (
-          <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
+          <p className="mt-1 t-meta text-[var(--ink)]">Coming soon</p>
         )}
         <div className="hidden">
-          <p className="mt-3 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+          <p className="mt-3 t-body">
             <button type="button" disabled className="underline disabled:opacity-40">
               Export my data
             </button>
           </p>
-          <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#111]">Coming soon</p>
+          <p className="mt-1 t-meta text-[var(--ink)]">Coming soon</p>
         </div>
-        <p className="mt-3 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em]">
+        <p className="mt-3 t-body">
           <Link href="/account/delete" className="underline">
             Delete account
           </Link>
@@ -340,11 +340,11 @@ export function ProfileScreen() {
             Privacy
           </Link>
         </p>
-        <p className="mt-2 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
+        <p className="mt-2 t-body text-[var(--ink)]">
           {account.consentVersion ? `Consent v${account.consentVersion}` : "Not recorded"}
         </p>
-        <p className="mt-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">App {APP_VERSION}</p>
-        <p className="mt-1 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">
+        <p className="mt-1 t-body text-[var(--ink)]">App {APP_VERSION}</p>
+        <p className="mt-1 t-body text-[var(--ink)]">
           <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
             {SUPPORT_EMAIL}
           </a>

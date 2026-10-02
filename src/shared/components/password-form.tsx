@@ -39,8 +39,8 @@ export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }
   return (
     <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
       <BackButton fallbackHref={fallbackHref} />
-      <h1 className="text-[32px] font-light leading-tight">{title}</h1>
-      <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">{hint}</p>
+      <h1 className="t-name">{title}</h1>
+      <p className="mt-3 max-w-xs t-meta">{hint}</p>
       <form
         className="mt-8 flex max-w-xs flex-col"
         onSubmit={(event) => {
@@ -48,7 +48,7 @@ export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }
           void save();
         }}
       >
-        <label className="text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="new-password">
+        <label className="t-label" htmlFor="new-password">
           New password
         </label>
         <input
@@ -58,17 +58,17 @@ export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }
           autoComplete="new-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="mt-2 border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-light outline-none"
+          className="mt-2 border-b border-[var(--rule)] bg-transparent py-2 t-body outline-none"
         />
         <button
           type="submit"
           disabled={busy}
-          className="mt-6 self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+          className="mt-6 self-start border-0 bg-sky px-6 py-3 t-caps disabled:opacity-40"
         >
           Save
         </button>
       </form>
-      {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
+      {message ? <p className="mt-6 max-w-xs t-meta">{message}</p> : null}
     </main>
   );
 }

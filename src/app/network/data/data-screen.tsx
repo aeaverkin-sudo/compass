@@ -7,7 +7,7 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
 import { NetworkBand } from "../network-band";
 
-const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[var(--grey)] uppercase";
+const LABEL = "t-label";
 
 type LinkOpen = {
   label: string;
@@ -40,10 +40,10 @@ function Metric({
   const notes = note == null ? [] : Array.isArray(note) ? note : [note];
   return (
     <div className={rule ? "border-b border-[var(--rule)] py-[18px]" : "py-[18px]"}>
-      <p className="text-[32px] leading-none font-light text-[#111]">{value}</p>
+      <p className="text-[32px] leading-none font-light text-[var(--ink)]">{value}</p>
       <p className={`mt-2 ${LABEL}`}>{label}</p>
       {notes.map((line, index) => (
-        <p key={`${line}-${index}`} className="mt-1 text-[13px] leading-[1.45] font-normal text-[var(--grey)]">
+        <p key={`${line}-${index}`} className="mt-1 t-meta text-[var(--grey)]">
           {line}
         </p>
       ))}
@@ -93,7 +93,7 @@ export function DataScreen() {
         <BackButton fallbackHref="/main" onBack={() => router.push("/main")} />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />
-          <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
+          <h1 className="text-center t-caps text-[var(--ink)]">
             Data
           </h1>
         </div>
@@ -111,7 +111,7 @@ export function DataScreen() {
               {links.map((row, index) => (
                 <li
                   key={`${row.label}-${index}`}
-                  className="flex items-baseline justify-between gap-4 text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]"
+                  className="flex items-baseline justify-between gap-4 t-body text-[var(--ink)]"
                 >
                   <span className="min-w-0 truncate">{row.label}</span>
                   <span>{row.count}</span>

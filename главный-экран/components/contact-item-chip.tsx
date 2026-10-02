@@ -166,7 +166,7 @@ function EditorialValue({
   );
   const choose = onChooseHeader && isHeaderRole(row);
   const body = (
-    <span className="block min-w-0 break-words text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] no-underline">
+    <span className="block min-w-0 break-words t-body text-[var(--ink)] no-underline">
       {row.axis ? (
         <>
           {row.axis}
@@ -456,7 +456,7 @@ export function ContactItemChipList({
             )}
           >
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
-              <span className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[var(--grey)] uppercase">
+              <span className="t-label whitespace-nowrap">
                 {zone.title}
               </span>
               <div className="flex min-w-0 flex-col gap-[6px]">
@@ -521,7 +521,7 @@ export function ContactItemChipList({
               <Fragment key={row.key}>
                 <span
                   className={cn(
-                    "pt-1 text-[11px] font-normal leading-none tracking-[0.1em] whitespace-nowrap text-[var(--grey)] uppercase",
+                    "pt-1 t-label whitespace-nowrap",
                     zoneGap && "mt-3",
                   )}
                 >
@@ -540,7 +540,7 @@ export function ContactItemChipList({
                     color: "#111",
                   }}
                   className={cn(
-                    "min-w-0 text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]",
+                    "min-w-0 t-meta text-[var(--ink)]",
                     zoneGap && "mt-3",
                   )}
                   onChooseHeader={onChooseHeader}

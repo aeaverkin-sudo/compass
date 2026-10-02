@@ -124,14 +124,14 @@ export function PdfPreviewHost() {
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
       <div className="flex items-center justify-between gap-4 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
-        <p className="min-w-0 truncate text-[14px] font-normal text-[#111]">{file.name}</p>
+        <p className="min-w-0 truncate t-meta text-[var(--ink)]">{file.name}</p>
         <div className="flex shrink-0 items-center gap-5">
           {file.blob && typeof navigator.share === "function" ? (
-            <button type="button" onClick={share} className="text-[14px] font-normal text-[#111] underline">
+            <button type="button" onClick={share} className="t-meta text-[var(--ink)] underline">
               Share
             </button>
           ) : null}
-          <button type="button" onClick={close} className="text-[14px] font-normal text-[#111] underline">
+          <button type="button" onClick={close} className="t-meta text-[var(--ink)] underline">
             Close
           </button>
         </div>
@@ -151,10 +151,10 @@ export function PdfPreviewHost() {
       >
         <div ref={pagesRef} />
         {!file.blob && !failed ? (
-          <p className="px-5 py-8 text-center text-[14px] font-normal text-[#111]">Opening…</p>
+          <p className="px-5 py-8 text-center t-meta text-[var(--ink)]">Opening…</p>
         ) : null}
         {failed ? (
-          <p className="px-5 py-8 text-center text-[14px] font-normal text-[#111]">Could not open this PDF.</p>
+          <p className="px-5 py-8 text-center t-meta text-[var(--ink)]">Could not open this PDF.</p>
         ) : null}
       </div>
     </div>

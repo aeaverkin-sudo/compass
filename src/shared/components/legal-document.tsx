@@ -28,7 +28,7 @@ export function LegalDocument({ source }: { source: string }) {
     const items = list;
     list = [];
     blocks.push(
-      <ul key={`list-${blocks.length}`} className="mt-3 list-disc space-y-2 pl-5 text-[15px] leading-[1.45] font-normal">
+      <ul key={`list-${blocks.length}`} className="mt-3 list-disc space-y-2 pl-5 t-body">
         {items.map((item) => (
           <li key={item}>{inline(item)}</li>
         ))}
@@ -45,7 +45,7 @@ export function LegalDocument({ source }: { source: string }) {
     if (line.trim() === "") continue;
     if (line.startsWith("# ")) {
       blocks.push(
-        <h1 key={`h1-${blocks.length}`} className="text-[28px] leading-tight font-light">
+        <h1 key={`h1-${blocks.length}`} className="t-name">
           {inline(line.slice(2))}
         </h1>,
       );
@@ -53,14 +53,14 @@ export function LegalDocument({ source }: { source: string }) {
     }
     if (line.startsWith("## ")) {
       blocks.push(
-        <h2 key={`h2-${blocks.length}`} className="mt-8 text-[16px] leading-snug font-medium">
+        <h2 key={`h2-${blocks.length}`} className="mt-8 t-body">
           {inline(line.slice(3))}
         </h2>,
       );
       continue;
     }
     blocks.push(
-      <p key={`p-${blocks.length}`} className="mt-3 text-[15px] leading-[1.45] font-normal">
+      <p key={`p-${blocks.length}`} className="mt-3 t-body">
         {inline(line)}
       </p>,
     );

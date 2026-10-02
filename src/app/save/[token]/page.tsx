@@ -13,7 +13,7 @@ function ownCard(token: string) {
   return (
     <main className="compass-main flex min-h-lvh flex-col items-center justify-center bg-white px-8">
       <BackButton fallbackHref={`/c/${token}`} />
-      <p className="text-center text-[18px] font-light text-[#111]">This is your card</p>
+      <p className="text-center t-body text-[var(--ink)]">This is your card</p>
     </main>
   );
 }

@@ -167,12 +167,12 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={mediaSrc(viewing)} alt="" className="mb-2 aspect-square w-full object-cover" />
                 ) : (
-                  <p className="mb-2 text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]">{viewing.content}</p>
+                  <p className="mb-2 t-meta text-[var(--ink)]">{viewing.content}</p>
                 )}
                 <button
                   type="button"
                   onClick={() => setViewing(null)}
-                  className="text-[11px] font-normal leading-none tracking-[0.1em] text-[#111] uppercase"
+                  className="t-caps text-[var(--ink)]"
                 >
                   Back
                 </button>
@@ -191,11 +191,11 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                       }}
                       className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     >
-                      <span className="w-4 shrink-0 text-[11px] font-normal leading-none tracking-[0.1em] text-[var(--grey)]">
+                      <span className="w-4 shrink-0 t-label">
                         {index + 1}
                       </span>
                       <NextScanAddonIcon type={addon.type === "selfie" ? "selfie" : "text"} />
-                      <span className="min-w-0 flex-1 truncate whitespace-nowrap text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]">
+                      <span className="min-w-0 flex-1 truncate whitespace-nowrap t-meta text-[var(--ink)]">
                         {addonPreview(addon)}
                       </span>
                     </button>
@@ -226,13 +226,13 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   autoCapitalize="sentences"
                   autoCorrect="off"
                   spellCheck={false}
-                  className="compass-input mb-2 w-full resize-none border-b border-[var(--rule)] bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:tracking-[0.1em] placeholder:text-[var(--grey)] placeholder:uppercase"
+                  className="compass-input mb-2 w-full resize-none border-b border-[var(--rule)] bg-transparent t-meta text-[var(--ink)] outline-none placeholder:t-label"
                 />
                 <button
                   type="button"
                   disabled={!text.trim()}
                   onClick={() => addAddon("text", text.trim())}
-                  className="text-[11px] font-normal leading-none tracking-[0.1em] text-[#111] uppercase disabled:opacity-40"
+                  className="t-caps text-[var(--ink)] disabled:opacity-40"
                 >
                   Add
                 </button>
@@ -243,7 +243,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   <button
                     type="button"
                     onClick={() => setTextMode(true)}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] transition-opacity active:opacity-60"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left t-meta text-[var(--ink)] transition-opacity active:opacity-60"
                   >
                     <FileText className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
                     Add a short text
@@ -254,18 +254,18 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                     type="button"
                     disabled={pickingSelfie}
                     onClick={() => pickSelfie()}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] transition-opacity active:opacity-60 disabled:opacity-50"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left t-meta text-[var(--ink)] transition-opacity active:opacity-60 disabled:opacity-50"
                   >
                     <Camera className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
                     {pickingSelfie ? "Opening camera…" : "Add a selfie"}
                   </button>
                 ) : null}
-                <p className="px-3 py-2 text-[11px] font-normal leading-none tracking-[0.1em] text-[#111]">* For the next scan or share only.</p>
+                <p className="px-3 py-2 t-meta text-[var(--ink)]">* For the next scan or share only.</p>
               </>
             ) : null}
 
             {atMax && !textMode && !viewing ? (
-              <p className="px-3 py-2 text-[11px] font-normal leading-none tracking-[0.1em] text-[var(--grey)] uppercase">
+              <p className="px-3 py-2 t-label">
                 Maximum {MAX_NEXT_SCAN_NOTES} notes for next scan.
               </p>
             ) : null}

@@ -18,7 +18,7 @@ export function ConsentLine({ checked, onCheckedChange, id = "consent" }: Consen
         onCheckedChange={(value) => onCheckedChange(value === true)}
         className="mt-0.5"
       />
-      <label htmlFor={id} className="text-[13px] font-light leading-snug text-[#111]">
+      <label htmlFor={id} className="t-meta text-[var(--ink)]">
         I agree to the{" "}
         <Link href="/terms" className="underline">
           terms

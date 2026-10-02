@@ -170,7 +170,7 @@ export function CardEditList({
         >
           <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
             <span
-              className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap uppercase"
+              className="t-label whitespace-nowrap"
               style={{ color: section.included ? "var(--grey)" : OFF_CARD }}
             >
               {section.title}
@@ -460,8 +460,8 @@ function AddLine({
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
-                {hint ? <p className="pt-2 text-[12px] font-light leading-snug text-[#111]">{hint}</p> : null}
+                {error ? <p className="pt-2 t-meta text-destructive">{error}</p> : null}
+                {hint ? <p className="pt-2 t-meta text-[var(--ink)]">{hint}</p> : null}
                 <div ref={rowRef} className="flex items-start gap-[11px] border-b border-[var(--rule)] py-2">
                   {filePhoto ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -510,7 +510,7 @@ function AddLine({
                     }}
                     onFocus={onFocus}
                     onBlur={handleBlur}
-                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent p-0 font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:text-[var(--grey)]"
+                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--grey)]"
                     style={{ fontSize: 16, lineHeight: "normal" }}
                   />
                 </div>
@@ -638,7 +638,7 @@ function EditRow({
       >
         <div
           ref={lineRef}
-          className="w-max whitespace-nowrap text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] select-none"
+          className="w-max whitespace-nowrap t-body select-none"
         >
           {text}
         </div>
@@ -685,7 +685,7 @@ function EditRow({
                       }
                       onConfirm(next);
                     }}
-                    className="compass-input block w-full resize-none overflow-y-auto bg-transparent text-[18.2px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+                    className="compass-input block w-full resize-none overflow-y-auto bg-transparent t-body text-[var(--ink)] caret-[var(--ink)] outline-none"
                   />
                 </div>
               </div>

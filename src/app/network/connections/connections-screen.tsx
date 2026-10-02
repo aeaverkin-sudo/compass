@@ -6,7 +6,7 @@ import { BackButton } from "@/shared/components/back-button";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { NetworkTabs } from "../network-tabs";
 
-const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[var(--grey)] uppercase";
+const LABEL = "t-label";
 
 const FROZEN = { filter: "blur(4.5px)", opacity: 0.42 } as const;
 
@@ -82,7 +82,7 @@ export function ConnectionsScreen() {
         <BackButton fallbackHref="/network" />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />
-          <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
+          <h1 className="text-center t-caps text-[var(--ink)]">
             Connections
           </h1>
         </div>
@@ -133,7 +133,7 @@ function PinnedQuery({ text, onEdit }: { text: string; onEdit: () => void }) {
         <p className={LABEL}>Looking for</p>
         <div className="relative mt-2">
           <div ref={scroller} className="overflow-y-auto" style={{ maxHeight: QUERY_MAX }}>
-            <p className="text-[25px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]">{text}</p>
+            <p className="t-name text-[var(--ink)]">{text}</p>
           </div>
           {overflow ? (
             <span
@@ -186,7 +186,7 @@ function Composer({
           enterKeyHint="send"
           placeholder="A product photographer in Lisbon…"
           aria-label="Looking for"
-          className="min-h-[calc(16px*1.45)] w-full flex-1 resize-none bg-transparent text-[16px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[var(--grey)]"
+          className="min-h-[calc(16px*1.45)] w-full flex-1 resize-none bg-transparent t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--grey)]"
           style={{ maxHeight: FIELD_MAX }}
           onChange={(event) => {
             onChange(event.target.value);
@@ -218,21 +218,21 @@ function MatchRow({ match, quiet = false }: { match: Match; quiet?: boolean }) {
         {match.photoUrl ? <img src={match.photoUrl} alt="" className="size-full object-cover" /> : null}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="m-0 truncate text-[15.5px] leading-[1.25] font-normal text-[#111]">
+        <p className="m-0 truncate t-body text-[var(--ink)]">
           {match.name.trim() || "Untitled"}
         </p>
         {match.why ? (
-          <p className="m-0 mt-0.5 text-[16px] leading-[1.45] font-normal text-[var(--grey)]">{match.why}</p>
+          <p className="m-0 mt-0.5 t-meta text-[var(--grey)]">{match.why}</p>
         ) : null}
       </div>
       {quiet ? (
-        <span className="shrink-0 text-[13px] font-normal text-[#111] underline decoration-[#111] decoration-[0.5px] underline-offset-[3px]">
+        <span className="shrink-0 t-meta text-[var(--ink)] underline decoration-[#111] decoration-[0.5px] underline-offset-[3px]">
           Request
         </span>
       ) : (
         <button
           type="button"
-          className="shrink-0 border-0 bg-transparent p-0 text-[13px] font-normal text-[#111] underline decoration-[#111] decoration-[0.5px] underline-offset-[3px]"
+          className="shrink-0 border-0 bg-transparent p-0 t-meta text-[var(--ink)] underline decoration-[#111] decoration-[0.5px] underline-offset-[3px]"
         >
           Request
         </button>
@@ -257,7 +257,7 @@ function Worldwide() {
 function EmptyResults() {
   return (
     <div className="flex h-full min-h-full flex-col">
-      <p className="flex flex-1 items-center justify-center px-8 text-center text-[15px] leading-snug font-light text-[var(--grey)]">
+      <p className="flex flex-1 items-center justify-center px-8 text-center t-body text-[var(--grey)]">
         No matches yet — it&apos;s a startup. Nobody&apos;s here but us. Try anyway
       </p>
       <div className="px-8 pb-8">

@@ -49,7 +49,7 @@ export function AccountBand({
     <nav
       aria-label="Account"
       className={cn(
-        "bg-sky text-[10px] leading-[1.6] font-normal tracking-[0.14em] text-[#111] uppercase",
+        "bg-sky t-caps text-[var(--ink)]",
         safe && "compass-sky-band",
         inset == null && "px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
       )}

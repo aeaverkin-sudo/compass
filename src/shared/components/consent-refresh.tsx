@@ -58,8 +58,8 @@ export function ConsentRefresh() {
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col justify-end bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-      <h1 className="text-[28px] leading-tight font-light">Updated terms</h1>
-      <p className="mt-3 max-w-xs text-[15px] leading-[1.45] font-normal">
+      <h1 className="t-name">Updated terms</h1>
+      <p className="mt-3 max-w-xs t-body">
         The terms and the privacy policy are now version {CONSENT_VERSION}. Accept them to continue.
       </p>
       <div className="mt-6">
@@ -69,11 +69,11 @@ export function ConsentRefresh() {
         type="button"
         disabled={!accepted || busy}
         onClick={() => void save()}
-        className="mt-2 self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+        className="mt-2 self-start border-0 bg-sky px-6 py-3 t-caps disabled:opacity-40"
       >
         Continue
       </button>
-      {message ? <p className="mt-4 max-w-xs text-[13px] leading-snug font-normal">{message}</p> : null}
+      {message ? <p className="mt-4 max-w-xs t-meta">{message}</p> : null}
     </div>
   );
 }

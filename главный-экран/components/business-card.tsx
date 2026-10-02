@@ -283,7 +283,7 @@ function EditorialHeader({
   return (
     <div className="w-full">
       {sheetMark ? (
-        <p className="m-0 mb-1 text-right text-[11px] leading-none font-normal tracking-[0.1em] text-[var(--grey)]">
+        <p className="m-0 mb-1 text-right t-label">
           {sheetMark}
         </p>
       ) : null}
@@ -308,7 +308,7 @@ function EditorialHeader({
             {positionTitle ? (
               <p
                 data-card-content
-                className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden text-[11px] leading-[1.25] font-normal tracking-[0.2em] text-[var(--grey)] uppercase"
+                className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden t-label"
               >
                 {positionTitle}
               </p>
@@ -380,19 +380,19 @@ function CompactHeader({
             value={card.displayName}
             onChange={onDisplayNameChange}
             fontSizePx={CARD_HEADER_NAME_SIZE_PX}
-            className="text-center font-semibold tracking-[-1px] text-[#111]"
+            className="text-center font-semibold tracking-[-1px] text-[var(--ink)]"
           />
         ) : (
           <p
             data-card-content
-            className="text-center font-semibold tracking-[-1px] text-[#111]"
+            className="text-center font-semibold tracking-[-1px] text-[var(--ink)]"
             style={{ fontSize: CARD_HEADER_NAME_SIZE_PX, fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
           >
             {card.displayName}
           </p>
         )}
         {positionTitle ? (
-          <p data-card-content className="mt-1 text-center text-[11px] leading-none font-normal tracking-[0.2em] text-[var(--grey)] uppercase">
+          <p data-card-content className="mt-1 text-center t-label">
             {positionTitle}
             {positionCompany ? <span> · {positionCompany}</span> : null}
           </p>
@@ -435,7 +435,7 @@ function CardShareFooter({
   return (
     <footer className={cn("flex items-end justify-between", className)}>
       <div>
-        <p className="text-[9.5px] leading-[1.15] font-normal tracking-[0.08em] uppercase">
+        <p className="t-label">
           {name || "Name"}
           <br />
           Portfolio
@@ -482,7 +482,7 @@ function CardShareFooter({
                   <Dialog.Close asChild key={choice}>
                     <button
                       type="button"
-                      className="px-2.5 py-2 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase outline-none focus:outline-none focus-visible:outline-none"
+                      className="px-2.5 py-2 t-caps text-[var(--ink)] outline-none focus:outline-none focus-visible:outline-none"
                       onClick={() => onShare(choice)}
                     >
                       {label}
@@ -936,7 +936,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             </button>
             )}
             {fillHint ? (
-              <p className="mt-5 max-w-[240px] bg-sky px-3 py-2.5 text-center text-[13px] leading-[1.35] font-normal text-[#111]">
+              <p className="mt-5 max-w-[240px] bg-sky px-3 py-2.5 text-center t-meta text-[var(--ink)]">
                 Add your contacts, links, professional details, social media, and files.
               </p>
             ) : null}
@@ -1018,7 +1018,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
       {!compact && !editing && (showShareFooter || shareFootnote || publicBar) ? (
-        <div className={cn("mt-auto shrink-0 text-[13px] leading-snug", !readOnly && "pb-[2lh]")}>
+        <div className={cn("mt-auto shrink-0 t-meta", !readOnly && "pb-[2lh]")}>
           {showShareFooter ? (
             <>
               <div aria-hidden className="h-[1lh]" />

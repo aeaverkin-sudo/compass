@@ -134,7 +134,7 @@ export function MainScreen() {
         className="compass-main fixed inset-0 flex items-center justify-center bg-background"
         aria-busy="true"
       >
-        <p className="text-[14px] font-light text-[#111]">…</p>
+        <p className="t-meta text-[var(--ink)]">…</p>
       </main>
     );
   }
@@ -153,7 +153,7 @@ export function MainScreen() {
 
       {frozen && !composing ? (
         <p
-          className="absolute inset-x-6 z-30 text-center text-[13px] font-light leading-snug text-[#111]"
+          className="absolute inset-x-6 z-30 text-center t-meta text-[var(--ink)]"
           style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
         >
           Frozen.{" "}
@@ -226,7 +226,7 @@ export function MainScreen() {
             frozen={frozen}
             shareFootnote={
               account?.trial && !frozen && !composing ? (
-                <p className="text-[13px] font-light leading-snug text-[#111]">
+                <p className="t-meta text-[var(--ink)]">
                   Trial — {account.hoursLeft}h left.{" "}
                   <Link href="/register" className="underline">
                     Register now
@@ -273,7 +273,7 @@ function InfoNotice({ text, onDone }: { text: string; onDone: () => void }) {
 
   return (
     <p
-      className="pointer-events-none absolute top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center text-[16px] font-normal leading-snug text-[#111] transition-opacity duration-1000 ease-out"
+      className="pointer-events-none absolute top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center t-body text-[var(--ink)] transition-opacity duration-1000 ease-out"
       style={{ opacity: shown ? 1 : 0 }}
     >
       {text}
@@ -297,7 +297,7 @@ function GateNotice({ nonce, onDone }: { nonce: number; onDone: () => void }) {
   return (
     <Link
       href="/register"
-      className="absolute top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center text-[16px] font-normal leading-snug text-[#111] transition-opacity duration-[1500ms] ease-out"
+      className="absolute top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center t-body text-[var(--ink)] transition-opacity duration-[1500ms] ease-out"
       style={{ opacity: fading ? 0 : 1 }}
     >
       <span className="underline">Register</span>

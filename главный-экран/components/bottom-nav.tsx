@@ -70,7 +70,7 @@ export function BottomNav({
         editing ? (
           <button
             type="button"
-            className="flex h-full min-h-11 w-full items-center justify-end text-[14px] leading-[1.45] font-normal tracking-[0.1em] uppercase"
+            className="flex h-full min-h-11 w-full items-center justify-end t-caps"
             onClick={() => onDone?.()}
           >
             OK

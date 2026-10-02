@@ -57,11 +57,11 @@ export default function DeleteAccountPage() {
   return (
     <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
       <BackButton fallbackHref="/profile" />
-      <h1 className="text-[32px] font-light leading-tight">Delete account</h1>
-      <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
+      <h1 className="t-name">Delete account</h1>
+      <p className="mt-3 max-w-xs t-meta">
         This deletes the account, every portfolio, and every file. It cannot be undone.
       </p>
-      <label className="mt-8 text-[12px] font-normal tracking-[0.08em] uppercase" htmlFor="delete-confirm">
+      <label className="mt-8 t-label" htmlFor="delete-confirm">
         Type DELETE
       </label>
       <input
@@ -71,17 +71,17 @@ export default function DeleteAccountPage() {
         autoCorrect="off"
         spellCheck={false}
         onChange={(event) => setPhrase(event.target.value)}
-        className="mt-2 max-w-xs border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
+        className="mt-2 max-w-xs border-b border-[var(--rule)] bg-transparent py-2 t-body outline-none"
       />
       <button
         type="button"
         disabled={!confirmed || busy}
         onClick={() => void remove()}
-        className="mt-6 min-w-[160px] self-start border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
+        className="mt-6 min-w-[160px] self-start border-0 bg-sky px-6 py-3 t-caps disabled:opacity-40"
       >
         Yes, delete
       </button>
-      {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
+      {message ? <p className="mt-6 max-w-xs t-meta">{message}</p> : null}
     </main>
   );
 }

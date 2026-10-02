@@ -73,13 +73,13 @@ export function NotesRubric({ ownerNotes, deliveredNotes, className, pdfBlock = 
   return (
     <section className={cn("shrink-0 pt-6", className)} aria-label="Notes" data-pdf-block={pdfBlock ? "" : undefined}>
       <Rule />
-      <p className="pt-3 text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[var(--grey)] uppercase">
+      <p className="pt-3 t-label whitespace-nowrap">
         Notes
       </p>
       <ul className="mt-3 flex flex-wrap items-start gap-5">
         {notes.map((note) => (
           <li key={note.id} className="min-w-0">
-            <p className="mb-1.5 text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[var(--grey)] uppercase">
+            <p className="mb-1.5 t-label whitespace-nowrap">
               {typeLabel(note.type)}
             </p>
             {note.type === "selfie" ? (
@@ -100,7 +100,7 @@ export function NotesRubric({ ownerNotes, deliveredNotes, className, pdfBlock = 
               )
             ) : null}
             {note.type === "text" ? (
-              <p className="max-w-[10rem] text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111]">
+              <p className="max-w-[10rem] t-meta text-[var(--ink)]">
                 {note.text}
               </p>
             ) : null}

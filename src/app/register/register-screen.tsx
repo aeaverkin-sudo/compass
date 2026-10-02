@@ -77,9 +77,9 @@ const LINK_LINE = {
   textUnderlineOffset: "3px",
 } as const;
 const SECTION_TITLE =
-  "py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] text-[var(--grey)] uppercase";
+  "py-4 text-center t-caps text-[var(--grey)]";
 const CHOICE =
-  "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
+  "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center t-caps transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
 
 function accountAlreadyExists(code: string | undefined, message: string | undefined) {
   if (code === "identity_already_exists" || code === "email_exists") return true;
@@ -353,7 +353,7 @@ export function RegisterScreen() {
               void submitPassword();
             }}
           >
-            <label className="text-[12px] font-normal tracking-[0.08em] text-[var(--grey)] uppercase" htmlFor="signin-email">
+            <label className="t-label" htmlFor="signin-email">
               Email
             </label>
             <input
@@ -365,9 +365,9 @@ export function RegisterScreen() {
               aria-label="Email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+              className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 t-body text-[var(--ink)] caret-[var(--ink)] outline-none"
             />
-            <label className="mt-8 block text-[12px] font-normal tracking-[0.08em] text-[var(--grey)] uppercase" htmlFor="signin-password">
+            <label className="mt-8 block t-label" htmlFor="signin-password">
               Password
             </label>
             <input
@@ -378,9 +378,9 @@ export function RegisterScreen() {
               aria-label="Password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+              className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 t-body text-[var(--ink)] caret-[var(--ink)] outline-none"
             />
-            <p className="mt-6 text-[13px] font-normal text-[#111]">
+            <p className="mt-6 t-meta text-[var(--ink)]">
               <button
                 type="button"
                 disabled={busy}
@@ -402,7 +402,7 @@ export function RegisterScreen() {
             <button
               type="submit"
               disabled={busy}
-              className="mt-8 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase shadow-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+              className="mt-8 border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] shadow-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
             >
               Sign in
             </button>
@@ -438,7 +438,7 @@ export function RegisterScreen() {
           </>
         )}
         </div>
-        {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug text-[#111]">{message}</p> : null}
+        {message ? <p className="mt-6 max-w-xs t-meta text-[var(--ink)]">{message}</p> : null}
       </main>
     );
   }
@@ -467,7 +467,7 @@ export function RegisterScreen() {
         <BackButton fallbackHref="/" onBack={leaveEmailStep} />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />
-          <h1 className="text-center text-[13px] leading-none font-normal tracking-[0.2em] text-[#111] uppercase">
+          <h1 className="text-center t-caps text-[var(--ink)]">
             Sign up
           </h1>
         </div>
@@ -479,7 +479,7 @@ export function RegisterScreen() {
             else void submitEmail();
           }}
         >
-          <label className="text-[12px] font-normal tracking-[0.08em] text-[var(--grey)] uppercase" htmlFor="register-email-field">
+          <label className="t-label" htmlFor="register-email-field">
             {onCode ? "Code" : "Email"}
           </label>
           {onCode ? (
@@ -492,7 +492,7 @@ export function RegisterScreen() {
               aria-label="Code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-normal tracking-[0.2em] text-[#111] caret-[#111] outline-none"
+              className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 t-body text-[var(--ink)] caret-[var(--ink)] outline-none"
             />
           ) : (
             <input
@@ -504,10 +504,10 @@ export function RegisterScreen() {
               aria-label="Email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+              className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 t-body text-[var(--ink)] caret-[var(--ink)] outline-none"
             />
           )}
-          <p className="mt-3 text-[13px] leading-[1.45] font-normal text-[var(--grey)]">
+          <p className="mt-3 t-meta text-[var(--grey)]">
             {onCode
               ? `Sent to ${email.trim()}. This code is your password. You can change it in your profile.`
               : "We will send you a code. This code is your password. You can change it in your profile."}
@@ -515,7 +515,7 @@ export function RegisterScreen() {
           <button
             type="submit"
             disabled={busy || (onCode ? code.trim() === "" : email.trim() === "")}
-            className="mt-8 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] text-[#111] uppercase shadow-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+            className="mt-8 border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] shadow-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
           >
             Continue
           </button>
@@ -524,14 +524,14 @@ export function RegisterScreen() {
               type="button"
               disabled={busy}
               onClick={() => void submitEmail()}
-              className="mt-10 block text-[13px] font-normal text-[#111] underline decoration-[0.5px] underline-offset-[3px] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+              className="mt-10 block t-meta text-[var(--ink)] underline decoration-[0.5px] underline-offset-[3px] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
               style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
             >
               Resend code
             </button>
           ) : null}
         </form>
-        {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug text-[#111]">{message}</p> : null}
+        {message ? <p className="mt-6 max-w-xs t-meta text-[var(--ink)]">{message}</p> : null}
       </main>
     );
   }
@@ -555,7 +555,7 @@ export function RegisterScreen() {
               Sign up with Google
             </button>
             {taken && !inApp ? (
-              <p className="px-2 pb-3 text-center text-[13px] leading-[1.45] font-normal text-[#111]">
+              <p className="px-2 pb-3 text-center t-meta text-[var(--ink)]">
                 This Google account already has a profile.
                 {mergeWarning ? ` ${mergeWarning}` : ""}
               </p>
@@ -593,7 +593,7 @@ export function RegisterScreen() {
           />
         </span>
         <p
-          className="text-[13px] leading-[1.45] font-normal text-[#555]"
+          className="t-meta text-[#555]"
           onClick={(event) => {
             if ((event.target as HTMLElement).closest("a")) return;
             agree(!accepted);
@@ -603,7 +603,7 @@ export function RegisterScreen() {
           <Link href="/privacy" style={LINK_LINE}>Privacy Policy</Link>.
         </p>
       </div>
-      <p className="mt-10 text-center text-[11px] leading-[1.45] font-normal tracking-[0.14em] text-[var(--grey)] uppercase">
+      <p className="mt-10 text-center t-caps text-[var(--grey)]">
         Got an account?{" "}
         <Link
           href={signInHref(nextPath)}
@@ -613,7 +613,7 @@ export function RegisterScreen() {
           Sign in
         </Link>
       </p>
-      {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
+      {message ? <p className="mt-6 max-w-xs t-meta">{message}</p> : null}
     </main>
   );
 }
