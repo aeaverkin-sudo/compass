@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publicOrigin } from "@/shared/lib/public-origin";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isUuid } from "@/shared/services/attachment-api";
 
@@ -83,7 +84,7 @@ export async function GET(
 
   await recordOpen(card.data.id as string, itemId);
 
-  const location = target.startsWith("/") ? new URL(target, request.url) : target;
+  const location = target.startsWith("/") ? new URL(target, publicOrigin(request)) : target;
   return NextResponse.redirect(location, {
     status: 302,
     headers: { "Cache-Control": "no-store" },

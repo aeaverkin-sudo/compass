@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
+import { publicOrigin } from "@/shared/lib/public-origin";
 import { isEmail, MAIL_NOT_CONNECTED, sendResetLink } from "@/shared/services/email-signup";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function originOf(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const host = forwarded || request.headers.get("host");
-  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "https";
-  return host ? `${proto}://${host}` : new URL(request.url).origin;
-}
 
 export async function POST(request: Request) {
   let email = "";
@@ -24,7 +18,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await sendResetLink(email, originOf(request));
+    await sendResetLink(email, publicOrigin(request));
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

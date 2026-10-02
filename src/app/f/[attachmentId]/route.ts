@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publicOrigin } from "@/shared/lib/public-origin";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { isUuid, loadAttachment, safeOriginalName, type AttachmentRow } from "@/shared/services/attachment-api";
@@ -38,13 +39,6 @@ async function viewerId(): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-/** Public https origin, honouring Render's proxy headers so external viewers can fetch us. */
-function publicOrigin(request: Request): string {
-  const proto = request.headers.get("x-forwarded-proto") ?? "https";
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  return host ? `${proto}://${host}` : new URL(request.url).origin;
 }
 
 function dispositionHeader(row: AttachmentRow): string {

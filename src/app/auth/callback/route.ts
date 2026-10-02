@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publicOrigin } from "@/shared/lib/public-origin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { clearTrialClock } from "@/shared/services/trial";
 
@@ -19,7 +20,7 @@ function safeNext(raw: string | null, origin: string): string {
 /** Google returns here after linkIdentity or signInWithOAuth. */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const origin = url.origin;
+  const origin = publicOrigin(request);
   const next = safeNext(url.searchParams.get("next"), origin);
   const described = url.searchParams.get("error_description") || url.searchParams.get("error");
   const keepNext = next.startsWith("/save/") ? `&next=${encodeURIComponent(next)}` : "";
