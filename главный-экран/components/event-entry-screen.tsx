@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
-import { NetworkTabs } from "@/app/network/network-tabs";
+import { NetworkBand } from "@/app/network/network-band";
 
 type Step = "entry" | "create" | "join";
 
@@ -47,6 +48,7 @@ function StickList({
 
 /** Event door: create or join. The real event flow is a later slice. */
 export function EventEntryScreen() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("entry");
   const [stub, setStub] = useState<string | null>(null);
 
@@ -59,10 +61,10 @@ export function EventEntryScreen() {
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         <BackButton
-          fallbackHref="/network"
+          fallbackHref="/main"
           onBack={
             step === "entry"
-              ? undefined
+              ? () => router.push("/main")
               : () => {
                   setStub(null);
                   setStep("entry");
@@ -102,7 +104,7 @@ export function EventEntryScreen() {
           </>
         ) : null}
       </div>
-      <NetworkTabs />
+      <NetworkBand current="event" />
     </main>
   );
 }

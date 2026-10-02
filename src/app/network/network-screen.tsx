@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
 import { SkyToast } from "@/shared/components/sky-toast";
@@ -13,7 +14,7 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { NetworkTabs } from "./network-tabs";
+import { NetworkBand } from "./network-band";
 import { BROWSE_QR_SIZE, HEADER_RHYTHM_PX, RULE_GAP_PX } from "@main/layout";
 
 type SortMode = "recent" | "alphabet" | "event";
@@ -68,6 +69,7 @@ function matchesQuery(contact: Contact, query: string) {
 }
 
 export function NetworkScreen({ addedName = null }: { addedName?: string | null }) {
+  const router = useRouter();
   const [contacts, setContacts] = useState<Contact[] | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
@@ -141,7 +143,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       className="compass-main relative flex h-dvh flex-col overflow-hidden bg-white text-[#111]"
       style={{ paddingBottom: "var(--vv-bottom, 0px)" }}
     >
-      <BackButton fallbackHref="/main" />
+      <BackButton fallbackHref="/main" onBack={() => router.push("/main")} />
       <div className="pointer-events-none absolute inset-x-0 top-10 z-20 grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center px-8">
         <span aria-hidden className="size-[22px]" />
         <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
@@ -222,7 +224,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         )}
       </div>
 
-      <NetworkTabs />
+      <NetworkBand current="network" />
     </main>
   );
 }

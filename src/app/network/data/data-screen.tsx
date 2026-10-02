@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
-import { NetworkTabs } from "../network-tabs";
+import { NetworkBand } from "../network-band";
 
 const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase";
 
@@ -52,6 +53,7 @@ function Metric({
 }
 
 export function DataScreen() {
+  const router = useRouter();
   const hydrated = useCardsHydrated();
   const cardId = useAppStore((state) => state.cards[state.currentCardIndex]?.id ?? state.cards[0]?.id ?? "");
   const [stats, setStats] = useState<CardData | null>(null);
@@ -88,7 +90,7 @@ export function DataScreen() {
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
       <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-        <BackButton fallbackHref="/network" />
+        <BackButton fallbackHref="/main" onBack={() => router.push("/main")} />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />
           <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
@@ -120,7 +122,7 @@ export function DataScreen() {
         </Metric>
         <Metric value={shown(stats?.repeatVisits)} label="Repeat visits" rule={false} />
       </div>
-      <NetworkTabs />
+      <NetworkBand current="data" />
     </main>
   );
 }
