@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
+import { cn } from "@/lib/utils";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
+import { QR_RULE_INSET, QR_RULE_MARGIN } from "@main/layout";
 import { NetworkTabs } from "../network-tabs";
 
 const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase";
@@ -95,7 +97,7 @@ export function ConnectionsScreen() {
           matches.length === 0 ? (
             <EmptyResults />
           ) : (
-            <div className="px-8 pb-8">
+            <div className={cn("pb-8", QR_RULE_INSET)}>
               <p className={`pt-[18px] ${LABEL}`}>In your network</p>
               <ul>
                 {matches.map((match) => (
@@ -128,7 +130,7 @@ function PinnedQuery({ text, onEdit }: { text: string; onEdit: () => void }) {
   }, [text]);
 
   return (
-    <div className="shrink-0 border-b-[0.5px] border-[#999] px-8 py-[18px]">
+    <div className={cn("shrink-0 border-b-[0.5px] border-[#999] py-[18px]", QR_RULE_MARGIN)}>
       <button type="button" onClick={onEdit} className="block w-full border-0 bg-transparent p-0 text-left">
         <p className={LABEL}>Looking for</p>
         <div className="relative mt-2">
@@ -171,7 +173,7 @@ function Composer({
 
   return (
     <form
-      className="shrink-0 border-t-[0.5px] border-[#999] bg-white px-8 py-3"
+      className={cn("shrink-0 border-t-[0.5px] border-[#999] bg-white py-3", QR_RULE_MARGIN)}
       style={{ marginBottom: inset }}
       onSubmit={(event) => {
         event.preventDefault();

@@ -13,8 +13,9 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { cn } from "@/lib/utils";
 import { NetworkTabs } from "./network-tabs";
-import { BROWSE_QR_SIZE, HEADER_RHYTHM_PX, RULE_GAP_PX } from "@main/layout";
+import { BROWSE_QR_SIZE, HEADER_RHYTHM_PX, QR_RULE_INSET, QR_RULE_MARGIN, RULE_GAP_PX } from "@main/layout";
 
 type SortMode = "recent" | "alphabet" | "event";
 
@@ -149,7 +150,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         </h1>
       </div>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
-      <div className="flex flex-col justify-end px-8" style={{ height: CARD_LINE_TOP }}>
+      <div className={cn("flex flex-col justify-end", QR_RULE_INSET)} style={{ height: CARD_LINE_TOP }}>
         <div className="flex items-center gap-3 py-2">
           <Search className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
           <input
@@ -180,9 +181,9 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           </DropdownMenu>
         </div>
       </div>
-      <div className="mx-8 border-t-[0.5px] border-[#999]" />
+      <div className={cn(QR_RULE_MARGIN, "border-t-[0.5px] border-[#999]")} />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-8">
+      <div className={cn("min-h-0 flex-1 overflow-y-auto", QR_RULE_INSET)}>
         {empty ? (
           <p className="flex h-full items-center justify-center text-center text-[15px] font-light leading-snug text-[#999]">
             Your contact list. Exchange a card and your first contact appears here.

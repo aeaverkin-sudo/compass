@@ -4,6 +4,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { BackButton } from "@/shared/components/back-button";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
+import { QR_RULE_INSET } from "@main/layout";
+import { cn } from "@/lib/utils";
 import { NetworkTabs } from "../network-tabs";
 
 const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase";
@@ -87,7 +89,7 @@ export function DataScreen() {
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <div className={cn("min-h-0 flex-1 overflow-y-auto pb-[max(2.5rem,env(safe-area-inset-bottom))]", QR_RULE_INSET)}>
         <BackButton fallbackHref="/network" />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />

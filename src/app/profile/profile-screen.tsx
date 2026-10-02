@@ -16,6 +16,7 @@ import { dropPendingCardUpserts } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isCardReady, isSolePublic, useAppStore } from "@/shared/store/app-store";
 import { cn } from "@/lib/utils";
+import { QR_RULE_INSET } from "@main/layout";
 
 const ZONE_LABEL =
   "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase";
@@ -44,7 +45,7 @@ function trialLine(hoursLeft: number | null) {
 
 function ProfileShell({ children }: { children: ReactNode }) {
   return (
-    <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
+    <main className={cn("compass-main h-dvh overflow-y-auto bg-white pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]", QR_RULE_INSET)}>
       <ConsentRefresh />
       <BackButton fallbackHref="/main" />
       <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">

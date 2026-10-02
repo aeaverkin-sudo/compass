@@ -70,6 +70,11 @@ export const LAYER_TRANSITION_MS = 460;
 export const CARD_CAROUSEL_PEEK_PX = 24;
 export const CARD_CAROUSEL_GAP_PX = 8;
 
+/** Screen inset of the rule under the QR: the carousel side plus the card's own padding. */
+const QR_RULE_SIDE_PX = CARD_CAROUSEL_PEEK_PX + CARD_CAROUSEL_GAP_PX / 2;
+export const QR_RULE_INSET = `px-[calc(${QR_RULE_SIDE_PX}px+clamp(24px,6.1vw,28px)-3mm)]`;
+export const QR_RULE_MARGIN = `mx-[calc(${QR_RULE_SIDE_PX}px+clamp(24px,6.1vw,28px)-3mm)]`;
+
 export function carouselSlideWidthPx(viewportWidth: number, multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
   if (!multiSlide) return viewportWidth - edgeInsetPx * 2;
   return viewportWidth - 2 * CARD_CAROUSEL_PEEK_PX - CARD_CAROUSEL_GAP_PX;
