@@ -166,7 +166,7 @@ export function CardEditList({
         <section
           key={section.id}
           hidden={composing}
-          className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b-[0.5px] border-[#999]")}
+          className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b-[0.5px] border-[#111]")}
         >
           <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
             <span
@@ -462,7 +462,7 @@ function AddLine({
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
                 {hint ? <p className="pt-2 text-[12px] font-light leading-snug text-[#111]">{hint}</p> : null}
-                <div ref={rowRef} className="flex items-start gap-[11px] border-b-[0.5px] border-[#999] py-2">
+                <div ref={rowRef} className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
                   {filePhoto ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={filePhoto} alt="" className="size-10 shrink-0 object-cover" />
@@ -655,7 +655,7 @@ function EditRow({
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                <div className="flex flex-col justify-end border-b-[0.5px] border-[#999]">
+                <div className="flex flex-col justify-end border-b-[0.5px] border-[#111]">
                   <textarea
                     ref={dockRef}
                     rows={1}
