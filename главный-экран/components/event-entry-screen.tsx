@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { BackButton } from "@/shared/components/back-button";
-import { QR_RULE_INSET } from "@main/layout";
-import { cn } from "@/lib/utils";
 import { NetworkTabs } from "@/app/network/network-tabs";
 
 type Step = "entry" | "create" | "join";
@@ -59,7 +57,7 @@ export function EventEntryScreen() {
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
-      <div className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto pb-[max(2.5rem,env(safe-area-inset-bottom))]", QR_RULE_INSET)}>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         <BackButton
           fallbackHref="/network"
           onBack={

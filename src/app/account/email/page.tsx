@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
-import { cn } from "@/lib/utils";
-import { QR_RULE_INSET } from "@main/layout";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 export default function ChangeEmailPage() {
@@ -66,7 +64,7 @@ export default function ChangeEmailPage() {
   };
 
   return (
-    <main className={cn("compass-main flex h-dvh flex-col overflow-y-auto bg-white pt-[84px] pb-12 text-[#111]", QR_RULE_INSET)}>
+    <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
       <BackButton fallbackHref="/profile" />
       <h1 className="text-[32px] font-light leading-tight">Email</h1>
       <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">

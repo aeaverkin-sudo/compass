@@ -15,8 +15,6 @@ import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { useAppStore } from "@/shared/store/app-store";
-import { cn } from "@/lib/utils";
-import { QR_RULE_INSET } from "@main/layout";
 
 /** Only the save flow may pull the person back. Anything else opens the main screen. */
 function afterAuthPath(next: string | null) {
@@ -342,7 +340,7 @@ export function RegisterScreen() {
       setSignInMail(false);
     };
     return (
-      <main className={cn("compass-main h-dvh overflow-y-auto bg-white pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]", QR_RULE_INSET)}>
+      <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
         <BackButton fallbackHref="/" onBack={signInMail ? leaveSignInMail : undefined} />
         <div className="mt-10">
           <h1 className={SECTION_TITLE}>Sign in</h1>
@@ -465,7 +463,7 @@ export function RegisterScreen() {
   if (emailStep !== "hidden") {
     const onCode = emailStep === "code";
     return (
-      <main className={cn("compass-main h-dvh overflow-y-auto bg-white pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]", QR_RULE_INSET)}>
+      <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
         <BackButton fallbackHref="/" onBack={leaveEmailStep} />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />
@@ -541,7 +539,7 @@ export function RegisterScreen() {
   const ink = accepted ? "#111" : "#bdbdbd";
 
   return (
-    <main className={cn("compass-main h-dvh overflow-y-auto bg-white pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]", QR_RULE_INSET)}>
+    <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
       <BackButton fallbackHref="/" />
       <div className="mt-10">
         <h1 className={SECTION_TITLE}>Sign up</h1>

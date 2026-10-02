@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
-import { cn } from "@/lib/utils";
-import { QR_RULE_INSET } from "@main/layout";
 import { clearRegisteredDevice } from "@/shared/lib/registered-device";
 import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -57,7 +55,7 @@ export default function DeleteAccountPage() {
   };
 
   return (
-    <main className={cn("compass-main flex h-dvh flex-col overflow-y-auto bg-white pt-[84px] pb-12 text-[#111]", QR_RULE_INSET)}>
+    <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
       <BackButton fallbackHref="/profile" />
       <h1 className="text-[32px] font-light leading-tight">Delete account</h1>
       <p className="mt-3 max-w-xs text-[14px] font-light leading-snug">
@@ -73,7 +71,7 @@ export default function DeleteAccountPage() {
         autoCorrect="off"
         spellCheck={false}
         onChange={(event) => setPhrase(event.target.value)}
-        className={cn("mt-2 w-full bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none", "border-b-[0.5px] border-[#999]")}
+        className="mt-2 max-w-xs border-b-[0.5px] border-[#999] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
       />
       <button
         type="button"
