@@ -2,9 +2,11 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { BackButton } from "@/shared/components/back-button";
+import { cn } from "@/lib/utils";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
 import { NetworkTabs } from "../network-tabs";
+import { RULE_BOTTOM } from "@/shared/lib/rule";
 
 const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase";
 
@@ -38,7 +40,7 @@ function Metric({
 }) {
   const notes = note == null ? [] : Array.isArray(note) ? note : [note];
   return (
-    <div className={rule ? "border-b-[0.5px] border-[#111] py-[18px]" : "py-[18px]"}>
+    <div className={rule ? cn("py-[18px]", RULE_BOTTOM) : "py-[18px]"}>
       <p className="text-[32px] leading-none font-light text-[#111]">{value}</p>
       <p className={`mt-2 ${LABEL}`}>{label}</p>
       {notes.map((line, index) => (

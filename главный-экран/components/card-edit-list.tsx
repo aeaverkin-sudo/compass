@@ -4,6 +4,7 @@ import { File as FileIcon, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
+import { RULE_BOTTOM } from "@/shared/lib/rule";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { groupLibrary, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
 import { isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
@@ -166,7 +167,7 @@ export function CardEditList({
         <section
           key={section.id}
           hidden={composing}
-          className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b-[0.5px] border-[#111]")}
+          className={cn("min-w-0 py-[18px]", index < sections.length - 1 && RULE_BOTTOM)}
         >
           <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
             <span
@@ -462,7 +463,7 @@ function AddLine({
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 {error ? <p className="pt-2 text-[12px] leading-snug text-destructive">{error}</p> : null}
                 {hint ? <p className="pt-2 text-[12px] font-light leading-snug text-[#111]">{hint}</p> : null}
-                <div ref={rowRef} className="flex items-start gap-[11px] border-b-[0.5px] border-[#111] py-2">
+                <div ref={rowRef} className={cn("flex items-start gap-[11px] py-2", RULE_BOTTOM)}>
                   {filePhoto ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={filePhoto} alt="" className="size-10 shrink-0 object-cover" />
@@ -655,7 +656,7 @@ function EditRow({
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                <div className="flex flex-col justify-end border-b-[0.5px] border-[#111]">
+                <div className={cn("flex flex-col justify-end", RULE_BOTTOM)}>
                   <textarea
                     ref={dockRef}
                     rows={1}

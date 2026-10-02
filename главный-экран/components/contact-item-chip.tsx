@@ -11,6 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { cn } from "@/lib/utils";
+import { RULE_BOTTOM } from "@/shared/lib/rule";
 import { openHomeScreenAttachmentPdf } from "@/shared/components/pdf-preview-host";
 import { composeCard, isChoosableHeader, type CardDisplayRow } from "@/shared/services/card-zones";
 import type { ContactItem } from "@/shared/types";
@@ -452,7 +453,7 @@ export function ContactItemChipList({
             data-pdf-block={markPdfBlocks ? "" : undefined}
             className={cn(
               "min-w-0 py-[18px]",
-              zoneIndex < composed.zones.length - 1 && "border-b-[0.5px] border-[#111]",
+              zoneIndex < composed.zones.length - 1 && RULE_BOTTOM,
             )}
           >
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
@@ -546,7 +547,7 @@ export function ContactItemChipList({
                   onChooseHeader={onChooseHeader}
                 />
                 {zoneEnd && zoneIndex < composed.zones.length - 1 ? (
-                  <div className="col-span-2 mt-3 border-b-[0.5px] border-[#111]" />
+                  <div className={cn("col-span-2 mt-3", RULE_BOTTOM)} />
                 ) : null}
               </Fragment>
             );

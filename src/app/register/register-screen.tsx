@@ -14,6 +14,7 @@ import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/service
 import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
+import { RULE_TOP, RULE_BOTTOM } from "@/shared/lib/rule";
 import { useAppStore } from "@/shared/store/app-store";
 
 /** Only the save flow may pull the person back. Anything else opens the main screen. */
@@ -79,7 +80,7 @@ const SECTION_TITLE =
   "py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] text-[#999] uppercase";
 const CHOICE =
   "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
-const CHOICE_RULE = "border-t-[1.5px] border-[#c9c9c9]";
+const CHOICE_RULE = RULE_TOP;
 
 function accountAlreadyExists(code: string | undefined, message: string | undefined) {
   if (code === "identity_already_exists" || code === "email_exists") return true;
@@ -365,7 +366,7 @@ export function RegisterScreen() {
               aria-label="Email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+              className={`mt-2 w-full bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none ${RULE_BOTTOM}`}
             />
             <label className="mt-8 block text-[12px] font-normal tracking-[0.08em] text-[#999] uppercase" htmlFor="signin-password">
               Password
@@ -378,7 +379,7 @@ export function RegisterScreen() {
               aria-label="Password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+              className={`mt-2 w-full bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none ${RULE_BOTTOM}`}
             />
             <p className="mt-6 text-[13px] font-normal text-[#111]">
               <button
@@ -492,7 +493,7 @@ export function RegisterScreen() {
               aria-label="Code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[0.2em] text-[#111] caret-[#111] outline-none"
+              className={`mt-2 w-full bg-transparent py-2 text-[16px] font-normal tracking-[0.2em] text-[#111] caret-[#111] outline-none ${RULE_BOTTOM}`}
             />
           ) : (
             <input
@@ -504,7 +505,7 @@ export function RegisterScreen() {
               aria-label="Email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-2 w-full border-b-[0.5px] border-[#111] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
+              className={`mt-2 w-full bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none ${RULE_BOTTOM}`}
             />
           )}
           <p className="mt-3 text-[13px] leading-[1.45] font-normal text-[#999]">

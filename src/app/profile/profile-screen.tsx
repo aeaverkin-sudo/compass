@@ -16,6 +16,7 @@ import { dropPendingCardUpserts } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isCardReady, isSolePublic, useAppStore } from "@/shared/store/app-store";
 import { cn } from "@/lib/utils";
+import { RULE_BOTTOM } from "@/shared/lib/rule";
 
 const ZONE_LABEL =
   "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase";
@@ -77,8 +78,7 @@ function Zone({
       className={cn(
         "min-w-0 py-[18px]",
         id && "scroll-mt-16",
-        rule === "gray" && "border-b-[0.5px] border-[#999]",
-        rule === true && "border-b-[0.5px] border-[#111]",
+        rule && RULE_BOTTOM,
       )}
     >
       <div

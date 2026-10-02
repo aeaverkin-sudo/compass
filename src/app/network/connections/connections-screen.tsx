@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
+import { cn } from "@/lib/utils";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { NetworkTabs } from "../network-tabs";
+import { RULE_TOP, RULE_BOTTOM } from "@/shared/lib/rule";
 
 const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase";
 
@@ -128,7 +130,7 @@ function PinnedQuery({ text, onEdit }: { text: string; onEdit: () => void }) {
   }, [text]);
 
   return (
-    <div className="shrink-0 border-b-[0.5px] border-[#111] px-8 py-[18px]">
+    <div className={cn("shrink-0 px-8 py-[18px]", RULE_BOTTOM)}>
       <button type="button" onClick={onEdit} className="block w-full border-0 bg-transparent p-0 text-left">
         <p className={LABEL}>Looking for</p>
         <div className="relative mt-2">
@@ -171,7 +173,7 @@ function Composer({
 
   return (
     <form
-      className="shrink-0 border-t-[0.5px] border-[#111] bg-white px-8 py-3"
+      className={cn("shrink-0 bg-white px-8 py-3", RULE_TOP)}
       style={{ marginBottom: inset }}
       onSubmit={(event) => {
         event.preventDefault();
@@ -213,7 +215,7 @@ function Composer({
 
 function MatchRow({ match, quiet = false }: { match: Match; quiet?: boolean }) {
   return (
-    <li className="flex items-center gap-3 border-b-[0.5px] border-[#111]/15 py-3">
+    <li className={cn("flex items-center gap-3 py-3", RULE_BOTTOM)}>
       <span className="size-14 shrink-0 bg-[#f3f3f3]">
         {match.photoUrl ? <img src={match.photoUrl} alt="" className="size-full object-cover" /> : null}
       </span>

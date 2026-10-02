@@ -13,6 +13,8 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { RULE_TOP, RULE_BOTTOM } from "@/shared/lib/rule";
+import { cn } from "@/lib/utils";
 import { NetworkTabs } from "./network-tabs";
 import { BROWSE_QR_SIZE, HEADER_RHYTHM_PX, RULE_GAP_PX } from "@main/layout";
 
@@ -180,7 +182,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           </DropdownMenu>
         </div>
       </div>
-      <div className="mx-8 border-t-[0.5px] border-[#111]" />
+      <div className={cn("mx-8", RULE_TOP)} />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-8">
         {empty ? (
@@ -274,7 +276,7 @@ function AlphabetList({
     <>
       {letters.map((letter) => (
         <section key={letter} className="mt-6">
-          <div className="border-t-[0.5px] border-[#111] pt-2">
+          <div className={cn("pt-2", RULE_TOP)}>
             <p className={`m-0 ${ZONE_LABEL}`}>{letter}</p>
           </div>
           <ul>
@@ -344,7 +346,7 @@ function WaitingRow({
   onSkip: () => void;
 }) {
   return (
-    <li className="flex items-center gap-3 border-b-[0.5px] border-[#111]/15 py-3 text-[#999]">
+    <li className={cn("flex items-center gap-3 py-3 text-[#999]", RULE_BOTTOM)}>
       <Face photoUrl={contact.photoUrl} />
       <div className="min-w-0 flex-1">
         <p className="m-0 truncate text-[15.5px] leading-[1.25] font-normal">{contact.displayName.trim() || "Untitled"}</p>
@@ -374,7 +376,7 @@ function ContactRow({
   const longPress = useLongPress(onArm, HOLD_MS);
   return (
     <li
-      className="flex items-center gap-3 border-b-[0.5px] border-[#111]/15 py-3"
+      className={cn("flex items-center gap-3 py-3", RULE_BOTTOM)}
       {...longPress}
     >
       <Face photoUrl={contact.photoUrl} />

@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, 
 import * as Dialog from "@radix-ui/react-dialog";
 import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { RULE_TOP } from "@/shared/lib/rule";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { flushNotesSync, notesAreSyncing, releaseOwnerNotes } from "@/shared/services/notes-sync";
@@ -286,7 +287,7 @@ function EditorialHeader({
           {sheetMark}
         </p>
       ) : null}
-      {showRule ? <div className="border-t-[0.5px] border-[#111]" /> : null}
+      {showRule ? <div className={RULE_TOP} /> : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
@@ -888,7 +889,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }
     >
       {!compact ? (
-        <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
+        <div className="shrink-0 px-8">
           {blank ? (
             <EmptyPortfolioStart
               card={card}
@@ -920,7 +921,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         </div>
       ) : null}
       {bare ? (
-        <div className="flex min-h-0 flex-1 flex-col px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
+        <div className="flex min-h-0 flex-1 flex-col px-8">
           <div className="flex flex-1 flex-col items-center justify-center">
             {readOnly ? null : (
             <button
@@ -940,7 +941,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               </p>
             ) : null}
           </div>
-          {publicBar ? <div className="mt-auto -mx-[calc(clamp(24px,6.1vw,28px)-3mm)]">{publicBar}</div> : null}
+          {publicBar ? <div className="mt-auto -mx-8">{publicBar}</div> : null}
         </div>
       ) : null}
       <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
@@ -949,8 +950,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         data-preview-scroll={compact ? "" : undefined}
         className={cn(
           "flex min-h-0 flex-1 flex-col",
-          compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
-          !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
+          compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-8",
+          !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-8",
         )}
         onScroll={
           compact
@@ -1035,7 +1036,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             </>
           ) : null}
           {publicBar && !bare ? (
-            <div className="mt-4 -mx-[calc(clamp(24px,6.1vw,28px)-3mm)]">{publicBar}</div>
+            <div className="mt-4 -mx-8">{publicBar}</div>
           ) : null}
         </div>
       ) : null}

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { RULE_TOP } from "@/shared/lib/rule";
 import type { NextScanAddon } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
@@ -71,7 +72,7 @@ export function NotesRubric({ ownerNotes, deliveredNotes, className, pdfBlock = 
 
   return (
     <section className={cn("shrink-0 pt-6", className)} aria-label="Notes" data-pdf-block={pdfBlock ? "" : undefined}>
-      <div aria-hidden className="h-px bg-[#111]" />
+      <div aria-hidden className={RULE_TOP} />
       <p className="pt-3 text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
         Notes
       </p>
