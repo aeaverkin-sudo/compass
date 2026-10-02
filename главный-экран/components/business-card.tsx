@@ -180,7 +180,7 @@ function HeroName({
         {empty ? (
           <span
             aria-hidden
-            className="pointer-events-none absolute left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[#C8C8C8]"
+            className="pointer-events-none absolute left-0 whitespace-nowrap border-b-[0.5px] border-[#999] pb-px text-[#C8C8C8]"
             style={{ fontSize: size, fontWeight: 400, lineHeight: 1, bottom: descender }}
           >
             {PLACEHOLDER}
@@ -237,7 +237,7 @@ function HeroName({
           style={lineStyle}
         >
           {empty ? (
-            <div className="whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[#C8C8C8]">{PLACEHOLDER}</div>
+            <div className="whitespace-nowrap border-b-[0.5px] border-[#999] pb-px text-[#C8C8C8]">{PLACEHOLDER}</div>
           ) : twoLines ? (
             <>
               <div className="whitespace-nowrap">{first || "\u00a0"}</div>
@@ -286,7 +286,7 @@ function EditorialHeader({
           {sheetMark}
         </p>
       ) : null}
-      {showRule ? <div className="border-t-[0.5px] border-[#111]" /> : null}
+      {showRule ? <div className="border-t-[0.5px] border-[#999]" /> : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (

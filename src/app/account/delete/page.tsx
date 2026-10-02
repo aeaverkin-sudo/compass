@@ -71,7 +71,7 @@ export default function DeleteAccountPage() {
         autoCorrect="off"
         spellCheck={false}
         onChange={(event) => setPhrase(event.target.value)}
-        className="mt-2 max-w-xs border-b border-[#111] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
+        className="mt-2 max-w-xs border-b-[0.5px] border-[#999] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
       />
       <button
         type="button"

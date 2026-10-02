@@ -180,7 +180,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           </DropdownMenu>
         </div>
       </div>
-      <div className="mx-8 border-t-[0.5px] border-[#111]" />
+      <div className="mx-8 border-t-[0.5px] border-[#999]" />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-8">
         {empty ? (
@@ -274,7 +274,7 @@ function AlphabetList({
     <>
       {letters.map((letter) => (
         <section key={letter} className="mt-6">
-          <div className="border-t-[0.5px] border-[#111] pt-2">
+          <div className="border-t-[0.5px] border-[#999] pt-2">
             <p className={`m-0 ${ZONE_LABEL}`}>{letter}</p>
           </div>
           <ul>
@@ -344,7 +344,7 @@ function WaitingRow({
   onSkip: () => void;
 }) {
   return (
-    <li className="flex items-center gap-3 border-b-[0.5px] border-[#111]/15 py-3 text-[#999]">
+    <li className="flex items-center gap-3 border-b-[0.5px] border-[#999] py-3 text-[#999]">
       <Face photoUrl={contact.photoUrl} />
       <div className="min-w-0 flex-1">
         <p className="m-0 truncate text-[15.5px] leading-[1.25] font-normal">{contact.displayName.trim() || "Untitled"}</p>
@@ -374,7 +374,7 @@ function ContactRow({
   const longPress = useLongPress(onArm, HOLD_MS);
   return (
     <li
-      className="flex items-center gap-3 border-b-[0.5px] border-[#111]/15 py-3"
+      className="flex items-center gap-3 border-b-[0.5px] border-[#999] py-3"
       {...longPress}
     >
       <Face photoUrl={contact.photoUrl} />

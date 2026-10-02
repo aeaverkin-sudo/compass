@@ -180,9 +180,9 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
             ) : null}
 
             {notes.length > 0 && !textMode && !viewing ? (
-              <ul className="mb-1 border-b-[0.5px] border-[#111] pb-1">
+              <ul className="mb-1 border-b-[0.5px] border-[#999] pb-1">
                 {notes.map((addon, index) => (
-                  <li key={addon.id} className="flex items-center gap-2 border-b-[0.5px] border-[#111] px-2 py-2 last:border-b-0">
+                  <li key={addon.id} className="flex items-center gap-2 border-b-[0.5px] border-[#999] px-2 py-2 last:border-b-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -226,7 +226,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   autoCapitalize="sentences"
                   autoCorrect="off"
                   spellCheck={false}
-                  className="compass-input mb-2 w-full resize-none border-b-[0.5px] border-[#111] bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
+                  className="compass-input mb-2 w-full resize-none border-b-[0.5px] border-[#999] bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
                 />
                 <button
                   type="button"

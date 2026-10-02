@@ -78,7 +78,7 @@ function Zone({
         "min-w-0 py-[18px]",
         id && "scroll-mt-16",
         rule === "gray" && "border-b-[0.5px] border-[#999]",
-        rule === true && "border-b-[0.5px] border-[#111]",
+        rule === true && "border-b-[0.5px] border-[#999]",
       )}
     >
       <div
