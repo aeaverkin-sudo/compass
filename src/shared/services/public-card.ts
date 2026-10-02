@@ -251,30 +251,94 @@ export async function publicViewer(): Promise<string | undefined> {
   return viewerId(headerStore.get(VIEWER_HEADER));
 }
 
-/** Counts a visit. The owner's own session is not a visit. Messenger crawlers still count. */
+const OPEN_WINDOW_MS = 30 * 60 * 1000;
+const OWNER_MARK = "owner";
+
+/** Preview fetches and headless clients. A real in-app browser still counts. */
+export function isPreviewBot(userAgent: string | null | undefined): boolean {
+  const ua = userAgent?.trim() ?? "";
+  if (!ua) return true;
+  if (/headless|phantomjs|puppeteer|playwright|selenium/i.test(ua)) return true;
+  if (/telegrambot|facebookexternalhit|slackbot|twitterbot|discordbot|linkedinbot|googlebot|bingbot/i.test(ua)) {
+    return true;
+  }
+  return /whatsapp/i.test(ua) && !/mozilla/i.test(ua);
+}
+
+async function markOwnerViewer(cardId: string, viewer: string) {
+  const admin = createAdminSupabaseClient();
+  const existing = await admin
+    .from("card_events")
+    .select("id")
+    .eq("card_id", cardId)
+    .eq("type", OWNER_MARK)
+    .eq("viewer", viewer)
+    .limit(1);
+  if (existing.error || (existing.data ?? []).length > 0) return;
+  await admin.from("card_events").insert({ card_id: cardId, type: OWNER_MARK, viewer });
+}
+
+async function viewerIsOwner(ownerId: string, viewer: string) {
+  const admin = createAdminSupabaseClient();
+  const cards = await admin.from("cards").select("id").eq("owner_id", ownerId);
+  if (cards.error) return false;
+  const ids = (cards.data ?? []).map((row) => row.id as string);
+  if (ids.length === 0) return false;
+  const mark = await admin
+    .from("card_events")
+    .select("id")
+    .eq("type", OWNER_MARK)
+    .eq("viewer", viewer)
+    .in("card_id", ids)
+    .limit(1);
+  return !mark.error && (mark.data ?? []).length > 0;
+}
+
+async function openedRecently(cardId: string, viewer: string) {
+  const admin = createAdminSupabaseClient();
+  const since = new Date(Date.now() - OPEN_WINDOW_MS).toISOString();
+  const recent = await admin
+    .from("card_events")
+    .select("id")
+    .eq("card_id", cardId)
+    .eq("viewer", viewer)
+    .in("type", ["card_open", "qr_open"])
+    .gte("created_at", since)
+    .limit(1);
+  if (recent.error) return false;
+  return (recent.data ?? []).length > 0;
+}
+
+/** One open per viewer per half hour. Bots and the owner never count. */
 export async function logPublicCardOpen(
   cardId: string,
   ownerId: string,
   kind: "card_open" | "qr_open",
   viewer?: string,
 ): Promise<void> {
+  const headerStore = await headers();
+  if (isPreviewBot(headerStore.get("user-agent"))) return;
+
+  let sessionIsOwner = false;
   try {
     const supabase = await createServerSupabaseClient();
     const { data } = await supabase.auth.getUser();
-    if (data.user?.id === ownerId) return;
+    sessionIsOwner = data.user?.id === ownerId;
   } catch {
-    // No session: this is a visitor.
+    sessionIsOwner = false;
   }
+
+  if (sessionIsOwner) {
+    if (viewer) await markOwnerViewer(cardId, viewer).catch(() => undefined);
+    return;
+  }
+  if (!viewer) return;
+  if (await viewerIsOwner(ownerId, viewer)) return;
+  if (await openedRecently(cardId, viewer)) return;
 
   try {
     const admin = createAdminSupabaseClient();
-    const row: { card_id: string; type: string; viewer?: string } = { card_id: cardId, type: kind };
-    if (viewer) row.viewer = viewer;
-    const { error } = await admin.from("card_events").insert(row);
-    if (error && viewer) {
-      await admin.from("card_events").insert({ card_id: cardId, type: kind });
-      return;
-    }
+    const { error } = await admin.from("card_events").insert({ card_id: cardId, type: kind, viewer });
     if (error) console.error("[public-card] open", error.message);
   } catch (error) {
     console.error("[public-card] open", error);

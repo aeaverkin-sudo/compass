@@ -16,6 +16,7 @@ type LinkOpen = {
 type CardData = {
   shared: number;
   opens: number;
+  totalOpens: number;
   opensViaQr: number;
   saved: number;
   linkOpens: LinkOpen[];
@@ -31,15 +32,20 @@ function Metric({
 }: {
   value: string;
   label: string;
-  note?: string;
+  note?: string | string[];
   rule?: boolean;
   children?: ReactNode;
 }) {
+  const notes = note == null ? [] : Array.isArray(note) ? note : [note];
   return (
     <div className={rule ? "border-b-[0.5px] border-[#111] py-[18px]" : "py-[18px]"}>
       <p className="text-[32px] leading-none font-light text-[#111]">{value}</p>
       <p className={`mt-2 ${LABEL}`}>{label}</p>
-      {note ? <p className="mt-1 text-[13px] leading-[1.45] font-normal text-[#999]">{note}</p> : null}
+      {notes.map((line, index) => (
+        <p key={`${line}-${index}`} className="mt-1 text-[13px] leading-[1.45] font-normal text-[#999]">
+          {line}
+        </p>
+      ))}
       {children}
     </div>
   );
@@ -60,7 +66,15 @@ export function DataScreen() {
         return (await response.json()) as CardData;
       })
       .then((body) => {
-        if (!cancel && body && typeof body.shared === "number" && typeof body.opens === "number") setStats(body);
+        if (
+          !cancel &&
+          body &&
+          typeof body.shared === "number" &&
+          typeof body.opens === "number" &&
+          typeof body.totalOpens === "number"
+        ) {
+          setStats(body);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -86,7 +100,7 @@ export function DataScreen() {
         <Metric
           value={shown(stats?.opens)}
           label="Opens"
-          note={stats ? `${stats.opensViaQr} via QR` : undefined}
+          note={stats ? [`${stats.opensViaQr} via QR`, `${stats.totalOpens} total`] : undefined}
         />
         <Metric value={shown(stats?.saved)} label="Saved" />
         <Metric value={shown(stats ? links.reduce((sum, row) => sum + row.count, 0) : undefined)} label="Link opens">

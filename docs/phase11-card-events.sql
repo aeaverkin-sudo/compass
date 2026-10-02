@@ -22,6 +22,21 @@ create index if not exists idx_card_events_card_type_viewer
 create index if not exists idx_card_events_item
   on public.card_events (item_id);
 
+-- Distinct viewers. The headline Opens figure. Service role only.
+create or replace function public.card_unique_opens(card uuid)
+returns integer
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select count(distinct event.viewer)::integer
+  from public.card_events as event
+  where event.card_id = card
+    and event.type in ('card_open', 'qr_open')
+    and event.viewer is not null;
+$$;
+
 -- Viewers with at least two opens of this card. Service role only.
 create or replace function public.card_repeat_visits(card uuid)
 returns integer
@@ -58,6 +73,11 @@ as $$
   group by event.item_id
   order by count(*) desc, event.item_id;
 $$;
+
+revoke all on function public.card_unique_opens(uuid) from public;
+revoke all on function public.card_unique_opens(uuid) from anon;
+revoke all on function public.card_unique_opens(uuid) from authenticated;
+grant execute on function public.card_unique_opens(uuid) to service_role;
 
 revoke all on function public.card_repeat_visits(uuid) from public;
 revoke all on function public.card_repeat_visits(uuid) from anon;

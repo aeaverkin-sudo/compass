@@ -16,7 +16,9 @@ export type LinkOpen = {
 
 export type CardData = {
   shared: number;
+  /** Distinct viewers. Bots and the owner are already left out of the rows. */
   opens: number;
+  totalOpens: number;
   opensViaQr: number;
   saved: number;
   linkOpens: LinkOpen[];
@@ -53,6 +55,16 @@ async function countEvents(cardId: string, types: string[]) {
     .in("type", types);
   if (error) throw new Error(error.message);
   return count ?? 0;
+}
+
+async function uniqueOpens(cardId: string) {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.rpc("card_unique_opens", { card: cardId });
+  if (error) {
+    console.error("[network] unique opens", error.message);
+    return null;
+  }
+  return Number(data ?? 0);
 }
 
 async function repeatVisits(cardId: string) {
@@ -99,25 +111,42 @@ async function linkOpens(cardId: string): Promise<LinkOpen[]> {
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
-/** Shared is a sent share. Opens counts a visit and a QR scan. Saved is the person, not the card. */
+/** Shared is a sent share. Opens is distinct viewers. Total opens is every counted visit. Saved is the person, not the card. */
 export async function readCardData(ownerId: string, requestedCardId: string | null): Promise<CardData> {
   const admin = createAdminSupabaseClient();
   const savedCall = await admin.rpc("connection_save_count", { subject: ownerId });
   if (savedCall.error) throw new Error(savedCall.error.message);
   const saved = Number(savedCall.data ?? 0);
 
-  const empty = { shared: 0, opens: 0, opensViaQr: 0, saved, linkOpens: [], repeatVisits: 0 };
+  const empty = {
+    shared: 0,
+    opens: 0,
+    totalOpens: 0,
+    opensViaQr: 0,
+    saved,
+    linkOpens: [],
+    repeatVisits: 0,
+  };
   const cardId = pickCard(await ownerCards(ownerId), requestedCardId);
   if (!cardId) return empty;
 
-  const [shared, opens, opensViaQr, links, repeats] = await Promise.all([
+  const [shared, totalOpens, opensViaQr, unique, links, repeats] = await Promise.all([
     countEvents(cardId, ["share"]),
     countEvents(cardId, ["card_open", "qr_open"]),
     countEvents(cardId, ["qr_open"]),
+    uniqueOpens(cardId),
     linkOpens(cardId),
     repeatVisits(cardId),
   ]);
-  return { shared, opens, opensViaQr, saved, linkOpens: links, repeatVisits: repeats };
+  return {
+    shared,
+    opens: unique ?? totalOpens,
+    totalOpens,
+    opensViaQr,
+    saved,
+    linkOpens: links,
+    repeatVisits: repeats,
+  };
 }
 
 /** The owner tapped Share and the link or file actually left. A cancelled sheet does not count. */
