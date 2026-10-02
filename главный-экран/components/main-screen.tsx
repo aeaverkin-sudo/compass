@@ -34,6 +34,7 @@ export function MainScreen() {
   const [editing, setEditing] = useState(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
   const openAddRef = useRef<(() => void) | null>(null);
+  const draftStarted = useRef(false);
   const [composing, setComposing] = useState(false);
   const account = useAccountStatus();
   const cardsHydrated = useCardsHydrated();
@@ -65,8 +66,14 @@ export function MainScreen() {
   const browseCard = viewingAddSlide ? null : (cards[browseIndex] ?? cards[currentCardIndex] ?? null);
   const cardReady = Boolean(browseCard && isCardReady(browseCard));
   const shownHasBody = Boolean(browseCard && getCardItems(browseCard, contactItems).length > 0);
-  const hideNav =
-    (cardReady && !shownHasBody) || (viewingAddSlide && needsAccount);
+  const creatingFirstEmptyCard = !viewingAddSlide && cards.length === 1 && !cardReady;
+  const hideNav = (cardReady && !shownHasBody) || creatingFirstEmptyCard;
+
+  useEffect(() => {
+    if (!cardsHydrated || cards.length > 0 || portfolioLimit === null || draftStarted.current) return;
+    draftStarted.current = true;
+    updateSecondCardDraft({ displayName: "" }, portfolioLimit);
+  }, [cardsHydrated, cards.length, portfolioLimit, updateSecondCardDraft]);
 
   useEffect(() => {
     if (!cards[currentCardIndex] || frozen) {
@@ -122,30 +129,12 @@ export function MainScreen() {
   const layout = useMainLayout();
 
   if (cards.length === 0) {
-    if (!cardsHydrated) {
-      return (
-        <main
-          className="compass-main fixed inset-0 flex items-center justify-center bg-background"
-          aria-busy="true"
-        >
-          <p className="text-[14px] font-light text-[#111]">…</p>
-        </main>
-      );
-    }
     return (
-      <main className="compass-main fixed inset-0 flex flex-col items-center justify-center bg-background px-8 text-center text-[#111]">
-        <p className="max-w-xs text-[16px] font-light leading-snug">You don&apos;t have a portfolio yet.</p>
-        <button
-          type="button"
-          className="mt-6 border-0 bg-sky px-6 py-3 text-[13px] font-normal tracking-[0.14em] uppercase disabled:opacity-40"
-          disabled={portfolioLimit === null || cards.length >= portfolioLimit}
-          onClick={() => {
-            if (portfolioLimit === null) return;
-            updateSecondCardDraft({ displayName: "" }, portfolioLimit);
-          }}
-        >
-          Create portfolio
-        </button>
+      <main
+        className="compass-main fixed inset-0 flex items-center justify-center bg-background"
+        aria-busy="true"
+      >
+        <p className="text-[14px] font-light text-[#111]">…</p>
       </main>
     );
   }
