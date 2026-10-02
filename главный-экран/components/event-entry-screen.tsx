@@ -8,27 +8,35 @@ type Step = "entry" | "create" | "join";
 
 /** Same stick as Sign up: 1.5px, #c9c9c9, the full width of the px-8 column. */
 const RULE = "border-t-[1.5px] border-[#c9c9c9]";
+const TITLE =
+  "text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase";
 const ROW =
   "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] text-[#111] uppercase [-webkit-tap-highlight-color:transparent]";
+const ENTRY_ROW =
+  "flex w-full items-center justify-center px-2 py-3 text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase [-webkit-tap-highlight-color:transparent]";
 const CREATE_FIELDS = ["Name", "Logo", "Description", "Date", "Place"] as const;
 const JOIN_OPTIONS = ["Scan QR code", "Enter code", "Open invite link"] as const;
 
 function StickList({
   rows,
+  ruleAbove = true,
+  rowClass = ROW,
 }: {
   rows: { label: string; onClick?: () => void }[];
+  ruleAbove?: boolean;
+  rowClass?: string;
 }) {
   return (
     <div>
-      <div className={RULE} />
+      {ruleAbove ? <div className={RULE} /> : null}
       {rows.map((row) => (
         <div key={row.label}>
           {row.onClick ? (
-            <button type="button" onClick={row.onClick} className={ROW}>
+            <button type="button" onClick={row.onClick} className={rowClass}>
               {row.label}
             </button>
           ) : (
-            <p className={ROW}>{row.label}</p>
+            <p className={rowClass}>{row.label}</p>
           )}
           <div className={RULE} />
         </div>
@@ -63,18 +71,22 @@ export function EventEntryScreen() {
         />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />
-          <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
+          <h1 className={TITLE}>
             {step === "create" ? "Create event" : step === "join" ? "Join" : "Event"}
           </h1>
         </div>
 
         {step === "entry" ? (
-          <StickList
-            rows={[
-              { label: "Join", onClick: () => setStep("join") },
-              { label: "Create", onClick: openCreate },
-            ]}
-          />
+          <div className="mt-4">
+            <StickList
+              ruleAbove={false}
+              rowClass={ENTRY_ROW}
+              rows={[
+                { label: "Join", onClick: () => setStep("join") },
+                { label: "Create", onClick: openCreate },
+              ]}
+            />
+          </div>
         ) : null}
 
         {step === "create" ? <StickList rows={CREATE_FIELDS.map((label) => ({ label }))} /> : null}
