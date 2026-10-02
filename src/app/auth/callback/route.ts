@@ -24,6 +24,16 @@ export async function GET(request: Request) {
   const next = safeNext(url.searchParams.get("next"), origin);
   const described = url.searchParams.get("error_description") || url.searchParams.get("error");
   const keepNext = next.startsWith("/save/") ? `&next=${encodeURIComponent(next)}` : "";
+  const errorCode = url.searchParams.get("error_code") ?? "";
+  const errorParam = url.searchParams.get("error") ?? "";
+  const already =
+    errorCode === "identity_already_exists" ||
+    errorCode === "email_exists" ||
+    errorParam === "identity_already_exists" ||
+    errorParam === "email_exists";
+  if (already) {
+    return NextResponse.redirect(new URL(`/register?google=1${keepNext}`, origin));
+  }
   if (described) {
     const taken = /already|identity|exists/i.test(described);
     const target = taken

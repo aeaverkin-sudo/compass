@@ -81,6 +81,11 @@ const CHOICE =
   "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
 const CHOICE_RULE = "border-t-[1.5px] border-[#c9c9c9]";
 
+function accountAlreadyExists(code: string | undefined, message: string | undefined) {
+  if (code === "identity_already_exists" || code === "email_exists") return true;
+  return /identity_already_exists|email_exists/i.test(message ?? "");
+}
+
 function signInHref(nextPath: string, error?: string) {
   const query = new URLSearchParams();
   query.set("signin", "1");
@@ -111,6 +116,7 @@ export function RegisterScreen() {
   const codeRef = useRef<HTMLInputElement>(null);
   const consentSaved = useRef(false);
   const blinkTimers = useRef<number[]>([]);
+  const googleStarted = useRef(false);
 
   useEffect(() => {
     setInApp(isInAppBrowser());
@@ -155,6 +161,27 @@ export function RegisterScreen() {
     return false;
   };
 
+  const startGoogleSignIn = () =>
+    enterExistingAccount(async () => {
+      const supabase = createBrowserSupabaseClient();
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: googleRedirect() },
+      });
+      return oauthError?.message ?? null;
+    }, true);
+
+  useEffect(() => {
+    if (params.get("google") !== "1" || googleStarted.current || isInAppBrowser()) return;
+    googleStarted.current = true;
+    setBusy(true);
+    void startGoogleSignIn().then((error) => {
+      if (!error) return;
+      setMessage(error);
+      setBusy(false);
+    });
+  }, [params]);
+
   const continueWithGoogle = async () => {
     if (!gate() || busy) return;
     setBusy(true);
@@ -166,7 +193,13 @@ export function RegisterScreen() {
         provider: "google",
         options: { redirectTo: googleRedirect() },
       });
-      if (error) setMessage(error.message);
+      if (!error) return;
+      if (accountAlreadyExists(error.code, error.message)) {
+        const signInError = await startGoogleSignIn();
+        if (signInError) setMessage(signInError);
+        return;
+      }
+      setMessage(error.message);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not start Google");
     } finally {
@@ -179,14 +212,7 @@ export function RegisterScreen() {
     if (!signinOnly && !gate()) return;
     setBusy(true);
     setMessage(null);
-    const error = await enterExistingAccount(async () => {
-      const supabase = createBrowserSupabaseClient();
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: googleRedirect() },
-      });
-      return oauthError?.message ?? null;
-    }, true);
+    const error = await startGoogleSignIn();
     if (error) {
       setMessage(error);
       setBusy(false);
