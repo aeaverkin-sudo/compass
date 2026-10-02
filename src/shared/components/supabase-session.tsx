@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { deviceWasRegistered, markRegisteredDevice } from "@/shared/lib/registered-device";
 import {
+  clearRegistrationRequired,
   consumeSignedOutIgnore,
   ignoreNextSignedOut,
   markRegistrationRequired,
@@ -32,7 +33,10 @@ function acceptUser(user: User) {
     sendRegisteredDeviceToSignIn();
     return;
   }
-  if (!user.is_anonymous) markRegisteredDevice();
+  if (!user.is_anonymous) {
+    markRegisteredDevice();
+    clearRegistrationRequired();
+  }
   restoreRegisteredOnboarding(Boolean(user.is_anonymous));
   console.info("[supabase] session", user.id, user.is_anonymous ? "trial" : "registered");
   void hydrateCardsFromServer();

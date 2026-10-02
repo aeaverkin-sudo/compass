@@ -29,6 +29,13 @@ export function markRegistrationRequired() {
   for (const listener of listeners) listener();
 }
 
+/** A registered session is in place. The expired-login flag must not survive a client navigation. */
+export function clearRegistrationRequired() {
+  if (!registrationRequired) return;
+  registrationRequired = false;
+  for (const listener of listeners) listener();
+}
+
 export function getRegistrationRequired() {
   return registrationRequired;
 }

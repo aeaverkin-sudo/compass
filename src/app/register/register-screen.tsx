@@ -9,7 +9,7 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 import { isInAppBrowser } from "@/shared/lib/in-app-browser";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
-import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
+import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
@@ -64,6 +64,7 @@ async function enterExistingAccount(signIn: () => Promise<string | null>, redire
   }
   if (!redirects) {
     markRegisteredDevice();
+    clearRegistrationRequired();
     await hydrateCardsFromServer();
   }
   return null;
@@ -283,6 +284,7 @@ export function RegisterScreen() {
         return;
       }
       markRegisteredDevice();
+      clearRegistrationRequired();
       router.push(nextPath);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not check the code");
@@ -297,6 +299,8 @@ export function RegisterScreen() {
     setMessage(null);
     const error = await enterExistingAccount(async () => {
       const supabase = createBrowserSupabaseClient();
+      ignoreNextSignedOut();
+      await supabase.auth.signOut({ scope: "local" });
       const { error: signError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password,
