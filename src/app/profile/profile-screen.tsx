@@ -68,7 +68,7 @@ function Zone({
   label: string;
   children: ReactNode;
   align?: "baseline" | "start";
-  rule?: boolean | "gray";
+  rule?: boolean;
   id?: string;
 }) {
   return (
@@ -77,8 +77,7 @@ function Zone({
       className={cn(
         "min-w-0 py-[18px]",
         id && "scroll-mt-16",
-        rule === "gray" && "border-b-[0.5px] border-[#999]",
-        rule === true && "border-b-[0.5px] border-[#111]",
+        rule && "border-b border-[var(--rule)]",
       )}
     >
       <div
@@ -299,7 +298,7 @@ export function ProfileScreen() {
         </div>
       </Zone>
 
-      <Zone label="Manage" rule="gray">
+      <Zone label="Manage" rule>
         <p className={ZONE_VALUE}>
           {account.provider === "email" ? (
             <Link href="/account/email" className="underline">

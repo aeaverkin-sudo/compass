@@ -452,7 +452,7 @@ export function ContactItemChipList({
             data-pdf-block={markPdfBlocks ? "" : undefined}
             className={cn(
               "min-w-0 py-[18px]",
-              zoneIndex < composed.zones.length - 1 && "border-b-[0.5px] border-[#111]",
+              zoneIndex < composed.zones.length - 1 && "border-b border-[var(--rule)]",
             )}
           >
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
@@ -546,7 +546,7 @@ export function ContactItemChipList({
                   onChooseHeader={onChooseHeader}
                 />
                 {zoneEnd && zoneIndex < composed.zones.length - 1 ? (
-                  <div className="col-span-2 mt-3 border-b-[0.5px] border-[#111]" />
+                  <div className="col-span-2 mt-3 border-b border-[var(--rule)]" />
                 ) : null}
               </Fragment>
             );

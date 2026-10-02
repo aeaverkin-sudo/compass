@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
+import { Rule } from "@/shared/components/rule";
 import { NetworkBand } from "@/app/network/network-band";
 
 type Step = "entry" | "create" | "join";
 
-/** Same stick as Sign up: 1.5px, #c9c9c9, the full width of the px-8 column. */
-const RULE = "border-t-[1.5px] border-[#c9c9c9]";
 const TITLE =
   "text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase";
 const ROW =
@@ -29,7 +28,7 @@ function StickList({
 }) {
   return (
     <div>
-      {ruleAbove ? <div className={RULE} /> : null}
+      {ruleAbove ? <Rule /> : null}
       {rows.map((row) => (
         <div key={row.label}>
           {row.onClick ? (
@@ -39,7 +38,7 @@ function StickList({
           ) : (
             <p className={rowClass}>{row.label}</p>
           )}
-          <div className={RULE} />
+          <Rule />
         </div>
       ))}
     </div>

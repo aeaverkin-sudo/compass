@@ -15,6 +15,7 @@ import {
   type CardShareChoice,
 } from "@/shared/services/save-public-card-pdf";
 import { AccountBand } from "@/shared/components/account-band";
+import { Rule } from "@/shared/components/rule";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { composeCard } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
@@ -286,7 +287,7 @@ function EditorialHeader({
           {sheetMark}
         </p>
       ) : null}
-      {showRule ? <div className="border-t-[0.5px] border-[#111]" /> : null}
+      {showRule ? <Rule /> : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (

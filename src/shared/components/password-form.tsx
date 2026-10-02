@@ -58,7 +58,7 @@ export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }
           autoComplete="new-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none"
+          className="mt-2 border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-light outline-none"
         />
         <button
           type="submit"

@@ -91,7 +91,7 @@ export default function ChangeEmailPage() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           disabled={step === "code"}
-          className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none disabled:opacity-60"
+          className="mt-2 border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-light outline-none disabled:opacity-60"
         />
         {step === "code" ? (
           <>
@@ -104,7 +104,7 @@ export default function ChangeEmailPage() {
               autoComplete="one-time-code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
+              className="mt-2 border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
             />
           </>
         ) : null}

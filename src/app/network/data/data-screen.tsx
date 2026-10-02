@@ -39,7 +39,7 @@ function Metric({
 }) {
   const notes = note == null ? [] : Array.isArray(note) ? note : [note];
   return (
-    <div className={rule ? "border-b-[0.5px] border-[#111] py-[18px]" : "py-[18px]"}>
+    <div className={rule ? "border-b border-[var(--rule)] py-[18px]" : "py-[18px]"}>
       <p className="text-[32px] leading-none font-light text-[#111]">{value}</p>
       <p className={`mt-2 ${LABEL}`}>{label}</p>
       {notes.map((line, index) => (
