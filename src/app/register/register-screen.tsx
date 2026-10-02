@@ -577,6 +577,16 @@ export function RegisterScreen() {
           <Link href="/privacy" style={LINK_LINE}>Privacy Policy</Link>.
         </p>
       </div>
+      <p className="mt-10 text-center text-[11px] leading-[1.45] font-normal tracking-[0.14em] text-[#999] uppercase">
+        Got an account?{" "}
+        <Link
+          href={signInHref(nextPath)}
+          className="underline decoration-[0.5px] underline-offset-[3px]"
+          style={{ textDecorationColor: "#999" }}
+        >
+          Sign in
+        </Link>
+      </p>
       {message ? <p className="mt-6 max-w-xs text-[13px] font-light leading-snug">{message}</p> : null}
     </main>
   );
