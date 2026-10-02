@@ -1,0 +1,16 @@
+---
+description: Design tokens — rules, greys, and the five type roles
+alwaysApply: true
+---
+
+# Design tokens
+
+Lines, greys, and text sizes come from the shared tokens. Do not put a raw hex or a raw size back in for these.
+
+- A standalone line is `Rule` from `src/shared/components/rule.tsx`. A container edge is `border` / `border-b` / `border-t` with `border-[var(--rule)]`. Both are 1px, color `--rule` (`#999`).
+- Text and icon ink is `var(--ink)`. Secondary grey is `var(--grey)`. The empty-field placeholder color is `var(--placeholder)`. No other grey.
+- Text uses only `.t-name`, `.t-label`, `.t-body`, `.t-meta`, `.t-caps`.
+- The card name keeps its own fit (`font-semibold`, `tracking-[-1px]`, the measured size). The edit-mode plus keeps its glyph size. The Data figure keeps 32px.
+- The word underline under an empty card placeholder stays `#D0D0D0`. Do not restyle it.
+- Landing pages (`лендинг-страницы/`) stay on their own type.
+- Screen columns use `--gutter`, the card column. Profile already does. Network, Data, and Event wait until that profile check is accepted.
