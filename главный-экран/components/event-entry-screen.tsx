@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
 import { NetworkTabs } from "@/app/network/network-tabs";
@@ -8,35 +8,31 @@ import { cn } from "@/lib/utils";
 
 type Step = "entry" | "create" | "join";
 
-const RUBRIC = "pt-3 text-[11px] leading-[1.45] font-normal tracking-[0.14em] text-hint uppercase";
-const ROW =
-  "block w-full py-3 text-left text-[34px] leading-none font-normal text-[#111] [-webkit-tap-highlight-color:transparent]";
+/** Same axis as a card zone: 86px rubric, 14px gap, 15.5px lines, rule across the row. */
+const CARD_INSET = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
+const RUBRIC =
+  "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase";
+const VALUE =
+  "block w-full text-left text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] [-webkit-tap-highlight-color:transparent]";
 const CREATE_FIELDS = ["Name", "Logo", "Description", "Date", "Place"] as const;
 const JOIN_OPTIONS = ["Scan QR code", "Enter code", "Open invite link"] as const;
 
-function Fork({
+function Zone({
   rubric,
-  rows,
+  rule = true,
+  children,
 }: {
   rubric: string;
-  rows: { label: string; onClick: () => void }[];
+  rule?: boolean;
+  children: ReactNode;
 }) {
   return (
-    <div className="mt-16 grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-x-4">
-      <p className={RUBRIC}>{rubric}</p>
-      <div>
-        {rows.map((row, index) => (
-          <button
-            key={row.label}
-            type="button"
-            onClick={row.onClick}
-            className={cn(ROW, index < rows.length - 1 && "border-b-[0.5px] border-[#111]")}
-          >
-            {row.label}
-          </button>
-        ))}
+    <section className={cn("min-w-0 py-[18px]", rule && "border-b-[0.5px] border-[#111]")}>
+      <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
+        <span className={RUBRIC}>{rubric}</span>
+        <div className="flex min-w-0 flex-col gap-[6px]">{children}</div>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -52,7 +48,7 @@ export function EventEntryScreen() {
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <div className={cn("min-h-0 flex-1 overflow-y-auto pb-[max(2.5rem,env(safe-area-inset-bottom))]", CARD_INSET)}>
         <BackButton
           fallbackHref="/network"
           onBack={
@@ -76,43 +72,53 @@ export function EventEntryScreen() {
         ) : null}
 
         {step === "entry" ? (
-          <Fork
-            rubric="Event"
-            rows={[
-              { label: "Create", onClick: openCreate },
-              { label: "Join", onClick: () => setStep("join") },
-            ]}
-          />
+          <div className="mt-10">
+            <div className="h-[22px]" aria-hidden />
+            <Zone rubric="Event">
+              <button type="button" onClick={openCreate} className={VALUE}>
+                Create
+              </button>
+              <button type="button" onClick={() => setStep("join")} className={VALUE}>
+                Join
+              </button>
+            </Zone>
+          </div>
         ) : null}
 
         {step === "create" ? (
-          <div className="mt-16">
-            <h1 className="text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
-              Create event
-            </h1>
-            <ul className="mt-8">
-              {CREATE_FIELDS.map((field) => (
-                <li
-                  key={field}
-                  className="border-b-[0.5px] border-[#111] py-4 text-[15.5px] leading-[1.45] font-normal text-[#999]"
-                >
-                  {field}
-                </li>
-              ))}
-            </ul>
+          <div className="mt-10">
+            <div className="grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+              <span aria-hidden className="size-[22px]" />
+              <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
+                Create event
+              </h1>
+            </div>
+            {CREATE_FIELDS.map((field) => (
+              <Zone key={field} rubric={field}>
+                <span className="block text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#999]">
+                  &nbsp;
+                </span>
+              </Zone>
+            ))}
           </div>
         ) : null}
 
         {step === "join" ? (
-          <>
-            <Fork
-              rubric="Join"
-              rows={JOIN_OPTIONS.map((label) => ({ label, onClick: () => setStub(label) }))}
-            />
+          <div className="mt-10">
+            <div className="h-[22px]" aria-hidden />
+            <Zone rubric="Join">
+              {JOIN_OPTIONS.map((label) => (
+                <button key={label} type="button" onClick={() => setStub(label)} className={VALUE}>
+                  {label}
+                </button>
+              ))}
+            </Zone>
             {stub ? (
-              <p className="mt-8 text-[13px] leading-[1.45] font-normal text-[#999]">{stub} — coming soon</p>
+              <p className="text-[13px] leading-[1.45] font-normal tracking-[-0.015em] text-[#999]">
+                {stub} — coming soon
+              </p>
             ) : null}
-          </>
+          </div>
         ) : null}
       </div>
       <NetworkTabs />
