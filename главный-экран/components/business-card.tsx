@@ -181,7 +181,7 @@ function HeroName({
         {empty ? (
           <span
             aria-hidden
-            className="pointer-events-none absolute left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[#C8C8C8]"
+            className="pointer-events-none absolute left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]"
             style={{ fontSize: size, fontWeight: 400, lineHeight: 1, bottom: descender }}
           >
             {PLACEHOLDER}
@@ -238,7 +238,7 @@ function HeroName({
           style={lineStyle}
         >
           {empty ? (
-            <div className="whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[#C8C8C8]">{PLACEHOLDER}</div>
+            <div className="whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]">{PLACEHOLDER}</div>
           ) : twoLines ? (
             <>
               <div className="whitespace-nowrap">{first || "\u00a0"}</div>
@@ -283,7 +283,7 @@ function EditorialHeader({
   return (
     <div className="w-full">
       {sheetMark ? (
-        <p className="m-0 mb-1 text-right text-[11px] leading-none font-normal tracking-[0.1em] text-[#999]">
+        <p className="m-0 mb-1 text-right text-[11px] leading-none font-normal tracking-[0.1em] text-[var(--grey)]">
           {sheetMark}
         </p>
       ) : null}
@@ -308,7 +308,7 @@ function EditorialHeader({
             {positionTitle ? (
               <p
                 data-card-content
-                className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden text-[11px] leading-[1.25] font-normal tracking-[0.2em] text-[#999] uppercase"
+                className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden text-[11px] leading-[1.25] font-normal tracking-[0.2em] text-[var(--grey)] uppercase"
               >
                 {positionTitle}
               </p>
@@ -392,7 +392,7 @@ function CompactHeader({
           </p>
         )}
         {positionTitle ? (
-          <p data-card-content className="mt-1 text-center text-[11px] leading-none font-normal tracking-[0.2em] text-[#999] uppercase">
+          <p data-card-content className="mt-1 text-center text-[11px] leading-none font-normal tracking-[0.2em] text-[var(--grey)] uppercase">
             {positionTitle}
             {positionCompany ? <span> · {positionCompany}</span> : null}
           </p>

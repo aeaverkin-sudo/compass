@@ -456,7 +456,7 @@ export function ContactItemChipList({
             )}
           >
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
-              <span className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase">
+              <span className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[var(--grey)] uppercase">
                 {zone.title}
               </span>
               <div className="flex min-w-0 flex-col gap-[6px]">
@@ -521,7 +521,7 @@ export function ContactItemChipList({
               <Fragment key={row.key}>
                 <span
                   className={cn(
-                    "pt-1 text-[11px] font-normal leading-none tracking-[0.1em] whitespace-nowrap text-[#999] uppercase",
+                    "pt-1 text-[11px] font-normal leading-none tracking-[0.1em] whitespace-nowrap text-[var(--grey)] uppercase",
                     zoneGap && "mt-3",
                   )}
                 >

@@ -18,7 +18,7 @@ import { isCardReady, isSolePublic, useAppStore } from "@/shared/store/app-store
 import { cn } from "@/lib/utils";
 
 const ZONE_LABEL =
-  "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase";
+  "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[var(--grey)] uppercase";
 const ZONE_VALUE =
   "min-w-0 break-words text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111]";
 
@@ -221,7 +221,7 @@ export function ProfileScreen() {
                     {card.displayName.trim() || "Untitled"}
                   </p>
                   <div className="mt-2 flex items-center gap-3">
-                    <span className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase">
+                    <span className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[var(--grey)] uppercase">
                       {isPublic ? "Public" : "Private"}
                     </span>
                     <Switch
@@ -284,7 +284,7 @@ export function ProfileScreen() {
 
       <Zone label="Color" rule>
         <div className="flex items-center gap-3">
-          <span className="text-[13px] leading-[1.45] font-normal tracking-[0.18em] text-[#999] uppercase">
+          <span className="text-[13px] leading-[1.45] font-normal tracking-[0.18em] text-[var(--grey)] uppercase">
             C mode
           </span>
           <Switch
@@ -292,7 +292,7 @@ export function ProfileScreen() {
             onCheckedChange={(checked) => setMonochrome(checked === true)}
             aria-label={monochrome ? "BW mode" : "C mode"}
           />
-          <span className="text-[13px] leading-[1.45] font-normal tracking-[0.18em] text-[#999] uppercase">
+          <span className="text-[13px] leading-[1.45] font-normal tracking-[0.18em] text-[var(--grey)] uppercase">
             BW mode
           </span>
         </div>

@@ -98,7 +98,7 @@ export function EventEntryScreen() {
           <>
             <StickList rows={JOIN_OPTIONS.map((label) => ({ label, onClick: () => setStub(label) }))} />
             {stub ? (
-              <p className="mt-8 text-center text-[13px] leading-[1.45] font-normal text-[#999]">{stub} — coming soon</p>
+              <p className="mt-8 text-center text-[13px] leading-[1.45] font-normal text-[var(--grey)]">{stub} — coming soon</p>
             ) : null}
           </>
         ) : null}

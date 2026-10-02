@@ -77,7 +77,7 @@ const LINK_LINE = {
   textUnderlineOffset: "3px",
 } as const;
 const SECTION_TITLE =
-  "py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] text-[#999] uppercase";
+  "py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] text-[var(--grey)] uppercase";
 const CHOICE =
   "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center text-[15px] leading-[1.3] font-normal tracking-[0.14em] uppercase transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
 
@@ -353,7 +353,7 @@ export function RegisterScreen() {
               void submitPassword();
             }}
           >
-            <label className="text-[12px] font-normal tracking-[0.08em] text-[#999] uppercase" htmlFor="signin-email">
+            <label className="text-[12px] font-normal tracking-[0.08em] text-[var(--grey)] uppercase" htmlFor="signin-email">
               Email
             </label>
             <input
@@ -367,7 +367,7 @@ export function RegisterScreen() {
               onChange={(event) => setEmail(event.target.value)}
               className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
             />
-            <label className="mt-8 block text-[12px] font-normal tracking-[0.08em] text-[#999] uppercase" htmlFor="signin-password">
+            <label className="mt-8 block text-[12px] font-normal tracking-[0.08em] text-[var(--grey)] uppercase" htmlFor="signin-password">
               Password
             </label>
             <input
@@ -479,7 +479,7 @@ export function RegisterScreen() {
             else void submitEmail();
           }}
         >
-          <label className="text-[12px] font-normal tracking-[0.08em] text-[#999] uppercase" htmlFor="register-email-field">
+          <label className="text-[12px] font-normal tracking-[0.08em] text-[var(--grey)] uppercase" htmlFor="register-email-field">
             {onCode ? "Code" : "Email"}
           </label>
           {onCode ? (
@@ -507,7 +507,7 @@ export function RegisterScreen() {
               className="mt-2 w-full border-b border-[var(--rule)] bg-transparent py-2 text-[16px] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none"
             />
           )}
-          <p className="mt-3 text-[13px] leading-[1.45] font-normal text-[#999]">
+          <p className="mt-3 text-[13px] leading-[1.45] font-normal text-[var(--grey)]">
             {onCode
               ? `Sent to ${email.trim()}. This code is your password. You can change it in your profile.`
               : "We will send you a code. This code is your password. You can change it in your profile."}
@@ -603,12 +603,12 @@ export function RegisterScreen() {
           <Link href="/privacy" style={LINK_LINE}>Privacy Policy</Link>.
         </p>
       </div>
-      <p className="mt-10 text-center text-[11px] leading-[1.45] font-normal tracking-[0.14em] text-[#999] uppercase">
+      <p className="mt-10 text-center text-[11px] leading-[1.45] font-normal tracking-[0.14em] text-[var(--grey)] uppercase">
         Got an account?{" "}
         <Link
           href={signInHref(nextPath)}
           className="underline decoration-[0.5px] underline-offset-[3px]"
-          style={{ textDecorationColor: "#999" }}
+          style={{ textDecorationColor: "var(--grey)" }}
         >
           Sign in
         </Link>

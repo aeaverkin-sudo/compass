@@ -134,7 +134,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
           open && "z-[60]",
         )}
       >
-        <Plus className={cn(bare ? "size-5 text-[#111]" : "size-4 text-label")} strokeWidth={1} aria-hidden />
+        <Plus className={cn(bare ? "size-5 text-[#111]" : "size-4 text-[var(--grey)]")} strokeWidth={1} aria-hidden />
         {notes.length > 0 ? (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-none text-white">
             {notes.length}
@@ -191,7 +191,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                       }}
                       className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     >
-                      <span className="w-4 shrink-0 text-[11px] font-normal leading-none tracking-[0.1em] text-[#999]">
+                      <span className="w-4 shrink-0 text-[11px] font-normal leading-none tracking-[0.1em] text-[var(--grey)]">
                         {index + 1}
                       </span>
                       <NextScanAddonIcon type={addon.type === "selfie" ? "selfie" : "text"} />
@@ -205,7 +205,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                         event.stopPropagation();
                         removeAddon(addon.id);
                       }}
-                      className="shrink-0 p-1 text-hint transition-opacity active:opacity-60"
+                      className="shrink-0 p-1 text-[var(--grey)] transition-opacity active:opacity-60"
                       aria-label="Delete note"
                     >
                       <Trash2 className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
@@ -226,7 +226,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   autoCapitalize="sentences"
                   autoCorrect="off"
                   spellCheck={false}
-                  className="compass-input mb-2 w-full resize-none border-b border-[var(--rule)] bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
+                  className="compass-input mb-2 w-full resize-none border-b border-[var(--rule)] bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:tracking-[0.1em] placeholder:text-[var(--grey)] placeholder:uppercase"
                 />
                 <button
                   type="button"
@@ -265,7 +265,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
             ) : null}
 
             {atMax && !textMode && !viewing ? (
-              <p className="px-3 py-2 text-[11px] font-normal leading-none tracking-[0.1em] text-[#999] uppercase">
+              <p className="px-3 py-2 text-[11px] font-normal leading-none tracking-[0.1em] text-[var(--grey)] uppercase">
                 Maximum {MAX_NEXT_SCAN_NOTES} notes for next scan.
               </p>
             ) : null}

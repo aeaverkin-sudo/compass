@@ -7,7 +7,7 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
 import { NetworkBand } from "../network-band";
 
-const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase";
+const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[var(--grey)] uppercase";
 
 type LinkOpen = {
   label: string;
@@ -43,7 +43,7 @@ function Metric({
       <p className="text-[32px] leading-none font-light text-[#111]">{value}</p>
       <p className={`mt-2 ${LABEL}`}>{label}</p>
       {notes.map((line, index) => (
-        <p key={`${line}-${index}`} className="mt-1 text-[13px] leading-[1.45] font-normal text-[#999]">
+        <p key={`${line}-${index}`} className="mt-1 text-[13px] leading-[1.45] font-normal text-[var(--grey)]">
           {line}
         </p>
       ))}

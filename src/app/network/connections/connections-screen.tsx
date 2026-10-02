@@ -6,7 +6,7 @@ import { BackButton } from "@/shared/components/back-button";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { NetworkTabs } from "../network-tabs";
 
-const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[#999] uppercase";
+const LABEL = "text-[11px] leading-[1.45] font-normal tracking-[0.1em] text-[var(--grey)] uppercase";
 
 const FROZEN = { filter: "blur(4.5px)", opacity: 0.42 } as const;
 
@@ -186,7 +186,7 @@ function Composer({
           enterKeyHint="send"
           placeholder="A product photographer in Lisbon…"
           aria-label="Looking for"
-          className="min-h-[calc(16px*1.45)] w-full flex-1 resize-none bg-transparent text-[16px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[#999]"
+          className="min-h-[calc(16px*1.45)] w-full flex-1 resize-none bg-transparent text-[16px] leading-[1.45] font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[var(--grey)]"
           style={{ maxHeight: FIELD_MAX }}
           onChange={(event) => {
             onChange(event.target.value);
@@ -222,7 +222,7 @@ function MatchRow({ match, quiet = false }: { match: Match; quiet?: boolean }) {
           {match.name.trim() || "Untitled"}
         </p>
         {match.why ? (
-          <p className="m-0 mt-0.5 text-[16px] leading-[1.45] font-normal text-[#999]">{match.why}</p>
+          <p className="m-0 mt-0.5 text-[16px] leading-[1.45] font-normal text-[var(--grey)]">{match.why}</p>
         ) : null}
       </div>
       {quiet ? (
@@ -257,7 +257,7 @@ function Worldwide() {
 function EmptyResults() {
   return (
     <div className="flex h-full min-h-full flex-col">
-      <p className="flex flex-1 items-center justify-center px-8 text-center text-[15px] leading-snug font-light text-[#999]">
+      <p className="flex flex-1 items-center justify-center px-8 text-center text-[15px] leading-snug font-light text-[var(--grey)]">
         No matches yet — it&apos;s a startup. Nobody&apos;s here but us. Try anyway
       </p>
       <div className="px-8 pb-8">

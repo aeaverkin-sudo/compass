@@ -33,7 +33,7 @@ type Contact = {
 const HOLD_MS = 500;
 /** Same token as the profile zone label. */
 const ZONE_LABEL =
-  "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[#999] uppercase";
+  "text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap text-[var(--grey)] uppercase";
 /** Two lines above the card's first rule. The back arrow still clears the field by at least 16px. */
 const SEARCH_LIFT_PX = 44;
 const CARD_LINE_TOP = `calc(env(safe-area-inset-top) + ${HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX - SEARCH_LIFT_PX}px)`;
@@ -159,7 +159,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Name, role, or company"
             aria-label="Name, role, or company"
-            className="min-w-0 flex-1 bg-transparent text-[15px] font-normal outline-none placeholder:text-[#999]/60"
+            className="min-w-0 flex-1 bg-transparent text-[15px] font-normal outline-none placeholder:text-[var(--grey)]/60"
           />
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -186,7 +186,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
       <div className="min-h-0 flex-1 overflow-y-auto px-8">
         {empty ? (
-          <p className="flex h-full items-center justify-center text-center text-[15px] font-light leading-snug text-[#999]">
+          <p className="flex h-full items-center justify-center text-center text-[15px] font-light leading-snug text-[var(--grey)]">
             Your contact list. Exchange a card and your first contact appears here.
           </p>
         ) : (
@@ -346,7 +346,7 @@ function WaitingRow({
   onSkip: () => void;
 }) {
   return (
-    <li className="flex items-center gap-3 border-b border-[var(--rule)] py-3 text-[#999]">
+    <li className="flex items-center gap-3 border-b border-[var(--rule)] py-3 text-[var(--grey)]">
       <Face photoUrl={contact.photoUrl} />
       <div className="min-w-0 flex-1">
         <p className="m-0 truncate text-[15.5px] leading-[1.25] font-normal">{contact.displayName.trim() || "Untitled"}</p>
@@ -385,7 +385,7 @@ function ContactRow({
           {contact.displayName.trim() || "Untitled"}
         </p>
         {metaLine(contact) ? (
-          <p className="m-0 mt-0.5 truncate text-[13px] leading-snug font-normal text-[#999]">{metaLine(contact)}</p>
+          <p className="m-0 mt-0.5 truncate text-[13px] leading-snug font-normal text-[var(--grey)]">{metaLine(contact)}</p>
         ) : null}
       </div>
       {armed ? (

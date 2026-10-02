@@ -15,7 +15,7 @@ import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
 const HOLD_MS = 500;
-const OFF_CARD = "#C8C8C8";
+const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 /** The writing line grows upward to this height, then scrolls inside. */
@@ -171,7 +171,7 @@ export function CardEditList({
           <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
             <span
               className="text-[11px] leading-[1.45] font-normal tracking-[0.1em] whitespace-nowrap uppercase"
-              style={{ color: section.included ? "#999" : OFF_CARD }}
+              style={{ color: section.included ? "var(--grey)" : OFF_CARD }}
             >
               {section.title}
             </span>
@@ -510,7 +510,7 @@ function AddLine({
                     }}
                     onFocus={onFocus}
                     onBlur={handleBlur}
-                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent p-0 font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:text-[#999]"
+                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent p-0 font-normal tracking-[-0.015em] text-[#111] caret-[#111] outline-none placeholder:text-[15.4px] placeholder:font-normal placeholder:text-[var(--grey)]"
                     style={{ fontSize: 16, lineHeight: "normal" }}
                   />
                 </div>

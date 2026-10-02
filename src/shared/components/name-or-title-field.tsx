@@ -55,7 +55,7 @@ export function NameOrTitleField({
       }}
       onClick={(event) => event.stopPropagation()}
       className={cn(
-        "compass-input block w-full resize-none overflow-hidden bg-transparent leading-[1.15] text-foreground outline-none placeholder:text-hint",
+        "compass-input block w-full resize-none overflow-hidden bg-transparent leading-[1.15] text-foreground outline-none placeholder:text-[var(--grey)]",
         className,
       )}
       style={{ fontSize: fontSizePx, height: twoLines ? "2.3em" : "1.15em" }}
