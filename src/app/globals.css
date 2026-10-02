@@ -10,6 +10,8 @@
   --grey: #999;
   --placeholder: #c8c8c8;
   --rule: #999;
+  /* Carousel card column: 28px side spacer plus the card's own inset. */
+  --gutter: calc(28px + clamp(24px, 6.1vw, 28px) - 3mm);
   --hint: var(--grey);
   --sheet: #ffffff;
   --sky: #c5e8f7;
