@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LandingPage } from "@landing/components/landing-page";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { deviceWasRegistered } from "@/shared/lib/registered-device";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -9,8 +10,8 @@ import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { isCardReady, useAppStore } from "@/shared/store/app-store";
 
 /**
- * Trial entry from Try it on a shared link or PDF.
- * An anonymous session, then the existing landing: plus and name.
+ * Trial onboarding: photo and name.
+ * Reached from Try without sign up, after the Sign up consent checkbox.
  * A phone that already flipped onboarded without a finished portfolio still sees that landing.
  * The 60h clock still starts on Confirm.
  */
@@ -19,6 +20,7 @@ export default function TryPage() {
   const hydrated = useStoreHydrated();
   const sessionReady = useSessionBootstrap();
   const needsSignIn = useRegistrationRequired();
+  const [showLanding, setShowLanding] = useState(false);
 
   useEffect(() => {
     if (!hydrated || !sessionReady || needsSignIn) return;
@@ -41,7 +43,14 @@ export default function TryPage() {
       if (!started && state.user.onboarded) {
         useAppStore.setState({ user: { ...state.user, onboarded: false } });
       }
-      router.replace("/");
+      if (started) {
+        if (!state.user.onboarded) {
+          useAppStore.setState({ user: { ...state.user, onboarded: true } });
+        }
+        router.replace("/main");
+        return;
+      }
+      setShowLanding(true);
     })();
 
     return () => {
@@ -49,5 +58,6 @@ export default function TryPage() {
     };
   }, [hydrated, sessionReady, needsSignIn, router]);
 
-  return <div className="h-lvh bg-background" aria-hidden />;
+  if (!showLanding) return <div className="h-lvh bg-background" aria-hidden />;
+  return <LandingPage />;
 }
