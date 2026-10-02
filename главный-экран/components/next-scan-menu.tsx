@@ -4,7 +4,6 @@ import { Camera, FileText, Plus, Trash2 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { RULE_BOTTOM } from "@/shared/lib/rule";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
 import { MAX_NEXT_SCAN_NOTES, type NextScanAddon } from "@/shared/types";
 import { openSelfiePicker } from "@landing/components/photo-input-utils";
@@ -181,9 +180,9 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
             ) : null}
 
             {notes.length > 0 && !textMode && !viewing ? (
-              <ul className={cn("mb-1 pb-1", RULE_BOTTOM)}>
+              <ul className="mb-1 border-b-[0.5px] border-[#111] pb-1">
                 {notes.map((addon, index) => (
-                  <li key={addon.id} className={cn("flex items-center gap-2 px-2 py-2 last:border-b-0", RULE_BOTTOM)}>
+                  <li key={addon.id} className="flex items-center gap-2 border-b-[0.5px] border-[#111] px-2 py-2 last:border-b-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -227,7 +226,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   autoCapitalize="sentences"
                   autoCorrect="off"
                   spellCheck={false}
-                  className={cn("compass-input mb-2 w-full resize-none bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase", RULE_BOTTOM)}
+                  className="compass-input mb-2 w-full resize-none border-b-[0.5px] border-[#111] bg-transparent text-[13px] leading-[1.35] font-normal tracking-[-0.015em] text-[#111] outline-none placeholder:text-[11px] placeholder:tracking-[0.1em] placeholder:text-[#999] placeholder:uppercase"
                 />
                 <button
                   type="button"

@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { BackButton } from "@/shared/components/back-button";
-import { cn } from "@/lib/utils";
-import { RULE_BOTTOM } from "@/shared/lib/rule";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 type PasswordFormProps = {
@@ -60,7 +58,7 @@ export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }
           autoComplete="new-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className={cn("mt-2 bg-transparent py-2 text-[16px] font-light outline-none", RULE_BOTTOM)}
+          className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none"
         />
         <button
           type="submit"

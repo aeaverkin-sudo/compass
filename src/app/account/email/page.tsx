@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
-import { cn } from "@/lib/utils";
-import { RULE_BOTTOM } from "@/shared/lib/rule";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 export default function ChangeEmailPage() {
@@ -93,7 +91,7 @@ export default function ChangeEmailPage() {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           disabled={step === "code"}
-          className={cn("mt-2 bg-transparent py-2 text-[16px] font-light outline-none disabled:opacity-60", RULE_BOTTOM)}
+          className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light outline-none disabled:opacity-60"
         />
         {step === "code" ? (
           <>
@@ -106,7 +104,7 @@ export default function ChangeEmailPage() {
               autoComplete="one-time-code"
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              className={cn("mt-2 bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none", RULE_BOTTOM)}
+              className="mt-2 border-b border-[#111] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
             />
           </>
         ) : null}

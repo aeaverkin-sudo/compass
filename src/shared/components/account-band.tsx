@@ -51,7 +51,7 @@ export function AccountBand({
       className={cn(
         "bg-sky text-[10px] leading-[1.6] font-normal tracking-[0.14em] text-[#111] uppercase",
         safe && "compass-sky-band",
-        inset == null && "px-8",
+        inset == null && "px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
       )}
       style={{
         fontFamily: FONT,

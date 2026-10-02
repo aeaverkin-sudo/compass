@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
-import { cn } from "@/lib/utils";
-import { RULE_BOTTOM } from "@/shared/lib/rule";
 import { clearRegisteredDevice } from "@/shared/lib/registered-device";
 import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -73,7 +71,7 @@ export default function DeleteAccountPage() {
         autoCorrect="off"
         spellCheck={false}
         onChange={(event) => setPhrase(event.target.value)}
-        className={cn("mt-2 max-w-xs bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none", RULE_BOTTOM)}
+        className="mt-2 max-w-xs border-b border-[#111] bg-transparent py-2 text-[16px] font-light tracking-[0.2em] outline-none"
       />
       <button
         type="button"

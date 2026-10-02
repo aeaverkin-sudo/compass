@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { BackButton } from "@/shared/components/back-button";
 import { NetworkTabs } from "@/app/network/network-tabs";
-import { RULE_TOP } from "@/shared/lib/rule";
 
 type Step = "entry" | "create" | "join";
 
-/** The one rule: 0.5px #999, the full width of the px-8 column. */
-const RULE = RULE_TOP;
+/** Same stick as Sign up: 1.5px, #c9c9c9, the full width of the px-8 column. */
+const RULE = "border-t-[1.5px] border-[#c9c9c9]";
 const TITLE =
   "text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase";
 const ROW =
