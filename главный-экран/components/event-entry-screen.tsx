@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Plus } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
 import { NetworkTabs } from "@/app/network/network-tabs";
 import { cn } from "@/lib/utils";
@@ -60,52 +59,36 @@ export function EventEntryScreen() {
                 }
           }
         />
-        {step === "entry" ? (
-          <button
-            type="button"
-            aria-label="Create"
-            onClick={openCreate}
-            className="fixed top-10 right-8 z-30 flex h-[22px] w-11 -translate-y-px items-center justify-end text-[#111] [-webkit-tap-highlight-color:transparent]"
-          >
-            <Plus className="size-7" strokeWidth={1} aria-hidden />
-          </button>
-        ) : null}
+        <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
+          <span aria-hidden className="size-[22px]" />
+          <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
+            {step === "create" ? "Create event" : step === "join" ? "Join" : "Event"}
+          </h1>
+        </div>
 
         {step === "entry" ? (
-          <div className="mt-10">
-            <div className="h-[22px]" aria-hidden />
-            <Zone rubric="Event">
-              <button type="button" onClick={openCreate} className={VALUE}>
-                Create
-              </button>
-              <button type="button" onClick={() => setStep("join")} className={VALUE}>
-                Join
-              </button>
-            </Zone>
-          </div>
+          <Zone rubric="Event">
+            <button type="button" onClick={() => setStep("join")} className={VALUE}>
+              Join
+            </button>
+            <button type="button" onClick={openCreate} className={VALUE}>
+              Create
+            </button>
+          </Zone>
         ) : null}
 
-        {step === "create" ? (
-          <div className="mt-10">
-            <div className="grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-              <span aria-hidden className="size-[22px]" />
-              <h1 className="text-center text-[14px] leading-[1.45] font-normal tracking-[0.1em] text-[#111] uppercase">
-                Create event
-              </h1>
-            </div>
-            {CREATE_FIELDS.map((field) => (
+        {step === "create"
+          ? CREATE_FIELDS.map((field) => (
               <Zone key={field} rubric={field}>
                 <span className="block text-[15.5px] leading-[1.45] font-normal tracking-[-0.015em] text-[#999]">
                   &nbsp;
                 </span>
               </Zone>
-            ))}
-          </div>
-        ) : null}
+            ))
+          : null}
 
         {step === "join" ? (
-          <div className="mt-10">
-            <div className="h-[22px]" aria-hidden />
+          <>
             <Zone rubric="Join">
               {JOIN_OPTIONS.map((label) => (
                 <button key={label} type="button" onClick={() => setStub(label)} className={VALUE}>
@@ -118,7 +101,7 @@ export function EventEntryScreen() {
                 {stub} — coming soon
               </p>
             ) : null}
-          </div>
+          </>
         ) : null}
       </div>
       <NetworkTabs />
