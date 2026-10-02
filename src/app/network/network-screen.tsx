@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
+import { Rule } from "@/shared/components/rule";
 import { SkyToast } from "@/shared/components/sky-toast";
 import {
   DropdownMenu,
@@ -151,7 +152,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         </h1>
       </div>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
-      <div className="flex flex-col justify-end px-8" style={{ height: CARD_LINE_TOP }}>
+      <div className="flex flex-col justify-end px-[var(--gutter)]" style={{ height: CARD_LINE_TOP }}>
         <div className="flex items-center gap-3 py-2">
           <Search className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
           <input
@@ -182,7 +183,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           </DropdownMenu>
         </div>
       </div>
-      <div className="mx-8 border-t border-[var(--rule)]" />
+      <Rule className="mx-[var(--gutter)] w-auto" />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-8">
         {empty ? (
