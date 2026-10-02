@@ -36,6 +36,10 @@ html.compass-ready {
   background-color: var(--background-ready);
 }
 
+html.compass-mono {
+  --sky: #e5e5e5;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-background-ready: var(--background-ready);

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AppResetGate } from "@/shared/components/app-reset-gate";
+import { MonochromeSync } from "@/shared/components/monochrome-sync";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
 import { SupabaseSession } from "@/shared/components/supabase-session";
 import { VisualBottom } from "@/shared/components/visual-bottom";
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ru" className="h-full">
       <body className="min-h-full font-sans antialiased">
         <AppResetGate />
+        <MonochromeSync />
         <SupabaseSession />
         <VisualBottom />
         <PdfPreviewHost />

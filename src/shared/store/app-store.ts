@@ -45,6 +45,7 @@ interface AppState {
   markMainIntroSeen: () => void;
   markEmptyFillHintSeen: () => void;
   markPasswordHintSeen: () => void;
+  setMonochrome: (value: boolean) => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
   /** Public/Private. The first card stays public. A new second card is created private. */
@@ -73,6 +74,7 @@ function createInitialUser(): User {
     id: nanoid(),
     onboarded: false,
     mainIntroSeen: false,
+    monochrome: false,
     shareToken: nanoid(12),
   };
 }
@@ -152,6 +154,8 @@ export const useAppStore = create<AppState>()(
         if (get().user.passwordHintSeen) return;
         set({ user: { ...get().user, passwordHintSeen: true } });
       },
+
+      setMonochrome: (value) => set({ user: { ...get().user, monochrome: value } }),
 
       setCurrentCardIndex: (index) => {
         const { cards } = get();

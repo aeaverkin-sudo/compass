@@ -104,5 +104,7 @@ export interface User {
   emptyFillHintSeen?: boolean;
   /** True once the one-time password reminder has been shown on the portfolio. */
   passwordHintSeen?: boolean;
+  /** Gray interface. Photos stay in color. */
+  monochrome?: boolean;
   shareToken: string;
 }

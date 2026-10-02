@@ -68,11 +68,19 @@ function Zone({
   label: string;
   children: ReactNode;
   align?: "baseline" | "start";
-  rule?: boolean;
+  rule?: boolean | "gray";
   id?: string;
 }) {
   return (
-    <section id={id} className={cn("min-w-0 py-[18px]", id && "scroll-mt-16", rule && "border-b-[0.5px] border-[#111]")}>
+    <section
+      id={id}
+      className={cn(
+        "min-w-0 py-[18px]",
+        id && "scroll-mt-16",
+        rule === "gray" && "border-b-[0.5px] border-[#999]",
+        rule === true && "border-b-[0.5px] border-[#111]",
+      )}
+    >
       <div
         className={cn(
           "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]",
@@ -91,6 +99,8 @@ export function ProfileScreen() {
   const account = useAccountStatus();
   const cards = useAppStore((state) => state.cards);
   const setCardListed = useAppStore((state) => state.setCardListed);
+  const setMonochrome = useAppStore((state) => state.setMonochrome);
+  const monochrome = useAppStore((state) => state.user.monochrome);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
   const portfolioLimit = account?.portfolioLimit ?? null;
   const atCardLimit = portfolioLimit !== null && cards.length >= portfolioLimit;
@@ -273,7 +283,23 @@ export function ProfileScreen() {
         ) : null}
       </Zone>
 
-      <Zone label="Manage" rule>
+      <Zone label="Color" rule>
+        <div className="flex items-center gap-3">
+          <span className="text-[13px] leading-[1.45] font-normal tracking-[0.18em] text-[#999] uppercase">
+            C mode
+          </span>
+          <Switch
+            checked={Boolean(monochrome)}
+            onCheckedChange={(checked) => setMonochrome(checked === true)}
+            aria-label={monochrome ? "BW mode" : "C mode"}
+          />
+          <span className="text-[13px] leading-[1.45] font-normal tracking-[0.18em] text-[#999] uppercase">
+            BW mode
+          </span>
+        </div>
+      </Zone>
+
+      <Zone label="Manage" rule="gray">
         <p className={ZONE_VALUE}>
           {account.provider === "email" ? (
             <Link href="/account/email" className="underline">

@@ -21,6 +21,7 @@ function liveQrUrl(url: string) {
 
 export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
   const currentCardId = useAppStore((state) => state.cards[state.currentCardIndex]?.id ?? "");
+  const monochrome = useAppStore((state) => state.user.monochrome);
   const [breathe, setBreathe] = useState(false);
   const playingRef = useRef(false);
 
@@ -55,7 +56,7 @@ export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
             value={liveQrUrl(url)}
             size={BROWSE_QR_SIZE}
             level="H"
-            fgColor={QR_COLOR}
+            fgColor={monochrome ? "#000000" : QR_COLOR}
             bgColor="#FFFFFF"
           />
         </div>
