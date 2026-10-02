@@ -92,15 +92,23 @@ export function EventEntryScreen() {
           </div>
         ) : null}
 
-        {step === "create" ? <StickList rows={CREATE_FIELDS.map((label) => ({ label }))} /> : null}
+        {step === "create" ? (
+          <div className="flex flex-1 items-center">
+            <div className="w-full">
+              <StickList rows={CREATE_FIELDS.map((label) => ({ label }))} />
+            </div>
+          </div>
+        ) : null}
 
         {step === "join" ? (
-          <>
-            <StickList rows={JOIN_OPTIONS.map((label) => ({ label, onClick: () => setStub(label) }))} />
-            {stub ? (
-              <p className="mt-8 text-center t-meta text-[var(--grey)]">{stub} — coming soon</p>
-            ) : null}
-          </>
+          <div className="flex flex-1 items-center">
+            <div className="w-full">
+              <StickList rows={JOIN_OPTIONS.map((label) => ({ label, onClick: () => setStub(label) }))} />
+              {stub ? (
+                <p className="mt-8 text-center t-meta text-[var(--grey)]">{stub} — coming soon</p>
+              ) : null}
+            </div>
+          </div>
         ) : null}
       </div>
       <NetworkBand current="event" />
