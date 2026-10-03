@@ -26,7 +26,7 @@ create table if not exists public.events (
   place              text,
   place_secret       boolean not null default false,
   theme              text not null default 'paper'
-                       check (theme in ('paper', 'stone', 'sky', 'orange', 'cobalt', 'noir')),
+                       check (theme in ('paper', 'stone', 'sky', 'orange', 'blue', 'noir')),
   layout             text not null default 'grid'
                        check (layout in ('grid', 'corners', 'oversized')),
   public_token       text not null,
@@ -71,13 +71,14 @@ set theme = case theme
   when 'clay' then 'stone'
   when 'sand' then 'stone'
   when 'mist' then 'stone'
+  when 'cobalt' then 'blue'
   else 'paper'
 end
-where theme not in ('paper', 'stone', 'sky', 'orange', 'cobalt', 'noir');
+where theme not in ('paper', 'stone', 'sky', 'orange', 'blue', 'noir');
 
 alter table public.events
   add constraint events_theme_check
-  check (theme in ('paper', 'stone', 'sky', 'orange', 'cobalt', 'noir'));
+  check (theme in ('paper', 'stone', 'sky', 'orange', 'blue', 'noir'));
 
 alter table public.events drop constraint if exists events_layout_check;
 alter table public.events

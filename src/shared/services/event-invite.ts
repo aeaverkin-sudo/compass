@@ -67,7 +67,7 @@ export async function loadEventInvite(lookup: string): Promise<EventInvite | nul
   };
 }
 
-/** Missing column and an unknown value both open as Business. */
+/** Missing column and an unknown value both open as Clear. */
 async function readEventLayout(eventId: string): Promise<EventLayoutId> {
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin.from("events").select("layout").eq("id", eventId).maybeSingle();

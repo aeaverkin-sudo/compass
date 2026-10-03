@@ -14,7 +14,7 @@ type InviteQrProps = {
   themeId?: EventThemeId;
 };
 
-/** Invite QR. Light covers use the theme ground. Noir and cobalt use a white plate. */
+/** Invite QR. Light covers use the theme ground. Noir and blue use a white plate. */
 export function InviteQr({ url, size = QR_SIZE, themeId }: InviteQrProps) {
   const px = Math.max(MIN_QR, size);
   if (!themeId) {

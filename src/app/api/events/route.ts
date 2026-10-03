@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   const themeRaw = textField(form.get("theme"), 20);
   if (themeRaw && !isEventTheme(themeRaw)) return noStore({ error: "Unknown theme." }, 400);
   const layoutRaw = textField(form.get("layout"), 20);
-  if (layoutRaw && !isEventLayout(layoutRaw)) return noStore({ error: "Unknown layout." }, 400);
+  if (layoutRaw && !isEventLayout(layoutRaw)) return noStore({ error: "Unknown style." }, 400);
 
   const dateRaw = textField(form.get("date"), 40);
   const date = readEventDate(dateRaw);

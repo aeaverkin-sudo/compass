@@ -4,16 +4,16 @@ export const EVENT_THEMES = [
   { id: "stone", label: "Stone", ground: "#ebebeb", ink: "#111111", dark: false },
   { id: "sky", label: "Sky", ground: "#c5e8f7", ink: "#111111", dark: false },
   { id: "orange", label: "Orange", ground: "#E8640C", ink: "#111111", dark: false },
-  { id: "cobalt", label: "Cobalt", ground: "#1f3bd6", ink: "#ffffff", dark: true },
+  { id: "blue", label: "Blue", ground: "#1f3bd6", ink: "#ffffff", dark: true },
   { id: "noir", label: "Noir", ground: "#111111", ink: "#ffffff", dark: true },
 ] as const;
 
 export type EventThemeId = (typeof EVENT_THEMES)[number]["id"];
 
 export const EVENT_LAYOUTS = [
-  { id: "grid", label: "Business", defaultTheme: "paper" },
-  { id: "corners", label: "Luxe", defaultTheme: "noir" },
-  { id: "oversized", label: "Fashion", defaultTheme: "orange" },
+  { id: "grid", label: "Clear", defaultTheme: "paper" },
+  { id: "corners", label: "Fine", defaultTheme: "noir" },
+  { id: "oversized", label: "Bold", defaultTheme: "orange" },
 ] as const;
 
 export type EventLayoutId = (typeof EVENT_LAYOUTS)[number]["id"];
@@ -28,6 +28,7 @@ const RETIRED_THEMES: Record<string, EventThemeId> = {
   mist: "stone",
   ink: "noir",
   night: "noir",
+  cobalt: "blue",
 };
 
 export function isEventTheme(value: string): value is EventThemeId {
@@ -38,7 +39,7 @@ export function isEventLayout(value: string): value is EventLayoutId {
   return EVENT_LAYOUTS.some((layout) => layout.id === value);
 }
 
-/** A stored name from an older palette still opens. The SQL maps those rows to stone. */
+/** A stored name from an older palette still opens. Anything else is paper. */
 export function eventThemeFromStored(value: string): EventThemeId {
   if (isEventTheme(value)) return value;
   return RETIRED_THEMES[value] ?? "paper";
