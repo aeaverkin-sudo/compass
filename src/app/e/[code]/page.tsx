@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { InviteQr } from "@/shared/event/invite-qr";
+import { ScreenHeader } from "@/shared/components/screen-header";
 import { formatEventWhen, loadEventInvite } from "@/shared/services/event-invite";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 
@@ -17,7 +17,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function EventInvitePage({ params }: PageProps) {
   const { code } = await params;
   const event = await loadEventInvite(code);
-  if (!event) notFound();
+  if (!event) {
+    return (
+      <main className="compass-main fixed inset-0 overflow-y-auto bg-white text-[var(--ink)]">
+        <div className="mx-auto min-h-dvh w-full max-w-[430px] px-[var(--gutter)]">
+          <ScreenHeader title="Join" fallbackHref="/network/event" />
+          <p className="t-body">Event not found</p>
+        </div>
+      </main>
+    );
+  }
 
   const origin = await requestOrigin();
   const inviteUrl = `${origin}/e/${event.publicToken}`;

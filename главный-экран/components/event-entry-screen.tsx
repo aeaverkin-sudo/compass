@@ -6,13 +6,14 @@ import { Plus } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
+import { lookupFromInvite, normalizeEventCode } from "@/shared/event/lookup";
 import { EVENT_THEMES, type EventThemeId } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 import { QR_COLOR } from "../layout";
 
 type Step = "entry" | "create" | "join";
-type Notice = "qr" | "code" | "link" | null;
+type JoinError = "code" | "link" | null;
 
 type CreatedEvent = {
   publicToken: string;
@@ -155,17 +156,18 @@ function CreatedInvite({ event }: { event: CreatedEvent }) {
   );
 }
 
-function Soon({ show }: { show: boolean }) {
-  if (!show) return null;
-  return <p className="mt-2 t-meta text-[var(--ink)]">Coming soon</p>;
+function NotFound() {
+  return <p className="mt-2 t-meta text-[var(--ink)]">Event not found</p>;
 }
 
-/** Event door, join, and create. Nothing is stored yet. */
+/** Event door, join, and create. */
 export function EventEntryScreen() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("entry");
-  const [notice, setNotice] = useState<Notice>(null);
   const [code, setCode] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+  const [joinError, setJoinError] = useState<JoinError>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -199,10 +201,14 @@ export function EventEntryScreen() {
   }, [step, about]);
 
   const leave = () => {
-    setNotice(null);
+    setJoinError(null);
     setCreateError(null);
     setCreated(null);
     setStep("entry");
+  };
+
+  const openInvite = (lookup: string) => {
+    router.push(`/e/${encodeURIComponent(lookup)}`);
   };
 
   const submitEvent = async () => {
@@ -248,7 +254,7 @@ export function EventEntryScreen() {
             <Zone label="Join" rule>
               <ActionLink
                 onClick={() => {
-                  setNotice(null);
+                  setJoinError(null);
                   setStep("join");
                 }}
               >
@@ -259,7 +265,7 @@ export function EventEntryScreen() {
             <Zone label="Create" rule>
               <ActionLink
                 onClick={() => {
-                  setNotice(null);
+                  setJoinError(null);
                   setStep("create");
                 }}
               >
@@ -276,16 +282,26 @@ export function EventEntryScreen() {
         {step === "join" ? (
           <>
             <Zone label="Qr" rule align="start">
-              <ActionLink onClick={() => setNotice("qr")}>Scan QR code</ActionLink>
+              <ActionLink
+                onClick={() => {
+                  setJoinError(null);
+                  codeRef.current?.focus();
+                }}
+              >
+                Scan QR code
+              </ActionLink>
               <p className="mt-1 t-meta text-[var(--grey)]">Point the camera at the event QR.</p>
-              <Soon show={notice === "qr"} />
             </Zone>
             <Zone label="Code" rule align="start">
               <div className="flex items-end gap-3">
                 <input
+                  ref={codeRef}
                   value={code}
-                  onChange={(event) => setCode(event.target.value)}
-                  placeholder="WS26"
+                  onChange={(event) => {
+                    setJoinError(null);
+                    setCode(event.target.value.replace(/\s/g, "").slice(0, 5));
+                  }}
+                  placeholder="·····"
                   autoCapitalize="characters"
                   autoCorrect="off"
                   spellCheck={false}
@@ -295,19 +311,56 @@ export function EventEntryScreen() {
                 />
                 <button
                   type="button"
-                  disabled={!code.trim()}
-                  onClick={() => setNotice("code")}
+                  disabled={code.trim().length !== 5}
+                  onClick={() => {
+                    const lookup = normalizeEventCode(code);
+                    if (!lookup) {
+                      setJoinError("code");
+                      return;
+                    }
+                    openInvite(lookup);
+                  }}
                   className={SKY_BUTTON}
                 >
                   Join
                 </button>
               </div>
-              <Soon show={notice === "code"} />
+              {joinError === "code" ? <NotFound /> : null}
             </Zone>
             <Zone label="Link" align="start">
-              <ActionLink onClick={() => setNotice("link")}>Open invite link</ActionLink>
+              <div className="flex items-end gap-3">
+                <input
+                  value={inviteLink}
+                  onChange={(event) => {
+                    setJoinError(null);
+                    setInviteLink(event.target.value);
+                  }}
+                  placeholder="Invite link"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  aria-label="Invite link"
+                  className="min-w-0 flex-1 border-b border-[var(--ink)] bg-transparent py-2 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
+                  style={{ fontSize: 16, fontWeight: 400, letterSpacing: "-0.015em", lineHeight: 1.45 }}
+                />
+                <button
+                  type="button"
+                  disabled={!inviteLink.trim()}
+                  onClick={() => {
+                    const lookup = lookupFromInvite(inviteLink);
+                    if (!lookup) {
+                      setJoinError("link");
+                      return;
+                    }
+                    openInvite(lookup);
+                  }}
+                  className={SKY_BUTTON}
+                >
+                  Open
+                </button>
+              </div>
               <p className="mt-1 t-meta text-[var(--grey)]">Paste a link from an organiser.</p>
-              <Soon show={notice === "link"} />
+              {joinError === "link" ? <NotFound /> : null}
             </Zone>
           </>
         ) : null}

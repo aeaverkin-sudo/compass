@@ -1,8 +1,6 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { isEventLookup } from "@/shared/event/lookup";
 import { isEventTheme, type EventThemeId } from "@/shared/event/themes";
-
-const TOKEN = /^[A-Za-z0-9_-]{21}$/;
-const CODE = /^[А-Я0-9]{4,6}$/;
 
 export type EventInvite = {
   id: string;
@@ -30,13 +28,14 @@ type InviteRow = {
   code: string;
 };
 
-export function isEventLookup(value: string): boolean {
-  return TOKEN.test(value) || CODE.test(value);
-}
-
 /** One invite, by short code or public token. Missing and unknown lookups are the same. */
 export async function loadEventInvite(lookup: string): Promise<EventInvite | null> {
-  const key = lookup.trim();
+  let key = lookup.trim();
+  try {
+    key = decodeURIComponent(key);
+  } catch {
+    // A broken escape is not an invite.
+  }
   if (!isEventLookup(key)) return null;
 
   const admin = createAdminSupabaseClient();
