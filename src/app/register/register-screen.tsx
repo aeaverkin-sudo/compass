@@ -141,9 +141,31 @@ export function RegisterScreen() {
   const consentSaved = useRef(false);
   const blinkTimers = useRef<number[]>([]);
   const googleStarted = useRef(false);
+  const googlePending = useRef(false);
 
   useEffect(() => {
     setInApp(isInAppBrowser());
+  }, []);
+
+  useEffect(() => {
+    const releaseGoogle = () => {
+      googlePending.current = false;
+      googleStarted.current = false;
+      setBusy(false);
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) releaseGoogle();
+    };
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !googlePending.current) return;
+      releaseGoogle();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   const hasCard = deviceHasCard(cards);
@@ -198,9 +220,11 @@ export function RegisterScreen() {
   useEffect(() => {
     if (params.get("google") !== "1" || googleStarted.current || isInAppBrowser()) return;
     googleStarted.current = true;
+    googlePending.current = true;
     setBusy(true);
     void startGoogleSignIn().then((error) => {
       if (!error) return;
+      googlePending.current = false;
       setMessage(error);
       setBusy(false);
     });
@@ -208,8 +232,10 @@ export function RegisterScreen() {
 
   const continueWithGoogle = async () => {
     if (!gate() || busy) return;
+    googlePending.current = true;
     setBusy(true);
     setMessage(null);
+    let leaving = false;
     try {
       await ensureConsent();
       const supabase = createBrowserSupabaseClient();
@@ -217,27 +243,39 @@ export function RegisterScreen() {
         provider: "google",
         options: { redirectTo: googleRedirect() },
       });
-      if (!error) return;
+      if (!error) {
+        leaving = true;
+        return;
+      }
       if (accountAlreadyExists(error.code, error.message)) {
         const signInError = await startGoogleSignIn();
-        if (signInError) setMessage(signInError);
+        if (!signInError) {
+          leaving = true;
+          return;
+        }
+        setMessage(signInError);
         return;
       }
       setMessage(error.message);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not start Google");
     } finally {
-      setBusy(false);
+      if (!leaving) {
+        googlePending.current = false;
+        setBusy(false);
+      }
     }
   };
 
   const signInExistingGoogle = async () => {
     if (busy) return;
     if (!signinOnly && !gate()) return;
+    googlePending.current = true;
     setBusy(true);
     setMessage(null);
     const error = await startGoogleSignIn();
     if (error) {
+      googlePending.current = false;
       setMessage(error);
       setBusy(false);
     }
