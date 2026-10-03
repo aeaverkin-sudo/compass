@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { InviteQr } from "@/shared/event/invite-qr";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { formatEventWhen, loadEventInvite } from "@/shared/services/event-invite";
@@ -28,6 +29,12 @@ export default async function EventInvitePage({ params }: PageProps) {
     );
   }
 
+  let lookup = code.trim();
+  try {
+    lookup = decodeURIComponent(lookup);
+  } catch {
+    lookup = code;
+  }
   const origin = await requestOrigin();
   const inviteUrl = `${origin}/e/${event.publicToken}`;
   const when = formatEventWhen(event.date);
@@ -66,12 +73,12 @@ export default async function EventInvitePage({ params }: PageProps) {
           <p className="mt-4 mb-0 t-body" style={{ letterSpacing: "0.1em" }}>
             {event.code}
           </p>
-          <button
-            type="button"
-            className="mt-8 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+          <Link
+            href={`/e/${encodeURIComponent(lookup)}/join`}
+            className="mt-8 inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
           >
             Join
-          </button>
+          </Link>
         </div>
       </article>
     </main>

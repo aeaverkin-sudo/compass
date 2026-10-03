@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isEventJoinPath } from "@/shared/event/lookup";
 import { publicOrigin } from "@/shared/lib/public-origin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { clearTrialClock } from "@/shared/services/trial";
@@ -23,7 +24,8 @@ export async function GET(request: Request) {
   const origin = publicOrigin(request);
   const next = safeNext(url.searchParams.get("next"), origin);
   const described = url.searchParams.get("error_description") || url.searchParams.get("error");
-  const keepNext = next.startsWith("/save/") ? `&next=${encodeURIComponent(next)}` : "";
+  const keepNext =
+    next.startsWith("/save/") || isEventJoinPath(next) ? `&next=${encodeURIComponent(next)}` : "";
   const errorCode = url.searchParams.get("error_code") ?? "";
   const errorParam = url.searchParams.get("error") ?? "";
   const already =
