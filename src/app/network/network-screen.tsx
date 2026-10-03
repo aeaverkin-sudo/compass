@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
-import { VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { Rule } from "@/shared/components/rule";
+import { Zone } from "@/shared/components/zone";
 import { SkyToast } from "@/shared/components/sky-toast";
 import {
   DropdownMenu,
@@ -17,7 +16,6 @@ import {
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { NetworkBand } from "./network-band";
-import { BROWSE_QR_SIZE, HEADER_RHYTHM_PX, RULE_GAP_PX } from "@main/layout";
 
 type SortMode = "recent" | "alphabet" | "event";
 
@@ -34,11 +32,7 @@ type Contact = {
 
 const HOLD_MS = 500;
 /** Same token as the profile zone label. */
-const ZONE_LABEL =
-  "t-label whitespace-nowrap";
-/** Two lines above the card's first rule. The back arrow still clears the field by at least 16px. */
-const SEARCH_LIFT_PX = 44;
-const CARD_LINE_TOP = `calc(env(safe-area-inset-top) + ${HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX - SEARCH_LIFT_PX}px)`;
+const ZONE_LABEL = "t-label whitespace-nowrap";
 
 const SORTS: { id: SortMode; label: string }[] = [
   { id: "recent", label: "Recently added" },
@@ -145,46 +139,48 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       className="compass-main relative flex h-dvh flex-col overflow-hidden bg-white text-[#111]"
       style={{ paddingBottom: "var(--vv-bottom, 0px)" }}
     >
-      <ScreenHeader title="Network" fallbackHref="/main" onBack={() => router.push("/main")} spacer={false} />
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
-      <div className="flex flex-col justify-end px-[var(--gutter)]" style={{ height: CARD_LINE_TOP }}>
-        <div className="flex items-center gap-3 py-2">
-          <Search className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Name, role, or company"
-            aria-label="Name, role, or company"
-            className="min-w-0 flex-1 bg-transparent t-body outline-none placeholder:text-[var(--grey)]/60"
-          />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Sort"
-              className="inline-flex size-8 items-center justify-center border-0 bg-transparent text-[#111]"
-            >
-              <SlidersHorizontal className="size-4" strokeWidth={1.5} />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {SORTS.map((item) => (
-                <DropdownMenuItem
-                  key={item.id}
-                  className={sort === item.id ? "font-normal" : undefined}
-                  onSelect={() => setSort(item.id)}
-                >
-                  {item.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-      <Rule className="mx-[var(--gutter)] w-auto" />
-
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
+        <ScreenHeader title="Network" fallbackHref="/main" onBack={() => router.push("/main")} />
+        <Zone
+          label={<Search className="size-4 text-[#111]" strokeWidth={1.5} aria-hidden />}
+          rule
+          align="center"
+        >
+          <div className="flex items-center">
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Name, role, company"
+              aria-label="Name, role, company"
+              className="min-w-0 flex-1 bg-transparent t-body outline-none placeholder:text-[var(--placeholder)]"
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Sort"
+                className="inline-flex size-8 items-center justify-center border-0 bg-transparent text-[#111]"
+              >
+                <SlidersHorizontal className="size-4" strokeWidth={1.5} />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {SORTS.map((item) => (
+                  <DropdownMenuItem
+                    key={item.id}
+                    className={sort === item.id ? "font-normal" : undefined}
+                    onSelect={() => setSort(item.id)}
+                  >
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </Zone>
         {empty ? (
-          <p className="t-body text-[var(--grey)]" style={{ paddingLeft: VALUE_AXIS_PX }}>
-            Your contact list. Exchange a card and your first contact appears here.
-          </p>
+          <Zone label="Contacts">
+            <p className="t-body text-[var(--grey)]">No contacts yet.</p>
+            <p className="mt-1 t-meta text-[var(--grey)]">Exchange a card and your first contact appears here.</p>
+          </Zone>
         ) : (
           <>
             {pending.length > 0 ? (
