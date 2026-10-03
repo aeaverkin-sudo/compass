@@ -61,7 +61,7 @@ function sendRegisteredDeviceToSignIn() {
   markRegistrationRequired();
   const path = window.location.pathname;
   if (path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/c/")) return;
-  window.location.replace("/register?expired=1");
+  window.location.replace("/register?signin=1&expired=1");
 }
 
 /** Opens an anonymous Supabase session on a new device. Renders nothing. */

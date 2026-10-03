@@ -33,7 +33,7 @@ export default function MainPage() {
   useEffect(() => {
     if (!hydrated || !sessionReady) return;
     if (needsSignIn) {
-      router.replace("/register?expired=1");
+      router.replace("/register?signin=1&expired=1");
       return;
     }
     if (!cardsReady) return;
