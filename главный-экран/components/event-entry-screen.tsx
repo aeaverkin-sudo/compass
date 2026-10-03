@@ -19,18 +19,16 @@ const JOIN_OPTIONS = ["Scan QR code", "Enter code", "Open invite link"] as const
 
 function StickList({
   rows,
-  ruleAbove = true,
   rowClass = ROW,
 }: {
   rows: { label: string; onClick?: () => void }[];
-  ruleAbove?: boolean;
   rowClass?: string;
 }) {
   return (
     <div>
-      {ruleAbove ? <Rule /> : null}
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <div key={row.label}>
+          {index > 0 ? <Rule /> : null}
           {row.onClick ? (
             <button type="button" onClick={row.onClick} className={rowClass}>
               {row.label}
@@ -38,7 +36,6 @@ function StickList({
           ) : (
             <p className={rowClass}>{row.label}</p>
           )}
-          <Rule />
         </div>
       ))}
     </div>
@@ -81,7 +78,6 @@ export function EventEntryScreen() {
           <div className="flex flex-1 items-center">
             <div className="w-full">
               <StickList
-                ruleAbove={false}
                 rowClass={ENTRY_ROW}
                 rows={[
                   { label: "Join", onClick: () => setStep("join") },
