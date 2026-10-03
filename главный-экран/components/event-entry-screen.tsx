@@ -304,15 +304,15 @@ export function EventEntryScreen() {
               </div>
             </Zone>
             <Zone label="About" onClick={(event) => focusField(event, aboutRef.current)}>
-              <div ref={aboutBox} className="relative" style={{ marginBottom: "1.45em" }}>
+              <div ref={aboutBox} className="relative">
                 <span aria-hidden className="invisible block" style={fieldStyle()}>
                   {"\u00a0"}
                 </span>
                 <textarea
                   ref={aboutRef}
-                  rows={2}
+                  rows={1}
                   value={about}
-                  placeholder="One or two lines"
+                  aria-label="About"
                   className={`${PLAIN} absolute inset-x-0 top-0 resize-none overflow-hidden`}
                   style={fieldStyle()}
                   onChange={(event) => {
