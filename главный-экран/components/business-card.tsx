@@ -282,7 +282,11 @@ function EditorialHeader({
   return (
     <div className="w-full">
       {sheetMark ? (
-        <p className="m-0 mb-1 text-right t-label">
+        <p
+          className="m-0 mb-1 text-right t-label"
+          // t-label tracking plus the digit sidebearing, so the ink meets the plus on the rule end.
+          style={{ marginRight: "calc(-0.1em - 0.5px)" }}
+        >
           {sheetMark}
         </p>
       ) : null}
