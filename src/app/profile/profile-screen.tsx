@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { BackButton } from "@/shared/components/back-button";
+import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
@@ -17,8 +18,6 @@ import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isCardReady, isSolePublic, useAppStore } from "@/shared/store/app-store";
 import { cn } from "@/lib/utils";
 
-const ZONE_LABEL =
-  "t-label whitespace-nowrap";
 const ZONE_VALUE =
   "min-w-0 break-words t-body text-[var(--ink)]";
 
@@ -57,41 +56,6 @@ function ProfileShell({ children }: { children: ReactNode }) {
       </div>
       {children}
     </main>
-  );
-}
-
-function Zone({
-  label,
-  children,
-  align = "baseline",
-  rule = false,
-  id,
-}: {
-  label: string;
-  children: ReactNode;
-  align?: "baseline" | "start";
-  rule?: boolean;
-  id?: string;
-}) {
-  return (
-    <section
-      id={id}
-      className={cn(
-        "min-w-0 py-[18px]",
-        id && "scroll-mt-16",
-        rule && "border-b border-[var(--rule)]",
-      )}
-    >
-      <div
-        className={cn(
-          "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]",
-          align === "start" ? "items-start" : "items-baseline",
-        )}
-      >
-        <span className={ZONE_LABEL}>{label}</span>
-        <div className="min-w-0">{children}</div>
-      </div>
-    </section>
   );
 }
 
