@@ -46,6 +46,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
   const [viewing, setViewing] = useState<NextScanAddon | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<() => void>(() => {});
 
   const notes = visibleNotes(addons);
   const atMax = notes.length >= MAX_NEXT_SCAN_NOTES;
@@ -65,15 +66,35 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
     setViewing(null);
   };
 
+  closeRef.current = closeMenu;
+
   useEffect(() => {
     if (!open) return;
-    const onPointer = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Node && rootRef.current?.contains(target)) return;
-      closeMenu();
+    const inside = (target: EventTarget | null) => target instanceof Node && !!rootRef.current?.contains(target);
+    const block = (event: PointerEvent) => {
+      if (inside(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
     };
-    document.addEventListener("pointerdown", onPointer);
-    return () => document.removeEventListener("pointerdown", onPointer);
+    // The plate stays up until the finger lifts, so the tap cannot open a link underneath.
+    const onPointerUp = (event: PointerEvent) => {
+      if (inside(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const swallow = (click: Event) => {
+        click.preventDefault();
+        click.stopPropagation();
+      };
+      document.addEventListener("click", swallow, true);
+      window.setTimeout(() => document.removeEventListener("click", swallow, true), 500);
+      closeRef.current();
+    };
+    document.addEventListener("pointerdown", block, true);
+    document.addEventListener("pointerup", onPointerUp, true);
+    return () => {
+      document.removeEventListener("pointerdown", block, true);
+      document.removeEventListener("pointerup", onPointerUp, true);
+    };
   }, [open]);
 
   useEffect(() => {
