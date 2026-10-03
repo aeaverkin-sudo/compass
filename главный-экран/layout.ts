@@ -30,6 +30,8 @@ export const BROWSE_QR_SIZE = 150;
 export const HEADER_SLOT_PX = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
 /** Equal gap: island → QR, QR → rule, rule → photo. */
 export const HEADER_RHYTHM_PX = (HEADER_SLOT_PX - BROWSE_QR_SIZE) / 2;
+/** Top edge of the QR, below the safe area. Screen headers share this axis. */
+export const SCREEN_TOP_AXIS_PX = HEADER_RHYTHM_PX + QR_DROP_PX;
 
 /** Browse card bottom ≈ this % of viewport (green mockup outline). */
 export const CARD_BOTTOM_TARGET_LVH = 73;
