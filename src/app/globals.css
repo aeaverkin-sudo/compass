@@ -15,6 +15,14 @@
   --hint: var(--grey);
   --sheet: #ffffff;
   --sky: #c5e8f7;
+  --event-theme-paper: #ffffff;
+  --event-theme-ink: #111111;
+  --event-theme-sky: #c5e8f7;
+  --event-theme-sand: #eceae6;
+  --event-theme-stone: #a6a29a;
+  --event-theme-clay: #e8640c;
+  --event-theme-mist: #d8d5cc;
+  --event-theme-night: #161616;
   --border: rgba(20, 20, 20, 0.55);
   --toggle-off: #d8d5cc;
   --toggle-dot-off: #d8d2c4;

@@ -3,13 +3,23 @@
 import { useEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
+import { EVENT_THEMES, type EventThemeId } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
+import { QR_COLOR } from "../layout";
 
 type Step = "entry" | "create" | "join";
-type Notice = "qr" | "code" | "link" | "create" | null;
+type Notice = "qr" | "code" | "link" | null;
+
+type CreatedEvent = {
+  publicToken: string;
+  code: string;
+  invitePath: string;
+  logoUrl: string | null;
+};
 
 const PLAIN =
   "w-full bg-transparent text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
@@ -115,6 +125,36 @@ function ActionLink({ children, onClick }: { children: string; onClick: () => vo
   );
 }
 
+function CreatedInvite({ event }: { event: CreatedEvent }) {
+  const url = `${window.location.origin}${event.invitePath}`;
+  return (
+    <>
+      <Zone label="Link" rule>
+        <p className="t-body break-all text-[var(--ink)]" style={{ userSelect: "text", WebkitUserSelect: "text" }}>
+          {url}
+        </p>
+      </Zone>
+      <Zone label="Qr" rule>
+        <QRCodeSVG
+          value={url}
+          size={134}
+          level="H"
+          fgColor={QR_COLOR}
+          bgColor="#FFFFFF"
+          imageSettings={
+            event.logoUrl ? { src: event.logoUrl, height: 28, width: 28, excavate: true } : undefined
+          }
+        />
+      </Zone>
+      <Zone label="Code">
+        <p className="t-body text-[var(--ink)]" style={{ letterSpacing: "0.1em", userSelect: "text" }}>
+          {event.code}
+        </p>
+      </Zone>
+    </>
+  );
+}
+
 function Soon({ show }: { show: boolean }) {
   if (!show) return null;
   return <p className="mt-2 t-meta text-[var(--ink)]">Coming soon</p>;
@@ -132,6 +172,11 @@ export function EventEntryScreen() {
   const [place, setPlace] = useState("");
   const [about, setAbout] = useState("");
   const [logo, setLogo] = useState<string | null>(null);
+  const [theme, setTheme] = useState<EventThemeId>("paper");
+  const [saving, setSaving] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [created, setCreated] = useState<CreatedEvent | null>(null);
+  const logoFile = useRef<File | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const timeRef = useRef<HTMLInputElement>(null);
@@ -155,7 +200,38 @@ export function EventEntryScreen() {
 
   const leave = () => {
     setNotice(null);
+    setCreateError(null);
+    setCreated(null);
     setStep("entry");
+  };
+
+  const submitEvent = async () => {
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    setCreateError(null);
+    try {
+      const body = new FormData();
+      body.set("name", name.trim());
+      body.set("description", about.trim());
+      body.set("place", place.trim());
+      body.set("theme", theme);
+      if (date) {
+        const when = new Date(`${date}T${time || "00:00"}`);
+        if (!Number.isNaN(when.getTime())) body.set("date", when.toISOString());
+      }
+      if (logoFile.current) body.set("logo", logoFile.current);
+      const response = await fetch("/api/events", { method: "POST", body });
+      const payload = (await response.json()) as CreatedEvent & { error?: string };
+      if (!response.ok) {
+        setCreateError(payload.error ?? "Could not create the event.");
+        return;
+      }
+      setCreated(payload);
+    } catch {
+      setCreateError("Could not create the event.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -236,7 +312,9 @@ export function EventEntryScreen() {
           </>
         ) : null}
 
-        {step === "create" ? (
+        {step === "create" && created ? <CreatedInvite event={created} /> : null}
+
+        {step === "create" && !created ? (
           <>
             <Zone label="Name" rule onClick={(event) => focusField(event, nameRef.current)}>
               <PlainField inputRef={nameRef} value={name} onChange={setName} placeholder="Event name" />
@@ -275,10 +353,11 @@ export function EventEntryScreen() {
               aria-hidden
               className="pointer-events-none fixed left-0 top-0 h-px w-px overflow-hidden opacity-0"
               onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (!file) return;
-                const reader = new FileReader();
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  logoFile.current = file;
+                  const reader = new FileReader();
                 reader.onload = () => {
                   if (typeof reader.result === "string") setLogo(reader.result);
                 };
@@ -303,7 +382,7 @@ export function EventEntryScreen() {
                 <p className="t-meta text-[var(--grey)]">{logo ? "Tap to replace." : "Square, PNG or SVG."}</p>
               </div>
             </Zone>
-            <Zone label="About" onClick={(event) => focusField(event, aboutRef.current)}>
+            <Zone label="About" rule onClick={(event) => focusField(event, aboutRef.current)}>
               <div ref={aboutBox} className="relative">
                 <span aria-hidden className="invisible block" style={fieldStyle()}>
                   {"\u00a0"}
@@ -322,11 +401,30 @@ export function EventEntryScreen() {
                 />
               </div>
             </Zone>
+            <Zone label="Theme" align="center">
+              <div className="flex flex-wrap items-center gap-2">
+                {EVENT_THEMES.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-label={item.label}
+                    aria-pressed={theme === item.id}
+                    onClick={() => setTheme(item.id)}
+                    className="size-[18px] border-0 p-0 [-webkit-tap-highlight-color:transparent]"
+                    style={{
+                      background: `var(--event-theme-${item.id})`,
+                      outline: theme === item.id ? "1px solid var(--ink)" : "1px solid var(--rule)",
+                      outlineOffset: 2,
+                    }}
+                  />
+                ))}
+              </div>
+            </Zone>
             <div className="pb-4" style={{ marginLeft: VALUE_AXIS_PX }}>
               <button
                 type="button"
-                disabled={!name.trim()}
-                onClick={() => setNotice("create")}
+                disabled={!name.trim() || saving}
+                onClick={() => void submitEvent()}
                 className={SKY_BUTTON}
               >
                 Create
@@ -334,7 +432,7 @@ export function EventEntryScreen() {
               <p className="mt-3 t-meta text-[var(--grey)]">
                 You'll get a QR code, a link and a short code to invite guests.
               </p>
-              <Soon show={notice === "create"} />
+              {createError ? <p className="mt-2 t-meta text-[var(--ink)]">{createError}</p> : null}
             </div>
           </>
         ) : null}
