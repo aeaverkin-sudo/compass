@@ -6,12 +6,15 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { deviceWasRegistered, markRegisteredDevice } from "@/shared/lib/registered-device";
 import {
   clearRegistrationRequired,
+  consumeOAuthReplaceLocal,
   consumeSignedOutIgnore,
   ignoreNextSignedOut,
   markRegistrationRequired,
   markSessionBootstrapComplete,
 } from "@/shared/lib/session-bootstrap";
-import { hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
+import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
 
 function restoreRegisteredOnboarding(isAnonymous: boolean) {
@@ -36,6 +39,18 @@ function acceptUser(user: User) {
   if (!user.is_anonymous) {
     markRegisteredDevice();
     clearRegistrationRequired();
+    if (consumeOAuthReplaceLocal()) {
+      dropPendingCardUpserts();
+      dropPendingItemUpserts();
+      dropPendingNotes();
+      const state = useAppStore.getState();
+      useAppStore.setState({
+        cards: [],
+        contactItems: [],
+        currentCardIndex: 0,
+        user: { ...state.user, onboarded: true },
+      });
+    }
   }
   restoreRegisteredOnboarding(Boolean(user.is_anonymous));
   console.info("[supabase] session", user.id, user.is_anonymous ? "trial" : "registered");

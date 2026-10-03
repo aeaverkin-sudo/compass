@@ -13,7 +13,12 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 import { isInAppBrowser } from "@/shared/lib/in-app-browser";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
-import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
+import {
+  cancelOAuthReplaceLocal,
+  clearRegistrationRequired,
+  ignoreNextSignedOut,
+  markOAuthReplaceLocal,
+} from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
@@ -53,14 +58,20 @@ function clearLocal() {
 }
 
 /**
- * Signing into an account that already exists leaves the trial card where it is.
- * `redirects` is Google: the browser leaves before the new session exists, so the
- * local card is cleared first and the next page loads the existing account.
+ * Password sign-in clears the trial first and puts it back if the password is wrong.
+ * Google leaves the page before the session exists, so the trial stays until that
+ * return is a real account.
  */
 async function enterExistingAccount(signIn: () => Promise<string | null>, redirects = false) {
   dropPendingCardUpserts();
   dropPendingItemUpserts();
   dropPendingNotes();
+  if (redirects) {
+    markOAuthReplaceLocal();
+    const error = await signIn();
+    if (error) cancelOAuthReplaceLocal();
+    return error;
+  }
   const snapshot = rememberLocal();
   clearLocal();
   const error = await signIn();
@@ -68,11 +79,9 @@ async function enterExistingAccount(signIn: () => Promise<string | null>, redire
     useAppStore.setState(snapshot);
     return error;
   }
-  if (!redirects) {
-    markRegisteredDevice();
-    clearRegistrationRequired();
-    await hydrateCardsFromServer();
-  }
+  markRegisteredDevice();
+  clearRegistrationRequired();
+  await hydrateCardsFromServer();
   return null;
 }
 
@@ -148,9 +157,15 @@ export function RegisterScreen() {
   }, []);
 
   useEffect(() => {
+    if (params.get("google") === "1") return;
+    cancelOAuthReplaceLocal();
+  }, [params]);
+
+  useEffect(() => {
     const releaseGoogle = () => {
       googlePending.current = false;
       googleStarted.current = false;
+      cancelOAuthReplaceLocal();
       setBusy(false);
     };
     const onPageShow = (event: PageTransitionEvent) => {

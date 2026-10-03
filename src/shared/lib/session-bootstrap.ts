@@ -52,3 +52,34 @@ export function consumeSignedOutIgnore() {
   ignoredSignedOut -= 1;
   return true;
 }
+
+const OAUTH_REPLACE_LOCAL = "aded-oauth-replace-local";
+
+/** Existing-account Google sign-in is about to leave the page. The trial stays until that session is real. */
+export function markOAuthReplaceLocal() {
+  try {
+    sessionStorage.setItem(OAUTH_REPLACE_LOCAL, "1");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** The Google redirect did not finish. Keep the trial. */
+export function cancelOAuthReplaceLocal() {
+  try {
+    sessionStorage.removeItem(OAUTH_REPLACE_LOCAL);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** True once, after a confirmed non-anonymous return. The trial must not merge into that account. */
+export function consumeOAuthReplaceLocal() {
+  try {
+    if (sessionStorage.getItem(OAUTH_REPLACE_LOCAL) !== "1") return false;
+    sessionStorage.removeItem(OAUTH_REPLACE_LOCAL);
+    return true;
+  } catch {
+    return false;
+  }
+}
