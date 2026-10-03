@@ -22,6 +22,8 @@ const ZONE_LABEL =
 const ZONE_VALUE =
   "min-w-0 break-words t-body text-[var(--ink)]";
 
+const PAID_TIER_ENABLED = false;
+
 function formatBytes(bytes: number) {
   if (bytes <= 0) return "0 MB";
   const megabytes = bytes / (1024 * 1024);
@@ -185,18 +187,24 @@ export function ProfileScreen() {
           <li>
             Free — {account.catalog.free.portfolios} portfolios, {formatBytes(account.catalog.free.bytes)}
           </li>
-          <li>
-            Paid — {account.catalog.paid.portfolios} portfolios, {formatBytes(account.catalog.paid.bytes)}
-          </li>
+          {PAID_TIER_ENABLED ? (
+            <li>
+              Paid — {account.catalog.paid.portfolios} portfolios, {formatBytes(account.catalog.paid.bytes)}
+            </li>
+          ) : null}
         </ul>
-        <button
-          type="button"
-          disabled
-          className="mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-100"
-        >
-          Upgrade
-        </button>
-        <p className="mt-2 t-meta text-[var(--ink)]">Coming soon</p>
+        {PAID_TIER_ENABLED ? (
+          <>
+            <button
+              type="button"
+              disabled
+              className="mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-100"
+            >
+              Upgrade
+            </button>
+            <p className="mt-2 t-meta text-[var(--ink)]">Coming soon</p>
+          </>
+        ) : null}
         {/* Stripe seam: Manage subscription and payment history.
             Checkout and the customer portal will write profiles.plan from a webhook.
             Do not collect card details here. */}
