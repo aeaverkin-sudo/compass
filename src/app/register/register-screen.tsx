@@ -462,6 +462,9 @@ export function RegisterScreen() {
                 onChange={(event) => setPassword(event.target.value)}
                 className={FIELD}
               />
+              <p className="mt-2 t-meta text-[var(--grey)]">
+                Signed up with a code? That code is your password.
+              </p>
             </Zone>
             <Rule />
             <Zone label="">
