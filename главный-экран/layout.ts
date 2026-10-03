@@ -18,6 +18,12 @@ export const CARD_NAME_GAP_PX = 8;
 export const QR_GAP_SYMMETRIC_PX = 18;
 /** Extra 0.5mm between the QR and the rule, and between the rule and the photo. */
 export const RULE_GAP_PX = QR_GAP_SYMMETRIC_PX + 96 / 25.4 / 2;
+/** t-label line of the sheet counter plus its mb-1. It sits between the QR and the photo. */
+const SHEET_MARK_BLOCK_PX = 11 * 1.45 + 4;
+/** Bottom of the QR to the top edge of the photo. */
+const QR_TO_PHOTO_PX = RULE_GAP_PX + SHEET_MARK_BLOCK_PX + RULE_GAP_PX;
+/** Lower the QR by one quarter of that gap. The card stays. */
+export const QR_DROP_PX = QR_TO_PHOTO_PX / 4;
 /** Browse QR, grown into the existing slot so it sits higher. The card does not move. */
 export const BROWSE_QR_SIZE = 150;
 /** Slot from the safe area to the rule: 18 + 134 + 18. */
