@@ -12,10 +12,13 @@ export function ScreenHeader({
   title,
   fallbackHref,
   onBack,
+  spacer = true,
 }: {
   title: string;
   fallbackHref: string;
   onBack?: () => void;
+  /** Network keeps its search on the card line, so it does not reserve this gap. */
+  spacer?: boolean;
 }) {
   const top = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
   return (
@@ -31,7 +34,9 @@ export function ScreenHeader({
       >
         {title}
       </h1>
-      <div aria-hidden className="mb-[18px]" style={{ height: `calc(${top} + ${HEADER_ROW_PX}px)` }} />
+      {spacer ? (
+        <div aria-hidden className="mb-[18px]" style={{ height: `calc(${top} + ${HEADER_ROW_PX}px)` }} />
+      ) : null}
     </>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BackButton } from "@/shared/components/back-button";
+import { ScreenHeader } from "@/shared/components/screen-header";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 type PasswordFormProps = {
@@ -37,9 +38,9 @@ export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }
   };
 
   return (
-    <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
-      <BackButton fallbackHref={fallbackHref} />
-      <h1 className="t-name">{title}</h1>
+    <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-[var(--gutter)] pb-12 text-[#111]">
+      <ScreenHeader title={title} fallbackHref={fallbackHref} />
+      <div style={{ paddingLeft: VALUE_AXIS_PX }}>
       <p className="mt-3 max-w-xs t-meta">{hint}</p>
       <form
         className="mt-8 flex max-w-xs flex-col"
@@ -69,6 +70,7 @@ export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }
         </button>
       </form>
       {message ? <p className="mt-6 max-w-xs t-meta">{message}</p> : null}
+      </div>
     </main>
   );
 }

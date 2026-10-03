@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
-import { BackButton } from "@/shared/components/back-button";
+import { ScreenHeader } from "@/shared/components/screen-header";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { Rule } from "@/shared/components/rule";
 import { SkyToast } from "@/shared/components/sky-toast";
 import {
@@ -144,13 +145,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       className="compass-main relative flex h-dvh flex-col overflow-hidden bg-white text-[#111]"
       style={{ paddingBottom: "var(--vv-bottom, 0px)" }}
     >
-      <BackButton fallbackHref="/main" onBack={() => router.push("/main")} />
-      <div className="pointer-events-none absolute inset-x-0 top-10 z-20 grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center px-8">
-        <span aria-hidden className="size-[22px]" />
-        <h1 className="text-center t-caps text-[var(--ink)]">
-          Network
-        </h1>
-      </div>
+      <ScreenHeader title="Network" fallbackHref="/main" onBack={() => router.push("/main")} spacer={false} />
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="flex flex-col justify-end px-[var(--gutter)]" style={{ height: CARD_LINE_TOP }}>
         <div className="flex items-center gap-3 py-2">
@@ -185,9 +180,9 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       </div>
       <Rule className="mx-[var(--gutter)] w-auto" />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-8">
+      <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
         {empty ? (
-          <p className="flex h-full items-center justify-center text-center t-body text-[var(--grey)]">
+          <p className="t-body text-[var(--grey)]" style={{ paddingLeft: VALUE_AXIS_PX }}>
             Your contact list. Exchange a card and your first contact appears here.
           </p>
         ) : (

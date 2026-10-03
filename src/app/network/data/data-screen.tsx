@@ -2,12 +2,11 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { BackButton } from "@/shared/components/back-button";
+import { ScreenHeader } from "@/shared/components/screen-header";
+import { Zone } from "@/shared/components/zone";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
 import { NetworkBand } from "../network-band";
-
-const LABEL = "t-label";
 
 type LinkOpen = {
   label: string;
@@ -39,16 +38,15 @@ function Metric({
 }) {
   const notes = note == null ? [] : Array.isArray(note) ? note : [note];
   return (
-    <div className={rule ? "border-b border-[var(--rule)] py-[18px]" : "py-[18px]"}>
-      <p className="text-[32px] leading-none font-light text-[var(--ink)]">{value}</p>
-      <p className={`mt-2 ${LABEL}`}>{label}</p>
+    <Zone label={label} rule={rule}>
+      <p className="text-[32px] leading-none font-normal tracking-[-0.03em] text-[var(--ink)] tabular-nums">{value}</p>
       {notes.map((line, index) => (
         <p key={`${line}-${index}`} className="mt-1 t-meta text-[var(--grey)]">
           {line}
         </p>
       ))}
       {children}
-    </div>
+    </Zone>
   );
 }
 
@@ -89,14 +87,8 @@ export function DataScreen() {
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
-      <div className="min-h-0 flex-1 overflow-y-auto px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-        <BackButton fallbackHref="/main" onBack={() => router.push("/main")} />
-        <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-          <span aria-hidden className="size-[22px]" />
-          <h1 className="text-center t-caps text-[var(--ink)]">
-            Data
-          </h1>
-        </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+        <ScreenHeader title="Data" fallbackHref="/main" onBack={() => router.push("/main")} />
 
         <Metric value={shown(stats?.shared)} label="Shared" />
         <Metric

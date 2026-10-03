@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BackButton } from "@/shared/components/back-button";
+import { ScreenHeader } from "@/shared/components/screen-header";
 import { Rule } from "@/shared/components/rule";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { isInAppBrowser } from "@/shared/lib/in-app-browser";
@@ -77,8 +77,6 @@ const LINK_LINE = {
   textDecorationThickness: "0.5px",
   textUnderlineOffset: "3px",
 } as const;
-const SECTION_TITLE =
-  "py-4 text-center t-caps text-[var(--grey)]";
 const CHOICE =
   "flex min-h-11 w-full items-center justify-center px-2 py-4 text-center t-caps transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
 
@@ -344,10 +342,9 @@ export function RegisterScreen() {
       setSignInMail(false);
     };
     return (
-      <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-        <BackButton fallbackHref="/" onBack={signInMail ? leaveSignInMail : undefined} />
-        <div className="mt-10">
-          <h1 className={SECTION_TITLE}>Sign in</h1>
+      <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
+        <ScreenHeader title="Sign in" fallbackHref="/" onBack={signInMail ? leaveSignInMail : undefined} />
+        <div>
           <Rule />
         {signInMail ? (
           <form
@@ -467,14 +464,8 @@ export function RegisterScreen() {
   if (emailStep !== "hidden") {
     const onCode = emailStep === "code";
     return (
-      <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-        <BackButton fallbackHref="/" onBack={leaveEmailStep} />
-        <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-          <span aria-hidden className="size-[22px]" />
-          <h1 className="text-center t-caps text-[var(--ink)]">
-            Sign up
-          </h1>
-        </div>
+      <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
+        <ScreenHeader title="Sign up" fallbackHref="/" onBack={leaveEmailStep} />
         <form
           className="mt-8"
           onSubmit={(event) => {
@@ -543,10 +534,9 @@ export function RegisterScreen() {
   const ink = accepted ? "var(--ink)" : "var(--grey)";
 
   return (
-    <main className="compass-main h-dvh overflow-y-auto bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-      <BackButton fallbackHref="/" />
-      <div className="mt-10">
-        <h1 className={SECTION_TITLE}>Sign up</h1>
+    <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
+      <ScreenHeader title="Sign up" fallbackHref="/" />
+      <div>
         <Rule />
         {inApp ? null : (
           <>

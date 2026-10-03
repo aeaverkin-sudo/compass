@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BackButton } from "@/shared/components/back-button";
+import { ScreenHeader } from "@/shared/components/screen-header";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 export default function ChangeEmailPage() {
@@ -64,9 +65,9 @@ export default function ChangeEmailPage() {
   };
 
   return (
-    <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-8 pt-[84px] pb-12 text-[#111]">
-      <BackButton fallbackHref="/profile" />
-      <h1 className="t-name">Email</h1>
+    <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-[var(--gutter)] pb-12 text-[#111]">
+      <ScreenHeader title="Email" fallbackHref="/profile" />
+      <div style={{ paddingLeft: VALUE_AXIS_PX }}>
       <p className="mt-3 max-w-xs t-meta">
         {step === "email"
           ? "A code goes to the new address. Your password stays."
@@ -117,6 +118,7 @@ export default function ChangeEmailPage() {
         </button>
       </form>
       {message ? <p className="mt-6 max-w-xs t-meta">{message}</p> : null}
+      </div>
     </main>
   );
 }

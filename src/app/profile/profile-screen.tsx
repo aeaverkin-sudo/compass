@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { BackButton } from "@/shared/components/back-button";
+import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { Switch } from "@/shared/components/ui/switch";
@@ -47,13 +47,7 @@ function ProfileShell({ children }: { children: ReactNode }) {
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
       <ConsentRefresh />
-      <BackButton fallbackHref="/main" />
-      <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
-        <span aria-hidden className="size-[22px]" />
-        <h1 className="text-center t-caps text-[var(--ink)]">
-          Profile
-        </h1>
-      </div>
+      <ScreenHeader title="Profile" fallbackHref="/main" />
       {children}
     </main>
   );
@@ -145,7 +139,7 @@ export function ProfileScreen() {
         </p>
       </Zone>
 
-      <Zone id="subscription" label="Subscription" rule>
+      <Zone id="subscription" label="Plan" rule>
         <p className={ZONE_VALUE}>{planTitle(account.plan)}</p>
         <ul className="mt-2 space-y-1 t-body text-[var(--ink)]">
           <li>
