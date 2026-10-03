@@ -9,7 +9,7 @@ const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 /**
  * The sky plaque under the card. Profile and Network on the card, Event and Data
- * on the contact list: one height, one type, one px-8, one lift above the toolbar.
+ * on the contact list: one height, one type, one gutter, one lift above the toolbar.
  */
 export function TabBand({
   left,
@@ -41,7 +41,7 @@ export function TabBand({
         userSelect: "none",
       }}
     >
-      <div className="flex h-full items-stretch px-8">
+      <div className="flex h-full items-stretch px-[var(--gutter)]">
         <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{left}</div>
         {center != null ? <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{center}</div> : null}
         <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{right}</div>
