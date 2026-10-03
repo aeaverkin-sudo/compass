@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { COLUMN_GAP_PX, LABEL_COLUMN_PX } from "@/shared/layout/axes";
 
@@ -8,16 +8,19 @@ export function Zone({
   align = "baseline",
   rule = false,
   id,
+  onClick,
 }: {
   label: ReactNode;
   children: ReactNode;
   align?: "baseline" | "start" | "center";
   rule?: boolean;
   id?: string;
+  onClick?: (event: MouseEvent<HTMLElement>) => void;
 }) {
   return (
     <section
       id={id}
+      onClick={onClick}
       className={cn("min-w-0 py-[18px]", id && "scroll-mt-16", rule && "border-b border-[var(--rule)]")}
     >
       <div
