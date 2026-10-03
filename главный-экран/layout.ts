@@ -16,8 +16,21 @@ export const CARD_NAME_GAP_PX = 8;
 
 /** Library stack gap. */
 export const QR_GAP_SYMMETRIC_PX = 18;
-/** Extra 0.5mm between the QR and the rule, and between the rule and the photo. */
+/** Gap that used to sit on each side of the rule under the QR. */
 export const RULE_GAP_PX = QR_GAP_SYMMETRIC_PX + 96 / 25.4 / 2;
+/** Sheet counter: t-label line (11 × 1.45) plus its mb-1. */
+const SHEET_MARK_LINE_PX = 11 * 1.45;
+const SHEET_MARK_MARGIN_PX = 4;
+/** The plus hangs 6px above the photo; leave 2px between it and the counter. */
+const SHEET_PHOTO_PAD_PX = 6 + 2 - SHEET_MARK_MARGIN_PX;
+/** QR bottom → photo top, before the card was lifted: offset, counter, pad. */
+const QR_TO_PHOTO_PX = RULE_GAP_PX + SHEET_MARK_LINE_PX + SHEET_MARK_MARGIN_PX + RULE_GAP_PX;
+/** Half of that distance. The counter stays above the photo. */
+export const PHOTO_BELOW_QR_PX = QR_TO_PHOTO_PX / 2;
+export const SHEET_PHOTO_GAP_PX = SHEET_PHOTO_PAD_PX;
+/** Where the browse card starts, so the photo lands on PHOTO_BELOW_QR_PX. */
+export const CARD_BELOW_QR_PX =
+  PHOTO_BELOW_QR_PX - SHEET_MARK_LINE_PX - SHEET_MARK_MARGIN_PX - SHEET_PHOTO_GAP_PX;
 /** Browse QR, grown into the existing slot so it sits higher. The card does not move. */
 export const BROWSE_QR_SIZE = 150;
 /** Slot from the safe area to the rule: 18 + 134 + 18. */
@@ -106,7 +119,7 @@ export function browseBandHeightCss() {
 }
 
 export function browseCardHeight() {
-  const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
+  const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + CARD_BELOW_QR_PX;
   const bandOffset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
   const fallback = `calc(${BAND_HEIGHT_SCALE} * (${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${bandOffset}px))`;
   // The band keeps its height. The card ends on the band, so nothing white sits between them.
