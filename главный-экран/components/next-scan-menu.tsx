@@ -155,7 +155,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
             onPointerDown={(event) => event.stopPropagation()}
           />
           <div
-            className="compass-block compass-sky absolute right-0 top-full z-50 mt-2 w-64 p-2"
+            className="compass-block compass-sky absolute right-0 top-full z-50 mt-2 w-max p-2 text-left"
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => event.stopPropagation()}
             role="dialog"
@@ -243,9 +243,8 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                   <button
                     type="button"
                     onClick={() => setTextMode(true)}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left t-meta text-[var(--ink)] transition-opacity active:opacity-60"
+                    className="flex w-full items-center px-3 py-2.5 text-left t-meta text-[var(--ink)] transition-opacity active:opacity-60"
                   >
-                    <FileText className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
                     Add a short text
                   </button>
                 ) : null}
@@ -254,13 +253,12 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
                     type="button"
                     disabled={pickingSelfie}
                     onClick={() => pickSelfie()}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left t-meta text-[var(--ink)] transition-opacity active:opacity-60 disabled:opacity-50"
+                    className="flex w-full items-center px-3 py-2.5 text-left t-meta text-[var(--ink)] transition-opacity active:opacity-60 disabled:opacity-50"
                   >
-                    <Camera className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
                     {pickingSelfie ? "Opening camera…" : "Add a selfie"}
                   </button>
                 ) : null}
-                <p className="px-3 py-2 t-meta text-[var(--ink)]">* For the next scan or share only.</p>
+                <p className="whitespace-nowrap px-3 py-2 text-left t-meta text-[var(--ink)]">* For the next scan or share only.</p>
               </>
             ) : null}
 
