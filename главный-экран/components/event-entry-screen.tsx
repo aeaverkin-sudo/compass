@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
-import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { SCREEN_TOP_AXIS_PX } from "@main/layout";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 
 type Step = "entry" | "create" | "join";
@@ -73,8 +72,6 @@ export function EventEntryScreen() {
     setStep("entry");
   };
 
-  const headerTop = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
-
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
@@ -83,21 +80,6 @@ export function EventEntryScreen() {
           fallbackHref="/main"
           onBack={step === "entry" ? () => router.push("/main") : leave}
         />
-
-        {step === "entry" ? (
-          <button
-            type="button"
-            aria-label="Create"
-            onClick={() => {
-              setNotice(null);
-              setStep("create");
-            }}
-            className="fixed z-30 flex size-6 items-center justify-center text-[#111]"
-            style={{ top: headerTop, right: "calc(var(--gutter) - 6px)", height: HEADER_ROW_PX }}
-          >
-            <Plus className="size-5" strokeWidth={1} aria-hidden />
-          </button>
-        ) : null}
 
         {step === "entry" ? (
           <>
