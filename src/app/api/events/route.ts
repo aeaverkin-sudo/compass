@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
-import { isEventTheme } from "@/shared/event/themes";
+import { isEventLayout, isEventTheme } from "@/shared/event/themes";
 import { createEvent, readEventDate } from "@/shared/services/events";
 
 export const runtime = "nodejs";
@@ -32,6 +32,8 @@ export async function POST(request: Request) {
 
   const themeRaw = textField(form.get("theme"), 20);
   if (themeRaw && !isEventTheme(themeRaw)) return noStore({ error: "Unknown theme." }, 400);
+  const layoutRaw = textField(form.get("layout"), 20);
+  if (layoutRaw && !isEventLayout(layoutRaw)) return noStore({ error: "Unknown layout." }, 400);
 
   const dateRaw = textField(form.get("date"), 40);
   const date = readEventDate(dateRaw);
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
       date,
       place: textField(form.get("place"), 240) || null,
       theme: themeRaw && isEventTheme(themeRaw) ? themeRaw : "paper",
+      layout: layoutRaw && isEventLayout(layoutRaw) ? layoutRaw : "grid",
       logo: logo instanceof File ? logo : null,
     });
     return noStore(created);

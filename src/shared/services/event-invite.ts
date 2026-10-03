@@ -1,6 +1,9 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isEventLookup } from "@/shared/event/lookup";
-import { isEventTheme, type EventThemeId } from "@/shared/event/themes";
+import { eventThemeFromStored, isEventLayout, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
+import { formatEventWhen } from "@/shared/event/when";
+
+export { formatEventWhen };
 
 export type EventInvite = {
   id: string;
@@ -11,6 +14,7 @@ export type EventInvite = {
   place: string | null;
   placeSecret: boolean;
   theme: EventThemeId;
+  layout: EventLayoutId;
   publicToken: string;
   code: string;
 };
@@ -56,27 +60,18 @@ export async function loadEventInvite(lookup: string): Promise<EventInvite | nul
     date: row.date,
     place: row.place?.trim() || null,
     placeSecret: row.place_secret,
-    theme: isEventTheme(row.theme) ? row.theme : "paper",
+    theme: eventThemeFromStored(row.theme),
+    layout: await readEventLayout(row.id),
     publicToken: row.public_token,
     code: row.code,
   };
 }
 
-/** Date, then time when the organiser set one. Midnight stays a date only. */
-export function formatEventWhen(iso: string | null): string | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  const day = new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-  if (date.getHours() === 0 && date.getMinutes() === 0) return day;
-  const time = new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(date);
-  return `${day} · ${time}`;
+/** Missing column and an unknown value both open as Business. */
+async function readEventLayout(eventId: string): Promise<EventLayoutId> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.from("events").select("layout").eq("id", eventId).maybeSingle();
+  if (error || !data) return "grid";
+  const value = String((data as { layout?: string | null }).layout ?? "");
+  return isEventLayout(value) ? value : "grid";
 }

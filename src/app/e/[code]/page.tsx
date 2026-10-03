@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { InviteQr } from "@/shared/event/invite-qr";
+import { InviteCover } from "@/shared/event/invite-cover";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadOwnerEventCounts } from "@/shared/services/event-registration";
-import { formatEventWhen, loadEventInvite } from "@/shared/services/event-invite";
+import { loadEventInvite } from "@/shared/services/event-invite";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 
 export const dynamic = "force-dynamic";
@@ -43,8 +43,6 @@ export default async function EventInvitePage({ params }: PageProps) {
   const counts = await loadOwnerEventCounts(event.id, viewerId);
   const origin = await requestOrigin();
   const inviteUrl = `${origin}/e/${event.publicToken}`;
-  const when = formatEventWhen(event.date);
-  const place = event.placeSecret ? "Revealed closer to the date" : event.place;
 
   return (
     <main
@@ -54,42 +52,34 @@ export default async function EventInvitePage({ params }: PageProps) {
         color: `var(--event-theme-${event.theme}-ink)`,
       }}
     >
-      <article className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col px-[var(--gutter)] pt-[max(3rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-        {event.logoAttachmentId ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={`/e/${event.publicToken}/logo`}
-            alt=""
-            className="mb-8 size-16 object-contain"
-          />
-        ) : null}
-        <h1
-          className="m-0 max-w-[14ch] font-light"
-          style={{ fontSize: 40, lineHeight: 1.05, letterSpacing: "-0.03em" }}
-        >
-          {event.name}
-        </h1>
-        {when ? <p className="mt-8 mb-0 t-body">{when}</p> : null}
-        {place ? <p className={`${when ? "mt-1" : "mt-8"} mb-0 t-body`}>{place}</p> : null}
+      <InviteCover
+        variant="page"
+        layout={event.layout}
+        themeId={event.theme}
+        inviteUrl={inviteUrl}
+        event={{
+          name: event.name,
+          date: event.date,
+          place: event.place,
+          placeSecret: event.placeSecret,
+          code: event.code,
+          logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
+        }}
+      />
+      <div className="mx-auto w-full max-w-[430px] px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         {event.description ? (
-          <p className="mt-6 mb-0 max-w-[36ch] whitespace-pre-wrap t-body">{event.description}</p>
+          <p className="mt-8 mb-0 max-w-[36ch] whitespace-pre-wrap t-body">{event.description}</p>
         ) : null}
-        <div className="mt-auto pt-16">
-          {counts ? (
-            <p className="mb-8 t-body">{`Registered ${counts.registered} · Checked-in ${counts.checkedIn}`}</p>
-          ) : null}
-          <InviteQr url={inviteUrl} />
-          <p className="mt-4 mb-0 t-body" style={{ letterSpacing: "0.1em" }}>
-            {event.code}
-          </p>
-          <Link
-            href={`/e/${encodeURIComponent(lookup)}/join`}
-            className="mt-8 inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
-          >
-            Join
-          </Link>
-        </div>
-      </article>
+        {counts ? (
+          <p className="mt-8 mb-0 t-body">{`Registered ${counts.registered} · Checked-in ${counts.checkedIn}`}</p>
+        ) : null}
+        <Link
+          href={`/e/${encodeURIComponent(lookup)}/join`}
+          className="mt-8 inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+        >
+          Join
+        </Link>
+      </div>
     </main>
   );
 }

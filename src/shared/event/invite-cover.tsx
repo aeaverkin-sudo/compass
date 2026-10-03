@@ -1,0 +1,406 @@
+"use client";
+
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { AdedWordmark } from "@/shared/components/aded-wordmark";
+import { fitTitle, type FittedTitle } from "@/shared/event/fit-title";
+import { InviteQr } from "@/shared/event/invite-qr";
+import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
+import { dottedDate, eventClock, eventYear, fashionWhen, formatEventWhen, romanYear } from "@/shared/event/when";
+
+const CARD_W = 260;
+const CARD_H = 390;
+const QR = {
+  grid: { page: 96, card: 58 },
+  corners: { page: 80, card: 48 },
+  oversized: { page: 100, card: 62 },
+} as const;
+
+const HAIRLINE = "color-mix(in srgb, currentColor 35%, transparent)";
+
+export type InviteCoverEvent = {
+  name: string;
+  date: string | null;
+  place: string | null;
+  placeSecret: boolean;
+  code: string;
+  logoUrl: string | null;
+};
+
+type InviteCoverProps = {
+  event: InviteCoverEvent;
+  layout: EventLayoutId;
+  themeId: EventThemeId;
+  inviteUrl: string;
+  variant: "page" | "preview";
+};
+
+function placeLine(event: InviteCoverEvent): string | null {
+  if (event.placeSecret) return "Revealed closer to the date";
+  const place = event.place?.trim();
+  return place || null;
+}
+
+export function InviteCover({ event, layout, themeId, inviteUrl, variant }: InviteCoverProps) {
+  const qr = QR[layout][variant === "page" ? "page" : "card"];
+  const board = (
+    <CoverBoard event={event} layout={layout} themeId={themeId} inviteUrl={inviteUrl} qr={qr} variant={variant} />
+  );
+  if (variant === "page") return board;
+  return <PreviewFrame>{board}</PreviewFrame>;
+}
+
+function PreviewFrame({ children }: { children: ReactNode }) {
+  const frame = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const node = frame.current;
+    if (!node) return;
+    const apply = () => setScale(node.clientWidth / CARD_W);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={frame} className="relative w-full overflow-hidden" style={{ aspectRatio: "2 / 3" }}>
+      <div
+        className="absolute top-0 left-0"
+        style={{ width: CARD_W, height: CARD_H, transform: `scale(${scale})`, transformOrigin: "top left" }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function CoverBoard({
+  event,
+  layout,
+  themeId,
+  inviteUrl,
+  qr,
+  variant,
+}: InviteCoverProps & { qr: number }) {
+  const pad: CSSProperties =
+    variant === "page"
+      ? {
+          paddingLeft: "var(--gutter)",
+          paddingRight: "var(--gutter)",
+          paddingTop: "max(1.25rem, env(safe-area-inset-top))",
+          paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))",
+        }
+      : { padding: 18 };
+  return (
+    <section
+      className={variant === "page" ? "mx-auto flex min-h-dvh w-full max-w-[430px] flex-col" : "flex h-full w-full flex-col"}
+      style={{
+        ...pad,
+        background: `var(--event-theme-${themeId})`,
+        color: `var(--event-theme-${themeId}-ink)`,
+        fontFamily: "var(--font-sans)",
+      }}
+    >
+      {layout === "grid" ? <GridCover event={event} inviteUrl={inviteUrl} themeId={themeId} qr={qr} /> : null}
+      {layout === "corners" ? <CornersCover event={event} inviteUrl={inviteUrl} themeId={themeId} qr={qr} /> : null}
+      {layout === "oversized" ? <OversizedCover event={event} inviteUrl={inviteUrl} themeId={themeId} qr={qr} /> : null}
+    </section>
+  );
+}
+
+function GridCover({
+  event,
+  inviteUrl,
+  themeId,
+  qr,
+}: {
+  event: InviteCoverEvent;
+  inviteUrl: string;
+  themeId: EventThemeId;
+  qr: number;
+}) {
+  const place = placeLine(event);
+  const when = formatEventWhen(event.date);
+  const rows = [
+    when ? { label: "Date", value: when } : null,
+    place ? { label: "Place", value: place } : null,
+    { label: "Code", value: event.code, strong: true },
+  ].filter((row): row is { label: string; value: string; strong?: boolean } => Boolean(row));
+
+  return (
+    <div className="flex flex-col">
+      {event.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={event.logoUrl} alt="" className="mb-4 size-8 object-contain" />
+      ) : null}
+      <p className="t-label mb-4">Invitation</p>
+      <GridTitle name={event.name} />
+      <div className="mt-6" style={{ borderTop: `1px solid ${HAIRLINE}` }}>
+        {rows.map((row) => (
+          <div
+            key={row.label}
+            className="grid items-baseline py-2"
+            style={{ gridTemplateColumns: "62px minmax(0, 1fr)", columnGap: 14, borderBottom: `1px solid ${HAIRLINE}` }}
+          >
+            <span className="t-label">{row.label}</span>
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: row.strong ? 700 : 400,
+                letterSpacing: row.strong ? "0.08em" : "-0.015em",
+              }}
+            >
+              {row.value}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-8 flex items-end justify-between gap-4">
+        <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
+        <AdedWordmark color="currentColor" className="block h-auto w-10" />
+      </div>
+    </div>
+  );
+}
+
+function GridTitle({ name }: { name: string }) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  const [size, setSize] = useState(44);
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    node.style.fontSize = "44px";
+    const lines = node.scrollHeight / (44 * 0.95);
+    setSize(lines >= 2.6 ? 32 : 44);
+    setReady(true);
+  }, [name]);
+
+  return (
+    <h1
+      ref={ref}
+      className="m-0 line-clamp-3"
+      style={{
+        visibility: ready ? "visible" : "hidden",
+        fontWeight: 700,
+        fontSize: size,
+        lineHeight: 0.95,
+        letterSpacing: "-0.035em",
+      }}
+    >
+      {name}
+    </h1>
+  );
+}
+
+function CornersCover({
+  event,
+  inviteUrl,
+  themeId,
+  qr,
+}: {
+  event: InviteCoverEvent;
+  inviteUrl: string;
+  themeId: EventThemeId;
+  qr: number;
+}) {
+  const place = placeLine(event);
+  const time = eventClock(event.date);
+  const when = [place, time].filter(Boolean).join("  ");
+  const date = dottedDate(event.date);
+
+  return (
+    <div className="relative min-h-0 flex-1">
+      <Corner x="left" y="top" />
+      <Corner x="right" y="top" />
+      <Corner x="left" y="bottom" />
+      <Corner x="right" y="bottom" />
+      <div className="flex h-full flex-col items-center px-8 pt-10">
+        <p className="m-0 uppercase" style={{ fontSize: 9.5, fontWeight: 400, letterSpacing: "0.3em" }}>
+          ADED · {romanYear(eventYear(event.date))}
+        </p>
+        <div className="mt-8 w-full">
+          <LightTitle name={event.name} />
+        </div>
+        {date ? (
+          <p className="mt-4 mb-0" style={{ fontSize: 12, fontWeight: 300, letterSpacing: "0.32em" }}>
+            {date}
+          </p>
+        ) : null}
+      </div>
+      <div className="absolute right-8 bottom-8 left-8">
+        <div className="flex items-end justify-between gap-3">
+          <p className="mb-0" style={{ fontSize: 12, fontWeight: 300 }}>
+            {when}
+          </p>
+          <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
+        </div>
+        <div className="mt-3" style={{ borderTop: "0.5px solid color-mix(in srgb, currentColor 50%, transparent)" }} />
+        <div className="mt-2 flex items-baseline uppercase" style={{ fontSize: 9.5, letterSpacing: "0.3em" }}>
+          <span>Entry</span>
+          <span aria-hidden className="mx-2 min-w-0 flex-1 overflow-hidden whitespace-nowrap">
+            {".".repeat(48)}
+          </span>
+          <span>{event.code}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Corner({ x, y }: { x: "left" | "right"; y: "top" | "bottom" }) {
+  return (
+    <span
+      aria-hidden
+      className="absolute h-4 w-4"
+      style={{
+        [x]: 16,
+        [y]: 16,
+        borderTop: y === "top" ? "0.5px solid currentColor" : undefined,
+        borderBottom: y === "bottom" ? "0.5px solid currentColor" : undefined,
+        borderLeft: x === "left" ? "0.5px solid currentColor" : undefined,
+        borderRight: x === "right" ? "0.5px solid currentColor" : undefined,
+      }}
+    />
+  );
+}
+
+function LightTitle({ name }: { name: string }) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  const [size, setSize] = useState(44);
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    let low = 16;
+    let high = 44;
+    let best = 16;
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      node.style.fontSize = `${mid}px`;
+      const lines = node.scrollHeight / (mid * 1.05);
+      if (lines <= 2.15) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    setSize(best);
+    setReady(true);
+  }, [name]);
+
+  return (
+    <h1
+      ref={ref}
+      className="m-0 text-center"
+      style={{
+        visibility: ready ? "visible" : "hidden",
+        fontWeight: 200,
+        fontSize: size,
+        lineHeight: 1.05,
+        letterSpacing: "-0.02em",
+      }}
+    >
+      {name}
+    </h1>
+  );
+}
+
+function OversizedCover({
+  event,
+  inviteUrl,
+  themeId,
+  qr,
+}: {
+  event: InviteCoverEvent;
+  inviteUrl: string;
+  themeId: EventThemeId;
+  qr: number;
+}) {
+  const place = placeLine(event);
+  const foot = [place, event.code].filter(Boolean).join(" · ");
+  const when = fashionWhen(event.date);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex items-start justify-between gap-3">
+        <p className="t-label mb-0">ADED · {eventYear(event.date)}</p>
+        {when ? <p className="t-label mb-0 text-right">{when}</p> : null}
+      </div>
+      <OversizedTitle name={event.name} />
+      <div className="flex items-end justify-between gap-3">
+        <p className="mb-0" style={{ fontSize: 12, fontWeight: 400 }}>
+          {foot}
+        </p>
+        <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
+      </div>
+    </div>
+  );
+}
+
+const FASHION_TYPE: CSSProperties = {
+  fontWeight: 700,
+  lineHeight: 0.86,
+  letterSpacing: "-0.05em",
+  textTransform: "uppercase",
+};
+
+function OversizedTitle({ name }: { name: string }) {
+  const zone = useRef<HTMLDivElement>(null);
+  const probe = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<FittedTitle | null>(null);
+
+  useLayoutEffect(() => {
+    const box = zone.current;
+    const meter = probe.current;
+    if (!box || !meter) return;
+    let stopped = false;
+    const run = () => {
+      if (stopped) return;
+      const width = box.clientWidth;
+      const height = box.clientHeight;
+      if (width <= 0 || height <= 0) return;
+      const next = fitTitle(name, width, height, (lines, fontSize) => {
+        meter.style.fontSize = `${fontSize}px`;
+        meter.replaceChildren();
+        for (const line of lines) {
+          const row = document.createElement("div");
+          row.style.whiteSpace = "nowrap";
+          row.textContent = line;
+          meter.appendChild(row);
+        }
+        return { width: meter.scrollWidth, height: meter.scrollHeight };
+      });
+      setFit(next);
+    };
+    run();
+    const observer = new ResizeObserver(run);
+    observer.observe(box);
+    void document.fonts?.ready.then(() => {
+      if (!stopped) run();
+    });
+    return () => {
+      stopped = true;
+      observer.disconnect();
+    };
+  }, [name]);
+
+  return (
+    <div className="min-h-0 flex-1" style={{ paddingLeft: 14, paddingRight: 14 }}>
+      <div ref={zone} className="relative h-full">
+      <div ref={probe} aria-hidden className="pointer-events-none absolute top-0 left-0" style={{ ...FASHION_TYPE, visibility: "hidden" }} />
+      <div className="flex h-full flex-col justify-center" style={{ ...FASHION_TYPE, visibility: fit ? "visible" : "hidden", fontSize: fit?.fontSize ?? 10 }}>
+        {(fit?.lines ?? [name]).map((line, index) => (
+          <div key={`${index}-${line}`} className="whitespace-nowrap">
+            {line}
+          </div>
+        ))}
+      </div>
+      </div>
+    </div>
+  );
+}

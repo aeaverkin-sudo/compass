@@ -10,7 +10,7 @@ import {
 } from "@/shared/services/attachment-api";
 import { CARD_ATTACHMENTS_BUCKET, IMAGE_BYTE_LIMIT, IMAGE_MIMES } from "@/shared/services/attachment-limits";
 import { stripImageMetadata } from "@/shared/services/attachment-sanitize";
-import { isEventTheme, type EventThemeId } from "@/shared/event/themes";
+import { isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 
 const PUBLIC_TOKEN_LENGTH = 21;
 const eventCode = customAlphabet("АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789", 5);
@@ -29,6 +29,7 @@ export type CreateEventInput = {
   date: string | null;
   place: string | null;
   theme: EventThemeId;
+  layout: EventLayoutId;
   logo: File | null;
 };
 
@@ -107,22 +108,24 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const publicToken = nanoid(PUBLIC_TOKEN_LENGTH);
       const code = eventCode();
-      const inserted = await admin
-        .from("events")
-        .insert({
-          owner_id: input.ownerId,
-          name: input.name,
-          logo_attachment_id: logo?.id ?? null,
-          description: input.description,
-          date: input.date,
-          place: input.place,
-          place_secret: false,
-          theme: input.theme,
-          public_token: publicToken,
-          code,
-        })
-        .select("public_token, code, logo_attachment_id")
-        .single();
+      const row = {
+        owner_id: input.ownerId,
+        name: input.name,
+        logo_attachment_id: logo?.id ?? null,
+        description: input.description,
+        date: input.date,
+        place: input.place,
+        place_secret: false,
+        theme: input.theme,
+        layout: input.layout,
+        public_token: publicToken,
+        code,
+      };
+      let inserted = await admin.from("events").insert(row).select("public_token, code, logo_attachment_id").single();
+      if (inserted.error && /could not find the 'layout' column/i.test(inserted.error.message)) {
+        const { layout: _layout, ...withoutLayout } = row;
+        inserted = await admin.from("events").insert(withoutLayout).select("public_token, code, logo_attachment_id").single();
+      }
 
       if (!inserted.error && inserted.data) {
         const row = inserted.data;

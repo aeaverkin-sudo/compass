@@ -7,7 +7,14 @@ import { QRCodeSVG } from "qrcode.react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { lookupFromInvite, normalizeEventCode } from "@/shared/event/lookup";
-import { EVENT_THEMES, type EventThemeId } from "@/shared/event/themes";
+import { InviteCover } from "@/shared/event/invite-cover";
+import {
+  EVENT_LAYOUTS,
+  EVENT_THEMES,
+  layoutDefaultTheme,
+  type EventLayoutId,
+  type EventThemeId,
+} from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 import { QR_COLOR } from "../layout";
@@ -160,6 +167,12 @@ function NotFound() {
   return <p className="mt-2 t-meta text-[var(--ink)]">Event not found</p>;
 }
 
+function previewDate(date: string, time: string): string | null {
+  if (!date) return null;
+  const when = new Date(`${date}T${time || "00:00"}`);
+  return Number.isNaN(when.getTime()) ? null : when.toISOString();
+}
+
 /** Event door, join, and create. */
 export function EventEntryScreen() {
   const router = useRouter();
@@ -175,6 +188,9 @@ export function EventEntryScreen() {
   const [about, setAbout] = useState("");
   const [logo, setLogo] = useState<string | null>(null);
   const [theme, setTheme] = useState<EventThemeId>("paper");
+  const [layout, setLayout] = useState<EventLayoutId>("grid");
+  const [themeTouched, setThemeTouched] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedEvent | null>(null);
@@ -221,6 +237,7 @@ export function EventEntryScreen() {
       body.set("description", about.trim());
       body.set("place", place.trim());
       body.set("theme", theme);
+      body.set("layout", layout);
       if (date) {
         const when = new Date(`${date}T${time || "00:00"}`);
         if (!Number.isNaN(when.getTime())) body.set("date", when.toISOString());
@@ -454,22 +471,51 @@ export function EventEntryScreen() {
                 />
               </div>
             </Zone>
-            <Zone label="Theme" align="center">
-              <div className="flex flex-wrap items-center gap-2">
+            <Zone label="Style" rule>
+              <div className="flex flex-wrap gap-4">
+                {EVENT_LAYOUTS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={layout === item.id}
+                    onClick={() => {
+                      setLayout(item.id);
+                      if (!themeTouched) setTheme(layoutDefaultTheme(item.id));
+                    }}
+                    className="border-0 bg-transparent p-0 t-caps [-webkit-tap-highlight-color:transparent]"
+                    style={{ color: layout === item.id ? "var(--ink)" : "var(--grey)" }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </Zone>
+            <Zone label="Color">
+              <div className="flex flex-wrap items-start gap-3">
                 {EVENT_THEMES.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     aria-label={item.label}
                     aria-pressed={theme === item.id}
-                    onClick={() => setTheme(item.id)}
-                    className="size-[18px] border-0 p-0 [-webkit-tap-highlight-color:transparent]"
-                    style={{
-                      background: `var(--event-theme-${item.id})`,
-                      outline: theme === item.id ? "1px solid var(--ink)" : "1px solid var(--rule)",
-                      outlineOffset: 2,
+                    onClick={() => {
+                      setThemeTouched(true);
+                      setTheme(item.id);
                     }}
-                  />
+                    className="border-0 bg-transparent p-0 [-webkit-tap-highlight-color:transparent]"
+                  >
+                    <span
+                      className="block size-7"
+                      style={{
+                        background: `var(--event-theme-${item.id})`,
+                        boxShadow: item.id === "paper" ? "inset 0 0 0 1px #999" : undefined,
+                      }}
+                    />
+                    <span
+                      className="mt-1 block h-px"
+                      style={{ background: theme === item.id ? "var(--ink)" : "transparent" }}
+                    />
+                  </button>
                 ))}
               </div>
             </Zone>
@@ -487,9 +533,59 @@ export function EventEntryScreen() {
               </p>
               {createError ? <p className="mt-2 t-meta text-[var(--ink)]">{createError}</p> : null}
             </div>
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="mt-6 block w-full border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
+              style={{ marginLeft: 0 }}
+            >
+              <InviteCover
+                variant="preview"
+                layout={layout}
+                themeId={theme}
+                inviteUrl="https://www.adedme.com/e/preview"
+                event={{
+                  name: name.trim() || "Event name",
+                  date: previewDate(date, time),
+                  place: place.trim() || null,
+                  placeSecret: false,
+                  code: "·····",
+                  logoUrl: logo,
+                }}
+              />
+            </button>
           </>
         ) : null}
       </div>
+      {previewOpen ? (
+        <div
+          className="fixed inset-0 z-[80] overflow-y-auto"
+          style={{ background: `var(--event-theme-${theme})`, color: `var(--event-theme-${theme}-ink)` }}
+        >
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(false)}
+            className="absolute z-10 border-0 bg-transparent t-caps [-webkit-tap-highlight-color:transparent]"
+            style={{ top: "max(12px, env(safe-area-inset-top))", right: "var(--gutter)", color: "inherit" }}
+          >
+            Close
+          </button>
+          <InviteCover
+            variant="page"
+            layout={layout}
+            themeId={theme}
+            inviteUrl="https://www.adedme.com/e/preview"
+            event={{
+              name: name.trim() || "Event name",
+              date: previewDate(date, time),
+              place: place.trim() || null,
+              placeSecret: false,
+              code: "·····",
+              logoUrl: logo,
+            }}
+          />
+        </div>
+      ) : null}
       <NetworkBand current="event" />
     </main>
   );

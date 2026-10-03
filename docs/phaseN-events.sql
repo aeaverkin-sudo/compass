@@ -26,7 +26,9 @@ create table if not exists public.events (
   place              text,
   place_secret       boolean not null default false,
   theme              text not null default 'paper'
-                       check (theme in ('paper', 'noir', 'sky', 'butter', 'peach', 'lilac', 'mint', 'clay')),
+                       check (theme in ('paper', 'stone', 'sky', 'orange', 'cobalt', 'noir')),
+  layout             text not null default 'grid'
+                       check (layout in ('grid', 'corners', 'oversized')),
   public_token       text not null,
   code               text not null,
   created_at         timestamptz not null default now(),
@@ -39,15 +41,9 @@ create table if not exists public.events (
 create index if not exists events_owner_created
   on public.events (owner_id, created_at);
 
--- Retired cover names from the first draft. A second paste of this file
--- replaces the theme check with the eight invite colours.
-update public.events
-set theme = case theme
-  when 'ink' then 'noir'
-  when 'night' then 'noir'
-  else 'paper'
-end
-where theme not in ('paper', 'noir', 'sky', 'butter', 'peach', 'lilac', 'mint', 'clay');
+-- Six covers and three layouts. Drop the old theme check first, or
+-- renaming butter/peach/… to stone is rejected by that check.
+alter table public.events add column if not exists layout text not null default 'grid';
 
 do $$
 declare
@@ -64,9 +60,29 @@ begin
   end loop;
 end $$;
 
+update public.events
+set theme = case theme
+  when 'ink' then 'noir'
+  when 'night' then 'noir'
+  when 'butter' then 'stone'
+  when 'peach' then 'stone'
+  when 'lilac' then 'stone'
+  when 'mint' then 'stone'
+  when 'clay' then 'stone'
+  when 'sand' then 'stone'
+  when 'mist' then 'stone'
+  else 'paper'
+end
+where theme not in ('paper', 'stone', 'sky', 'orange', 'cobalt', 'noir');
+
 alter table public.events
   add constraint events_theme_check
-  check (theme in ('paper', 'noir', 'sky', 'butter', 'peach', 'lilac', 'mint', 'clay'));
+  check (theme in ('paper', 'stone', 'sky', 'orange', 'cobalt', 'noir'));
+
+alter table public.events drop constraint if exists events_layout_check;
+alter table public.events
+  add constraint events_layout_check
+  check (layout in ('grid', 'corners', 'oversized'));
 
 create table if not exists public.event_registrations (
   id                 uuid primary key default gen_random_uuid(),
