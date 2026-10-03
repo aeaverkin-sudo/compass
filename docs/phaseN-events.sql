@@ -26,7 +26,7 @@ create table if not exists public.events (
   place              text,
   place_secret       boolean not null default false,
   theme              text not null default 'paper'
-                       check (theme in ('paper', 'ink', 'sky', 'sand', 'stone', 'clay', 'mist', 'night')),
+                       check (theme in ('paper', 'noir', 'sky', 'butter', 'peach', 'lilac', 'mint', 'clay')),
   public_token       text not null,
   code               text not null,
   created_at         timestamptz not null default now(),
@@ -38,6 +38,35 @@ create table if not exists public.events (
 
 create index if not exists events_owner_created
   on public.events (owner_id, created_at);
+
+-- Retired cover names from the first draft. A second paste of this file
+-- replaces the theme check with the eight invite colours.
+update public.events
+set theme = case theme
+  when 'ink' then 'noir'
+  when 'night' then 'noir'
+  else 'paper'
+end
+where theme not in ('paper', 'noir', 'sky', 'butter', 'peach', 'lilac', 'mint', 'clay');
+
+do $$
+declare
+  cons name;
+begin
+  for cons in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.events'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%theme%'
+  loop
+    execute format('alter table public.events drop constraint %I', cons);
+  end loop;
+end $$;
+
+alter table public.events
+  add constraint events_theme_check
+  check (theme in ('paper', 'noir', 'sky', 'butter', 'peach', 'lilac', 'mint', 'clay'));
 
 create table if not exists public.event_registrations (
   id                 uuid primary key default gen_random_uuid(),
