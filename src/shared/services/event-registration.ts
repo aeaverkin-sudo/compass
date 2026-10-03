@@ -6,6 +6,7 @@ import { loadEventInvite, type EventInvite } from "@/shared/services/event-invit
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 
 const TOKEN_LENGTH = 21;
+const REG_TOKEN = /^[A-Za-z0-9_-]{21}$/;
 
 export type EventRegistration = {
   id: string;
@@ -202,6 +203,83 @@ export async function registerForEvent(
     throw new Error(error?.message ?? "Could not join.");
   }
   throw new Error("Could not join.");
+}
+
+export type BadgeOpen =
+  | { kind: "missing" }
+  | { kind: "badge"; name: string }
+  | { kind: "checked-in"; name: string; at: string; already: boolean };
+
+function badgeName(value: string | null | undefined): string {
+  const name = (value ?? "").trim();
+  return name || "Untitled";
+}
+
+/**
+ * The address inside a badge QR. Only the event owner stamps arrival.
+ * A second open leaves the first time in place.
+ */
+export async function openEventBadge(lookup: string, regToken: string, viewerId: string | null): Promise<BadgeOpen> {
+  let token = regToken.trim();
+  try {
+    token = decodeURIComponent(token);
+  } catch {
+    return { kind: "missing" };
+  }
+  if (!REG_TOKEN.test(token)) return { kind: "missing" };
+
+  const event = await loadEventInvite(lookup);
+  if (!event) return { kind: "missing" };
+
+  const admin = createAdminSupabaseClient();
+  const { data: row, error } = await admin
+    .from("event_registrations")
+    .select("id, card_id, checked_in_at")
+    .eq("event_id", event.id)
+    .eq("reg_token", token)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!row) return { kind: "missing" };
+
+  const { data: card, error: cardError } = await admin
+    .from("cards")
+    .select("display_name")
+    .eq("id", row.card_id)
+    .maybeSingle();
+  if (cardError) throw new Error(cardError.message);
+  const name = badgeName(card?.display_name as string | null | undefined);
+
+  const { data: owned, error: ownerError } = await admin
+    .from("events")
+    .select("owner_id")
+    .eq("id", event.id)
+    .maybeSingle();
+  if (ownerError) throw new Error(ownerError.message);
+  const isOwner = Boolean(viewerId && owned?.owner_id === viewerId);
+  if (!isOwner) return { kind: "badge", name };
+
+  let at = (row.checked_in_at as string | null) ?? null;
+  let already = Boolean(at);
+  if (!at) {
+    const now = new Date().toISOString();
+    const stamped = await admin
+      .from("event_registrations")
+      .update({ checked_in_at: now })
+      .eq("id", row.id)
+      .is("checked_in_at", null)
+      .select("checked_in_at")
+      .maybeSingle();
+    if (stamped.error) throw new Error(stamped.error.message);
+    if (stamped.data?.checked_in_at) {
+      at = stamped.data.checked_in_at as string;
+    } else {
+      const again = await admin.from("event_registrations").select("checked_in_at").eq("id", row.id).maybeSingle();
+      if (again.error) throw new Error(again.error.message);
+      at = (again.data?.checked_in_at as string | null) ?? now;
+      already = true;
+    }
+  }
+  return { kind: "checked-in", name, at: at ?? new Date().toISOString(), already };
 }
 
 export async function saveRegistrationConsent(
