@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { InviteQr } from "@/shared/event/invite-qr";
 import { ScreenHeader } from "@/shared/components/screen-header";
+import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { loadOwnerEventCounts } from "@/shared/services/event-registration";
 import { formatEventWhen, loadEventInvite } from "@/shared/services/event-invite";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 
@@ -35,6 +37,10 @@ export default async function EventInvitePage({ params }: PageProps) {
   } catch {
     lookup = code;
   }
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase.auth.getUser();
+  const viewerId = data.user && !data.user.is_anonymous ? data.user.id : null;
+  const counts = await loadOwnerEventCounts(event.id, viewerId);
   const origin = await requestOrigin();
   const inviteUrl = `${origin}/e/${event.publicToken}`;
   const when = formatEventWhen(event.date);
@@ -69,6 +75,9 @@ export default async function EventInvitePage({ params }: PageProps) {
           <p className="mt-6 mb-0 max-w-[36ch] whitespace-pre-wrap t-body">{event.description}</p>
         ) : null}
         <div className="mt-auto pt-16">
+          {counts ? (
+            <p className="mb-8 t-body">{`Registered ${counts.registered} · Checked-in ${counts.checkedIn}`}</p>
+          ) : null}
           <InviteQr url={inviteUrl} />
           <p className="mt-4 mb-0 t-body" style={{ letterSpacing: "0.1em" }}>
             {event.code}

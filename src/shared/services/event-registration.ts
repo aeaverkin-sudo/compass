@@ -205,6 +205,35 @@ export async function registerForEvent(
   throw new Error("Could not join.");
 }
 
+/** Two counts for the organiser. Anyone else gets nothing. */
+export async function loadOwnerEventCounts(
+  eventId: string,
+  viewerId: string | null,
+): Promise<{ registered: number; checkedIn: number } | null> {
+  if (!viewerId) return null;
+  const admin = createAdminSupabaseClient();
+  const { data: owned, error: ownerError } = await admin
+    .from("events")
+    .select("owner_id")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (ownerError) throw new Error(ownerError.message);
+  if (owned?.owner_id !== viewerId) return null;
+
+  const registered = await admin
+    .from("event_registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId);
+  if (registered.error) throw new Error(registered.error.message);
+  const checkedIn = await admin
+    .from("event_registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId)
+    .not("checked_in_at", "is", null);
+  if (checkedIn.error) throw new Error(checkedIn.error.message);
+  return { registered: registered.count ?? 0, checkedIn: checkedIn.count ?? 0 };
+}
+
 export type BadgeOpen =
   | { kind: "missing" }
   | { kind: "badge"; name: string }
