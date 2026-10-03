@@ -14,7 +14,7 @@ type Notice = "qr" | "code" | "link" | "create" | null;
 const FIELD =
   "w-full border-b border-[var(--rule)] bg-transparent py-2 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 const LINK =
-  "text-left t-body text-[var(--ink)] underline decoration-[0.5px] underline-offset-[3px] [-webkit-tap-highlight-color:transparent]";
+  "text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 const SKY_BUTTON =
   "border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 
