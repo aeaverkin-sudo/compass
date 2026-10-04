@@ -104,7 +104,15 @@ function CoverBoard({
     >
       {layout === "grid" ? <GridCover event={event} inviteUrl={inviteUrl} themeId={themeId} qr={qr} /> : null}
       {layout === "corners" ? <CornersCover event={event} inviteUrl={inviteUrl} themeId={themeId} qr={qr} /> : null}
-      {layout === "oversized" ? <OversizedCover event={event} inviteUrl={inviteUrl} themeId={themeId} qr={qr} /> : null}
+      {layout === "oversized" ? (
+        <OversizedCover
+          event={event}
+          inviteUrl={inviteUrl}
+          themeId={themeId}
+          qr={qr}
+          bleed={variant === "page" ? "calc(14px - var(--gutter))" : "-4px"}
+        />
+      ) : null}
     </section>
   );
 }
@@ -125,7 +133,7 @@ function GridCover({
   const rows = [
     when ? { label: "Date", value: when } : null,
     place ? { label: "Place", value: place } : null,
-    { label: "Code", value: event.code, strong: true },
+    event.code ? { label: "Code", value: event.code, strong: true } : null,
   ].filter((row): row is { label: string; value: string; strong?: boolean } => Boolean(row));
 
   return (
@@ -208,7 +216,7 @@ function CornersCover({
 }) {
   const place = placeLine(event);
   const time = eventClock(event.date);
-  const when = [place, time].filter(Boolean).join("  ");
+
   const date = dottedDate(event.date);
 
   return (
@@ -232,19 +240,22 @@ function CornersCover({
       </div>
       <div className="absolute right-8 bottom-8 left-8">
         <div className="flex items-end justify-between gap-3">
-          <p className="mb-0" style={{ fontSize: 12, fontWeight: 300 }}>
-            {when}
+          <p className="mb-0" style={{ fontSize: 12, fontWeight: 300, lineHeight: 1.6 }}>
+            {place}
+            {place && time ? <br /> : null}
+            {time}
           </p>
           <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
         </div>
-        <div className="mt-3" style={{ borderTop: "0.5px solid color-mix(in srgb, currentColor 50%, transparent)" }} />
-        <div className="mt-2 flex items-baseline uppercase" style={{ fontSize: 9.5, letterSpacing: "0.3em" }}>
-          <span>Entry</span>
-          <span aria-hidden className="mx-2 min-w-0 flex-1 overflow-hidden whitespace-nowrap">
-            {".".repeat(48)}
-          </span>
-          <span>{event.code}</span>
-        </div>
+        {event.code ? (
+          <>
+            <div className="mt-3" style={{ borderTop: "0.5px solid color-mix(in srgb, currentColor 50%, transparent)" }} />
+            <div className="mt-2 flex items-baseline justify-between uppercase" style={{ fontSize: 9.5, letterSpacing: "0.3em" }}>
+              <span>Entry</span>
+              <span>{event.code}</span>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
@@ -315,11 +326,14 @@ function OversizedCover({
   inviteUrl,
   themeId,
   qr,
+  bleed,
 }: {
   event: InviteCoverEvent;
   inviteUrl: string;
   themeId: EventThemeId;
   qr: number;
+  /** Side margin that pulls the title out to 14px from the cover edge. */
+  bleed: string;
 }) {
   const place = placeLine(event);
   const foot = [place, event.code].filter(Boolean).join(" · ");
@@ -331,7 +345,7 @@ function OversizedCover({
         <p className="t-label mb-0">ADED · {eventYear(event.date)}</p>
         {when ? <p className="t-label mb-0 text-right">{when}</p> : null}
       </div>
-      <OversizedTitle name={event.name} />
+      <OversizedTitle name={event.name} bleed={bleed} />
       <div className="flex items-end justify-between gap-3">
         <p className="mb-0" style={{ fontSize: 12, fontWeight: 400 }}>
           {foot}
@@ -349,7 +363,7 @@ const FASHION_TYPE: CSSProperties = {
   textTransform: "uppercase",
 };
 
-function OversizedTitle({ name }: { name: string }) {
+function OversizedTitle({ name, bleed }: { name: string; bleed: string }) {
   const zone = useRef<HTMLDivElement>(null);
   const probe = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<FittedTitle | null>(null);
@@ -389,17 +403,21 @@ function OversizedTitle({ name }: { name: string }) {
     };
   }, [name]);
 
+  /* The zone is absolute so its height is the space the flex column gives it, also when the page only has a min height. */
   return (
-    <div className="min-h-0 flex-1" style={{ paddingLeft: 14, paddingRight: 14 }}>
-      <div ref={zone} className="relative h-full">
-      <div ref={probe} aria-hidden className="pointer-events-none absolute top-0 left-0" style={{ ...FASHION_TYPE, visibility: "hidden" }} />
-      <div className="flex h-full flex-col justify-center" style={{ ...FASHION_TYPE, visibility: fit ? "visible" : "hidden", fontSize: fit?.fontSize ?? 10 }}>
-        {(fit?.lines ?? [name]).map((line, index) => (
-          <div key={`${index}-${line}`} className="whitespace-nowrap">
-            {line}
-          </div>
-        ))}
-      </div>
+    <div className="relative my-4 min-h-0 flex-1" style={{ marginLeft: bleed, marginRight: bleed }}>
+      <div ref={zone} className="absolute inset-0">
+        <div ref={probe} aria-hidden className="pointer-events-none absolute top-0 left-0" style={{ ...FASHION_TYPE, visibility: "hidden" }} />
+        <div
+          className="flex h-full flex-col justify-center"
+          style={{ ...FASHION_TYPE, visibility: fit ? "visible" : "hidden", fontSize: fit?.fontSize ?? 10 }}
+        >
+          {(fit?.lines ?? [name]).map((line, index) => (
+            <div key={`${index}-${line}`} className="whitespace-nowrap">
+              {line}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

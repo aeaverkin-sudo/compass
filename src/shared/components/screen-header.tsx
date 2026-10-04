@@ -35,7 +35,7 @@ export function ScreenHeader({
         {title}
       </h1>
       {spacer ? (
-        <div aria-hidden className="mb-[18px]" style={{ height: `calc(${top} + ${HEADER_ROW_PX}px)` }} />
+        <div aria-hidden className="mb-[18px] shrink-0" style={{ height: `calc(${top} + ${HEADER_ROW_PX}px)` }} />
       ) : null}
     </>
   );

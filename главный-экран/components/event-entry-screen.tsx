@@ -490,8 +490,9 @@ export function EventEntryScreen() {
                 ))}
               </div>
             </Zone>
-            <Zone label="Color">
-              <div className="flex flex-wrap items-start gap-3">
+            <Zone label={<span className="t-label block whitespace-nowrap pt-[5px]">Color</span>} align="start">
+              {/* One row on every phone: six equal cells, the square fills its cell up to 28px. */}
+              <div className="grid grid-cols-6 items-start gap-2" style={{ maxWidth: 6 * 28 + 5 * 8 }}>
                 {EVENT_THEMES.map((item) => (
                   <button
                     key={item.id}
@@ -502,10 +503,10 @@ export function EventEntryScreen() {
                       setThemeTouched(true);
                       setTheme(item.id);
                     }}
-                    className="border-0 bg-transparent p-0 [-webkit-tap-highlight-color:transparent]"
+                    className="block w-full border-0 bg-transparent p-0 [-webkit-tap-highlight-color:transparent]"
                   >
                     <span
-                      className="block size-7"
+                      className="block aspect-square w-full"
                       style={{
                         background: `var(--event-theme-${item.id})`,
                         boxShadow: item.id === "paper" ? "inset 0 0 0 1px #999" : undefined,
@@ -549,7 +550,7 @@ export function EventEntryScreen() {
                   date: previewDate(date, time),
                   place: place.trim() || null,
                   placeSecret: false,
-                  code: "·····",
+                  code: "",
                   logoUrl: logo,
                 }}
               />
@@ -559,17 +560,16 @@ export function EventEntryScreen() {
       </div>
       {previewOpen ? (
         <div
-          className="fixed inset-0 z-[80] overflow-y-auto"
+          role="button"
+          tabIndex={0}
+          aria-label="Close preview"
+          onClick={() => setPreviewOpen(false)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" || event.key === "Enter") setPreviewOpen(false);
+          }}
+          className="fixed inset-0 z-[80] overflow-y-auto [-webkit-tap-highlight-color:transparent]"
           style={{ background: `var(--event-theme-${theme})`, color: `var(--event-theme-${theme}-ink)` }}
         >
-          <button
-            type="button"
-            onClick={() => setPreviewOpen(false)}
-            className="absolute z-10 border-0 bg-transparent t-caps [-webkit-tap-highlight-color:transparent]"
-            style={{ top: "max(12px, env(safe-area-inset-top))", right: "var(--gutter)", color: "inherit" }}
-          >
-            Close
-          </button>
           <InviteCover
             variant="page"
             layout={layout}
@@ -580,7 +580,7 @@ export function EventEntryScreen() {
               date: previewDate(date, time),
               place: place.trim() || null,
               placeSecret: false,
-              code: "·····",
+              code: "",
               logoUrl: logo,
             }}
           />
