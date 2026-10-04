@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { isEventJoinPath } from "@/shared/event/lookup";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 import { listOwnPortfolios, loadOwnRegistration, loadOwnedBadge } from "@/shared/services/event-registration";
+import { EventGate } from "./event-gate";
 import { EventJoin } from "./event-join";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,13 @@ export default async function EventJoinPage({ params }: PageProps) {
   }
   const next = `/e/${encodeURIComponent(lookup)}/join`;
   if (!user) {
-    redirect(`/register?signin=1&next=${encodeURIComponent(isEventJoinPath(next) ? next : "/main")}`);
+    return (
+      <EventGate
+        name={event.name}
+        next={isEventJoinPath(next) ? next : "/main"}
+        inviteHref={`/e/${encodeURIComponent(lookup)}`}
+      />
+    );
   }
 
   const registration = await loadOwnRegistration(event.id, user.id);

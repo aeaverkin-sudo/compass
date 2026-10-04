@@ -87,7 +87,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
             href={`/e/${encodeURIComponent(lookup)}/join`}
             className="mt-8 inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
           >
-            Join
+            I'm going
           </Link>
         </div>
       </div>
