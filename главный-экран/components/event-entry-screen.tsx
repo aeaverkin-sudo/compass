@@ -252,7 +252,7 @@ export function EventEntryScreen() {
   };
 
   const openInvite = (lookup: string) => {
-    router.push(`/e/${encodeURIComponent(lookup)}`);
+    router.push(`/e/${encodeURIComponent(lookup)}?from=events`);
   };
 
   const share = (title: string, url: string) => {

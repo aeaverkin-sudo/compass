@@ -24,7 +24,7 @@ type InviteCoverProps = {
   event: InviteCoverEvent;
   layout: EventLayoutId;
   themeId: EventThemeId;
-  variant: "page" | "preview";
+  variant: "page" | "preview" | "card";
 };
 
 function placeLine(event: InviteCoverEvent): string | null {
@@ -40,8 +40,8 @@ function aboutLine(event: InviteCoverEvent): string | null {
 
 export function InviteCover({ event, layout, themeId, variant }: InviteCoverProps) {
   const board = <CoverBoard event={event} layout={layout} themeId={themeId} variant={variant} />;
-  if (variant === "page") return board;
-  return <PreviewFrame>{board}</PreviewFrame>;
+  if (variant === "preview") return <PreviewFrame>{board}</PreviewFrame>;
+  return board;
 }
 
 function PreviewFrame({ children }: { children: ReactNode }) {
@@ -80,11 +80,22 @@ function CoverBoard({ event, layout, themeId, variant }: InviteCoverProps) {
           paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))",
         }
       : { padding: 18 };
+  const frame =
+    variant === "page"
+      ? "mx-auto flex min-h-dvh w-full max-w-[430px] flex-col"
+      : variant === "card"
+        ? "mx-auto flex w-full max-w-[380px] shrink-0 flex-col overflow-hidden"
+        : "flex h-full w-full flex-col";
+  const cardSize: CSSProperties =
+    variant === "card"
+      ? { width: "min(100%, 380px, calc((100dvh - 14rem) * 0.72))", aspectRatio: "0.72" }
+      : {};
   return (
     <section
-      className={variant === "page" ? "mx-auto flex min-h-dvh w-full max-w-[430px] flex-col" : "flex h-full w-full flex-col"}
+      className={frame}
       style={{
         ...pad,
+        ...cardSize,
         background: `var(--event-theme-${themeId})`,
         color: `var(--event-theme-${themeId}-ink)`,
         fontFamily: "var(--font-sans)",
