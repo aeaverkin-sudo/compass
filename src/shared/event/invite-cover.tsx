@@ -19,6 +19,7 @@ const HAIRLINE = "color-mix(in srgb, currentColor 35%, transparent)";
 
 export type InviteCoverEvent = {
   name: string;
+  description: string | null;
   date: string | null;
   place: string | null;
   placeSecret: boolean;
@@ -38,6 +39,11 @@ function placeLine(event: InviteCoverEvent): string | null {
   if (event.placeSecret) return "Revealed closer to the date";
   const place = event.place?.trim();
   return place || null;
+}
+
+function aboutLine(event: InviteCoverEvent): string | null {
+  const text = event.description?.trim();
+  return text || null;
 }
 
 export function InviteCover({ event, layout, themeId, inviteUrl, variant }: InviteCoverProps) {
@@ -129,6 +135,7 @@ function GridCover({
   qr: number;
 }) {
   const place = placeLine(event);
+  const about = aboutLine(event);
   const when = formatEventWhen(event.date);
   const rows = [
     when ? { label: "Date", value: when } : null,
@@ -144,26 +151,36 @@ function GridCover({
       ) : null}
       <p className="t-label mb-4">Invitation</p>
       <GridTitle name={event.name} />
-      <div className="mt-6" style={{ borderTop: `1px solid ${HAIRLINE}` }}>
-        {rows.map((row) => (
-          <div
-            key={row.label}
-            className="grid items-baseline py-2"
-            style={{ gridTemplateColumns: "62px minmax(0, 1fr)", columnGap: 14, borderBottom: `1px solid ${HAIRLINE}` }}
-          >
-            <span className="t-label">{row.label}</span>
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: row.strong ? 700 : 400,
-                letterSpacing: row.strong ? "0.08em" : "-0.015em",
-              }}
+      {about ? (
+        <p
+          className="mt-4 mb-0 line-clamp-6"
+          style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.82, overflowWrap: "break-word", whiteSpace: "pre-wrap" }}
+        >
+          {about}
+        </p>
+      ) : null}
+      {rows.length > 0 ? (
+        <div className="mt-6" style={{ borderTop: `1px solid ${HAIRLINE}` }}>
+          {rows.map((row) => (
+            <div
+              key={row.label}
+              className="grid items-baseline py-2"
+              style={{ gridTemplateColumns: "62px minmax(0, 1fr)", columnGap: 14, borderBottom: `1px solid ${HAIRLINE}` }}
             >
-              {row.value}
-            </span>
-          </div>
-        ))}
-      </div>
+              <span className="t-label">{row.label}</span>
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: row.strong ? 700 : 400,
+                  letterSpacing: row.strong ? "0.08em" : "-0.015em",
+                }}
+              >
+                {row.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="mt-8 flex items-end justify-between gap-4">
         <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
         <AdedWordmark color="currentColor" className="block h-auto w-10" />
@@ -215,6 +232,7 @@ function CornersCover({
   qr: number;
 }) {
   const place = placeLine(event);
+  const about = aboutLine(event);
   const time = eventClock(event.date);
 
   const date = dottedDate(event.date);
@@ -232,6 +250,22 @@ function CornersCover({
         <div className="mt-8 w-full">
           <LightTitle name={event.name} />
         </div>
+        {about ? (
+          <p
+            className="mt-4 mb-0 line-clamp-6 text-center"
+            style={{
+              width: "100%",
+              maxWidth: 250,
+              fontSize: 12.5,
+              fontWeight: 300,
+              lineHeight: 1.65,
+              overflowWrap: "break-word",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {about}
+          </p>
+        ) : null}
         {date ? (
           <p className="mt-4 mb-0" style={{ fontSize: 12, fontWeight: 300, letterSpacing: "0.32em" }}>
             {date}
@@ -240,11 +274,15 @@ function CornersCover({
       </div>
       <div className="absolute right-8 bottom-8 left-8">
         <div className="flex items-end justify-between gap-3">
-          <p className="mb-0" style={{ fontSize: 12, fontWeight: 300, lineHeight: 1.6 }}>
-            {place}
-            {place && time ? <br /> : null}
-            {time}
-          </p>
+          {place || time ? (
+            <p className="mb-0" style={{ fontSize: 12, fontWeight: 300, lineHeight: 1.6 }}>
+              {place}
+              {place && time ? <br /> : null}
+              {time}
+            </p>
+          ) : (
+            <span />
+          )}
           <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
         </div>
         {event.code ? (
@@ -336,6 +374,7 @@ function OversizedCover({
   bleed: string;
 }) {
   const place = placeLine(event);
+  const about = aboutLine(event);
   const foot = [place, event.code].filter(Boolean).join(" · ");
   const when = fashionWhen(event.date);
 
@@ -346,10 +385,24 @@ function OversizedCover({
         {when ? <p className="t-label mb-0 text-right">{when}</p> : null}
       </div>
       <OversizedTitle name={event.name} bleed={bleed} />
+      {about ? (
+        <div style={{ borderTop: "1.4px solid currentColor" }}>
+          <p
+            className="mt-2 mb-3 line-clamp-6"
+            style={{ fontSize: 12, lineHeight: 1.5, overflowWrap: "break-word", whiteSpace: "pre-wrap" }}
+          >
+            {about}
+          </p>
+        </div>
+      ) : null}
       <div className="flex items-end justify-between gap-3">
-        <p className="mb-0" style={{ fontSize: 12, fontWeight: 400 }}>
-          {foot}
-        </p>
+        {foot ? (
+          <p className="mb-0" style={{ fontSize: 12, fontWeight: 400 }}>
+            {foot}
+          </p>
+        ) : (
+          <span />
+        )}
         <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
       </div>
     </div>

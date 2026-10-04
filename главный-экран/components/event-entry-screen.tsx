@@ -641,6 +641,7 @@ export function EventEntryScreen() {
                 inviteUrl="https://www.adedme.com/e/preview"
                 event={{
                   name: name.trim() || "Event name",
+                  description: about.trim() || null,
                   date: previewDate(date, time),
                   place: place.trim() || null,
                   placeSecret: false,
@@ -671,6 +672,7 @@ export function EventEntryScreen() {
             inviteUrl="https://www.adedme.com/e/preview"
             event={{
               name: name.trim() || "Event name",
+              description: about.trim() || null,
               date: previewDate(date, time),
               place: place.trim() || null,
               placeSecret: false,

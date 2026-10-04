@@ -59,6 +59,7 @@ export default async function EventInvitePage({ params }: PageProps) {
         inviteUrl={inviteUrl}
         event={{
           name: event.name,
+          description: event.description,
           date: event.date,
           place: event.place,
           placeSecret: event.placeSecret,
@@ -67,9 +68,6 @@ export default async function EventInvitePage({ params }: PageProps) {
         }}
       />
       <div className="mx-auto w-full max-w-[430px] px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-        {event.description ? (
-          <p className="mt-8 mb-0 max-w-[36ch] whitespace-pre-wrap t-body">{event.description}</p>
-        ) : null}
         {counts ? (
           <p className="mt-8 mb-0 t-body">{`Registered ${counts.registered} · Checked-in ${counts.checkedIn}`}</p>
         ) : null}
