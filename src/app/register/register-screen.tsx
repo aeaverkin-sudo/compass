@@ -6,9 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Rule } from "@/shared/components/rule";
 import { Zone } from "@/shared/components/zone";
-import { AdedWordmark } from "@/shared/components/aded-wordmark";
-import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { SCREEN_TOP_AXIS_PX } from "@main/layout";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { isInAppBrowser } from "@/shared/lib/in-app-browser";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -102,8 +100,6 @@ const FIELD =
 const PRIMARY =
   "border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] shadow-none disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 const UNDERLINE = "underline decoration-[0.5px] underline-offset-[3px]";
-/** Same top as the header row on other screens: the wordmark stands where a title would. */
-const WORDMARK_TOP = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
 
 function Message({ text }: { text: string | null }) {
   if (!text) return null;
@@ -625,10 +621,8 @@ export function RegisterScreen() {
 
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-      <div style={{ paddingTop: WORDMARK_TOP }}>
-        <AdedWordmark />
-      </div>
-      <Rule className="mt-10" />
+      <ScreenHeader title="Sign up" fallbackHref="/" />
+      <Rule />
       <Zone label="Sign up">
         <div className="-my-3">
         {inApp ? null : (
