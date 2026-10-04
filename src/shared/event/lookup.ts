@@ -21,12 +21,6 @@ export function lookupFromInvite(raw: string): string | null {
   return isEventLookup(candidate) ? candidate : null;
 }
 
-/** The join field takes the five-character code. */
-export function normalizeEventCode(raw: string): string | null {
-  const code = raw.trim().toUpperCase();
-  return /^[А-Я0-9]{5}$/.test(code) ? code : null;
-}
-
 /** After sign-in, only this path may come back to an invite. */
 export function isEventJoinPath(path: string): boolean {
   if (!path.startsWith("/e/") || path.includes("//") || path.includes("\\") || path.includes("?") || path.includes("#")) {

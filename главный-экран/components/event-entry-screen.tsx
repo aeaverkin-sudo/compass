@@ -7,7 +7,7 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
 import { shareInviteLink } from "@/shared/event/share-invite";
-import { lookupFromInvite, normalizeEventCode } from "@/shared/event/lookup";
+import { lookupFromInvite } from "@/shared/event/lookup";
 import { InviteCover } from "@/shared/event/invite-cover";
 import {
   EVENT_LAYOUTS,
@@ -20,7 +20,6 @@ import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 
 type Step = "entry" | "create" | "join";
-type JoinError = "code" | "link" | null;
 
 type CreatedEvent = {
   publicToken: string;
@@ -188,10 +187,8 @@ function previewDate(date: string, time: string): string | null {
 export function EventEntryScreen() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("entry");
-  const [code, setCode] = useState("");
   const [inviteLink, setInviteLink] = useState("");
-  const [joinError, setJoinError] = useState<JoinError>(null);
-  const codeRef = useRef<HTMLInputElement>(null);
+  const [joinError, setJoinError] = useState(false);
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -248,7 +245,7 @@ export function EventEntryScreen() {
   }, [step]);
 
   const leave = () => {
-    setJoinError(null);
+    setJoinError(false);
     setCreateError(null);
     setCreated(null);
     setStep("entry");
@@ -319,18 +316,18 @@ export function EventEntryScreen() {
             <Zone label="Join" rule>
               <ActionLink
                 onClick={() => {
-                  setJoinError(null);
+                  setJoinError(false);
                   setStep("join");
                 }}
               >
                 Join an event
               </ActionLink>
-              <p className="mt-1 t-meta text-[var(--grey)]">QR code, short code or invite link.</p>
+              <p className="mt-1 t-meta text-[var(--grey)]">Open an invite link.</p>
             </Zone>
             <Zone label="Create" rule>
               <ActionLink
                 onClick={() => {
-                  setJoinError(null);
+                  setJoinError(false);
                   setStep("create");
                 }}
               >
@@ -365,58 +362,12 @@ export function EventEntryScreen() {
 
         {step === "join" ? (
           <>
-            <Zone label="Qr" rule align="start">
-              <ActionLink
-                onClick={() => {
-                  setJoinError(null);
-                  codeRef.current?.focus();
-                }}
-              >
-                Scan QR code
-              </ActionLink>
-              <p className="mt-1 t-meta text-[var(--grey)]">Point the camera at the event QR.</p>
-            </Zone>
-            <Zone label="Code" rule align="start">
-              <div className="flex items-end gap-3">
-                <input
-                  ref={codeRef}
-                  value={code}
-                  onChange={(event) => {
-                    setJoinError(null);
-                    setCode(event.target.value.replace(/\s/g, "").slice(0, 5));
-                  }}
-                  placeholder="·····"
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  aria-label="Event code"
-                  className="min-w-0 flex-1 border-b border-[var(--ink)] bg-transparent py-2 text-[var(--ink)] uppercase outline-none placeholder:text-[var(--placeholder)]"
-                  style={{ fontSize: 16, fontWeight: 400, letterSpacing: "0.1em", lineHeight: 1.45 }}
-                />
-                <button
-                  type="button"
-                  disabled={code.trim().length !== 5}
-                  onClick={() => {
-                    const lookup = normalizeEventCode(code);
-                    if (!lookup) {
-                      setJoinError("code");
-                      return;
-                    }
-                    openInvite(lookup);
-                  }}
-                  className={SKY_BUTTON}
-                >
-                  Join
-                </button>
-              </div>
-              {joinError === "code" ? <NotFound /> : null}
-            </Zone>
             <Zone label="Link" align="start">
               <div className="flex items-end gap-3">
                 <input
                   value={inviteLink}
                   onChange={(event) => {
-                    setJoinError(null);
+                    setJoinError(false);
                     setInviteLink(event.target.value);
                   }}
                   placeholder="Invite link"
@@ -433,7 +384,7 @@ export function EventEntryScreen() {
                   onClick={() => {
                     const lookup = lookupFromInvite(inviteLink);
                     if (!lookup) {
-                      setJoinError("link");
+                      setJoinError(true);
                       return;
                     }
                     openInvite(lookup);
@@ -444,7 +395,7 @@ export function EventEntryScreen() {
                 </button>
               </div>
               <p className="mt-1 t-meta text-[var(--grey)]">Paste a link from an organiser.</p>
-              {joinError === "link" ? <NotFound /> : null}
+              {joinError ? <NotFound /> : null}
             </Zone>
           </>
         ) : null}
@@ -599,7 +550,7 @@ export function EventEntryScreen() {
                 Create
               </button>
               <p className="mt-3 t-meta text-[var(--grey)]">
-                You'll get a QR code, a link and a short code to invite guests.
+                You'll get a link to invite guests, or a PDF with an I'm going button.
               </p>
               {createError ? <p className="mt-2 t-meta text-[var(--ink)]">{createError}</p> : null}
             </div>
