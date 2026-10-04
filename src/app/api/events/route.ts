@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 import { isEventLayout, isEventTheme } from "@/shared/event/themes";
-import { createEvent, readEventDate } from "@/shared/services/events";
+import { createEvent, listOwnEvents, readEventDate } from "@/shared/services/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +13,19 @@ function noStore(body: unknown, status = 200) {
 function textField(value: FormDataEntryValue | null, max: number): string {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, max);
+}
+
+/** Events owned by the signed-in user, newest first. */
+export async function GET() {
+  const owner = await requireOwnerId();
+  if (!owner.ok) return noStore({ events: [] }, owner.status);
+  try {
+    const events = await listOwnEvents(owner.id);
+    return noStore({ events });
+  } catch (error) {
+    console.error("[events] list", error);
+    return noStore({ error: "Could not load events." }, 500);
+  }
 }
 
 /** Creates one event for the signed-in organiser. Nothing is public until the invite route. */

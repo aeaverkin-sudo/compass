@@ -29,6 +29,13 @@ type CreatedEvent = {
   logoUrl: string | null;
 };
 
+type ListedEvent = {
+  name: string;
+  publicToken: string;
+  status: "draft" | "live" | "past";
+  date: string | null;
+};
+
 const PLAIN =
   "w-full bg-transparent text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 const WHEN =
@@ -194,6 +201,7 @@ export function EventEntryScreen() {
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedEvent | null>(null);
+  const [events, setEvents] = useState<ListedEvent[]>([]);
   const logoFile = useRef<File | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
@@ -215,6 +223,24 @@ export function EventEntryScreen() {
   useEffect(() => {
     if (step === "create" && aboutRef.current) sizeAbout(aboutRef.current);
   }, [step, about]);
+
+  useEffect(() => {
+    if (step !== "entry") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/events", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { events?: ListedEvent[] };
+        if (!cancelled) setEvents(payload.events ?? []);
+      } catch {
+        /* keep the list already shown */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step]);
 
   const leave = () => {
     setJoinError(null);
@@ -291,7 +317,23 @@ export function EventEntryScreen() {
               <p className="mt-1 t-meta text-[var(--grey)]">For organisers: invite, check-in, stats.</p>
             </Zone>
             <Zone label="Events">
-              <p className="t-body text-[var(--grey)]">No events yet.</p>
+              {events.length === 0 ? (
+                <p className="t-body text-[var(--grey)]">No events yet.</p>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {events.map((event) => (
+                    <li key={event.publicToken}>
+                      <button type="button" onClick={() => openInvite(event.publicToken)} className={LINK}>
+                        <span className="block">{event.name}</span>
+                        <span className="mt-1 block t-meta text-[var(--grey)]">
+                          {event.status}
+                          {event.date ? ` · ${event.date}` : ""}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Zone>
           </>
         ) : null}

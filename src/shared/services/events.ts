@@ -11,6 +11,7 @@ import {
 import { CARD_ATTACHMENTS_BUCKET, IMAGE_BYTE_LIMIT, IMAGE_MIMES } from "@/shared/services/attachment-limits";
 import { stripImageMetadata } from "@/shared/services/attachment-sanitize";
 import { isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
+import { formatEventWhen } from "@/shared/event/when";
 
 const PUBLIC_TOKEN_LENGTH = 21;
 const eventCode = customAlphabet("АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789", 5);
@@ -21,6 +22,23 @@ export type CreatedEvent = {
   invitePath: string;
   logoUrl: string | null;
 };
+
+export type EventListStatus = "draft" | "live" | "past";
+
+export type ListedEvent = {
+  name: string;
+  publicToken: string;
+  status: EventListStatus;
+  date: string | null;
+};
+
+/** No date is a draft. A date that has passed is past. Anything still ahead is live. */
+export function eventListStatus(date: string | null, now = Date.now()): EventListStatus {
+  if (!date) return "draft";
+  const time = new Date(date).getTime();
+  if (Number.isNaN(time)) return "draft";
+  return time < now ? "past" : "live";
+}
 
 export type CreateEventInput = {
   ownerId: string;
@@ -98,6 +116,23 @@ async function storeLogo(ownerId: string, file: File): Promise<{ id: string; pat
 async function discardLogo(ownerId: string, logo: { id: string; path: string }) {
   await removeStoredObject(logo.path);
   await deleteAttachment(logo.id, ownerId);
+}
+
+/** The signed-in organiser's events, newest first. */
+export async function listOwnEvents(ownerId: string): Promise<ListedEvent[]> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
+    .from("events")
+    .select("name, date, public_token")
+    .eq("owner_id", ownerId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => ({
+    name: row.name,
+    publicToken: row.public_token,
+    status: eventListStatus(row.date),
+    date: formatEventWhen(row.date),
+  }));
 }
 
 export async function createEvent(input: CreateEventInput): Promise<CreatedEvent> {
