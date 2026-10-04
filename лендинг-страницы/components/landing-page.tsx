@@ -6,6 +6,8 @@ import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { recordConsent } from "@/shared/services/consent-client";
+import { isEventJoinPath } from "@/shared/event/lookup";
+import { upsertCardScalars } from "@/shared/services/card-sync";
 import { startTrialClock } from "@/shared/services/trial-client";
 import { useAppStore } from "@/shared/store/app-store";
 import { CARD_HEADER_NAME_SIZE_PX, CARD_PHOTO_SIZE_PX } from "@main/layout";
@@ -16,8 +18,9 @@ function isFilled(value: string) {
   return value.trim().length > 0;
 }
 
-export function LandingPage() {
+export function LandingPage({ next = null }: { next?: string | null }) {
   const router = useRouter();
+  const after = next && isEventJoinPath(next) ? next : "/main";
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [name, setName] = useState("");
@@ -64,7 +67,13 @@ export function LandingPage() {
         photoAttachmentId: uploaded.attachmentId,
         cardId,
       });
-      router.push("/main");
+      if (after !== "/main") {
+        const card = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+        if (card) await upsertCardScalars(card);
+        const saved = await createBrowserSupabaseClient().from("cards").select("id").eq("id", cardId).maybeSingle();
+        if (!saved.data) throw new Error("Could not save the card");
+      }
+      router.push(after);
     })().catch((error: unknown) => {
       setSaving(false);
       setSaveError(error instanceof Error ? error.message : "Could not save the photo");

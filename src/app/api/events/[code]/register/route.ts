@@ -11,10 +11,11 @@ function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+/** A session may join with its own card. A trial session counts. No session does not. */
 async function signedInId(): Promise<string | null> {
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
-  if (!data.user || data.user.is_anonymous) return null;
+  if (!data.user) return null;
   return data.user.id;
 }
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { isEventJoinPath } from "@/shared/event/lookup";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { ScreenHeader } from "@/shared/components/screen-header";
@@ -30,7 +31,7 @@ export default async function EventJoinPage({ params }: PageProps) {
 
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
-  const user = data.user && !data.user.is_anonymous ? data.user : null;
+  const user = data.user ?? null;
   let lookup = code.trim();
   try {
     lookup = decodeURIComponent(lookup);
@@ -61,6 +62,9 @@ export default async function EventJoinPage({ params }: PageProps) {
     );
   }
   const portfolios = registration ? [] : await listOwnPortfolios(user.id);
+  if (user.is_anonymous && !registration && portfolios.length === 0) {
+    redirect(`/try?next=${encodeURIComponent(next)}`);
+  }
   const origin = await requestOrigin();
 
   return (
