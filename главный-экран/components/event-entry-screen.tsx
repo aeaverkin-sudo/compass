@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Share } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { ScreenHeader } from "@/shared/components/screen-header";
+import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
+import { shareInviteLink } from "@/shared/event/share-invite";
 import { lookupFromInvite, normalizeEventCode } from "@/shared/event/lookup";
 import { InviteCover } from "@/shared/event/invite-cover";
 import {
@@ -32,9 +34,22 @@ type CreatedEvent = {
 type ListedEvent = {
   name: string;
   publicToken: string;
+  code: string;
   status: "draft" | "live" | "past";
   date: string | null;
 };
+
+function inviteUrl(publicToken: string) {
+  return `${window.location.origin}/e/${publicToken}`;
+}
+
+function ShareInvite({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} aria-label="Share" className="text-[var(--ink)] outline-none">
+      <Share className="size-4" strokeWidth={1.25} aria-hidden />
+    </button>
+  );
+}
 
 const PLAIN =
   "w-full bg-transparent text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
@@ -140,7 +155,15 @@ function ActionLink({ children, onClick }: { children: string; onClick: () => vo
   );
 }
 
-function CreatedInvite({ event }: { event: CreatedEvent }) {
+function CreatedInvite({
+  event,
+  title,
+  onShare,
+}: {
+  event: CreatedEvent;
+  title: string;
+  onShare: (title: string, url: string) => void;
+}) {
   const url = `${window.location.origin}${event.invitePath}`;
   return (
     <>
@@ -162,9 +185,12 @@ function CreatedInvite({ event }: { event: CreatedEvent }) {
         />
       </Zone>
       <Zone label="Code">
-        <p className="t-body text-[var(--ink)]" style={{ letterSpacing: "0.1em", userSelect: "text" }}>
-          {event.code}
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="t-body text-[var(--ink)]" style={{ letterSpacing: "0.1em", userSelect: "text" }}>
+            {event.code}
+          </p>
+          <ShareInvite onClick={() => onShare(title, url)} />
+        </div>
       </Zone>
     </>
   );
@@ -202,6 +228,7 @@ export function EventEntryScreen() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedEvent | null>(null);
   const [events, setEvents] = useState<ListedEvent[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const logoFile = useRef<File | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
@@ -253,6 +280,22 @@ export function EventEntryScreen() {
     router.push(`/e/${encodeURIComponent(lookup)}`);
   };
 
+  const share = (title: string, url: string) => {
+    const canShare = typeof navigator.share === "function" ? (data: { title: string; url: string }) => navigator.share(data) : undefined;
+    void shareInviteLink(
+      { title, url },
+      {
+        share: canShare,
+        writeText: async (value) => {
+          if (!navigator.clipboard?.writeText) throw new Error("no clipboard");
+          await navigator.clipboard.writeText(value);
+        },
+      },
+    ).then((outcome) => {
+      if (outcome === "copied") setNotice("Ссылка скопирована");
+    });
+  };
+
   const submitEvent = async () => {
     if (!name.trim() || saving) return;
     setSaving(true);
@@ -285,6 +328,7 @@ export function EventEntryScreen() {
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
+      {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         <ScreenHeader
           title={step === "create" ? "Create event" : step === "join" ? "Join" : "Event"}
@@ -330,6 +374,12 @@ export function EventEntryScreen() {
                           {event.date ? ` · ${event.date}` : ""}
                         </span>
                       </button>
+                      <div className="mt-1 flex items-center gap-3">
+                        <span className="t-body text-[var(--ink)]" style={{ letterSpacing: "0.1em" }}>
+                          {event.code}
+                        </span>
+                        <ShareInvite onClick={() => share(event.name, inviteUrl(event.publicToken))} />
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -424,7 +474,9 @@ export function EventEntryScreen() {
           </>
         ) : null}
 
-        {step === "create" && created ? <CreatedInvite event={created} /> : null}
+        {step === "create" && created ? (
+          <CreatedInvite event={created} title={name.trim() || "Event"} onShare={share} />
+        ) : null}
 
         {step === "create" && !created ? (
           <>
