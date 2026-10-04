@@ -49,6 +49,8 @@ export type CreateEventInput = {
   theme: EventThemeId;
   layout: EventLayoutId;
   logo: File | null;
+  isPaid: boolean;
+  paymentUrl: string | null;
 };
 
 export function readEventTheme(value: string): EventThemeId {
@@ -140,6 +142,15 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
   const admin = createAdminSupabaseClient();
 
   try {
+    const insertEvent = async (row: Record<string, unknown>) => {
+      let inserted = await admin.from("events").insert(row).select("public_token, code, logo_attachment_id").single();
+      if (inserted.error && /could not find the 'layout' column/i.test(inserted.error.message)) {
+        const { layout: _layout, ...withoutLayout } = row;
+        inserted = await admin.from("events").insert(withoutLayout).select("public_token, code, logo_attachment_id").single();
+      }
+      return inserted;
+    };
+
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const publicToken = nanoid(PUBLIC_TOKEN_LENGTH);
       const code = eventCode();
@@ -156,10 +167,16 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
         public_token: publicToken,
         code,
       };
-      let inserted = await admin.from("events").insert(row).select("public_token, code, logo_attachment_id").single();
-      if (inserted.error && /could not find the 'layout' column/i.test(inserted.error.message)) {
-        const { layout: _layout, ...withoutLayout } = row;
-        inserted = await admin.from("events").insert(withoutLayout).select("public_token, code, logo_attachment_id").single();
+      const paidRow = {
+        ...row,
+        is_paid: input.isPaid,
+        payment_url: input.isPaid ? input.paymentUrl : null,
+        payment_mode: "manual",
+      };
+      let inserted = await insertEvent(paidRow);
+      if (inserted.error && /could not find the '(is_paid|payment_url|payment_mode)' column/i.test(inserted.error.message)) {
+        if (input.isPaid) throw new Error(inserted.error.message);
+        inserted = await insertEvent(row);
       }
 
       if (!inserted.error && inserted.data) {

@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { Plus, Share } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
+import { Switch } from "@/shared/components/ui/switch";
 import { Zone } from "@/shared/components/zone";
+import { readPaymentUrl } from "@/shared/event/payment";
 import { shareInviteLink } from "@/shared/event/share-invite";
 import { lookupFromInvite } from "@/shared/event/lookup";
 import { InviteCover } from "@/shared/event/invite-cover";
@@ -194,6 +196,8 @@ export function EventEntryScreen() {
   const [time, setTime] = useState("");
   const [place, setPlace] = useState("");
   const [about, setAbout] = useState("");
+  const [paid, setPaid] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState("");
   const [logo, setLogo] = useState<string | null>(null);
   const [theme, setTheme] = useState<EventThemeId>("paper");
   const [layout, setLayout] = useState<EventLayoutId>("grid");
@@ -210,6 +214,7 @@ export function EventEntryScreen() {
   const timeRef = useRef<HTMLInputElement>(null);
   const placeRef = useRef<HTMLInputElement>(null);
   const aboutRef = useRef<HTMLTextAreaElement>(null);
+  const paymentRef = useRef<HTMLInputElement>(null);
   const aboutBox = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
 
@@ -273,6 +278,11 @@ export function EventEntryScreen() {
 
   const submitEvent = async () => {
     if (!name.trim() || saving) return;
+    const link = paid ? readPaymentUrl(paymentUrl) : null;
+    if (paid && !link) {
+      setCreateError(paymentUrl.trim() ? "That payment link is not a URL." : "Add a payment link.");
+      return;
+    }
     setSaving(true);
     setCreateError(null);
     try {
@@ -282,6 +292,10 @@ export function EventEntryScreen() {
       body.set("place", place.trim());
       body.set("theme", theme);
       body.set("layout", layout);
+      if (paid && link) {
+        body.set("is_paid", "1");
+        body.set("payment_url", link);
+      }
       if (date) {
         const when = new Date(`${date}T${time || "00:00"}`);
         if (!Number.isNaN(when.getTime())) body.set("date", when.toISOString());
@@ -491,6 +505,36 @@ export function EventEntryScreen() {
                 />
               </div>
             </Zone>
+            <Zone label="Платный" align="center" rule>
+              <Switch
+                checked={paid}
+                onCheckedChange={(checked) => setPaid(checked === true)}
+                aria-label="Платный"
+              />
+            </Zone>
+            {paid ? (
+              <Zone
+                label={<span className="t-label whitespace-normal">Ссылка на оплату</span>}
+                align="start"
+                rule
+                onClick={(event) => focusField(event, paymentRef.current)}
+              >
+                <input
+                  ref={paymentRef}
+                  type="url"
+                  inputMode="url"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  value={paymentUrl}
+                  aria-label="Ссылка на оплату"
+                  placeholder="https://"
+                  onChange={(event) => setPaymentUrl(event.target.value)}
+                  className={PLAIN}
+                  style={fieldStyle()}
+                />
+              </Zone>
+            ) : null}
             <Zone label="Style" rule>
               <div className="flex flex-wrap gap-4">
                 {EVENT_LAYOUTS.map((item) => (

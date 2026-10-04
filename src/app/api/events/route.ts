@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
+import { readPaymentUrl } from "@/shared/event/payment";
 import { isEventLayout, isEventTheme } from "@/shared/event/themes";
 import { createEvent, listOwnEvents, readEventDate } from "@/shared/services/events";
 
@@ -52,6 +53,12 @@ export async function POST(request: Request) {
   const date = readEventDate(dateRaw);
   if (dateRaw && !date) return noStore({ error: "That date could not be read." }, 400);
 
+  const paid = form.get("is_paid") === "1";
+  const paymentRaw = textField(form.get("payment_url"), 2000);
+  const paymentUrl = paid ? readPaymentUrl(paymentRaw) : null;
+  if (paid && !paymentRaw) return noStore({ error: "Add a payment link." }, 400);
+  if (paid && !paymentUrl) return noStore({ error: "That payment link is not a URL." }, 400);
+
   const logo = form.get("logo");
   try {
     const created = await createEvent({
@@ -63,6 +70,8 @@ export async function POST(request: Request) {
       theme: themeRaw && isEventTheme(themeRaw) ? themeRaw : "paper",
       layout: layoutRaw && isEventLayout(layoutRaw) ? layoutRaw : "grid",
       logo: logo instanceof File ? logo : null,
+      isPaid: paid,
+      paymentUrl,
     });
     return noStore(created);
   } catch (error) {
