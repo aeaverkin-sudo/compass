@@ -182,7 +182,7 @@ function GridCover({
         </div>
       ) : null}
       <div className="mt-8 flex items-end justify-between gap-4">
-        <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
+        <InviteQr url={inviteUrl} size={qr} themeId={themeId} logoUrl={event.logoUrl} />
         <AdedWordmark color="currentColor" className="block h-auto w-10" />
       </div>
     </div>
@@ -283,7 +283,7 @@ function CornersCover({
           ) : (
             <span />
           )}
-          <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
+          <InviteQr url={inviteUrl} size={qr} themeId={themeId} logoUrl={event.logoUrl} />
         </div>
         {event.code ? (
           <>
@@ -403,7 +403,7 @@ function OversizedCover({
         ) : (
           <span />
         )}
-        <InviteQr url={inviteUrl} size={qr} themeId={themeId} />
+        <InviteQr url={inviteUrl} size={qr} themeId={themeId} logoUrl={event.logoUrl} />
       </div>
     </div>
   );

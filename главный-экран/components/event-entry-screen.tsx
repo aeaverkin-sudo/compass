@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type MouseEvent, type RefObject } from "re
 import { useRouter } from "next/navigation";
 import { Plus, Share } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { InviteQr } from "@/shared/event/invite-qr";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
@@ -173,16 +174,11 @@ function CreatedInvite({
         </p>
       </Zone>
       <Zone label="Qr" rule>
-        <QRCodeSVG
-          value={url}
-          size={134}
-          level="H"
-          fgColor={QR_COLOR}
-          bgColor="#FFFFFF"
-          imageSettings={
-            event.logoUrl ? { src: event.logoUrl, height: 28, width: 28, excavate: true } : undefined
-          }
-        />
+        {event.logoUrl ? (
+          <InviteQr url={url} size={134} logoUrl={event.logoUrl} />
+        ) : (
+          <QRCodeSVG value={url} size={134} level="H" fgColor={QR_COLOR} bgColor="#FFFFFF" />
+        )}
       </Zone>
       <Zone label="Code">
         <div className="flex items-center gap-3">
