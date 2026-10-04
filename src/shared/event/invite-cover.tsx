@@ -3,17 +3,11 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { fitTitle, type FittedTitle } from "@/shared/event/fit-title";
-import { InviteQr } from "@/shared/event/invite-qr";
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
 import { dottedDate, eventClock, eventYear, fashionWhen, formatEventWhen, romanYear } from "@/shared/event/when";
 
 const CARD_W = 260;
 const CARD_H = 390;
-const QR = {
-  grid: { page: 96, card: 58 },
-  corners: { page: 80, card: 48 },
-  oversized: { page: 100, card: 62 },
-} as const;
 
 const HAIRLINE = "color-mix(in srgb, currentColor 35%, transparent)";
 
@@ -23,7 +17,6 @@ export type InviteCoverEvent = {
   date: string | null;
   place: string | null;
   placeSecret: boolean;
-  code: string;
   logoUrl: string | null;
 };
 
@@ -31,7 +24,6 @@ type InviteCoverProps = {
   event: InviteCoverEvent;
   layout: EventLayoutId;
   themeId: EventThemeId;
-  inviteUrl: string;
   variant: "page" | "preview";
 };
 
@@ -46,11 +38,8 @@ function aboutLine(event: InviteCoverEvent): string | null {
   return text || null;
 }
 
-export function InviteCover({ event, layout, themeId, inviteUrl, variant }: InviteCoverProps) {
-  const qr = QR[layout][variant === "page" ? "page" : "card"];
-  const board = (
-    <CoverBoard event={event} layout={layout} themeId={themeId} inviteUrl={inviteUrl} qr={qr} variant={variant} />
-  );
+export function InviteCover({ event, layout, themeId, variant }: InviteCoverProps) {
+  const board = <CoverBoard event={event} layout={layout} themeId={themeId} variant={variant} />;
   if (variant === "page") return board;
   return <PreviewFrame>{board}</PreviewFrame>;
 }
@@ -81,14 +70,7 @@ function PreviewFrame({ children }: { children: ReactNode }) {
   );
 }
 
-function CoverBoard({
-  event,
-  layout,
-  themeId,
-  inviteUrl,
-  qr,
-  variant,
-}: InviteCoverProps & { qr: number }) {
+function CoverBoard({ event, layout, themeId, variant }: InviteCoverProps) {
   const pad: CSSProperties =
     variant === "page"
       ? {
@@ -108,40 +90,23 @@ function CoverBoard({
         fontFamily: "var(--font-sans)",
       }}
     >
-      {layout === "grid" ? <GridCover event={event} inviteUrl={inviteUrl} themeId={themeId} qr={qr} /> : null}
-      {layout === "corners" ? <CornersCover event={event} inviteUrl={inviteUrl} themeId={themeId} qr={qr} /> : null}
+      {layout === "grid" ? <GridCover event={event} /> : null}
+      {layout === "corners" ? <CornersCover event={event} /> : null}
       {layout === "oversized" ? (
-        <OversizedCover
-          event={event}
-          inviteUrl={inviteUrl}
-          themeId={themeId}
-          qr={qr}
-          bleed={variant === "page" ? "calc(14px - var(--gutter))" : "-4px"}
-        />
+        <OversizedCover event={event} bleed={variant === "page" ? "calc(14px - var(--gutter))" : "-4px"} />
       ) : null}
     </section>
   );
 }
 
-function GridCover({
-  event,
-  inviteUrl,
-  themeId,
-  qr,
-}: {
-  event: InviteCoverEvent;
-  inviteUrl: string;
-  themeId: EventThemeId;
-  qr: number;
-}) {
+function GridCover({ event }: { event: InviteCoverEvent }) {
   const place = placeLine(event);
   const about = aboutLine(event);
   const when = formatEventWhen(event.date);
   const rows = [
     when ? { label: "Date", value: when } : null,
     place ? { label: "Place", value: place } : null,
-    event.code ? { label: "Code", value: event.code, strong: true } : null,
-  ].filter((row): row is { label: string; value: string; strong?: boolean } => Boolean(row));
+  ].filter((row): row is { label: string; value: string } => Boolean(row));
 
   return (
     <div className="flex flex-col">
@@ -168,21 +133,14 @@ function GridCover({
               style={{ gridTemplateColumns: "62px minmax(0, 1fr)", columnGap: 14, borderBottom: `1px solid ${HAIRLINE}` }}
             >
               <span className="t-label">{row.label}</span>
-              <span
-                style={{
-                  fontSize: 14,
-                  fontWeight: row.strong ? 700 : 400,
-                  letterSpacing: row.strong ? "0.08em" : "-0.015em",
-                }}
-              >
+              <span style={{ fontSize: 14, fontWeight: 400, letterSpacing: "-0.015em" }}>
                 {row.value}
               </span>
             </div>
           ))}
         </div>
       ) : null}
-      <div className="mt-8 flex items-end justify-between gap-4">
-        <InviteQr url={inviteUrl} size={qr} themeId={themeId} logoUrl={event.logoUrl} />
+      <div className="mt-8 flex items-end justify-end">
         <AdedWordmark color="currentColor" className="block h-auto w-10" />
       </div>
     </div>
@@ -220,17 +178,7 @@ function GridTitle({ name }: { name: string }) {
   );
 }
 
-function CornersCover({
-  event,
-  inviteUrl,
-  themeId,
-  qr,
-}: {
-  event: InviteCoverEvent;
-  inviteUrl: string;
-  themeId: EventThemeId;
-  qr: number;
-}) {
+function CornersCover({ event }: { event: InviteCoverEvent }) {
   const place = placeLine(event);
   const about = aboutLine(event);
   const time = eventClock(event.date);
@@ -272,29 +220,13 @@ function CornersCover({
           </p>
         ) : null}
       </div>
-      <div className="absolute right-8 bottom-8 left-8">
-        <div className="flex items-end justify-between gap-3">
-          {place || time ? (
-            <p className="mb-0" style={{ fontSize: 12, fontWeight: 300, lineHeight: 1.6 }}>
-              {place}
-              {place && time ? <br /> : null}
-              {time}
-            </p>
-          ) : (
-            <span />
-          )}
-          <InviteQr url={inviteUrl} size={qr} themeId={themeId} logoUrl={event.logoUrl} />
-        </div>
-        {event.code ? (
-          <>
-            <div className="mt-3" style={{ borderTop: "0.5px solid color-mix(in srgb, currentColor 50%, transparent)" }} />
-            <div className="mt-2 flex items-baseline justify-between uppercase" style={{ fontSize: 9.5, letterSpacing: "0.3em" }}>
-              <span>Entry</span>
-              <span>{event.code}</span>
-            </div>
-          </>
-        ) : null}
-      </div>
+      {place || time ? (
+        <p className="absolute right-8 bottom-8 left-8 mb-0" style={{ fontSize: 12, fontWeight: 300, lineHeight: 1.6 }}>
+          {place}
+          {place && time ? <br /> : null}
+          {time}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -361,21 +293,14 @@ function LightTitle({ name }: { name: string }) {
 
 function OversizedCover({
   event,
-  inviteUrl,
-  themeId,
-  qr,
   bleed,
 }: {
   event: InviteCoverEvent;
-  inviteUrl: string;
-  themeId: EventThemeId;
-  qr: number;
   /** Side margin that pulls the title out to 14px from the cover edge. */
   bleed: string;
 }) {
   const place = placeLine(event);
   const about = aboutLine(event);
-  const foot = [place, event.code].filter(Boolean).join(" · ");
   const when = fashionWhen(event.date);
 
   return (
@@ -395,16 +320,7 @@ function OversizedCover({
           </p>
         </div>
       ) : null}
-      <div className="flex items-end justify-between gap-3">
-        {foot ? (
-          <p className="mb-0" style={{ fontSize: 12, fontWeight: 400 }}>
-            {foot}
-          </p>
-        ) : (
-          <span />
-        )}
-        <InviteQr url={inviteUrl} size={qr} themeId={themeId} logoUrl={event.logoUrl} />
-      </div>
+      {place ? <p className="mb-0" style={{ fontSize: 12, fontWeight: 400 }}>{place}</p> : null}
     </div>
   );
 }

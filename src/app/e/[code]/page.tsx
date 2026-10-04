@@ -5,7 +5,6 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadOwnerEventCounts } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
-import { requestOrigin } from "@/shared/services/public-card-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -41,8 +40,6 @@ export default async function EventInvitePage({ params }: PageProps) {
   const { data } = await supabase.auth.getUser();
   const viewerId = data.user && !data.user.is_anonymous ? data.user.id : null;
   const counts = await loadOwnerEventCounts(event.id, viewerId);
-  const origin = await requestOrigin();
-  const inviteUrl = `${origin}/e/${event.publicToken}`;
 
   return (
     <main
@@ -56,14 +53,12 @@ export default async function EventInvitePage({ params }: PageProps) {
         variant="page"
         layout={event.layout}
         themeId={event.theme}
-        inviteUrl={inviteUrl}
         event={{
           name: event.name,
           description: event.description,
           date: event.date,
           place: event.place,
           placeSecret: event.placeSecret,
-          code: event.code,
           logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
         }}
       />

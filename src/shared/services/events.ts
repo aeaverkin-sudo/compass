@@ -28,7 +28,6 @@ export type EventListStatus = "draft" | "live" | "past";
 export type ListedEvent = {
   name: string;
   publicToken: string;
-  code: string;
   status: EventListStatus;
   date: string | null;
 };
@@ -124,14 +123,13 @@ export async function listOwnEvents(ownerId: string): Promise<ListedEvent[]> {
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from("events")
-    .select("name, date, public_token, code")
+    .select("name, date, public_token")
     .eq("owner_id", ownerId)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => ({
     name: row.name,
     publicToken: row.public_token,
-    code: row.code,
     status: eventListStatus(row.date),
     date: formatEventWhen(row.date),
   }));

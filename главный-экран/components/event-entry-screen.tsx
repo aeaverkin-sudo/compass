@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Share } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
-import { InviteQr } from "@/shared/event/invite-qr";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
@@ -20,22 +18,18 @@ import {
 } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
-import { QR_COLOR } from "../layout";
 
 type Step = "entry" | "create" | "join";
 type JoinError = "code" | "link" | null;
 
 type CreatedEvent = {
   publicToken: string;
-  code: string;
   invitePath: string;
-  logoUrl: string | null;
 };
 
 type ListedEvent = {
   name: string;
   publicToken: string;
-  code: string;
   status: "draft" | "live" | "past";
   date: string | null;
 };
@@ -172,19 +166,7 @@ function CreatedInvite({
         <p className="t-body break-all text-[var(--ink)]" style={{ userSelect: "text", WebkitUserSelect: "text" }}>
           {url}
         </p>
-      </Zone>
-      <Zone label="Qr" rule>
-        {event.logoUrl ? (
-          <InviteQr url={url} size={134} logoUrl={event.logoUrl} />
-        ) : (
-          <QRCodeSVG value={url} size={134} level="H" fgColor={QR_COLOR} bgColor="#FFFFFF" />
-        )}
-      </Zone>
-      <Zone label="Code">
-        <div className="flex items-center gap-3">
-          <p className="t-body text-[var(--ink)]" style={{ letterSpacing: "0.1em", userSelect: "text" }}>
-            {event.code}
-          </p>
+        <div className="mt-3">
           <ShareInvite onClick={() => onShare(title, url)} />
         </div>
       </Zone>
@@ -370,10 +352,7 @@ export function EventEntryScreen() {
                           {event.date ? ` · ${event.date}` : ""}
                         </span>
                       </button>
-                      <div className="mt-1 flex items-center gap-3">
-                        <span className="t-body text-[var(--ink)]" style={{ letterSpacing: "0.1em" }}>
-                          {event.code}
-                        </span>
+                      <div className="mt-1">
                         <ShareInvite onClick={() => share(event.name, inviteUrl(event.publicToken))} />
                       </div>
                     </li>
@@ -634,14 +613,12 @@ export function EventEntryScreen() {
                 variant="preview"
                 layout={layout}
                 themeId={theme}
-                inviteUrl="https://www.adedme.com/e/preview"
                 event={{
                   name: name.trim() || "Event name",
                   description: about.trim() || null,
                   date: previewDate(date, time),
                   place: place.trim() || null,
                   placeSecret: false,
-                  code: "",
                   logoUrl: logo,
                 }}
               />
@@ -665,14 +642,12 @@ export function EventEntryScreen() {
             variant="page"
             layout={layout}
             themeId={theme}
-            inviteUrl="https://www.adedme.com/e/preview"
             event={{
               name: name.trim() || "Event name",
               description: about.trim() || null,
               date: previewDate(date, time),
               place: place.trim() || null,
               placeSecret: false,
-              code: "",
               logoUrl: logo,
             }}
           />
