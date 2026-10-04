@@ -6,10 +6,10 @@ import { Plus, Share } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Switch } from "@/shared/components/ui/switch";
+import { Rule } from "@/shared/components/rule";
 import { Zone } from "@/shared/components/zone";
 import { readPaymentUrl } from "@/shared/event/payment";
 import { shareInviteLink } from "@/shared/event/share-invite";
-import { lookupFromInvite } from "@/shared/event/lookup";
 import { InviteCover } from "@/shared/event/invite-cover";
 import {
   EVENT_LAYOUTS,
@@ -21,7 +21,7 @@ import {
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 
-type Step = "entry" | "create" | "join";
+type Step = "entry" | "create";
 
 type CreatedEvent = {
   publicToken: string;
@@ -33,6 +33,7 @@ type ListedEvent = {
   publicToken: string;
   status: "draft" | "live" | "past";
   date: string | null;
+  role: "owner" | "guest";
 };
 
 function inviteUrl(publicToken: string) {
@@ -175,22 +176,16 @@ function CreatedInvite({
   );
 }
 
-function NotFound() {
-  return <p className="mt-2 t-meta text-[var(--ink)]">Event not found</p>;
-}
-
 function previewDate(date: string, time: string): string | null {
   if (!date) return null;
   const when = new Date(`${date}T${time || "00:00"}`);
   return Number.isNaN(when.getTime()) ? null : when.toISOString();
 }
 
-/** Event door, join, and create. */
+/** Event door and create. */
 export function EventEntryScreen() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("entry");
-  const [inviteLink, setInviteLink] = useState("");
-  const [joinError, setJoinError] = useState(false);
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -250,14 +245,18 @@ export function EventEntryScreen() {
   }, [step]);
 
   const leave = () => {
-    setJoinError(false);
     setCreateError(null);
     setCreated(null);
     setStep("entry");
   };
 
-  const openInvite = (lookup: string) => {
-    router.push(`/e/${encodeURIComponent(lookup)}?from=events`);
+  const openEvent = (event: ListedEvent) => {
+    const token = encodeURIComponent(event.publicToken);
+    if (event.role === "owner") {
+      router.push(`/e/${token}?from=events`);
+      return;
+    }
+    router.push(`/e/${token}/join`);
   };
 
   const share = (title: string, url: string) => {
@@ -320,97 +319,46 @@ export function EventEntryScreen() {
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         <ScreenHeader
-          title={step === "create" ? "Create event" : step === "join" ? "Join" : "Event"}
+          title={step === "create" ? "Create event" : "Event"}
           fallbackHref="/main"
           onBack={step === "entry" ? () => router.push("/main") : leave}
         />
 
         {step === "entry" ? (
           <>
-            <Zone label="Join" rule>
-              <ActionLink
-                onClick={() => {
-                  setJoinError(false);
-                  setStep("join");
-                }}
-              >
-                Join an event
-              </ActionLink>
-              <p className="mt-1 t-meta text-[var(--grey)]">Open an invite link.</p>
-            </Zone>
             <Zone label="Create" rule>
-              <ActionLink
-                onClick={() => {
-                  setJoinError(false);
-                  setStep("create");
-                }}
-              >
-                Create an event
-              </ActionLink>
+              <ActionLink onClick={() => setStep("create")}>Create an event</ActionLink>
               <p className="mt-1 t-meta text-[var(--grey)]">For organisers: invite, check-in, stats.</p>
             </Zone>
-            <Zone label="Events">
-              {events.length === 0 ? (
-                <p className="t-body text-[var(--grey)]">No events yet.</p>
-              ) : (
-                <ul className="flex flex-col gap-3">
-                  {events.map((event) => (
-                    <li key={event.publicToken}>
-                      <button type="button" onClick={() => openInvite(event.publicToken)} className={LINK}>
-                        <span className="block">{event.name}</span>
+            {events.length === 0 ? (
+              <p className="py-[18px] t-body text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
+                No events yet.
+              </p>
+            ) : (
+              events.map((event, index) => (
+                <div key={event.publicToken}>
+                  {index > 0 ? <Rule /> : null}
+                  <Zone label={event.role === "owner" ? "Owner" : "Guest"} align="start">
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => openEvent(event)}
+                        className="min-w-0 flex-1 text-left [-webkit-tap-highlight-color:transparent]"
+                      >
+                        <span className="block t-body text-[var(--ink)]">{event.name}</span>
                         <span className="mt-1 block t-meta text-[var(--grey)]">
                           {event.status}
                           {event.date ? ` · ${event.date}` : ""}
                         </span>
                       </button>
-                      <div className="mt-1">
+                      {event.role === "owner" ? (
                         <ShareInvite onClick={() => share(event.name, inviteUrl(event.publicToken))} />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Zone>
-          </>
-        ) : null}
-
-        {step === "join" ? (
-          <>
-            <Zone label="Link" align="start">
-              <div className="flex items-end gap-3">
-                <input
-                  value={inviteLink}
-                  onChange={(event) => {
-                    setJoinError(false);
-                    setInviteLink(event.target.value);
-                  }}
-                  placeholder="Invite link"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  aria-label="Invite link"
-                  className="min-w-0 flex-1 border-b border-[var(--ink)] bg-transparent py-2 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
-                  style={{ fontSize: 16, fontWeight: 400, letterSpacing: "-0.015em", lineHeight: 1.45 }}
-                />
-                <button
-                  type="button"
-                  disabled={!inviteLink.trim()}
-                  onClick={() => {
-                    const lookup = lookupFromInvite(inviteLink);
-                    if (!lookup) {
-                      setJoinError(true);
-                      return;
-                    }
-                    openInvite(lookup);
-                  }}
-                  className={SKY_BUTTON}
-                >
-                  Open
-                </button>
-              </div>
-              <p className="mt-1 t-meta text-[var(--grey)]">Paste a link from an organiser.</p>
-              {joinError ? <NotFound /> : null}
-            </Zone>
+                      ) : null}
+                    </div>
+                  </Zone>
+                </div>
+              ))
+            )}
           </>
         ) : null}
 

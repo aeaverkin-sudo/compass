@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 import { readPaymentUrl } from "@/shared/event/payment";
 import { isEventLayout, isEventTheme } from "@/shared/event/themes";
-import { createEvent, listOwnEvents, readEventDate } from "@/shared/services/events";
+import { createEvent, listMyEvents, readEventDate } from "@/shared/services/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,12 +16,12 @@ function textField(value: FormDataEntryValue | null, max: number): string {
   return value.trim().slice(0, max);
 }
 
-/** Events owned by the signed-in user, newest first. */
+/** Events the signed-in user organises or has joined. */
 export async function GET() {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ events: [] }, owner.status);
   try {
-    const events = await listOwnEvents(owner.id);
+    const events = await listMyEvents(owner.id);
     return noStore({ events });
   } catch (error) {
     console.error("[events] list", error);

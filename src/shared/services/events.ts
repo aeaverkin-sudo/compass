@@ -30,6 +30,7 @@ export type ListedEvent = {
   publicToken: string;
   status: EventListStatus;
   date: string | null;
+  role: "owner" | "guest";
 };
 
 /** No date is a draft. A date that has passed is past. Anything still ahead is live. */
@@ -120,21 +121,77 @@ async function discardLogo(ownerId: string, logo: { id: string; path: string }) 
   await deleteAttachment(logo.id, ownerId);
 }
 
-/** The signed-in organiser's events, newest first. */
-export async function listOwnEvents(ownerId: string): Promise<ListedEvent[]> {
-  const admin = createAdminSupabaseClient();
-  const { data, error } = await admin
-    .from("events")
-    .select("name, date, public_token")
-    .eq("owner_id", ownerId)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => ({
+type MineRow = {
+  name: string;
+  publicToken: string;
+  dateIso: string | null;
+  role: "owner" | "guest";
+};
+
+/** Upcoming soonest first, undated in the middle, past most-recent first. */
+function compareMyEvents(a: MineRow, b: MineRow, now: number): number {
+  const bucket = (iso: string | null) => {
+    if (!iso) return 1;
+    const time = new Date(iso).getTime();
+    if (Number.isNaN(time)) return 1;
+    return time < now ? 2 : 0;
+  };
+  const left = bucket(a.dateIso);
+  const right = bucket(b.dateIso);
+  if (left !== right) return left - right;
+  const leftTime = a.dateIso ? new Date(a.dateIso).getTime() : 0;
+  const rightTime = b.dateIso ? new Date(b.dateIso).getTime() : 0;
+  if (left === 0) return leftTime - rightTime;
+  if (left === 2) return rightTime - leftTime;
+  return a.name.localeCompare(b.name);
+}
+
+function toListed(row: MineRow): ListedEvent {
+  return {
     name: row.name,
-    publicToken: row.public_token,
-    status: eventListStatus(row.date),
-    date: formatEventWhen(row.date),
-  }));
+    publicToken: row.publicToken,
+    status: eventListStatus(row.dateIso),
+    date: formatEventWhen(row.dateIso),
+    role: row.role,
+  };
+}
+
+/** Events I organise, plus events I joined and do not organise. */
+export async function listMyEvents(userId: string, now = Date.now()): Promise<ListedEvent[]> {
+  const admin = createAdminSupabaseClient();
+  const owned = await admin.from("events").select("name, date, public_token").eq("owner_id", userId);
+  if (owned.error) throw new Error(owned.error.message);
+
+  const regs = await admin.from("event_registrations").select("event_id").eq("user_id", userId);
+  if (regs.error) throw new Error(regs.error.message);
+
+  const ownedTokens = new Set((owned.data ?? []).map((row) => row.public_token));
+  const ids = [...new Set((regs.data ?? []).map((row) => row.event_id as string))];
+  let guestRows: { name: string; date: string | null; public_token: string; owner_id: string }[] = [];
+  if (ids.length > 0) {
+    const guests = await admin.from("events").select("name, date, public_token, owner_id").in("id", ids);
+    if (guests.error) throw new Error(guests.error.message);
+    guestRows = (guests.data ?? []) as typeof guestRows;
+  }
+
+  const rows: MineRow[] = [
+    ...(owned.data ?? []).map((row) => ({
+      name: row.name,
+      publicToken: row.public_token,
+      dateIso: row.date,
+      role: "owner" as const,
+    })),
+    ...guestRows
+      .filter((row) => row.owner_id !== userId && !ownedTokens.has(row.public_token))
+      .map((row) => ({
+        name: row.name,
+        publicToken: row.public_token,
+        dateIso: row.date,
+        role: "guest" as const,
+      })),
+  ];
+  rows.sort((a, b) => compareMyEvents(a, b, now));
+  return rows.map(toListed);
 }
 
 export async function createEvent(input: CreateEventInput): Promise<CreatedEvent> {
