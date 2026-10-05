@@ -4,7 +4,8 @@ import { EventJoin } from "./join/event-join";
 import { InviteCover } from "@/shared/event/invite-cover";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
-import { loadOwnerEventCounts, loadOwnedBadge, loadOwnRegistration } from "@/shared/services/event-registration";
+import { priceLabel } from "@/shared/event/payment-label";
+import { ensurePayCode, loadOwnerEventCounts, loadOwnedBadge, loadOwnRegistration } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { requestOrigin } from "@/shared/services/public-card-meta";
@@ -48,12 +49,14 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user ?? null;
+  const pay = await loadEventPay(event.id);
+  const posterPrice = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
   if (user) {
-    const registration = await loadOwnRegistration(event.id, user.id);
+    const loaded = await loadOwnRegistration(event.id, user.id);
+    const registration = loaded && pay.isPaid ? await ensurePayCode(event.id, user.id, loaded) : loaded;
     const badge = registration ? await loadOwnedBadge(user.id, registration.cardId) : null;
     if (registration && badge) {
       const origin = await requestOrigin();
-      const pay = await loadEventPay(event.id);
       return (
         <EventJoin
           lookup={lookup}
@@ -99,6 +102,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
               place: event.place,
               placeSecret: event.placeSecret,
               logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
+              price: posterPrice,
             }}
           />
           {counts ? (

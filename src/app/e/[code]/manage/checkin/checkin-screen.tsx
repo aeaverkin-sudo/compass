@@ -9,7 +9,7 @@ import { ManageFrame } from "../manage-frame";
 type ScanResult =
   | { status: "ok"; name: string; at: string }
   | { status: "already"; name: string; at: string }
-  | { status: "unpaid"; name: string }
+  | { status: "pending"; name: string; payCode: string | null; regToken: string }
   | { status: "missing" };
 
 type LastArrival = { name: string; at: string; byViewer: boolean };
@@ -67,19 +67,21 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
   const [result, setResult] = useState<ScanResult | null>(null);
   const [query, setQuery] = useState("");
 
-  const submit = async (regToken: string) => {
+  const submit = async (regToken: string, confirm = false) => {
     if (busyRef.current) return;
-    const seen = seenRef.current;
-    if (seen && seen.token === regToken && Date.now() - seen.at < 3000) return;
-    seenRef.current = { token: regToken, at: Date.now() };
+    if (!confirm) {
+      const seen = seenRef.current;
+      if (seen && seen.token === regToken && Date.now() - seen.at < 3000) return;
+      seenRef.current = { token: regToken, at: Date.now() };
+    }
     busyRef.current = true;
     try {
       const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ regToken }),
+        body: JSON.stringify({ regToken, confirm }),
       });
-      const body = (await response.json()) as { status?: string; name?: string; at?: string };
+      const body = (await response.json()) as { status?: string; name?: string; at?: string; payCode?: string | null };
       if (body.status === "ok" && body.name && body.at) {
         setResult({ status: "ok", name: body.name, at: body.at });
         setCount((value) => value + 1);
@@ -90,8 +92,8 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
         setResult({ status: "already", name: body.name, at: body.at });
         return;
       }
-      if (body.status === "unpaid" && body.name) {
-        setResult({ status: "unpaid", name: body.name });
+      if (body.status === "pending" && body.name) {
+        setResult({ status: "pending", name: body.name, payCode: body.payCode ?? null, regToken });
         return;
       }
       if (response.status === 404) setResult({ status: "missing" });
@@ -179,8 +181,25 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
       {result?.status === "already" ? (
         <p className="mt-6 mb-0 text-center t-body text-[var(--ink)]">{`Already checked in · ${clock(result.at)}`}</p>
       ) : null}
-      {result?.status === "unpaid" ? (
-        <p className="mt-6 mb-0 text-center t-body text-[var(--ink)]">Not paid — check-in blocked</p>
+      {result?.status === "pending" ? (
+        <div className="mt-6 flex flex-col items-center text-center">
+          <p className="mb-0 t-body text-[var(--ink)]">{result.name}</p>
+          <p className="mt-2 mb-0 inline-flex items-center gap-2 t-caps text-[var(--ink)]">
+            <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: "var(--pay-pending)" }} />
+            Not confirmed
+          </p>
+          <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
+            {result.payCode ? `Code ${result.payCode} · no matching payment` : "No matching payment"}
+          </p>
+          <button
+            type="button"
+            onClick={() => void submit(result.regToken, true)}
+            className="press mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+          >
+            Confirm & let in
+          </button>
+          <p className="mt-2 mb-0 t-meta text-[var(--grey)]">Not checked in yet.</p>
+        </div>
       ) : null}
       {result?.status === "missing" ? (
         <p className="mt-6 mb-0 text-center t-meta text-[var(--grey)]">Event badge not found</p>

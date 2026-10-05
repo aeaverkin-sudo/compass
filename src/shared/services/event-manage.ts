@@ -53,6 +53,8 @@ export type EventGuest = {
   name: string;
   photoUrl: string | null;
   paid: boolean;
+  paidStatus: string | null;
+  paidSource: string | null;
   checkedIn: boolean;
   connected: boolean;
 };
@@ -67,7 +69,7 @@ export type EventGuestList = {
 export type CheckInOutcome =
   | { ok: true; status: "ok"; name: string; at: string }
   | { ok: true; status: "already"; name: string; at: string }
-  | { ok: true; status: "unpaid"; name: string }
+  | { ok: true; status: "pending"; name: string; payCode: string | null }
   | { ok: false; status: number; error: string };
 
 export type CheckInDesk = {
@@ -132,19 +134,44 @@ async function countManagers(eventId: string): Promise<number> {
   return count ?? 0;
 }
 
-type CountRow = { paid_status?: string | null; checked_in_at?: string | null };
+type CountRow = { paid_status?: string | null; paid_source?: string | null; checked_in_at?: string | null };
+
+function isConfirmed(status: string | null | undefined, source: string | null | undefined, sourceKnown: boolean): boolean {
+  if (status !== "paid") return false;
+  if (!sourceKnown) return true;
+  return source === "statement" || source === "name" || source === "manual";
+}
 
 async function countGuests(eventId: string): Promise<{ registered: number; paid: number; checkedIn: number }> {
   const admin = createAdminSupabaseClient();
-  const withPaid = await admin.from("event_registrations").select("paid_status, checked_in_at").eq("event_id", eventId);
-  const rows = withPaid.error && missingColumn(withPaid.error.message, "paid_status")
-    ? await admin.from("event_registrations").select("checked_in_at").eq("event_id", eventId)
-    : withPaid;
-  if (rows.error) throw new Error(rows.error.message);
-  const list = (rows.data ?? []) as CountRow[];
+  const withSource = await admin.from("event_registrations").select("paid_status, paid_source, checked_in_at").eq("event_id", eventId);
+  let sourceKnown = true;
+  let list: CountRow[] = [];
+  if (!withSource.error) {
+    list = (withSource.data ?? []) as CountRow[];
+  } else if (missingColumn(withSource.error.message, "paid_source")) {
+    sourceKnown = false;
+    const withPaid = await admin.from("event_registrations").select("paid_status, checked_in_at").eq("event_id", eventId);
+    if (!withPaid.error) {
+      list = (withPaid.data ?? []) as CountRow[];
+    } else if (missingColumn(withPaid.error.message, "paid_status")) {
+      const basic = await admin.from("event_registrations").select("checked_in_at").eq("event_id", eventId);
+      if (basic.error) throw new Error(basic.error.message);
+      list = (basic.data ?? []) as CountRow[];
+    } else {
+      throw new Error(withPaid.error.message);
+    }
+  } else if (missingColumn(withSource.error.message, "paid_status")) {
+    sourceKnown = false;
+    const basic = await admin.from("event_registrations").select("checked_in_at").eq("event_id", eventId);
+    if (basic.error) throw new Error(basic.error.message);
+    list = (basic.data ?? []) as CountRow[];
+  } else {
+    throw new Error(withSource.error.message);
+  }
   return {
     registered: list.length,
-    paid: list.filter((row) => row.paid_status === "paid").length,
+    paid: list.filter((row) => isConfirmed(row.paid_status, row.paid_source, sourceKnown)).length,
     checkedIn: list.filter((row) => Boolean(row.checked_in_at)).length,
   };
 }
@@ -197,20 +224,36 @@ type GuestRow = {
   user_id: string;
   card_id: string;
   paid_status?: string | null;
+  paid_source?: string | null;
   checked_in_at?: string | null;
 };
 
-async function registrationRows(eventId: string): Promise<GuestRow[]> {
+async function registrationRows(eventId: string): Promise<{ rows: GuestRow[]; sourceKnown: boolean }> {
   const admin = createAdminSupabaseClient();
-  const withPaid = await admin
+  const withSource = await admin
     .from("event_registrations")
-    .select("id, user_id, card_id, paid_status, checked_in_at")
+    .select("id, user_id, card_id, paid_status, paid_source, checked_in_at")
     .eq("event_id", eventId);
-  const rows = withPaid.error && missingColumn(withPaid.error.message, "paid_status")
-    ? await admin.from("event_registrations").select("id, user_id, card_id, checked_in_at").eq("event_id", eventId)
-    : withPaid;
-  if (rows.error) throw new Error(rows.error.message);
-  return (rows.data ?? []) as GuestRow[];
+  if (!withSource.error) return { rows: (withSource.data ?? []) as GuestRow[], sourceKnown: true };
+  if (missingColumn(withSource.error.message, "paid_source")) {
+    const withPaid = await admin
+      .from("event_registrations")
+      .select("id, user_id, card_id, paid_status, checked_in_at")
+      .eq("event_id", eventId);
+    if (!withPaid.error) return { rows: (withPaid.data ?? []) as GuestRow[], sourceKnown: false };
+    if (withPaid.error && missingColumn(withPaid.error.message, "paid_status")) {
+      const basic = await admin.from("event_registrations").select("id, user_id, card_id, checked_in_at").eq("event_id", eventId);
+      if (basic.error) throw new Error(basic.error.message);
+      return { rows: (basic.data ?? []) as GuestRow[], sourceKnown: false };
+    }
+    throw new Error(withPaid.error.message);
+  }
+  if (missingColumn(withSource.error.message, "paid_status")) {
+    const basic = await admin.from("event_registrations").select("id, user_id, card_id, checked_in_at").eq("event_id", eventId);
+    if (basic.error) throw new Error(basic.error.message);
+    return { rows: (basic.data ?? []) as GuestRow[], sourceKnown: false };
+  }
+  throw new Error(withSource.error.message);
 }
 
 async function photoUrls(ids: string[]): Promise<Map<string, string>> {
@@ -235,7 +278,7 @@ async function photoUrls(ids: string[]): Promise<Map<string, string>> {
 /** Registrations for one event, with the badge card and whether a connection came from it. */
 export async function listEventGuests(eventId: string): Promise<EventGuestList> {
   const admin = createAdminSupabaseClient();
-  const rows = await registrationRows(eventId);
+  const { rows, sourceKnown } = await registrationRows(eventId);
   const cardIds = [...new Set(rows.map((row) => row.card_id))];
   const userIds = new Set(rows.map((row) => row.user_id));
 
@@ -272,7 +315,9 @@ export async function listEventGuests(eventId: string): Promise<EventGuestList> 
         userId: row.user_id,
         name: guestName(card?.display_name),
         photoUrl: photoId ? photos.get(photoId) ?? null : null,
-        paid: row.paid_status === "paid",
+        paid: isConfirmed(row.paid_status, row.paid_source, sourceKnown),
+        paidStatus: row.paid_status ?? null,
+        paidSource: sourceKnown ? row.paid_source ?? null : row.paid_status === "paid" ? "manual" : null,
         checkedIn: Boolean(row.checked_in_at),
         connected: connected.has(row.user_id),
       };
@@ -294,32 +339,30 @@ type TokenRow = {
   checked_in_at: string | null;
   checked_in_by?: string | null;
   paid_status?: string | null;
+  paid_source?: string | null;
+  pay_code?: string | null;
+  sourceKnown: boolean;
 };
 
 async function registrationByToken(eventId: string, regToken: string): Promise<TokenRow | null> {
   const admin = createAdminSupabaseClient();
-  let paid = true;
-  let by = true;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const columns = ["id", "card_id", "reg_token", "checked_in_at"];
-    if (paid) columns.push("paid_status");
-    if (by) columns.push("checked_in_by");
+  const optional = ["paid_status", "paid_source", "pay_code", "checked_in_by"];
+  const dropped = new Set<string>();
+  for (let attempt = 0; attempt < optional.length + 1; attempt += 1) {
+    const columns = ["id", "card_id", "reg_token", "checked_in_at", ...optional.filter((column) => !dropped.has(column))];
     const result = await admin
       .from("event_registrations")
       .select(columns.join(", "))
       .eq("event_id", eventId)
       .eq("reg_token", regToken)
       .maybeSingle();
-    if (!result.error) return (result.data as TokenRow | null) ?? null;
-    if (paid && missingColumn(result.error.message, "paid_status")) {
-      paid = false;
-      continue;
+    if (!result.error) {
+      const row = result.data as Omit<TokenRow, "sourceKnown"> | null;
+      return row ? { ...row, sourceKnown: !dropped.has("paid_source") } : null;
     }
-    if (by && missingColumn(result.error.message, "checked_in_by")) {
-      by = false;
-      continue;
-    }
-    throw new Error(result.error.message);
+    const missing = optional.find((column) => !dropped.has(column) && missingColumn(result.error.message, column));
+    if (!missing) throw new Error(result.error.message);
+    dropped.add(missing);
   }
   return null;
 }
@@ -332,10 +375,10 @@ async function cardName(cardId: string): Promise<string> {
 }
 
 /**
- * Stamp arrival. A paid event refuses an unpaid guest — that is the badge gate.
+ * Stamp arrival. A paid event that is not confirmed waits for an explicit confirm.
  * A second scan leaves the first time in place.
  */
-export async function checkInGuest(lookup: string, userId: string, regToken: string): Promise<CheckInOutcome> {
+export async function checkInGuest(lookup: string, userId: string, regToken: string, confirm = false): Promise<CheckInOutcome> {
   let token = regToken.trim();
   try {
     token = decodeURIComponent(token);
@@ -352,8 +395,21 @@ export async function checkInGuest(lookup: string, userId: string, regToken: str
   if (!row) return { ok: false, status: 404, error: "Event badge not found" };
   const name = await cardName(row.card_id);
 
-  if (access.event.isPaid && row.paid_status != null && row.paid_status !== "paid") {
-    return { ok: true, status: "unpaid", name };
+  const confirmed = isConfirmed(row.paid_status, row.paid_source, row.sourceKnown);
+  if (access.event.isPaid && !confirmed) {
+    if (!confirm) return { ok: true, status: "pending", name, payCode: row.pay_code?.trim() || null };
+    const admin = createAdminSupabaseClient();
+    const marked = await admin
+      .from("event_registrations")
+      .update({ paid_status: "paid", paid_source: "manual" })
+      .eq("id", row.id)
+      .or("paid_source.is.null,paid_source.eq.return");
+    if (marked.error && missingColumn(marked.error.message, "paid_source")) {
+      const basic = await admin.from("event_registrations").update({ paid_status: "paid" }).eq("id", row.id);
+      if (basic.error) throw new Error(basic.error.message);
+    } else if (marked.error) {
+      throw new Error(marked.error.message);
+    }
   }
   if (row.checked_in_at) {
     return { ok: true, status: "already", name, at: row.checked_in_at };

@@ -44,8 +44,12 @@ export default async function ManageEventPage({ params }: PageProps) {
       line={eventLine(event.date, event.endsAt, event.place, event.placeSecret, event.status)}
       shareUrl={`${origin}/e/${event.publicToken}`}
       sections={visibleSections(event.role, event.permissions)}
-      guestsValue={`${event.registered} reg · ${event.paid} paid · ${event.checkedIn} in`}
-      paymentValue={event.isPaid ? "Paid" : "Free"}
+      guestsValue={
+        event.isPaid
+          ? `${event.registered} reg · ${event.paid} confirmed · ${event.checkedIn} in`
+          : `${event.registered} reg · ${event.checkedIn} in`
+      }
+      paymentValue={event.isPaid ? "Paid entry" : "Free"}
       managersValue={`${event.managers} of ${managerCap()}`}
     />
   );

@@ -1,18 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Copy, Plus } from "lucide-react";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { NetworkBand } from "@/app/network/network-band";
 import { BackButton } from "@/shared/components/back-button";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
+import { SkyToast } from "@/shared/components/sky-toast";
 import { Switch } from "@/shared/components/ui/switch";
+import { Zone } from "@/shared/components/zone";
 import { InviteCover } from "@/shared/event/invite-cover";
 import { InviteQr } from "@/shared/event/invite-qr";
-import { payButtonLabel, type EventPay } from "@/shared/event/payment-label";
+import { payLinkWithCode } from "@/shared/event/pay-code";
+import { payButtonLabel, payView, priceLabel, type EventPay } from "@/shared/event/payment-label";
 import { COLUMN_GAP_PX, HEADER_ROW_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { BadgeFace, EventRegistration, PortfolioChoice } from "@/shared/services/event-registration";
 import type { EventInvite } from "@/shared/services/event-invite";
@@ -34,6 +37,9 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
   const [error, setError] = useState<string | null>(null);
   const [consentAnalytics, setConsentAnalytics] = useState(true);
   const [consentConnections, setConsentConnections] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [said, setSaid] = useState(false);
+  const codeRef = useRef<HTMLSpanElement>(null);
 
   const choose = async (cardId: string) => {
     if (busy) return;
@@ -59,12 +65,59 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
   };
 
   if (registration && badge) {
-    const blocked = pay.isPaid && pay.badgeGate && registration.paidStatus !== "paid";
     const checkIn = `${origin}/e/${encodeURIComponent(event.code)}/b/${registration.regToken}`;
     const headerTop = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
+    const view = payView(registration.paidStatus ?? "", registration.paidSource);
+    const price = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
+    const poster = {
+      name: event.name,
+      description: event.description,
+      date: event.date,
+      endDate: event.endsAt,
+      place: event.place,
+      placeSecret: event.placeSecret,
+      logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
+      price,
+    };
+
+    const copyCode = async (code: string) => {
+      try {
+        await navigator.clipboard.writeText(code);
+        setNotice("Copied");
+      } catch {
+        const node = codeRef.current;
+        if (!node) return;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+    };
+
+    const sayPaid = async () => {
+      if (busy) return;
+      setBusy("paid");
+      setError(null);
+      try {
+        const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/payments/said`, { method: "POST" });
+        if (!response.ok) {
+          setError("Could not save that.");
+          setBusy(null);
+          return;
+        }
+        setSaid(true);
+        setBusy(null);
+        router.refresh();
+      } catch {
+        setError("Could not save that.");
+        setBusy(null);
+      }
+    };
+
     return (
       <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-[var(--gutter)]">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[var(--gutter)]">
           <BackButton fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
           <h1
             className="pointer-events-none fixed inset-x-0 z-20 m-0 flex items-center justify-center t-caps text-[var(--ink)]"
@@ -73,49 +126,87 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
             You're going
           </h1>
           <div aria-hidden className="shrink-0" style={{ height: `calc(${headerTop} + ${HEADER_ROW_PX}px)` }} />
-          {blocked ? (
-            <div className="flex shrink-0 flex-col items-center pt-4 text-center">
-              <p className="mb-0 t-caps">Payment required</p>
+          {pay.isPaid ? (
+            <Zone label="Payment" align="start">
+              {pay.paymentNote ? (
+                <p className="mb-0 t-body text-[var(--ink)]">{price ? `${price} · ${pay.paymentNote}` : pay.paymentNote}</p>
+              ) : price ? (
+                <p className="mb-0 t-body text-[var(--ink)]">{price}</p>
+              ) : null}
               {pay.paymentUrl ? (
                 <a
-                  href={pay.paymentUrl}
-                  className="press mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+                  href={registration.payCode ? payLinkWithCode(pay.paymentUrl, registration.payCode) : pay.paymentUrl}
+                  className="press mt-3 inline-block border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
                 >
                   {payButtonLabel(pay.price, pay.currency)}
                 </a>
               ) : null}
-              <p className="mt-4 mb-0 t-meta text-[var(--grey)]">Your badge activates once payment is confirmed</p>
-            </div>
-          ) : (
-            <div className="flex shrink-0 flex-col items-center pt-4">
+              {registration.payCode ? (
+                <>
+                  <p className="mt-4 mb-0 t-label">Your code</p>
+                  <div className="mt-1 flex items-center gap-3">
+                    <span
+                      ref={codeRef}
+                      className="text-[var(--ink)]"
+                      style={{ fontFamily: "var(--font-mono, monospace)", fontSize: 26, letterSpacing: "0.06em" }}
+                    >
+                      {registration.payCode}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Copy code"
+                      onClick={() => void copyCode(registration.payCode!)}
+                      className="press border-0 bg-transparent p-0 text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+                    >
+                      <Copy size={16} strokeWidth={1.5} />
+                    </button>
+                  </div>
+                  <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
+                    Add it to the payment comment, so the organiser can confirm your payment.
+                  </p>
+                </>
+              ) : null}
+              {view.key === "confirmed" ? (
+                <p className="mt-4 mb-0 inline-flex items-center gap-2 t-body text-[var(--ink)]">
+                  <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: view.dot }} />
+                  {view.long}
+                </p>
+              ) : said || view.method === "says paid" ? (
+                <p className="mt-4 mb-0 t-meta text-[var(--grey)]">
+                  <span className="inline-flex items-center gap-2">
+                    <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: view.dot }} />
+                    {said
+                      ? "Thanks — the organiser will confirm your payment."
+                      : "Payment not confirmed yet — the organiser will confirm it."}
+                  </span>
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void sayPaid()}
+                  className="press mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+                >
+                  I&apos;ve paid
+                </button>
+              )}
+            </Zone>
+          ) : null}
+          <Zone label="Check-in" align="start">
+            <div className="flex flex-col items-start">
               <InviteQr url={checkIn} size={220} />
-              <p className="mt-4 mb-0 t-caps">Check-in</p>
-              <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Show this at the door</p>
+              <p className="mt-4 mb-0 t-meta text-[var(--grey)]">
+                Show this at the door. Unconfirmed payments may be checked at the entrance.
+              </p>
             </div>
-          )}
-          <div
-            className="flex min-h-0 w-full flex-1 items-center justify-center py-4"
-            style={{ containerType: "size" }}
-          >
-            <div style={{ width: "min(100cqw, calc(100cqh * 286 / 404))" }}>
-              <InviteCover
-                  variant="square"
-                  layout={event.layout}
-                  themeId={event.theme}
-                  event={{
-                    name: event.name,
-                    description: event.description,
-                    date: event.date,
-                    endDate: event.endsAt,
-                    place: event.place,
-                    placeSecret: event.placeSecret,
-                    logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
-                  }}
-                />
-            </div>
+          </Zone>
+          {error ? <p className="mb-0 t-meta text-[var(--grey)]">{error}</p> : null}
+          <div className="w-full py-4">
+            <InviteCover variant="square" layout={event.layout} themeId={event.theme} event={poster} />
           </div>
         </div>
         <NetworkBand current="event" />
+        {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       </main>
     );
   }

@@ -1,4 +1,5 @@
 import { nanoid } from "nanoid";
+import { makePayCode } from "@/shared/event/pay-code";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isUuid } from "@/shared/services/attachment-api";
@@ -16,6 +17,8 @@ export type EventRegistration = {
   consentAnalytics: boolean;
   consentConnections: boolean;
   paidStatus: "paid" | "unpaid" | null;
+  paidSource: "return" | "statement" | "manual" | "name" | null;
+  payCode: string | null;
 };
 
 export type BadgeFace = {
@@ -38,10 +41,17 @@ type RegistrationRow = {
   consent_analytics: boolean;
   consent_connections: boolean;
   paid_status?: string | null;
+  paid_source?: string | null;
+  pay_code?: string | null;
 };
+
+function missingColumn(message: string, column: string): boolean {
+  return new RegExp(column, "i").test(message) && /column|schema/i.test(message);
+}
 
 function mapRegistration(row: RegistrationRow): EventRegistration {
   const paid = row.paid_status;
+  const source = row.paid_source;
   return {
     id: row.id,
     eventId: row.event_id,
@@ -50,24 +60,50 @@ function mapRegistration(row: RegistrationRow): EventRegistration {
     consentAnalytics: row.consent_analytics,
     consentConnections: row.consent_connections,
     paidStatus: paid === "paid" || paid === "unpaid" ? paid : null,
+    paidSource: source === "return" || source === "statement" || source === "manual" || source === "name" ? source : null,
+    payCode: row.pay_code?.trim() || null,
   };
 }
 
+const REG_BASE = "id, event_id, card_id, reg_token, consent_analytics, consent_connections";
+const REG_EXTRAS = ["paid_status", "paid_source", "pay_code"] as const;
+
 export async function loadOwnRegistration(eventId: string, userId: string): Promise<EventRegistration | null> {
   const admin = createAdminSupabaseClient();
-  const columns = "id, event_id, card_id, reg_token, consent_analytics, consent_connections";
-  const withPaid = await admin
-    .from("event_registrations")
-    .select(`${columns}, paid_status`)
-    .eq("event_id", eventId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  const loaded =
-    withPaid.error && /paid_status/i.test(withPaid.error.message) && /column|schema/i.test(withPaid.error.message)
-      ? await admin.from("event_registrations").select(columns).eq("event_id", eventId).eq("user_id", userId).maybeSingle()
-      : withPaid;
-  if (loaded.error) throw new Error(loaded.error.message);
-  return loaded.data ? mapRegistration(loaded.data as RegistrationRow) : null;
+  const extras = [...REG_EXTRAS];
+  for (;;) {
+    const select = extras.length > 0 ? `${REG_BASE}, ${extras.join(", ")}` : REG_BASE;
+    const loaded = await admin.from("event_registrations").select(select).eq("event_id", eventId).eq("user_id", userId).maybeSingle();
+    if (!loaded.error) return loaded.data ? mapRegistration(loaded.data as unknown as RegistrationRow) : null;
+    const missing = extras.find((column) => missingColumn(loaded.error.message, column));
+    if (!missing) throw new Error(loaded.error.message);
+    extras.splice(extras.indexOf(missing), 1);
+  }
+}
+
+/** A paid event gets a code the first time the guest opens their screen. */
+export async function ensurePayCode(eventId: string, userId: string, registration: EventRegistration): Promise<EventRegistration> {
+  if (registration.payCode) return registration;
+  const admin = createAdminSupabaseClient();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = makePayCode();
+    const updated = await admin
+      .from("event_registrations")
+      .update({ pay_code: code })
+      .eq("event_id", eventId)
+      .eq("user_id", userId)
+      .is("pay_code", null)
+      .select("id");
+    if (!updated.error) {
+      if ((updated.data ?? []).length > 0) return { ...registration, payCode: code };
+      const again = await loadOwnRegistration(eventId, userId);
+      return again ?? registration;
+    }
+    if (missingColumn(updated.error.message, "pay_code")) return registration;
+    if (updated.error.code === "23505" && /pay_code/i.test(updated.error.message)) continue;
+    throw new Error(updated.error.message);
+  }
+  return registration;
 }
 
 export async function listOwnPortfolios(userId: string): Promise<PortfolioChoice[]> {
@@ -192,29 +228,37 @@ export async function registerForEvent(
   const existing = await loadOwnRegistration(event.id, userId);
   if (existing) return { ok: true, event, registration: existing };
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const { data, error } = await admin
-      .from("event_registrations")
-      .insert({
-        event_id: event.id,
-        user_id: userId,
-        card_id: cardId,
-        reg_token: nanoid(TOKEN_LENGTH),
-        consent_analytics: consent.analytics,
-        consent_connections: consent.connections,
-      })
-      .select("id, event_id, card_id, reg_token, consent_analytics, consent_connections")
-      .single();
-    if (!error && data) return { ok: true, event, registration: mapRegistration(data as RegistrationRow) };
-    if (error?.code === "23505") {
+  let withCode = true;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const inserted = await admin.from("event_registrations").insert({
+      event_id: event.id,
+      user_id: userId,
+      card_id: cardId,
+      reg_token: nanoid(TOKEN_LENGTH),
+      consent_analytics: consent.analytics,
+      consent_connections: consent.connections,
+      ...(withCode ? { pay_code: makePayCode() } : {}),
+    }).select("id");
+    if (!inserted.error) {
+      const registration = await loadOwnRegistration(event.id, userId);
+      if (registration) return { ok: true, event, registration };
+      throw new Error("Could not join.");
+    }
+    if (withCode && missingColumn(inserted.error.message, "pay_code")) {
+      withCode = false;
+      attempt -= 1;
+      continue;
+    }
+    if (inserted.error.code === "23505") {
+      if (withCode && /pay_code/i.test(inserted.error.message)) continue;
       const raced = await loadOwnRegistration(event.id, userId);
       if (raced) return { ok: true, event, registration: raced };
       continue;
     }
-    if (error && /card_not_yours/i.test(error.message)) {
+    if (/card_not_yours/i.test(inserted.error.message)) {
       return { ok: false, status: 403, error: "That portfolio is not yours." };
     }
-    throw new Error(error?.message ?? "Could not join.");
+    throw new Error(inserted.error.message);
   }
   throw new Error("Could not join.");
 }

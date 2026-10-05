@@ -1,16 +1,17 @@
-import type { EventPay } from "@/shared/event/payment-label";
+import { readPaymentUrl } from "@/shared/event/payment";
+import type { EventPay, PaymentTally, StatementReport } from "@/shared/event/payment-label";
+import { matchStatement, type StatementGuest } from "@/shared/event/statement-match";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isUuid } from "@/shared/services/attachment-api";
 import { loadManageEvent } from "@/shared/services/event-manage";
 
-export type { EventPay };
+export type { EventPay, PaymentTally, StatementReport };
 
 export type PaymentCall =
   | { ok: true }
-  | { ok: true; matched: number; total: number; unmatched: string[] }
+  | { ok: true; report: StatementReport }
   | { ok: false; status: number; error: string };
 
-const HTTP_URL = /^https?:\/\//i;
 const CURRENCY = /^[A-Z]{3,8}$/;
 
 function missingColumn(message: string, column: string): boolean {
@@ -24,62 +25,80 @@ function readPrice(value: unknown): number | null {
   return number;
 }
 
+const EMPTY_PAY: EventPay = { isPaid: false, paymentUrl: null, paymentNote: null, price: null, currency: "EUR" };
+
+function payFrom(row: {
+  is_paid?: boolean | null;
+  payment_url?: string | null;
+  payment_note?: string | null;
+  price?: number | string | null;
+  currency?: string | null;
+}): EventPay {
+  return {
+    isPaid: row.is_paid === true,
+    paymentUrl: row.payment_url?.trim() || null,
+    paymentNote: row.payment_note?.trim() || null,
+    price: readPrice(row.price),
+    currency: (row.currency ?? "").trim().toUpperCase() || "EUR",
+  };
+}
+
 /** What the guest and the payment screen need. Missing new columns keep the old paid flag. */
 export async function loadEventPay(eventId: string): Promise<EventPay> {
   const admin = createAdminSupabaseClient();
   const full = await admin
     .from("events")
-    .select("is_paid, payment_url, price, currency, badge_gate")
+    .select("is_paid, payment_url, payment_note, price, currency")
     .eq("id", eventId)
     .maybeSingle();
-  if (full.error && /price|currency|badge_gate/i.test(full.error.message) && /column|schema/i.test(full.error.message)) {
-    const basic = await admin.from("events").select("is_paid, payment_url").eq("id", eventId).maybeSingle();
-    if (basic.error || !basic.data) return { isPaid: false, paymentUrl: null, price: null, currency: "EUR", badgeGate: true };
-    const row = basic.data as { is_paid?: boolean | null; payment_url?: string | null };
-    return {
-      isPaid: row.is_paid === true,
-      paymentUrl: row.payment_url?.trim() || null,
-      price: null,
-      currency: "EUR",
-      badgeGate: true,
-    };
+  if (full.error && missingColumn(full.error.message, "payment_note")) {
+    const mid = await admin.from("events").select("is_paid, payment_url, price, currency").eq("id", eventId).maybeSingle();
+    if (mid.error && (missingColumn(mid.error.message, "price") || missingColumn(mid.error.message, "currency"))) {
+      const basic = await admin.from("events").select("is_paid, payment_url").eq("id", eventId).maybeSingle();
+      if (basic.error || !basic.data) return EMPTY_PAY;
+      return payFrom(basic.data as { is_paid?: boolean | null; payment_url?: string | null });
+    }
+    if (mid.error || !mid.data) return EMPTY_PAY;
+    return payFrom(mid.data as { is_paid?: boolean | null; payment_url?: string | null; price?: number | string | null; currency?: string | null });
   }
-  if (full.error || !full.data) return { isPaid: false, paymentUrl: null, price: null, currency: "EUR", badgeGate: true };
-  const row = full.data as {
-    is_paid?: boolean | null;
-    payment_url?: string | null;
-    price?: number | string | null;
-    currency?: string | null;
-    badge_gate?: boolean | null;
-  };
-  return {
-    isPaid: row.is_paid === true,
-    paymentUrl: row.payment_url?.trim() || null,
-    price: readPrice(row.price),
-    currency: (row.currency ?? "").trim().toUpperCase() || "EUR",
-    badgeGate: row.badge_gate !== false,
-  };
+  if (full.error && (missingColumn(full.error.message, "price") || missingColumn(full.error.message, "currency"))) {
+    const basic = await admin.from("events").select("is_paid, payment_url").eq("id", eventId).maybeSingle();
+    if (basic.error || !basic.data) return EMPTY_PAY;
+    return payFrom(basic.data as { is_paid?: boolean | null; payment_url?: string | null });
+  }
+  if (full.error || !full.data) return EMPTY_PAY;
+  return payFrom(full.data);
 }
 
 type PaymentDraft = {
   isPaid: boolean;
   paymentUrl: string | null;
+  paymentNote: string | null;
   price: number | null;
   currency: string;
-  badgeGate: boolean;
 };
 
 function draftFrom(body: {
   isPaid?: unknown;
-  paymentUrl?: unknown;
+  howTo?: unknown;
   price?: unknown;
   currency?: unknown;
-  badgeGate?: unknown;
 }): PaymentDraft | { error: string } {
   const isPaid = body.isPaid === true;
-  const rawUrl = typeof body.paymentUrl === "string" ? body.paymentUrl.trim() : "";
-  if (isPaid && !rawUrl) return { error: "Add a pay link." };
-  if (rawUrl && (!HTTP_URL.test(rawUrl) || rawUrl.length > 2000)) return { error: "The pay link needs to start with http:// or https://." };
+  const howTo = typeof body.howTo === "string" ? body.howTo.trim() : "";
+  let paymentUrl: string | null = null;
+  let paymentNote: string | null = null;
+  if (isPaid && howTo) {
+    const url = readPaymentUrl(howTo);
+    if (url) {
+      if (url.length > 2000) return { error: "That payment link is too long." };
+      paymentUrl = url;
+    } else if (howTo.length > 500) {
+      return { error: "Keep the payment instructions shorter." };
+    } else {
+      paymentNote = howTo;
+    }
+  }
   let price: number | null = null;
   if (body.price != null && body.price !== "") {
     const number = typeof body.price === "number" ? body.price : Number(String(body.price).replace(",", "."));
@@ -88,21 +107,14 @@ function draftFrom(body: {
   }
   const currency = (typeof body.currency === "string" ? body.currency.trim().toUpperCase() : "") || "EUR";
   if (!CURRENCY.test(currency)) return { error: "Use a currency code like EUR." };
-  return {
-    isPaid,
-    paymentUrl: isPaid ? rawUrl : null,
-    price,
-    currency,
-    badgeGate: body.badgeGate !== false,
-  };
+  return { isPaid, paymentUrl, paymentNote, price, currency };
 }
 
 export async function saveEventPay(lookup: string, actorId: string, body: {
   isPaid?: unknown;
-  paymentUrl?: unknown;
+  howTo?: unknown;
   price?: unknown;
   currency?: unknown;
-  badgeGate?: unknown;
 }): Promise<PaymentCall> {
   const access = await loadManageEvent(lookup, actorId, "payments");
   if (access.kind !== "ok") {
@@ -112,34 +124,101 @@ export async function saveEventPay(lookup: string, actorId: string, body: {
   if ("error" in draft) return { ok: false, status: 400, error: draft.error };
 
   const admin = createAdminSupabaseClient();
-  const row = {
+  const eventId = access.event.id;
+  const write = (fields: Record<string, unknown>) => admin.from("events").update(fields).eq("id", eventId);
+  const pair = (message: string) => /events_payment_pair_check|events_payment_url_http_check/i.test(message);
+
+  let saved = await write({
     is_paid: draft.isPaid,
     payment_url: draft.paymentUrl,
+    payment_note: draft.paymentNote,
     price: draft.price,
     currency: draft.currency,
-    badge_gate: draft.badgeGate,
-  };
-  const saved = await admin.from("events").update(row).eq("id", access.event.id);
-  if (saved.error && (missingColumn(saved.error.message, "price") || missingColumn(saved.error.message, "currency") || missingColumn(saved.error.message, "badge_gate"))) {
-    const basic = await admin
-      .from("events")
-      .update({ is_paid: draft.isPaid, payment_url: draft.paymentUrl })
-      .eq("id", access.event.id);
-    if (basic.error) throw new Error(basic.error.message);
-    return { ok: false, status: 409, error: "Price, currency, and the badge gate need the payment migration." };
+  });
+  if (saved.error && missingColumn(saved.error.message, "payment_note")) {
+    const withoutNote = {
+      is_paid: draft.isPaid,
+      payment_url: draft.paymentNote ? null : draft.paymentUrl,
+      price: draft.price,
+      currency: draft.currency,
+    };
+    saved = await write(withoutNote);
+    if (saved.error && (missingColumn(saved.error.message, "price") || missingColumn(saved.error.message, "currency"))) {
+      const basic = await write({ is_paid: draft.isPaid, payment_url: withoutNote.payment_url });
+      if (basic.error && !pair(basic.error.message)) throw new Error(basic.error.message);
+    }
+    if (draft.paymentNote) {
+      return { ok: false, status: 409, error: "Plain-text payment instructions need the pay-code migration." };
+    }
+  }
+  if (saved.error && (missingColumn(saved.error.message, "price") || missingColumn(saved.error.message, "currency"))) {
+    const basic = await write({ is_paid: draft.isPaid, payment_url: draft.paymentUrl });
+    if (basic.error) {
+      if (pair(basic.error.message)) {
+        return { ok: false, status: 409, error: "Paid entry without a link needs the updated payment rules." };
+      }
+      throw new Error(basic.error.message);
+    }
+    return { ok: false, status: 409, error: "Price and currency need the payment migration." };
   }
   if (saved.error) {
-    if (/events_payment_pair_check|events_payment_url_http_check/i.test(saved.error.message)) {
-      return { ok: false, status: 400, error: "Add a pay link." };
+    if (pair(saved.error.message)) {
+      return { ok: false, status: 409, error: "Paid entry without a link needs the updated payment rules." };
     }
     throw new Error(saved.error.message);
   }
   return { ok: true };
 }
 
+const CONFIRMED_SOURCES = new Set(["statement", "name", "manual"]);
+
+/** Counts for the payment screen. Nothing here is stored on its own. */
+export async function loadPaymentTally(eventId: string): Promise<PaymentTally> {
+  const admin = createAdminSupabaseClient();
+  const full = await admin.from("event_registrations").select("paid_status, paid_source").eq("event_id", eventId);
+  let sourceKnown = true;
+  let list: { paid_status?: string | null; paid_source?: string | null }[] = [];
+  if (!full.error) {
+    list = (full.data ?? []) as typeof list;
+  } else if (missingColumn(full.error.message, "paid_source")) {
+    sourceKnown = false;
+    const mid = await admin.from("event_registrations").select("paid_status").eq("event_id", eventId);
+    if (mid.error && missingColumn(mid.error.message, "paid_status")) {
+      const basic = await admin.from("event_registrations").select("id").eq("event_id", eventId);
+      if (basic.error) throw new Error(basic.error.message);
+      const guests = (basic.data ?? []).length;
+      return { guests, byCode: 0, byName: 0, notConfirmed: guests };
+    }
+    if (mid.error) throw new Error(mid.error.message);
+    list = (mid.data ?? []) as typeof list;
+  } else if (missingColumn(full.error.message, "paid_status")) {
+    const basic = await admin.from("event_registrations").select("id").eq("event_id", eventId);
+    if (basic.error) throw new Error(basic.error.message);
+    const guests = (basic.data ?? []).length;
+    return { guests, byCode: 0, byName: 0, notConfirmed: guests };
+  } else {
+    throw new Error(full.error.message);
+  }
+  let byCode = 0;
+  let byName = 0;
+  let confirmed = 0;
+  for (const row of list) {
+    const status = row.paid_status ?? null;
+    const source = row.paid_source ?? null;
+    if (!sourceKnown) {
+      if (status === "paid") confirmed += 1;
+      continue;
+    }
+    if (status === "paid" && source === "statement") byCode += 1;
+    if (status === "paid" && source === "name") byName += 1;
+    if (status === "paid" && source != null && CONFIRMED_SOURCES.has(source)) confirmed += 1;
+  }
+  return { guests: list.length, byCode, byName, notConfirmed: list.length - confirmed };
+}
+
 /**
- * A logged-in guest opened the return URL. We mark them paid.
- * MVP: this does not prove the money moved. The CSV statement is the check.
+ * The guest says they paid — the return URL, or the button on their badge.
+ * A confirmed row stays confirmed.
  */
 export async function markPaidFromReturn(eventId: string, userId: string): Promise<boolean> {
   const admin = createAdminSupabaseClient();
@@ -148,9 +227,23 @@ export async function markPaidFromReturn(eventId: string, userId: string): Promi
     .update({ paid_status: "paid", paid_source: "return" })
     .eq("event_id", eventId)
     .eq("user_id", userId)
+    .or("paid_source.is.null,paid_source.eq.return")
     .select("id");
+  if (updated.error && missingColumn(updated.error.message, "paid_source")) {
+    const basic = await admin
+      .from("event_registrations")
+      .update({ paid_status: "paid" })
+      .eq("event_id", eventId)
+      .eq("user_id", userId)
+      .select("id");
+    if (basic.error) throw new Error(basic.error.message);
+    return (basic.data ?? []).length > 0;
+  }
   if (updated.error) throw new Error(updated.error.message);
-  return (updated.data ?? []).length > 0;
+  if ((updated.data ?? []).length > 0) return true;
+  const existing = await admin.from("event_registrations").select("id").eq("event_id", eventId).eq("user_id", userId).maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  return Boolean(existing.data);
 }
 
 export async function markGuestPaid(lookup: string, actorId: string, guestId: string, paid: boolean): Promise<PaymentCall> {
@@ -220,63 +313,116 @@ function tableFrom(text: string): string[][] {
   return parseCsv(text, delimiter);
 }
 
-async function emailByUser(userIds: string[]): Promise<Map<string, string>> {
-  const admin = createAdminSupabaseClient();
-  const emails = new Map<string, string>();
-  await Promise.all(
-    userIds.map(async (userId) => {
-      const user = await admin.auth.admin.getUserById(userId);
-      const email = user.data.user?.email?.trim().toLowerCase();
-      if (email) emails.set(email, userId);
-    }),
-  );
-  return emails;
+function guestName(value: string | null | undefined): string {
+  const name = (value ?? "").trim();
+  return name || "Untitled";
 }
 
-export async function importPaymentStatement(lookup: string, actorId: string, text: string): Promise<PaymentCall> {
+/** Rows already joined into lines. The file itself is not stored. */
+export async function importPaymentStatement(lookup: string, actorId: string, lines: string[]): Promise<PaymentCall> {
   const access = await loadManageEvent(lookup, actorId, "payments");
   if (access.kind !== "ok") {
     return { ok: false, status: access.kind === "missing" ? 404 : 403, error: access.kind === "missing" ? "Event not found" : "Not allowed" };
   }
-  if (text.length > 1_000_000) return { ok: false, status: 400, error: "That file is too large." };
-  const table = tableFrom(text);
-  const header = table[0] ?? [];
-  const column = header.findIndex((cell) => /email/i.test(cell));
-  if (column < 0) return { ok: false, status: 400, error: "The file needs an email column." };
-
-  const emails: string[] = [];
-  for (const cells of table.slice(1)) {
-    const email = (cells[column] ?? "").trim();
-    if (email) emails.push(email);
-  }
   const admin = createAdminSupabaseClient();
-  const registrations = await admin.from("event_registrations").select("user_id").eq("event_id", access.event.id);
-  if (registrations.error) throw new Error(registrations.error.message);
-  const userIds = [...new Set((registrations.data ?? []).map((row) => String((row as { user_id: string }).user_id)))];
-  const known = await emailByUser(userIds);
+  const eventId = access.event.id;
+  const pay = await loadEventPay(eventId);
 
-  const unmatched: string[] = [];
-  const hit = new Set<string>();
-  for (const email of emails) {
-    const userId = known.get(email.toLowerCase());
-    if (!userId) {
-      unmatched.push(email);
-      continue;
+  let sourceKnown = true;
+  let codeKnown = true;
+  type RegPayRow = {
+    user_id: string;
+    card_id: string;
+    pay_code?: string | null;
+    paid_status?: string | null;
+    paid_source?: string | null;
+  };
+  let registrations: RegPayRow[] = [];
+  const full = await admin
+    .from("event_registrations")
+    .select("user_id, card_id, pay_code, paid_status, paid_source")
+    .eq("event_id", eventId);
+  if (!full.error) {
+    registrations = (full.data ?? []) as RegPayRow[];
+  } else if (missingColumn(full.error.message, "pay_code")) {
+    codeKnown = false;
+    const mid = await admin.from("event_registrations").select("user_id, card_id, paid_status, paid_source").eq("event_id", eventId);
+    if (!mid.error) {
+      registrations = (mid.data ?? []) as RegPayRow[];
+    } else if (missingColumn(mid.error.message, "paid_source")) {
+      sourceKnown = false;
+      const statusOnly = await admin.from("event_registrations").select("user_id, card_id, paid_status").eq("event_id", eventId);
+      if (statusOnly.error) throw new Error(statusOnly.error.message);
+      registrations = (statusOnly.data ?? []) as RegPayRow[];
+    } else {
+      throw new Error(mid.error.message);
     }
-    hit.add(userId);
+  } else if (missingColumn(full.error.message, "paid_source") || missingColumn(full.error.message, "paid_status")) {
+    sourceKnown = false;
+    codeKnown = false;
+    const basic = await admin.from("event_registrations").select("user_id, card_id").eq("event_id", eventId);
+    if (basic.error) throw new Error(basic.error.message);
+    registrations = (basic.data ?? []) as RegPayRow[];
+  } else {
+    throw new Error(full.error.message);
   }
-  if (hit.size > 0) {
+
+  const cardIds = [...new Set(registrations.map((row) => row.card_id))];
+  const cards = cardIds.length
+    ? await admin.from("cards").select("id, display_name").in("id", cardIds)
+    : { data: [], error: null };
+  if (cards.error) throw new Error(cards.error.message);
+  const names = new Map(
+    (cards.data ?? []).map((row) => {
+      const card = row as { id: string; display_name: string | null };
+      return [card.id, guestName(card.display_name)] as const;
+    }),
+  );
+
+  const guests: StatementGuest[] = registrations.map((row) => ({
+    userId: row.user_id,
+    name: names.get(row.card_id) ?? "Untitled",
+    payCode: codeKnown ? row.pay_code ?? null : null,
+    paidStatus: row.paid_status ?? null,
+    paidSource: sourceKnown ? row.paid_source ?? null : row.paid_status === "paid" ? "manual" : null,
+  }));
+
+  const match = matchStatement(lines, guests, pay.price);
+  const stamp = async (userIds: string[], source: "statement" | "name") => {
+    if (userIds.length === 0) return null;
     const stamped = await admin
       .from("event_registrations")
-      .update({ paid_status: "paid", paid_source: "statement" })
-      .eq("event_id", access.event.id)
-      .in("user_id", [...hit]);
-    if (stamped.error) {
-      if (/paid_source|check constraint/i.test(stamped.error.message)) {
-        return { ok: false, status: 409, error: "Statement marks need the payment migration." };
-      }
-      throw new Error(stamped.error.message);
+      .update({ paid_status: "paid", paid_source: source })
+      .eq("event_id", eventId)
+      .in("user_id", userIds)
+      .or("paid_source.is.null,paid_source.eq.return");
+    return stamped.error;
+  };
+
+  const codeError = await stamp(match.byCode, "statement");
+  if (codeError) {
+    if (/paid_source|check constraint/i.test(codeError.message)) {
+      return { ok: false, status: 409, error: "Statement marks need the payment migration." };
     }
+    throw new Error(codeError.message);
   }
-  return { ok: true, matched: emails.length - unmatched.length, total: emails.length, unmatched };
+  const nameError = await stamp(match.byName, "name");
+  if (nameError) {
+    if (/paid_source|check constraint/i.test(nameError.message)) {
+      return { ok: false, status: 409, error: "Name marks need the pay-code migration." };
+    }
+    throw new Error(nameError.message);
+  }
+
+  return {
+    ok: true,
+    report: { byCode: match.byCode.length, byName: match.byName.length, notMatched: match.notMatched, notes: match.notes },
+  };
+}
+
+/** CSV table rows, cells joined by a space. */
+export function statementLinesFromCsv(text: string): string[] {
+  return tableFrom(text)
+    .map((cells) => cells.map((cell) => cell.trim()).filter(Boolean).join(" "))
+    .filter(Boolean);
 }

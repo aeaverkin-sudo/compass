@@ -19,10 +19,9 @@ export async function PATCH(request: Request, context: RouteProps) {
 
   let body: {
     isPaid?: unknown;
-    paymentUrl?: unknown;
+    howTo?: unknown;
     price?: unknown;
     currency?: unknown;
-    badgeGate?: unknown;
   } = {};
   try {
     body = (await request.json()) as typeof body;

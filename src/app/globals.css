@@ -15,6 +15,8 @@
   --hint: var(--grey);
   --sheet: #ffffff;
   --sky: #c5e8f7;
+  --pay-confirmed: #1f9d57;
+  --pay-pending: #c98a00;
   --event-theme-paper: #ffffff;
   --event-theme-paper-ink: #111111;
   --event-theme-stone: #ebebeb;

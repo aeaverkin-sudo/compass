@@ -19,6 +19,7 @@ export type InviteCoverEvent = {
   place: string | null;
   placeSecret: boolean;
   logoUrl: string | null;
+  price?: string | null;
 };
 
 type InviteCoverProps = {
@@ -168,6 +169,7 @@ function EditorialCover({ event }: { event: InviteCoverEvent }) {
       {date ? <Field label="Date" value={date} /> : null}
       {time ? <Field label="Time" value={time} /> : null}
       {place ? <Field label="Place" value={place} /> : null}
+      {event.price ? <Field label="Price" value={event.price} /> : null}
     </>
   );
 
@@ -260,7 +262,8 @@ function FashionCover({ event }: { event: InviteCoverEvent }) {
   const date = dottedDate(event.date);
   const place = placeLine(event);
   const time = eventClock(event.date);
-  const foot = place && time ? `${place} · ${time}` : place || time;
+  const footBits = [place, time, event.price?.trim() || null].filter((bit): bit is string => Boolean(bit));
+  const foot = footBits.length > 0 ? footBits.join(" · ") : null;
   const hair: CSSProperties = { width: 34, height: 1, background: "currentColor", opacity: 0.5, margin: "16px 0" };
 
   return (
@@ -451,6 +454,12 @@ function ModernCover({ event }: { event: InviteCoverEvent }) {
         <div style={{ position: "absolute", bottom: 16, left: 18 }}>
           <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Place</div>
           <div style={{ fontSize: 9, ...MONO }}>{place}</div>
+        </div>
+      ) : null}
+      {event.price ? (
+        <div style={{ position: "absolute", bottom: 16, right: 18, textAlign: "right" }}>
+          <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Price</div>
+          <div style={{ fontSize: 9, ...MONO }}>{event.price}</div>
         </div>
       ) : null}
     </>

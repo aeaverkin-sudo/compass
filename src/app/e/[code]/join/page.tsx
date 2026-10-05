@@ -5,7 +5,7 @@ import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { requestOrigin } from "@/shared/services/public-card-meta";
-import { listOwnPortfolios, loadOwnRegistration, loadOwnedBadge } from "@/shared/services/event-registration";
+import { ensurePayCode, listOwnPortfolios, loadOwnRegistration, loadOwnedBadge } from "@/shared/services/event-registration";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { EventGate } from "./event-gate";
 import { EventJoin } from "./event-join";
@@ -50,7 +50,9 @@ export default async function EventJoinPage({ params }: PageProps) {
     );
   }
 
-  const registration = await loadOwnRegistration(event.id, user.id);
+  const pay = await loadEventPay(event.id);
+  const loaded = await loadOwnRegistration(event.id, user.id);
+  const registration = loaded && pay.isPaid ? await ensurePayCode(event.id, user.id, loaded) : loaded;
   const badge = registration ? await loadOwnedBadge(user.id, registration.cardId) : null;
   if (registration && !badge) {
     return (
@@ -67,7 +69,6 @@ export default async function EventJoinPage({ params }: PageProps) {
     redirect(`/try?next=${encodeURIComponent(next)}`);
   }
   const origin = await requestOrigin();
-  const pay = await loadEventPay(event.id);
 
   return (
     <EventJoin

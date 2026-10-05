@@ -18,18 +18,20 @@ export async function POST(request: Request, context: RouteProps) {
 
   const { code } = await context.params;
   let regToken = "";
+  let confirm = false;
   try {
-    const body = (await request.json()) as { regToken?: unknown };
+    const body = (await request.json()) as { regToken?: unknown; confirm?: unknown };
     regToken = typeof body.regToken === "string" ? body.regToken : "";
+    confirm = body.confirm === true;
   } catch {
     return noStore({ error: "Event badge not found" }, 404);
   }
   if (!regToken) return noStore({ error: "Event badge not found" }, 404);
 
   try {
-    const result = await checkInGuest(code, data.user.id, regToken);
+    const result = await checkInGuest(code, data.user.id, regToken, confirm);
     if (!result.ok) return noStore({ error: result.error }, result.status);
-    if (result.status === "unpaid") return noStore({ status: "unpaid", name: result.name });
+    if (result.status === "pending") return noStore({ status: "pending", name: result.name, payCode: result.payCode });
     return noStore({ status: result.status, name: result.name, at: result.at });
   } catch (error) {
     console.error("[events] check-in", error);

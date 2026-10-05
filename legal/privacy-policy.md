@@ -36,7 +36,7 @@ We use AI and automated systems to operate, secure and improve the Service, incl
 We **never sell** your personal data. International transfers are protected by appropriate safeguards (e.g. EU Standard Contractual Clauses).
 
 ## 8. How we store and protect it
-Stored on Supabase infrastructure in the EU (Ireland). Encryption in transit (TLS) and at rest; private-by-default storage; field-level encryption for genuinely private data (drafts, hidden items, one-time transfer payloads, private files); private buckets with short-lived signed links; least-privilege access controls; account 2FA; audit logging; encrypted backups. Only content you mark visible is exposed on your public card.
+Stored on Supabase infrastructure in the EU (Ireland). Encryption in transit (TLS) and at rest; private-by-default storage; field-level encryption for genuinely private data (drafts, hidden items, one-time transfer payloads, private files); private buckets with short-lived signed links; least-privilege access controls; account 2FA; audit logging; encrypted backups. Only content you mark visible is exposed on your public card. Organisers may upload a bank statement to confirm payments. The file is processed automatically and is not stored; only the match result for registered guests is kept.
 
 ## 9. Retention and deletion
 We keep data while your card or account is active. You can delete content or account at any time; we then erase it. Minimal records (account metadata, logs) may be retained where necessary for legal, tax or security obligations, even after deletion.

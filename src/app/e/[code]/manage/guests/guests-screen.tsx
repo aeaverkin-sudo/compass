@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Zone } from "@/shared/components/zone";
+import { payView } from "@/shared/event/payment-label";
 import { COLUMN_GAP_PX } from "@/shared/layout/axes";
 import type { EventGuest } from "@/shared/services/event-manage";
 import { CheckMark } from "../check-mark";
@@ -12,27 +13,47 @@ type GuestsScreenProps = {
   lookup: string;
   guests: EventGuest[];
   canMark: boolean;
+  isPaid: boolean;
 };
 
-export function GuestsScreen({ lookup, guests, canMark }: GuestsScreenProps) {
+type Filter = "all" | "confirmed" | "pending";
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "confirmed", label: "Confirmed" },
+  { id: "pending", label: "Not confirmed" },
+];
+
+export function GuestsScreen({ lookup, guests, canMark, isPaid }: GuestsScreenProps) {
   const router = useRouter();
   const [rows, setRows] = useState(guests);
+  const [filter, setFilter] = useState<Filter>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const paid = rows.filter((guest) => guest.paid).length;
+  const confirmed = rows.filter((guest) => payView(guest.paidStatus ?? "", guest.paidSource).key === "confirmed").length;
   const checkedIn = rows.filter((guest) => guest.checkedIn).length;
+  const visible = rows.filter((guest) => {
+    if (!isPaid || filter === "all") return true;
+    return payView(guest.paidStatus ?? "", guest.paidSource).key === filter;
+  });
 
   const mark = async (guest: EventGuest) => {
-    if (!canMark || busyId) return;
-    const next = !guest.paid;
-    setRows((current) => current.map((row) => (row.userId === guest.userId ? { ...row, paid: next } : row)));
+    if (!canMark || !isPaid || busyId) return;
+    const confirming = payView(guest.paidStatus ?? "", guest.paidSource).key !== "confirmed";
+    const next = {
+      ...guest,
+      paid: confirming,
+      paidStatus: confirming ? "paid" : "unpaid",
+      paidSource: confirming ? "manual" : null,
+    };
+    setRows((current) => current.map((row) => (row.userId === guest.userId ? next : row)));
     setBusyId(guest.userId);
     setError(null);
     try {
       const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/payments/${guest.userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paid: next }),
+        body: JSON.stringify({ paid: confirming }),
       });
       if (!response.ok) {
         setRows((current) => current.map((row) => (row.userId === guest.userId ? guest : row)));
@@ -51,11 +72,28 @@ export function GuestsScreen({ lookup, guests, canMark }: GuestsScreenProps) {
   return (
     <ManageFrame title="Guests" fallbackHref={`/e/${encodeURIComponent(lookup)}/manage`}>
       <p className="mb-0 t-meta text-[var(--grey)]">
-        {`${rows.length} registered · ${paid} paid · ${checkedIn} checked-in`}
+        {isPaid
+          ? `${rows.length} registered · ${confirmed} confirmed · ${checkedIn} checked-in`
+          : `${rows.length} registered · ${checkedIn} checked-in`}
       </p>
+      {isPaid ? (
+        <div className="flex flex-wrap gap-x-4 gap-y-2 pt-[18px]">
+          {FILTERS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setFilter(item.id)}
+              className={`press border-0 bg-transparent p-0 t-body [-webkit-tap-highlight-color:transparent] ${filter === item.id ? "text-[var(--ink)]" : "text-[var(--grey)]"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <Zone label="List" align="start">
         <ul>
-          {rows.map((guest) => {
+          {visible.map((guest) => {
+            const view = payView(guest.paidStatus ?? "", guest.paidSource);
             const body = (
               <>
                 {guest.photoUrl ? (
@@ -74,7 +112,13 @@ export function GuestsScreen({ lookup, guests, canMark }: GuestsScreenProps) {
                     ) : (
                       <span className="text-[var(--grey)]">Not checked-in</span>
                     )}
-                    <span className={guest.paid ? "text-[var(--ink)]" : "text-[var(--grey)]"}>{guest.paid ? "Paid" : "Unpaid"}</span>
+                    {isPaid ? (
+                      <span className="inline-flex items-center gap-1.5 text-[var(--ink)]">
+                        <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: view.dot }} />
+                        {view.label}
+                        {view.method ? <span className="text-[var(--grey)]">{view.method}</span> : null}
+                      </span>
+                    ) : null}
                     {guest.connected ? <span className="text-[var(--ink)]">Connected</span> : null}
                   </span>
                 </span>
@@ -82,9 +126,10 @@ export function GuestsScreen({ lookup, guests, canMark }: GuestsScreenProps) {
             );
             return (
               <li key={guest.id}>
-                {canMark ? (
+                {canMark && isPaid ? (
                   <button
                     type="button"
+                    aria-label={view.key === "confirmed" ? "Mark not confirmed" : "Mark confirmed"}
                     disabled={busyId !== null}
                     onClick={() => void mark(guest)}
                     className="press flex w-full items-center border-0 bg-transparent px-0 py-[14px] text-left disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"

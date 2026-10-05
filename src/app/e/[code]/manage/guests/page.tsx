@@ -35,6 +35,7 @@ export default async function ManageGuestsPage({ params }: PageProps) {
       lookup={lookup}
       guests={list.guests}
       canMark={access.event.role === "owner" || access.event.permissions.payments}
+      isPaid={access.event.isPaid}
     />
   );
 }
