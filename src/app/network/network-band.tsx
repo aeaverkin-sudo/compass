@@ -1,10 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TabBand } from "@main/components/tab-band";
 
 const ITEM =
-  "flex h-full min-h-11 w-full items-center border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
+  "press flex h-full min-h-11 w-full items-center border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
 
 /** Clockwise: Network → Data → Event → Network. The right slot is the next stop. */
 const ORDER = ["network", "data", "event"] as const;
@@ -29,6 +30,12 @@ export function NetworkBand({ current }: { current: NetworkSection }) {
   const index = ORDER.indexOf(current);
   const left = ORDER[(index + 2) % 3];
   const right = ORDER[(index + 1) % 3];
+
+  useEffect(() => {
+    router.prefetch(ROUTE[left]);
+    router.prefetch(ROUTE[right]);
+    router.prefetch("/main");
+  }, [router, left, right]);
 
   return (
     <TabBand

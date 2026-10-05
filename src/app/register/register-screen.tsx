@@ -92,13 +92,13 @@ const LINK_LINE = {
 } as const;
 /** One action in a zone: text on A1, left aligned, 44px tap row, no rule of its own. */
 const CHOICE =
-  "flex min-h-11 w-full items-center text-left t-caps transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
+  "press flex min-h-11 w-full items-center text-left t-caps transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
 /** Field inside a zone: no underline. The rule between zones is the only line. */
 const FIELD =
   "compass-input block w-full border-0 bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 /** Primary action: sky block on A1. Disabled keeps the sky and greys the text. */
 const PRIMARY =
-  "border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] shadow-none disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
+  "press border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] shadow-none disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 const UNDERLINE = "underline decoration-[0.5px] underline-offset-[3px]";
 
 function Message({ text }: { text: string | null }) {
@@ -604,7 +604,7 @@ export function RegisterScreen() {
                 type="button"
                 disabled={busy}
                 onClick={() => void submitEmail()}
-                className={`mt-6 block t-meta text-[var(--ink)] ${UNDERLINE} disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]`}
+                className={`press mt-6 block t-meta text-[var(--ink)] ${UNDERLINE} disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]`}
                 style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
               >
                 Resend code

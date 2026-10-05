@@ -152,7 +152,7 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
                 aria-pressed={selectedId === portfolio.id}
                 disabled={busy !== null}
                 onClick={() => setSelectedId(portfolio.id)}
-                className="flex w-full min-w-0 items-center gap-4 border-0 bg-transparent p-0 text-left text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+                className="press flex w-full min-w-0 items-center gap-4 border-0 bg-transparent p-0 text-left text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
               >
                 <PortfolioPhoto src={portfolio.photoAttachmentId ? `/f/${portfolio.photoAttachmentId}` : null} />
                 <span className="min-w-0 flex-1">
@@ -177,7 +177,7 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
           <PickerRow label={portfolios.length === 0} rule={portfolios.length > 0}>
             <Link
               href={createHref}
-              className="flex w-full min-w-0 items-center gap-4 text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+              className="press flex w-full min-w-0 items-center gap-4 text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
             >
               <span aria-hidden className="flex size-[56px] shrink-0 items-center justify-center bg-[#f3f3f3]">
                 <Plus className="size-6" strokeWidth={1.5} />
@@ -195,7 +195,7 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
           onClick={() => {
             if (selectedId) void choose(selectedId);
           }}
-          className="border-0 bg-[var(--ink)] px-[21.6px] py-[10.8px] t-caps text-white disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+          className="press border-0 bg-[var(--ink)] px-[21.6px] py-[10.8px] t-caps text-white disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
         >
           I'm going →
         </button>

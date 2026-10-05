@@ -157,6 +157,14 @@ body {
   text-transform: uppercase;
 }
 
+/* Instant press. The tap highlight is off, so the finger needs this. */
+@utility press {
+  transition: opacity 60ms linear;
+  &:active {
+    opacity: 0.55;
+  }
+}
+
 /* iOS / Safari autofill — keep transparent field look */
 .compass-input:-webkit-autofill,
 .compass-input:-webkit-autofill:hover,

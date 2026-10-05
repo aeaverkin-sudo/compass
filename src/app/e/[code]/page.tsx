@@ -56,7 +56,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
         >
           <Link
             href="/network/event"
-            className="t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+            className="press t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
           >
             ‹ Events
           </Link>
@@ -82,7 +82,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
           ) : null}
           <Link
             href={`/e/${encodeURIComponent(lookup)}/join`}
-            className="mt-8 inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+            className="press mt-8 inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
           >
             I'm going
           </Link>

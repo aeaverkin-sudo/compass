@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
@@ -73,6 +73,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const [notice, setNotice] = useState<string | null>(
     addedName ? `${addedName} — just added to your contacts` : null,
   );
+  const ownerId = useRef<string | null>(null);
 
   const load = async () => {
     const response = await fetch("/api/connections", { cache: "no-store" });
@@ -86,6 +87,9 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   useEffect(() => {
     void load();
+    void createBrowserSupabaseClient().auth.getSession().then(({ data }) => {
+      ownerId.current = data.session?.user.id ?? null;
+    });
   }, []);
 
   useEffect(() => {
@@ -105,15 +109,21 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     return (contacts ?? []).filter((contact) => contact.state === "active" && matchesQuery(contact, needle));
   }, [contacts, query]);
 
+  const readyOwnerId = async () => {
+    if (ownerId.current) return ownerId.current;
+    const { data } = await createBrowserSupabaseClient().auth.getSession();
+    ownerId.current = data.session?.user.id ?? null;
+    return ownerId.current;
+  };
+
   const accept = async (id: string) => {
-    const supabase = createBrowserSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return;
-    const { error } = await supabase
+    const userId = await readyOwnerId();
+    if (!userId) return;
+    const { error } = await createBrowserSupabaseClient()
       .from("connections")
       .update({ state: "active" })
       .eq("id", id)
-      .eq("owner_id", data.user.id);
+      .eq("owner_id", userId);
     if (error) return;
     const name = contacts?.find((contact) => contact.id === id)?.displayName.trim() || "Untitled";
     setContacts((current) =>
@@ -123,10 +133,13 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   };
 
   const remove = async (id: string) => {
-    const supabase = createBrowserSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return;
-    const { error } = await supabase.from("connections").delete().eq("id", id).eq("owner_id", data.user.id);
+    const userId = await readyOwnerId();
+    if (!userId) return;
+    const { error } = await createBrowserSupabaseClient()
+      .from("connections")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", userId);
     if (error) return;
     setArmedId(null);
     setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
@@ -338,7 +351,7 @@ function WaitingRow({
   onSkip: () => void;
 }) {
   return (
-    <li className="flex items-center gap-3 border-b border-[var(--rule)] py-3 text-[var(--grey)]">
+    <li className="press flex items-center gap-3 border-b border-[var(--rule)] py-3 text-[var(--grey)]">
       <Face photoUrl={contact.photoUrl} />
       <div className="min-w-0 flex-1">
         <p className="m-0 truncate t-body">{contact.displayName.trim() || "Untitled"}</p>
@@ -368,7 +381,7 @@ function ContactRow({
   const longPress = useLongPress(onArm, HOLD_MS);
   return (
     <li
-      className="flex items-center gap-3 border-b border-[var(--rule)] py-3"
+      className="press flex items-center gap-3 border-b border-[var(--rule)] py-3"
       {...longPress}
     >
       <Face photoUrl={contact.photoUrl} />

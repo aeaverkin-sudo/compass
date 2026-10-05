@@ -119,7 +119,6 @@ export function BackButton({ fallbackHref, onBack }: BackButtonProps) {
         left: `calc(var(--gutter) - ${ARROW_TIP_INSET_PX}px)`,
         height: HEADER_ROW_PX,
         opacity: reduce || !hidden ? 1 : 0,
-        pointerEvents: reduce || !hidden ? "auto" : "none",
         transition: reduce ? "none" : `opacity ${hidden ? HIDE_MS : SHOW_MS}ms ease`,
       }}
     >

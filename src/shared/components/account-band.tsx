@@ -63,7 +63,7 @@ export function AccountBand({
       <div className="flex min-h-11 items-stretch">
         <a
           href={registerHref}
-          className="flex min-h-11 flex-1 touch-manipulation items-center py-3 text-left text-[#111] [-webkit-tap-highlight-color:transparent]"
+          className="press flex min-h-11 flex-1 touch-manipulation items-center py-3 text-left text-[#111] [-webkit-tap-highlight-color:transparent]"
         >
           <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
             Get your
@@ -73,7 +73,7 @@ export function AccountBand({
         </a>
         <a
           href={saveHref}
-          className="flex min-h-11 flex-1 touch-manipulation items-center justify-end py-3 text-right text-[#111] [-webkit-tap-highlight-color:transparent]"
+          className="press flex min-h-11 flex-1 touch-manipulation items-center justify-end py-3 text-right text-[#111] [-webkit-tap-highlight-color:transparent]"
         >
           <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
             Save to your

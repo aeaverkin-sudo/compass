@@ -47,9 +47,9 @@ const PLAIN =
 const WHEN =
   "bg-transparent text-[var(--ink)] outline-none [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:text-left [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-fields-wrapper]:p-0";
 const LINK =
-  "text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
+  "press text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 const SKY_BUTTON =
-  "border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
+  "press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 
 function fieldStyle() {
   return {
@@ -352,7 +352,7 @@ export function EventEntryScreen() {
                         <button
                           type="button"
                           onClick={() => openEvent(event)}
-                          className="block w-full py-[14px] text-left [-webkit-tap-highlight-color:transparent]"
+                          className="press block w-full py-[14px] text-left [-webkit-tap-highlight-color:transparent]"
                         >
                           <span className="block t-body text-[var(--ink)]">{event.name}</span>
                           <span className="mt-1 block t-meta text-[var(--grey)]">
@@ -505,7 +505,7 @@ export function EventEntryScreen() {
                       setLayout(item.id);
                       if (!themeTouched) setTheme(layoutDefaultTheme(item.id));
                     }}
-                    className="border-0 bg-transparent p-0 t-caps [-webkit-tap-highlight-color:transparent]"
+                    className="press border-0 bg-transparent p-0 t-caps [-webkit-tap-highlight-color:transparent]"
                     style={{ color: layout === item.id ? "var(--ink)" : "var(--grey)" }}
                   >
                     {item.label}
@@ -526,7 +526,7 @@ export function EventEntryScreen() {
                       setThemeTouched(true);
                       setTheme(item.id);
                     }}
-                    className="block w-full border-0 bg-transparent p-0 [-webkit-tap-highlight-color:transparent]"
+                    className="press block w-full border-0 bg-transparent p-0 [-webkit-tap-highlight-color:transparent]"
                   >
                     <span
                       className="block aspect-square w-full"
@@ -568,7 +568,7 @@ export function EventEntryScreen() {
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
-              className="mt-6 block w-full border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
+              className="press mt-6 block w-full border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
               style={{ marginLeft: 0, paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}
             >
               <InviteCover

@@ -5,7 +5,7 @@ import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
 const SKY =
-  "inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]";
+  "press inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]";
 
 /** Door when there is no session. Quick pass uses the existing trial. */
 export function EventGate({
@@ -34,7 +34,7 @@ export function EventGate({
         </p>
       </div>
       <Zone label="Member" rule align="start">
-        <Link href={signIn} className="t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]">
+        <Link href={signIn} className="press t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]">
           Log in
         </Link>
         <p className="mt-1 mb-0 t-meta text-[var(--grey)]">I already use ADED</p>
@@ -48,7 +48,7 @@ export function EventGate({
         </p>
       </Zone>
       <Zone label={<span className="t-label whitespace-normal">Quick pass</span>} align="start">
-        <Link href={quick} className="t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]">
+        <Link href={quick} className="press t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]">
           Quick pass
         </Link>
         <p className="mt-1 mb-0 t-meta text-[var(--grey)]">No sign-up — upgrade to keep it anytime</p>
