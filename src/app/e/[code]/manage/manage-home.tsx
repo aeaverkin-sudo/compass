@@ -101,10 +101,13 @@ export function ManageHome({
       ) : null}
       {shown("managers") ? (
         <Zone label="Managers" rule={last !== "managers"}>
-          <Entry>
-            <span className="t-body">{managersValue}</span>
+          <Link
+            href={href("/manage/managers")}
+            className="press flex items-center justify-between gap-3 text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+          >
+            <span className="min-w-0 t-body">{managersValue}</span>
             <Chevron />
-          </Entry>
+          </Link>
         </Zone>
       ) : null}
       {shown("checkin") ? (

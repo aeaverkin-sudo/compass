@@ -1,27 +1,30 @@
+import { nanoid } from "nanoid";
+import {
+  accessLine,
+  allPermissions,
+  anyPermission,
+  managerCap,
+  permissionsOf,
+  type EventPermission,
+  type EventPermissions,
+} from "@/shared/event/permissions";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { CARD_ATTACHMENTS_BUCKET, SIGNED_READ_SECONDS } from "@/shared/services/attachment-limits";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { eventListStatus, type EventListStatus } from "@/shared/services/events";
 
+export {
+  EVENT_PERMISSIONS,
+  MANAGE_SECTIONS,
+  PERMISSION_LABEL,
+  accessLine,
+  managerCap,
+  permissionsOf,
+  visibleSections,
+} from "@/shared/event/permissions";
+export type { EventPermission, EventPermissions, ManageSection } from "@/shared/event/permissions";
+
 const REG_TOKEN = /^[A-Za-z0-9_-]{21}$/;
-const MANAGER_CAP = 5;
-
-export const EVENT_PERMISSIONS = ["checkin", "guests", "payments", "analytics", "edit", "team"] as const;
-export type EventPermission = (typeof EVENT_PERMISSIONS)[number];
-
-export const MANAGE_SECTIONS = ["event", "invite", "guests", "payment", "managers", "checkin", "analytics", "edit"] as const;
-export type ManageSection = (typeof MANAGE_SECTIONS)[number];
-
-const SECTION_PERMISSION: Partial<Record<ManageSection, EventPermission>> = {
-  guests: "guests",
-  payment: "payments",
-  managers: "team",
-  checkin: "checkin",
-  analytics: "analytics",
-  edit: "edit",
-};
-
-export type EventPermissions = Record<EventPermission, boolean>;
 
 export type ManageEvent = {
   id: string;
@@ -73,40 +76,6 @@ export type CheckInDesk = {
   roster: { name: string; regToken: string }[];
 };
 
-type PermissionBag = Record<string, unknown>;
-
-function emptyPermissions(): EventPermissions {
-  return { checkin: false, guests: false, payments: false, analytics: false, edit: false, team: false };
-}
-
-function allPermissions(): EventPermissions {
-  return { checkin: true, guests: true, payments: true, analytics: true, edit: true, team: true };
-}
-
-function readPermissions(raw: unknown): EventPermissions {
-  const source = raw && typeof raw === "object" ? (raw as PermissionBag) : {};
-  const permissions = emptyPermissions();
-  for (const key of EVENT_PERMISSIONS) permissions[key] = source[key] === true;
-  return permissions;
-}
-
-function anyPermission(permissions: EventPermissions): boolean {
-  return EVENT_PERMISSIONS.some((key) => permissions[key]);
-}
-
-/** Owner sees every section. A manager sees the sections their flags allow. */
-export function visibleSections(role: "owner" | "manager", permissions: EventPermissions): ManageSection[] {
-  if (role === "owner") return [...MANAGE_SECTIONS];
-  return MANAGE_SECTIONS.filter((section) => {
-    const permission = SECTION_PERMISSION[section];
-    return permission ? permissions[permission] : false;
-  });
-}
-
-export function managerCap(): number {
-  return MANAGER_CAP;
-}
-
 function missingColumn(message: string, column: string): boolean {
   return new RegExp(column, "i").test(message) && /column|schema/i.test(message);
 }
@@ -146,7 +115,7 @@ async function readMembership(eventId: string, userId: string): Promise<EventPer
     throw new Error(error.message);
   }
   if (!data) return null;
-  return readPermissions((data as { permissions?: unknown }).permissions);
+  return permissionsOf((data as { permissions?: unknown }).permissions);
 }
 
 async function countManagers(eventId: string): Promise<number> {
@@ -467,4 +436,227 @@ export async function loadCheckinDesk(eventId: string, viewerId: string): Promis
       : null,
     roster,
   };
+}
+
+export type EventManager = {
+  userId: string;
+  name: string;
+  photoUrl: string | null;
+  permissions: EventPermissions;
+};
+
+export type ManagerCall =
+  | { ok: true }
+  | { ok: true; token: string; publicToken: string }
+  | { ok: false; status: number; error: string };
+
+async function personFace(userId: string): Promise<{ name: string; photoUrl: string | null }> {
+  const admin = createAdminSupabaseClient();
+  const cards = await admin
+    .from("cards")
+    .select("display_name, photo_attachment_id")
+    .eq("owner_id", userId)
+    .order("created_at", { ascending: true });
+  const list = cards.error ? [] : ((cards.data ?? []) as { display_name: string | null; photo_attachment_id: string | null }[]);
+  const named = list.find((card) => (card.display_name ?? "").trim()) ?? list[0];
+  const cardName = (named?.display_name ?? "").trim();
+  let email = "";
+  if (!cardName) {
+    const user = await admin.auth.admin.getUserById(userId);
+    email = user.data.user?.email?.trim() ?? "";
+  }
+  const photoId = named?.photo_attachment_id ?? null;
+  const photos = photoId ? await photoUrls([photoId]) : new Map<string, string>();
+  return {
+    name: cardName || email || "Manager",
+    photoUrl: photoId ? photos.get(photoId) ?? null : null,
+  };
+}
+
+/** Staff on this event. The owner is not a row. */
+export async function listEventManagers(eventId: string): Promise<EventManager[]> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.from("event_team").select("user_id, permissions").eq("event_id", eventId);
+  if (error) {
+    if (missingTable(error.message, "event_team")) return [];
+    throw new Error(error.message);
+  }
+  const rows = (data ?? []) as { user_id: string; permissions?: unknown }[];
+  const managers = await Promise.all(
+    rows.map(async (row) => {
+      const face = await personFace(row.user_id);
+      return {
+        userId: row.user_id,
+        name: face.name,
+        photoUrl: face.photoUrl,
+        permissions: permissionsOf(row.permissions),
+      };
+    }),
+  );
+  return managers.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function createManagerInvite(
+  lookup: string,
+  userId: string,
+  permissions: EventPermissions,
+): Promise<ManagerCall> {
+  const access = await loadManageEvent(lookup, userId, "team");
+  if (access.kind === "missing") return { ok: false, status: 404, error: "Event not found" };
+  if (access.kind === "forbidden") return { ok: false, status: 403, error: "Not allowed" };
+  if (!anyPermission(permissions)) return { ok: false, status: 400, error: "Choose a permission." };
+  if (access.event.managers >= managerCap()) {
+    return { ok: false, status: 409, error: "This event already has 5 managers." };
+  }
+  const admin = createAdminSupabaseClient();
+  const token = nanoid(21);
+  const inserted = await admin.from("event_manager_invites").insert({
+    token,
+    event_id: access.event.id,
+    permissions,
+    created_by: userId,
+  });
+  if (inserted.error) throw new Error(inserted.error.message);
+  return { ok: true, token, publicToken: access.event.publicToken };
+}
+
+async function teamAccess(lookup: string, userId: string): Promise<ManageLoad> {
+  return loadManageEvent(lookup, userId, "team");
+}
+
+export async function updateManagerPermissions(
+  lookup: string,
+  actorId: string,
+  targetId: string,
+  permissions: EventPermissions,
+): Promise<ManagerCall> {
+  const access = await teamAccess(lookup, actorId);
+  if (access.kind === "missing") return { ok: false, status: 404, error: "Event not found" };
+  if (access.kind === "forbidden") return { ok: false, status: 403, error: "Not allowed" };
+  const admin = createAdminSupabaseClient();
+  const updated = await admin
+    .from("event_team")
+    .update({ permissions })
+    .eq("event_id", access.event.id)
+    .eq("user_id", targetId)
+    .select("user_id")
+    .maybeSingle();
+  if (updated.error) throw new Error(updated.error.message);
+  if (!updated.data) return { ok: false, status: 404, error: "Manager not found" };
+  return { ok: true };
+}
+
+export async function removeManager(lookup: string, actorId: string, targetId: string): Promise<ManagerCall> {
+  const access = await teamAccess(lookup, actorId);
+  if (access.kind !== "ok" || access.event.role !== "owner") {
+    return { ok: false, status: access.kind === "missing" ? 404 : 403, error: access.kind === "missing" ? "Event not found" : "Not allowed" };
+  }
+  const admin = createAdminSupabaseClient();
+  const removed = await admin
+    .from("event_team")
+    .delete()
+    .eq("event_id", access.event.id)
+    .eq("user_id", targetId)
+    .select("user_id");
+  if (removed.error) throw new Error(removed.error.message);
+  if (!removed.data?.length) return { ok: false, status: 404, error: "Manager not found" };
+  return { ok: true };
+}
+
+export type ManagerInviteView =
+  | { kind: "missing" }
+  | { kind: "used" }
+  | { kind: "owner"; eventName: string }
+  | { kind: "open"; eventName: string; ownerName: string; access: string };
+
+export async function loadManagerInvite(lookup: string, token: string, userId: string): Promise<ManagerInviteView> {
+  let key = token.trim();
+  try {
+    key = decodeURIComponent(key);
+  } catch {
+    return { kind: "missing" };
+  }
+  if (!REG_TOKEN.test(key)) return { kind: "missing" };
+  const invite = await loadEventInvite(lookup);
+  if (!invite) return { kind: "missing" };
+  const admin = createAdminSupabaseClient();
+  const row = await admin
+    .from("event_manager_invites")
+    .select("permissions, used_at, created_by")
+    .eq("token", key)
+    .eq("event_id", invite.id)
+    .maybeSingle();
+  if (row.error) {
+    if (missingTable(row.error.message, "event_manager_invites")) return { kind: "missing" };
+    throw new Error(row.error.message);
+  }
+  if (!row.data) return { kind: "missing" };
+  const data = row.data as { permissions?: unknown; used_at: string | null; created_by: string };
+  if (data.used_at) return { kind: "used" };
+  const owner = await readOwnerPaid(invite.id);
+  if (owner && owner.ownerId === userId) return { kind: "owner", eventName: invite.name };
+  const face = data.created_by ? await personFace(data.created_by) : { name: "The organiser", photoUrl: null };
+  const ownerName = face.name === "Manager" ? "The organiser" : face.name;
+  return {
+    kind: "open",
+    eventName: invite.name,
+    ownerName,
+    access: accessLine(permissionsOf(data.permissions)),
+  };
+}
+
+export async function acceptManagerInvite(lookup: string, userId: string, token: string): Promise<ManagerCall> {
+  let key = token.trim();
+  try {
+    key = decodeURIComponent(key);
+  } catch {
+    return { ok: false, status: 404, error: "This link has already been used." };
+  }
+  if (!REG_TOKEN.test(key)) return { ok: false, status: 404, error: "This link has already been used." };
+  const invite = await loadEventInvite(lookup);
+  if (!invite) return { ok: false, status: 404, error: "Event not found" };
+  const admin = createAdminSupabaseClient();
+  const row = await admin
+    .from("event_manager_invites")
+    .select("permissions, used_at")
+    .eq("token", key)
+    .eq("event_id", invite.id)
+    .maybeSingle();
+  if (row.error) throw new Error(row.error.message);
+  if (!row.data) return { ok: false, status: 404, error: "This link has already been used." };
+  const data = row.data as { permissions?: unknown; used_at: string | null };
+  if (data.used_at) return { ok: false, status: 409, error: "This link has already been used." };
+  const owner = await readOwnerPaid(invite.id);
+  if (owner && owner.ownerId === userId) return { ok: false, status: 403, error: "You organise this event." };
+
+  const existing = await admin
+    .from("event_team")
+    .select("user_id")
+    .eq("event_id", invite.id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  const already = Boolean(existing.data);
+  if (!already && (await countManagers(invite.id)) >= managerCap()) {
+    return { ok: false, status: 409, error: "This event already has 5 managers." };
+  }
+
+  const claimed = await admin
+    .from("event_manager_invites")
+    .update({ used_by: userId, used_at: new Date().toISOString() })
+    .eq("token", key)
+    .is("used_at", null)
+    .select("token");
+  if (claimed.error) throw new Error(claimed.error.message);
+  if (!claimed.data?.length) return { ok: false, status: 409, error: "This link has already been used." };
+
+  const permissions = permissionsOf(data.permissions);
+  const saved = already
+    ? await admin.from("event_team").update({ permissions }).eq("event_id", invite.id).eq("user_id", userId)
+    : await admin.from("event_team").insert({ event_id: invite.id, user_id: userId, permissions });
+  if (saved.error) {
+    await admin.from("event_manager_invites").update({ used_by: null, used_at: null }).eq("token", key).eq("used_by", userId);
+    throw new Error(saved.error.message);
+  }
+  return { ok: true };
 }

@@ -21,14 +21,14 @@ import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
-import { isEventJoinPath } from "@/shared/event/lookup";
+import { isEventJoinPath, isEventTeamPath } from "@/shared/event/lookup";
 import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { useAppStore } from "@/shared/store/app-store";
 
-/** Only a card save or an event invite may pull the person back. Anything else opens the main screen. */
+/** A card save, an event join, or a manager invite may pull the person back. Anything else opens the main screen. */
 function afterAuthPath(next: string | null) {
   if (next && next.startsWith("/save/") && !next.includes("//") && !next.includes("\\")) return next;
-  if (next && isEventJoinPath(next)) return next;
+  if (next && (isEventJoinPath(next) || isEventTeamPath(next))) return next;
   return "/main";
 }
 
@@ -118,7 +118,7 @@ function accountAlreadyExists(code: string | undefined, message: string | undefi
 function signInHref(nextPath: string, error?: string) {
   const query = new URLSearchParams();
   query.set("signin", "1");
-  if (nextPath.startsWith("/save/") || isEventJoinPath(nextPath)) query.set("next", nextPath);
+  if (nextPath.startsWith("/save/") || isEventJoinPath(nextPath) || isEventTeamPath(nextPath)) query.set("next", nextPath);
   if (error) query.set("error", error);
   return `/register?${query.toString()}`;
 }
@@ -417,7 +417,7 @@ export function RegisterScreen() {
     };
     const signUpHref = (() => {
       const query = new URLSearchParams();
-      if (nextPath.startsWith("/save/") || isEventJoinPath(nextPath)) query.set("next", nextPath);
+      if (nextPath.startsWith("/save/") || isEventJoinPath(nextPath) || isEventTeamPath(nextPath)) query.set("next", nextPath);
       const text = query.toString();
       return text ? `/register?${text}` : "/register";
     })();
