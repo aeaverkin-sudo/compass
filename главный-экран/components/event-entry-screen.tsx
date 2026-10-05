@@ -408,7 +408,7 @@ export function EventEntryScreen() {
   const openEvent = (event: ListedEvent) => {
     const token = encodeURIComponent(event.publicToken);
     if (event.role === "owner") {
-      router.push(`/e/${token}?from=events`);
+      router.push(`/e/${token}/manage`);
       return;
     }
     router.push(`/e/${token}/join`);
