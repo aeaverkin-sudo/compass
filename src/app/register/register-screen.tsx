@@ -486,7 +486,7 @@ export function RegisterScreen() {
           </form>
         ) : (
           <>
-            <Zone label="">
+            <Zone label="Sign in">
               <div className="-my-3">
               {inApp ? null : (
                 <button
@@ -622,7 +622,6 @@ export function RegisterScreen() {
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
       <ScreenHeader title="Sign up" fallbackHref="/" />
-      <Rule />
       <Zone label="Sign up">
         <div className="-my-3">
         {inApp ? null : (
