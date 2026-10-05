@@ -23,6 +23,7 @@ export function TryScreen() {
   const params = useSearchParams();
   const nextRaw = params.get("next");
   const next = nextRaw && isEventJoinPath(nextRaw) ? nextRaw : null;
+  const fresh = params.get("new") === "1";
   const hydrated = useStoreHydrated();
   const sessionReady = useSessionBootstrap();
   const needsSignIn = useRegistrationRequired();
@@ -44,6 +45,10 @@ export function TryScreen() {
       }
 
       if (cancelled) return;
+      if (fresh) {
+        setShowLanding(true);
+        return;
+      }
       const state = useAppStore.getState();
       const started = state.cards.some((card) => isCardReady(card));
       if (!started && state.user.onboarded) {
@@ -71,8 +76,8 @@ export function TryScreen() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, sessionReady, needsSignIn, router, next]);
+  }, [hydrated, sessionReady, needsSignIn, router, next, fresh]);
 
   if (!showLanding) return <div className="h-lvh bg-background" aria-hidden />;
-  return <LandingPage next={next} />;
+  return <LandingPage next={next} fresh={fresh} />;
 }

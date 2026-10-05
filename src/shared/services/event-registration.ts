@@ -25,6 +25,7 @@ export type BadgeFace = {
 export type PortfolioChoice = {
   id: string;
   name: string;
+  title: string;
   photoAttachmentId: string | null;
 };
 
@@ -64,13 +65,14 @@ export async function listOwnPortfolios(userId: string): Promise<PortfolioChoice
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from("cards")
-    .select("id, display_name, photo_attachment_id")
+    .select("id, display_name, title, photo_attachment_id")
     .eq("owner_id", userId)
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => ({
     id: row.id as string,
     name: ((row.display_name as string | null) ?? "").trim(),
+    title: ((row.title as string | null) ?? "").trim(),
     photoAttachmentId: (row.photo_attachment_id as string | null) ?? null,
   }));
 }

@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 import { BusinessCard } from "@main/components/business-card";
+import { NetworkBand } from "@/app/network/network-band";
 import { BackButton } from "@/shared/components/back-button";
+import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Switch } from "@/shared/components/ui/switch";
-import { Zone } from "@/shared/components/zone";
 import { InviteQr } from "@/shared/event/invite-qr";
+import { COLUMN_GAP_PX, LABEL_COLUMN_PX } from "@/shared/layout/axes";
 import type { BadgeFace, EventRegistration, PortfolioChoice } from "@/shared/services/event-registration";
 import type { EventInvite } from "@/shared/services/event-invite";
 
@@ -110,28 +114,70 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
     );
   }
 
+  const joinNext = `/e/${encodeURIComponent(lookup)}/join`;
+  const createHref = `/try?next=${encodeURIComponent(joinNext)}&new=1`;
+
   return (
-    <main className="compass-main fixed inset-0 overflow-y-auto bg-white">
-      <ScreenHeader title="Join" fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
-      <div className="px-[var(--gutter)]">
-        {portfolios.length === 0 ? (
-          <p className="mb-0 t-body text-[var(--grey)]">No portfolio yet.</p>
-        ) : (
-          portfolios.map((portfolio, index) => (
-            <Zone key={portfolio.id} label={String(index + 1).padStart(2, "0")} rule={index < portfolios.length - 1}>
+    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+        <ScreenHeader title="Your badge" fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
+        <p className="mb-0 t-meta text-[var(--grey)]">
+          Pick the card you bring to {event.name} — your badge at the door, and what you share.
+        </p>
+        <div className="pt-[18px]">
+          {portfolios.map((portfolio, index) => (
+            <PickerRow key={portfolio.id} label={index === 0} rule={index > 0}>
               <button
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void choose(portfolio.id)}
-                className="border-0 bg-transparent p-0 text-left t-body text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+                className="flex w-full min-w-0 items-center gap-4 border-0 bg-transparent p-0 text-left text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
               >
-                {portfolio.name || "Untitled"}
+                <PortfolioPhoto src={portfolio.photoAttachmentId ? `/f/${portfolio.photoAttachmentId}` : null} />
+                <span className="min-w-0">
+                  <span className="block truncate t-name">{portfolio.name || "Untitled"}</span>
+                  {portfolio.title ? (
+                    <span className="mt-1 block truncate t-meta text-[var(--grey)]">{portfolio.title}</span>
+                  ) : null}
+                </span>
               </button>
-            </Zone>
-          ))
-        )}
-        {error ? <p className="mt-4 mb-0 t-meta text-[var(--grey)]">{error}</p> : null}
+            </PickerRow>
+          ))}
+          <PickerRow label={portfolios.length === 0} rule={portfolios.length > 0}>
+            <Link
+              href={createHref}
+              className="flex w-full min-w-0 items-center gap-4 text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+            >
+              <span aria-hidden className="flex size-[56px] shrink-0 items-center justify-center bg-[#f3f3f3]">
+                <Plus className="size-6" strokeWidth={1.5} />
+              </span>
+              <span className="min-w-0 truncate t-name">New card for this event</span>
+            </Link>
+          </PickerRow>
+        </div>
+        {error ? <p className="mb-0 t-meta text-[var(--grey)]">{error}</p> : null}
       </div>
+      <NetworkBand current="event" />
     </main>
   );
+}
+
+function PickerRow({ label, rule, children }: { label: boolean; rule: boolean; children: ReactNode }) {
+  return (
+    <div>
+      {rule ? <Rule /> : null}
+      <div
+        className="grid items-start py-[18px]"
+        style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
+      >
+        <span className="t-label whitespace-nowrap">{label ? "Portfolios" : ""}</span>
+        <div className="min-w-0">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function PortfolioPhoto({ src }: { src: string | null }) {
+  if (!src) return <span aria-hidden className="size-[56px] shrink-0 bg-[#f3f3f3]" />;
+  return <img src={src} alt="" className="size-[56px] shrink-0 object-cover" />;
 }

@@ -18,7 +18,27 @@ function isFilled(value: string) {
   return value.trim().length > 0;
 }
 
-export function LandingPage({ next = null }: { next?: string | null }) {
+/** Another portfolio, the same way Profile adds one, then saved before leaving. */
+async function addFreshPortfolio(displayName: string, photoAttachmentId: string) {
+  const response = await fetch("/api/account/status", { cache: "no-store" });
+  if (!response.ok) throw new Error("Could not save the card");
+  const status = (await response.json()) as { portfolioLimit?: number };
+  const limit = status.portfolioLimit;
+  if (typeof limit !== "number") throw new Error("Could not save the card");
+  const before = useAppStore.getState().cards.length;
+  if (before >= limit) throw new Error("Could not add a portfolio.");
+  useAppStore.getState().updateSecondCardDraft({ displayName, photoAttachmentId }, limit);
+  const cards = useAppStore.getState().cards;
+  const card = cards.length === before + 1 ? cards[cards.length - 1] : null;
+  if (!card) throw new Error("Could not save the card");
+  const user = useAppStore.getState().user;
+  if (!user.onboarded) useAppStore.setState({ user: { ...user, onboarded: true } });
+  await upsertCardScalars(card);
+  const saved = await createBrowserSupabaseClient().from("cards").select("id").eq("id", card.id).maybeSingle();
+  if (!saved.data) throw new Error("Could not save the card");
+}
+
+export function LandingPage({ next = null, fresh = false }: { next?: string | null; fresh?: boolean }) {
   const router = useRouter();
   const after = next && isEventJoinPath(next) ? next : "/main";
   const [photo, setPhoto] = useState<string | null>(null);
@@ -46,8 +66,9 @@ export function LandingPage({ next = null }: { next?: string | null }) {
   const handleConfirm = () => {
     if (saving || !photo || !photoFile || !isFilled(name)) return;
     const existingId = useAppStore.getState().cards[0]?.id;
-    const cardId =
-      existingId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existingId)
+    const cardId = fresh
+      ? crypto.randomUUID()
+      : existingId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(existingId)
         ? existingId
         : crypto.randomUUID();
     const file = photoFile;
@@ -62,16 +83,20 @@ export function LandingPage({ next = null }: { next?: string | null }) {
         await startTrialClock();
       }
       const uploaded = await uploadAttachment({ file, kind: "card-photo", cardId });
-      completeOnboarding({
-        displayName,
-        photoAttachmentId: uploaded.attachmentId,
-        cardId,
-      });
-      if (after !== "/main") {
-        const card = useAppStore.getState().cards.find((entry) => entry.id === cardId);
-        if (card) await upsertCardScalars(card);
-        const saved = await createBrowserSupabaseClient().from("cards").select("id").eq("id", cardId).maybeSingle();
-        if (!saved.data) throw new Error("Could not save the card");
+      if (fresh) {
+        await addFreshPortfolio(displayName, uploaded.attachmentId);
+      } else {
+        completeOnboarding({
+          displayName,
+          photoAttachmentId: uploaded.attachmentId,
+          cardId,
+        });
+        if (after !== "/main") {
+          const card = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+          if (card) await upsertCardScalars(card);
+          const saved = await createBrowserSupabaseClient().from("cards").select("id").eq("id", cardId).maybeSingle();
+          if (!saved.data) throw new Error("Could not save the card");
+        }
       }
       router.push(after);
     })().catch((error: unknown) => {
