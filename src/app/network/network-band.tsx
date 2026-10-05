@@ -45,6 +45,11 @@ export function NetworkBand({ current }: { current: NetworkSection }) {
           {LABEL[left]}
         </button>
       }
+      center={
+        <button type="button" onClick={() => router.push("/main")} className={`${ITEM} justify-center`}>
+          Home
+        </button>
+      }
       right={
         <button type="button" onClick={() => router.push(ROUTE[right])} className={`${ITEM} justify-end`}>
           {LABEL[right]}
