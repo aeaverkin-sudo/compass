@@ -1,5 +1,5 @@
 const TOKEN = /^[A-Za-z0-9_-]{21}$/;
-const CODE = /^[А-Я0-9]{4,6}$/;
+const CODE = /^(?:[А-Я0-9]{4,6}|[A-HJ-NP-Z2-9]{4,6})$/;
 
 export function isEventLookup(value: string): boolean {
   return TOKEN.test(value) || CODE.test(value);

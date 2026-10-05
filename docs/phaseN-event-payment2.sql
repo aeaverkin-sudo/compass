@@ -31,3 +31,16 @@ alter table public.event_registrations drop constraint if exists event_registrat
 alter table public.event_registrations
   add constraint event_registrations_paid_source_check
   check (paid_source is null or paid_source in ('return', 'statement', 'manual'));
+
+-- A paid event can be saved before the organiser has a checkout link.
+-- A free event still cannot keep a payment URL.
+alter table public.events drop constraint if exists events_payment_pair_check;
+alter table public.events
+  add constraint events_payment_pair_check
+  check (payment_url is null or is_paid = true);
+
+-- New event codes are Latin. Older Cyrillic codes stay valid.
+alter table public.events drop constraint if exists events_code_shape;
+alter table public.events
+  add constraint events_code_shape
+  check (code ~ '^[А-Я0-9]{4,6}$' or code ~ '^[A-HJ-NP-Z2-9]{4,6}$');

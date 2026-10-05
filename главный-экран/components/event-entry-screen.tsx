@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Plus, Share } from "lucide-react";
+import { Plus, Share } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Switch } from "@/shared/components/ui/switch";
@@ -46,8 +46,6 @@ function ShareInvite({ onClick }: { onClick: () => void }) {
 
 const PLAIN =
   "w-full bg-transparent text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
-const WHEN =
-  "bg-transparent text-[var(--ink)] outline-none [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:text-left [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-fields-wrapper]:p-0";
 const LINK =
   "press text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 
@@ -198,48 +196,31 @@ function PlainField({
   );
 }
 
-function WhenField({
-  inputRef,
-  type,
-  value,
-  onChange,
-  placeholder,
-  width,
-}: {
+function WhenField({ inputRef, type, value, display, onChange, placeholder, width }: {
   inputRef: RefObject<HTMLInputElement | null>;
   type: "date" | "time";
   value: string;
+  display: string;
   onChange: (value: string) => void;
   placeholder: string;
   width: string;
 }) {
   return (
     <span className="relative inline-flex items-baseline" style={{ width }}>
-      {value ? null : (
-        <span className="pointer-events-none absolute left-0 text-[var(--placeholder)]" style={fieldStyle()}>
-          {placeholder}
-        </span>
-      )}
+      <span
+        className="pointer-events-none whitespace-nowrap"
+        style={{ ...fieldStyle(), color: value ? "var(--ink)" : "var(--placeholder)" }}
+      >
+        {value ? display : placeholder}
+      </span>
       <input
         ref={inputRef}
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-label={placeholder}
-        className={`relative ${WHEN}`}
-        style={{
-          ...fieldStyle(),
-          width,
-          margin: 0,
-          padding: 0,
-          border: 0,
-          appearance: "none",
-          WebkitAppearance: "none",
-          backgroundColor: "transparent",
-          minWidth: 0,
-          color: value ? "var(--ink)" : "transparent",
-          colorScheme: "light",
-        }}
+        className="absolute inset-0 opacity-0"
+        style={{ width, appearance: "none", WebkitAppearance: "none" }}
       />
     </span>
   );
@@ -275,6 +256,12 @@ function CreatedInvite({
       </Zone>
     </>
   );
+}
+
+function fmtDate(value: string): string {
+  if (!value) return "";
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year.slice(2)}`;
 }
 
 function previewDate(date: string, time: string): string | null {
@@ -426,15 +413,15 @@ export function EventEntryScreen() {
         },
       },
     ).then((outcome) => {
-      if (outcome === "copied") setNotice("Ссылка скопирована");
+      if (outcome === "copied") setNotice("Link copied");
     });
   };
 
   const submitEvent = async () => {
     if (!name.trim() || saving) return;
     const link = paid ? readPaymentUrl(paymentUrl) : null;
-    if (paid && !link) {
-      setCreateError(paymentUrl.trim() ? "That payment link is not a URL." : "Add a payment link.");
+    if (paid && paymentUrl.trim() && !link) {
+      setCreateError("That payment link is not a URL.");
       return;
     }
     setSaving(true);
@@ -446,9 +433,9 @@ export function EventEntryScreen() {
       body.set("place", place.trim());
       body.set("theme", theme);
       body.set("layout", layout);
-      if (paid && link) {
+      if (paid) {
         body.set("is_paid", "1");
-        body.set("payment_url", link);
+        if (link) body.set("payment_url", link);
       }
       if (date) {
         const when = new Date(`${date}T${time || "00:00"}`);
@@ -539,31 +526,39 @@ export function EventEntryScreen() {
               <PlainField inputRef={nameRef} value={name} onChange={setName} placeholder="Event name" />
             </Zone>
             <Zone label="When" rule onClick={(event) => focusField(event, dateRef.current)}>
-              <div className="flex min-w-0 flex-nowrap items-baseline gap-2">
+              <div className="flex items-baseline">
                 <WhenField
                   inputRef={dateRef}
                   type="date"
                   value={date}
+                  display={fmtDate(date)}
                   onChange={setDate}
                   placeholder="Date"
-                  width="calc(9ch + 6px)"
+                  width="8ch"
                 />
-                <WhenField
-                  inputRef={timeRef}
-                  type="time"
-                  value={time}
-                  onChange={setTime}
-                  placeholder="Start"
-                  width="5.5ch"
-                />
-                <WhenField
-                  inputRef={endRef}
-                  type="time"
-                  value={endTime}
-                  onChange={setEndTime}
-                  placeholder="End"
-                  width="4.5ch"
-                />
+                <div className="ml-6 flex items-baseline">
+                  <WhenField
+                    inputRef={timeRef}
+                    type="time"
+                    value={time}
+                    display={time}
+                    onChange={setTime}
+                    placeholder="Start"
+                    width="5ch"
+                  />
+                  <span aria-hidden className="mx-2 text-[var(--grey)]" style={fieldStyle()}>
+                    –
+                  </span>
+                  <WhenField
+                    inputRef={endRef}
+                    type="time"
+                    value={endTime}
+                    display={endTime}
+                    onChange={setEndTime}
+                    placeholder="End"
+                    width="5ch"
+                  />
+                </div>
               </div>
             </Zone>
             <Zone label="Place" rule onClick={(event) => focusField(event, placeRef.current)}>
@@ -590,6 +585,7 @@ export function EventEntryScreen() {
             />
             <Zone
               label="Logo"
+              align="center"
               rule
               onClick={(event) => {
                 if ((event.target as HTMLElement).closest("input")) return;
@@ -625,36 +621,39 @@ export function EventEntryScreen() {
                 />
               </div>
             </Zone>
-            <Zone label="Платный" align="center" rule>
-              <Switch
-                checked={paid}
-                onCheckedChange={(checked) => setPaid(checked === true)}
-                aria-label="Платный"
-              />
-            </Zone>
-            {paid ? (
-              <Zone
-                label={<span className="t-label whitespace-normal">Ссылка на оплату</span>}
-                align="start"
-                rule
-                onClick={(event) => focusField(event, paymentRef.current)}
-              >
-                <input
-                  ref={paymentRef}
-                  type="url"
-                  inputMode="url"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  value={paymentUrl}
-                  aria-label="Ссылка на оплату"
-                  placeholder="https://"
-                  onChange={(event) => setPaymentUrl(event.target.value)}
-                  className={PLAIN}
-                  style={fieldStyle()}
+            <Zone label="Payment" align="center" rule>
+              <div className="flex items-center gap-3">
+                <span className="t-caps text-[var(--grey)]">Free</span>
+                <Switch
+                  checked={paid}
+                  onCheckedChange={(checked) => setPaid(checked === true)}
+                  aria-label={paid ? "Paid" : "Free"}
                 />
-              </Zone>
-            ) : null}
+                <span className="t-caps text-[var(--grey)]">Paid</span>
+              </div>
+            </Zone>
+            <Zone
+              label={<span className="t-label whitespace-normal">Payment link</span>}
+              align="start"
+              rule
+              onClick={(event) => focusField(event, paymentRef.current)}
+            >
+              <input
+                ref={paymentRef}
+                type="url"
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={paymentUrl}
+                aria-label="Payment link"
+                placeholder="https://"
+                onChange={(event) => setPaymentUrl(event.target.value)}
+                className={PLAIN}
+                style={fieldStyle()}
+              />
+              <p className="mt-2 t-meta text-[var(--grey)]">Optional — you can add this later in the event.</p>
+            </Zone>
             <Zone label="Style" rule>
               <div className="flex flex-wrap gap-4">
                 {EVENT_LAYOUTS.map((item) => (
@@ -718,22 +717,14 @@ export function EventEntryScreen() {
               </p>
               {createError ? <p className="mt-2 t-meta text-[var(--ink)]">{createError}</p> : null}
             </div>
-            <div className="mt-auto flex items-center gap-1.5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-              <span className="t-label">Preview</span>
-              <ChevronDown className="size-4 shrink-0 text-[var(--grey)]" strokeWidth={1.5} aria-hidden />
-            </div>
-          </>
-        ) : null}
-        </div>
-        {step === "create" && !created ? (
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
-              className="press mt-6 block w-full border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
-              style={{ marginLeft: 0, paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}
+              className="press mt-8 block border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
+              style={{ marginLeft: VALUE_AXIS_PX, width: 150, paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}
             >
               <InviteCover
-                variant="preview"
+                variant="card"
                 layout={layout}
                 themeId={theme}
                 event={{
@@ -747,7 +738,9 @@ export function EventEntryScreen() {
                 }}
               />
             </button>
+          </>
         ) : null}
+        </div>
       </div>
       {previewOpen ? (
         <div

@@ -58,9 +58,8 @@ export async function POST(request: Request) {
 
   const paid = form.get("is_paid") === "1";
   const paymentRaw = textField(form.get("payment_url"), 2000);
-  const paymentUrl = paid ? readPaymentUrl(paymentRaw) : null;
-  if (paid && !paymentRaw) return noStore({ error: "Add a payment link." }, 400);
-  if (paid && !paymentUrl) return noStore({ error: "That payment link is not a URL." }, 400);
+  const paymentUrl = paid && paymentRaw ? readPaymentUrl(paymentRaw) : null;
+  if (paid && paymentRaw && !paymentUrl) return noStore({ error: "That payment link is not a URL." }, 400);
 
   const logo = form.get("logo");
   try {

@@ -14,7 +14,7 @@ import { isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/ev
 import { formatEventRange } from "@/shared/event/when";
 
 const PUBLIC_TOKEN_LENGTH = 21;
-const eventCode = customAlphabet("АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789", 5);
+const eventCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 5);
 
 export type CreatedEvent = {
   publicToken: string;
