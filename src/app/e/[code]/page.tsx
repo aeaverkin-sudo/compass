@@ -48,10 +48,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const counts = await loadOwnerEventCounts(event.id, viewerId);
 
   return (
-    <main
-      className="compass-main flex h-dvh w-full flex-col overflow-hidden text-[var(--ink)]"
-      style={{ background: "var(--backdrop, #eceae6)" }}
-    >
+    <main className="compass-main flex h-dvh w-full flex-col overflow-hidden bg-white text-[var(--ink)]">
       {fromList ? (
         <div
           className="flex shrink-0 items-center px-5"
