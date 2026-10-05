@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Plus, Share } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { Switch } from "@/shared/components/ui/switch";
 import { Zone } from "@/shared/components/zone";
 import { readPaymentUrl } from "@/shared/event/payment";
 import { shareInviteLink } from "@/shared/event/share-invite";
@@ -59,7 +58,6 @@ type EventDraftFields = {
   endTime: string;
   place: string;
   about: string;
-  paid: boolean;
   paymentUrl: string;
   theme: EventThemeId;
   layout: EventLayoutId;
@@ -95,7 +93,6 @@ function readEventDraft(): EventDraft | null {
       !isDraftString(data.place) ||
       !isDraftString(data.about) ||
       !isDraftString(data.paymentUrl) ||
-      typeof data.paid !== "boolean" ||
       typeof data.themeTouched !== "boolean" ||
       !isEventTheme(theme) ||
       !isEventLayout(layout)
@@ -109,7 +106,6 @@ function readEventDraft(): EventDraft | null {
       endTime: data.endTime,
       place: data.place,
       about: data.about,
-      paid: data.paid,
       paymentUrl: data.paymentUrl,
       theme,
       layout,
@@ -146,7 +142,6 @@ function sameDraft(a: EventDraftFields, b: EventDraftFields) {
     a.endTime === b.endTime &&
     a.place === b.place &&
     a.about === b.about &&
-    a.paid === b.paid &&
     a.paymentUrl === b.paymentUrl &&
     a.theme === b.theme &&
     a.layout === b.layout &&
@@ -286,7 +281,6 @@ export function EventEntryScreen() {
   const [endTime, setEndTime] = useState("");
   const [place, setPlace] = useState("");
   const [about, setAbout] = useState("");
-  const [paid, setPaid] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState("");
   const [logo, setLogo] = useState<string | null>(null);
   const [theme, setTheme] = useState<EventThemeId>("paper");
@@ -319,7 +313,6 @@ export function EventEntryScreen() {
     endTime,
     place,
     about,
-    paid,
     paymentUrl,
     theme,
     layout,
@@ -345,7 +338,7 @@ export function EventEntryScreen() {
     if (draftEcho.current && sameDraft(draftEcho.current, fields)) return;
     draftEcho.current = null;
     writeEventDraft(fields);
-  }, [step, name, date, time, endTime, place, about, paid, paymentUrl, theme, layout, themeTouched]);
+  }, [step, name, date, time, endTime, place, about, paymentUrl, theme, layout, themeTouched]);
 
   useEffect(() => {
     const draft = readEventDraft();
@@ -356,7 +349,6 @@ export function EventEntryScreen() {
       setEndTime(draft.endTime);
       setPlace(draft.place);
       setAbout(draft.about);
-      setPaid(draft.paid);
       setPaymentUrl(draft.paymentUrl);
       setTheme(draft.theme);
       setLayout(draft.layout);
@@ -419,8 +411,8 @@ export function EventEntryScreen() {
 
   const submitEvent = async () => {
     if (!name.trim() || saving) return;
-    const link = paid ? readPaymentUrl(paymentUrl) : null;
-    if (paid && paymentUrl.trim() && !link) {
+    const link = readPaymentUrl(paymentUrl);
+    if (paymentUrl.trim() && !link) {
       setCreateError("That payment link is not a URL.");
       return;
     }
@@ -433,9 +425,9 @@ export function EventEntryScreen() {
       body.set("place", place.trim());
       body.set("theme", theme);
       body.set("layout", layout);
-      if (paid) {
+      if (link) {
         body.set("is_paid", "1");
-        if (link) body.set("payment_url", link);
+        body.set("payment_url", link);
       }
       if (date) {
         const when = new Date(`${date}T${time || "00:00"}`);
@@ -621,17 +613,6 @@ export function EventEntryScreen() {
                 />
               </div>
             </Zone>
-            <Zone label="Payment" align="center" rule>
-              <div className="flex items-center gap-3">
-                <span className="t-caps text-[var(--grey)]">Free</span>
-                <Switch
-                  checked={paid}
-                  onCheckedChange={(checked) => setPaid(checked === true)}
-                  aria-label={paid ? "Paid" : "Free"}
-                />
-                <span className="t-caps text-[var(--grey)]">Paid</span>
-              </div>
-            </Zone>
             <Zone
               label={<span className="t-label whitespace-normal">Payment link</span>}
               align="start"
@@ -652,7 +633,9 @@ export function EventEntryScreen() {
                 className={PLAIN}
                 style={fieldStyle()}
               />
-              <p className="mt-2 t-meta text-[var(--grey)]">Optional — you can add this later in the event.</p>
+              <p className="mt-2 t-meta text-[var(--grey)]">
+                If guests pay to attend, paste your payment link (Stripe, PayPal, Revolut…) — they'll pay through it. No link means a free event.
+              </p>
             </Zone>
             <Zone label="Style" rule>
               <div className="flex flex-wrap gap-4">
