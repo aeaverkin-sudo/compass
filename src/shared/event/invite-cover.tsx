@@ -2,19 +2,13 @@
 
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
-import {
-  dottedDate,
-  eventClock,
-  eventDayLong,
-  eventDaySlash,
-  eventTimeRange,
-  eventYear,
-  romanYear,
-} from "@/shared/event/when";
+import { dottedDate, eventClock, eventDayLong, eventDaySlash, eventTimeRange } from "@/shared/event/when";
 
 const DESIGN_W = 286;
 const DESIGN_H = 404;
 const MODERN_PAPER = "#f6f5f0";
+const HAIR = "color-mix(in srgb, currentColor 26%, transparent)";
+const MONO_FACE = "var(--font-mono, inherit)";
 const MONO: CSSProperties = { fontFamily: "var(--font-mono, var(--font-sans))" };
 
 export type InviteCoverEvent = {
@@ -139,86 +133,103 @@ function Cover({
         ...paint,
       }}
     >
-      {layout === "grid" ? <BusinessCover event={event} /> : null}
+      {layout === "grid" ? <EditorialCover event={event} /> : null}
       {layout === "corners" ? <FashionCover event={event} /> : null}
       {layout === "oversized" ? <ModernCover event={event} /> : null}
     </div>
   );
 }
 
-function MetaLabel({ children }: { children: string }) {
+function editorialTitleSize(name: string): number {
+  const length = name.trim().length;
+  if (length <= 14) return 38;
+  if (length <= 26) return 30;
+  return 24;
+}
+
+function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ fontSize: 7.5, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.6, ...MONO }}>
-      {children}
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontFamily: MONO_FACE, fontSize: 7, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.55, marginBottom: 2 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 10.5, lineHeight: 1.35 }}>{value}</div>
     </div>
   );
 }
 
-function MetaValue({ children, style }: { children: string; style?: CSSProperties }) {
-  return <div style={{ fontSize: 11, lineHeight: 1.45, ...style }}>{children}</div>;
-}
-
-function Field({ label, children, valueStyle }: { label: string; children: string; valueStyle?: CSSProperties }) {
-  return (
-    <div>
-      <MetaLabel>{label}</MetaLabel>
-      <MetaValue style={valueStyle}>{children}</MetaValue>
-    </div>
-  );
-}
-
-function BusinessCover({ event }: { event: InviteCoverEvent }) {
+function EditorialCover({ event }: { event: InviteCoverEvent }) {
   const date = eventDayLong(event.date);
   const time = eventTimeRange(event.date, event.endDate);
   const place = placeLine(event);
-  const about = aboutLine(event);
-  const year = eventYear(event.date);
+  const about = event.description?.trim() || null;
+  const fields = (
+    <>
+      {date ? <Field label="Date" value={date} /> : null}
+      {time ? <Field label="Time" value={time} /> : null}
+      {place ? <Field label="Place" value={place} /> : null}
+    </>
+  );
 
   return (
-    <div style={{ boxSizing: "border-box", display: "flex", height: "100%", flexDirection: "column", padding: 20 }}>
-      <div style={{ fontWeight: 700, fontSize: 30, lineHeight: 0.95, letterSpacing: "-0.03em", ...clamp(3) }}>
-        {event.name}
-      </div>
-      <div style={{ height: 1.3, marginTop: 10, background: "currentColor" }} />
-      <div style={{ display: "grid", flex: 1, gridTemplateColumns: "1fr 1fr", gap: 13, marginTop: 13, minHeight: 0 }}>
-        <div style={{ display: "flex", minHeight: 0, flexDirection: "column", gap: 8 }}>
-          {date ? <Field label="Date">{date}</Field> : null}
-          {time ? <Field label="Time">{time}</Field> : null}
-          {place ? <Field label="Place">{place}</Field> : null}
-          {about ? (
-            <Field label="About" valueStyle={{ fontSize: 9, lineHeight: 1.5, opacity: 0.85 }}>
-              {about}
-            </Field>
-          ) : null}
+    <div style={{ position: "relative", height: "100%", boxSizing: "border-box" }}>
+      <div style={{ position: "absolute", inset: 14, border: `0.6px solid ${HAIR}`, pointerEvents: "none" }} />
+      <div
+        style={{
+          position: "relative",
+          height: "100%",
+          padding: "21px 22px",
+          display: "flex",
+          flexDirection: "column",
+          boxSizing: "border-box",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <span style={{ fontFamily: MONO_FACE, fontSize: 8, letterSpacing: "0.24em", fontWeight: 700 }}>ADED</span>
+          <span style={{ fontFamily: MONO_FACE, fontSize: 7, letterSpacing: "0.18em", opacity: 0.5, textTransform: "uppercase" }}>
+            Invitation
+          </span>
         </div>
-        <div
-          style={{
-            minHeight: 0,
-            borderLeft: "1px solid color-mix(in srgb, currentColor 33%, transparent)",
-            paddingLeft: 13,
-          }}
+        <div style={{ height: 0.6, background: HAIR, marginTop: 9 }} />
+        <h1
+          className="m-0 line-clamp-3"
+          style={{ marginTop: 13, fontWeight: 800, fontSize: editorialTitleSize(event.name), lineHeight: 0.86, letterSpacing: "-0.03em" }}
         >
-          {event.logoUrl ? (
-            <div
-              style={{
-                aspectRatio: "1.05",
-                marginBottom: 9,
-                overflow: "hidden",
-                border: "1px solid color-mix(in srgb, currentColor 55%, transparent)",
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={event.logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          {event.name}
+        </h1>
+        <div style={{ height: 1.4, background: "currentColor", marginTop: 13 }} />
+        <div style={{ display: "grid", gridTemplateColumns: about ? "96px 1fr" : "1fr", flex: 1, minHeight: 0, marginTop: 13 }}>
+          <div style={{ paddingRight: about ? 14 : 0 }}>
+            {event.logoUrl ? (
+              <div style={{ width: "100%", aspectRatio: "1.08", border: "0.8px solid currentColor", overflow: "hidden", marginBottom: 12 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={event.logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+            ) : null}
+            {about ? (
+              fields
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>{fields}</div>
+            )}
+          </div>
+          {about ? (
+            <div style={{ borderLeft: `0.6px solid ${HAIR}`, paddingLeft: 14 }}>
+              <div style={{ fontFamily: MONO_FACE, fontSize: 7, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.55, marginBottom: 6 }}>
+                About
+              </div>
+              <div
+                className="line-clamp-[10]"
+                style={{ fontSize: 9.5, lineHeight: 1.6, textAlign: "justify", overflowWrap: "break-word", whiteSpace: "pre-wrap" }}
+              >
+                {about}
+              </div>
             </div>
           ) : null}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Field label="Host">{`ADED · ${year}`}</Field>
-            <Field label="Entry">By invitation. RSVP via the link.</Field>
-          </div>
         </div>
-      </div>
-      <div style={{ marginTop: 10, fontSize: 7.5, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.7 }}>
-        Invitation — RSVP by the link
+        <div style={{ height: 0.6, background: HAIR, marginTop: 4 }} />
+        <div style={{ fontFamily: MONO_FACE, fontSize: 6.5, letterSpacing: "0.2em", textTransform: "uppercase", opacity: 0.5, marginTop: 6 }}>
+          ADED
+        </div>
       </div>
     </div>
   );
@@ -308,7 +319,7 @@ function FashionCover({ event }: { event: InviteCoverEvent }) {
           opacity: 0.85,
         }}
       >
-        {`ADED · ${romanYear(eventYear(event.date))}`}
+        ADED
       </div>
       <div style={hair} />
       <div
@@ -377,7 +388,7 @@ function ModernCover({ event }: { event: InviteCoverEvent }) {
           ...MONO,
         }}
       >
-        {`N°01 / ADED® · ${eventYear(event.date)}`}
+        ADED
       </div>
       {day ? (
         <div style={{ position: "absolute", top: 128, left: 18 }}>
