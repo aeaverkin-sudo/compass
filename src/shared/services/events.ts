@@ -46,6 +46,7 @@ export type CreateEventInput = {
   name: string;
   description: string | null;
   date: string | null;
+  endsAt: string | null;
   place: string | null;
   theme: EventThemeId;
   layout: EventLayoutId;
@@ -200,10 +201,20 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
 
   try {
     const insertEvent = async (row: Record<string, unknown>) => {
-      let inserted = await admin.from("events").insert(row).select("public_token, code, logo_attachment_id").single();
-      if (inserted.error && /could not find the 'layout' column/i.test(inserted.error.message)) {
-        const { layout: _layout, ...withoutLayout } = row;
-        inserted = await admin.from("events").insert(withoutLayout).select("public_token, code, logo_attachment_id").single();
+      let payload = row;
+      let inserted = await admin.from("events").insert(payload).select("public_token, code, logo_attachment_id").single();
+      for (let pass = 0; pass < 2 && inserted.error; pass += 1) {
+        const message = inserted.error.message;
+        if (/could not find the 'layout' column/i.test(message) && "layout" in payload) {
+          const { layout: _layout, ...withoutLayout } = payload;
+          payload = withoutLayout;
+        } else if (/could not find the 'ends_at' column/i.test(message) && "ends_at" in payload) {
+          const { ends_at: _endsAt, ...withoutEnd } = payload;
+          payload = withoutEnd;
+        } else {
+          break;
+        }
+        inserted = await admin.from("events").insert(payload).select("public_token, code, logo_attachment_id").single();
       }
       return inserted;
     };
@@ -217,6 +228,7 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
         logo_attachment_id: logo?.id ?? null,
         description: input.description,
         date: input.date,
+        ends_at: input.endsAt,
         place: input.place,
         place_secret: false,
         theme: input.theme,

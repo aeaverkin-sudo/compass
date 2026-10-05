@@ -52,6 +52,9 @@ export async function POST(request: Request) {
   const dateRaw = textField(form.get("date"), 40);
   const date = readEventDate(dateRaw);
   if (dateRaw && !date) return noStore({ error: "That date could not be read." }, 400);
+  const endRaw = textField(form.get("end"), 40);
+  const endsAt = readEventDate(endRaw);
+  if (endRaw && !endsAt) return noStore({ error: "That date could not be read." }, 400);
 
   const paid = form.get("is_paid") === "1";
   const paymentRaw = textField(form.get("payment_url"), 2000);
@@ -66,6 +69,7 @@ export async function POST(request: Request) {
       name,
       description: textField(form.get("description"), 4000) || null,
       date,
+      endsAt,
       place: textField(form.get("place"), 240) || null,
       theme: themeRaw && isEventTheme(themeRaw) ? themeRaw : "paper",
       layout: layoutRaw && isEventLayout(layoutRaw) ? layoutRaw : "grid",

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Share } from "lucide-react";
+import { ChevronDown, Plus, Share } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Switch } from "@/shared/components/ui/switch";
@@ -189,6 +189,7 @@ export function EventEntryScreen() {
   const [name, setName] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [place, setPlace] = useState("");
   const [about, setAbout] = useState("");
   const [paid, setPaid] = useState(false);
@@ -207,6 +208,7 @@ export function EventEntryScreen() {
   const nameRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const timeRef = useRef<HTMLInputElement>(null);
+  const endRef = useRef<HTMLInputElement>(null);
   const placeRef = useRef<HTMLInputElement>(null);
   const aboutRef = useRef<HTMLTextAreaElement>(null);
   const paymentRef = useRef<HTMLInputElement>(null);
@@ -299,6 +301,10 @@ export function EventEntryScreen() {
         const when = new Date(`${date}T${time || "00:00"}`);
         if (!Number.isNaN(when.getTime())) body.set("date", when.toISOString());
       }
+      if (date && endTime) {
+        const end = new Date(`${date}T${endTime}`);
+        if (!Number.isNaN(end.getTime())) body.set("end", end.toISOString());
+      }
       if (logoFile.current) body.set("logo", logoFile.current);
       const response = await fetch("/api/events", { method: "POST", body });
       const payload = (await response.json()) as CreatedEvent & { error?: string };
@@ -317,7 +323,12 @@ export function EventEntryScreen() {
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <div
+        className={`flex min-h-0 flex-1 flex-col overflow-y-auto px-[var(--gutter)] ${
+          step === "create" && !created ? "" : "pb-[max(2.5rem,env(safe-area-inset-bottom))]"
+        }`}
+      >
+        <div className={step === "create" && !created ? "flex min-h-full flex-1 flex-col" : undefined}>
         <ScreenHeader
           title={step === "create" ? "Create event" : "Event"}
           fallbackHref="/main"
@@ -372,7 +383,7 @@ export function EventEntryScreen() {
               <PlainField inputRef={nameRef} value={name} onChange={setName} placeholder="Event name" />
             </Zone>
             <Zone label="When" rule onClick={(event) => focusField(event, dateRef.current)}>
-              <div className="flex items-baseline gap-[18px]">
+              <div className="flex min-w-0 flex-nowrap items-baseline gap-2">
                 <WhenField
                   inputRef={dateRef}
                   type="date"
@@ -381,16 +392,21 @@ export function EventEntryScreen() {
                   placeholder="Date"
                   width="calc(9ch + 6px)"
                 />
-                <span aria-hidden className="text-[var(--grey)]" style={fieldStyle()}>
-                  ·
-                </span>
                 <WhenField
                   inputRef={timeRef}
                   type="time"
                   value={time}
                   onChange={setTime}
-                  placeholder="Time"
-                  width="5ch"
+                  placeholder="Start"
+                  width="5.5ch"
+                />
+                <WhenField
+                  inputRef={endRef}
+                  type="time"
+                  value={endTime}
+                  onChange={setEndTime}
+                  placeholder="End"
+                  width="4.5ch"
                 />
               </div>
             </Zone>
@@ -546,11 +562,19 @@ export function EventEntryScreen() {
               </p>
               {createError ? <p className="mt-2 t-meta text-[var(--ink)]">{createError}</p> : null}
             </div>
+            <div className="mt-auto flex items-center gap-1.5 pt-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+              <span className="t-label">Preview</span>
+              <ChevronDown className="size-4 shrink-0 text-[var(--grey)]" strokeWidth={1.5} aria-hidden />
+            </div>
+          </>
+        ) : null}
+        </div>
+        {step === "create" && !created ? (
             <button
               type="button"
               onClick={() => setPreviewOpen(true)}
               className="mt-6 block w-full border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
-              style={{ marginLeft: 0 }}
+              style={{ marginLeft: 0, paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}
             >
               <InviteCover
                 variant="preview"
@@ -566,7 +590,6 @@ export function EventEntryScreen() {
                 }}
               />
             </button>
-          </>
         ) : null}
       </div>
       {previewOpen ? (
