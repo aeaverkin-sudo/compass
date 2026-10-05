@@ -16,17 +16,44 @@ function clock(date: Date): string {
   }).format(date);
 }
 
-/** Date, then time when the organiser set one. Midnight stays a date only. */
-export function formatEventWhen(iso: string | null): string | null {
-  const date = parsed(iso);
-  if (!date) return null;
-  const day = new Intl.DateTimeFormat("en-GB", {
+function dayLabel(date: Date): string {
+  return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
   }).format(date);
+}
+
+function sameDay(left: Date, right: Date): boolean {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}
+
+/** Date, then time when the organiser set one. Midnight stays a date only. */
+export function formatEventWhen(iso: string | null): string | null {
+  const date = parsed(iso);
+  if (!date) return null;
+  const day = dayLabel(date);
   if (isMidnight(date)) return day;
   return `${day} · ${clock(date)}`;
+}
+
+/** «11 Oct 2026 · 15:00–19:00». No end keeps the start. No start is nothing. */
+export function formatEventRange(startIso: string | null, endIso: string | null): string | null {
+  const start = parsed(startIso);
+  if (!start) return null;
+  const end = parsed(endIso);
+  if (!end || isMidnight(end)) return formatEventWhen(startIso);
+  if (!sameDay(start, end)) {
+    const startWhen = formatEventWhen(startIso);
+    const endWhen = formatEventWhen(endIso);
+    return startWhen && endWhen ? `${startWhen} – ${endWhen}` : startWhen;
+  }
+  if (isMidnight(start)) return `${dayLabel(start)} · ${clock(end)}`;
+  return `${dayLabel(start)} · ${clock(start)}–${clock(end)}`;
 }
 
 /** 12 · 11 · 2026 */

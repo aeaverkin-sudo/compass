@@ -11,7 +11,7 @@ import {
 import { CARD_ATTACHMENTS_BUCKET, IMAGE_BYTE_LIMIT, IMAGE_MIMES } from "@/shared/services/attachment-limits";
 import { stripImageMetadata } from "@/shared/services/attachment-sanitize";
 import { isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
-import { formatEventWhen } from "@/shared/event/when";
+import { formatEventRange } from "@/shared/event/when";
 
 const PUBLIC_TOKEN_LENGTH = 21;
 const eventCode = customAlphabet("АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ0123456789", 5);
@@ -28,15 +28,19 @@ export type EventListStatus = "draft" | "live" | "past";
 export type ListedEvent = {
   name: string;
   publicToken: string;
-  status: EventListStatus;
-  date: string | null;
+  when: string | null;
   role: "owner" | "guest";
 };
 
-/** No date is a draft. A date that has passed is past. Anything still ahead is live. */
-export function eventListStatus(date: string | null, now = Date.now()): EventListStatus {
-  if (!date) return "draft";
-  const time = new Date(date).getTime();
+/** Past follows the end. With no end, the start decides. No date is still a draft. */
+export function eventListStatus(
+  date: string | null,
+  now = Date.now(),
+  endsAt: string | null = null,
+): EventListStatus {
+  const mark = endsAt ?? date;
+  if (!mark) return "draft";
+  const time = new Date(mark).getTime();
   if (Number.isNaN(time)) return "draft";
   return time < now ? "past" : "live";
 }
@@ -126,60 +130,78 @@ type MineRow = {
   name: string;
   publicToken: string;
   dateIso: string | null;
+  endsIso: string | null;
   role: "owner" | "guest";
 };
 
-/** Upcoming soonest first, undated in the middle, past most-recent first. */
-function compareMyEvents(a: MineRow, b: MineRow, now: number): number {
-  const bucket = (iso: string | null) => {
-    if (!iso) return 1;
-    const time = new Date(iso).getTime();
-    if (Number.isNaN(time)) return 1;
-    return time < now ? 2 : 0;
-  };
-  const left = bucket(a.dateIso);
-  const right = bucket(b.dateIso);
-  if (left !== right) return left - right;
-  const leftTime = a.dateIso ? new Date(a.dateIso).getTime() : 0;
-  const rightTime = b.dateIso ? new Date(b.dateIso).getTime() : 0;
-  if (left === 0) return leftTime - rightTime;
-  if (left === 2) return rightTime - leftTime;
-  return a.name.localeCompare(b.name);
+function startTime(iso: string | null): number | null {
+  if (!iso) return null;
+  const time = new Date(iso).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+/** Soonest start first. Undated drafts stay at the end. */
+function compareMyEvents(a: MineRow, b: MineRow): number {
+  const left = startTime(a.dateIso);
+  const right = startTime(b.dateIso);
+  if (left === null && right === null) return a.name.localeCompare(b.name);
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return left - right;
 }
 
 function toListed(row: MineRow): ListedEvent {
   return {
     name: row.name,
     publicToken: row.publicToken,
-    status: eventListStatus(row.dateIso),
-    date: formatEventWhen(row.dateIso),
+    when: formatEventRange(row.dateIso, row.endsIso),
     role: row.role,
   };
 }
 
-/** Events I organise, plus events I joined and do not organise. */
+function endsColumnMissing(message: string): boolean {
+  return /ends_at/i.test(message) && /column|schema/i.test(message);
+}
+
+type EventListRow = {
+  name: string;
+  date: string | null;
+  ends_at?: string | null;
+  public_token: string;
+  owner_id?: string;
+};
+
+/** Events I organise, plus events I joined and do not organise. Past ones stay off the list. */
 export async function listMyEvents(userId: string, now = Date.now()): Promise<ListedEvent[]> {
   const admin = createAdminSupabaseClient();
-  const owned = await admin.from("events").select("name, date, public_token").eq("owner_id", userId);
+  const ownedSelect = await admin.from("events").select("name, date, ends_at, public_token").eq("owner_id", userId);
+  const owned = ownedSelect.error && endsColumnMissing(ownedSelect.error.message)
+    ? await admin.from("events").select("name, date, public_token").eq("owner_id", userId)
+    : ownedSelect;
   if (owned.error) throw new Error(owned.error.message);
 
   const regs = await admin.from("event_registrations").select("event_id").eq("user_id", userId);
   if (regs.error) throw new Error(regs.error.message);
 
-  const ownedTokens = new Set((owned.data ?? []).map((row) => row.public_token));
+  const ownedRows = (owned.data ?? []) as EventListRow[];
+  const ownedTokens = new Set(ownedRows.map((row) => row.public_token));
   const ids = [...new Set((regs.data ?? []).map((row) => row.event_id as string))];
-  let guestRows: { name: string; date: string | null; public_token: string; owner_id: string }[] = [];
+  let guestRows: EventListRow[] = [];
   if (ids.length > 0) {
-    const guests = await admin.from("events").select("name, date, public_token, owner_id").in("id", ids);
+    const guestSelect = await admin.from("events").select("name, date, ends_at, public_token, owner_id").in("id", ids);
+    const guests = guestSelect.error && endsColumnMissing(guestSelect.error.message)
+      ? await admin.from("events").select("name, date, public_token, owner_id").in("id", ids)
+      : guestSelect;
     if (guests.error) throw new Error(guests.error.message);
-    guestRows = (guests.data ?? []) as typeof guestRows;
+    guestRows = (guests.data ?? []) as EventListRow[];
   }
 
   const rows: MineRow[] = [
-    ...(owned.data ?? []).map((row) => ({
+    ...ownedRows.map((row) => ({
       name: row.name,
       publicToken: row.public_token,
       dateIso: row.date,
+      endsIso: row.ends_at ?? null,
       role: "owner" as const,
     })),
     ...guestRows
@@ -188,10 +210,11 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
         name: row.name,
         publicToken: row.public_token,
         dateIso: row.date,
+        endsIso: row.ends_at ?? null,
         role: "guest" as const,
       })),
-  ];
-  rows.sort((a, b) => compareMyEvents(a, b, now));
+  ].filter((row) => eventListStatus(row.dateIso, now, row.endsIso) !== "past");
+  rows.sort(compareMyEvents);
   return rows.map(toListed);
 }
 

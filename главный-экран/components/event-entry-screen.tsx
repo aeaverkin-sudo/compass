@@ -6,7 +6,6 @@ import { ChevronDown, Plus, Share } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Switch } from "@/shared/components/ui/switch";
-import { Rule } from "@/shared/components/rule";
 import { Zone } from "@/shared/components/zone";
 import { readPaymentUrl } from "@/shared/event/payment";
 import { shareInviteLink } from "@/shared/event/share-invite";
@@ -18,7 +17,7 @@ import {
   type EventLayoutId,
   type EventThemeId,
 } from "@/shared/event/themes";
-import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { COLUMN_GAP_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 
 type Step = "entry" | "create";
@@ -31,14 +30,9 @@ type CreatedEvent = {
 type ListedEvent = {
   name: string;
   publicToken: string;
-  status: "draft" | "live" | "past";
-  date: string | null;
+  when: string | null;
   role: "owner" | "guest";
 };
-
-function inviteUrl(publicToken: string) {
-  return `${window.location.origin}/e/${publicToken}`;
-}
 
 function ShareInvite({ onClick }: { onClick: () => void }) {
   return (
@@ -346,29 +340,30 @@ export function EventEntryScreen() {
                 No events yet.
               </p>
             ) : (
-              events.map((event, index) => (
-                <div key={event.publicToken}>
-                  {index > 0 ? <Rule /> : null}
-                  <Zone label={event.role === "owner" ? "Owner" : "Guest"} align="start">
-                    <div className="flex items-start gap-3">
-                      <button
-                        type="button"
-                        onClick={() => openEvent(event)}
-                        className="min-w-0 flex-1 text-left [-webkit-tap-highlight-color:transparent]"
-                      >
-                        <span className="block t-body text-[var(--ink)]">{event.name}</span>
-                        <span className="mt-1 block t-meta text-[var(--grey)]">
-                          {event.status}
-                          {event.date ? ` · ${event.date}` : ""}
-                        </span>
-                      </button>
-                      {event.role === "owner" ? (
-                        <ShareInvite onClick={() => share(event.name, inviteUrl(event.publicToken))} />
-                      ) : null}
-                    </div>
-                  </Zone>
+              <section>
+                <div
+                  className="grid items-start"
+                  style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
+                >
+                  <span className="t-label pt-[14px]">Events</span>
+                  <ul>
+                    {events.map((event) => (
+                      <li key={event.publicToken}>
+                        <button
+                          type="button"
+                          onClick={() => openEvent(event)}
+                          className="block w-full py-[14px] text-left [-webkit-tap-highlight-color:transparent]"
+                        >
+                          <span className="block t-body text-[var(--ink)]">{event.name}</span>
+                          <span className="mt-1 block t-meta text-[var(--grey)]">
+                            {`${event.role === "owner" ? "Owner" : "Guest"}${event.when ? ` · ${event.when}` : " · Draft"}`}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              ))
+              </section>
             )}
           </>
         ) : null}
