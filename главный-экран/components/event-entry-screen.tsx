@@ -576,7 +576,7 @@ export function EventEntryScreen() {
               }}
             />
             <Zone
-              label="Logo"
+              label="Pic"
               align="center"
               rule
               onClick={(event) => {

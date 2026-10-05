@@ -79,8 +79,8 @@ export async function POST(request: Request) {
     return noStore(created);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (message === "logo_type") return noStore({ error: "Logo needs to be a PNG, JPG, WEBP, or SVG." }, 415);
-    if (message === "logo_too_large") return noStore({ error: "Logo is over 8 MB." }, 413);
+    if (message === "logo_type") return noStore({ error: "Pic needs to be a PNG, JPG, WEBP, or SVG." }, 415);
+    if (message === "logo_too_large") return noStore({ error: "Pic is over 8 MB." }, 413);
     console.error("[events] create", error);
     return noStore({ error: "Could not create the event." }, 500);
   }
