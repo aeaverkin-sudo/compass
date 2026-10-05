@@ -11,6 +11,7 @@ export type EventInvite = {
   logoAttachmentId: string | null;
   description: string | null;
   date: string | null;
+  endsAt: string | null;
   place: string | null;
   placeSecret: boolean;
   theme: EventThemeId;
@@ -52,26 +53,35 @@ export async function loadEventInvite(lookup: string): Promise<EventInvite | nul
   const row = (Array.isArray(loaded.data) ? loaded.data[0] : loaded.data) as InviteRow | undefined;
   if (!row?.id || !row.public_token || !row.code) return null;
 
+  const face = await readEventFace(row.id);
   return {
     id: row.id,
     name: row.name,
     logoAttachmentId: row.logo_attachment_id,
     description: row.description?.trim() || null,
     date: row.date,
+    endsAt: face.endsAt,
     place: row.place?.trim() || null,
     placeSecret: row.place_secret,
     theme: eventThemeFromStored(row.theme),
-    layout: await readEventLayout(row.id),
+    layout: face.layout,
     publicToken: row.public_token,
     code: row.code,
   };
 }
 
-/** Missing column and an unknown value both open as Clear. */
-async function readEventLayout(eventId: string): Promise<EventLayoutId> {
+/** Layout and end time sit beside the invite. A missing end column still opens. */
+async function readEventFace(eventId: string): Promise<{ layout: EventLayoutId; endsAt: string | null }> {
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin.from("events").select("layout").eq("id", eventId).maybeSingle();
-  if (error || !data) return "grid";
-  const value = String((data as { layout?: string | null }).layout ?? "");
-  return isEventLayout(value) ? value : "grid";
+  const withEnd = await admin.from("events").select("layout, ends_at").eq("id", eventId).maybeSingle();
+  if (withEnd.error && /ends_at/i.test(withEnd.error.message) && /column|schema/i.test(withEnd.error.message)) {
+    const layoutOnly = await admin.from("events").select("layout").eq("id", eventId).maybeSingle();
+    if (layoutOnly.error || !layoutOnly.data) return { layout: "grid", endsAt: null };
+    const value = String((layoutOnly.data as { layout?: string | null }).layout ?? "");
+    return { layout: isEventLayout(value) ? value : "grid", endsAt: null };
+  }
+  if (withEnd.error || !withEnd.data) return { layout: "grid", endsAt: null };
+  const row = withEnd.data as { layout?: string | null; ends_at?: string | null };
+  const value = String(row.layout ?? "");
+  return { layout: isEventLayout(value) ? value : "grid", endsAt: row.ends_at ?? null };
 }

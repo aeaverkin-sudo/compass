@@ -1,10 +1,9 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { fitTitle, type FittedTitle } from "@/shared/event/fit-title";
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
-import { dottedDate, eventClock, eventYear, fashionWhen, formatEventWhen, romanYear } from "@/shared/event/when";
+import { dottedDate, eventClock, eventYear, fashionWhen, formatEventRange, romanYear } from "@/shared/event/when";
 
 const CARD_W = 260;
 const CARD_H = 390;
@@ -15,6 +14,7 @@ export type InviteCoverEvent = {
   name: string;
   description: string | null;
   date: string | null;
+  endDate: string | null;
   place: string | null;
   placeSecret: boolean;
   logoUrl: string | null;
@@ -113,7 +113,7 @@ function CoverBoard({ event, layout, themeId, variant }: InviteCoverProps) {
 function GridCover({ event }: { event: InviteCoverEvent }) {
   const place = placeLine(event);
   const about = aboutLine(event);
-  const when = formatEventWhen(event.date);
+  const when = formatEventRange(event.date, event.endDate);
   const rows = [
     when ? { label: "Date", value: when } : null,
     place ? { label: "Place", value: place } : null,
@@ -151,9 +151,6 @@ function GridCover({ event }: { event: InviteCoverEvent }) {
           ))}
         </div>
       ) : null}
-      <div className="mt-8 flex items-end justify-end">
-        <AdedWordmark color="currentColor" className="block h-auto w-10" />
-      </div>
     </div>
   );
 }

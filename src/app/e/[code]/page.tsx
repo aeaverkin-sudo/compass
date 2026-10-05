@@ -72,6 +72,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
               name: event.name,
               description: event.description,
               date: event.date,
+              endDate: event.endsAt,
               place: event.place,
               placeSecret: event.placeSecret,
               logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,

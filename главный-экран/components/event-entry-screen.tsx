@@ -283,6 +283,12 @@ function previewDate(date: string, time: string): string | null {
   return Number.isNaN(when.getTime()) ? null : when.toISOString();
 }
 
+function previewEnd(date: string, endTime: string): string | null {
+  if (!date || !endTime) return null;
+  const end = new Date(`${date}T${endTime}`);
+  return Number.isNaN(end.getTime()) ? null : end.toISOString();
+}
+
 /** Event door and create. */
 export function EventEntryScreen() {
   const router = useRouter();
@@ -734,6 +740,7 @@ export function EventEntryScreen() {
                   name: name.trim() || "Event name",
                   description: about.trim() || null,
                   date: previewDate(date, time),
+                  endDate: previewEnd(date, endTime),
                   place: place.trim() || null,
                   placeSecret: false,
                   logoUrl: logo,
@@ -762,6 +769,7 @@ export function EventEntryScreen() {
               name: name.trim() || "Event name",
               description: about.trim() || null,
               date: previewDate(date, time),
+              endDate: previewEnd(date, endTime),
               place: place.trim() || null,
               placeSecret: false,
               logoUrl: logo,

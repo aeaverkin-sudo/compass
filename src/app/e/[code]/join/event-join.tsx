@@ -4,15 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { BusinessCard } from "@main/components/business-card";
-import { browseCardHeight, SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { NetworkBand } from "@/app/network/network-band";
-import { BackButton } from "@/shared/components/back-button";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Switch } from "@/shared/components/ui/switch";
+import { InviteCover } from "@/shared/event/invite-cover";
 import { InviteQr } from "@/shared/event/invite-qr";
-import { COLUMN_GAP_PX, HEADER_ROW_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { COLUMN_GAP_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { BadgeFace, EventRegistration, PortfolioChoice } from "@/shared/services/event-registration";
 import type { EventInvite } from "@/shared/services/event-invite";
 
@@ -30,8 +28,6 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
   const [busy, setBusy] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [analytics, setAnalytics] = useState(registration?.consentAnalytics ?? false);
-  const [connections, setConnections] = useState(registration?.consentConnections ?? false);
   const [consentAnalytics, setConsentAnalytics] = useState(true);
   const [consentConnections, setConsentConnections] = useState(true);
 
@@ -58,79 +54,34 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
     }
   };
 
-  const saveConsent = async (next: { analytics: boolean; connections: boolean }) => {
-    const previous = { analytics, connections };
-    setAnalytics(next.analytics);
-    setConnections(next.connections);
-    setError(null);
-    try {
-      const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/register`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-      if (!response.ok) {
-        setAnalytics(previous.analytics);
-        setConnections(previous.connections);
-        setError("Could not save");
-      }
-    } catch {
-      setAnalytics(previous.analytics);
-      setConnections(previous.connections);
-      setError("Could not save");
-    }
-  };
-
   if (registration && badge) {
     const checkIn = `${origin}/e/${encodeURIComponent(event.code)}/b/${registration.regToken}`;
-    const headerTop = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
-    const cardTop = `calc(${headerTop} + ${HEADER_ROW_PX}px + 18px)`;
     return (
-      <main className="compass-main fixed inset-0 overflow-y-auto bg-white">
-        <p
-          className="pointer-events-none fixed z-20 m-0 flex items-center t-meta text-[var(--grey)]"
-          style={{
-            top: headerTop,
-            left: `calc(var(--gutter) + ${VALUE_AXIS_PX}px)`,
-            height: HEADER_ROW_PX,
-          }}
-        >
-          You're going
-        </p>
-        <div
-          className="bg-white"
-          style={{
-            paddingTop: cardTop,
-            ["--card-frame-top" as string]: `calc(100svh - (${browseCardHeight()}))`,
-          }}
-        >
-          <BackButton fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
-          <BusinessCard card={badge.card} library={badge.items} mode="browse" readOnly />
-        </div>
-        <div className="bg-white px-[var(--gutter)] pt-10 pb-16">
-          <InviteQr url={checkIn} />
-          <p className="mt-4 mb-0 t-meta text-[var(--grey)]">Check-in</p>
-          <div className="mt-8 flex items-center justify-between gap-4">
-            <span className="t-body" id="consent-analytics">
-              Share anonymous analytics
-            </span>
-            <Switch
-              checked={analytics}
-              onCheckedChange={(checked) => void saveConsent({ analytics: checked, connections })}
-              aria-labelledby="consent-analytics"
+      <main className="compass-main min-h-dvh overflow-y-auto bg-white text-[var(--ink)]">
+        <div className="px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+          <ScreenHeader title={event.name} fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
+          <p className="mb-0 t-meta text-[var(--grey)]">You're going</p>
+          <div className="flex flex-col items-center pt-8">
+            <InviteQr url={checkIn} />
+            <p className="mt-4 mb-0 t-caps">Check-in</p>
+            <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Show this at the door</p>
+          </div>
+          <div className="mt-10 flex justify-center">
+            <InviteCover
+              variant="card"
+              layout={event.layout}
+              themeId={event.theme}
+              event={{
+                name: event.name,
+                description: event.description,
+                date: event.date,
+                endDate: event.endsAt,
+                place: event.place,
+                placeSecret: event.placeSecret,
+                logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
+              }}
             />
           </div>
-          <div className="mt-4 flex items-center justify-between gap-4">
-            <span className="t-body" id="consent-connections">
-              Allow connections
-            </span>
-            <Switch
-              checked={connections}
-              onCheckedChange={(checked) => void saveConsent({ analytics, connections: checked })}
-              aria-labelledby="consent-connections"
-            />
-          </div>
-          {error ? <p className="mt-4 mb-0 t-meta text-[var(--grey)]">{error}</p> : null}
         </div>
       </main>
     );
