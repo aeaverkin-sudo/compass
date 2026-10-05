@@ -61,7 +61,7 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
     const headerTop = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
     return (
       <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
-        <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-8">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-[var(--gutter)]">
           <BackButton fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
           <h1
             className="pointer-events-none fixed inset-x-0 z-20 m-0 flex items-center justify-center t-caps text-[var(--ink)]"
@@ -69,27 +69,34 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
           >
             You're going
           </h1>
-          <div aria-hidden className="mb-[18px] shrink-0" style={{ height: `calc(${headerTop} + ${HEADER_ROW_PX}px)` }} />
-          <div className="flex flex-col items-center pt-6">
+          <div aria-hidden className="shrink-0" style={{ height: `calc(${headerTop} + ${HEADER_ROW_PX}px)` }} />
+          <div className="flex shrink-0 flex-col items-center pt-4">
             <InviteQr url={checkIn} size={220} />
             <p className="mt-4 mb-0 t-caps">Check-in</p>
             <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Show this at the door</p>
           </div>
-          <div className="mt-10 flex justify-center">
-            <InviteCover
-              variant="card"
-              layout={event.layout}
-              themeId={event.theme}
-              event={{
-                name: event.name,
-                description: event.description,
-                date: event.date,
-                endDate: event.endsAt,
-                place: event.place,
-                placeSecret: event.placeSecret,
-                logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
-              }}
-            />
+          <div
+            className="flex min-h-0 w-full flex-1 items-center justify-center py-4"
+            style={{ containerType: "size" }}
+          >
+            <div className="relative aspect-square" style={{ width: "min(100cqw, 100cqh)" }}>
+              <div className="absolute inset-0">
+                <InviteCover
+                  variant="square"
+                  layout={event.layout}
+                  themeId={event.theme}
+                  event={{
+                    name: event.name,
+                    description: event.description,
+                    date: event.date,
+                    endDate: event.endsAt,
+                    place: event.place,
+                    placeSecret: event.placeSecret,
+                    logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
+                  }}
+                />
+              </div>
+            </div>
           </div>
         </div>
         <NetworkBand current="event" />

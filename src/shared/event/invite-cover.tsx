@@ -24,7 +24,7 @@ type InviteCoverProps = {
   event: InviteCoverEvent;
   layout: EventLayoutId;
   themeId: EventThemeId;
-  variant: "page" | "preview" | "card";
+  variant: "page" | "preview" | "card" | "square";
 };
 
 function placeLine(event: InviteCoverEvent): string | null {
@@ -85,7 +85,9 @@ function CoverBoard({ event, layout, themeId, variant }: InviteCoverProps) {
       ? "mx-auto flex min-h-dvh w-full max-w-[430px] flex-col"
       : variant === "card"
         ? "mx-auto flex w-full max-w-[380px] shrink-0 flex-col overflow-hidden"
-        : "flex h-full w-full flex-col";
+        : variant === "square"
+          ? "flex h-full w-full flex-col overflow-hidden"
+          : "flex h-full w-full flex-col";
   const cardSize: CSSProperties =
     variant === "card"
       ? { width: "min(100%, 380px, calc((100dvh - 14rem) * 0.72))", aspectRatio: "0.72" }
@@ -101,7 +103,7 @@ function CoverBoard({ event, layout, themeId, variant }: InviteCoverProps) {
         fontFamily: "var(--font-sans)",
       }}
     >
-      {layout === "grid" ? <GridCover event={event} /> : null}
+      {layout === "grid" ? <GridCover event={event} fill={variant === "square"} /> : null}
       {layout === "corners" ? <CornersCover event={event} /> : null}
       {layout === "oversized" ? (
         <OversizedCover event={event} bleed={variant === "page" ? "calc(14px - var(--gutter))" : "-4px"} />
@@ -110,7 +112,7 @@ function CoverBoard({ event, layout, themeId, variant }: InviteCoverProps) {
   );
 }
 
-function GridCover({ event }: { event: InviteCoverEvent }) {
+function GridCover({ event, fill = false }: { event: InviteCoverEvent; fill?: boolean }) {
   const place = placeLine(event);
   const about = aboutLine(event);
   const when = formatEventRange(event.date, event.endDate);
@@ -120,12 +122,12 @@ function GridCover({ event }: { event: InviteCoverEvent }) {
   ].filter((row): row is { label: string; value: string } => Boolean(row));
 
   return (
-    <div className="flex flex-col">
+    <div className={fill ? "flex h-full min-h-0 flex-col" : "flex flex-col"}>
       {event.logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={event.logoUrl} alt="" className="mb-4 size-8 object-contain" />
+        <img src={event.logoUrl} alt="" className="mb-4 size-8 shrink-0 object-contain" />
       ) : null}
-      <p className="t-label mb-4">Invitation</p>
+      <p className="t-label mb-4 shrink-0">Invitation</p>
       <GridTitle name={event.name} />
       {about ? (
         <p
@@ -136,7 +138,7 @@ function GridCover({ event }: { event: InviteCoverEvent }) {
         </p>
       ) : null}
       {rows.length > 0 ? (
-        <div className="mt-6" style={{ borderTop: `1px solid ${HAIRLINE}` }}>
+        <div className={fill ? "mt-auto shrink-0 pt-4" : "mt-6"} style={{ borderTop: `1px solid ${HAIRLINE}` }}>
           {rows.map((row) => (
             <div
               key={row.label}

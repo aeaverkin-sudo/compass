@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { EventJoin } from "./join/event-join";
 import { InviteCover } from "@/shared/event/invite-cover";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
-import { loadOwnerEventCounts } from "@/shared/services/event-registration";
+import { loadOwnerEventCounts, loadOwnedBadge, loadOwnRegistration } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
+import { requestOrigin } from "@/shared/services/public-card-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,25 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   }
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
-  const viewerId = data.user && !data.user.is_anonymous ? data.user.id : null;
+  const user = data.user ?? null;
+  if (user) {
+    const registration = await loadOwnRegistration(event.id, user.id);
+    const badge = registration ? await loadOwnedBadge(user.id, registration.cardId) : null;
+    if (registration && badge) {
+      const origin = await requestOrigin();
+      return (
+        <EventJoin
+          lookup={lookup}
+          event={event}
+          origin={origin}
+          portfolios={[]}
+          registration={registration}
+          badge={badge}
+        />
+      );
+    }
+  }
+  const viewerId = user && !user.is_anonymous ? user.id : null;
   const counts = await loadOwnerEventCounts(event.id, viewerId);
 
   return (
