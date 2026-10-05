@@ -1,0 +1,31 @@
+# Замок. Строка: название | файл | слова страницы в чате.
+# Правка останавливается. Она проходит после «разрешаю» с названием страницы или после «да» на запрос.
+# Общие шапка, Zone, нижняя лента и globals.css здесь не стоят: они на многих экранах.
+
+Визитки | src/app/main/page.tsx | визитк, главный экран, главную страницу, страницу с визитками, main screen, /main, main/page
+Визитки | главный-экран/components/main-screen.tsx | визитк, главный экран, главную страницу, страницу с визитками, main screen, main-screen
+Визитки | главный-экран/components/business-card.tsx | визитк, главный экран, главную страницу, страницу с визитками, business-card
+Визитки | главный-экран/components/card-carousel.tsx | визитк, главный экран, главную страницу, страницу с визитками, card-carousel
+Визитки | главный-экран/components/qr-zone.tsx | визитк, главный экран, главную страницу, страницу с визитками, qr-zone
+Визитки | главный-экран/components/card-name-field.tsx | визитк, главный экран, главную страницу, страницу с визитками, card-name
+Визитки | главный-экран/components/card-edit-list.tsx | визитк, главный экран, главную страницу, страницу с визитками, card-edit
+Визитки | главный-экран/components/contact-item-chip.tsx | визитк, главный экран, главную страницу, страницу с визитками, contact-item-chip
+Визитки | главный-экран/components/notes-rubric.tsx | визитк, главный экран, главную страницу, страницу с визитками, notes-rubric
+Визитки | главный-экран/components/bottom-nav.tsx | визитк, главный экран, главную страницу, страницу с визитками, bottom-nav
+Визитки | главный-экран/components/next-scan-menu.tsx | визитк, главный экран, главную страницу, страницу с визитками, next-scan
+
+Профиль | src/app/profile/page.tsx | профиль, профайл, profile, profile/page
+Профиль | src/app/profile/profile-screen.tsx | профиль, профайл, profile, profile-screen
+
+Лендинг | лендинг-страницы/components/landing-page.tsx | лендинг, landing, посадочн, landing-page
+
+Sign in and Sign up | src/app/register/register-screen.tsx | sign in, sign-in, signin, sign up, sign-up, signup, register-screen, странице входа, страницу входа, странице регистрации, страницу регистрации
+Sign in and Sign up | src/app/register/page.tsx | sign in, sign-in, signin, sign up, sign-up, signup, register/page, странице входа, страницу входа, странице регистрации, страницу регистрации
+
+Network | src/app/network/page.tsx | network, нетворк, страницу контактов, контакты, no contacts, network/page
+Network | src/app/network/network-screen.tsx | network, нетворк, страницу контактов, контакты, no contacts, network-screen
+
+Список замков | .cursor/locks.txt | locks.txt, список замков, замок на
+Список замков | .cursor/hooks/lock-screens.mjs | lock-screens
+Список замков | .cursor/hooks.json | hooks.json
+Список замков | .cursor/rules/locked-screens.mdc | locked-screens

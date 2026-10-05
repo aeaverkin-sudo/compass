@@ -42,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Screen-lock consent for the current chat. The lock list itself stays tracked.
+.cursor/locks/
