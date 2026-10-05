@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { BusinessCard } from "@main/components/business-card";
 import { browseCardHeight, SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { NetworkBand } from "@/app/network/network-band";
@@ -32,6 +32,8 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState(registration?.consentAnalytics ?? false);
   const [connections, setConnections] = useState(registration?.consentConnections ?? false);
+  const [consentAnalytics, setConsentAnalytics] = useState(true);
+  const [consentConnections, setConsentConnections] = useState(true);
 
   const choose = async (cardId: string) => {
     if (busy) return;
@@ -41,7 +43,7 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
       const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId }),
+        body: JSON.stringify({ cardId, consentAnalytics, consentConnections }),
       });
       const body = (await response.json()) as { error?: string };
       if (!response.ok) {
@@ -144,83 +146,112 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
         <p className="mb-0 t-meta text-[var(--grey)]">
           Pick the card you bring to {event.name} — your badge at the door, and what you share.
         </p>
-        <div className="pt-[18px]">
-          {portfolios.map((portfolio, index) => (
-            <PickerRow key={portfolio.id} label={index === 0} rule={index > 0}>
-              <button
-                type="button"
-                aria-pressed={selectedId === portfolio.id}
-                disabled={busy !== null}
-                onClick={() => setSelectedId(portfolio.id)}
-                className="press flex w-full min-w-0 items-center gap-4 border-0 bg-transparent p-0 text-left text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
-              >
-                <PortfolioPhoto src={portfolio.photoAttachmentId ? `/f/${portfolio.photoAttachmentId}` : null} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate t-name">{portfolio.name || "Untitled"}</span>
-                  {portfolio.title ? (
-                    <span className="mt-1 block truncate t-meta text-[var(--grey)]">{portfolio.title}</span>
-                  ) : null}
-                </span>
-                <span
-                  aria-hidden
-                  className={
-                    selectedId === portfolio.id
-                      ? "flex size-[22px] shrink-0 items-center justify-center rounded-full bg-sky text-[var(--ink)]"
-                      : "size-[22px] shrink-0"
-                  }
+        <div
+          className="grid items-start pt-[18px]"
+          style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
+        >
+          <span className="t-label pt-[18px]">Portfolio</span>
+          <div className="min-w-0">
+            {portfolios.map((portfolio) => {
+              const selected = selectedId === portfolio.id;
+              return (
+                <button
+                  key={portfolio.id}
+                  type="button"
+                  aria-pressed={selected}
+                  disabled={busy !== null}
+                  onClick={() => setSelectedId(portfolio.id)}
+                  className="press flex w-full min-w-0 items-center border-0 bg-transparent px-0 py-[18px] text-left disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+                  style={{ gap: COLUMN_GAP_PX }}
                 >
-                  {selectedId === portfolio.id ? <Check className="size-3.5" strokeWidth={2.5} /> : null}
+                  <PortfolioPhoto src={portfolio.photoAttachmentId ? `/f/${portfolio.photoAttachmentId}` : null} />
+                  <span className="min-w-0 flex-1">
+                    <span className={`block truncate t-body ${selected ? "text-[var(--ink)]" : "text-[var(--grey)]"}`}>
+                      {portfolio.name || "Untitled"}
+                    </span>
+                    {portfolio.title ? (
+                      <span className="mt-1 block truncate t-meta text-[var(--grey)]">{portfolio.title}</span>
+                    ) : null}
+                  </span>
+                </button>
+              );
+            })}
+            <div className="py-[18px]">
+              <Link
+                href={createHref}
+                className="press flex w-full min-w-0 items-center gap-4 text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+              >
+                <span aria-hidden className="flex size-[56px] shrink-0 items-center justify-center bg-[#f3f3f3]">
+                  <Plus className="size-6" strokeWidth={1.5} />
                 </span>
-              </button>
-            </PickerRow>
-          ))}
-          <PickerRow label={portfolios.length === 0} rule={portfolios.length > 0}>
-            <Link
-              href={createHref}
-              className="press flex w-full min-w-0 items-center gap-4 text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
-            >
-              <span aria-hidden className="flex size-[56px] shrink-0 items-center justify-center bg-[#f3f3f3]">
-                <Plus className="size-6" strokeWidth={1.5} />
+                <span className="min-w-0 truncate t-name">New card for this event</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+        <Rule />
+        <div
+          className="grid items-start py-[18px]"
+          style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
+        >
+          <span className="t-label">Sharing</span>
+          <div className="flex min-w-0 flex-col gap-5">
+            <div className="flex items-start" style={{ gap: COLUMN_GAP_PX }}>
+              <span className="flex w-10 shrink-0">
+                <Switch
+                  checked={consentAnalytics}
+                  onCheckedChange={setConsentAnalytics}
+                  aria-labelledby="join-consent-analytics"
+                />
               </span>
-              <span className="min-w-0 truncate t-name">New card for this event</span>
-            </Link>
-          </PickerRow>
+              <span className="min-w-0">
+                <span id="join-consent-analytics" className="block t-body text-[var(--ink)]">
+                  Share anonymous analytics
+                </span>
+                <span className="mt-1 block t-meta text-[var(--grey)]">
+                  Nobody sees your personal details — only an anonymous business summary.
+                </span>
+              </span>
+            </div>
+            <div className="flex items-start" style={{ gap: COLUMN_GAP_PX }}>
+              <span className="flex w-10 shrink-0">
+                <Switch
+                  checked={consentConnections}
+                  onCheckedChange={setConsentConnections}
+                  aria-labelledby="join-consent-connections"
+                />
+              </span>
+              <span className="min-w-0">
+                <span id="join-consent-connections" className="block t-body text-[var(--ink)]">
+                  Allow connections
+                </span>
+                <span className="mt-1 block t-meta text-[var(--grey)]">
+                  Your summary can be matched to the right people — say, an investor you're looking for.
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="pb-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
+          <button
+            type="button"
+            disabled={!selectedId || busy !== null}
+            onClick={() => {
+              if (selectedId) void choose(selectedId);
+            }}
+            className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+          >
+            I'm going →
+          </button>
         </div>
         {error ? <p className="mb-0 t-meta text-[var(--grey)]">{error}</p> : null}
-      </div>
-      <div className="shrink-0 px-[var(--gutter)] pt-3 pb-4">
-        <button
-          type="button"
-          disabled={!selectedId || busy !== null}
-          onClick={() => {
-            if (selectedId) void choose(selectedId);
-          }}
-          className="press border-0 bg-[var(--ink)] px-[21.6px] py-[10.8px] t-caps text-white disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
-        >
-          I'm going →
-        </button>
       </div>
       <NetworkBand current="event" />
     </main>
   );
 }
 
-function PickerRow({ label, rule, children }: { label: boolean; rule: boolean; children: ReactNode }) {
-  return (
-    <div>
-      {rule ? <Rule /> : null}
-      <div
-        className="grid items-start py-[18px]"
-        style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
-      >
-        <span className="t-label whitespace-nowrap">{label ? "Portfolios" : ""}</span>
-        <div className="min-w-0">{children}</div>
-      </div>
-    </div>
-  );
-}
-
 function PortfolioPhoto({ src }: { src: string | null }) {
-  if (!src) return <span aria-hidden className="size-[56px] shrink-0 bg-[#f3f3f3]" />;
-  return <img src={src} alt="" className="size-[56px] shrink-0 object-cover" />;
+  if (!src) return <span aria-hidden className="size-[40px] shrink-0 bg-[#f3f3f3]" />;
+  return <img src={src} alt="" className="size-[40px] shrink-0 object-cover" />;
 }

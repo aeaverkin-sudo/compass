@@ -29,15 +29,26 @@ export async function POST(request: Request, context: RouteProps) {
 
   const { code } = await context.params;
   let cardId = "";
+  let consentAnalytics = false;
+  let consentConnections = false;
   try {
-    const body = (await request.json()) as { cardId?: unknown };
+    const body = (await request.json()) as {
+      cardId?: unknown;
+      consentAnalytics?: unknown;
+      consentConnections?: unknown;
+    };
     cardId = typeof body.cardId === "string" ? body.cardId : "";
+    consentAnalytics = body.consentAnalytics === true;
+    consentConnections = body.consentConnections === true;
   } catch {
     return noStore({ error: "Choose a portfolio." }, 400);
   }
 
   try {
-    const result = await registerForEvent(userId, code, cardId);
+    const result = await registerForEvent(userId, code, cardId, {
+      analytics: consentAnalytics,
+      connections: consentConnections,
+    });
     if (!result.ok) return noStore({ error: result.error }, result.status);
     return noStore({
       regToken: result.registration.regToken,

@@ -165,6 +165,7 @@ export async function registerForEvent(
   userId: string,
   lookup: string,
   cardId: string,
+  consent: { analytics: boolean; connections: boolean } = { analytics: false, connections: false },
 ): Promise<{ ok: true; event: EventInvite; registration: EventRegistration } | { ok: false; status: number; error: string }> {
   const event = await loadEventInvite(lookup);
   if (!event) return { ok: false, status: 404, error: "Event not found" };
@@ -190,6 +191,8 @@ export async function registerForEvent(
         user_id: userId,
         card_id: cardId,
         reg_token: nanoid(TOKEN_LENGTH),
+        consent_analytics: consent.analytics,
+        consent_connections: consent.connections,
       })
       .select("id, event_id, card_id, reg_token, consent_analytics, consent_connections")
       .single();
