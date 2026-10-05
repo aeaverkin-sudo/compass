@@ -13,6 +13,8 @@ import { InviteCover } from "@/shared/event/invite-cover";
 import {
   EVENT_LAYOUTS,
   EVENT_THEMES,
+  isEventLayout,
+  isEventTheme,
   layoutDefaultTheme,
   type EventLayoutId,
   type EventThemeId,
@@ -48,6 +50,111 @@ const WHEN =
   "bg-transparent text-[var(--ink)] outline-none [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:text-left [&::-webkit-datetime-edit]:p-0 [&::-webkit-datetime-edit-fields-wrapper]:p-0";
 const LINK =
   "press text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
+
+const DRAFT_KEY = "aded:event-draft";
+const DRAFT_TTL_MS = 60 * 60 * 1000;
+
+type EventDraftFields = {
+  name: string;
+  date: string;
+  time: string;
+  endTime: string;
+  place: string;
+  about: string;
+  paid: boolean;
+  paymentUrl: string;
+  theme: EventThemeId;
+  layout: EventLayoutId;
+  themeTouched: boolean;
+};
+
+type EventDraft = EventDraftFields & { savedAt: number };
+
+function isDraftString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function readEventDraft(): EventDraft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as Partial<EventDraft>;
+    if (
+      !data ||
+      typeof data.savedAt !== "number" ||
+      !Number.isFinite(data.savedAt) ||
+      Date.now() - data.savedAt > DRAFT_TTL_MS
+    ) {
+      return null;
+    }
+    const theme = data.theme ?? "";
+    const layout = data.layout ?? "";
+    if (
+      !isDraftString(data.name) ||
+      !isDraftString(data.date) ||
+      !isDraftString(data.time) ||
+      !isDraftString(data.endTime) ||
+      !isDraftString(data.place) ||
+      !isDraftString(data.about) ||
+      !isDraftString(data.paymentUrl) ||
+      typeof data.paid !== "boolean" ||
+      typeof data.themeTouched !== "boolean" ||
+      !isEventTheme(theme) ||
+      !isEventLayout(layout)
+    ) {
+      return null;
+    }
+    return {
+      name: data.name,
+      date: data.date,
+      time: data.time,
+      endTime: data.endTime,
+      place: data.place,
+      about: data.about,
+      paid: data.paid,
+      paymentUrl: data.paymentUrl,
+      theme,
+      layout,
+      themeTouched: data.themeTouched,
+      savedAt: data.savedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeEventDraft(fields: EventDraftFields) {
+  try {
+    const draft: EventDraft = { ...fields, savedAt: Date.now() };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    /* private mode or a blocked store: the form still works */
+  }
+}
+
+function clearEventDraft() {
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* private mode or a blocked store */
+  }
+}
+
+function sameDraft(a: EventDraftFields, b: EventDraftFields) {
+  return (
+    a.name === b.name &&
+    a.date === b.date &&
+    a.time === b.time &&
+    a.endTime === b.endTime &&
+    a.place === b.place &&
+    a.about === b.about &&
+    a.paid === b.paid &&
+    a.paymentUrl === b.paymentUrl &&
+    a.theme === b.theme &&
+    a.layout === b.layout &&
+    a.themeTouched === b.themeTouched
+  );
+}
 const SKY_BUTTON =
   "press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 
@@ -208,6 +315,23 @@ export function EventEntryScreen() {
   const paymentRef = useRef<HTMLInputElement>(null);
   const aboutBox = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
+  const draftReady = useRef(false);
+  /** Restored or just-created fields. Don't write them back and refresh the hour. */
+  const draftEcho = useRef<EventDraftFields | null>(null);
+
+  const draftFields = (): EventDraftFields => ({
+    name,
+    date,
+    time,
+    endTime,
+    place,
+    about,
+    paid,
+    paymentUrl,
+    theme,
+    layout,
+    themeTouched,
+  });
 
   const sizeAbout = (node: HTMLTextAreaElement) => {
     node.style.height = "auto";
@@ -221,6 +345,35 @@ export function EventEntryScreen() {
   useEffect(() => {
     if (step === "create" && aboutRef.current) sizeAbout(aboutRef.current);
   }, [step, about]);
+
+  useEffect(() => {
+    if (!draftReady.current || step !== "create") return;
+    const fields = draftFields();
+    if (draftEcho.current && sameDraft(draftEcho.current, fields)) return;
+    draftEcho.current = null;
+    writeEventDraft(fields);
+  }, [step, name, date, time, endTime, place, about, paid, paymentUrl, theme, layout, themeTouched]);
+
+  useEffect(() => {
+    const draft = readEventDraft();
+    if (draft) {
+      setName(draft.name);
+      setDate(draft.date);
+      setTime(draft.time);
+      setEndTime(draft.endTime);
+      setPlace(draft.place);
+      setAbout(draft.about);
+      setPaid(draft.paid);
+      setPaymentUrl(draft.paymentUrl);
+      setTheme(draft.theme);
+      setLayout(draft.layout);
+      setThemeTouched(draft.themeTouched);
+      draftEcho.current = draft;
+    } else {
+      clearEventDraft();
+    }
+    draftReady.current = true;
+  }, []);
 
   useEffect(() => {
     if (step !== "entry") return;
@@ -306,6 +459,8 @@ export function EventEntryScreen() {
         setCreateError(payload.error ?? "Could not create the event.");
         return;
       }
+      draftEcho.current = draftFields();
+      clearEventDraft();
       setCreated(payload);
     } catch {
       setCreateError("Could not create the event.");
