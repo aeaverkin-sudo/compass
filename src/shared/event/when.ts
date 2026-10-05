@@ -56,6 +56,28 @@ export function formatEventRange(startIso: string | null, endIso: string | null)
   return `${dayLabel(start)} · ${clock(start)}–${clock(end)}`;
 }
 
+/** «19 Oct 2026» — день, короткий месяц, год (без времени). */
+export function eventDayLong(iso: string | null): string | null {
+  const date = parsed(iso);
+  return date ? dayLabel(date) : null;
+}
+
+/** «19 / 10» — день / месяц. */
+export function eventDaySlash(iso: string | null): string | null {
+  const date = parsed(iso);
+  return date ? `${date.getDate()} / ${date.getMonth() + 1}` : null;
+}
+
+/** «19:43 – 22:43». Нет конца, другой день или полночь начала → одно время или null. */
+export function eventTimeRange(startIso: string | null, endIso: string | null): string | null {
+  const start = parsed(startIso);
+  if (!start || isMidnight(start)) return null;
+  const startClock = clock(start);
+  const end = parsed(endIso);
+  if (!end || isMidnight(end) || !sameDay(start, end)) return startClock;
+  return `${startClock} – ${clock(end)}`;
+}
+
 /** 12 · 11 · 2026 */
 export function dottedDate(iso: string | null): string | null {
   const date = parsed(iso);

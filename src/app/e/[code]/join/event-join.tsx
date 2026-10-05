@@ -97,9 +97,8 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
             className="flex min-h-0 w-full flex-1 items-center justify-center py-4"
             style={{ containerType: "size" }}
           >
-            <div className="relative aspect-square" style={{ width: "min(100cqw, 100cqh)" }}>
-              <div className="absolute inset-0">
-                <InviteCover
+            <div style={{ width: "min(100cqw, calc(100cqh * 286 / 404))" }}>
+              <InviteCover
                   variant="square"
                   layout={event.layout}
                   themeId={event.theme}
@@ -113,7 +112,6 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
                     logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
                   }}
                 />
-              </div>
             </div>
           </div>
         </div>

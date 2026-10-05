@@ -3,7 +3,7 @@ export const EVENT_THEMES = [
   { id: "paper", label: "Paper", ground: "#ffffff", ink: "#111111", dark: false },
   { id: "stone", label: "Stone", ground: "#ebebeb", ink: "#111111", dark: false },
   { id: "sky", label: "Sky", ground: "#c5e8f7", ink: "#111111", dark: false },
-  { id: "orange", label: "Orange", ground: "#E8640C", ink: "#111111", dark: false },
+  { id: "orange", label: "Orange", ground: "#E8640C", ink: "#ffffff", dark: true },
   { id: "blue", label: "Blue", ground: "#1f3bd6", ink: "#ffffff", dark: true },
   { id: "noir", label: "Noir", ground: "#111111", ink: "#ffffff", dark: true },
 ] as const;
@@ -11,9 +11,9 @@ export const EVENT_THEMES = [
 export type EventThemeId = (typeof EVENT_THEMES)[number]["id"];
 
 export const EVENT_LAYOUTS = [
-  { id: "grid", label: "Clear", defaultTheme: "paper" },
-  { id: "corners", label: "Fine", defaultTheme: "noir" },
-  { id: "oversized", label: "Bold", defaultTheme: "orange" },
+  { id: "grid", label: "1", defaultTheme: "noir" },
+  { id: "corners", label: "2", defaultTheme: "stone" },
+  { id: "oversized", label: "3", defaultTheme: "blue" },
 ] as const;
 
 export type EventLayoutId = (typeof EVENT_LAYOUTS)[number]["id"];
