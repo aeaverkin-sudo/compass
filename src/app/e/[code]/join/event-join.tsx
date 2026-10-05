@@ -179,12 +179,13 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
             <div className="py-[18px]">
               <Link
                 href={createHref}
-                className="press flex w-full min-w-0 items-center gap-4 text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+                className="press flex w-full min-w-0 items-center text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+                style={{ gap: COLUMN_GAP_PX }}
               >
-                <span aria-hidden className="flex size-[56px] shrink-0 items-center justify-center bg-[#f3f3f3]">
-                  <Plus className="size-6" strokeWidth={1.5} />
+                <span aria-hidden className="flex w-10 shrink-0 items-center justify-center">
+                  <Plus className="size-6 text-[var(--ink)]" strokeWidth={1.5} />
                 </span>
-                <span className="min-w-0 truncate t-name">New card for this event</span>
+                <span className="min-w-0 truncate t-body text-[var(--ink)]">Create new</span>
               </Link>
             </div>
           </div>
