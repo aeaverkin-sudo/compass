@@ -3,15 +3,16 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { BusinessCard } from "@main/components/business-card";
+import { browseCardHeight, SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { NetworkBand } from "@/app/network/network-band";
 import { BackButton } from "@/shared/components/back-button";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Switch } from "@/shared/components/ui/switch";
 import { InviteQr } from "@/shared/event/invite-qr";
-import { COLUMN_GAP_PX, LABEL_COLUMN_PX } from "@/shared/layout/axes";
+import { COLUMN_GAP_PX, HEADER_ROW_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { BadgeFace, EventRegistration, PortfolioChoice } from "@/shared/services/event-registration";
 import type { EventInvite } from "@/shared/services/event-invite";
 
@@ -27,6 +28,7 @@ type EventJoinProps = {
 export function EventJoin({ lookup, event, origin, portfolios, registration, badge }: EventJoinProps) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState(registration?.consentAnalytics ?? false);
   const [connections, setConnections] = useState(registration?.consentConnections ?? false);
@@ -79,9 +81,27 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
 
   if (registration && badge) {
     const checkIn = `${origin}/e/${encodeURIComponent(event.code)}/b/${registration.regToken}`;
+    const headerTop = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
+    const cardTop = `calc(${headerTop} + ${HEADER_ROW_PX}px + 18px)`;
     return (
       <main className="compass-main fixed inset-0 overflow-y-auto bg-white">
-        <div className="bg-white pt-[84px]" style={{ ["--card-frame-top" as string]: "84px" }}>
+        <p
+          className="pointer-events-none fixed z-20 m-0 flex items-center t-meta text-[var(--grey)]"
+          style={{
+            top: headerTop,
+            left: `calc(var(--gutter) + ${VALUE_AXIS_PX}px)`,
+            height: HEADER_ROW_PX,
+          }}
+        >
+          You're going
+        </p>
+        <div
+          className="bg-white"
+          style={{
+            paddingTop: cardTop,
+            ["--card-frame-top" as string]: `calc(100svh - (${browseCardHeight()}))`,
+          }}
+        >
           <BackButton fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
           <BusinessCard card={badge.card} library={badge.items} mode="browse" readOnly />
         </div>
@@ -129,16 +149,27 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
             <PickerRow key={portfolio.id} label={index === 0} rule={index > 0}>
               <button
                 type="button"
+                aria-pressed={selectedId === portfolio.id}
                 disabled={busy !== null}
-                onClick={() => void choose(portfolio.id)}
+                onClick={() => setSelectedId(portfolio.id)}
                 className="flex w-full min-w-0 items-center gap-4 border-0 bg-transparent p-0 text-left text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
               >
                 <PortfolioPhoto src={portfolio.photoAttachmentId ? `/f/${portfolio.photoAttachmentId}` : null} />
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block truncate t-name">{portfolio.name || "Untitled"}</span>
                   {portfolio.title ? (
                     <span className="mt-1 block truncate t-meta text-[var(--grey)]">{portfolio.title}</span>
                   ) : null}
+                </span>
+                <span
+                  aria-hidden
+                  className={
+                    selectedId === portfolio.id
+                      ? "flex size-[22px] shrink-0 items-center justify-center rounded-full bg-sky text-[var(--ink)]"
+                      : "size-[22px] shrink-0"
+                  }
+                >
+                  {selectedId === portfolio.id ? <Check className="size-3.5" strokeWidth={2.5} /> : null}
                 </span>
               </button>
             </PickerRow>
@@ -156,6 +187,18 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
           </PickerRow>
         </div>
         {error ? <p className="mb-0 t-meta text-[var(--grey)]">{error}</p> : null}
+      </div>
+      <div className="shrink-0 px-[var(--gutter)] pt-3 pb-4">
+        <button
+          type="button"
+          disabled={!selectedId || busy !== null}
+          onClick={() => {
+            if (selectedId) void choose(selectedId);
+          }}
+          className="border-0 bg-[var(--ink)] px-[21.6px] py-[10.8px] t-caps text-white disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+        >
+          I'm going →
+        </button>
       </div>
       <NetworkBand current="event" />
     </main>
