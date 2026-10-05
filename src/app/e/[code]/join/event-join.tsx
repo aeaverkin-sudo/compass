@@ -4,13 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { NetworkBand } from "@/app/network/network-band";
+import { BackButton } from "@/shared/components/back-button";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Switch } from "@/shared/components/ui/switch";
 import { InviteCover } from "@/shared/event/invite-cover";
 import { InviteQr } from "@/shared/event/invite-qr";
-import { COLUMN_GAP_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { COLUMN_GAP_PX, HEADER_ROW_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { BadgeFace, EventRegistration, PortfolioChoice } from "@/shared/services/event-registration";
 import type { EventInvite } from "@/shared/services/event-invite";
 
@@ -56,13 +58,20 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
 
   if (registration && badge) {
     const checkIn = `${origin}/e/${encodeURIComponent(event.code)}/b/${registration.regToken}`;
+    const headerTop = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
     return (
-      <main className="compass-main min-h-dvh overflow-y-auto bg-white text-[var(--ink)]">
-        <div className="px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-          <ScreenHeader title={event.name} fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
-          <p className="mb-0 t-meta text-[var(--grey)]">You're going</p>
-          <div className="flex flex-col items-center pt-8">
-            <InviteQr url={checkIn} />
+      <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-8">
+          <BackButton fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
+          <h1
+            className="pointer-events-none fixed inset-x-0 z-20 m-0 flex items-center justify-center t-caps text-[var(--ink)]"
+            style={{ top: headerTop, height: HEADER_ROW_PX }}
+          >
+            You're going
+          </h1>
+          <div aria-hidden className="mb-[18px] shrink-0" style={{ height: `calc(${headerTop} + ${HEADER_ROW_PX}px)` }} />
+          <div className="flex flex-col items-center pt-6">
+            <InviteQr url={checkIn} size={220} />
             <p className="mt-4 mb-0 t-caps">Check-in</p>
             <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Show this at the door</p>
           </div>
@@ -83,6 +92,7 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
             />
           </div>
         </div>
+        <NetworkBand current="event" />
       </main>
     );
   }
