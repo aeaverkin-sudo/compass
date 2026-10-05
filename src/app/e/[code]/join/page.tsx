@@ -6,6 +6,7 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 import { listOwnPortfolios, loadOwnRegistration, loadOwnedBadge } from "@/shared/services/event-registration";
+import { loadEventPay } from "@/shared/services/event-payment";
 import { EventGate } from "./event-gate";
 import { EventJoin } from "./event-join";
 
@@ -66,6 +67,7 @@ export default async function EventJoinPage({ params }: PageProps) {
     redirect(`/try?next=${encodeURIComponent(next)}`);
   }
   const origin = await requestOrigin();
+  const pay = await loadEventPay(event.id);
 
   return (
     <EventJoin
@@ -76,6 +78,7 @@ export default async function EventJoinPage({ params }: PageProps) {
       portfolios={portfolios}
       registration={badge ? registration : null}
       badge={badge}
+      pay={pay}
     />
   );
 }

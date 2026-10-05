@@ -49,6 +49,7 @@ export type ManageLoad = { kind: "missing" } | { kind: "forbidden" } | { kind: "
 
 export type EventGuest = {
   id: string;
+  userId: string;
   name: string;
   photoUrl: string | null;
   paid: boolean;
@@ -268,6 +269,7 @@ export async function listEventGuests(eventId: string): Promise<EventGuestList> 
       const photoId = card?.photo_attachment_id ?? null;
       return {
         id: row.id,
+        userId: row.user_id,
         name: guestName(card?.display_name),
         photoUrl: photoId ? photos.get(photoId) ?? null : null,
         paid: row.paid_status === "paid",

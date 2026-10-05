@@ -93,10 +93,13 @@ export function ManageHome({
       ) : null}
       {shown("payment") ? (
         <Zone label="Payment" rule={last !== "payment"}>
-          <Entry>
-            <span className="t-body">{paymentValue}</span>
+          <Link
+            href={href("/manage/payment")}
+            className="press flex items-center justify-between gap-3 text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+          >
+            <span className="min-w-0 t-body">{paymentValue}</span>
             <Chevron />
-          </Entry>
+          </Link>
         </Zone>
       ) : null}
       {shown("managers") ? (

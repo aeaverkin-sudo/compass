@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
-import { listEventGuests, loadManageEvent } from "@/shared/services/event-manage";
-import { GuestsScreen } from "./guests-screen";
+import { requestOrigin } from "@/shared/services/public-card-meta";
+import { loadManageEvent } from "@/shared/services/event-manage";
+import { loadEventPay } from "@/shared/services/event-payment";
+import { PaymentScreen } from "./payment-screen";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Guests" };
+export const metadata: Metadata = { title: "Payment" };
 
 type PageProps = { params: Promise<{ code: string }> };
 
@@ -18,23 +20,22 @@ function once(value: string): string {
   }
 }
 
-export default async function ManageGuestsPage({ params }: PageProps) {
+export default async function ManagePaymentPage({ params }: PageProps) {
   const { code } = await params;
   const lookup = once(code);
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) notFound();
-  const access = await loadManageEvent(lookup, data.user.id);
+  const access = await loadManageEvent(lookup, data.user.id, "payments");
   if (access.kind !== "ok") notFound();
-  const canSee = access.event.role === "owner" || access.event.permissions.guests || access.event.permissions.payments;
-  if (!canSee) notFound();
-  const list = await listEventGuests(access.event.id);
+  const pay = await loadEventPay(access.event.id);
+  const origin = await requestOrigin();
 
   return (
-    <GuestsScreen
+    <PaymentScreen
       lookup={lookup}
-      guests={list.guests}
-      canMark={access.event.role === "owner" || access.event.permissions.payments}
+      pay={pay}
+      returnUrl={`${origin}/e/${encodeURIComponent(access.event.code)}/paid`}
     />
   );
 }

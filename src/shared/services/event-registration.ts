@@ -15,6 +15,7 @@ export type EventRegistration = {
   regToken: string;
   consentAnalytics: boolean;
   consentConnections: boolean;
+  paidStatus: "paid" | "unpaid" | null;
 };
 
 export type BadgeFace = {
@@ -36,9 +37,11 @@ type RegistrationRow = {
   reg_token: string;
   consent_analytics: boolean;
   consent_connections: boolean;
+  paid_status?: string | null;
 };
 
 function mapRegistration(row: RegistrationRow): EventRegistration {
+  const paid = row.paid_status;
   return {
     id: row.id,
     eventId: row.event_id,
@@ -46,19 +49,25 @@ function mapRegistration(row: RegistrationRow): EventRegistration {
     regToken: row.reg_token,
     consentAnalytics: row.consent_analytics,
     consentConnections: row.consent_connections,
+    paidStatus: paid === "paid" || paid === "unpaid" ? paid : null,
   };
 }
 
 export async function loadOwnRegistration(eventId: string, userId: string): Promise<EventRegistration | null> {
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin
+  const columns = "id, event_id, card_id, reg_token, consent_analytics, consent_connections";
+  const withPaid = await admin
     .from("event_registrations")
-    .select("id, event_id, card_id, reg_token, consent_analytics, consent_connections")
+    .select(`${columns}, paid_status`)
     .eq("event_id", eventId)
     .eq("user_id", userId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ? mapRegistration(data as RegistrationRow) : null;
+  const loaded =
+    withPaid.error && /paid_status/i.test(withPaid.error.message) && /column|schema/i.test(withPaid.error.message)
+      ? await admin.from("event_registrations").select(columns).eq("event_id", eventId).eq("user_id", userId).maybeSingle()
+      : withPaid;
+  if (loaded.error) throw new Error(loaded.error.message);
+  return loaded.data ? mapRegistration(loaded.data as RegistrationRow) : null;
 }
 
 export async function listOwnPortfolios(userId: string): Promise<PortfolioChoice[]> {

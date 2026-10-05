@@ -12,6 +12,7 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { Switch } from "@/shared/components/ui/switch";
 import { InviteCover } from "@/shared/event/invite-cover";
 import { InviteQr } from "@/shared/event/invite-qr";
+import { payButtonLabel, type EventPay } from "@/shared/event/payment-label";
 import { COLUMN_GAP_PX, HEADER_ROW_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { BadgeFace, EventRegistration, PortfolioChoice } from "@/shared/services/event-registration";
 import type { EventInvite } from "@/shared/services/event-invite";
@@ -23,9 +24,10 @@ type EventJoinProps = {
   portfolios: PortfolioChoice[];
   registration: EventRegistration | null;
   badge: BadgeFace | null;
+  pay: EventPay;
 };
 
-export function EventJoin({ lookup, event, origin, portfolios, registration, badge }: EventJoinProps) {
+export function EventJoin({ lookup, event, origin, portfolios, registration, badge, pay }: EventJoinProps) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
   };
 
   if (registration && badge) {
+    const blocked = pay.isPaid && pay.badgeGate && registration.paidStatus !== "paid";
     const checkIn = `${origin}/e/${encodeURIComponent(event.code)}/b/${registration.regToken}`;
     const headerTop = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
     return (
@@ -70,11 +73,26 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
             You're going
           </h1>
           <div aria-hidden className="shrink-0" style={{ height: `calc(${headerTop} + ${HEADER_ROW_PX}px)` }} />
-          <div className="flex shrink-0 flex-col items-center pt-4">
-            <InviteQr url={checkIn} size={220} />
-            <p className="mt-4 mb-0 t-caps">Check-in</p>
-            <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Show this at the door</p>
-          </div>
+          {blocked ? (
+            <div className="flex shrink-0 flex-col items-center pt-4 text-center">
+              <p className="mb-0 t-caps">Payment required</p>
+              {pay.paymentUrl ? (
+                <a
+                  href={pay.paymentUrl}
+                  className="press mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+                >
+                  {payButtonLabel(pay.price, pay.currency)}
+                </a>
+              ) : null}
+              <p className="mt-4 mb-0 t-meta text-[var(--grey)]">Your badge activates once payment is confirmed</p>
+            </div>
+          ) : (
+            <div className="flex shrink-0 flex-col items-center pt-4">
+              <InviteQr url={checkIn} size={220} />
+              <p className="mt-4 mb-0 t-caps">Check-in</p>
+              <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Show this at the door</p>
+            </div>
+          )}
           <div
             className="flex min-h-0 w-full flex-1 items-center justify-center py-4"
             style={{ containerType: "size" }}

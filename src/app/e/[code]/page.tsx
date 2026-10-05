@@ -6,6 +6,7 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadOwnerEventCounts, loadOwnedBadge, loadOwnRegistration } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
+import { loadEventPay } from "@/shared/services/event-payment";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
     const badge = registration ? await loadOwnedBadge(user.id, registration.cardId) : null;
     if (registration && badge) {
       const origin = await requestOrigin();
+      const pay = await loadEventPay(event.id);
       return (
         <EventJoin
           lookup={lookup}
@@ -60,6 +62,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
           portfolios={[]}
           registration={registration}
           badge={badge}
+          pay={pay}
         />
       );
     }
