@@ -18,12 +18,17 @@ export const runtime = "nodejs";
 
 const IMMUTABLE_CACHE = "private, max-age=31536000, immutable";
 
+function nosniff(response: NextResponse) {
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  return response;
+}
+
 function notFound() {
-  return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return nosniff(NextResponse.json({ error: "Not found" }, { status: 404 }));
 }
 
 function serverError(message: string) {
-  return NextResponse.json({ error: message }, { status: 500 });
+  return nosniff(NextResponse.json({ error: message }, { status: 500 }));
 }
 
 function downloadName(originalName: string | null, id: string): string {
@@ -67,7 +72,7 @@ export async function GET(
   // Bytes behind an id never change, so a cached copy is always current.
   const etag = `"${attachmentId}"`;
   if (request.headers.get("if-none-match") === etag) {
-    return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": IMMUTABLE_CACHE } });
+    return nosniff(new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": IMMUTABLE_CACHE } }));
   }
 
   let row: AttachmentRow | null;
@@ -99,7 +104,7 @@ export async function GET(
   if (isOfficeDocMime(row.mime) && !wantRaw) {
     const rawUrl = `${publicOrigin(request)}/f/${attachmentId}?raw=1`;
     const viewer = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(rawUrl)}`;
-    return NextResponse.redirect(viewer, 302);
+    return nosniff(NextResponse.redirect(viewer, 302));
   }
 
   const admin = createAdminSupabaseClient();
@@ -114,6 +119,7 @@ export async function GET(
         "Content-Disposition": dispositionHeader(row),
         "Cache-Control": IMMUTABLE_CACHE,
         ETag: etag,
+        "X-Content-Type-Options": "nosniff",
       },
     });
   }
@@ -130,6 +136,7 @@ export async function GET(
   headers.set("Content-Disposition", dispositionHeader(row));
   headers.set("Accept-Ranges", "bytes");
   headers.set("Cache-Control", "private, max-age=0, must-revalidate");
+  headers.set("X-Content-Type-Options", "nosniff");
   const length = upstream.headers.get("content-length");
   if (length) headers.set("Content-Length", length);
   const contentRange = upstream.headers.get("content-range");
