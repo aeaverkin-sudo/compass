@@ -11,7 +11,7 @@ export const PERMISSION_LABEL: Record<EventPermission, string> = {
   team: "Team",
 };
 
-export const MANAGE_SECTIONS = ["event", "invite", "guests", "payment", "managers", "checkin", "analytics", "edit"] as const;
+export const MANAGE_SECTIONS = ["guests", "payment", "managers", "checkin"] as const;
 export type ManageSection = (typeof MANAGE_SECTIONS)[number];
 
 const SECTION_PERMISSION: Partial<Record<ManageSection, EventPermission>> = {
@@ -19,8 +19,6 @@ const SECTION_PERMISSION: Partial<Record<ManageSection, EventPermission>> = {
   payment: "payments",
   managers: "team",
   checkin: "checkin",
-  analytics: "analytics",
-  edit: "edit",
 };
 
 const MANAGER_CAP = 5;

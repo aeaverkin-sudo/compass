@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { formatEventRange } from "@/shared/event/when";
+import { priceLabel } from "@/shared/event/payment-label";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { requestOrigin } from "@/shared/services/public-card-meta";
-import { loadManageEvent, managerCap, visibleSections } from "@/shared/services/event-manage";
+import { listEventGuests, listEventManagers, loadManageEvent, managerCap, visibleSections } from "@/shared/services/event-manage";
+import { loadEventInvite } from "@/shared/services/event-invite";
+import { loadEventPay, loadPaymentTally } from "@/shared/services/event-payment";
 import { ManageHome } from "./manage-home";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = { title: "Event" };
 
-type PageProps = { params: Promise<{ code: string }> };
+type PageProps = {
+  params: Promise<{ code: string }>;
+  searchParams: Promise<{ created?: string; saved?: string }>;
+};
 
 function once(value: string): string {
   try {
@@ -20,14 +25,9 @@ function once(value: string): string {
   }
 }
 
-function eventLine(date: string | null, endsAt: string | null, place: string | null, placeSecret: boolean, status: string): string {
-  const when = formatEventRange(date, endsAt);
-  const where = placeSecret ? null : place;
-  return [when, where, status].filter(Boolean).join(" · ");
-}
-
-export default async function ManageEventPage({ params }: PageProps) {
+export default async function ManageEventPage({ params, searchParams }: PageProps) {
   const { code } = await params;
+  const query = await searchParams;
   const lookup = once(code);
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
@@ -36,21 +36,47 @@ export default async function ManageEventPage({ params }: PageProps) {
   if (access.kind !== "ok") notFound();
 
   const event = access.event;
+  const sections = visibleSections(event.role, event.permissions);
+  const invite = await loadEventInvite(lookup);
+  if (!invite) notFound();
+  const pay = await loadEventPay(event.id);
+  const [guests, managers, tally] = await Promise.all([
+    sections.includes("guests") ? listEventGuests(event.id) : Promise.resolve(null),
+    sections.includes("managers") ? listEventManagers(event.id) : Promise.resolve(null),
+    sections.includes("payment") ? loadPaymentTally(event.id) : Promise.resolve(null),
+  ]);
   const origin = await requestOrigin();
+  const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
+
   return (
     <ManageHome
       lookup={lookup}
       name={event.name}
-      line={eventLine(event.date, event.endsAt, event.place, event.placeSecret, event.status)}
+      publicToken={event.publicToken}
       shareUrl={`${origin}/e/${event.publicToken}`}
-      sections={visibleSections(event.role, event.permissions)}
-      guestsValue={
-        event.isPaid
-          ? `${event.registered} reg · ${event.paid} confirmed · ${event.checkedIn} in`
-          : `${event.registered} reg · ${event.checkedIn} in`
-      }
-      paymentValue={event.isPaid ? "Paid entry" : "Free"}
-      managersValue={`${event.managers} of ${managerCap()}`}
+      sections={sections}
+      canEdit={event.role === "owner" || event.permissions.edit}
+      flash={flash}
+      cover={{
+        description: invite.description,
+        date: invite.date,
+        endsAt: invite.endsAt,
+        place: invite.place,
+        placeSecret: invite.placeSecret,
+        theme: invite.theme,
+        layout: invite.layout,
+        logoUrl: invite.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
+        price: pay.isPaid ? priceLabel(pay.price, pay.currency) : null,
+      }}
+      guests={guests?.guests ?? []}
+      canMark={event.role === "owner" || event.permissions.payments}
+      isPaid={pay.isPaid}
+      pay={sections.includes("payment") ? pay : null}
+      tally={tally}
+      returnUrl={`${origin}/e/${encodeURIComponent(event.code)}/paid`}
+      managers={managers ?? []}
+      canRemove={event.role === "owner"}
+      teamFull={(managers?.length ?? event.managers) >= managerCap()}
     />
   );
 }

@@ -55,6 +55,7 @@ export type EventGuest = {
   paid: boolean;
   paidStatus: string | null;
   paidSource: string | null;
+  cardToken: string | null;
   checkedIn: boolean;
   connected: boolean;
 };
@@ -283,12 +284,12 @@ export async function listEventGuests(eventId: string): Promise<EventGuestList> 
   const userIds = new Set(rows.map((row) => row.user_id));
 
   const cards = cardIds.length
-    ? await admin.from("cards").select("id, display_name, photo_attachment_id").in("id", cardIds)
+    ? await admin.from("cards").select("id, display_name, photo_attachment_id, public_token").in("id", cardIds)
     : { data: [], error: null };
   if (cards.error) throw new Error(cards.error.message);
   const faces = new Map(
     (cards.data ?? []).map((row) => {
-      const card = row as { id: string; display_name: string | null; photo_attachment_id: string | null };
+      const card = row as { id: string; display_name: string | null; photo_attachment_id: string | null; public_token: string | null };
       return [card.id, card] as const;
     }),
   );
@@ -318,6 +319,7 @@ export async function listEventGuests(eventId: string): Promise<EventGuestList> 
         paid: isConfirmed(row.paid_status, row.paid_source, sourceKnown),
         paidStatus: row.paid_status ?? null,
         paidSource: sourceKnown ? row.paid_source ?? null : row.paid_status === "paid" ? "manual" : null,
+        cardToken: card?.public_token ?? null,
         checkedIn: Boolean(row.checked_in_at),
         connected: connected.has(row.user_id),
       };

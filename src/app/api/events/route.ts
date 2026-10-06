@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
-import { readPaymentUrl } from "@/shared/event/payment";
-import { isEventLayout, isEventTheme } from "@/shared/event/themes";
-import { createEvent, listMyEvents, readEventDate } from "@/shared/services/events";
+import { readEventForm } from "@/shared/event/read-event-form";
+import { createEvent, listMyEvents } from "@/shared/services/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
-}
-
-function textField(value: FormDataEntryValue | null, max: number): string {
-  if (typeof value !== "string") return "";
-  return value.trim().slice(0, max);
 }
 
 /** Events the signed-in user organises or has joined. */
@@ -41,40 +35,22 @@ export async function POST(request: Request) {
     return noStore({ error: "Could not read the form" }, 400);
   }
 
-  const name = textField(form.get("name"), 160);
-  if (!name) return noStore({ error: "Add an event name." }, 400);
-
-  const themeRaw = textField(form.get("theme"), 20);
-  if (themeRaw && !isEventTheme(themeRaw)) return noStore({ error: "Unknown theme." }, 400);
-  const layoutRaw = textField(form.get("layout"), 20);
-  if (layoutRaw && !isEventLayout(layoutRaw)) return noStore({ error: "Unknown style." }, 400);
-
-  const dateRaw = textField(form.get("date"), 40);
-  const date = readEventDate(dateRaw);
-  if (dateRaw && !date) return noStore({ error: "That date could not be read." }, 400);
-  const endRaw = textField(form.get("end"), 40);
-  const endsAt = readEventDate(endRaw);
-  if (endRaw && !endsAt) return noStore({ error: "That date could not be read." }, 400);
-
-  const paid = form.get("is_paid") === "1";
-  const paymentRaw = textField(form.get("payment_url"), 2000);
-  const paymentUrl = paid && paymentRaw ? readPaymentUrl(paymentRaw) : null;
-  if (paid && paymentRaw && !paymentUrl) return noStore({ error: "That payment link is not a URL." }, 400);
-
-  const logo = form.get("logo");
+  const parsed = readEventForm(form);
+  if (!parsed.ok) return noStore({ error: parsed.error }, parsed.status);
+  const fields = parsed.value;
   try {
     const created = await createEvent({
       ownerId: owner.id,
-      name,
-      description: textField(form.get("description"), 4000) || null,
-      date,
-      endsAt,
-      place: textField(form.get("place"), 240) || null,
-      theme: themeRaw && isEventTheme(themeRaw) ? themeRaw : "paper",
-      layout: layoutRaw && isEventLayout(layoutRaw) ? layoutRaw : "grid",
-      logo: logo instanceof File ? logo : null,
-      isPaid: paid,
-      paymentUrl,
+      name: fields.name,
+      description: fields.description,
+      date: fields.date,
+      endsAt: fields.endsAt,
+      place: fields.place,
+      theme: fields.theme,
+      layout: fields.layout,
+      logo: fields.logo,
+      isPaid: false,
+      paymentUrl: null,
     });
     return noStore(created);
   } catch (error) {

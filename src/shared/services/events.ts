@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import {
   deleteAttachment,
   insertAttachment,
+  loadAttachment,
   removeStoredObject,
   safeOriginalName,
   storagePath,
@@ -29,7 +30,7 @@ export type ListedEvent = {
   name: string;
   publicToken: string;
   when: string | null;
-  role: "owner" | "guest";
+  role: "owner" | "manager" | "guest";
 };
 
 /** Past follows the end. With no end, the start decides. No date is still a draft. */
@@ -126,12 +127,19 @@ async function discardLogo(ownerId: string, logo: { id: string; path: string }) 
   await deleteAttachment(logo.id, ownerId);
 }
 
+async function discardStoredLogo(attachmentId: string) {
+  const row = await loadAttachment(attachmentId);
+  if (!row) return;
+  if (row.storage_path) await removeStoredObject(row.storage_path, row.bucket || CARD_ATTACHMENTS_BUCKET);
+  await deleteAttachment(row.id, row.owner_id);
+}
+
 type MineRow = {
   name: string;
   publicToken: string;
   dateIso: string | null;
   endsIso: string | null;
-  role: "owner" | "guest";
+  role: "owner" | "manager" | "guest";
 };
 
 function startTime(iso: string | null): number | null {
@@ -163,7 +171,12 @@ function endsColumnMissing(message: string): boolean {
   return /ends_at/i.test(message) && /column|schema/i.test(message);
 }
 
+function missingTable(message: string, table: string): boolean {
+  return new RegExp(table, "i").test(message) && /relation|schema|table|find/i.test(message);
+}
+
 type EventListRow = {
+  id?: string;
   name: string;
   date: string | null;
   ends_at?: string | null;
@@ -183,39 +196,42 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
   const regs = await admin.from("event_registrations").select("event_id").eq("user_id", userId);
   if (regs.error) throw new Error(regs.error.message);
 
+  const team = await admin.from("event_team").select("event_id").eq("user_id", userId);
+  if (team.error && !missingTable(team.error.message, "event_team")) throw new Error(team.error.message);
+  const teamIds = new Set(
+    team.error ? [] : [...new Set((team.data ?? []).map((row) => row.event_id as string))],
+  );
+
   const ownedRows = (owned.data ?? []) as EventListRow[];
-  const ownedTokens = new Set(ownedRows.map((row) => row.public_token));
-  const ids = [...new Set((regs.data ?? []).map((row) => row.event_id as string))];
-  let guestRows: EventListRow[] = [];
-  if (ids.length > 0) {
-    const guestSelect = await admin.from("events").select("name, date, ends_at, public_token, owner_id").in("id", ids);
-    const guests = guestSelect.error && endsColumnMissing(guestSelect.error.message)
-      ? await admin.from("events").select("name, date, public_token, owner_id").in("id", ids)
-      : guestSelect;
-    if (guests.error) throw new Error(guests.error.message);
-    guestRows = (guests.data ?? []) as EventListRow[];
+  const seen = new Set(ownedRows.map((row) => row.public_token));
+  const joinedIds = [...new Set((regs.data ?? []).map((row) => row.event_id as string))];
+  const extraIds = [...new Set([...teamIds, ...joinedIds])];
+  let extraRows: EventListRow[] = [];
+  if (extraIds.length > 0) {
+    const extraSelect = await admin.from("events").select("id, name, date, ends_at, public_token, owner_id").in("id", extraIds);
+    const extras = extraSelect.error && endsColumnMissing(extraSelect.error.message)
+      ? await admin.from("events").select("id, name, date, public_token, owner_id").in("id", extraIds)
+      : extraSelect;
+    if (extras.error) throw new Error(extras.error.message);
+    extraRows = (extras.data ?? []) as EventListRow[];
   }
 
-  const rows: MineRow[] = [
-    ...ownedRows.map((row) => ({
-      name: row.name,
-      publicToken: row.public_token,
-      dateIso: row.date,
-      endsIso: row.ends_at ?? null,
-      role: "owner" as const,
-    })),
-    ...guestRows
-      .filter((row) => row.owner_id !== userId && !ownedTokens.has(row.public_token))
-      .map((row) => ({
-        name: row.name,
-        publicToken: row.public_token,
-        dateIso: row.date,
-        endsIso: row.ends_at ?? null,
-        role: "guest" as const,
-      })),
-  ].filter((row) => eventListStatus(row.dateIso, now, row.endsIso) !== "past");
-  rows.sort(compareMyEvents);
-  return rows.map(toListed);
+  const asMine = (row: EventListRow, role: MineRow["role"]): MineRow => ({
+    name: row.name,
+    publicToken: row.public_token,
+    dateIso: row.date,
+    endsIso: row.ends_at ?? null,
+    role,
+  });
+  const rows: MineRow[] = ownedRows.map((row) => asMine(row, "owner"));
+  for (const row of extraRows) {
+    if (!row.public_token || seen.has(row.public_token) || row.owner_id === userId) continue;
+    rows.push(asMine(row, row.id && teamIds.has(row.id) ? "manager" : "guest"));
+    seen.add(row.public_token);
+  }
+  const listed = rows.filter((row) => eventListStatus(row.dateIso, now, row.endsIso) !== "past");
+  listed.sort(compareMyEvents);
+  return listed.map(toListed);
 }
 
 export async function createEvent(input: CreateEventInput): Promise<CreatedEvent> {
@@ -289,4 +305,60 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
     if (logo) await discardLogo(input.ownerId, logo);
     throw error;
   }
+}
+
+export type UpdateEventInput = {
+  eventId: string;
+  actorId: string;
+  previousLogoId: string | null;
+  name: string;
+  description: string | null;
+  place: string | null;
+  date: string | null;
+  endsAt: string | null;
+  theme: EventThemeId;
+  layout: EventLayoutId;
+  logo: File | null;
+  removeLogo: boolean;
+};
+
+/** Keeps the public token and the short code. Drops the previous pic only after the row saves. */
+export async function updateEvent(input: UpdateEventInput): Promise<void> {
+  const logo = input.logo && input.logo.size > 0 ? await storeLogo(input.actorId, input.logo) : null;
+  const admin = createAdminSupabaseClient();
+  try {
+    const fields: Record<string, unknown> = {
+      name: input.name,
+      description: input.description,
+      place: input.place,
+      date: input.date,
+      ends_at: input.endsAt,
+      theme: input.theme,
+      layout: input.layout,
+    };
+    if (logo) fields.logo_attachment_id = logo.id;
+    else if (input.removeLogo) fields.logo_attachment_id = null;
+
+    let payload = fields;
+    let saved = await admin.from("events").update(payload).eq("id", input.eventId);
+    for (let pass = 0; pass < 2 && saved.error; pass += 1) {
+      const message = saved.error.message;
+      if (/could not find the 'layout' column/i.test(message) && "layout" in payload) {
+        const { layout: _layout, ...rest } = payload;
+        payload = rest;
+      } else if (/could not find the 'ends_at' column/i.test(message) && "ends_at" in payload) {
+        const { ends_at: _endsAt, ...rest } = payload;
+        payload = rest;
+      } else {
+        break;
+      }
+      saved = await admin.from("events").update(payload).eq("id", input.eventId);
+    }
+    if (saved.error) throw new Error(saved.error.message);
+  } catch (error) {
+    if (logo) await discardLogo(input.actorId, logo);
+    throw error;
+  }
+  const previous = input.previousLogoId;
+  if (previous && previous !== logo?.id && (logo || input.removeLogo)) await discardStoredLogo(previous);
 }

@@ -6,8 +6,6 @@ import { Upload } from "lucide-react";
 import { Switch } from "@/shared/components/ui/switch";
 import { Zone } from "@/shared/components/zone";
 import type { EventPay, PaymentTally, StatementReport } from "@/shared/event/payment-label";
-import { ManageFrame } from "../manage-frame";
-
 type PaymentScreenProps = {
   lookup: string;
   pay: EventPay;
@@ -97,8 +95,8 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
   };
 
   return (
-    <ManageFrame title="Payment" fallbackHref={`/e/${encodeURIComponent(lookup)}/manage`}>
-      <Zone label="Entry" align="start" rule>
+    <>
+      <Zone label="Payment" align="start" rule>
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <Switch
@@ -223,6 +221,6 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
       <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
         ADED is not a payment processor — money goes straight to you. We only mark who&apos;s confirmed.
       </p>
-    </ManageFrame>
+    </>
   );
 }
