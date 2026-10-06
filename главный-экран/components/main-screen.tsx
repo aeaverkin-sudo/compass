@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { layoutTop, SHEET_INSET } from "../layout";
+import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
@@ -47,6 +47,8 @@ export function MainScreen() {
   const showGate = useCallback(() => setGateNonce(Date.now()), []);
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
 
+  const frameRef = useRef<HTMLElement>(null);
+  const [frameWidth, setFrameWidth] = useState(0);
   const portfolioLimit = account?.portfolioLimit ?? null;
   const showAddSlide = canAddMoreCards(cards, portfolioLimit);
   const [browseIndex, setBrowseIndex] = useState(currentCardIndex);
@@ -128,6 +130,16 @@ export function MainScreen() {
   const cardUrl = browseCard?.publicToken ? publicCardUrl(browseCard) : "";
   const layout = useMainLayout();
 
+  useLayoutEffect(() => {
+    const node = frameRef.current;
+    if (!node) return;
+    const sync = () => setFrameWidth(node.clientWidth);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [cards.length]);
+
   if (cards.length === 0) {
     return (
       <main
@@ -142,12 +154,24 @@ export function MainScreen() {
   const cardTopBrowse = layout?.cardTopBrowse;
   const browseCarousel = cards.length > 1 || showAddSlide;
   const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
+  const sheetTotal = portfolioLimit !== null && portfolioLimit >= cards.length ? portfolioLimit : cards.length;
+  const sheetIndex = Math.min(browseIndex, Math.max(cards.length - 1, 0)) + 1;
+  const showSheetCount = cardReady && !viewingAddSlide && sheetTotal > 0;
+  const sideInset = browseCarousel ? carouselSidePaddingPx(frameWidth, true) : edgeInsetBrowse;
+  const counterRightCss = `calc(${sideInset}px + clamp(24px, 6.1vw, 28px) - 3mm)`;
 
   return (
-    <main className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background">
+    <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
         {layout ? (
-          <QrZone url={cardUrl} visible={cardReady} topOffsetPx={layout.qrTop} />
+          <QrZone
+            url={cardUrl}
+            visible={cardReady}
+            topOffsetPx={layout.qrTop}
+            sheetIndex={showSheetCount ? sheetIndex : undefined}
+            sheetTotal={showSheetCount ? sheetTotal : undefined}
+            counterRightCss={counterRightCss}
+          />
         ) : null}
       </div>
 

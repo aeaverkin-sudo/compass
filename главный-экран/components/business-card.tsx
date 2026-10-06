@@ -278,16 +278,11 @@ function EditorialHeader({
   onDisplayNameChange?: (displayName: string) => void;
 }) {
   const photoSrc = cardPhotoSrc(card);
-  const sheetMark = showRule && sheetIndex && sheetTotal ? `${sheetIndex}/${sheetTotal}` : null;
   return (
     <div className="w-full">
-      {sheetMark ? (
-        <p
-          className="m-0 mb-1 text-right t-label"
-          // t-label tracking plus the digit sidebearing, so the ink meets the plus on the rule end.
-          style={{ marginRight: "calc(-0.1em - 0.5px)" }}
-        >
-          {sheetMark}
+      {showRule && sheetIndex && sheetTotal ? (
+        <p aria-hidden className="invisible m-0 mb-1 text-right t-label">
+          {sheetIndex}/{sheetTotal}
         </p>
       ) : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
