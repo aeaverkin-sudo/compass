@@ -143,7 +143,8 @@ export function TeamZone({
   };
 
   return (
-    <Zone label="Team" align="start">
+    <Zone label="Team" align={rows.length === 0 ? "baseline" : "start"}>
+      {rows.length > 0 ? (
       <ul>
         {rows.map((manager) => {
           const open = openId === manager.userId;
@@ -189,6 +190,7 @@ export function TeamZone({
           );
         })}
       </ul>
+      ) : null}
       <button
         type="button"
         disabled={full || busy}
@@ -197,7 +199,7 @@ export function TeamZone({
           setPreset("cohost");
           setError(null);
         }}
-        className="press mt-2 border-0 bg-transparent p-0 t-body text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+        className={`press ${rows.length > 0 ? "mt-2 " : ""}border-0 bg-transparent p-0 t-body text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]`}
       >
         + Add co-host
       </button>
