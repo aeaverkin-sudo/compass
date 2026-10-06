@@ -3,7 +3,7 @@ import { readEventForm } from "@/shared/event/read-event-form";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadManageEvent } from "@/shared/services/event-manage";
-import { updateEvent } from "@/shared/services/events";
+import { deleteEvent, updateEvent } from "@/shared/services/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,5 +67,29 @@ export async function PATCH(request: Request, context: RouteProps) {
     if (message === "logo_too_large") return noStore({ error: "Pic is over 8 MB." }, 413);
     console.error("[events] update", error);
     return noStore({ error: "Could not save the event." }, 500);
+  }
+}
+
+/** Removes the event. Only the owner may do this. */
+export async function DELETE(_request: Request, context: RouteProps) {
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return noStore({ error: "Sign in to delete the event." }, 401);
+
+  const { code } = await context.params;
+  const lookup = once(code);
+  const access = await loadManageEvent(lookup, data.user.id);
+  if (access.kind !== "ok" || access.event.role !== "owner") {
+    return noStore({ error: "Not allowed." }, access.kind === "missing" ? 404 : 403);
+  }
+
+  try {
+    await deleteEvent(lookup, data.user.id);
+    return noStore({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (message === "forbidden") return noStore({ error: "Not allowed." }, 403);
+    console.error("[events] delete", error);
+    return noStore({ error: "Could not delete the event." }, 500);
   }
 }

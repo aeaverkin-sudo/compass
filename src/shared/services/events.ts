@@ -362,3 +362,42 @@ export async function updateEvent(input: UpdateEventInput): Promise<void> {
   const previous = input.previousLogoId;
   if (previous && previous !== logo?.id && (logo || input.removeLogo)) await discardStoredLogo(previous);
 }
+
+/** Owner only. Registrations, team rows, and manager invites leave with the event. */
+export async function deleteEvent(lookup: string, ownerId: string): Promise<void> {
+  let key = lookup.trim();
+  try {
+    key = decodeURIComponent(key);
+  } catch {
+    // A broken escape is not an event.
+  }
+  const admin = createAdminSupabaseClient();
+  const byToken = await admin
+    .from("events")
+    .select("id, owner_id, logo_attachment_id")
+    .eq("public_token", key)
+    .maybeSingle();
+  if (byToken.error) throw new Error(byToken.error.message);
+  let row = byToken.data as { id: string; owner_id: string; logo_attachment_id: string | null } | null;
+  if (!row) {
+    const byCode = await admin
+      .from("events")
+      .select("id, owner_id, logo_attachment_id")
+      .eq("code", key)
+      .maybeSingle();
+    if (byCode.error) throw new Error(byCode.error.message);
+    row = byCode.data as { id: string; owner_id: string; logo_attachment_id: string | null } | null;
+  }
+  if (!row || row.owner_id !== ownerId) throw new Error("forbidden");
+
+  const logoId = row.logo_attachment_id;
+  const removed = await admin.from("events").delete().eq("id", row.id).eq("owner_id", ownerId).select("id");
+  if (removed.error) throw new Error(removed.error.message);
+  if (!removed.data?.length) throw new Error("forbidden");
+
+  if (!logoId) return;
+  const attachment = await admin.from("attachments").select("owner_id, storage_path").eq("id", logoId).maybeSingle();
+  if (attachment.error) throw new Error(attachment.error.message);
+  const stored = attachment.data as { owner_id?: string; storage_path?: string | null } | null;
+  if (stored?.storage_path) await discardLogo(stored.owner_id || ownerId, { id: logoId, path: stored.storage_path });
+}
