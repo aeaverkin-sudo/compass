@@ -74,6 +74,11 @@ export interface Card {
    * A new portfolio is created private (`false`): the column default is true.
    */
   listed?: boolean;
+  /**
+   * When true, people who saved this card can search its visible fields.
+   * Absent means on, matching the column default.
+   */
+  searchable?: boolean;
   qrVersion: number;
   contactItemIds: string[];
   /** When true, card rows keep the user's manual order instead of auto shelves. */

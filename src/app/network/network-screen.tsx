@@ -15,6 +15,7 @@ import {
 } from "@/shared/components/ui/dropdown-menu";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { foldSearch } from "@/shared/lib/search-fold";
 import { NetworkBand } from "./network-band";
 
 type SortMode = "recent" | "alphabet" | "event";
@@ -28,6 +29,7 @@ type Contact = {
   createdAt: string;
   role: string;
   photoUrl: string | null;
+  searchText: string;
 };
 
 const HOLD_MS = 500;
@@ -60,8 +62,7 @@ function metaLine(contact: Contact) {
 
 function matchesQuery(contact: Contact, query: string) {
   if (!query) return true;
-  const haystack = `${contact.displayName} ${contact.role}`.toLocaleLowerCase();
-  return haystack.includes(query);
+  return contact.searchText.includes(query);
 }
 
 export function NetworkScreen({ addedName = null }: { addedName?: string | null }) {
@@ -82,7 +83,13 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       return;
     }
     const body = (await response.json()) as { connections?: Contact[] };
-    setContacts(Array.isArray(body.connections) ? body.connections : []);
+    const connections = Array.isArray(body.connections) ? body.connections : [];
+    setContacts(
+      connections.map((contact) => ({
+        ...contact,
+        searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
+      })),
+    );
   };
 
   useEffect(() => {
@@ -105,7 +112,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   }, [contacts]);
 
   const accepted = useMemo(() => {
-    const needle = query.trim().toLocaleLowerCase();
+    const needle = foldSearch(query.trim());
     return (contacts ?? []).filter((contact) => contact.state === "active" && matchesQuery(contact, needle));
   }, [contacts, query]);
 

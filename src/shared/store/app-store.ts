@@ -16,7 +16,7 @@ import {
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
-import { ensureCardIdentity, scheduleCardUpsert, writeCardListed } from "@/shared/services/card-sync";
+import { ensureCardIdentity, scheduleCardUpsert, writeCardListed, writeCardSearchable } from "@/shared/services/card-sync";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
   deleteItemRow,
@@ -50,6 +50,8 @@ interface AppState {
   updateCard: (id: string, data: Partial<Card>) => void;
   /** Public/Private. The first card stays public. A new second card is created private. */
   setCardListed: (id: string, listed: boolean) => void;
+  /** Whether connections may search this card's visible fields. The name stays findable. */
+  setCardSearchable: (id: string, searchable: boolean) => void;
   updateSecondCardDraft: (
     data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>,
     portfolioLimit: number,
@@ -192,6 +194,16 @@ export const useAppStore = create<AppState>()(
           cards: cards.map((card) => (card.id === id ? { ...card, listed } : card)),
         });
         writeCardListed(id, listed);
+      },
+
+      setCardSearchable: (id, searchable) => {
+        const cards = get().cards;
+        const current = cards.find((card) => card.id === id);
+        if (!current || (current.searchable !== false) === searchable) return;
+        set({
+          cards: cards.map((card) => (card.id === id ? { ...card, searchable } : card)),
+        });
+        writeCardSearchable(id, searchable);
       },
 
       addContactItem: () => {

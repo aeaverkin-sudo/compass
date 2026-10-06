@@ -20,6 +20,7 @@ type CardRow = {
   qr_version: number;
   is_public: boolean;
   listed: boolean | null;
+  searchable?: boolean | null;
   photo_attachment_id: string | null;
   created_at: string;
   updated_at: string;
@@ -99,6 +100,7 @@ function overlayScalars(local: Card, row: CardRow): Card {
     photoAttachmentId: remotePhotoId ?? local.photoAttachmentId,
     photo: remotePhotoId ? undefined : local.photo,
     listed: row.listed ?? local.listed,
+    searchable: row.searchable ?? local.searchable ?? true,
     createdAt: row.created_at,
     updatedAt: keptLocalText && local.updatedAt > row.updated_at ? local.updatedAt : row.updated_at,
   };
@@ -115,6 +117,7 @@ function shellFromRow(row: CardRow): Card {
     qrVersion: row.qr_version,
     photoAttachmentId: row.photo_attachment_id ?? undefined,
     listed: row.listed ?? undefined,
+    searchable: row.searchable ?? true,
     contactItemIds: [],
     nextScanAddons: [],
     createdAt: row.created_at,
@@ -158,6 +161,7 @@ function scalarsEqual(a: Card, b: Card) {
     a.photoAttachmentId === b.photoAttachmentId &&
     a.photo === b.photo &&
     a.listed === b.listed &&
+    (a.searchable !== false) === (b.searchable !== false) &&
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt
   );
@@ -274,6 +278,20 @@ export function writeCardListed(cardId: string, listed: boolean) {
     });
 }
 
+/** Writes the search flag without the full upsert, so a missing column does not block every save. */
+export function writeCardSearchable(cardId: string, searchable: boolean) {
+  const pending = pendingUpserts.get(cardId);
+  if (pending) pending.card = { ...pending.card, searchable };
+  const supabase = createBrowserSupabaseClient();
+  void supabase
+    .from("cards")
+    .update({ searchable })
+    .eq("id", cardId)
+    .then(({ error }) => {
+      if (error) console.error("[card-sync] searchable", error.message);
+    });
+}
+
 /** Drop queued writes. Used when signing into an existing account so the trial card is not copied over. */
 export function dropPendingCardUpserts() {
   for (const pending of pendingUpserts.values()) clearTimeout(pending.timer);
@@ -321,7 +339,14 @@ async function runHydrate() {
   if (!ownerId) return;
 
   const supabase = createBrowserSupabaseClient();
-  const withHandle = await supabase.from("cards").select(`${CARD_COLUMNS}, handle`).eq("owner_id", ownerId);
+  const withSearch = await supabase
+    .from("cards")
+    .select(`${CARD_COLUMNS}, handle, searchable`)
+    .eq("owner_id", ownerId);
+  const withHandle =
+    withSearch.error && /searchable/i.test(withSearch.error.message)
+      ? await supabase.from("cards").select(`${CARD_COLUMNS}, handle`).eq("owner_id", ownerId)
+      : withSearch;
   const loaded =
     withHandle.error && /handle/i.test(withHandle.error.message)
       ? await supabase.from("cards").select(CARD_COLUMNS).eq("owner_id", ownerId)
