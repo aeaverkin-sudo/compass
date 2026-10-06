@@ -259,32 +259,21 @@ function cardIsReady(card: Card) {
 function EditorialHeader({
   card,
   positionTitle,
-  showRule,
   showPlus,
   nextScan,
-  sheetIndex,
-  sheetTotal,
   onPhotoChange,
   onDisplayNameChange,
 }: {
   card: Card;
   positionTitle?: string;
-  showRule: boolean;
   showPlus: boolean;
   nextScan: ReactNode;
-  sheetIndex?: number;
-  sheetTotal?: number;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
 }) {
   const photoSrc = cardPhotoSrc(card);
   return (
     <div className="w-full">
-      {showRule && sheetIndex && sheetTotal ? (
-        <p aria-hidden className="invisible m-0 mb-1 text-right t-label">
-          {sheetIndex}/{sheetTotal}
-        </p>
-      ) : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
@@ -526,7 +515,6 @@ function PdfCard({
             <EditorialHeader
               card={card}
               positionTitle={positionTitle}
-              showRule={false}
               showPlus={false}
               nextScan={null}
             />
@@ -594,7 +582,7 @@ type BusinessCardProps = {
   pdf?: boolean;
   /** Null paints every block. An array is one phone sheet. */
   pdfMask?: number[] | null;
-  /** Place among the owner's portfolios, shown above the masthead rule. */
+  /** Place among the owner's portfolios. The counter is drawn on the QR. */
   sheetIndex?: number;
   sheetTotal?: number;
 };
@@ -623,8 +611,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     publicBar,
     pdf = false,
     pdfMask = null,
-    sheetIndex,
-    sheetTotal,
   },
   ref,
 ) {
@@ -898,9 +884,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             <EditorialHeader
               card={card}
               positionTitle={positionTitle}
-              showRule={ready && !readOnly}
-              sheetIndex={sheetIndex}
-              sheetTotal={sheetTotal}
               showPlus={Boolean(onCardUpdate && ready && items.length > 0)}
               nextScan={
                 onCardUpdate && ready ? (

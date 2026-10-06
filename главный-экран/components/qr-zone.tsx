@@ -50,7 +50,7 @@ export function QrZone({ url, visible, topOffsetPx, sheetIndex, sheetTotal, coun
       {sheetIndex && sheetTotal ? (
         <p
           className="pointer-events-none absolute m-0 text-right t-label"
-          style={{ bottom: 2, right: counterRightCss, marginRight: "calc(-0.1em - 0.5px)", lineHeight: 1 }}
+          style={{ bottom: 0, right: counterRightCss, marginRight: "calc(-0.1em - 0.5px)", lineHeight: 1 }}
         >
           {sheetIndex}/{sheetTotal}
         </p>
