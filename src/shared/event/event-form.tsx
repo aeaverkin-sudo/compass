@@ -33,6 +33,62 @@ function focusField(event: MouseEvent<HTMLElement>, node: HTMLElement | null) {
   node?.focus();
 }
 
+function GrowField({
+  inputRef,
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+  singleLine = false,
+}: {
+  inputRef: RefObject<HTMLTextAreaElement | null>;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+  singleLine?: boolean;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const size = (node: HTMLTextAreaElement) => {
+    node.style.height = "auto";
+    node.style.height = `${node.scrollHeight}px`;
+    const lineBox = box.current;
+    if (!lineBox) return;
+    const line = parseFloat(getComputedStyle(node).lineHeight) || 23;
+    lineBox.style.marginBottom = `${Math.max(0, node.scrollHeight - line)}px`;
+  };
+  useEffect(() => {
+    if (inputRef.current) size(inputRef.current);
+  }, [value, inputRef]);
+  return (
+    <div ref={box} className="relative">
+      <span aria-hidden className="invisible block" style={fieldStyle()}>
+        {"\u00a0"}
+      </span>
+      <textarea
+        ref={inputRef}
+        rows={1}
+        value={value}
+        aria-label={ariaLabel}
+        placeholder={placeholder}
+        className={`${PLAIN} absolute inset-x-0 top-0 resize-none overflow-hidden`}
+        style={fieldStyle()}
+        onKeyDown={
+          singleLine
+            ? (event) => {
+                if (event.key === "Enter") event.preventDefault();
+              }
+            : undefined
+        }
+        onChange={(event) => {
+          onChange(event.target.value);
+          size(event.target);
+        }}
+      />
+    </div>
+  );
+}
+
 function PlainField({
   inputRef,
   value,
@@ -139,7 +195,7 @@ export function EventForm({
   const dateRef = useRef<HTMLInputElement>(null);
   const timeRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLInputElement>(null);
-  const placeRef = useRef<HTMLInputElement>(null);
+  const placeRef = useRef<HTMLTextAreaElement>(null);
   const aboutRef = useRef<HTMLTextAreaElement>(null);
   const aboutBox = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
@@ -209,7 +265,14 @@ export function EventForm({
         </div>
       </Zone>
       <Zone label="Place" rule onClick={(event) => focusField(event, placeRef.current)}>
-        <PlainField inputRef={placeRef} value={values.place} onChange={(place) => onChange({ place })} placeholder="Venue, address" />
+        <GrowField
+          inputRef={placeRef}
+          value={values.place}
+          onChange={(place) => onChange({ place })}
+          placeholder="Venue, address"
+          ariaLabel="Place"
+          singleLine
+        />
       </Zone>
       <input
         ref={logoRef}
