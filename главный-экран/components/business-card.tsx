@@ -419,67 +419,64 @@ function CardShareFooter({
   }, [open]);
 
   return (
-    <footer className={cn("flex items-end justify-between", className)}>
-      <div>
-        <p className="t-label">
-          {name || "Name"}
-          <br />
-          Portfolio
-        </p>
+    <footer className={cn(className)}>
+      <p className="t-label">{name || "Name"}</p>
+      <div className="flex items-center justify-between">
+        <p className="t-label">Portfolio</p>
+        {onShare ? (
+          <Dialog.Root
+            open={open}
+            onOpenChange={(next) => {
+              setOpen(next);
+              if (next) onPrepareShare?.();
+            }}
+          >
+            <Dialog.Trigger asChild>
+              <button
+                ref={anchorRef}
+                type="button"
+                data-card-content
+                data-no-swipe
+                aria-label="Share"
+                onPointerDown={onPrepareShare}
+                className="text-[#111] outline-none"
+              >
+                <Share className="size-4" strokeWidth={1.25} aria-hidden />
+              </button>
+            </Dialog.Trigger>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 z-40 bg-[#111]/20" />
+              <Dialog.Content
+                aria-describedby={undefined}
+                data-no-swipe
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                onCloseAutoFocus={(event) => event.preventDefault()}
+                className="fixed z-40 w-max border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
+                style={{
+                  right: place.right,
+                  bottom: place.bottom,
+                  fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+                }}
+              >
+                <Dialog.Title className="sr-only">Share</Dialog.Title>
+                <div className="flex flex-col items-center">
+                  {SHARE_CHOICES.map(({ choice, label }) => (
+                    <Dialog.Close asChild key={choice}>
+                      <button
+                        type="button"
+                        className="px-2.5 py-2 t-caps text-[var(--ink)] outline-none focus:outline-none focus-visible:outline-none"
+                        onClick={() => onShare(choice)}
+                      >
+                        {label}
+                      </button>
+                    </Dialog.Close>
+                  ))}
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+        ) : null}
       </div>
-      {onShare ? (
-        <Dialog.Root
-          open={open}
-          onOpenChange={(next) => {
-            setOpen(next);
-            if (next) onPrepareShare?.();
-          }}
-        >
-          <Dialog.Trigger asChild>
-            <button
-              ref={anchorRef}
-              type="button"
-              data-card-content
-              data-no-swipe
-              aria-label="Share"
-              onPointerDown={onPrepareShare}
-              className="text-[#111] outline-none"
-            >
-              <Share className="size-4" strokeWidth={1.25} aria-hidden />
-            </button>
-          </Dialog.Trigger>
-          <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 z-40 bg-[#111]/20" />
-            <Dialog.Content
-              aria-describedby={undefined}
-              data-no-swipe
-              onOpenAutoFocus={(event) => event.preventDefault()}
-              onCloseAutoFocus={(event) => event.preventDefault()}
-              className="fixed z-40 w-max border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
-              style={{
-                right: place.right,
-                bottom: place.bottom,
-                fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-              }}
-            >
-              <Dialog.Title className="sr-only">Share</Dialog.Title>
-              <div className="flex flex-col items-center">
-                {SHARE_CHOICES.map(({ choice, label }) => (
-                  <Dialog.Close asChild key={choice}>
-                    <button
-                      type="button"
-                      className="px-2.5 py-2 t-caps text-[var(--ink)] outline-none focus:outline-none focus-visible:outline-none"
-                      onClick={() => onShare(choice)}
-                    >
-                      {label}
-                    </button>
-                  </Dialog.Close>
-                ))}
-              </div>
-            </Dialog.Content>
-          </Dialog.Portal>
-        </Dialog.Root>
-      ) : null}
     </footer>
   );
 }
