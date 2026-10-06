@@ -58,6 +58,7 @@ export type EventGuest = {
   cardToken: string | null;
   checkedIn: boolean;
   connected: boolean;
+  registeredAt: string | null;
 };
 
 export type EventGuestList = {
@@ -227,30 +228,31 @@ type GuestRow = {
   paid_status?: string | null;
   paid_source?: string | null;
   checked_in_at?: string | null;
+  created_at?: string | null;
 };
 
 async function registrationRows(eventId: string): Promise<{ rows: GuestRow[]; sourceKnown: boolean }> {
   const admin = createAdminSupabaseClient();
   const withSource = await admin
     .from("event_registrations")
-    .select("id, user_id, card_id, paid_status, paid_source, checked_in_at")
+    .select("id, user_id, card_id, paid_status, paid_source, checked_in_at, created_at")
     .eq("event_id", eventId);
   if (!withSource.error) return { rows: (withSource.data ?? []) as GuestRow[], sourceKnown: true };
   if (missingColumn(withSource.error.message, "paid_source")) {
     const withPaid = await admin
       .from("event_registrations")
-      .select("id, user_id, card_id, paid_status, checked_in_at")
+      .select("id, user_id, card_id, paid_status, checked_in_at, created_at")
       .eq("event_id", eventId);
     if (!withPaid.error) return { rows: (withPaid.data ?? []) as GuestRow[], sourceKnown: false };
     if (withPaid.error && missingColumn(withPaid.error.message, "paid_status")) {
-      const basic = await admin.from("event_registrations").select("id, user_id, card_id, checked_in_at").eq("event_id", eventId);
+      const basic = await admin.from("event_registrations").select("id, user_id, card_id, checked_in_at, created_at").eq("event_id", eventId);
       if (basic.error) throw new Error(basic.error.message);
       return { rows: (basic.data ?? []) as GuestRow[], sourceKnown: false };
     }
     throw new Error(withPaid.error.message);
   }
   if (missingColumn(withSource.error.message, "paid_status")) {
-    const basic = await admin.from("event_registrations").select("id, user_id, card_id, checked_in_at").eq("event_id", eventId);
+    const basic = await admin.from("event_registrations").select("id, user_id, card_id, checked_in_at, created_at").eq("event_id", eventId);
     if (basic.error) throw new Error(basic.error.message);
     return { rows: (basic.data ?? []) as GuestRow[], sourceKnown: false };
   }
@@ -322,6 +324,7 @@ export async function listEventGuests(eventId: string): Promise<EventGuestList> 
         cardToken: card?.public_token ?? null,
         checkedIn: Boolean(row.checked_in_at),
         connected: connected.has(row.user_id),
+        registeredAt: row.created_at ?? null,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));

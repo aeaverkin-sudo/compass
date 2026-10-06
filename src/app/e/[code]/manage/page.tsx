@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { priceLabel } from "@/shared/event/payment-label";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { requestOrigin } from "@/shared/services/public-card-meta";
-import { listEventGuests, listEventManagers, loadManageEvent, managerCap, visibleSections } from "@/shared/services/event-manage";
+import { listEventManagers, loadManageEvent, managerCap, visibleSections } from "@/shared/services/event-manage";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay, loadPaymentTally } from "@/shared/services/event-payment";
 import { ManageHome } from "./manage-home";
@@ -40,8 +40,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   const invite = await loadEventInvite(lookup);
   if (!invite) notFound();
   const pay = await loadEventPay(event.id);
-  const [guests, managers, tally] = await Promise.all([
-    sections.includes("guests") ? listEventGuests(event.id) : Promise.resolve(null),
+  const [managers, tally] = await Promise.all([
     sections.includes("managers") ? listEventManagers(event.id) : Promise.resolve(null),
     sections.includes("payment") ? loadPaymentTally(event.id) : Promise.resolve(null),
   ]);
@@ -52,7 +51,6 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
     <ManageHome
       lookup={lookup}
       name={event.name}
-      publicToken={event.publicToken}
       shareUrl={`${origin}/e/${event.publicToken}`}
       sections={sections}
       canEdit={event.role === "owner" || event.permissions.edit}
@@ -68,12 +66,12 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
         logoUrl: invite.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
         price: pay.isPaid ? priceLabel(pay.price, pay.currency) : null,
       }}
-      guests={guests?.guests ?? []}
-      canMark={event.role === "owner" || event.permissions.payments}
+      going={event.registered}
+      confirmed={event.paid}
+      checkedIn={event.checkedIn}
       isPaid={pay.isPaid}
       pay={sections.includes("payment") ? pay : null}
       tally={tally}
-      returnUrl={`${origin}/e/${encodeURIComponent(event.code)}/paid`}
       managers={managers ?? []}
       canRemove={event.role === "owner"}
       teamFull={(managers?.length ?? event.managers) >= managerCap()}

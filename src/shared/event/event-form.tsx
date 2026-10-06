@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
+import { useEffect, useRef, type MouseEvent, type RefObject } from "react";
 import { Plus } from "lucide-react";
 import { Zone } from "@/shared/components/zone";
-import { InviteCover } from "@/shared/event/invite-cover";
+import { CoverButton } from "@/shared/event/cover-button";
 import { EVENT_LAYOUTS, EVENT_THEMES, layoutDefaultTheme } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { EventFormValues } from "@/shared/event/event-form-fields";
@@ -135,7 +135,6 @@ export function EventForm({
   error: string | null;
   onSubmit: () => void;
 }) {
-  const [previewOpen, setPreviewOpen] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const timeRef = useRef<HTMLInputElement>(null);
@@ -325,29 +324,9 @@ export function EventForm({
         {hint ? <p className="mt-3 t-meta text-[var(--grey)]">{hint}</p> : null}
         {error ? <p className="mt-2 t-meta text-[var(--ink)]">{error}</p> : null}
       </div>
-      <button
-        type="button"
-        onClick={() => setPreviewOpen(true)}
-        className="press mt-8 block border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
-        style={{ marginLeft: VALUE_AXIS_PX, width: 150, paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}
-      >
-        <InviteCover variant="card" layout={values.layout} themeId={values.theme} event={cover} />
-      </button>
-      {previewOpen ? (
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label="Close preview"
-          onClick={() => setPreviewOpen(false)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape" || event.key === "Enter") setPreviewOpen(false);
-          }}
-          className="fixed inset-0 z-[80] overflow-y-auto [-webkit-tap-highlight-color:transparent]"
-          style={{ background: `var(--event-theme-${values.theme})`, color: `var(--event-theme-${values.theme}-ink)` }}
-        >
-          <InviteCover variant="page" layout={values.layout} themeId={values.theme} event={cover} />
-        </div>
-      ) : null}
+      <div className="mt-8" style={{ marginLeft: VALUE_AXIS_PX, width: 150, paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}>
+        <CoverButton event={cover} layout={values.layout} themeId={values.theme} variant="card" />
+      </div>
     </>
   );
 }

@@ -12,7 +12,7 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Switch } from "@/shared/components/ui/switch";
 import { Zone } from "@/shared/components/zone";
-import { InviteCover } from "@/shared/event/invite-cover";
+import { CoverButton } from "@/shared/event/cover-button";
 import { InviteQr } from "@/shared/event/invite-qr";
 import { payLinkWithCode } from "@/shared/event/pay-code";
 import { payButtonLabel, payView, priceLabel, type EventPay } from "@/shared/event/payment-label";
@@ -205,7 +205,7 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
             style={{ containerType: "size" }}
           >
             <div style={{ width: "min(100cqw, calc(100cqh * 286 / 404))" }}>
-              <InviteCover variant="square" layout={event.layout} themeId={event.theme} event={poster} />
+              <CoverButton variant="square" layout={event.layout} themeId={event.theme} event={poster} />
             </div>
           </div>
         </div>

@@ -12,7 +12,6 @@ type PaymentScreenProps = {
   lookup: string;
   pay: EventPay;
   tally: PaymentTally;
-  returnUrl: string;
 };
 
 type Draft = {
@@ -22,7 +21,7 @@ type Draft = {
   currency: string;
 };
 
-const FIELD = "bg-transparent t-body text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
+const FIELD = "bg-transparent px-0 t-body text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 
 function draftFrom(pay: EventPay): Draft {
   return {
@@ -33,7 +32,7 @@ function draftFrom(pay: EventPay): Draft {
   };
 }
 
-export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenProps) {
+export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<Draft>(draftFrom(pay));
@@ -110,7 +109,7 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
             <span className="t-body text-[var(--ink)]">{draft.isPaid ? "Paid entry" : "Free"}</span>
           </div>
           {draft.isPaid ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-baseline gap-2">
               <input
                 aria-label="Price"
                 inputMode="decimal"
@@ -123,7 +122,7 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
                   setDraft(next);
                   void save(next);
                 }}
-                className={`${FIELD} w-24`}
+                className={`${FIELD} w-[6ch]`}
               />
               <input
                 aria-label="Currency"
@@ -137,7 +136,7 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
                   setDraft(next);
                   void save(next);
                 }}
-                className={`${FIELD} w-16 uppercase`}
+                className={`${FIELD} w-[5ch] uppercase`}
               />
             </div>
           ) : null}
@@ -160,10 +159,10 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
               className={`${FIELD} w-full`}
             />
             <p className="mt-1 mb-0 t-meta text-[var(--grey)]">
-              A link (Revolut, Stripe, PayPal) or plain text (e.g. MB WAY 912 345 678).
+              A link (Revolut, Stripe, PayPal) or plain text like MB WAY 912 345 678.
             </p>
           </Zone>
-          <Zone label="Statement" align="start" rule>
+          <Zone label="Statement" align="start">
             <input
               ref={fileRef}
               type="file"
@@ -184,12 +183,15 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
               <Upload className="text-[var(--ink)]" size={16} strokeWidth={1.25} />
               Upload CSV or PDF
             </button>
-            <p className="mt-3 mb-0 t-body text-[var(--ink)]">
-              {`${tally.guests} guests · ${tally.byCode} by code · ${tally.byName} by name · ${tally.notConfirmed} not confirmed`}
+            <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
+              Upload your bank statement — CSV, or a PDF with selectable text. We match each guest by code, then by name, and don&apos;t store the file.
             </p>
             {report ? (
               <div className="mt-3">
-                <p className="mb-0 t-meta text-[var(--grey)]">{`${report.notMatched.length} payments not matched`}</p>
+                <p className="mb-0 t-meta text-[var(--grey)]">
+                  {`Confirmed ${report.byCode} by code, ${report.byName} by name · ${tally.notConfirmed} still unpaid.`}
+                </p>
+                <p className="mt-2 mb-0 t-meta text-[var(--grey)]">{`${report.notMatched.length} payments not matched`}</p>
                 {report.notMatched.length > 0 ? (
                   <ul className="mt-2">
                     {report.notMatched.map((line, index) => (
@@ -210,12 +212,6 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
                 ) : null}
               </div>
             ) : null}
-          </Zone>
-          <Zone label="More" align="start">
-            <input aria-label="Return URL" readOnly value={returnUrl} className={`${FIELD} w-full`} />
-            <p className="mt-1 mb-0 t-meta text-[var(--grey)]">
-              Guests who open this link are marked as saying they paid. You still confirm them.
-            </p>
             <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
               ADED is not a payment processor — money goes straight to you. We only mark who&apos;s confirmed.
             </p>

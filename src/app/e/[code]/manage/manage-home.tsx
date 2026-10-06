@@ -3,48 +3,45 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight } from "lucide-react";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Rule } from "@/shared/components/rule";
 import { Zone } from "@/shared/components/zone";
-import { InviteCover } from "@/shared/event/invite-cover";
+import { CoverButton } from "@/shared/event/cover-button";
 import { shareInviteLink } from "@/shared/event/share-invite";
 import type { EventPay, PaymentTally } from "@/shared/event/payment-label";
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
-import type { EventGuest, EventManager, ManageSection } from "@/shared/services/event-manage";
+import type { EventManager, ManageSection } from "@/shared/services/event-manage";
 import { ManageFrame } from "./manage-frame";
 import { GuestsZone } from "./guests-zone";
 import { PaymentScreen } from "./payment/payment-screen";
 import { TeamZone } from "./team-zone";
 
 const SKY =
-  "press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
+  "press w-full border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 
 type Flash = "created" | "saved" | null;
 
 export function ManageHome({
   lookup,
   name,
-  publicToken,
   shareUrl,
   sections,
   canEdit,
   flash,
   cover,
-  guests,
-  canMark,
+  going,
+  confirmed,
+  checkedIn,
   isPaid,
   pay,
   tally,
-  returnUrl,
   managers,
   canRemove,
   teamFull,
 }: {
   lookup: string;
   name: string;
-  publicToken: string;
   shareUrl: string;
   sections: ManageSection[];
   canEdit: boolean;
@@ -60,12 +57,12 @@ export function ManageHome({
     logoUrl: string | null;
     price: string | null;
   };
-  guests: EventGuest[];
-  canMark: boolean;
+  going: number;
+  confirmed: number;
+  checkedIn: number;
   isPaid: boolean;
   pay: EventPay | null;
   tally: PaymentTally | null;
-  returnUrl: string;
   managers: EventManager[];
   canRemove: boolean;
   teamFull: boolean;
@@ -108,58 +105,43 @@ export function ManageHome({
     const index = order.indexOf(section);
     return order.slice(index + 1).some((item) => shown(item));
   };
+  const poster = {
+    name,
+    description: cover.description,
+    date: cover.date,
+    endDate: cover.endsAt,
+    place: cover.place,
+    placeSecret: cover.placeSecret,
+    logoUrl: cover.logoUrl,
+    price: cover.price,
+  };
+  const hasZone = shown("guests") || shown("payment") || shown("managers") || shown("checkin");
 
   return (
     <ManageFrame title={name} fallbackHref="/network/event" onBack={() => router.replace("/network/event")}>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
-      <div className="pt-[18px]">
-        <Link
-          href={`/e/${encodeURIComponent(publicToken)}`}
-          className="block"
-          style={{ marginLeft: VALUE_AXIS_PX, width: 150 }}
-        >
-          <InviteCover
-            variant="card"
-            layout={cover.layout}
-            themeId={cover.theme}
-            event={{
-              name,
-              description: cover.description,
-              date: cover.date,
-              endDate: cover.endsAt,
-              place: cover.place,
-              placeSecret: cover.placeSecret,
-              logoUrl: cover.logoUrl,
-              price: cover.price,
-            }}
-          />
-        </Link>
-        {canEdit ? (
-          <Link
-            href={href("/manage/edit")}
-            className="press mt-3 block t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
-            style={{ marginLeft: VALUE_AXIS_PX }}
-          >
-            Edit invite
-          </Link>
-        ) : null}
-        <button type="button" onClick={share} className={`mt-4 ${SKY}`} style={{ marginLeft: VALUE_AXIS_PX }}>
+      <div className="pt-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
+        <CoverButton event={poster} layout={cover.layout} themeId={cover.theme} variant="card" />
+        <button type="button" onClick={share} className={`mt-4 ${SKY}`}>
           Invite guests
         </button>
-        <p className="mt-3 t-meta break-all text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
-          {shareUrl}
-        </p>
       </div>
       <Rule className="mt-[18px]" />
       {shown("guests") ? (
         <>
-          <GuestsZone lookup={lookup} guests={guests} canMark={canMark} isPaid={isPaid} />
+          <GuestsZone
+            href={href("/manage/guests")}
+            going={going}
+            confirmed={confirmed}
+            checkedIn={checkedIn}
+            isPaid={isPaid}
+          />
           {after("guests") ? <Rule /> : null}
         </>
       ) : null}
       {shown("payment") && pay && tally ? (
         <>
-          <PaymentScreen lookup={lookup} pay={pay} tally={tally} returnUrl={returnUrl} />
+          <PaymentScreen lookup={lookup} pay={pay} tally={tally} />
           {after("payment") ? <Rule /> : null}
         </>
       ) : null}
@@ -180,12 +162,24 @@ export function ManageHome({
         <Zone label="Check-in">
           <Link
             href={href("/manage/checkin")}
-            className="press flex items-center justify-between gap-3 text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+            className="press block t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
           >
-            <span className="t-body">Open scanner</span>
-            <ChevronRight className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+            Open scanner
           </Link>
         </Zone>
+      ) : null}
+      {canEdit ? (
+        <>
+          {hasZone ? <Rule /> : null}
+          <Zone label="Edit">
+            <Link
+              href={href("/manage/edit")}
+              className="press block t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+            >
+              Change details
+            </Link>
+          </Zone>
+        </>
       ) : null}
     </ManageFrame>
   );

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EventJoin } from "./join/event-join";
-import { InviteCover } from "@/shared/event/invite-cover";
+import { CoverButton } from "@/shared/event/cover-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { priceLabel } from "@/shared/event/payment-label";
@@ -90,7 +90,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
       ) : null}
       <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex w-full max-w-[380px] flex-col items-center">
-          <InviteCover
+          <CoverButton
             variant="card"
             layout={event.layout}
             themeId={event.theme}
