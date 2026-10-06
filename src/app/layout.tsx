@@ -3,6 +3,7 @@ import { AppResetGate } from "@/shared/components/app-reset-gate";
 import { MonochromeSync } from "@/shared/components/monochrome-sync";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
 import { SupabaseSession } from "@/shared/components/supabase-session";
+import { TrialLock } from "@/shared/components/trial-lock";
 import { VisualBottom } from "@/shared/components/visual-bottom";
 import "./globals.css";
 
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <VisualBottom />
         <PdfPreviewHost />
         {children}
+        <TrialLock />
       </body>
     </html>
   );

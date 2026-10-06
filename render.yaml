@@ -12,3 +12,14 @@ services:
         value: --max-old-space-size=384
       - key: HOSTNAME
         value: 0.0.0.0
+      - key: CRON_SECRET
+        sync: false
+  - type: cron
+    name: compass-purge
+    runtime: node
+    schedule: "17 * * * *"
+    buildCommand: "node -e \"process.exit(0)\""
+    startCommand: "node -e \"fetch('https://adedme.com/api/cron/purge',{method:'POST',headers:{authorization:'Bearer '+process.env.CRON_SECRET}}).then(async (r)=>{const t=await r.text();console.log(r.status,t);if(!r.ok)process.exit(1)})\""
+    envVars:
+      - key: CRON_SECRET
+        sync: false

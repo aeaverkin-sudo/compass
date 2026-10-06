@@ -7,8 +7,6 @@ import { asCardStatus } from "@/shared/lib/card-status";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { VIEWER_HEADER, viewerId } from "@/shared/lib/viewer";
-import { ownerTrialFrozen } from "@/shared/services/trial";
-
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
 const CARD_PUBLIC_COLUMNS =
   "id, owner_id, display_name, title, status, public_token, is_public, photo_attachment_id, created_at, updated_at";
@@ -42,8 +40,6 @@ export type PublicCard = {
   card: Card;
   items: ContactItem[];
   ownerId: string;
-  /** Past the 60h trial. The page and the PDF say the card is inactive. */
-  inactive?: boolean;
 };
 
 /** Name, a ready stored photo, and is_public. Archived and suspended stay private. */
@@ -111,27 +107,6 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
 
   const row = await selectPublicRow("public_token", token);
   if (!row || !cardIsPubliclyServed(row) || !row.photo_attachment_id) return null;
-
-  if (await ownerTrialFrozen(row.owner_id)) {
-    return {
-      card: {
-        id: row.id,
-        displayName: row.display_name,
-        title: "",
-        status: asCardStatus(row.status),
-        publicToken: row.public_token,
-        handle: row.handle?.trim().toLowerCase() || undefined,
-        qrVersion: 1,
-        contactItemIds: [],
-        nextScanAddons: [],
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      },
-      items: [],
-      ownerId: row.owner_id,
-      inactive: true,
-    };
-  }
 
   const readyIds = await readyAttachmentIds([row.photo_attachment_id]);
   if (!readyIds.has(row.photo_attachment_id)) return null;
@@ -210,8 +185,7 @@ export async function attachmentIsPublic(attachmentId: string): Promise<boolean>
     .limit(5);
   if (photoError) throw new Error(photoError.message);
   for (const card of photoCards ?? []) {
-    if (!cardIsPubliclyServed(card)) continue;
-    if (!(await ownerTrialFrozen(card.owner_id as string))) return true;
+    if (cardIsPubliclyServed(card)) return true;
   }
 
   const { data: itemRows, error: itemError } = await admin
@@ -234,8 +208,7 @@ export async function attachmentIsPublic(attachmentId: string): Promise<boolean>
   const { data: cards, error: cardError } = await admin.from("cards").select(columns).in("id", cardIds);
   if (cardError) throw new Error(cardError.message);
   for (const card of cards ?? []) {
-    if (!cardIsPubliclyServed(card)) continue;
-    if (!(await ownerTrialFrozen(card.owner_id as string))) return true;
+    if (cardIsPubliclyServed(card)) return true;
   }
   return false;
 }

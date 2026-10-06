@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PublicCardClient } from "@main/components/public-card-client";
 import { ViewerMirror } from "@/shared/components/viewer-mirror";
@@ -24,16 +23,6 @@ export default async function PublicCardPage({ params, searchParams }: PageProps
   const { publicToken } = await params;
   const loaded = await loadPublicCard(publicToken);
   if (!loaded) notFound();
-  if (loaded.inactive) {
-    return (
-      <main className="compass-main flex min-h-lvh flex-col items-center justify-center bg-white px-8">
-        <p className="text-center t-body text-[var(--ink)]">Portfolio inactive</p>
-        <Link href="/register" className="mt-6 t-meta text-[var(--ink)] underline">
-          Create your profile
-        </Link>
-      </main>
-    );
-  }
 
   const query = await searchParams;
   await logPublicCardOpen(

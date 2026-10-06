@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LandingPage } from "@landing/components/landing-page";
+import { TrialGate } from "./trial-gate";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { deviceWasRegistered } from "@/shared/lib/registered-device";
 import { isEventJoinPath } from "@/shared/event/lookup";
@@ -12,10 +13,10 @@ import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { isCardReady, useAppStore } from "@/shared/store/app-store";
 
 /**
- * Trial onboarding: photo and name.
- * Reached from Try without sign up, after the Sign up consent checkbox.
+ * Trial onboarding: the no-sign-up gate, then photo and name.
+ * Reached from Try without sign up.
  * A phone that already flipped onboarded without a finished portfolio still sees that landing.
- * The 60h clock still starts on Confirm.
+ * The 60h clock starts when both gate boxes are accepted.
  * An event join passes next=/e/<lookup>/join and returns there once the card is saved.
  */
 export function TryScreen() {
@@ -27,7 +28,7 @@ export function TryScreen() {
   const hydrated = useStoreHydrated();
   const sessionReady = useSessionBootstrap();
   const needsSignIn = useRegistrationRequired();
-  const [showLanding, setShowLanding] = useState(false);
+  const [step, setStep] = useState<"wait" | "gate" | "card">("wait");
 
   useEffect(() => {
     if (!hydrated || !sessionReady || needsSignIn) return;
@@ -45,8 +46,24 @@ export function TryScreen() {
       }
 
       if (cancelled) return;
+      const registered = Boolean(user && !user.is_anonymous);
+      if (!registered) {
+        const statusResponse = await fetch("/api/account/status", { cache: "no-store" });
+        const status = statusResponse.ok
+          ? ((await statusResponse.json()) as { trial?: boolean; frozen?: boolean })
+          : null;
+        if (cancelled) return;
+        if (status?.frozen) {
+          router.replace(next ?? "/main");
+          return;
+        }
+        if (!status?.trial) {
+          setStep("gate");
+          return;
+        }
+      }
       if (fresh) {
-        setShowLanding(true);
+        setStep("card");
         return;
       }
       const state = useAppStore.getState();
@@ -63,14 +80,14 @@ export function TryScreen() {
           await upsertCardScalars(card);
           const saved = await supabase.from("cards").select("id").eq("id", card.id).maybeSingle();
           if (!saved.data) {
-            if (!cancelled) setShowLanding(true);
+            if (!cancelled) setStep("card");
             return;
           }
         }
         if (!cancelled) router.replace(next ?? "/main");
         return;
       }
-      setShowLanding(true);
+      setStep("card");
     })();
 
     return () => {
@@ -78,6 +95,7 @@ export function TryScreen() {
     };
   }, [hydrated, sessionReady, needsSignIn, router, next, fresh]);
 
-  if (!showLanding) return <div className="h-lvh bg-background" aria-hidden />;
+  if (step === "gate") return <TrialGate onContinue={() => setStep("card")} />;
+  if (step !== "card") return <div className="h-lvh bg-background" aria-hidden />;
   return <LandingPage next={next} fresh={fresh} />;
 }

@@ -5,7 +5,7 @@ import { startTrialClock } from "@/shared/services/trial";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Called at Confirm. Does not run on anonymous sign-in. */
+/** Called when the no-sign-up gate is accepted. Does not run on anonymous sign-in. */
 export async function POST() {
   const owner = await requireOwnerId();
   if (!owner.ok) return NextResponse.json({ error: owner.error }, { status: owner.status });

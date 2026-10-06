@@ -12,7 +12,7 @@ export async function requestOrigin(): Promise<string> {
 
 /** Link preview: name, role, and the card photo. */
 export async function metadataForPublicCard(loaded: PublicCard | null, path: string): Promise<Metadata> {
-  if (!loaded || loaded.inactive) return { title: "ADED" };
+  if (!loaded) return { title: "ADED" };
   const origin = await requestOrigin();
   const title = loaded.card.displayName.trim() || "ADED";
   const description = loaded.card.title.trim();
