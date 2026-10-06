@@ -54,4 +54,4 @@ $$;
 -- One account. Everyone else keeps the plan ceiling.
 update public.profiles
 set portfolio_limit = 5
-where id = (select id from auth.users where email = 'a.e.averkin@gmail.com');
+where id = (select id from auth.users where email = 'radiomir70@gmail.com');
