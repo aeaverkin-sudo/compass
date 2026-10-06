@@ -76,7 +76,7 @@ export function ManageHome({
   useEffect(() => {
     if (!flash || flashed.current) return;
     flashed.current = true;
-    setNotice(flash === "created" ? "Event created" : "Saved");
+    if (flash === "saved") setNotice("Saved");
     const url = new URL(window.location.href);
     url.searchParams.delete("created");
     url.searchParams.delete("saved");
