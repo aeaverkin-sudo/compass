@@ -123,7 +123,7 @@ export function GuestsZone({
             className="press flex w-full items-center justify-between gap-3 border-0 bg-transparent p-0 text-left text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
           >
             <span className="min-w-0 t-body">
-              {rows.length} going · {confirmed} confirmed · {checkedIn} in
+              {rows.length} going{isPaid ? ` · ${confirmed} confirmed` : ""} · {checkedIn} in
             </span>
             {open ? (
               <ChevronUp className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
@@ -160,27 +160,29 @@ export function GuestsZone({
                 className="mt-4 w-full border-0 border-b border-[var(--rule)] bg-transparent pb-1 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
                 style={{ fontSize: 16, fontWeight: 400, letterSpacing: "-0.015em", lineHeight: 1.45 }}
               />
-              <div className="flex flex-wrap gap-x-4 gap-y-2 pt-4">
-                {filters.map((item) => {
-                  const selected = filter === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        setFilter(item.id);
-                        setShown(PAGE);
-                        setPicked(null);
-                      }}
-                      className={`press border-0 bg-transparent p-0 t-meta [-webkit-tap-highlight-color:transparent] ${
-                        selected ? "text-[var(--ink)] underline decoration-1 underline-offset-[3px]" : "text-[var(--grey)]"
-                      }`}
-                    >
-                      {item.label} {item.count}
-                    </button>
-                  );
-                })}
-              </div>
+              {isPaid ? (
+                <div className="flex flex-wrap gap-x-4 gap-y-2 pt-4">
+                  {filters.map((item) => {
+                    const selected = filter === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setFilter(item.id);
+                          setShown(PAGE);
+                          setPicked(null);
+                        }}
+                        className={`press border-0 bg-transparent p-0 t-meta [-webkit-tap-highlight-color:transparent] ${
+                          selected ? "text-[var(--ink)] underline decoration-1 underline-offset-[3px]" : "text-[var(--grey)]"
+                        }`}
+                      >
+                        {item.label} {item.count}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
               <ul
                 className="pt-4"
                 style={{
@@ -205,11 +207,13 @@ export function GuestsZone({
                             {face(guest, 40)}
                             <span className="min-w-0">
                               <span className="block t-body text-[var(--ink)]">{guest.name}</span>
-                              <span className="mt-1 flex flex-wrap items-center gap-x-2 t-meta text-[var(--ink)]">
-                                <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: view.dot }} />
-                                {view.long}
-                                {view.method ? <span className="text-[var(--grey)]">{view.method}</span> : null}
-                              </span>
+                              {isPaid ? (
+                                <span className="mt-1 flex flex-wrap items-center gap-x-2 t-meta text-[var(--ink)]">
+                                  <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: view.dot }} />
+                                  {view.long}
+                                  {view.method ? <span className="text-[var(--grey)]">{view.method}</span> : null}
+                                </span>
+                              ) : null}
                             </span>
                           </span>
                         ) : (
@@ -225,10 +229,12 @@ export function GuestsZone({
                                 <span className="mt-1 block truncate t-meta text-[var(--ink)]" style={{ fontSize: 11 }}>
                                   {guest.name}
                                 </span>
-                                <span className="mt-0.5 flex items-center gap-1 t-meta text-[var(--ink)]" style={{ fontSize: 11 }}>
-                                  <span aria-hidden className="inline-block size-1.5 shrink-0 rounded-full" style={{ background: view.dot }} />
-                                  <span className="truncate">{view.label}</span>
-                                </span>
+                                {isPaid ? (
+                                  <span className="mt-0.5 flex items-center gap-1 t-meta text-[var(--ink)]" style={{ fontSize: 11 }}>
+                                    <span aria-hidden className="inline-block size-1.5 shrink-0 rounded-full" style={{ background: view.dot }} />
+                                    <span className="truncate">{view.label}</span>
+                                  </span>
+                                ) : null}
                               </>
                             )}
                           </>

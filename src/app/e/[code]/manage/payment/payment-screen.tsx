@@ -6,6 +6,8 @@ import { Upload } from "lucide-react";
 import { Switch } from "@/shared/components/ui/switch";
 import { Zone } from "@/shared/components/zone";
 import type { EventPay, PaymentTally, StatementReport } from "@/shared/event/payment-label";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+
 type PaymentScreenProps = {
   lookup: string;
   pay: EventPay;
@@ -96,7 +98,7 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
 
   return (
     <>
-      <Zone label="Payment" align="start" rule>
+      <Zone label="Payment" align="start" rule={draft.isPaid}>
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <Switch
@@ -214,13 +216,17 @@ export function PaymentScreen({ lookup, pay, tally, returnUrl }: PaymentScreenPr
             <p className="mt-1 mb-0 t-meta text-[var(--grey)]">
               Guests who open this link are marked as saying they paid. You still confirm them.
             </p>
+            <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
+              ADED is not a payment processor — money goes straight to you. We only mark who&apos;s confirmed.
+            </p>
           </Zone>
         </>
       ) : null}
-      {error ? <p className="mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
-      <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
-        ADED is not a payment processor — money goes straight to you. We only mark who&apos;s confirmed.
-      </p>
+      {error ? (
+        <p className="mb-0 t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>
+          {error}
+        </p>
+      ) : null}
     </>
   );
 }
