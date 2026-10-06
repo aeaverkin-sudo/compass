@@ -33,6 +33,8 @@ type ProfileClock = {
   purge_at: string | null;
   registered_at: string | null;
   plan: string | null;
+  /** Personal portfolio ceiling. Null uses the plan limit. */
+  portfolio_limit: number | null;
 };
 
 function clockFrom(row: ProfileClock | null, now = Date.now()) {
@@ -51,13 +53,17 @@ function clockFrom(row: ProfileClock | null, now = Date.now()) {
 function statusFrom(row: ProfileClock | null, now = Date.now()): AccountStatus {
   const plan = planId(row?.plan);
   const limits = planLimits(plan);
+  const portfolioLimit =
+    typeof row?.portfolio_limit === "number" && row.portfolio_limit > 0
+      ? row.portfolio_limit
+      : limits.portfolios;
   return {
     ...clockFrom(row, now),
     email: null,
     provider: null,
     consentVersion: null,
     plan,
-    portfolioLimit: limits.portfolios,
+    portfolioLimit,
     bytesUsed: 0,
     bytesLimit: limits.bytes,
     catalog: planCatalog(),
@@ -68,14 +74,28 @@ async function readClock(userId: string): Promise<ProfileClock | null> {
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from("profiles")
-    .select("draft_expires_at, purge_at, registered_at, plan")
+    .select("draft_expires_at, purge_at, registered_at, plan, portfolio_limit")
     .eq("id", userId)
     .maybeSingle();
   if (!error) return (data as ProfileClock | null) ?? null;
 
-  // The plan column is optional until phase 9 is applied. An unset plan is free.
-  if (!/plan/i.test(error.message)) throw new Error(error.message);
+  // portfolio_limit arrives with this migration. Until then the plan ceiling stays.
+  if (/portfolio_limit/i.test(error.message)) {
+    const kept = await admin
+      .from("profiles")
+      .select("draft_expires_at, purge_at, registered_at, plan")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!kept.error) {
+      if (!kept.data) return null;
+      return { ...(kept.data as Omit<ProfileClock, "portfolio_limit">), portfolio_limit: null };
+    }
+    if (!/plan/i.test(kept.error.message)) throw new Error(kept.error.message);
+  } else if (!/plan/i.test(error.message)) {
+    throw new Error(error.message);
+  }
 
+  // The plan column is optional until phase 9 is applied. An unset plan is free.
   const fallback = await admin
     .from("profiles")
     .select("draft_expires_at, purge_at, registered_at")
@@ -83,7 +103,11 @@ async function readClock(userId: string): Promise<ProfileClock | null> {
     .maybeSingle();
   if (fallback.error) throw new Error(fallback.error.message);
   if (!fallback.data) return null;
-  return { ...(fallback.data as Omit<ProfileClock, "plan">), plan: null };
+  return {
+    ...(fallback.data as Omit<ProfileClock, "plan" | "portfolio_limit">),
+    plan: null,
+    portfolio_limit: null,
+  };
 }
 
 export async function readAccountStatus(userId: string): Promise<AccountStatus> {
