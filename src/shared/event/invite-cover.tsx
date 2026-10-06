@@ -26,7 +26,7 @@ type InviteCoverProps = {
   event: InviteCoverEvent;
   layout: EventLayoutId;
   themeId: EventThemeId;
-  variant: "page" | "preview" | "card" | "square";
+  variant: "page" | "preview" | "card" | "square" | "full";
 };
 
 function placeLine(event: InviteCoverEvent): string | null {
@@ -79,7 +79,7 @@ export function InviteCover({ event, layout, themeId, variant }: InviteCoverProp
   return (
     <div className={variant === "page" ? "min-h-dvh" : undefined} style={variant === "page" ? paint : undefined}>
       <Scaler variant={variant}>
-        <Cover event={event} layout={layout} themeId={themeId} />
+        <Cover event={event} layout={layout} themeId={themeId} full={variant === "full"} />
       </Scaler>
     </div>
   );
@@ -87,24 +87,58 @@ export function InviteCover({ event, layout, themeId, variant }: InviteCoverProp
 
 function Scaler({ variant, children }: { variant: InviteCoverProps["variant"]; children: ReactNode }) {
   const frame = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const full = variant === "full";
   const [scale, setScale] = useState(variant === "page" ? 1 : 0.001);
+  const [fullHeight, setFullHeight] = useState(DESIGN_H);
 
   useLayoutEffect(() => {
     const node = frame.current;
+    const sheetNode = sheet.current;
     if (!node) return;
-    const apply = () => setScale(node.clientWidth / DESIGN_W);
+    const apply = () => {
+      const next = node.clientWidth / DESIGN_W || 0.001;
+      setScale(next);
+      if (full && sheetNode) setFullHeight(Math.max(DESIGN_H * next, sheetNode.scrollHeight * next));
+    };
     apply();
     const observer = new ResizeObserver(apply);
     observer.observe(node);
+    if (sheetNode) observer.observe(sheetNode);
     return () => observer.disconnect();
-  }, []);
+  }, [full]);
+
+  if (variant === "page") {
+    return (
+      <div className="relative mx-auto w-full max-w-[430px]">
+        <div ref={frame} className="relative w-full overflow-hidden" style={{ aspectRatio: `${DESIGN_W} / ${DESIGN_H}` }}>
+          <div
+            className="absolute top-0 left-0"
+            style={{ width: DESIGN_W, height: DESIGN_H, transform: `scale(${scale})`, transformOrigin: "top left" }}
+          >
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={variant === "page" ? "relative mx-auto w-full max-w-[430px]" : "w-full"}>
-      <div ref={frame} className="relative w-full overflow-hidden" style={{ aspectRatio: `${DESIGN_W} / ${DESIGN_H}` }}>
+    <div className="w-full">
+      <div
+        ref={frame}
+        className="relative w-full overflow-hidden"
+        style={full ? { height: fullHeight } : { aspectRatio: `${DESIGN_W} / ${DESIGN_H}` }}
+      >
         <div
+          ref={sheet}
           className="absolute top-0 left-0"
-          style={{ width: DESIGN_W, height: DESIGN_H, transform: `scale(${scale})`, transformOrigin: "top left" }}
+          style={{
+            width: DESIGN_W,
+            height: full ? "auto" : DESIGN_H,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
         >
           {children}
         </div>
@@ -117,26 +151,29 @@ function Cover({
   event,
   layout,
   themeId,
+  full,
 }: {
   event: InviteCoverEvent;
   layout: EventLayoutId;
   themeId: EventThemeId;
+  full: boolean;
 }) {
   const paint = coverPaint(layout, themeId);
   return (
     <div
       style={{
         width: DESIGN_W,
-        height: DESIGN_H,
+        height: full ? "auto" : DESIGN_H,
+        minHeight: full ? DESIGN_H : undefined,
         position: "relative",
-        overflow: "hidden",
+        overflow: full ? "visible" : "hidden",
         fontFamily: "var(--font-sans)",
         ...paint,
       }}
     >
-      {layout === "grid" ? <EditorialCover event={event} /> : null}
-      {layout === "corners" ? <FashionCover event={event} /> : null}
-      {layout === "oversized" ? <ModernCover event={event} /> : null}
+      {layout === "grid" ? <EditorialCover event={event} full={full} /> : null}
+      {layout === "corners" ? <FashionCover event={event} full={full} /> : null}
+      {layout === "oversized" ? <ModernCover event={event} full={full} /> : null}
     </div>
   );
 }
@@ -154,12 +191,12 @@ function Field({ label, value }: { label: string; value: string }) {
       <div style={{ fontFamily: MONO_FACE, fontSize: 7, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.55, marginBottom: 2 }}>
         {label}
       </div>
-      <div style={{ fontSize: 10.5, lineHeight: 1.35 }}>{value}</div>
+      <div style={{ fontSize: 10.5, lineHeight: 1.35, overflowWrap: "break-word" }}>{value}</div>
     </div>
   );
 }
 
-function EditorialCover({ event }: { event: InviteCoverEvent }) {
+function EditorialCover({ event, full }: { event: InviteCoverEvent; full: boolean }) {
   const date = eventDayLong(event.date);
   const time = eventTimeRange(event.date, event.endDate);
   const place = placeLine(event);
@@ -174,12 +211,13 @@ function EditorialCover({ event }: { event: InviteCoverEvent }) {
   );
 
   return (
-    <div style={{ position: "relative", height: "100%", boxSizing: "border-box" }}>
+    <div style={{ position: "relative", height: full ? "auto" : "100%", minHeight: full ? DESIGN_H : undefined, boxSizing: "border-box" }}>
       <div style={{ position: "absolute", inset: 14, border: `0.6px solid ${HAIR}`, pointerEvents: "none" }} />
       <div
         style={{
           position: "relative",
-          height: "100%",
+          height: full ? "auto" : "100%",
+          minHeight: full ? DESIGN_H : undefined,
           padding: "21px 22px",
           display: "flex",
           flexDirection: "column",
@@ -194,13 +232,27 @@ function EditorialCover({ event }: { event: InviteCoverEvent }) {
         </div>
         <div style={{ height: 0.6, background: HAIR, marginTop: 9 }} />
         <h1
-          className="m-0 line-clamp-3"
-          style={{ marginTop: 13, fontWeight: 800, fontSize: editorialTitleSize(event.name), lineHeight: 0.86, letterSpacing: "-0.03em" }}
+          className={full ? "m-0" : "m-0 line-clamp-3"}
+          style={{
+            marginTop: 13,
+            fontWeight: 800,
+            fontSize: editorialTitleSize(event.name),
+            lineHeight: full ? 0.95 : 0.86,
+            letterSpacing: "-0.03em",
+            overflowWrap: "break-word",
+          }}
         >
           {event.name}
         </h1>
         <div style={{ height: 1.4, background: "currentColor", marginTop: 13 }} />
-        <div style={{ display: "grid", gridTemplateColumns: about ? "96px 1fr" : "1fr", flex: 1, minHeight: 0, marginTop: 13 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: about ? "96px 1fr" : "1fr",
+            marginTop: 13,
+            ...(full ? {} : { flex: 1, minHeight: 0 }),
+          }}
+        >
           <div style={{ paddingRight: about ? 14 : 0 }}>
             {event.logoUrl ? (
               <div style={{ width: "100%", aspectRatio: "1.08", border: "0.8px solid currentColor", overflow: "hidden", marginBottom: 12 }}>
@@ -220,7 +272,7 @@ function EditorialCover({ event }: { event: InviteCoverEvent }) {
                 About
               </div>
               <div
-                className="line-clamp-[10]"
+                className={full ? undefined : "line-clamp-[10]"}
                 style={{ fontSize: 9.5, lineHeight: 1.6, textAlign: "justify", overflowWrap: "break-word", whiteSpace: "pre-wrap" }}
               >
                 {about}
@@ -257,7 +309,7 @@ function Corner({ x, y }: { x: "left" | "right"; y: "top" | "bottom" }) {
   );
 }
 
-function FashionCover({ event }: { event: InviteCoverEvent }) {
+function FashionCover({ event, full }: { event: InviteCoverEvent; full: boolean }) {
   const about = aboutLine(event);
   const date = dottedDate(event.date);
   const place = placeLine(event);
@@ -271,7 +323,8 @@ function FashionCover({ event }: { event: InviteCoverEvent }) {
       style={{
         boxSizing: "border-box",
         display: "flex",
-        height: "100%",
+        height: full ? "auto" : "100%",
+        minHeight: full ? DESIGN_H : undefined,
         flexDirection: "column",
         alignItems: "center",
         padding: 30,
@@ -332,7 +385,8 @@ function FashionCover({ event }: { event: InviteCoverEvent }) {
           lineHeight: 1.6,
           letterSpacing: "0.3em",
           textTransform: "uppercase",
-          ...clamp(3),
+          overflowWrap: "break-word",
+          ...(full ? {} : clamp(3)),
         }}
       >
         {event.name.toUpperCase()}
@@ -340,7 +394,18 @@ function FashionCover({ event }: { event: InviteCoverEvent }) {
       <div style={hair} />
       {date ? <div style={{ fontSize: 10, letterSpacing: "0.3em", ...MONO }}>{date}</div> : null}
       {about ? (
-        <div style={{ maxWidth: "78%", marginTop: 18, fontSize: 8.5, lineHeight: 1.9, opacity: 0.82, ...clamp(4) }}>
+        <div
+          style={{
+            maxWidth: "78%",
+            marginTop: 18,
+            fontSize: 8.5,
+            lineHeight: 1.9,
+            opacity: 0.82,
+            overflowWrap: "break-word",
+            whiteSpace: "pre-wrap",
+            ...(full ? {} : clamp(4)),
+          }}
+        >
           {about}
         </div>
       ) : null}
@@ -352,6 +417,8 @@ function FashionCover({ event }: { event: InviteCoverEvent }) {
             letterSpacing: "0.22em",
             textTransform: "uppercase",
             opacity: 0.75,
+            overflowWrap: "break-word",
+            ...(full ? { whiteSpace: "pre-wrap" } : {}),
           }}
         >
           {foot}
@@ -361,7 +428,8 @@ function FashionCover({ event }: { event: InviteCoverEvent }) {
   );
 }
 
-function ModernCover({ event }: { event: InviteCoverEvent }) {
+function ModernCover({ event, full }: { event: InviteCoverEvent; full: boolean }) {
+  if (full) return <ModernFull event={event} />;
   const day = eventDaySlash(event.date);
   const time = eventTimeRange(event.date, event.endDate);
   const place = placeLine(event);
@@ -463,6 +531,91 @@ function ModernCover({ event }: { event: InviteCoverEvent }) {
         </div>
       ) : null}
     </>
+  );
+}
+
+function ModernFull({ event }: { event: InviteCoverEvent }) {
+  const day = eventDaySlash(event.date);
+  const time = eventTimeRange(event.date, event.endDate);
+  const place = placeLine(event);
+  const about = aboutLine(event);
+
+  return (
+    <div style={{ position: "relative", minHeight: DESIGN_H, boxSizing: "border-box", padding: "18px 18px 20px" }}>
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage:
+            "repeating-linear-gradient(0deg, color-mix(in srgb, currentColor 14%, transparent) 0 1px, transparent 1px 40px), repeating-linear-gradient(90deg, color-mix(in srgb, currentColor 14%, transparent) 0 1px, transparent 1px 40px)",
+        }}
+      />
+      <div style={{ position: "relative" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          {event.logoUrl ? (
+            <div style={{ position: "relative", width: 92, height: 98, flex: "0 0 auto" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={event.logoUrl}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover", ...mask("linear-gradient(130deg, #000 50%, transparent 94%)") }}
+              />
+            </div>
+          ) : (
+            <span />
+          )}
+          <div style={{ textAlign: "right", fontSize: 7.5, letterSpacing: "0.14em", textTransform: "uppercase", ...MONO }}>ADED</div>
+        </div>
+        {day ? (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Date</div>
+            <div style={{ fontSize: 22, ...MONO }}>{day}</div>
+          </div>
+        ) : null}
+        {time ? (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Time</div>
+            <div style={{ fontSize: 11, ...MONO }}>{time}</div>
+          </div>
+        ) : null}
+        {about ? (
+          <p style={{ margin: "16px 0 0", fontSize: 8, lineHeight: 1.7, overflowWrap: "break-word", whiteSpace: "pre-wrap", ...MONO }}>{about}</p>
+        ) : null}
+        <div
+          style={{
+            marginTop: 18,
+            fontWeight: 700,
+            fontSize: modernTitleSize(event.name),
+            lineHeight: 0.9,
+            letterSpacing: "-0.055em",
+            textTransform: "uppercase",
+            textAlign: "center",
+            overflowWrap: "break-word",
+          }}
+        >
+          {event.name.toUpperCase()}
+        </div>
+        {place || event.price ? (
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 16 }}>
+            {place ? (
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Place</div>
+                <div style={{ fontSize: 9, overflowWrap: "break-word", ...MONO }}>{place}</div>
+              </div>
+            ) : (
+              <span />
+            )}
+            {event.price ? (
+              <div style={{ textAlign: "right", flex: "0 0 auto" }}>
+                <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Price</div>
+                <div style={{ fontSize: 9, ...MONO }}>{event.price}</div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

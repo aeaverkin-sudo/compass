@@ -23,7 +23,7 @@ import {
   mimeAllowedForKind,
   transferMimeAllowed,
 } from "@/shared/services/attachment-limits";
-import { stripImageMetadata } from "@/shared/services/attachment-sanitize";
+import { uprightImage } from "@/shared/services/attachment-sanitize";
 
 export const runtime = "nodejs";
 
@@ -66,7 +66,7 @@ async function storeTransferNote(ownerId: string, kindValue: string, transferId:
     return jsonFail(413, "File is over the limit for its type");
   }
 
-  const bytes = detected.mime.startsWith("image/") ? stripImageMetadata(raw, detected.mime) : raw;
+  const bytes = detected.mime.startsWith("image/") ? await uprightImage(raw, detected.mime) : raw;
 
   let used = 0;
   try {
@@ -161,9 +161,7 @@ export async function POST(request: Request) {
     return jsonFail(413, "File is over the limit for its type");
   }
 
-  const bytes = detected.mime.startsWith("image/")
-    ? stripImageMetadata(raw, detected.mime)
-    : raw;
+  const bytes = detected.mime.startsWith("image/") ? await uprightImage(raw, detected.mime) : raw;
 
   let used = 0;
   try {

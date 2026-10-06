@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { InviteCover, type InviteCoverEvent } from "@/shared/event/invite-cover";
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
 
-/** Tap the cover to open it full size. Close sits at the top left; a tap or Escape also closes. */
+/** Tap the cover to open the poster itself, centered on a neutral field. Close or Escape dismisses it. */
 export function CoverButton({
   event,
   layout,
@@ -43,17 +43,21 @@ export function CoverButton({
           role="presentation"
           onClick={() => setOpen(false)}
           className="fixed inset-0 z-[80] overflow-y-auto [-webkit-tap-highlight-color:transparent]"
-          style={{ background: `var(--event-theme-${themeId})`, color: `var(--event-theme-${themeId}-ink)` }}
+          style={{ background: "rgba(0,0,0,0.6)" }}
         >
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="press fixed z-[81] border-0 bg-transparent p-0 t-body [-webkit-tap-highlight-color:transparent]"
-            style={{ top: "calc(env(safe-area-inset-top) + 12px)", left: "var(--gutter)", color: "inherit" }}
+            className="press fixed z-[81] border-0 bg-transparent p-0 t-body text-white [-webkit-tap-highlight-color:transparent]"
+            style={{ top: "calc(env(safe-area-inset-top) + 12px)", left: "var(--gutter)" }}
           >
             Close
           </button>
-          <InviteCover variant="page" layout={layout} themeId={themeId} event={event} />
+          <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col px-3 py-16">
+            <div className="m-auto w-full" onClick={(event) => event.stopPropagation()}>
+              <InviteCover variant="full" layout={layout} themeId={themeId} event={event} />
+            </div>
+          </div>
         </div>
       ) : null}
     </>

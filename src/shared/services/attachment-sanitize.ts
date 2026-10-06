@@ -1,7 +1,8 @@
 /**
  * Drop location metadata from images the route stores.
- * Canvas resize already drops EXIF for images it redraws; this also covers
- * passthrough files that were not resized.
+ * A phone often stores the picture sideways and records the turn in EXIF.
+ * Passthrough files are redrawn first so that turn is baked into the pixels;
+ * stripping the marker afterwards then has nothing left to rotate.
  */
 
 const JPEG_APP1 = 0xe1;
@@ -128,4 +129,19 @@ export function stripImageMetadata(bytes: Uint8Array, mime: string): Uint8Array 
   if (mime === "image/png") return stripPngText(bytes);
   if (mime === "image/webp") return stripWebpMetadata(bytes);
   return bytes;
+}
+
+/** Redraw a raster so EXIF orientation is in the pixels, then drop the marker. */
+export async function uprightImage(bytes: Uint8Array, mime: string): Promise<Uint8Array> {
+  if (mime !== "image/jpeg" && mime !== "image/png" && mime !== "image/webp") {
+    return stripImageMetadata(bytes, mime);
+  }
+  try {
+    const { default: sharp } = await import("sharp");
+    const pipeline = sharp(Buffer.from(bytes), { failOn: "none" }).rotate();
+    const encoded = mime === "image/png" ? pipeline.png() : mime === "image/webp" ? pipeline.webp() : pipeline.jpeg();
+    return new Uint8Array(await encoded.toBuffer());
+  } catch {
+    return stripImageMetadata(bytes, mime);
+  }
 }

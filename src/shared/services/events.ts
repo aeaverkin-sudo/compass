@@ -10,7 +10,7 @@ import {
   storagePath,
 } from "@/shared/services/attachment-api";
 import { CARD_ATTACHMENTS_BUCKET, IMAGE_BYTE_LIMIT, IMAGE_MIMES } from "@/shared/services/attachment-limits";
-import { stripImageMetadata } from "@/shared/services/attachment-sanitize";
+import { uprightImage } from "@/shared/services/attachment-sanitize";
 import { isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { formatEventRange } from "@/shared/event/when";
 
@@ -93,7 +93,7 @@ async function storeLogo(ownerId: string, file: File): Promise<{ id: string; pat
       throw new Error("logo_type");
     }
     mime = detected.mime;
-    bytes = stripImageMetadata(raw, mime);
+    bytes = await uprightImage(raw, mime);
   }
 
   const id = crypto.randomUUID();
