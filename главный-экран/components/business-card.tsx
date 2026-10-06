@@ -261,6 +261,7 @@ function EditorialHeader({
   positionTitle,
   showPlus,
   nextScan,
+  reserveSheetMark,
   onPhotoChange,
   onDisplayNameChange,
 }: {
@@ -268,12 +269,19 @@ function EditorialHeader({
   positionTitle?: string;
   showPlus: boolean;
   nextScan: ReactNode;
+  /** The old counter line. The number now sits on the QR; this keeps the photo where it was. */
+  reserveSheetMark?: boolean;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
 }) {
   const photoSrc = cardPhotoSrc(card);
   return (
     <div className="w-full">
+      {reserveSheetMark ? (
+        <p aria-hidden className="invisible m-0 mb-1 text-right t-label">
+          1
+        </p>
+      ) : null}
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
@@ -608,6 +616,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     publicBar,
     pdf = false,
     pdfMask = null,
+    sheetIndex,
+    sheetTotal,
   },
   ref,
 ) {
@@ -881,6 +891,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             <EditorialHeader
               card={card}
               positionTitle={positionTitle}
+              reserveSheetMark={ready && !readOnly && sheetIndex != null && sheetTotal != null}
               showPlus={Boolean(onCardUpdate && ready && items.length > 0)}
               nextScan={
                 onCardUpdate && ready ? (
