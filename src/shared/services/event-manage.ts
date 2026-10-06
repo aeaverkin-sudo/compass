@@ -1,16 +1,18 @@
 import { nanoid } from "nanoid";
 import {
-  accessLine,
   allPermissions,
   anyPermission,
   managerCap,
   permissionsOf,
+  teamRole,
   type EventPermission,
   type EventPermissions,
+  type TeamRoleName,
 } from "@/shared/event/permissions";
+import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { CARD_ATTACHMENTS_BUCKET, SIGNED_READ_SECONDS } from "@/shared/services/attachment-limits";
-import { loadEventInvite } from "@/shared/services/event-invite";
+import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import { eventListStatus, type EventListStatus } from "@/shared/services/events";
 
 export {
@@ -626,13 +628,18 @@ export async function removeManager(lookup: string, actorId: string, targetId: s
   return { ok: true };
 }
 
-export type ManagerInviteView =
+type InviteHit =
   | { kind: "missing" }
   | { kind: "used" }
-  | { kind: "owner"; eventName: string }
-  | { kind: "open"; eventName: string; ownerName: string; access: string };
+  | {
+      kind: "open";
+      invite: EventInvite;
+      permissions: EventPermissions;
+      createdBy: string;
+    };
 
-export async function loadManagerInvite(lookup: string, token: string, userId: string): Promise<ManagerInviteView> {
+/** The invite row, without asking who is looking. A bad or spent token stays empty. */
+async function readInviteHit(lookup: string, token: string): Promise<InviteHit> {
   let key = token.trim();
   try {
     key = decodeURIComponent(key);
@@ -656,15 +663,94 @@ export async function loadManagerInvite(lookup: string, token: string, userId: s
   if (!row.data) return { kind: "missing" };
   const data = row.data as { permissions?: unknown; used_at: string | null; created_by: string };
   if (data.used_at) return { kind: "used" };
-  const owner = await readOwnerPaid(invite.id);
-  if (owner && owner.ownerId === userId) return { kind: "owner", eventName: invite.name };
-  const face = data.created_by ? await personFace(data.created_by) : { name: "The organiser", photoUrl: null };
-  const ownerName = face.name === "Manager" ? "The organiser" : face.name;
+  return { kind: "open", invite, permissions: permissionsOf(data.permissions), createdBy: data.created_by };
+}
+
+export type InvitePreview =
+  | { kind: "missing" }
+  | { kind: "used" }
+  | {
+      kind: "open";
+      eventName: string;
+      ownerName: string;
+      date: string | null;
+      endsAt: string | null;
+      place: string | null;
+      placeSecret: boolean;
+      theme: EventThemeId;
+      layout: EventLayoutId;
+      logoUrl: string | null;
+      description: string | null;
+      role: TeamRoleName;
+      roleDetail: string;
+    };
+
+/** Link-preview facts for a team invite. No viewer check, and a bad token returns nothing about the event. */
+export async function loadInvitePreview(lookup: string, token: string): Promise<InvitePreview> {
+  const hit = await readInviteHit(lookup, token);
+  if (hit.kind !== "open") return { kind: hit.kind };
+  const face = hit.createdBy ? await personFace(hit.createdBy) : { name: "The organiser", photoUrl: null };
+  const { invite } = hit;
+  const role = teamRole(hit.permissions);
   return {
     kind: "open",
     eventName: invite.name,
-    ownerName,
-    access: accessLine(permissionsOf(data.permissions)),
+    ownerName: face.name === "Manager" ? "The organiser" : face.name,
+    date: invite.date,
+    endsAt: invite.endsAt,
+    place: invite.place,
+    placeSecret: invite.placeSecret,
+    theme: invite.theme,
+    layout: invite.layout,
+    logoUrl: invite.logoAttachmentId ? `/e/${invite.publicToken}/logo` : null,
+    description: invite.description,
+    role: role.role,
+    roleDetail: role.detail,
+  };
+}
+
+export type ManagerInviteView =
+  | { kind: "missing" }
+  | { kind: "used" }
+  | { kind: "owner"; eventName: string }
+  | {
+      kind: "open";
+      eventName: string;
+      ownerName: string;
+      role: TeamRoleName;
+      roleDetail: string;
+      description: string | null;
+      date: string | null;
+      endsAt: string | null;
+      place: string | null;
+      placeSecret: boolean;
+      theme: EventThemeId;
+      layout: EventLayoutId;
+      logoUrl: string | null;
+    };
+
+export async function loadManagerInvite(lookup: string, token: string, userId: string): Promise<ManagerInviteView> {
+  const hit = await readInviteHit(lookup, token);
+  if (hit.kind !== "open") return { kind: hit.kind };
+  const { invite } = hit;
+  const owner = await readOwnerPaid(invite.id);
+  if (owner && owner.ownerId === userId) return { kind: "owner", eventName: invite.name };
+  const face = hit.createdBy ? await personFace(hit.createdBy) : { name: "The organiser", photoUrl: null };
+  const role = teamRole(hit.permissions);
+  return {
+    kind: "open",
+    eventName: invite.name,
+    ownerName: face.name === "Manager" ? "The organiser" : face.name,
+    role: role.role,
+    roleDetail: role.detail,
+    description: invite.description,
+    date: invite.date,
+    endsAt: invite.endsAt,
+    place: invite.place,
+    placeSecret: invite.placeSecret,
+    theme: invite.theme,
+    layout: invite.layout,
+    logoUrl: invite.logoAttachmentId ? `/e/${invite.publicToken}/logo` : null,
   };
 }
 

@@ -48,6 +48,20 @@ export function accessLine(permissions: EventPermissions): string {
     .join(", ");
 }
 
+export type TeamRoleName = "Co-host" | "Door" | "Custom";
+
+/** All six rights are a co-host. Check-in alone is the door. Anything else is custom. */
+export function teamRole(permissions: EventPermissions): { role: TeamRoleName; detail: string } {
+  const enabled = EVENT_PERMISSIONS.filter((key) => permissions[key]);
+  if (enabled.length === EVENT_PERMISSIONS.length) {
+    return { role: "Co-host", detail: "Guests, invites, payment, check-in and details." };
+  }
+  if (enabled.length === 1 && enabled[0] === "checkin") {
+    return { role: "Door", detail: "Check-in only." };
+  }
+  return { role: "Custom", detail: enabled.map((key) => PERMISSION_LABEL[key]).join(", ") };
+}
+
 /** Owner sees every section. A manager sees the sections their flags allow. */
 export function visibleSections(role: "owner" | "manager", permissions: EventPermissions): ManageSection[] {
   if (role === "owner") return [...MANAGE_SECTIONS];

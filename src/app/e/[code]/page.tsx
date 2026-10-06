@@ -8,6 +8,7 @@ import { priceLabel } from "@/shared/event/payment-label";
 import { ensurePayCode, loadOwnerEventCounts, loadOwnedBadge, loadOwnRegistration } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay } from "@/shared/services/event-payment";
+import { eventShareLine } from "@/shared/event/when";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,29 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { code } = await params;
   const event = await loadEventInvite(code);
-  return { title: event?.name || "ADED" };
+  if (!event) return { title: "ADED" };
+  const origin = await requestOrigin();
+  const title = event.name || "ADED";
+  const description = eventShareLine(event.date, event.endsAt, event.place, event.placeSecret) ?? undefined;
+  const url = `${origin}/e/${encodeURIComponent(code)}`;
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url,
+      type: "website",
+      images: [
+        {
+          url: `${origin}/e/${encodeURIComponent(code)}/opengraph-image`,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+    },
+  };
 }
 
 export default async function EventInvitePage({ params, searchParams }: PageProps) {

@@ -41,6 +41,19 @@ export function formatEventWhen(iso: string | null): string | null {
   return `${day} · ${clock(date)}`;
 }
 
+/** Date and the public place, for a link preview. A secret place stays the public line. */
+export function eventShareLine(
+  date: string | null,
+  endsAt: string | null,
+  place: string | null,
+  placeSecret: boolean,
+): string | null {
+  const when = formatEventRange(date, endsAt);
+  const where = placeSecret ? "Revealed closer to the date" : place?.trim() || null;
+  const bits = [when, where].filter((bit): bit is string => Boolean(bit));
+  return bits.length > 0 ? bits.join(" · ") : null;
+}
+
 /** «11 Oct 2026 · 15:00–19:00». No end keeps the start. No start is nothing. */
 export function formatEventRange(startIso: string | null, endIso: string | null): string | null {
   const start = parsed(startIso);
