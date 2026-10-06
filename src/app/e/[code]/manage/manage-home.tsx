@@ -122,9 +122,11 @@ export function ManageHome({
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="pt-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
         <CoverButton event={poster} layout={cover.layout} themeId={cover.theme} variant="card" />
-        <button type="button" onClick={share} className={`mt-4 ${SKY}`}>
-          Invite guests
-        </button>
+        {shown("guests") ? (
+          <button type="button" onClick={share} className={`mt-4 ${SKY}`}>
+            Invite guests
+          </button>
+        ) : null}
       </div>
       <Rule className="mt-[18px]" />
       {shown("guests") ? (
