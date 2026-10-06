@@ -192,17 +192,21 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
               )}
             </Zone>
           ) : null}
-          <Zone label="Check-in" align="start">
-            <div className="flex flex-col items-start">
-              <InviteQr url={checkIn} size={220} />
-              <p className="mt-4 mb-0 t-meta text-[var(--grey)]">
-                Show this at the door. Unconfirmed payments may be checked at the entrance.
-              </p>
-            </div>
-          </Zone>
+          <div className="mt-2 flex flex-col items-center">
+            <p className="mb-3 t-caps text-[var(--grey)]">Check-in</p>
+            <InviteQr url={checkIn} size={220} />
+            <p className="mt-4 mb-0 max-w-[280px] text-center t-meta text-[var(--grey)]">
+              Show this at the door. Unconfirmed payments may be checked at the entrance.
+            </p>
+          </div>
           {error ? <p className="mb-0 t-meta text-[var(--grey)]">{error}</p> : null}
-          <div className="w-full py-4">
-            <InviteCover variant="square" layout={event.layout} themeId={event.theme} event={poster} />
+          <div
+            className="mt-4 flex min-h-0 w-full flex-1 items-center justify-center pb-4"
+            style={{ containerType: "size" }}
+          >
+            <div style={{ width: "min(100cqw, calc(100cqh * 286 / 404))" }}>
+              <InviteCover variant="square" layout={event.layout} themeId={event.theme} event={poster} />
+            </div>
           </div>
         </div>
         <NetworkBand current="event" />
