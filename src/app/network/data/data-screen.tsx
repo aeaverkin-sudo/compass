@@ -107,7 +107,7 @@ export function DataScreen() {
   const cacheRef = useRef(cache);
   const pending = useRef(new Set<string>());
   const scroller = useRef<HTMLDivElement>(null);
-  const placed = useRef(false);
+  const syncing = useRef(false);
   const [width, setWidth] = useState(0);
   const many = cards.length > 1;
   const activeId = cards[index]?.id ?? "";
@@ -140,7 +140,10 @@ export function DataScreen() {
   useLayoutEffect(() => {
     const node = scroller.current;
     if (!node || !many) return;
-    const sync = () => setWidth(node.clientWidth);
+    const sync = () => {
+      const next = node.clientWidth;
+      if (next > 0) setWidth((current) => (current === next ? current : next));
+    };
     sync();
     const observer = new ResizeObserver(sync);
     observer.observe(node);
@@ -159,17 +162,25 @@ export function DataScreen() {
     const node = scroller.current;
     if (!node || !many || width === 0) return;
     const target = index * width;
-    if (!placed.current || Math.abs(node.scrollLeft - target) >= width * 0.75) {
-      node.scrollTo({ left: target, behavior: "auto" });
+    if (Math.abs(node.scrollLeft - target) <= 1) {
+      syncing.current = false;
+      return;
     }
-    placed.current = true;
+    syncing.current = true;
+    node.scrollTo({ left: target, behavior: "auto" });
+    const release = window.setTimeout(() => {
+      syncing.current = false;
+    }, 80);
+    return () => window.clearTimeout(release);
   }, [index, many, width]);
 
   const onScroll = () => {
     const node = scroller.current;
-    if (!placed.current || !node || !many || width === 0) return;
-    const next = Math.min(cards.length - 1, Math.max(0, Math.round(node.scrollLeft / width)));
-    if (next === index) return;
+    if (!node || syncing.current || !many) return;
+    const slideWidth = node.clientWidth;
+    if (slideWidth <= 0) return;
+    const next = Math.min(cards.length - 1, Math.max(0, Math.round(node.scrollLeft / slideWidth)));
+    if (next === useAppStore.getState().currentCardIndex) return;
     setCurrentCardIndex(next);
   };
 
@@ -197,20 +208,22 @@ export function DataScreen() {
       {many ? (
         <div
           ref={scroller}
-          className="compass-carousel min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overflow-y-hidden"
+          className="min-h-0 w-full min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           onScroll={onScroll}
         >
-          <div className="flex h-full">
-            {cards.map((card) => (
-              <div
-                key={card.id}
-                className="h-full shrink-0 snap-center overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]"
-                style={{ width: width || "100%", touchAction: "pan-y" }}
-              >
-                {slide(card)}
-              </div>
-            ))}
-          </div>
+          {width > 0 ? (
+            <div className="flex h-full">
+              {cards.map((card) => (
+                <div
+                  key={card.id}
+                  className="h-full shrink-0 snap-start overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]"
+                  style={{ width, touchAction: "pan-x pan-y" }}
+                >
+                  {slide(card)}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
