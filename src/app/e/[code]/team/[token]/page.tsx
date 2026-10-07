@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ScreenHeader } from "@/shared/components/screen-header";
-import { eventShareLine, formatEventRange } from "@/shared/event/when";
+import { Zone } from "@/shared/components/zone";
+import { formatEventRange } from "@/shared/event/when";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadInvitePreview, loadManagerInvite } from "@/shared/services/event-manage";
 import { requestOrigin } from "@/shared/services/public-card-meta";
@@ -9,7 +10,20 @@ import { AcceptScreen } from "./accept-screen";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ code: string; token: string }> };
+type PageProps = {
+  params: Promise<{ code: string; token: string }>;
+  searchParams: Promise<{ accept?: string | string[] }>;
+};
+
+function wantsAccept(value: string | string[] | undefined) {
+  return (Array.isArray(value) ? value[0] : value) === "1";
+}
+
+function whereLine(place: string | null, placeSecret: boolean): string | null {
+  if (placeSecret) return "Revealed closer to the date";
+  const text = place?.trim() ?? "";
+  return text || null;
+}
 
 function once(value: string): string {
   try {
@@ -45,35 +59,38 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-function usedInvite(lookup: string) {
+function inviteNotice(href: string, text: string) {
   return (
-    <main className="compass-main min-h-dvh overflow-y-auto bg-white px-[var(--gutter)] text-[var(--ink)]">
-      <ScreenHeader title="Team invite" fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
-      <p className="mb-0 t-body text-[var(--ink)]">This link has already been used.</p>
+    <main className="compass-main min-h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[var(--ink)]">
+      <ScreenHeader title="Team invite" fallbackHref={href} />
+      <Zone label="">
+        <p className="mb-0 t-body text-[var(--ink)]">{text}</p>
+      </Zone>
     </main>
   );
 }
 
-export default async function ManagerInvitePage({ params }: PageProps) {
+export default async function ManagerInvitePage({ params, searchParams }: PageProps) {
   const { code, token } = await params;
+  const query = await searchParams;
   const lookup = once(code);
   const inviteToken = once(token);
-  const next = `/e/${encodeURIComponent(lookup)}/team/${encodeURIComponent(inviteToken)}`;
+  const returnTo = `/e/${encodeURIComponent(lookup)}/team/${encodeURIComponent(inviteToken)}?accept=1`;
+  const signInHref = `/register?signin=1&next=${encodeURIComponent(returnTo)}`;
+  const signUpHref = `/register?next=${encodeURIComponent(returnTo)}`;
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user && !data.user.is_anonymous ? data.user : null;
+  const anonymous = Boolean(data.user?.is_anonymous);
 
   if (user) {
     const invite = await loadManagerInvite(lookup, inviteToken, user.id);
     if (invite.kind === "missing") notFound();
-    if (invite.kind === "used") return usedInvite(lookup);
+    if (invite.kind === "used") {
+      return inviteNotice(`/e/${encodeURIComponent(lookup)}`, "This link has already been used.");
+    }
     if (invite.kind === "owner") {
-      return (
-        <main className="compass-main min-h-dvh overflow-y-auto bg-white px-[var(--gutter)] text-[var(--ink)]">
-          <ScreenHeader title="Team invite" fallbackHref={`/e/${encodeURIComponent(lookup)}/manage`} />
-          <p className="mb-0 t-body text-[var(--ink)]">You organise {invite.eventName}.</p>
-        </main>
-      );
+      return inviteNotice(`/e/${encodeURIComponent(lookup)}/manage`, `You organise ${invite.eventName}.`);
     }
     return (
       <AcceptScreen
@@ -83,9 +100,11 @@ export default async function ManagerInvitePage({ params }: PageProps) {
         eventName={invite.eventName}
         role={invite.role}
         roleDetail={invite.roleDetail}
-        whenLine={eventShareLine(invite.date, invite.endsAt, invite.place, invite.placeSecret)}
+        when={formatEventRange(invite.date, invite.endsAt)}
+        where={whereLine(invite.place, invite.placeSecret)}
         layout={invite.layout}
         themeId={invite.theme}
+        autoAccept={wantsAccept(query.accept)}
         cover={{
           name: invite.eventName,
           description: invite.description,
@@ -101,7 +120,9 @@ export default async function ManagerInvitePage({ params }: PageProps) {
 
   const preview = await loadInvitePreview(lookup, inviteToken);
   if (preview.kind === "missing") notFound();
-  if (preview.kind === "used") return usedInvite(lookup);
+  if (preview.kind === "used") {
+    return inviteNotice(`/e/${encodeURIComponent(lookup)}`, "This link has already been used.");
+  }
   return (
     <AcceptScreen
       lookup={lookup}
@@ -110,10 +131,13 @@ export default async function ManagerInvitePage({ params }: PageProps) {
       eventName={preview.eventName}
       role={preview.role}
       roleDetail={preview.roleDetail}
-      whenLine={eventShareLine(preview.date, preview.endsAt, preview.place, preview.placeSecret)}
+      when={formatEventRange(preview.date, preview.endsAt)}
+      where={whereLine(preview.place, preview.placeSecret)}
       layout={preview.layout}
       themeId={preview.theme}
-      signInHref={`/register?signin=1&next=${encodeURIComponent(next)}`}
+      anonymous={anonymous}
+      signInHref={signInHref}
+      signUpHref={signUpHref}
       cover={{
         name: preview.eventName,
         description: preview.description,
