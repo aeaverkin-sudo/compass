@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
-import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { deviceWasRegistered, markRegisteredDevice } from "@/shared/lib/registered-device";
+import { clearRegisteredDevice, deviceWasRegistered, markRegisteredDevice } from "@/shared/lib/registered-device";
 import {
   clearRegistrationRequired,
+  clearStoredAuthTokens,
   consumeOAuthReplaceLocal,
   consumeSignedOutIgnore,
   ignoreNextSignedOut,
+  isDeadAuthSession,
   markRegistrationRequired,
   markSessionBootstrapComplete,
 } from "@/shared/lib/session-bootstrap";
@@ -64,6 +66,26 @@ function sendRegisteredDeviceToSignIn() {
   window.location.replace("/register?signin=1&expired=1");
 }
 
+/** The stored user is gone. A fresh trial must not be treated as a lost login. */
+async function startFreshAnonymous(supabase: SupabaseClient) {
+  clearRegisteredDevice();
+  clearRegistrationRequired();
+  ignoreNextSignedOut();
+  await supabase.auth.signOut({ scope: "local" });
+  clearStoredAuthTokens();
+  await openAnonymous(supabase);
+}
+
+async function openAnonymous(supabase: SupabaseClient) {
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error || !data.user) {
+    console.error("[supabase] anonymous sign-in failed", error?.message ?? "no user");
+    void hydrateCardsFromServer();
+    return;
+  }
+  acceptUser(data.user);
+}
+
 /** Opens an anonymous Supabase session on a new device. Renders nothing. */
 export function SupabaseSession() {
   useEffect(() => {
@@ -88,6 +110,11 @@ export function SupabaseSession() {
     void (async () => {
       try {
         const { data: existing, error: existingError } = await supabase.auth.getUser();
+        if (isDeadAuthSession(existingError)) {
+          console.info("[supabase] dead session");
+          await startFreshAnonymous(supabase);
+          return;
+        }
         if (existing.user) {
           acceptUser(existing.user);
           return;
@@ -98,6 +125,11 @@ export function SupabaseSession() {
         }
 
         const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+        if (isDeadAuthSession(refreshError)) {
+          console.info("[supabase] dead refresh");
+          await startFreshAnonymous(supabase);
+          return;
+        }
         if (refreshed.user) {
           acceptUser(refreshed.user);
           return;
@@ -112,14 +144,7 @@ export function SupabaseSession() {
           return;
         }
 
-        const { data, error } = await supabase.auth.signInAnonymously();
-        if (error || !data.user) {
-          console.error("[supabase] anonymous sign-in failed", error?.message ?? "no user");
-          void hydrateCardsFromServer();
-          return;
-        }
-
-        acceptUser(data.user);
+        await openAnonymous(supabase);
       } finally {
         markSessionBootstrapComplete();
       }

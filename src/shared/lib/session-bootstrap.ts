@@ -73,6 +73,37 @@ export function cancelOAuthReplaceLocal() {
   }
 }
 
+/** A stored login whose user is gone. A missing session is not dead: that phone may still need Sign in. */
+export function isDeadAuthSession(error: { name?: string; message?: string; code?: string } | null): boolean {
+  if (!error || error.name === "AuthSessionMissingError" || error.name === "AuthRetryableFetchError") return false;
+  const text = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
+  if (text.includes("fetch") || text.includes("network") || text.includes("timeout")) return false;
+  return (
+    text.includes("does not exist") ||
+    text.includes("user not found") ||
+    text.includes("user_not_found") ||
+    text.includes("invalid") ||
+    text.includes("refresh") ||
+    text.includes("jwt") ||
+    text.includes("session_not_found") ||
+    text.includes("bad_jwt")
+  );
+}
+
+/** Drop a Supabase auth blob left behind by a deleted user. */
+export function clearStoredAuthTokens() {
+  try {
+    const keys: string[] = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) keys.push(key);
+    }
+    for (const key of keys) localStorage.removeItem(key);
+  } catch {
+    // Private mode can block storage.
+  }
+}
+
 /** True once, after a confirmed non-anonymous return. The trial must not merge into that account. */
 export function consumeOAuthReplaceLocal() {
   try {
