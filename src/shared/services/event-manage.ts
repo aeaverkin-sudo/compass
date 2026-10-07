@@ -1,4 +1,6 @@
 import { nanoid } from "nanoid";
+import { checkInWave, type CheckInWave } from "@/shared/event/checkin-wave";
+import { payView } from "@/shared/event/payment-label";
 import {
   allPermissions,
   anyPermission,
@@ -177,6 +179,64 @@ async function countGuests(eventId: string): Promise<{ registered: number; paid:
     registered: list.length,
     paid: list.filter((row) => isConfirmed(row.paid_status, row.paid_source, sourceKnown)).length,
     checkedIn: list.filter((row) => Boolean(row.checked_in_at)).length,
+  };
+}
+
+export type EventStats = {
+  registered: number;
+  confirmed: number;
+  notConfirmed: number;
+  checkedIn: number;
+  /** checkedIn / registered. Zero when nobody has registered. */
+  arrivalRate: number;
+  wave: CheckInWave | null;
+};
+
+/** Counts and the check-in wave. Names and notes stay out. */
+export async function readEventStats(
+  eventId: string,
+  window: { start: string | null; end: string | null },
+): Promise<EventStats> {
+  const admin = createAdminSupabaseClient();
+  const withSource = await admin
+    .from("event_registrations")
+    .select("paid_status, paid_source, checked_in_at")
+    .eq("event_id", eventId);
+  let list: CountRow[] = [];
+  if (!withSource.error) {
+    list = (withSource.data ?? []) as CountRow[];
+  } else if (missingColumn(withSource.error.message, "paid_source")) {
+    const withPaid = await admin.from("event_registrations").select("paid_status, checked_in_at").eq("event_id", eventId);
+    if (!withPaid.error) {
+      list = (withPaid.data ?? []) as CountRow[];
+    } else if (missingColumn(withPaid.error.message, "paid_status")) {
+      const basic = await admin.from("event_registrations").select("checked_in_at").eq("event_id", eventId);
+      if (basic.error) throw new Error(basic.error.message);
+      list = (basic.data ?? []) as CountRow[];
+    } else {
+      throw new Error(withPaid.error.message);
+    }
+  } else if (missingColumn(withSource.error.message, "paid_status")) {
+    const basic = await admin.from("event_registrations").select("checked_in_at").eq("event_id", eventId);
+    if (basic.error) throw new Error(basic.error.message);
+    list = (basic.data ?? []) as CountRow[];
+  } else {
+    throw new Error(withSource.error.message);
+  }
+
+  const registered = list.length;
+  const confirmed = list.filter((row) => payView(row.paid_status ?? "", row.paid_source ?? null).key === "confirmed").length;
+  const checkedIn = list.filter((row) => Boolean(row.checked_in_at)).length;
+  return {
+    registered,
+    confirmed,
+    notConfirmed: registered - confirmed,
+    checkedIn,
+    arrivalRate: registered === 0 ? 0 : checkedIn / registered,
+    wave: checkInWave(
+      list.map((row) => row.checked_in_at),
+      window,
+    ),
   };
 }
 

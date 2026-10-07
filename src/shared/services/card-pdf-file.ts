@@ -58,6 +58,30 @@ async function paintPage(pageEl: HTMLElement): Promise<{ bytes: Uint8Array; link
   return { bytes: new Uint8Array(await blob.arrayBuffer()), links };
 }
 
+/** One painted block, at the phone width, as tall as the snapshot. */
+export async function snapshotToPdf(element: HTMLElement): Promise<Uint8Array> {
+  const html2canvas = (await import("html2canvas-pro")).default;
+  const canvas = await html2canvas(element, {
+    backgroundColor: "#ffffff",
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    onclone: (_document, clone) => {
+      clone.style.background = "#ffffff";
+      clone.style.padding = "28px 24px";
+    },
+  });
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("Could not paint the page");
+  const doc = await PDFDocument.create();
+  const image = await doc.embedPng(new Uint8Array(await blob.arrayBuffer()));
+  const width = PDF_PAGE_W;
+  const height = Math.max(1, Math.round((image.height / image.width) * width));
+  const page = doc.addPage([width, height]);
+  page.drawImage(image, { x: 0, y: 0, width, height });
+  return doc.save();
+}
+
 /** The card is already painted. pdf-lib only stores the sheets and the live links. */
 export async function cardSheetsToPdf(pages: HTMLElement[]): Promise<Uint8Array> {
   const doc = await PDFDocument.create();

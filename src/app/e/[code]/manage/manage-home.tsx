@@ -101,7 +101,7 @@ export function ManageHome({
   };
 
   const after = (section: ManageSection) => {
-    const order: ManageSection[] = ["guests", "payment", "managers", "checkin"];
+    const order: ManageSection[] = ["guests", "payment", "managers", "checkin", "analytics"];
     const index = order.indexOf(section);
     return order.slice(index + 1).some((item) => shown(item));
   };
@@ -115,7 +115,8 @@ export function ManageHome({
     logoUrl: cover.logoUrl,
     price: cover.price,
   };
-  const hasZone = shown("guests") || shown("payment") || shown("managers") || shown("checkin");
+  const hasZone =
+    shown("guests") || shown("payment") || shown("managers") || shown("checkin") || shown("analytics");
 
   return (
     <ManageFrame title={name} fallbackHref="/network/event" onBack={() => router.replace("/network/event")}>
@@ -161,12 +162,25 @@ export function ManageHome({
         </>
       ) : null}
       {shown("checkin") ? (
-        <Zone label="Check-in">
+        <>
+          <Zone label="Check-in">
+            <Link
+              href={href("/manage/checkin")}
+              className="press block t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+            >
+              Open scanner
+            </Link>
+          </Zone>
+          {after("checkin") ? <Rule /> : null}
+        </>
+      ) : null}
+      {shown("analytics") ? (
+        <Zone label="Statistics">
           <Link
-            href={href("/manage/checkin")}
+            href={href("/manage/stats")}
             className="press block t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
           >
-            Open scanner
+            Open
           </Link>
         </Zone>
       ) : null}
