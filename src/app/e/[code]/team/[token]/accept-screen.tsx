@@ -9,6 +9,12 @@ import { CoverButton } from "@/shared/event/cover-button";
 import type { InviteCoverEvent } from "@/shared/event/invite-cover";
 import type { TeamRoleName } from "@/shared/event/permissions";
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+
+/** Zone rows already pad 18px. These keep the poster and the button on the mock's gaps. */
+const ZONE_PAD_PX = 18;
+const POSTER_GAP_PX = 22;
+const BUTTON_GAP_PX = 26;
 
 const PRIMARY =
   "press inline-block border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] no-underline shadow-none disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
@@ -117,13 +123,15 @@ export function AcceptScreen({
   return (
     <main className="compass-main min-h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[var(--ink)]">
       <ScreenHeader title="Team invite" fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
-      <Zone label="" align="start">
+      <div className="w-[150px]" style={{ marginLeft: VALUE_AXIS_PX, marginBottom: POSTER_GAP_PX - ZONE_PAD_PX }}>
         <CoverButton variant="card" layout={layout} themeId={themeId} event={cover} />
+      </div>
+      <Zone label="Event">
+        <p className="m-0 t-body text-[var(--ink)]">{eventName}</p>
       </Zone>
       <Rule />
-      <Zone label="From" align="start">
+      <Zone label="From">
         <p className="m-0 t-body text-[var(--ink)]">{ownerName}</p>
-        <p className="mt-1 mb-0 t-meta text-[var(--grey)]">{`Invited you to help run ${eventName}.`}</p>
       </Zone>
       <Rule />
       <Zone label="Role" align="start">
@@ -141,13 +149,12 @@ export function AcceptScreen({
       {where ? (
         <>
           <Rule />
-          <Zone label="Where">
+          <Zone label="Place">
             <p className="m-0 t-body text-[var(--ink)]">{where}</p>
           </Zone>
         </>
       ) : null}
-      <Rule />
-      <Zone label="" align="start">
+      <div style={{ marginLeft: VALUE_AXIS_PX, marginTop: BUTTON_GAP_PX - ZONE_PAD_PX }}>
         {anonymous ? (
           <p className="mb-4 t-body text-[var(--ink)]">To join a team, sign in or create an account</p>
         ) : null}
@@ -162,13 +169,13 @@ export function AcceptScreen({
               Sign in
             </a>
             {signUpHref ? (
-              <a href={signUpHref} className="mt-4 block t-caps text-[var(--ink)] no-underline">
+              <a href={signUpHref} className="mt-4 block w-fit t-caps text-[var(--ink)] no-underline">
                 Sign up
               </a>
             ) : null}
           </>
         )}
-      </Zone>
+      </div>
     </main>
   );
 }
