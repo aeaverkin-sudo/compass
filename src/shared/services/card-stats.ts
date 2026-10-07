@@ -39,7 +39,7 @@ async function ownerCards(ownerId: string): Promise<CardRow[]> {
 function pickCard(rows: CardRow[], requested: string | null) {
   if (requested && isUuid(requested)) {
     const owned = rows.find((row) => row.id === requested);
-    if (owned) return owned.id;
+    return owned ? owned.id : null;
   }
   const primary = rows.find((row) => row.is_primary);
   if (primary) return primary.id;
