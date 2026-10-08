@@ -132,6 +132,35 @@ export function isContactFilled(item: ContactItem): boolean {
   return item.value.trim().length > 0;
 }
 
+/** One record per non-empty line. Blank lines are skipped. */
+export function splitDraftLines(value: string): string[] {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+/** Store a line as the field's own kind. A typed field does not guess again. */
+export function contactLineAsType(seed: ContactItem, raw: string, type: ContactType): ContactItem {
+  const trimmed = raw.trim().slice(0, 2000);
+  if (type === "text" || type === "position" || type === "custom") {
+    return { ...seed, type, value: trimmed, url: "" };
+  }
+  if (type === "email") {
+    const stored = trimmed.toLowerCase();
+    return { ...seed, type, value: stored, url: `mailto:${stored}` };
+  }
+  if (type === "phone") {
+    return { ...seed, type, value: trimmed, url: `tel:${trimmed.replace(/\s/g, "")}` };
+  }
+  if (isAttachmentType(type)) return { ...seed, type, value: trimmed };
+  const stored = URL_HOST_TYPES.has(type) ? lowerHostname(trimmed) : trimmed;
+  let url = "";
+  if (/^https?:\/\//i.test(stored) || stored.startsWith("data:")) url = stored;
+  else url = profileUrlForType(type, stored) ?? (type === "website" || type === "link" ? `https://${stored}` : "");
+  return { ...seed, type, value: stored, url };
+}
+
 export function createEmptyContactItem(order: number): ContactItem {
   return {
     id: crypto.randomUUID(),

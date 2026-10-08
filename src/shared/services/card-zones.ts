@@ -114,6 +114,7 @@ const ROLES: RoleSource[] = [
   { canonical: "Director", rank: 48, operator: true, source: String.raw`\bdirectors?\b` },
   { canonical: "Lead", rank: 46, operator: true, source: String.raw`\bleads?\b` },
   { canonical: "Consultant", rank: 40, operator: false, source: String.raw`\bconsultants?\b` },
+  { canonical: "Designer", rank: 34, operator: false, source: String.raw`\bdesigners?\b` },
   { canonical: "Freelance", rank: 38, operator: false, source: String.raw`\bfreelance(?:rs?)?\b` },
   { canonical: "Independent", rank: 36, operator: false, source: String.raw`\bindependents?\b` },
 ];
@@ -146,6 +147,18 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   if (item.type === "text" && isCompanyLine(item.value)) return "company";
   if (item.type === "text" && isPersonName(item.value)) return "name";
   return "additional";
+}
+
+/**
+ * Kind a new line keeps when it is typed inside a field that already has one.
+ * Additional text is classified again. A position row stays a position.
+ */
+export function inheritedLineType(item: ContactItem): ContactType | null {
+  const zone = zoneForItem(item);
+  if (zone === "additional") return null;
+  if (zone === "position") return "position";
+  if (item.type === "text") return null;
+  return item.type;
 }
 
 /** Position, name, or company row. A tap places that one line under the portfolio title. */

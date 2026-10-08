@@ -5,8 +5,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { groupLibrary, orderCardZones, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
-import { isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
+import { groupLibrary, inheritedLineType, orderCardZones, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
+import { contactLineAsType, isAttachmentType, isContactFilled, messengerCountryHint, splitDraftLines } from "@/shared/services/contact-item";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
@@ -104,6 +104,8 @@ export function CardEditList({
 }) {
   const updateCard = useAppStore((state) => state.updateCard);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
+  const setContactItem = useAppStore((state) => state.setContactItem);
+  const addContactItem = useAppStore((state) => state.addContactItem);
   const addItemToCard = useAppStore((state) => state.addItemToCard);
   const removeItemFromCard = useAppStore((state) => state.removeItemFromCard);
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
@@ -143,17 +145,42 @@ export function CardEditList({
   );
 
   const saveRowText = (item: ContactItem, shown: string, next: string) => {
-    const trimmed = next.trim();
-    if (!trimmed || trimmed === shown) return;
-    const stored =
-      customDisplayName(item) ||
-      (shown !== item.value.trim() &&
-        item.type !== "text" &&
-        item.type !== "position" &&
-        item.type !== "email" &&
-        item.type !== "phone");
-    updateContactItem(item.id, stored ? { label: trimmed } : { value: trimmed });
-    if (card.headerItemId === item.id) updateCard(card.id, { title: trimmed });
+    const pieces = splitDraftLines(next);
+    const lines = isAttachmentType(item.type) ? [pieces.join(" ")].filter(Boolean) : pieces;
+    const first = lines[0];
+    if (!first) return;
+    const rest = lines.slice(1);
+    if (rest.length === 0) {
+      if (first === shown) return;
+      const stored =
+        customDisplayName(item) ||
+        (shown !== item.value.trim() &&
+          item.type !== "text" &&
+          item.type !== "position" &&
+          item.type !== "email" &&
+          item.type !== "phone");
+      updateContactItem(item.id, stored ? { label: first } : { value: first });
+      if (card.headerItemId === item.id) updateCard(card.id, { title: first });
+      return;
+    }
+    const inherit = inheritedLineType(item);
+    if (inherit) setContactItem(contactLineAsType(item, first, inherit));
+    else if (first !== shown) updateContactItem(item.id, { value: first });
+    if (card.headerItemId === item.id) updateCard(card.id, { title: first });
+    for (const line of rest) {
+      const id = addContactItem();
+      if (!id) continue;
+      const seed = useAppStore.getState().contactItems.find((row) => row.id === id);
+      if (!seed) continue;
+      if (inherit) setContactItem(contactLineAsType(seed, line, inherit));
+      else updateContactItem(id, { value: line });
+      const created = useAppStore.getState().contactItems.find((row) => row.id === id);
+      if (!created || !isContactFilled(created)) {
+        deleteContactItem(id);
+        continue;
+      }
+      include(id);
+    }
   };
 
   const eraseRow = (itemId: string) => {
@@ -230,8 +257,8 @@ export function CardEditList({
 
 /**
  * The only way to create a new row. At rest it is a single centred +.
- * Tapping it docks one writing line above the keyboard. Text stays here until Done,
- * so nothing half-typed reaches the card. A picked file joins the same line.
+ * Tapping it docks one writing line above the keyboard. Enter starts another line.
+ * Closing the line saves each line as its own record. A picked file joins the same line.
  */
 function AddLine({
   cardId,
@@ -326,7 +353,7 @@ function AddLine({
 
   /** A chosen file leaves the writing line. The card body shows it, and OK confirms the edit. */
   const placeFile = (itemId: string) => {
-    const value = text.trim();
+    const value = splitDraftLines(text).join(" ");
     if (value) updateContactItem(itemId, { label: value });
     onAdded(itemId);
     picking.current = false;
@@ -334,27 +361,32 @@ function AddLine({
   };
 
   const commit = () => {
-    const value = text.trim();
+    const lines = splitDraftLines(text);
     if (fileItemId) {
-      if (value) updateContactItem(fileItemId, { label: value });
+      const caption = lines.join(" ");
+      if (caption) updateContactItem(fileItemId, { label: caption });
       onAdded(fileItemId);
       return true;
     }
-    if (!value) return true;
-    const countryHint = messengerCountryHint(value);
-    if (countryHint) {
-      setHint(countryHint);
-      return false;
+    if (lines.length === 0) return true;
+    for (const line of lines) {
+      const countryHint = messengerCountryHint(line);
+      if (countryHint) {
+        setHint(countryHint);
+        return false;
+      }
     }
-    const id = addContactItem();
-    if (!id) return true;
-    updateContactItem(id, { value });
-    const item = useAppStore.getState().contactItems.find((row) => row.id === id);
-    if (!item || !isContactFilled(item)) {
-      deleteContactItem(id);
-      return true;
+    for (const line of lines) {
+      const id = addContactItem();
+      if (!id) return true;
+      updateContactItem(id, { value: line });
+      const item = useAppStore.getState().contactItems.find((row) => row.id === id);
+      if (!item || !isContactFilled(item)) {
+        deleteContactItem(id);
+        continue;
+      }
+      onAdded(id);
     }
-    onAdded(id);
     return true;
   };
 
@@ -489,7 +521,7 @@ function AddLine({
                     value={text}
                     placeholder={fileItem ? fileItem.value : ADD_PLACEHOLDER}
                     aria-label={ADD_PLACEHOLDER}
-                    enterKeyHint="done"
+                    enterKeyHint="enter"
                     autoCorrect="off"
                     autoCapitalize="sentences"
                     spellCheck={false}
@@ -502,14 +534,9 @@ function AddLine({
                       raiseKeyboard();
                     }}
                     onChange={(event) => {
-                      setText(event.target.value.replace(/\s*\n\s*/g, " "));
+                      setText(event.target.value);
                       setError(null);
                       setHint(null);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter") return;
-                      event.preventDefault();
-                      event.currentTarget.blur();
                     }}
                     onFocus={onFocus}
                     onBlur={handleBlur}
@@ -664,23 +691,18 @@ function EditRow({
                     rows={1}
                     value={draft}
                     aria-label="Edit row"
-                    enterKeyHint="done"
+                    enterKeyHint="enter"
                     autoCorrect="off"
                     autoCapitalize="sentences"
                     spellCheck={false}
                     data-no-swipe
                     onChange={(event) => {
-                      const next = event.target.value.replace(/\s*\n\s*/g, " ");
+                      const next = event.target.value;
                       setDraft(next);
                       if (!next.trim()) onErase();
                     }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter") return;
-                      event.preventDefault();
-                      onConfirm(event.currentTarget.value.replace(/\s*\n\s*/g, " "));
-                    }}
                     onBlur={(event) => {
-                      const next = event.currentTarget.value.replace(/\s*\n\s*/g, " ");
+                      const next = event.currentTarget.value;
                       if (!next.trim()) return;
                       if (Date.now() - openedAt.current < 700) {
                         dockRef.current?.focus({ preventScroll: true });
