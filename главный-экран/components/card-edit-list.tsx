@@ -369,13 +369,13 @@ export function CardEditList({
           <Dialog.Overlay className="fixed inset-0 z-50 bg-transparent" />
           <Dialog.Content
             data-delete-confirm=""
-            className="fixed top-1/2 inset-x-0 z-50 -translate-y-1/2 bg-sky px-6 py-6 outline-none"
+            className="fixed top-1/2 left-1/2 z-50 w-max max-w-[min(100%-48px,280px)] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center outline-none"
           >
             <Dialog.Title className="t-body text-[var(--ink)]">
               Delete from library
             </Dialog.Title>
             <Dialog.Description className="sr-only">This removes the row from the library.</Dialog.Description>
-            <div className="mt-6 flex gap-6">
+            <div className="mt-3 flex justify-center gap-6">
               <button
                 type="button"
                 className="t-body text-[var(--ink)]"
