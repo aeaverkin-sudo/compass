@@ -143,7 +143,9 @@ function itemDropAt(
   for (let slot = 0; slot < rows.length; slot += 1) {
     const rect = rows[slot]?.getBoundingClientRect();
     if (!rect) continue;
-    if (clientY < rect.top + rect.height / 2) {
+    // A long block counts as one stop: crossing its lower edge lands above the whole block.
+    const boundary = rect.height > 96 ? rect.bottom : rect.top + rect.height / 2;
+    if (clientY < boundary) {
       index = slot;
       break;
     }
@@ -832,7 +834,6 @@ export function ContactItemChipList({
       if (native.pointerId !== pointerId || ended) return;
       ended = true;
       pointerDownRef.current = false;
-      const moved = Math.hypot(native.clientX - startX, native.clientY - startY);
       const dragging = Boolean(holdRef.current?.active && holdRef.current.pointerId === pointerId);
       detach();
       if (dragging) {
@@ -840,7 +841,6 @@ export function ContactItemChipList({
         return;
       }
       clearEntry();
-      if (fromArrange && !handle && moved <= REORDER_SLOP_PX) leaveArrange();
     };
 
     detachGesture.current = detach;
@@ -908,7 +908,9 @@ export function ContactItemChipList({
     const list = listRef.current;
     if (!list) return;
     const scroll = list.closest(".compass-card-scroll");
-    setChromeHost(scroll instanceof HTMLElement ? scroll : null);
+    // The non-scrolling card frame. Done floats here, so the scroller cannot eat the first tap.
+    const frame = scroll?.parentElement ?? null;
+    setChromeHost(frame instanceof HTMLElement ? frame : null);
     const header = cardHeader(list);
     const column = list.parentElement;
     const nodes: HTMLElement[] = [];
@@ -1097,13 +1099,16 @@ export function ContactItemChipList({
         })}
         {arranging && chromeHost
           ? createPortal(
-              <div data-arrange-chrome="" className="pointer-events-none sticky bottom-0 z-30 flex justify-center pb-3">
+              <div data-arrange-chrome="" className="pointer-events-none absolute inset-x-0 bottom-3 z-30 flex justify-center">
                 <button
                   type="button"
                   data-arrange-done=""
                   className="pointer-events-auto t-body bg-sky px-5 py-2 text-[var(--ink)]"
                   onPointerDown={(event) => event.stopPropagation()}
-                  onClick={leaveArrange}
+                  onPointerUp={(event) => {
+                    event.stopPropagation();
+                    leaveArrange();
+                  }}
                 >
                   Done
                 </button>
