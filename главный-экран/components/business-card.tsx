@@ -15,6 +15,7 @@ import {
   type CardShareChoice,
 } from "@/shared/services/save-public-card-pdf";
 import { AccountBand } from "@/shared/components/account-band";
+import { AdedEdgeMark } from "@/shared/components/aded-edge-mark";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
@@ -41,6 +42,10 @@ import {
 } from "../layout";
 
 const HERO_PHOTO_PX = 128;
+/** The mark sits this far inside the photo, so the grid does not look wider than the picture. */
+const EDGE_MARK_INSET_PX = 3;
+/** Side inset of the card column. The edge mark uses the same value and meets the screen. */
+const CARD_EDGE_INSET = "calc(clamp(24px, 6.1vw, 28px) - 3mm)";
 /** One letter starts here; from the third it shrinks to the name column. */
 const HERO_NAME_MAX_PX = 78;
 const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -262,6 +267,8 @@ function EditorialHeader({
   showPlus,
   nextScan,
   reserveSheetMark,
+  brandMark = false,
+  edgeInset,
   onPhotoChange,
   onDisplayNameChange,
 }: {
@@ -271,18 +278,35 @@ function EditorialHeader({
   nextScan: ReactNode;
   /** The old counter line. The number now sits on the QR; this keeps the photo where it was. */
   reserveSheetMark?: boolean;
+  /** Cropped ADED column on the right edge. Public card and PDF only. */
+  brandMark?: boolean;
+  /** Side padding of the card column, so the mark meets the screen or the sheet. */
+  edgeInset?: string;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
 }) {
   const photoSrc = cardPhotoSrc(card);
+  const markHeight = HERO_PHOTO_PX - EDGE_MARK_INSET_PX * 2;
   return (
-    <div className="w-full">
+    <div className={cn("w-full", brandMark && "overflow-visible")}>
       {reserveSheetMark ? (
         <p aria-hidden className="invisible m-0 mb-1 text-right t-label">
           1
         </p>
       ) : null}
-      <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
+      <div className="relative overflow-visible pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
+        {brandMark && edgeInset ? (
+          <div
+            className="pointer-events-none absolute"
+            style={{
+              top: RULE_GAP_PX + EDGE_MARK_INSET_PX,
+              right: `calc(-1 * (${edgeInset}))`,
+              height: markHeight,
+            }}
+          >
+            <AdedEdgeMark height={markHeight} />
+          </div>
+        ) : null}
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
             <PhotoSlotPicker photo={photoSrc} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
@@ -290,7 +314,10 @@ function EditorialHeader({
             // eslint-disable-next-line @next/next/no-img-element
             <img data-card-content src={photoSrc} alt="" fetchPriority="high" className="size-[128px] shrink-0 object-cover" />
           ) : null}
-          <div className="relative flex h-full min-w-0 flex-1 flex-col">
+          <div
+            className="relative flex h-full min-w-0 flex-1 flex-col"
+            style={brandMark ? { paddingRight: 16 } : undefined}
+          >
             {showPlus ? (
               <div className="absolute top-0 right-0 z-10 translate-x-[6px] -translate-y-[6px]">{nextScan}</div>
             ) : null}
@@ -514,14 +541,16 @@ function PdfCard({
   const zoneFilter = shown.flatMap((block) => (block.kind === "zone" ? [block.id] : []));
   return (
     <article data-pdf-card className="w-full shrink-0 bg-white text-[#111]" style={{ fontFamily: HERO_FONT }}>
-      <div style={{ paddingLeft: PDF_PAD, paddingRight: PDF_PAD }}>
+      <div style={{ paddingLeft: PDF_PAD, paddingRight: PDF_PAD, overflow: "visible" }}>
         {shown.some((block) => block.kind === "header") ? (
-          <div data-pdf-block="">
+          <div data-pdf-block="" className="overflow-visible">
             <EditorialHeader
               card={card}
               positionTitle={positionTitle}
               showPlus={false}
               nextScan={null}
+              brandMark
+              edgeInset={`${PDF_PAD}px`}
             />
           </div>
         ) : null}
@@ -884,7 +913,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       }
     >
       {!compact ? (
-        <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
+        <div
+          className="shrink-0 overflow-visible"
+          style={{ paddingLeft: CARD_EDGE_INSET, paddingRight: CARD_EDGE_INSET }}
+        >
           {blank ? (
             <EmptyPortfolioStart
               card={card}
@@ -897,6 +929,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               card={card}
               positionTitle={positionTitle}
               reserveSheetMark={ready && !readOnly && sheetIndex != null && sheetTotal != null}
+              brandMark={readOnly}
+              edgeInset={CARD_EDGE_INSET}
               showPlus={Boolean(onCardUpdate && ready && items.length > 0)}
               nextScan={
                 onCardUpdate && ready ? (

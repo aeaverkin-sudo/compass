@@ -1,4 +1,4 @@
-const MARK: [number, number, number, number][] = [
+export const MARK: [number, number, number, number][] = [
   [22, 0, 4, 1],
   [50, 0, 4, 1],
   [22, 1, 4, 1],
