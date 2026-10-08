@@ -45,14 +45,13 @@ export function VisualBottom() {
       frame = 0;
       const vv = window.visualViewport;
       const shell = document.querySelector("main.compass-main");
-      let lift = 0;
       if (vv && shell) {
         const gap = shell.getBoundingClientRect().bottom - vv.height;
-        if (gap > 0 && gap < KEYBOARD_MIN_PX) lift = Math.round(gap);
+        const lift = gap > 0 && gap < KEYBOARD_MIN_PX ? Math.round(gap) : 0;
+        root.style.setProperty("--vv-bottom", `${lift}px`);
       }
       const chrome = vv ? root.getBoundingClientRect().bottom - vv.height : 0;
       const safe = chrome > 8 && chrome < KEYBOARD_MIN_PX ? 0 : Math.round(readSafeBottom());
-      root.style.setProperty("--vv-bottom", `${lift}px`);
       root.style.setProperty("--band-safe", `${safe}px`);
       root.style.setProperty("--public-band-bottom", `${publicBandLift(vv)}px`);
       root.classList.add("compass-band-ready");

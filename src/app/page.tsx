@@ -44,5 +44,5 @@ export default function Home() {
     router.replace("/register");
   }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, cards, router]);
 
-  return <div className="h-lvh bg-background" aria-hidden />;
+  return <div className="h-svh bg-white" aria-hidden />;
 }

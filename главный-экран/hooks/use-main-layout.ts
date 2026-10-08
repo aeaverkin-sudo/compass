@@ -61,6 +61,17 @@ function computeLayout(): MainLayout | null {
   const qrTop = safeTop + SCREEN_TOP_AXIS_PX;
   const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const bandH = Math.max(0, Math.round(browseBandHeightPx(fullH)));
+  const root = document.documentElement;
+  root.style.setProperty("--app-h", `${Math.round(visibleH)}px`);
+  root.style.setProperty("--band-h", `${bandH}px`);
+  root.classList.add("compass-sized");
+  const shell = document.querySelector("main.compass-main");
+  const vv = window.visualViewport;
+  if (vv && shell) {
+    const gap = shell.getBoundingClientRect().bottom - vv.height;
+    const lift = gap > 0 && gap < 120 ? Math.round(gap) : 0;
+    root.style.setProperty("--vv-bottom", `${lift}px`);
+  }
   const cardBottomBrowse = visibleH - bandH;
   const browseHeight = cardBottomBrowse - cardTopBrowse;
   const libraryHeight = libraryCardHeightPx(visibleH, safeTop);
@@ -90,18 +101,21 @@ export function useMainLayout() {
 
   useLayoutEffect(() => {
     const sync = () => {
-      const next = computeLayout();
-      if (next) document.documentElement.style.setProperty("--band-h", `${next.bandHeight}px`);
-      setLayout(next);
+      setLayout(computeLayout());
     };
 
     // Recompute only on real layout changes (orientation / window size), not on
     // keyboard toggles — the visual viewport resize would shift the whole stack.
     sync();
+    // The first numbers are already on :root. Height transitions start after that paint.
+    const frame = requestAnimationFrame(() => {
+      document.documentElement.classList.add("compass-settled");
+    });
     window.addEventListener("resize", sync);
     window.addEventListener("orientationchange", sync);
 
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
     };

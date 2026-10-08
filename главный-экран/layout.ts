@@ -95,7 +95,12 @@ export function layoutTop(offsetPx: number) {
 }
 
 /** Slimmer than the full-screen remainder: 55% of (0.27 × lvh − 118px). */
-const BAND_HEIGHT_SCALE = 0.55;
+export const BAND_HEIGHT_SCALE = 0.55;
+
+/** Pixels trimmed off the band so the card, the plate and the veil share one edge. */
+export function bandHeightOffsetPx() {
+  return -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
+}
 
 /**
  * Declared band height from the stable full screen (`lvh`), not the visible remainder.
@@ -103,22 +108,54 @@ const BAND_HEIGHT_SCALE = 0.55;
  */
 export function browseBandHeightPx(fullH: number) {
   const share = (100 - CARD_BOTTOM_TARGET_LVH) / 100;
-  const offset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
-  return BAND_HEIGHT_SCALE * (fullH * share - offset);
+  return BAND_HEIGHT_SCALE * (fullH * share - bandHeightOffsetPx());
 }
 
 /** Same height as `browseBandHeightPx`, for the plaque before the layout hook measures the screen. */
 export function browseBandHeightCss() {
-  const offset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
+  const offset = bandHeightOffsetPx();
   return `calc(${BAND_HEIGHT_SCALE} * (${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${offset}px))`;
 }
 
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
-  const bandOffset = -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
-  const fallback = `calc(${BAND_HEIGHT_SCALE} * (${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${bandOffset}px))`;
+  const fallback = browseBandHeightCss();
   // The band keeps its height. The card ends on the band, so nothing white sits between them.
-  return `calc(100svh - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px)`;
+  // `--app-h` is the measured small viewport, set before the first paint.
+  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px)`;
+}
+
+/**
+ * Blocking head script. Same probes and the same band formula as the layout hook,
+ * so the first paint is already the measured size.
+ */
+export function screenMeasureScript() {
+  const share = (100 - CARD_BOTTOM_TARGET_LVH) / 100;
+  const offset = bandHeightOffsetPx();
+  return `(function(){
+var root=document.documentElement;
+function probe(unit){
+  var el=document.createElement("div");
+  el.style.cssText="position:fixed;top:0;height:100"+unit+";visibility:hidden;pointer-events:none";
+  root.appendChild(el);
+  var h=el.getBoundingClientRect().height;
+  el.remove();
+  return h||window.innerHeight;
+}
+var full=probe("lvh");
+var visible=probe("svh");
+var band=Math.max(0,Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset})));
+var vv=window.visualViewport;
+var lift=0;
+if(vv){
+  var gap=Math.round(visible-vv.height);
+  if(gap>0&&gap<120)lift=gap;
+}
+root.style.setProperty("--app-h",Math.round(visible)+"px");
+root.style.setProperty("--band-h",band+"px");
+root.style.setProperty("--vv-bottom",lift+"px");
+root.classList.add("compass-sized");
+})();`;
 }
 
 export function libraryStackTopPx(safeTop: number) {

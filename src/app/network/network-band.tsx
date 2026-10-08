@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { TabBand } from "@main/components/tab-band";
 
@@ -37,21 +37,32 @@ export function NetworkBand({ current }: { current: NetworkSection }) {
     router.prefetch("/main");
   }, [router, left, right]);
 
+  const go = (href: string) => ({
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      router.prefetch(href);
+    },
+    onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      router.push(href);
+    },
+  });
+
   return (
     <TabBand
       label="Network"
       left={
-        <button type="button" onClick={() => router.push(ROUTE[left])} className={ITEM}>
+        <button type="button" className={ITEM} {...go(ROUTE[left])}>
           {LABEL[left]}
         </button>
       }
       center={
-        <button type="button" onClick={() => router.push("/main")} className={`${ITEM} justify-center`}>
+        <button type="button" className={`${ITEM} justify-center`} {...go("/main")}>
           Home
         </button>
       }
       right={
-        <button type="button" onClick={() => router.push(ROUTE[right])} className={`${ITEM} justify-end`}>
+        <button type="button" className={`${ITEM} justify-end`} {...go(ROUTE[right])}>
           {LABEL[right]}
         </button>
       }
