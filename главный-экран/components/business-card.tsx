@@ -19,7 +19,7 @@ import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
-import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
+import { PhotoSlotPicker, photoSlotLookClass } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
@@ -264,6 +264,7 @@ function EditorialHeader({
   reserveSheetMark,
   onPhotoChange,
   onDisplayNameChange,
+  onCardUpdate,
 }: {
   card: Card;
   positionTitle?: string;
@@ -273,8 +274,12 @@ function EditorialHeader({
   reserveSheetMark?: boolean;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
+  onCardUpdate?: (data: Partial<Card>) => void;
 }) {
   const photoSrc = cardPhotoSrc(card);
+  const setPhotoLook = onCardUpdate
+    ? (look: "frame" | "shadow" | null) => onCardUpdate({ photoLook: look ?? undefined })
+    : undefined;
   return (
     <div className="w-full">
       {reserveSheetMark ? (
@@ -285,10 +290,23 @@ function EditorialHeader({
       <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
-            <PhotoSlotPicker photo={photoSrc} onPhotoChange={onPhotoChange} sizePx={HERO_PHOTO_PX} borderRadiusPx={0} />
+            <PhotoSlotPicker
+              photo={photoSrc}
+              onPhotoChange={onPhotoChange}
+              sizePx={HERO_PHOTO_PX}
+              borderRadiusPx={0}
+              photoLook={card.photoLook}
+              onPhotoLook={setPhotoLook}
+            />
           ) : photoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img data-card-content src={photoSrc} alt="" fetchPriority="high" className="size-[128px] shrink-0 object-cover" />
+            <img
+              data-card-content
+              src={photoSrc}
+              alt=""
+              fetchPriority="high"
+              className={cn("size-[128px] shrink-0 object-cover", photoSlotLookClass(card.photoLook))}
+            />
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col">
             {showPlus ? (
@@ -909,6 +927,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               }
               onPhotoChange={onPhotoChange}
               onDisplayNameChange={onDisplayNameChange}
+              onCardUpdate={onCardUpdate}
             />
           )}
         </div>
