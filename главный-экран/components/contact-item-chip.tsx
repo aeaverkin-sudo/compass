@@ -789,10 +789,10 @@ export function ContactItemChipList({
                 : undefined
             }
           >
-            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
               <span
                 data-rubric-handle=""
-                className="t-label flex min-h-11 items-center gap-1 self-stretch whitespace-nowrap py-2"
+                className="t-label flex items-center gap-1 whitespace-nowrap"
               >
                 {rubricLifted ? <GripVertical className="size-3.5 shrink-0 text-[var(--ink)]" strokeWidth={1.5} aria-hidden /> : null}
                 {zone.title}
