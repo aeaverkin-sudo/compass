@@ -2,6 +2,8 @@
 
 export const IMAGE_BYTE_LIMIT = 8 * 1024 * 1024;
 export const DOCUMENT_BYTE_LIMIT = 15 * 1024 * 1024;
+/** PDF only. Office files stay on DOCUMENT_BYTE_LIMIT. Matches the bucket cap. */
+export const PDF_BYTE_LIMIT = 50 * 1024 * 1024;
 export const AUDIO_BYTE_LIMIT = 10 * 1024 * 1024;
 export const VIDEO_BYTE_LIMIT = 50 * 1024 * 1024;
 
@@ -96,11 +98,20 @@ export function mimeAllowedForKind(kind: SmallAttachmentKind, mime: string): boo
 }
 
 export function byteLimitForMime(mime: string): number | null {
+  if (mime === "application/pdf") return PDF_BYTE_LIMIT;
   if ((IMAGE_MIMES as readonly string[]).includes(mime)) return IMAGE_BYTE_LIMIT;
   if ((DOCUMENT_MIMES as readonly string[]).includes(mime)) return DOCUMENT_BYTE_LIMIT;
   if ((AUDIO_MIMES as readonly string[]).includes(mime)) return AUDIO_BYTE_LIMIT;
   if (isVideoMime(mime)) return VIDEO_BYTE_LIMIT;
   return null;
+}
+
+/** A PDF header may sit after a short preamble. The first kilobyte is enough. */
+export function looksLikePdf(bytes: Uint8Array): boolean {
+  const end = Math.min(bytes.length, 1024);
+  let text = "";
+  for (let index = 0; index < end; index += 1) text += String.fromCharCode(bytes[index] ?? 0);
+  return text.includes("%PDF-");
 }
 
 const SERVABLE_MIMES = new Set<string>([

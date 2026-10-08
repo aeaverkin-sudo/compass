@@ -12,6 +12,7 @@ import {
 } from "@/shared/services/attachment-api";
 import {
   CARD_ATTACHMENTS_BUCKET,
+  PDF_BYTE_LIMIT,
   VIDEO_BYTE_LIMIT,
   isVideoMime,
 } from "@/shared/services/attachment-limits";
@@ -23,7 +24,7 @@ function jsonFail(status: number, error: string) {
 }
 
 /**
- * Video only. Creates a pending row and a path-bound upload token.
+ * Video and PDF. Creates a pending row and a path-bound upload token.
  * The browser uploads straight to Storage, then calls finalize.
  */
 export async function POST(request: Request) {
@@ -45,14 +46,15 @@ export async function POST(request: Request) {
     cardId?: unknown;
   };
 
-  if (typeof mime !== "string" || !isVideoMime(mime)) {
-    return jsonFail(415, "Unsupported video type");
+  if (typeof mime !== "string" || (mime !== "application/pdf" && !isVideoMime(mime))) {
+    return jsonFail(415, "Unsupported file type");
   }
   if (typeof byteSize !== "number" || !Number.isInteger(byteSize) || byteSize <= 0) {
     return jsonFail(400, "Expected a file size");
   }
-  if (byteSize > VIDEO_BYTE_LIMIT) {
-    return jsonFail(413, "Video is over 50 MB");
+  const ceiling = mime === "application/pdf" ? PDF_BYTE_LIMIT : VIDEO_BYTE_LIMIT;
+  if (byteSize > ceiling) {
+    return jsonFail(413, mime === "application/pdf" ? "PDF is over 50 MB" : "Video is over 50 MB");
   }
 
   let used = 0;

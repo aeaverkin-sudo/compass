@@ -3,6 +3,7 @@ import {
   AUDIO_BYTE_LIMIT,
   DOCUMENT_BYTE_LIMIT,
   IMAGE_BYTE_LIMIT,
+  PDF_BYTE_LIMIT,
   VIDEO_BYTE_LIMIT,
 } from "@/shared/services/attachment-limits";
 
@@ -38,7 +39,7 @@ export const PORTFOLIO_LIMITS = {
   cardPhotoJpegQuality: 0.82,
   /** Per-type attachment ceilings (before base64 overhead). */
   maxBytesByType: {
-    pdf: DOCUMENT_BYTE_LIMIT,
+    pdf: PDF_BYTE_LIMIT,
     photo: IMAGE_BYTE_LIMIT,
     presentation: DOCUMENT_BYTE_LIMIT,
     document: DOCUMENT_BYTE_LIMIT,

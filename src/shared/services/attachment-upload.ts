@@ -38,8 +38,11 @@ export async function uploadAttachment(input: {
   kind: UploadKind;
   cardId?: string;
 }): Promise<ReadyAttachment> {
+  if (input.kind === "pdf") {
+    return uploadSigned(input.file, "application/pdf", input.cardId);
+  }
   if (input.kind === "video" || isVideoMime(videoMime(input.file))) {
-    return uploadVideo(input.file, input.cardId);
+    return uploadSigned(input.file, videoMime(input.file), input.cardId);
   }
   return uploadBuffered(input.file, input.kind, input.cardId);
 }
@@ -72,8 +75,7 @@ function videoMime(file: File): string {
   return file.type;
 }
 
-async function uploadVideo(file: File, cardId?: string): Promise<ReadyAttachment> {
-  const mime = videoMime(file);
+async function uploadSigned(file: File, mime: string, cardId?: string): Promise<ReadyAttachment> {
   const opened = await fetch("/api/attachments/upload-url", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

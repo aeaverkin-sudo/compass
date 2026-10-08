@@ -111,8 +111,8 @@ async function storeTransferNote(ownerId: string, kindValue: string, transferId:
 }
 
 /**
- * Images, documents, and voice. The row is written only after the object lands.
- * Video does not come through here — it uses the signed upload URL.
+ * Images, office documents, and voice. The row is written only after the object lands.
+ * Video and PDF do not come through here — they use the signed upload URL.
  */
 export async function POST(request: Request) {
   const length = Number(request.headers.get("content-length") ?? "0");

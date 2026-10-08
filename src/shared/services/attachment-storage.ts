@@ -122,6 +122,8 @@ export async function prepareAttachmentForStorage(
   const isImage =
     type === "photo" && file.type.startsWith("image/") && file.type !== "image/svg+xml";
   if (!isImage) {
+    // A PDF is stored in the bucket. A data URL of it would not fit in local storage.
+    if (type === "pdf") return "";
     return fileToDataUrl(file);
   }
   const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
