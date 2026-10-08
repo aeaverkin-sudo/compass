@@ -210,7 +210,12 @@ function EditorialValue({
   );
   const choose = onChooseHeader && isHeaderRole(row);
   const body = (
-    <span className="block min-w-0 break-words t-body text-[var(--ink)] no-underline">
+    <span
+      className={cn(
+        "block min-w-0 break-words t-body text-[var(--ink)] no-underline",
+        row.value.includes("\n") && "whitespace-pre-wrap",
+      )}
+    >
       {row.axis ? (
         <>
           {row.axis}

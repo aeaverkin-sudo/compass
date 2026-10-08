@@ -5,8 +5,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { groupLibrary, orderCardZones, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
-import { isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
+import { groupLibrary, orderCardZones, zoneForItem, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
+import { detectContactType, isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
+import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
@@ -18,8 +19,6 @@ const HOLD_MS = 500;
 const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-/** The writing line grows upward to this height, then scrolls inside. */
-const FIELD_MAX_PX = 120;
 const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
 
@@ -32,6 +31,23 @@ type EditSection = {
 
 function lineOf(row: CardDisplayRow) {
   return row.axis ? `${row.axis} / ${row.value}` : row.value;
+}
+
+/** A finished link, name, or role. Enter closes it. Prose keeps the line break. */
+function enterFinishes(value: string) {
+  const line = value.trim();
+  if (!line || line.includes("\n")) return false;
+  if (detectContactType(line) !== "text") return true;
+  return (
+    zoneForItem({
+      id: "draft",
+      type: "text",
+      label: "",
+      value: line,
+      url: "",
+      order: 0,
+    }) !== "additional"
+  );
 }
 
 function buildSections(card: Card, items: ContactItem[]): EditSection[] {
@@ -187,6 +203,7 @@ export function CardEditList({
                     key={item.id}
                     text={lineOf(row)}
                     value={row.value}
+                    multiline={item.type === "text" && zoneForItem(item) === "additional"}
                     onCard={onCard}
                     editing={textEditId === item.id}
                     deleteReady={deleteReadyId === item.id}
@@ -267,7 +284,7 @@ function AddLine({
   const anchorRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
-  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const fieldRef = useRef<WrapFieldHandle>(null);
   const picking = useRef(false);
   const openedAt = useRef(0);
   const closedRef = useRef(false);
@@ -290,7 +307,7 @@ function AddLine({
     if (!openAddRef) return;
     openAddRef.current = () => {
       flushSync(startDocking);
-      fieldRef.current?.focus({ preventScroll: true });
+      fieldRef.current?.focusEnd();
     };
     return () => {
       openAddRef.current = null;
@@ -305,15 +322,8 @@ function AddLine({
 
   // Layout phase: mounted from a tap, the focus still counts as the user's and raises the keyboard.
   useLayoutEffect(() => {
-    if (open) fieldRef.current?.focus({ preventScroll: true });
+    if (open) fieldRef.current?.focusEnd();
   }, [open]);
-
-  useLayoutEffect(() => {
-    const field = fieldRef.current;
-    if (!field) return;
-    field.style.height = "auto";
-    field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
-  }, [text, open]);
 
   const dismissLine = () => {
     if (closedRef.current) return;
@@ -326,15 +336,16 @@ function AddLine({
 
   /** A chosen file leaves the writing line. The card body shows it, and OK confirms the edit. */
   const placeFile = (itemId: string) => {
-    const value = text.trim();
+    const value = text.replace(/\s*\n\s*/g, " ").trim();
     if (value) updateContactItem(itemId, { label: value });
     onAdded(itemId);
     picking.current = false;
     dismissLine();
   };
 
-  const commit = () => {
-    const value = text.trim();
+  const commit = (raw?: string) => {
+    const source = raw ?? text;
+    const value = fileItemId ? source.replace(/\s*\n\s*/g, " ").trim() : source.trim();
     if (fileItemId) {
       if (value) updateContactItem(fileItemId, { label: value });
       onAdded(fileItemId);
@@ -358,9 +369,9 @@ function AddLine({
     return true;
   };
 
-  const close = () => {
+  const close = (raw?: string) => {
     if (closedRef.current) return;
-    if (!commit()) return;
+    if (!commit(raw)) return;
     dismissLine();
   };
 
@@ -389,7 +400,7 @@ function AddLine({
       };
       document.addEventListener("click", swallow, true);
       window.setTimeout(() => document.removeEventListener("click", swallow, true), 500);
-      closeRef.current();
+      closeRef.current(fieldRef.current?.text());
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("pointerup", onPointerUp, true);
@@ -401,17 +412,17 @@ function AddLine({
 
   // iOS may hand focus around while the keyboard settles or a full-screen picker is up;
   // the line closes only once focus has really left it.
-  const handleBlur = () => {
+  const handleBlur = (raw: string) => {
     window.setTimeout(() => {
       if (picking.current) return;
       if (Date.now() - openedAt.current < OPEN_GUARD_MS) return;
       if (lineRef.current?.contains(document.activeElement)) return;
-      close();
+      close(raw);
     }, BLUR_GUARD_MS);
   };
 
   const raiseKeyboard = () => {
-    const field = fieldRef.current;
+    const field = fieldRef.current?.element();
     if (!field) return;
     field.blur();
     field.focus({ preventScroll: true });
@@ -442,8 +453,8 @@ function AddLine({
       if (closedRef.current) return;
       refocus();
     });
-    const field = fieldRef.current;
-    if (field && document.activeElement !== field) field.focus({ preventScroll: true });
+    const field = fieldRef.current?.element();
+    if (field && document.activeElement !== field) fieldRef.current?.focusEnd();
   };
 
   return (
@@ -483,17 +494,23 @@ function AddLine({
                       <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
                     </button>
                   )}
-                  <textarea
+                  <WrapField
                     ref={fieldRef}
-                    rows={1}
-                    value={text}
+                    label={ADD_PLACEHOLDER}
                     placeholder={fileItem ? fileItem.value : ADD_PLACEHOLDER}
-                    aria-label={ADD_PLACEHOLDER}
-                    enterKeyHint="done"
-                    autoCorrect="off"
-                    autoCapitalize="sentences"
-                    spellCheck={false}
-                    data-no-swipe
+                    placeholderClassName="text-[16px] text-[var(--grey)]"
+                    multiline={!fileItemId && !enterFinishes(text)}
+                    onTextChange={(next) => {
+                      setText(next);
+                      setError(null);
+                      setHint(null);
+                    }}
+                    onDone={(next) => {
+                      if (!commit(next)) return;
+                      dismissLine();
+                    }}
+                    onFocus={onFocus}
+                    onBlur={handleBlur}
                     onPointerDown={() => {
                       const vv = window.visualViewport;
                       if (!vv) return;
@@ -501,20 +518,7 @@ function AddLine({
                       if (overlap > 120) return;
                       raiseKeyboard();
                     }}
-                    onChange={(event) => {
-                      setText(event.target.value.replace(/\s*\n\s*/g, " "));
-                      setError(null);
-                      setHint(null);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter") return;
-                      event.preventDefault();
-                      event.currentTarget.blur();
-                    }}
-                    onFocus={onFocus}
-                    onBlur={handleBlur}
-                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--grey)]"
-                    style={{ fontSize: 16, lineHeight: "normal" }}
+                    className="bg-transparent p-0 text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
                   />
                 </div>
               </div>
@@ -529,6 +533,7 @@ function AddLine({
 function EditRow({
   text,
   value,
+  multiline,
   onCard,
   editing,
   deleteReady,
@@ -542,6 +547,8 @@ function EditRow({
 }: {
   text: string;
   value: string;
+  /** Additional text. Enter stays inside this one block. */
+  multiline: boolean;
   onCard: boolean;
   editing: boolean;
   deleteReady: boolean;
@@ -556,13 +563,12 @@ function EditRow({
   const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
-  const dockRef = useRef<HTMLTextAreaElement>(null);
+  const dockRef = useRef<WrapFieldHandle>(null);
   const dockBottom = useKeyboardDock(editing, true);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
-  const [draft, setDraft] = useState(value);
   const [fades, setFades] = useState(false);
   const longPress = useLongPress(() => {
     pressedLong.current = true;
@@ -592,7 +598,6 @@ function EditRow({
   const beginEdit = () => {
     openedAt.current = Date.now();
     flushSync(() => {
-      setDraft(value);
       onEdit();
     });
   };
@@ -602,15 +607,8 @@ function EditRow({
     const list = rowRef.current?.closest("[data-card-chip-list]");
     const rect = list?.getBoundingClientRect();
     if (rect) setFrame({ left: rect.left, width: rect.width });
-    dockRef.current?.focus({ preventScroll: true });
+    dockRef.current?.focusEnd();
   }, [editing]);
-
-  useLayoutEffect(() => {
-    const field = dockRef.current;
-    if (!field || !editing || frame.width < 1) return;
-    field.style.height = "0px";
-    field.style.height = `${Math.min(field.scrollHeight, FIELD_MAX_PX)}px`;
-  }, [draft, editing, frame.width]);
 
   return (
     <div ref={rowRef} className={cn("relative min-w-0", holding && "opacity-40")}>
@@ -641,7 +639,10 @@ function EditRow({
       >
         <div
           ref={lineRef}
-          className="w-max whitespace-nowrap t-body select-none"
+          className={cn(
+            "t-body select-none",
+            value.includes("\n") ? "w-full whitespace-pre-wrap" : "w-max whitespace-nowrap",
+          )}
         >
           {text}
         </div>
@@ -659,36 +660,24 @@ function EditRow({
               />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 <div className="flex flex-col justify-end border-b border-[var(--rule)]">
-                  <textarea
+                  <WrapField
                     ref={dockRef}
-                    rows={1}
-                    value={draft}
-                    aria-label="Edit row"
-                    enterKeyHint="done"
-                    autoCorrect="off"
-                    autoCapitalize="sentences"
-                    spellCheck={false}
-                    data-no-swipe
-                    onChange={(event) => {
-                      const next = event.target.value.replace(/\s*\n\s*/g, " ");
-                      setDraft(next);
+                    initial={value}
+                    label="Edit row"
+                    multiline={multiline}
+                    onTextChange={(next) => {
                       if (!next.trim()) onErase();
                     }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter") return;
-                      event.preventDefault();
-                      onConfirm(event.currentTarget.value.replace(/\s*\n\s*/g, " "));
-                    }}
-                    onBlur={(event) => {
-                      const next = event.currentTarget.value.replace(/\s*\n\s*/g, " ");
+                    onDone={onConfirm}
+                    onBlur={(next) => {
                       if (!next.trim()) return;
                       if (Date.now() - openedAt.current < 700) {
-                        dockRef.current?.focus({ preventScroll: true });
+                        dockRef.current?.focusEnd();
                         return;
                       }
                       onConfirm(next);
                     }}
-                    className="compass-input block w-full resize-none overflow-y-auto bg-transparent t-body text-[var(--ink)] caret-[var(--ink)] outline-none"
+                    className="bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
                   />
                 </div>
               </div>
@@ -696,7 +685,7 @@ function EditRow({
             document.body,
           )
         : null}
-      {fades && !editing ? (
+      {fades && !editing && !value.includes("\n") ? (
         <span
           aria-hidden
           className="pointer-events-none absolute inset-y-0 right-[26px] w-4 bg-gradient-to-r from-transparent to-white"

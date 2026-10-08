@@ -142,6 +142,7 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   if (isAttachmentType(item.type)) return "files";
   if (item.type === "spotify") return "lifestyle";
   if (CONTACT_TYPES.has(item.type)) return "contact";
+  if (item.type === "text" && item.value.includes("\n")) return "additional";
   if (isExplicitPosition(item) || (item.type === "text" && parseDescription(item.value).position)) return "position";
   if (item.type === "text" && isCompanyLine(item.value)) return "company";
   if (item.type === "text" && isPersonName(item.value)) return "name";
