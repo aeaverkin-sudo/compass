@@ -14,13 +14,12 @@ import { createPortal } from "react-dom";
 import { GripHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { openHomeScreenAttachmentPdf } from "@/shared/components/pdf-preview-host";
-import { ARRANGE_HOLD_MS, REORDER_SLOP_PX, SECTION_ENTER_PX } from "@/shared/lib/reorder-hold";
+import { ARRANGE_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import {
   applyRubricMove,
   composeCard,
   isChoosableHeader,
   orderCardZones,
-  placeItemInZone,
   reorderIdsInGroup,
   zoneForItem,
   type CardDisplayRow,
@@ -31,8 +30,6 @@ import type { ContactItem } from "@/shared/types";
 export type ContactItemChipSize = "browse" | "compact";
 
 const GRAB_IDLE_MS = 1500;
-
-const PROTECTED_ZONES = new Set(["name", "company", "position"]);
 
 function prefersMotion() {
   return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -101,41 +98,12 @@ function cardHeader(list: HTMLElement) {
   return header instanceof HTMLElement ? header : null;
 }
 
-/** The whole header — photo, name, role, and the gap down to the first section. */
-function overHeader(list: HTMLElement, clientX: number, clientY: number) {
-  const header = cardHeader(list);
-  const first = list.querySelector("[data-rubric]")?.getBoundingClientRect();
-  if (!header) return Boolean(first && clientY < first.top);
-  const rect = header.getBoundingClientRect();
-  const bottom = first ? Math.max(rect.bottom, first.top) : rect.bottom;
-  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY < bottom;
-}
-
-/** Where a held row would land. The held row itself is left out of the count. */
-function itemDropAt(
-  list: HTMLElement,
-  clientX: number,
-  clientY: number,
-  draggedId: string,
-  naturalZone: string,
-) {
-  const sections = [...list.querySelectorAll<HTMLElement>("[data-rubric]")];
-  const first = sections[0]?.getBoundingClientRect();
-  if (!first || sections.length === 0) return null;
-  if (clientY < first.top) {
-    return overHeader(list, clientX, clientY) ? { zoneId: "", index: 0, home: true, reject: false } : null;
-  }
-
-  let section = sections[0];
-  for (let i = 1; i < sections.length; i += 1) {
-    const rect = sections[i]?.getBoundingClientRect();
-    if (rect && clientY >= rect.top + SECTION_ENTER_PX) section = sections[i];
-  }
-  const zoneId = section?.dataset.rubric;
-  if (!zoneId) return null;
-  if (PROTECTED_ZONES.has(zoneId) && naturalZone !== zoneId) {
-    return { zoneId, index: 0, home: false, reject: true };
-  }
+/** Where a held row would land. Only slots inside its own section count. */
+function itemDropAt(list: HTMLElement, clientY: number, draggedId: string, zoneId: string) {
+  const section = [...list.querySelectorAll<HTMLElement>("[data-rubric]")].find(
+    (node) => node.dataset.rubric === zoneId,
+  );
+  if (!section) return null;
   const rows = [...section.querySelectorAll<HTMLElement>("[data-reorder-row]")].filter(
     (row) => row.dataset.reorderRow && row.dataset.reorderRow !== draggedId,
   );
@@ -487,9 +455,7 @@ export function ContactItemChipList({
         const to = sectionDropIndex(list, edgeY.current, current.index);
         if (noteDrop(current, { zoneId: current.zoneId, index: to, home: false, reject: false })) publishHold(current);
       } else if (current.kind === "item") {
-        const item = itemsRef.current.find((entry) => entry.id === current.id);
-        const natural = item ? zoneForItem(item) : current.zoneId;
-        const drop = itemDropAt(list, edgeX.current, edgeY.current, current.id, natural);
+        const drop = itemDropAt(list, edgeY.current, current.id, current.zoneId);
         if (drop && noteDrop(current, drop)) publishHold(current);
       }
     }
@@ -536,28 +502,7 @@ export function ContactItemChipList({
       return;
     }
     const allIds = zonesRef.current.flatMap((entry) => entry.rows.flatMap((row) => (row.item ? [row.item.id] : [])));
-    if (current.home) {
-      const item = itemsRef.current.find((entry) => entry.id === current.id);
-      const natural = item ? zoneForItem(item) : current.zoneId;
-      const targetIds =
-        zonesRef.current
-          .find((entry) => entry.id === natural)
-          ?.rows.flatMap((row) => (row.item ? [row.item.id] : [])) ?? [];
-      onMoveRef.current?.(current.id, natural, placeItemInZone(allIds, current.id, targetIds, 0));
-      return;
-    }
-    if (current.dropZoneId && current.dropZoneId !== current.zoneId) {
-      const targetIds =
-        zonesRef.current
-          .find((entry) => entry.id === current.dropZoneId)
-          ?.rows.flatMap((row) => (row.item ? [row.item.id] : [])) ?? [];
-      onMoveRef.current?.(
-        current.id,
-        current.dropZoneId,
-        placeItemInZone(allIds, current.id, targetIds, current.dropIndex),
-      );
-      return;
-    }
+    if (current.home || (current.dropZoneId && current.dropZoneId !== current.zoneId)) return;
     if (current.dropIndex === current.index) return;
     const zone = zonesRef.current.find((entry) => entry.id === current.zoneId);
     const groupIds = zone?.rows.flatMap((row) => (row.item ? [row.item.id] : [])) ?? [];
@@ -784,9 +729,7 @@ export function ContactItemChipList({
           const to = sectionDropIndex(listRef.current, native.clientY, current.index);
           noteDrop(current, { zoneId: current.zoneId, index: to, home: false, reject: false });
         } else if (current.kind === "item") {
-          const item = itemsRef.current.find((entry) => entry.id === current.id);
-          const natural = item ? zoneForItem(item) : current.zoneId;
-          const drop = itemDropAt(listRef.current, native.clientX, native.clientY, current.id, natural);
+          const drop = itemDropAt(listRef.current, native.clientY, current.id, current.zoneId);
           if (drop) noteDrop(current, drop);
         }
       }
