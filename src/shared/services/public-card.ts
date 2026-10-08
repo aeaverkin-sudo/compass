@@ -4,6 +4,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { HANDLE_RE } from "@/shared/services/card-handle";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
+import { normalizeRubricOrder } from "@/shared/services/card-zones";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { VIEWER_HEADER, viewerId } from "@/shared/lib/viewer";
@@ -19,6 +20,7 @@ type CardRow = {
   status: string;
   public_token: string;
   handle?: string | null;
+  rubric_order?: unknown;
   is_public: boolean;
   photo_attachment_id: string | null;
   created_at: string;
@@ -77,11 +79,15 @@ async function readyAttachmentIds(ids: string[]): Promise<Set<string>> {
  */
 async function selectPublicRow(column: "public_token" | "handle", value: string): Promise<CardRow | null> {
   const admin = createAdminSupabaseClient();
-  const withHandle = await admin
+  const withRubric = await admin
     .from("cards")
-    .select(`${CARD_PUBLIC_COLUMNS}, handle`)
+    .select(`${CARD_PUBLIC_COLUMNS}, handle, rubric_order`)
     .eq(column, value)
     .maybeSingle();
+  const withHandle =
+    withRubric.error && /rubric_order/i.test(withRubric.error.message)
+      ? await admin.from("cards").select(`${CARD_PUBLIC_COLUMNS}, handle`).eq(column, value).maybeSingle()
+      : withRubric;
   if (!withHandle.error) return withHandle.data as CardRow | null;
   if (!/handle/i.test(withHandle.error.message)) throw new Error(withHandle.error.message);
   const plain = await admin.from("cards").select(CARD_PUBLIC_COLUMNS).eq(column, value).maybeSingle();
@@ -165,6 +171,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
     qrVersion: 1,
     photoAttachmentId: row.photo_attachment_id,
     contactItemIds: items.map((item) => item.id),
+    rubricOrder: normalizeRubricOrder(row.rubric_order),
     nextScanAddons: [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,

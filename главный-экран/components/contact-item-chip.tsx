@@ -10,9 +10,19 @@ import {
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { openHomeScreenAttachmentPdf } from "@/shared/components/pdf-preview-host";
-import { composeCard, isChoosableHeader, type CardDisplayRow } from "@/shared/services/card-zones";
+import { REORDER_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
+import {
+  applyRubricMove,
+  composeCard,
+  isChoosableHeader,
+  orderCardZones,
+  reorderIdsInGroup,
+  type CardDisplayRow,
+  type CardZoneSection,
+} from "@/shared/services/card-zones";
 import type { ContactItem } from "@/shared/types";
 
 export type ContactItemChipSize = "browse" | "compact";
@@ -69,6 +79,40 @@ type Lift = {
   dy: number;
   active: boolean;
 };
+
+type HoldDrag = {
+  kind: "rubric" | "item";
+  zoneId: string;
+  id: string;
+  pointerId: number;
+  startX: number;
+  startY: number;
+  index: number;
+  count: number;
+  stride: number;
+  dy: number;
+  active: boolean;
+};
+
+const DRAG_LIFT =
+  "relative z-[5] origin-center scale-[1.02] bg-white shadow-[0_10px_22px_rgba(20,20,20,0.14)]";
+
+function elementStride(nodes: HTMLElement[], index: number) {
+  const node = nodes[index];
+  if (!node) return 0;
+  const rect = node.getBoundingClientRect();
+  const neighbor = (nodes[index + 1] ?? nodes[index - 1])?.getBoundingClientRect();
+  const stride = neighbor ? Math.abs(neighbor.top - rect.top) : rect.height;
+  return stride || rect.height;
+}
+
+function reorderHaptic() {
+  try {
+    navigator.vibrate?.(10);
+  } catch {
+    // Vibration is blocked in some browsers.
+  }
+}
 
 function ContactItemChipRow({
   row,
@@ -222,6 +266,9 @@ export function ContactItemChipList({
   className,
   listId,
   onReorder,
+  onReorderRubrics,
+  rubricOrder,
+  canReorder = false,
   onChooseHeader,
   underlineLinks = false,
   publicToken,
@@ -233,6 +280,11 @@ export function ContactItemChipList({
   className?: string;
   listId?: string;
   onReorder?: (orderedIds: string[]) => void;
+  onReorderRubrics?: (orderedKeys: string[]) => void;
+  /** Saved rubric order. Absent keeps Name, Company, Position, Web, … */
+  rubricOrder?: string[];
+  /** Owner card: long-press drags a rubric, or a row inside its rubric. */
+  canReorder?: boolean;
   onChooseHeader?: (itemId: string) => void;
   /** Public read-only card. The owner card keeps plain values. */
   underlineLinks?: boolean;
@@ -246,6 +298,12 @@ export function ContactItemChipList({
   const listRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef(items);
   const onReorderRef = useRef(onReorder);
+  const onRubricRef = useRef(onReorderRubrics);
+  const rubricOrderRef = useRef(rubricOrder);
+  const zonesRef = useRef<CardZoneSection[]>([]);
+  const holdRef = useRef<HoldDrag | null>(null);
+  const holdTimer = useRef<number | null>(null);
+  const [hold, setHold] = useState<HoldDrag | null>(null);
   const liftRef = useRef<Lift | null>(null);
   const timerRef = useRef<number | null>(null);
   const suppressClick = useRef(false);
@@ -254,7 +312,8 @@ export function ContactItemChipList({
   const [lift, setLift] = useState<Lift | null>(null);
   const [fade, setFade] = useState({ top: false, bottom: false });
   const composed = composeCard(items, publicToken);
-  const visualItems = composed.zones.flatMap((zone) =>
+  const orderedZones = orderCardZones(composed.zones, rubricOrder);
+  const visualItems = orderedZones.flatMap((zone) =>
     zone.rows.flatMap((row) => (row.item ? [row.item] : [])),
   );
   const orderKey = visualItems.map((item) => item.id).join("|");
@@ -262,7 +321,10 @@ export function ContactItemChipList({
   useLayoutEffect(() => {
     itemsRef.current = visualItems;
     onReorderRef.current = onReorder;
-  }, [visualItems, onReorder]);
+    onRubricRef.current = onReorderRubrics;
+    rubricOrderRef.current = rubricOrder;
+    zonesRef.current = orderedZones;
+  }, [visualItems, onReorder, onReorderRubrics, rubricOrder, orderedZones]);
 
   useLayoutEffect(() => {
     const el = listRef.current;
@@ -307,8 +369,9 @@ export function ContactItemChipList({
   useEffect(() => {
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
+      if (holdTimer.current) window.clearTimeout(holdTimer.current);
       detachGesture.current?.();
-      document.removeEventListener("touchmove", blockTouchMove);
+      document.removeEventListener("touchmove", blockTouchMove, true);
     };
   }, []);
 
@@ -324,7 +387,7 @@ export function ContactItemChipList({
 
   const finish = (commit: boolean) => {
     clearTimer();
-    document.removeEventListener("touchmove", blockTouchMove);
+    document.removeEventListener("touchmove", blockTouchMove, true);
     const current = liftRef.current;
     liftRef.current = null;
     if (!current?.active || !commit) {
@@ -352,7 +415,7 @@ export function ContactItemChipList({
     if (!current || current.pointerId !== pointerId || current.active) return;
     current.active = true;
     suppressClick.current = true;
-    document.addEventListener("touchmove", blockTouchMove, { passive: false });
+    document.addEventListener("touchmove", blockTouchMove, { passive: false, capture: true });
     publish(current);
   };
 
@@ -401,9 +464,9 @@ export function ContactItemChipList({
     };
 
     function detach() {
-      document.removeEventListener("pointermove", move);
-      document.removeEventListener("pointerup", up);
-      document.removeEventListener("pointercancel", up);
+      document.removeEventListener("pointermove", move, true);
+      document.removeEventListener("pointerup", up, true);
+      document.removeEventListener("pointercancel", up, true);
       const list = listRef.current;
       if (list?.hasPointerCapture(pointerId)) list.releasePointerCapture(pointerId);
       if (detachGesture.current === detach) detachGesture.current = null;
@@ -416,9 +479,9 @@ export function ContactItemChipList({
     };
     detachGesture.current = detach;
 
-    document.addEventListener("pointermove", move, { passive: false });
-    document.addEventListener("pointerup", up);
-    document.addEventListener("pointercancel", up);
+    document.addEventListener("pointermove", move, { passive: false, capture: true });
+    document.addEventListener("pointerup", up, true);
+    document.addEventListener("pointercancel", up, true);
   };
 
   const target = lift?.active
@@ -437,37 +500,235 @@ export function ContactItemChipList({
     setFade((current) => (current.top === next.top && current.bottom === next.bottom ? current : next));
   };
 
-  if (composed.zones.length === 0) return null;
+  const publishHold = (next: HoldDrag | null) => {
+    holdRef.current = next;
+    setHold(next ? { ...next } : null);
+  };
+
+  const clearHoldTimer = () => {
+    if (holdTimer.current) window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  };
+
+  const finishHold = (commit: boolean) => {
+    clearHoldTimer();
+    document.removeEventListener("touchmove", blockTouchMove, true);
+    const current = holdRef.current;
+    holdRef.current = null;
+    setHold(null);
+    if (!current?.active || !commit) return;
+    const to = dropIndex(current.index, current.dy, current.stride, current.count);
+    if (to === current.index) return;
+    if (current.kind === "rubric") {
+      const visible = zonesRef.current.map((zone) => zone.id);
+      onRubricRef.current?.(applyRubricMove(rubricOrderRef.current, visible, current.index, to));
+      return;
+    }
+    const zone = zonesRef.current.find((entry) => entry.id === current.zoneId);
+    const groupIds = zone?.rows.flatMap((row) => (row.item ? [row.item.id] : [])) ?? [];
+    const allIds = zonesRef.current.flatMap((entry) => entry.rows.flatMap((row) => (row.item ? [row.item.id] : [])));
+    onReorderRef.current?.(reorderIdsInGroup(allIds, groupIds, current.index, to));
+  };
+
+  const armHold = (pointerId: number) => {
+    const current = holdRef.current;
+    if (!current || current.pointerId !== pointerId || current.active) return;
+    current.active = true;
+    suppressClick.current = true;
+    document.addEventListener("touchmove", blockTouchMove, { passive: false, capture: true });
+    reorderHaptic();
+    publishHold(current);
+  };
+
+  const onBrowsePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!canReorder || compact || holdRef.current || !listRef.current) return;
+    const target = event.target;
+    if (!(target instanceof Element) || target.closest("input, textarea, button")) return;
+    const section = target.closest<HTMLElement>("[data-rubric]");
+    const zoneId = section?.dataset.rubric;
+    if (!section || !zoneId) return;
+    const row = target.closest<HTMLElement>("[data-reorder-row]");
+    const zones = zonesRef.current;
+    const zone = zones.find((entry) => entry.id === zoneId);
+    if (!zone) return;
+
+    let kind: HoldDrag["kind"] = "rubric";
+    let id = zoneId;
+    let index = zones.findIndex((entry) => entry.id === zoneId);
+    let nodes = [...listRef.current.querySelectorAll<HTMLElement>("[data-rubric]")];
+    let count = zones.length;
+    if (row?.dataset.reorderRow) {
+      const rows = [...section.querySelectorAll<HTMLElement>("[data-reorder-row]")];
+      if (rows.length < 2) return;
+      kind = "item";
+      id = row.dataset.reorderRow;
+      index = rows.findIndex((entry) => entry.dataset.reorderRow === id);
+      nodes = rows;
+      count = rows.length;
+      if (index < 0) return;
+    } else if (zones.length < 2) {
+      return;
+    }
+
+    const pointerId = event.pointerId;
+    publishHold({
+      kind,
+      zoneId,
+      id,
+      pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      index,
+      count,
+      stride: elementStride(nodes, index),
+      dy: 0,
+      active: false,
+    });
+    clearHoldTimer();
+    holdTimer.current = window.setTimeout(() => armHold(pointerId), REORDER_HOLD_MS);
+
+    const move = (native: PointerEvent) => {
+      if (native.pointerId !== pointerId) return;
+      const current = holdRef.current;
+      if (!current) return;
+      const dx = native.clientX - current.startX;
+      const dy = native.clientY - current.startY;
+      if (!current.active) {
+        if (Math.hypot(dx, dy) > REORDER_SLOP_PX) {
+          clearHoldTimer();
+          publishHold(null);
+          detach();
+        }
+        return;
+      }
+      native.preventDefault();
+      native.stopPropagation();
+      current.dy = dy;
+      publishHold(current);
+    };
+
+    function detach() {
+      document.removeEventListener("pointermove", move, true);
+      document.removeEventListener("pointerup", up, true);
+      document.removeEventListener("pointercancel", up, true);
+      window.removeEventListener("keydown", onKey);
+      if (detachGesture.current === detach) detachGesture.current = null;
+    }
+
+    const onKey = (native: KeyboardEvent) => {
+      if (native.key !== "Escape") return;
+      detach();
+      finishHold(false);
+    };
+
+    const up = (native: PointerEvent) => {
+      if (native.pointerId !== pointerId) return;
+      detach();
+      finishHold(true);
+    };
+
+    detachGesture.current = detach;
+    document.addEventListener("pointermove", move, { passive: false, capture: true });
+    document.addEventListener("pointerup", up, true);
+    document.addEventListener("pointercancel", up, true);
+    window.addEventListener("keydown", onKey);
+  };
+
+  const swallowReorderClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (!suppressClick.current) return;
+    suppressClick.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  if (orderedZones.length === 0) return null;
 
   if (!compact) {
-    const zones = pdfZoneIds ? composed.zones.filter((zone) => pdfZoneIds.includes(zone.id)) : composed.zones;
+    const zones = pdfZoneIds ? orderedZones.filter((zone) => pdfZoneIds.includes(zone.id)) : orderedZones;
     if (zones.length === 0) return null;
+    const holdTarget = hold?.active ? dropIndex(hold.index, hold.dy, hold.stride, hold.count) : 0;
     return (
-      <div className={cn("w-full min-w-0", className)} data-card-chip-list={listId} data-card-content>
+      <div
+        ref={listRef}
+        className={cn("w-full min-w-0", hold?.active && "touch-none", className)}
+        data-card-chip-list={listId}
+        data-card-content
+        data-no-swipe={hold?.active ? "" : undefined}
+        data-reordering={hold?.active ? "" : undefined}
+        onPointerDown={canReorder ? onBrowsePointerDown : undefined}
+        onClickCapture={swallowReorderClick}
+        onContextMenu={(event) => {
+          if (canReorder) event.preventDefault();
+        }}
+      >
         {zones.map((zone) => {
-          const zoneIndex = composed.zones.findIndex((entry) => entry.id === zone.id);
+          const zoneIndex = orderedZones.findIndex((entry) => entry.id === zone.id);
+          const rubricLifted = Boolean(hold?.active && hold.kind === "rubric" && hold.id === zone.id);
+          const rubricShift =
+            hold?.active && hold.kind === "rubric"
+              ? rowShift(zoneIndex, hold.index, holdTarget, hold.stride)
+              : 0;
+          const rubricTy = rubricLifted ? hold?.dy ?? 0 : rubricShift;
           return (
           <section
             key={zone.id}
+            data-rubric={zone.id}
             data-pdf-block={markPdfBlocks ? "" : undefined}
             className={cn(
               "min-w-0 py-[18px]",
-              zoneIndex < composed.zones.length - 1 && "border-b border-[var(--rule)]",
+              zoneIndex < orderedZones.length - 1 && "border-b border-[var(--rule)]",
+              rubricLifted && DRAG_LIFT,
             )}
+            style={
+              rubricTy
+                ? {
+                    transform: `translateY(${rubricTy}px)`,
+                    transition: rubricLifted || !motion ? "none" : "transform 250ms ease-out",
+                  }
+                : undefined
+            }
           >
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
-              <span className="t-label whitespace-nowrap">
+              <span className="t-label flex items-center gap-1 whitespace-nowrap">
+                {rubricLifted ? <GripVertical className="size-3.5 shrink-0 text-[var(--ink)]" strokeWidth={1.5} aria-hidden /> : null}
                 {zone.title}
               </span>
               <div className="flex min-w-0 flex-col gap-[6px]">
-                {zone.rows.map((row) => (
-                  <EditorialValue
-                    key={row.key}
-                    row={row}
-                    onChooseHeader={onChooseHeader}
-                    underlineLink={underlineLinks}
-                  />
-                ))}
+                {zone.rows.map((row, rowIndex) => {
+                  const rowId = row.item?.id;
+                  const itemLifted = Boolean(
+                    hold?.active && hold.kind === "item" && hold.zoneId === zone.id && hold.id === rowId,
+                  );
+                  const itemShift =
+                    hold?.active && hold.kind === "item" && hold.zoneId === zone.id
+                      ? rowShift(rowIndex, hold.index, holdTarget, hold.stride)
+                      : 0;
+                  const itemTy = itemLifted ? hold?.dy ?? 0 : itemShift;
+                  return (
+                    <div
+                      key={row.key}
+                      data-reorder-row={rowId}
+                      className={cn(itemLifted && DRAG_LIFT)}
+                      style={
+                        itemTy
+                          ? {
+                              transform: `translateY(${itemTy}px)`,
+                              transition: itemLifted || !motion ? "none" : "transform 250ms ease-out",
+                            }
+                          : undefined
+                      }
+                    >
+                      {itemLifted ? (
+                        <GripVertical className="mb-0.5 size-3.5 text-[var(--ink)]" strokeWidth={1.5} aria-hidden />
+                      ) : null}
+                      <EditorialValue
+                        row={row}
+                        onChooseHeader={onChooseHeader}
+                        underlineLink={underlineLinks}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -499,7 +760,7 @@ export function ContactItemChipList({
           lift?.active && "touch-none overflow-hidden",
         )}
       >
-        {composed.zones.map((zone, zoneIndex) =>
+        {orderedZones.map((zone, zoneIndex) =>
           zone.rows.map((row, rowIndex) => {
             const index = row.item ? visualItems.findIndex((item) => item.id === row.item?.id) : -1;
             const isLifted = Boolean(row.item && lift?.active && lift.id === row.item.id);
@@ -545,7 +806,7 @@ export function ContactItemChipList({
                   )}
                   onChooseHeader={onChooseHeader}
                 />
-                {zoneEnd && zoneIndex < composed.zones.length - 1 ? (
+                {zoneEnd && zoneIndex < orderedZones.length - 1 ? (
                   <div className="col-span-2 mt-3 border-b border-[var(--rule)]" />
                 ) : null}
               </Fragment>

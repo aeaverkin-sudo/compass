@@ -388,6 +388,70 @@ function sectionsFrom(buckets: Map<CardZoneId, CardDisplayRow[]>) {
   });
 }
 
+const ZONE_IDS = new Set<string>(CARD_ZONES.map((zone) => zone.id));
+
+/** Keep known rubric keys. Anything else is ignored. */
+export function normalizeRubricOrder(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const keys: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string" || !ZONE_IDS.has(entry) || keys.includes(entry)) continue;
+    keys.push(entry);
+  }
+  return keys.length > 0 ? keys : undefined;
+}
+
+/** Stored rubric order first. Rubrics the card has not ordered yet keep the default sequence. */
+export function orderCardZones<T extends { id: string }>(zones: T[], rubricOrder?: string[]): T[] {
+  const stored = normalizeRubricOrder(rubricOrder);
+  if (!stored) return zones;
+  const rank = new Map<string, number>(stored.map((id, index) => [id, index]));
+  const fallback = new Map<string, number>(CARD_ZONES.map((zone, index) => [zone.id, stored.length + index]));
+  return [...zones].sort(
+    (a, b) => (rank.get(a.id) ?? fallback.get(a.id) ?? 999) - (rank.get(b.id) ?? fallback.get(b.id) ?? 999),
+  );
+}
+
+/** Move one visible rubric. Keys that are not on screen stay after the visible run. */
+export function applyRubricMove(current: string[] | undefined, visibleIds: string[], fromIndex: number, toIndex: number) {
+  const visible = orderCardZones(
+    visibleIds.map((id) => ({ id })),
+    current,
+  ).map((zone) => zone.id);
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= visible.length || toIndex >= visible.length || fromIndex === toIndex) {
+    return normalizeRubricOrder(current) ?? visible;
+  }
+  const nextVisible = [...visible];
+  const [moved] = nextVisible.splice(fromIndex, 1);
+  if (!moved) return visible;
+  nextVisible.splice(toIndex, 0, moved);
+  const rest = (normalizeRubricOrder(current) ?? []).filter((id) => !nextVisible.includes(id));
+  return [...nextVisible, ...rest];
+}
+
+/**
+ * Permute one rubric's rows inside the full id list.
+ * Ids from other rubrics stay in their slots.
+ */
+export function reorderIdsInGroup(allIds: string[], groupIds: string[], fromIndex: number, toIndex: number) {
+  const group = groupIds.filter((id) => allIds.includes(id));
+  if (fromIndex < 0 || toIndex < 0 || fromIndex >= group.length || toIndex >= group.length || fromIndex === toIndex) {
+    return allIds;
+  }
+  const nextGroup = [...group];
+  const [moved] = nextGroup.splice(fromIndex, 1);
+  if (!moved) return allIds;
+  nextGroup.splice(toIndex, 0, moved);
+  const inGroup = new Set(group);
+  let cursor = 0;
+  return allIds.map((id) => {
+    if (!inGroup.has(id)) return id;
+    const next = nextGroup[cursor];
+    cursor += 1;
+    return next ?? id;
+  });
+}
+
 function collectRoles(text: string): RoleHit[] {
   const found: RoleHit[] = [];
   for (const role of ROLES) {

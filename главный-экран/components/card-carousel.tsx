@@ -261,6 +261,23 @@ export function CardCarousel({
     };
   }, [editing, slideWidthPx]);
 
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const block = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest("[data-reordering]")) return;
+      event.stopPropagation();
+      if (event.cancelable) event.preventDefault();
+    };
+    node.addEventListener("touchmove", block, { passive: false });
+    node.addEventListener("pointermove", block);
+    return () => {
+      node.removeEventListener("touchmove", block);
+      node.removeEventListener("pointermove", block);
+    };
+  }, [slideWidthPx]);
+
   const markScrolled = () => {
     scrolledRecently.current = true;
     if (scrollResetTimer.current) clearTimeout(scrollResetTimer.current);

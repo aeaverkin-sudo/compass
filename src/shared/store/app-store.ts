@@ -16,7 +16,8 @@ import {
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
-import { ensureCardIdentity, scheduleCardUpsert, writeCardListed, writeCardSearchable } from "@/shared/services/card-sync";
+import { ensureCardIdentity, scheduleCardUpsert, writeCardListed, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
+import { normalizeRubricOrder } from "@/shared/services/card-zones";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
   deleteItemRow,
@@ -68,6 +69,7 @@ interface AppState {
   addItemToCard: (cardId: string, itemId: string) => void;
   removeItemFromCard: (cardId: string, itemId: string) => void;
   setCardItemOrder: (cardId: string, orderedIds: string[]) => void;
+  setCardRubricOrder: (cardId: string, orderedRubricKeys: string[]) => void;
   deleteContactItem: (itemId: string) => void;
 }
 
@@ -328,6 +330,24 @@ export const useAppStore = create<AppState>()(
         });
         const card = get().cards.find((entry) => entry.id === cardId);
         if (card) void syncCardLinkOrder(card, get().contactItems);
+      },
+
+      setCardRubricOrder: (cardId, orderedRubricKeys) => {
+        const keys = normalizeRubricOrder(orderedRubricKeys);
+        if (!keys) return;
+        const now = new Date().toISOString();
+        const current = get().cards.find((card) => card.id === cardId);
+        if (!current) return;
+        const same =
+          (current.rubricOrder ?? []).length === keys.length &&
+          (current.rubricOrder ?? []).every((id, index) => id === keys[index]);
+        if (same) return;
+        const next = { ...current, rubricOrder: keys, updatedAt: now };
+        set({
+          cards: get().cards.map((card) => (card.id === cardId ? next : card)),
+        });
+        writeCardRubricOrder(cardId, keys);
+        scheduleCardUpsert(next, { pulse: false });
       },
 
       deleteContactItem: (itemId) => {

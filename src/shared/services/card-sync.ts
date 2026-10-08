@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { handlesForCards, slugFromName } from "@/shared/services/card-handle";
+import { normalizeRubricOrder } from "@/shared/services/card-zones";
 import type { Card, CardStatus } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -21,6 +22,7 @@ type CardRow = {
   is_public: boolean;
   listed: boolean | null;
   searchable?: boolean | null;
+  rubric_order?: unknown;
   photo_attachment_id: string | null;
   created_at: string;
   updated_at: string;
@@ -101,6 +103,10 @@ function overlayScalars(local: Card, row: CardRow): Card {
     photo: remotePhotoId ? undefined : local.photo,
     listed: row.listed ?? local.listed,
     searchable: row.searchable ?? local.searchable ?? true,
+    rubricOrder:
+      local.updatedAt > row.updated_at
+        ? local.rubricOrder
+        : (normalizeRubricOrder(row.rubric_order) ?? local.rubricOrder),
     createdAt: row.created_at,
     updatedAt: keptLocalText && local.updatedAt > row.updated_at ? local.updatedAt : row.updated_at,
   };
@@ -118,6 +124,7 @@ function shellFromRow(row: CardRow): Card {
     photoAttachmentId: row.photo_attachment_id ?? undefined,
     listed: row.listed ?? undefined,
     searchable: row.searchable ?? true,
+    rubricOrder: normalizeRubricOrder(row.rubric_order),
     contactItemIds: [],
     nextScanAddons: [],
     createdAt: row.created_at,
@@ -149,6 +156,12 @@ export function mergeCardScalars(local: Card[], remote: CardRow[]): Card[] {
   return next;
 }
 
+function sameRubricOrder(a?: string[], b?: string[]) {
+  const left = a ?? [];
+  const right = b ?? [];
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
 function scalarsEqual(a: Card, b: Card) {
   return (
     a.id === b.id &&
@@ -162,6 +175,7 @@ function scalarsEqual(a: Card, b: Card) {
     a.photo === b.photo &&
     a.listed === b.listed &&
     (a.searchable !== false) === (b.searchable !== false) &&
+    sameRubricOrder(a.rubricOrder, b.rubricOrder) &&
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt
   );
@@ -202,6 +216,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
         qr_version: card.qrVersion,
         is_public: true,
         listed: card.listed ?? true,
+        rubric_order: card.rubricOrder ?? null,
         photo_attachment_id: card.photoAttachmentId ?? null,
         created_at: card.createdAt,
         updated_at: card.updatedAt,
@@ -226,9 +241,17 @@ export async function upsertCardScalars(card: Card): Promise<void> {
         handle = `${base}-${attempt + 2}`;
         continue;
       }
-      if (/handle/i.test(error.message) && /column|schema/i.test(error.message)) {
-        const { handle: _dropped, ...withoutHandle } = row;
+      if (/rubric_order/i.test(error.message) && /column|schema/i.test(error.message)) {
+        const { rubric_order: _dropped, ...withoutRubric } = row;
         void _dropped;
+        const again = await supabase.from("cards").upsert(withoutRubric, { onConflict: "id", defaultToNull: false });
+        error = again.error;
+        if (!error) return;
+      }
+      if (error && /handle/i.test(error.message) && /column|schema/i.test(error.message)) {
+        const { handle: _dropped, rubric_order: _rubric, ...withoutHandle } = row;
+        void _dropped;
+        void _rubric;
         const again = await supabase.from("cards").upsert(withoutHandle, { onConflict: "id", defaultToNull: false });
         error = again.error;
       }
@@ -275,6 +298,20 @@ export function writeCardListed(cardId: string, listed: boolean) {
     .eq("id", cardId)
     .then(({ error }) => {
       if (error) console.error("[card-sync] listed", error.message);
+    });
+}
+
+/** Writes rubric order. A missing column must not block the rest of the card save. */
+export function writeCardRubricOrder(cardId: string, rubricOrder: string[]) {
+  const pending = pendingUpserts.get(cardId);
+  if (pending) pending.card = { ...pending.card, rubricOrder };
+  const supabase = createBrowserSupabaseClient();
+  void supabase
+    .from("cards")
+    .update({ rubric_order: rubricOrder })
+    .eq("id", cardId)
+    .then(({ error }) => {
+      if (error && !/rubric_order/i.test(error.message)) console.error("[card-sync] rubric order", error.message);
     });
 }
 
@@ -339,10 +376,14 @@ async function runHydrate() {
   if (!ownerId) return;
 
   const supabase = createBrowserSupabaseClient();
-  const withSearch = await supabase
+  const withRubric = await supabase
     .from("cards")
-    .select(`${CARD_COLUMNS}, handle, searchable`)
+    .select(`${CARD_COLUMNS}, handle, searchable, rubric_order`)
     .eq("owner_id", ownerId);
+  const withSearch =
+    withRubric.error && /rubric_order/i.test(withRubric.error.message)
+      ? await supabase.from("cards").select(`${CARD_COLUMNS}, handle, searchable`).eq("owner_id", ownerId)
+      : withRubric;
   const withHandle =
     withSearch.error && /searchable/i.test(withSearch.error.message)
       ? await supabase.from("cards").select(`${CARD_COLUMNS}, handle`).eq("owner_id", ownerId)

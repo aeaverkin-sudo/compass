@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { groupLibrary, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
+import { groupLibrary, orderCardZones, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
 import { isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
@@ -115,7 +115,10 @@ export function CardEditList({
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
-  const sections = useMemo(() => buildSections(card, items), [card, items]);
+  const sections = useMemo(
+    () => orderCardZones(buildSections(card, items), card.rubricOrder),
+    [card, items],
+  );
 
   useEffect(() => {
     if (!deleteReadyId) return;

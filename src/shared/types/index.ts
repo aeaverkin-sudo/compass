@@ -83,6 +83,8 @@ export interface Card {
   contactItemIds: string[];
   /** When true, card rows keep the user's manual order instead of auto shelves. */
   itemOrderManual?: boolean;
+  /** Rubric keys in display order. Missing keys follow the default zone order. */
+  rubricOrder?: string[];
   /** Row from the position zone shown under the portfolio title. Absent until the user picks one. */
   headerItemId?: string;
   nextScanAddons: NextScanAddon[];

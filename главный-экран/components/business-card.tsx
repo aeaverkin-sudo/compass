@@ -16,7 +16,7 @@ import {
 } from "@/shared/services/save-public-card-pdf";
 import { AccountBand } from "@/shared/components/account-band";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
-import { composeCard } from "@/shared/services/card-zones";
+import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
@@ -508,7 +508,7 @@ function PdfCard({
   ownerNotes: Card["nextScanAddons"];
   pdfMask: number[] | null;
 }) {
-  const zoneIds = composeCard(items).zones.map((zone) => zone.id);
+  const zoneIds = orderCardZones(composeCard(items).zones, card.rubricOrder).map((zone) => zone.id);
   const plan = pdfBlockPlan(zoneIds, pdfNotesPresent(readOnly ? deliveredNotes : ownerNotes));
   const shown = pdfMask ? plan.filter((_, index) => pdfMask.includes(index)) : plan;
   const zoneFilter = shown.flatMap((block) => (block.kind === "zone" ? [block.id] : []));
@@ -531,6 +531,7 @@ function PdfCard({
             size="browse"
             underlineLinks
             publicToken={card.publicToken}
+            rubricOrder={card.rubricOrder}
             markPdfBlocks
             pdfZoneIds={zoneFilter}
           />
@@ -622,6 +623,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   ref,
 ) {
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
+  const setCardRubricOrder = useAppStore((state) => state.setCardRubricOrder);
   const items = getCardItems(card, library);
   const chosen = items.find((item) => item.id === card.headerItemId);
   const positionTitle = chosen?.value.trim() || card.title.trim() || undefined;
@@ -980,7 +982,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         size={compact ? "compact" : "browse"}
         className={compact ? "pb-2" : undefined}
         listId={card.id}
-        onReorder={compact ? handleCommitOrder : undefined}
+        rubricOrder={card.rubricOrder}
+        canReorder={!compact && !readOnly && Boolean(onCardUpdate)}
+        onReorder={compact || (!readOnly && onCardUpdate) ? handleCommitOrder : undefined}
+        onReorderRubrics={
+          !compact && !readOnly && onCardUpdate
+            ? (keys) => setCardRubricOrder(card.id, keys)
+            : undefined
+        }
         onChooseHeader={
           onCardUpdate
             ? (itemId) => {
