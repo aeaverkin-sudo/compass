@@ -13,7 +13,7 @@ import {
   typeLabel,
 } from "./portfolio-catalog";
 import { isAttachmentType, validateTextValue } from "./portfolio-limits";
-import { linkDisplay } from "./link-display";
+import { customDisplayName, linkDisplay } from "./link-display";
 
 export { typeLabel } from "./portfolio-catalog";
 export {
@@ -161,6 +161,40 @@ export function contactLineAsType(seed: ContactItem, raw: string, type: ContactT
   return { ...seed, type, value: stored, url };
 }
 
+const HANDLE = /^@?[a-z0-9._]{1,30}$/i;
+
+/** A value can be stored as this type without inventing a broken link. */
+export function valueFitsType(type: ContactType, raw: string): boolean {
+  const value = raw.trim();
+  if (!value) return false;
+  if (type === "text" || type === "position" || type === "custom") return true;
+  if (isAttachmentType(type)) return false;
+  if (type === "email") return EMAIL.test(value);
+  if (type === "phone" || type === "whatsapp") return PHONE.test(value) || detectContactType(value) === type;
+  if (type === "website" || type === "link") return DOMAIN.test(value);
+  if (DOMAIN.test(value) || /^https?:\/\//i.test(value)) return detectContactType(value) === type;
+  return HANDLE.test(value);
+}
+
+/**
+ * Move a row into a rubric. The value and any file stay.
+ * Prose placed on Web stays text in that rubric. Prose cannot become a social or mail link.
+ */
+export function contactItemForRubric(item: ContactItem, type: ContactType): ContactItem | null {
+  if (isAttachmentType(item.type)) {
+    if (type !== item.type) return null;
+    return { ...item, typeManual: true };
+  }
+  if (type === "text" || type === "position") {
+    return { ...item, type, typeManual: true, url: "" };
+  }
+  if ((type === "website" || type === "link") && !valueFitsType(type, item.value)) {
+    return { ...item, type: "custom", typeManual: true, url: "" };
+  }
+  if (!valueFitsType(type, item.value)) return null;
+  return { ...contactLineAsType(item, item.value, type), label: item.label, typeManual: true };
+}
+
 export function createEmptyContactItem(order: number): ContactItem {
   return {
     id: crypto.randomUUID(),
@@ -217,6 +251,14 @@ function storedContactValue(type: ContactType, value: string): string {
 
 export function normalizeContactItem(item: ContactItem, value: string): ContactItem {
   const trimmed = value.slice(0, 2000);
+  if (item.typeManual || customDisplayName(item)) {
+    const stuck = { ...item, typeManual: true as const };
+    if (!valueFitsType(stuck.type, trimmed) && stuck.type !== "text" && stuck.type !== "position" && stuck.type !== "custom" && !isAttachmentType(stuck.type)) {
+      return { ...stuck, value: trimmed.trim() };
+    }
+    const next = contactLineAsType(stuck, trimmed, stuck.type);
+    return { ...next, label: item.label, typeManual: true };
+  }
   const type = detectContactType(trimmed);
   const stored = storedContactValue(type, trimmed);
   const shortcut = parseTypedShortcut(trimmed);

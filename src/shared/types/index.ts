@@ -52,6 +52,8 @@ export interface ContactItem {
   url: string;
   /** Pool file pointer (`items.attachment_id`). Set only once the upload is ready. */
   attachmentId?: string;
+  /** The owner chose this type or label. Later edits keep the rubric. */
+  typeManual?: boolean;
   order: number;
 }
 

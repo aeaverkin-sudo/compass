@@ -15,6 +15,7 @@ type ItemRow = {
   value: string;
   url: string;
   attachment_id: string | null;
+  type_manual?: boolean | null;
 };
 
 type LinkRow = {
@@ -74,18 +75,24 @@ async function upsertItemRow(item: ContactItem) {
   if (!userId) return;
 
   const supabase = createBrowserSupabaseClient();
-  const { error } = await supabase.from("items").upsert(
-    {
-      id: item.id,
-      owner_id: userId,
-      type: item.type,
-      label: item.label,
-      value: textValue(item),
-      url: textUrl(item),
-      attachment_id: item.attachmentId ?? null,
-    },
-    { onConflict: "id", defaultToNull: false },
-  );
+  const row = {
+    id: item.id,
+    owner_id: userId,
+    type: item.type,
+    label: item.label,
+    value: textValue(item),
+    url: textUrl(item),
+    attachment_id: item.attachmentId ?? null,
+    type_manual: item.typeManual ?? false,
+  };
+  const { error } = await supabase.from("items").upsert(row, { onConflict: "id", defaultToNull: false });
+  if (error && /type_manual/i.test(error.message)) {
+    const { type_manual: omitted, ...withoutFlag } = row;
+    void omitted;
+    const retry = await supabase.from("items").upsert(withoutFlag, { onConflict: "id", defaultToNull: false });
+    if (retry.error) console.error("[card-items] item upsert failed", retry.error.message);
+    return;
+  }
   if (error) console.error("[card-items] item upsert failed", error.message);
 }
 
@@ -197,6 +204,7 @@ function mergeItem(local: ContactItem | undefined, row: ItemRow, order: number):
     value: row.value ?? "",
     url: remoteAttachmentId ? "" : local?.url.startsWith("data:") ? local.url : (row.url ?? ""),
     attachmentId: remoteAttachmentId ?? local?.attachmentId,
+    typeManual: typeof row.type_manual === "boolean" ? row.type_manual : local?.typeManual,
     order: local?.order ?? order,
   };
 }
@@ -210,10 +218,16 @@ export async function hydrateCardItems() {
   const rekeyed = rekeyContactItems(state.cards, state.contactItems);
 
   const supabase = createBrowserSupabaseClient();
-  const { data: itemData, error: itemError } = await supabase
+  const withFlag = await supabase
     .from("items")
-    .select("id, type, label, value, url, attachment_id")
+    .select("id, type, label, value, url, attachment_id, type_manual")
     .eq("owner_id", userId);
+  const itemQuery =
+    withFlag.error && /type_manual/i.test(withFlag.error.message)
+      ? await supabase.from("items").select("id, type, label, value, url, attachment_id").eq("owner_id", userId)
+      : withFlag;
+  const itemData = itemQuery.data;
+  const itemError = itemQuery.error;
   if (itemError) {
     console.error("[card-items] load failed", itemError.message);
     return;
