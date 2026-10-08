@@ -5,8 +5,13 @@ import { typeLabel } from "./portfolio-catalog";
 
 export const CARD_ZONES = [
   { id: "name", title: "Name" },
+  { id: "age", title: "Age" },
   { id: "company", title: "Company" },
   { id: "position", title: "Position" },
+  { id: "background", title: "Background" },
+  { id: "education", title: "Education" },
+  { id: "location", title: "Location" },
+  { id: "languages", title: "Languages" },
   { id: "web", title: "Web" },
   { id: "social", title: "Social" },
   { id: "files", title: "Files" },
@@ -160,6 +165,16 @@ export function isExplicitPosition(item: ContactItem) {
 const LEGAL_SUFFIX =
   /^(?:l\.?l\.?c\.?|inc\.?|incorporated|ltd\.?|limited|gmbh|corp\.?|corporation|llp|plc|ag|s\.?a\.?|sas|oy|ab|bv|nv|pty|lp|pllc|ug|kg|co\.?|company)$/i;
 
+const FACT_LABELS: Record<string, CardZoneId> = {
+  age: "age",
+  education: "education",
+  background: "background",
+  experience: "background",
+  location: "location",
+  languages: "languages",
+  language: "languages",
+};
+
 export function zoneForItem(item: ContactItem): CardZoneId {
   if (WEB_TYPES.has(item.type)) return "web";
   if (SOCIAL_TYPES.has(item.type)) return "social";
@@ -169,8 +184,114 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   if (item.type === "text" && item.value.includes("\n")) return "additional";
   if (isExplicitPosition(item) || (item.type === "text" && parseDescription(item.value).position)) return "position";
   if (item.type === "text" && isCompanyLine(item.value)) return "company";
+  if (item.type === "text") {
+    const labeled = FACT_LABELS[item.label.trim().toLowerCase()];
+    if (labeled) return labeled;
+    const fact = factZone(item.value);
+    if (fact) return fact;
+  }
   if (item.type === "text" && isPersonName(item.value)) return "name";
   return "additional";
+}
+
+/**
+ * A single portfolio line that is a fact, not a name or a role.
+ * Age, study, work history, where they are, and which languages they speak.
+ */
+function factZone(text: string): CardZoneId | null {
+  const line = text.trim();
+  if (!line) return null;
+  if (isAgeLine(line)) return "age";
+  if (isEducationLine(line)) return "education";
+  if (isBackgroundLine(line)) return "background";
+  if (isLocationLine(line)) return "location";
+  if (isLanguagesLine(line)) return "languages";
+  return null;
+}
+
+function isAgeLine(text: string) {
+  const aged = text.match(/^(?:age[d]?)\s*[:\-–]?\s*(\d{1,3})$/i);
+  if (aged) return between(Number(aged[1]), 1, 120);
+  const old = text.match(/^(\d{1,3})\s*(?:years?\s+old|y\.?o\.?)$/i);
+  if (old) return between(Number(old[1]), 1, 120);
+  const bare = text.match(/^(\d{2})$/);
+  if (bare) return between(Number(bare[1]), 14, 99);
+  return /^(?:born|b\.)\s+(?:in\s+)?(?:19|20)\d{2}$/i.test(text);
+}
+
+function isEducationLine(text: string) {
+  if (
+    /\b(?:education|university|college|bachelor(?:'s)?|master(?:'s)?|doctorate|phd|graduated|alumn(?:us|a|i)?|studied|degree|academy|conservatoire|conservatory|polytechnic|high\s+school|art\s+school)\b/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
+  return /\b(?:BA|BS|BSc|BFA|MA|MS|MSc|MFA|MBA|PhD|DPhil)\b/.test(text);
+}
+
+function isBackgroundLine(text: string) {
+  if (/\b(?:background|experience|career|r[eé]sum[eé]|worked|formerly)\b/i.test(text)) return true;
+  if (/\b\d{1,2}\s+years?\s+(?:in|at|with|of)\b/i.test(text)) return true;
+  if (/\b(?:since|from)\s+(?:19|20)\d{2}\b/i.test(text)) return true;
+  return /^ex[-–]\p{L}/iu.test(text);
+}
+
+function isLocationLine(text: string) {
+  if (/^(?:based|living|lives|located)\s+in\s+\p{L}/iu.test(text)) return true;
+  return /^location\s*[:\-–]\s*\p{L}/iu.test(text);
+}
+
+const SPOKEN = new Set([
+  "english",
+  "russian",
+  "portuguese",
+  "spanish",
+  "french",
+  "german",
+  "italian",
+  "chinese",
+  "mandarin",
+  "cantonese",
+  "japanese",
+  "korean",
+  "arabic",
+  "hindi",
+  "dutch",
+  "swedish",
+  "norwegian",
+  "danish",
+  "finnish",
+  "polish",
+  "ukrainian",
+  "turkish",
+  "greek",
+  "hebrew",
+  "czech",
+  "hungarian",
+  "romanian",
+  "catalan",
+  "indonesian",
+  "thai",
+  "vietnamese",
+  "persian",
+  "farsi",
+  "urdu",
+  "bengali",
+  "swahili",
+]);
+
+function isLanguagesLine(text: string) {
+  if (/^(?:languages?|speaks?)\b/i.test(text)) return true;
+  const parts = text
+    .split(/,|\/|&|\band\b/i)
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+  return parts.length >= 2 && parts.every((part) => SPOKEN.has(part));
+}
+
+function between(value: number, min: number, max: number) {
+  return value >= min && value <= max;
 }
 
 /** Position, name, or company row. A tap places that one line under the portfolio title. */
