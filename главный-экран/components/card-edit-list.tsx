@@ -804,7 +804,7 @@ function EditRow({
           ref={lineRef}
           className={cn(
             "t-body select-none",
-            value.includes("\n") ? "w-full whitespace-pre-wrap" : "w-max whitespace-nowrap",
+            value.includes("\n") || value.includes("  ") ? "w-full whitespace-pre-wrap" : "w-max whitespace-nowrap",
           )}
         >
           {text}

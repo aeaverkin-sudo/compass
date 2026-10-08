@@ -272,7 +272,7 @@ function EditorialValue({
     <span
       className={cn(
         "block min-w-0 break-words t-body text-[var(--ink)] no-underline",
-        row.value.includes("\n") && "whitespace-pre-wrap",
+        (row.value.includes("\n") || row.value.includes("  ")) && "whitespace-pre-wrap",
       )}
     >
       {row.axis ? (
