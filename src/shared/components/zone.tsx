@@ -30,7 +30,7 @@ export function Zone({
         )}
         style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
       >
-        <span className={typeof label === "string" ? "t-label whitespace-nowrap" : "flex items-center"}>
+        <span className={typeof label === "string" ? "t-label block whitespace-normal line-clamp-3" : "flex items-center"}>
           {label}
         </span>
         <div className="min-w-0">{children}</div>

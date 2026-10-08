@@ -74,8 +74,18 @@ interface AppState {
   setRubricLabel: (cardId: string, zoneId: string, title?: string) => void;
   /** Show one row in another section on this card. The item itself stays unchanged. */
   setItemZone: (cardId: string, itemId: string, zoneId?: string) => void;
-  deleteContactItem: (itemId: string) => void;
+  /** Remove a library row. `keepRemote` leaves the server row until undo expires. */
+  deleteContactItem: (itemId: string, options?: { keepRemote?: boolean }) => ContactItemSnapshot | null;
+  /** Put a deleted row back, same id, same cards, same positions. */
+  restoreContactItem: (snapshot: ContactItemSnapshot) => void;
+  /** Finish a deferred delete on the server. */
+  commitContactItemDelete: (itemId: string) => void;
 }
+
+export type ContactItemSnapshot = {
+  item: ContactItem;
+  placements: { cardId: string; index: number; zoneId?: string }[];
+};
 
 function createInitialUser(): User {
   return {
@@ -389,13 +399,22 @@ export const useAppStore = create<AppState>()(
         scheduleCardUpsert(next, { pulse: false });
       },
 
-      deleteContactItem: (itemId) => {
+      deleteContactItem: (itemId, options) => {
+        const item = get().contactItems.find((entry) => entry.id === itemId);
+        if (!item) return null;
+        const placements = get().cards.flatMap((card) => {
+          const index = card.contactItemIds.indexOf(itemId);
+          if (index < 0) return [];
+          const zoneId = card.itemZones?.[itemId];
+          return [{ cardId: card.id, index, zoneId }];
+        });
+        const snapshot: ContactItemSnapshot = { item: { ...item }, placements };
         const now = new Date().toISOString();
-        const touched = get().cards.filter((card) => card.contactItemIds.includes(itemId)).map((card) => card.id);
+        const touched = placements.map((spot) => spot.cardId);
         set({
           contactItems: get()
-            .contactItems.filter((item) => item.id !== itemId)
-            .map((item, order) => ({ ...item, order })),
+            .contactItems.filter((entry) => entry.id !== itemId)
+            .map((entry, order) => ({ ...entry, order })),
           cards: get().cards.map((card) => {
             const zones = card.itemZones ? { ...card.itemZones } : undefined;
             if (zones) delete zones[itemId];
@@ -407,9 +426,55 @@ export const useAppStore = create<AppState>()(
             };
           }),
         });
+        if (!options?.keepRemote) get().commitContactItemDelete(itemId);
+        else {
+          const currentId = get().cards[get().currentCardIndex]?.id;
+          if (currentId && touched.includes(currentId)) {
+            void import("@/shared/lib/live-qr-pulse").then(({ requestLiveQrPulse }) => {
+              requestLiveQrPulse(currentId);
+            });
+          }
+        }
+        return snapshot;
+      },
+
+      restoreContactItem: (snapshot) => {
+        const { item } = snapshot;
+        if (!item?.id || get().contactItems.some((entry) => entry.id === item.id)) return;
+        const place = new Map(snapshot.placements.map((spot) => [spot.cardId, spot]));
+        const now = new Date().toISOString();
+        set({
+          contactItems: [...get().contactItems, item]
+            .sort((a, b) => a.order - b.order)
+            .map((entry, order) => ({ ...entry, order })),
+          cards: get().cards.map((card) => {
+            const spot = place.get(card.id);
+            if (!spot) return card;
+            const ids = card.contactItemIds.filter((id) => id !== item.id);
+            ids.splice(Math.max(0, Math.min(spot.index, ids.length)), 0, item.id);
+            const zones = { ...(card.itemZones ?? {}) };
+            if (spot.zoneId && isCardZoneId(spot.zoneId)) zones[item.id] = spot.zoneId;
+            else delete zones[item.id];
+            return {
+              ...card,
+              contactItemIds: ids,
+              itemZones: Object.keys(zones).length > 0 ? zones : undefined,
+              updatedAt: now,
+            };
+          }),
+        });
+        const currentId = get().cards[get().currentCardIndex]?.id;
+        if (currentId && place.has(currentId)) {
+          void import("@/shared/lib/live-qr-pulse").then(({ requestLiveQrPulse }) => {
+            requestLiveQrPulse(currentId);
+          });
+        }
+      },
+
+      commitContactItemDelete: (itemId) => {
         const currentId = get().cards[get().currentCardIndex]?.id;
         void deleteItemRow(itemId).then(async () => {
-          if (!currentId || !touched.includes(currentId)) return;
+          if (!currentId) return;
           const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
           requestLiveQrPulse(currentId);
         });

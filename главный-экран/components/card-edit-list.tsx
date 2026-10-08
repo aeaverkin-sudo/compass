@@ -3,8 +3,10 @@
 import { File as FileIcon, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
+import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
+import { DELETE_HOLD_MS } from "@/shared/lib/reorder-hold";
 import {
   effectiveZone,
   groupLibrary,
@@ -16,13 +18,12 @@ import {
 import { detectContactType, isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
-import { useAppStore } from "@/shared/store/app-store";
+import { useAppStore, type ContactItemSnapshot } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
-const HOLD_MS = 500;
 const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
@@ -152,7 +153,7 @@ function SectionLabel({
         ref={labelRef}
         type="button"
         className={cn(
-          "t-label w-full bg-transparent text-left whitespace-nowrap",
+          "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
           editing && "invisible pointer-events-none",
         )}
         style={{ color: included ? "var(--grey)" : OFF_CARD }}
@@ -220,10 +221,15 @@ export function CardEditList({
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const setRubricLabel = useAppStore((state) => state.setRubricLabel);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
+  const restoreContactItem = useAppStore((state) => state.restoreContactItem);
+  const commitContactItemDelete = useAppStore((state) => state.commitContactItemDelete);
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; count: number } | null>(null);
+  const [undo, setUndo] = useState<ContactItemSnapshot | null>(null);
+  const undoTimer = useRef<number | null>(null);
   const [composing, setComposing] = useState(false);
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
@@ -237,7 +243,7 @@ export function CardEditList({
     if (!deleteReadyId) return;
     const dismiss = (event: Event) => {
       const target = event.target;
-      if (target instanceof Element && target.closest("[data-delete-marker]")) return;
+      if (target instanceof Element && target.closest("[data-delete-marker], [data-delete-confirm]")) return;
       setDeleteReadyId(null);
     };
     document.addEventListener("pointerdown", dismiss);
@@ -274,6 +280,57 @@ export function CardEditList({
     setTextEditId(null);
     setDeleteReadyId(null);
     deleteContactItem(itemId);
+  };
+
+  const undoRef = useRef<ContactItemSnapshot | null>(null);
+
+  const finishUndo = (commit: boolean) => {
+    if (undoTimer.current) window.clearTimeout(undoTimer.current);
+    undoTimer.current = null;
+    const current = undoRef.current;
+    undoRef.current = null;
+    setUndo(null);
+    if (commit && current) commitContactItemDelete(current.item.id);
+  };
+
+  useEffect(
+    () => () => {
+      if (undoTimer.current) window.clearTimeout(undoTimer.current);
+      const pending = undoRef.current;
+      undoRef.current = null;
+      if (pending) useAppStore.getState().commitContactItemDelete(pending.item.id);
+    },
+    [],
+  );
+
+  const beginDelete = (itemId: string) => {
+    setDeleteReadyId(null);
+    setConfirmDelete(null);
+    finishUndo(true);
+    const snapshot = deleteContactItem(itemId, { keepRemote: true });
+    if (!snapshot) return;
+    undoRef.current = snapshot;
+    setUndo(snapshot);
+    undoTimer.current = window.setTimeout(() => finishUndo(true), 3000);
+  };
+
+  const askDelete = (itemId: string) => {
+    const cards = useAppStore.getState().cards.filter((entry) => entry.contactItemIds.includes(itemId));
+    const elsewhere = cards.some((entry) => entry.id !== card.id);
+    if (elsewhere) {
+      setConfirmDelete({ id: itemId, count: cards.length });
+      return;
+    }
+    beginDelete(itemId);
+  };
+
+  const cancelUndo = () => {
+    const current = undoRef.current;
+    undoRef.current = null;
+    if (undoTimer.current) window.clearTimeout(undoTimer.current);
+    undoTimer.current = null;
+    setUndo(null);
+    if (current) restoreContactItem(current);
   };
 
   return (
@@ -316,7 +373,7 @@ export function CardEditList({
                     editing={textEditId === item.id}
                     deleteReady={deleteReadyId === item.id}
                     onArmDelete={() => setDeleteReadyId(item.id)}
-                    onDelete={() => eraseRow(item.id)}
+                    onDelete={() => askDelete(item.id)}
                     onAdd={() => include(item.id)}
                     onRemove={() => removeItemFromCard(card.id, item.id)}
                     onEdit={() => {
@@ -350,6 +407,55 @@ export function CardEditList({
           if (first?.id === card.id) include(itemId);
         }}
       />
+      <Dialog.Root
+        open={confirmDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDelete(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-[#111]/20" />
+          <Dialog.Content
+            data-delete-confirm=""
+            className="fixed top-1/2 left-1/2 z-50 w-[min(100%-48px,320px)] -translate-x-1/2 -translate-y-1/2 bg-white p-6 outline-none"
+          >
+            <Dialog.Title className="t-body text-[var(--ink)]">
+              Удалить со всех {confirmDelete?.count ?? 0} карточек?
+            </Dialog.Title>
+            <Dialog.Description className="sr-only">Это удалит строку из библиотеки и со всех карточек.</Dialog.Description>
+            <div className="mt-6 flex gap-6">
+              <button
+                type="button"
+                className="t-body text-[var(--ink)]"
+                onClick={() => {
+                  const id = confirmDelete?.id;
+                  if (id) beginDelete(id);
+                }}
+              >
+                Да
+              </button>
+              <button type="button" className="t-body text-[var(--grey)]" onClick={() => {
+                setConfirmDelete(null);
+                setDeleteReadyId(null);
+              }}>
+                Нет
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      {undo
+        ? createPortal(
+            <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-white px-6 py-3 text-center">
+              <span className="t-body text-[var(--ink)]">Удалено</span>
+              <span className="t-body text-[var(--grey)]"> · </span>
+              <button type="button" className="t-body text-[var(--ink)] underline" onClick={cancelUndo}>
+                Отменить
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
@@ -683,8 +789,13 @@ function EditRow({
     pressedLong.current = true;
     setHolding(false);
     window.getSelection()?.removeAllRanges();
+    try {
+      navigator.vibrate?.(10);
+    } catch {
+      // Vibration is blocked in some browsers.
+    }
     onArmDelete();
-  }, HOLD_MS);
+  }, DELETE_HOLD_MS);
   const release = () => {
     setHolding(false);
     longPress.onPointerUp();
@@ -720,7 +831,7 @@ function EditRow({
   }, [editing]);
 
   return (
-    <div ref={rowRef} className={cn("relative min-w-0", holding && "opacity-40")}>
+    <div ref={rowRef} className="relative min-w-0">
       <div
         ref={fieldRef}
         aria-label={text}
@@ -728,6 +839,7 @@ function EditRow({
         className={cn(
           "mr-[26px] min-w-0 overflow-clip",
           editing && "invisible pointer-events-none",
+          (holding || deleteReady) && "opacity-40",
         )}
         style={{ color: onCard ? "#111" : OFF_CARD }}
         onPointerDown={(event) => {
