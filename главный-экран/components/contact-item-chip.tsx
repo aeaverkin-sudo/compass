@@ -1071,11 +1071,11 @@ export function ContactItemChipList({
                 <button
                   type="button"
                   data-arrange-done=""
-                  className="t-body border border-[var(--rule)] bg-white px-5 py-2 text-[var(--ink)]"
+                  className="t-body bg-sky px-5 py-2 text-[var(--ink)]"
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={leaveArrange}
                 >
-                  Готово
+                  Done
                 </button>
               </div>,
               chromeHost,
