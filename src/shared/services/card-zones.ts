@@ -81,14 +81,20 @@ const SOCIAL_TYPES = new Set<ContactType>([
   "x",
   "youtube",
   "tiktok",
+  "threads",
+  "pinterest",
+  "snapchat",
+  "reddit",
+  "twitch",
   "github",
   "behance",
   "dribbble",
-  "telegram",
-  "whatsapp",
 ]);
 
-const CONTACT_TYPES = new Set<ContactType>(["email", "phone"]);
+const CONTACT_TYPES = new Set<ContactType>(["email", "phone", "whatsapp", "telegram", "viber", "signal"]);
+
+/** A messenger needs its name on the row. A phone number alone is indistinguishable from Phone. */
+const MESSENGER_TYPES = new Set<ContactType>(["whatsapp", "telegram", "viber", "signal"]);
 
 const FILE_AXIS: Partial<Record<ContactType, string>> = {
   pdf: "PDF",
@@ -527,7 +533,9 @@ function splitPresentation(item: ContactItem): { axis: string; value: string } |
   const display = itemDisplayValue(item).trim();
   if (!display || display === "+") return null;
   const zone = zoneForItem(item);
-  if (zone === "social" || zone === "lifestyle") return { axis: typeLabel(item.type), value: display };
+  if (zone === "social" || zone === "lifestyle" || MESSENGER_TYPES.has(item.type)) {
+    return { axis: typeLabel(item.type), value: display };
+  }
   if (zone === "files") return { axis: FILE_AXIS[item.type] ?? "FILE", value: display };
   return { axis: "", value: display };
 }

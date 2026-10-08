@@ -1,5 +1,5 @@
 import type { ContactItem, ContactType } from "@/shared/types";
-import { typeLabel } from "@/shared/services/portfolio-catalog";
+import { messengerPhoneDigits, splitMessengerInput, typeLabel } from "@/shared/services/portfolio-catalog";
 import { isAttachmentType } from "@/shared/services/portfolio-limits";
 
 const RESERVED = new Set([
@@ -177,6 +177,15 @@ function handleFrom(host: string, segments: string[]): string | null {
     return null;
   }
 
+  if (host === "snapchat.com" || host.endsWith(".snapchat.com")) {
+    const rest = segments[0]?.toLowerCase() === "add" ? segments.slice(1) : segments;
+    for (const segment of rest) {
+      const handle = cleanHandle(segment);
+      if (handle) return handle;
+    }
+    return null;
+  }
+
   if (host === "linkedin.com" || host.endsWith(".linkedin.com")) {
     const marker = segments.findIndex((segment) => {
       const key = segment.toLowerCase();
@@ -206,6 +215,19 @@ function pathLabel(segments: string[]) {
   return null;
 }
 
+/** `signal.me/#p/+351…` keeps the number in the hash, not the path. */
+function signalPhone(url: URL): string | null {
+  const match = url.hash.match(/^#p\/\+(\d+)$/);
+  return match ? `+${match[1]}` : null;
+}
+
+/** `viber://chat?number=%2B351…` is not an http link, so the row reads the number from the value. */
+function viberPhone(item: ContactItem): string | null {
+  const typed = splitMessengerInput(item.value);
+  const digits = (typed && messengerPhoneDigits(typed.handle)) || item.url.match(/number=%2B(\d+)/i)?.[1];
+  return digits ? `+${digits}` : null;
+}
+
 function source(item: ContactItem) {
   if (item.url.startsWith("http") || item.url.startsWith("mailto:") || item.url.startsWith("tel:")) return item.url;
   return item.value.trim();
@@ -221,7 +243,7 @@ function prettyLink(item: ContactItem, type: ContactType) {
   const host = hostOf(url);
   if (host === "youtu.be") return "Video";
   const segments = segmentsOf(url);
-  const phone = messengerPhoneFromUrl(host, segments);
+  const phone = messengerPhoneFromUrl(host, segments) ?? signalPhone(url);
   if (phone) return phone;
   const handle = handleFrom(host, segments);
   if (handle) {
@@ -237,6 +259,7 @@ export function autoLinkDisplay(item: ContactItem): string {
     if (item.value.startsWith("data:")) return item.label.trim() || typeLabel(item.type);
     return item.value.trim() || item.label.trim() || typeLabel(item.type);
   }
+  if (item.type === "viber") return viberPhone(item) ?? item.value.trim();
   if (item.type === "email") return item.value.replace(/^mailto:/i, "").trim();
   if (item.type === "phone") return item.value.replace(/^tel:/i, "").trim();
   if (item.type === "text" || item.type === "position") return item.value.trim();

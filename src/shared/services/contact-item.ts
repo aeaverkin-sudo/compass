@@ -67,7 +67,7 @@ function isHostOnlyAddress(value: string) {
 
 export const MESSENGER_COUNTRY_HINT = "Add a country code, e.g. +351…";
 
-/** WhatsApp or Telegram keyword plus a number that has no leading +. No link, and no guessed country code. */
+/** Messenger keyword plus a number that has no leading +. No link, and no guessed country code. Telegram still accepts a username. */
 export function messengerCountryHint(raw: string): string | null {
   const messenger = splitMessengerInput(raw);
   if (!messenger) return null;
@@ -152,6 +152,11 @@ const URL_HOST_TYPES = new Set<ContactType>([
   "x",
   "youtube",
   "tiktok",
+  "threads",
+  "pinterest",
+  "snapchat",
+  "reddit",
+  "twitch",
   "github",
   "behance",
   "dribbble",
@@ -161,6 +166,8 @@ const URL_HOST_TYPES = new Set<ContactType>([
   "playstore",
   "telegram",
   "whatsapp",
+  "viber",
+  "signal",
 ]);
 
 /** Lowercase the host. Path and query stay as typed. A bare domain is all host. */

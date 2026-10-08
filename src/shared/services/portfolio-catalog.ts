@@ -74,6 +74,18 @@ export const PORTFOLIO_ITEM_CATALOG: CatalogEntry[] = [
     examples: ["t.me/handle", "@handle"],
   },
   {
+    category: "contact",
+    type: "viber",
+    label: "Viber",
+    examples: ["viber +351912345678"],
+  },
+  {
+    category: "contact",
+    type: "signal",
+    label: "Signal",
+    examples: ["signal +351912345678"],
+  },
+  {
     category: "social",
     type: "instagram",
     label: "Instagram",
@@ -88,7 +100,7 @@ export const PORTFOLIO_ITEM_CATALOG: CatalogEntry[] = [
   {
     category: "social",
     type: "meta",
-    label: "Meta",
+    label: "Facebook",
     examples: ["facebook.com/page", "meta.com"],
   },
   {
@@ -108,6 +120,36 @@ export const PORTFOLIO_ITEM_CATALOG: CatalogEntry[] = [
     type: "tiktok",
     label: "TikTok",
     examples: ["tiktok.com/@brand"],
+  },
+  {
+    category: "social",
+    type: "threads",
+    label: "Threads",
+    examples: ["threads.net/@name"],
+  },
+  {
+    category: "social",
+    type: "pinterest",
+    label: "Pinterest",
+    examples: ["pinterest.com/name"],
+  },
+  {
+    category: "social",
+    type: "snapchat",
+    label: "Snapchat",
+    examples: ["snapchat.com/add/name"],
+  },
+  {
+    category: "social",
+    type: "reddit",
+    label: "Reddit",
+    examples: ["reddit.com/user/name"],
+  },
+  {
+    category: "social",
+    type: "twitch",
+    label: "Twitch",
+    examples: ["twitch.tv/name"],
   },
   {
     category: "social",
@@ -227,6 +269,16 @@ export const SERVICE_PREFIX_ALIASES: Readonly<Record<string, ContactType>> = {
   wa: "whatsapp",
   ватсап: "whatsapp",
   вотсап: "whatsapp",
+  threads: "threads",
+  pinterest: "pinterest",
+  pin: "pinterest",
+  snapchat: "snapchat",
+  snap: "snapchat",
+  reddit: "reddit",
+  twitch: "twitch",
+  viber: "viber",
+  вайбер: "viber",
+  signal: "signal",
   behance: "behance",
   dribbble: "dribbble",
   calendly: "calendly",
@@ -241,16 +293,18 @@ export function matchServicePrefix(alias: string): ContactType | null {
   return SERVICE_PREFIX_ALIASES[key] ?? null;
 }
 
-/** `telegram @nick`, `tg: +351…`, `ватсап +7…`. Separator is a space or a colon. */
+/** `telegram @nick`, `tg: +351…`, `viber +351…`, `signal +351…`. Separator is a space or a colon. */
 const MESSENGER_INPUT =
-  /^(telegram|tg|тг|whatsapp|wa|ватсап|вотсап)(?:\s*:\s*|\s+)(.+)$/iu;
+  /^(telegram|tg|тг|whatsapp|wa|ватсап|вотсап|viber|вайбер|signal)(?:\s*:\s*|\s+)(.+)$/iu;
+
+const MESSENGER_TYPES = new Set<ContactType>(["telegram", "whatsapp", "viber", "signal"]);
 
 export function splitMessengerInput(raw: string): { type: ContactType; handle: string } | null {
   const match = raw.trim().match(MESSENGER_INPUT);
   if (!match) return null;
   const type = matchServicePrefix(match[1] ?? "");
   const handle = (match[2] ?? "").trim();
-  if ((type !== "telegram" && type !== "whatsapp") || !handle) return null;
+  if (!type || !MESSENGER_TYPES.has(type) || !handle) return null;
   return { type, handle };
 }
 
@@ -311,6 +365,24 @@ export function profileUrlForType(type: ContactType, handle: string): string | n
       const phone = messengerPhoneDigits(handle);
       return phone ? `https://wa.me/${phone}` : null;
     }
+    case "threads":
+      return `https://www.threads.net/@${id}`;
+    case "pinterest":
+      return `https://pinterest.com/${id}`;
+    case "snapchat":
+      return `https://snapchat.com/add/${id}`;
+    case "reddit":
+      return `https://reddit.com/user/${id}`;
+    case "twitch":
+      return `https://twitch.tv/${id}`;
+    case "viber": {
+      const phone = messengerPhoneDigits(handle);
+      return phone ? `viber://chat?number=%2B${phone}` : null;
+    }
+    case "signal": {
+      const phone = messengerPhoneDigits(handle);
+      return phone ? `https://signal.me/#p/+${phone}` : null;
+    }
     case "behance":
       return `https://behance.net/${id}`;
     case "dribbble":
@@ -324,7 +396,14 @@ export function profileUrlForType(type: ContactType, handle: string): string | n
 
 export function displayHandleForType(type: ContactType, handle: string): string {
   const id = handle.replace(/^@/, "").trim();
-  if (type === "instagram" || type === "tiktok" || type === "telegram" || type === "youtube") {
+  if (
+    type === "instagram" ||
+    type === "tiktok" ||
+    type === "telegram" ||
+    type === "youtube" ||
+    type === "threads" ||
+    type === "snapchat"
+  ) {
     return id ? `@${id}` : handle;
   }
   return id || handle;
@@ -342,6 +421,15 @@ export const SOCIAL_DOMAIN_MAP: ReadonlyArray<[string, ContactType]> = [
   ["youtube.com", "youtube"],
   ["youtu.be", "youtube"],
   ["tiktok.com", "tiktok"],
+  ["threads.net", "threads"],
+  ["threads.com", "threads"],
+  ["pinterest.com", "pinterest"],
+  ["pin.it", "pinterest"],
+  ["snapchat.com", "snapchat"],
+  ["reddit.com", "reddit"],
+  ["twitch.tv", "twitch"],
+  ["signal.me", "signal"],
+  ["invite.viber.com", "viber"],
   ["github.com", "github"],
   ["behance.net", "behance"],
   ["dribbble.com", "dribbble"],
@@ -525,10 +613,15 @@ export function typeLabel(type: ContactType): string {
   const fallback: Record<ContactType, string> = {
     instagram: "Instagram",
     linkedin: "LinkedIn",
-    meta: "Meta",
+    meta: "Facebook",
     x: "X",
     youtube: "YouTube",
     tiktok: "TikTok",
+    threads: "Threads",
+    pinterest: "Pinterest",
+    snapchat: "Snapchat",
+    reddit: "Reddit",
+    twitch: "Twitch",
     github: "GitHub",
     behance: "Behance",
     dribbble: "Dribbble",
@@ -548,6 +641,8 @@ export function typeLabel(type: ContactType): string {
     video: "Video",
     telegram: "Telegram",
     whatsapp: "WhatsApp",
+    viber: "Viber",
+    signal: "Signal",
     link: "Website",
     text: "Description",
     position: "Position",
