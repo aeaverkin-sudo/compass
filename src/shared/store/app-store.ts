@@ -60,8 +60,6 @@ interface AppState {
   /** Add an empty draft to the library pool (not bound to any card). One draft at a time. */
   addContactItem: () => string | null;
   updateContactItem: (itemId: string, data: Partial<Pick<ContactItem, "value" | "label">>) => void;
-  /** Replace one library row as given. Used when a typed field keeps its kind. */
-  setContactItem: (item: ContactItem) => void;
   updateContactItemAttachment: (
     cardId: string,
     itemId: string,
@@ -230,12 +228,6 @@ export const useAppStore = create<AppState>()(
         set({ contactItems: nextItems });
         const next = nextItems.find((item) => item.id === itemId);
         if (next) scheduleItemUpsert(next);
-      },
-
-      setContactItem: (item) => {
-        const nextItems = get().contactItems.map((current) => (current.id === item.id ? item : current));
-        set({ contactItems: nextItems });
-        scheduleItemUpsert(item);
       },
 
       updateContactItemAttachment: (cardId, itemId, file, dataUrl) => {
