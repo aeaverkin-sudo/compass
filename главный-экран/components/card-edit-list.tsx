@@ -420,9 +420,9 @@ export function CardEditList({
             className="fixed top-1/2 left-1/2 z-50 w-[min(100%-48px,320px)] -translate-x-1/2 -translate-y-1/2 bg-white p-6 outline-none"
           >
             <Dialog.Title className="t-body text-[var(--ink)]">
-              Удалить со всех {confirmDelete?.count ?? 0} карточек?
+              Delete from library
             </Dialog.Title>
-            <Dialog.Description className="sr-only">Это удалит строку из библиотеки и со всех карточек.</Dialog.Description>
+            <Dialog.Description className="sr-only">This removes the row from the library.</Dialog.Description>
             <div className="mt-6 flex gap-6">
               <button
                 type="button"
@@ -432,13 +432,13 @@ export function CardEditList({
                   if (id) beginDelete(id);
                 }}
               >
-                Да
+                Yes
               </button>
               <button type="button" className="t-body text-[var(--grey)]" onClick={() => {
                 setConfirmDelete(null);
                 setDeleteReadyId(null);
               }}>
-                Нет
+                No
               </button>
             </div>
           </Dialog.Content>
@@ -447,10 +447,10 @@ export function CardEditList({
       {undo
         ? createPortal(
             <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-white px-6 py-3 text-center">
-              <span className="t-body text-[var(--ink)]">Удалено</span>
+              <span className="t-body text-[var(--ink)]">Deleted</span>
               <span className="t-body text-[var(--grey)]"> · </span>
               <button type="button" className="t-body text-[var(--ink)] underline" onClick={cancelUndo}>
-                Отменить
+                Undo
               </button>
             </div>,
             document.body,

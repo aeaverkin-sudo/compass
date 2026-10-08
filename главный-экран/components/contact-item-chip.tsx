@@ -950,13 +950,13 @@ export function ContactItemChipList({
       >
         {showReturn && hold?.reject ? (
           <p className="pointer-events-none absolute inset-x-0 top-2 z-20 text-center t-meta text-[var(--ink)]">
-            Вернуть в свой раздел
+            Return to its section
           </p>
         ) : null}
         {showReturn && hold?.home && header
           ? createPortal(
               <p className="pointer-events-none absolute inset-x-0 bottom-2 z-10 text-center t-meta text-[var(--ink)]">
-                Вернуть в свой раздел
+                Return to its section
               </p>,
               header,
             )
