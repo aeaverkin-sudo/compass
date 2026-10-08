@@ -19,6 +19,7 @@ import {
   composeCard,
   isChoosableHeader,
   orderCardZones,
+  placeItemInZone,
   reorderIdsInGroup,
   type CardDisplayRow,
   type CardZoneSection,
@@ -92,6 +93,8 @@ type HoldDrag = {
   stride: number;
   dy: number;
   active: boolean;
+  dropZoneId: string;
+  dropIndex: number;
 };
 
 const DRAG_LIFT =
@@ -112,6 +115,36 @@ function reorderHaptic() {
   } catch {
     // Vibration is blocked in some browsers.
   }
+}
+
+/** Where a held row would land. The held row itself is left out of the count. */
+function itemDropAt(list: HTMLElement, clientY: number, draggedId: string) {
+  const sections = [...list.querySelectorAll<HTMLElement>("[data-rubric]")];
+  if (sections.length === 0) return null;
+  let section = sections[0];
+  if (!section) return null;
+  for (const candidate of sections) {
+    if (clientY >= candidate.getBoundingClientRect().top) section = candidate;
+  }
+  const zoneId = section.dataset.rubric;
+  if (!zoneId) return null;
+  const rows = [...section.querySelectorAll<HTMLElement>("[data-reorder-row]")].filter(
+    (row) => row.dataset.reorderRow && row.dataset.reorderRow !== draggedId,
+  );
+  let index = rows.length;
+  for (let slot = 0; slot < rows.length; slot += 1) {
+    const rect = rows[slot]?.getBoundingClientRect();
+    if (!rect) continue;
+    if (clientY < rect.top + rect.height / 2) {
+      index = slot;
+      break;
+    }
+  }
+  return { zoneId, index };
+}
+
+function InsertLine() {
+  return <div aria-hidden className="h-px bg-[var(--ink)]" />;
 }
 
 function ContactItemChipRow({
@@ -272,7 +305,10 @@ export function ContactItemChipList({
   listId,
   onReorder,
   onReorderRubrics,
+  onMoveItem,
   rubricOrder,
+  rubricLabels,
+  itemZones,
   canReorder = false,
   onChooseHeader,
   underlineLinks = false,
@@ -286,9 +322,13 @@ export function ContactItemChipList({
   listId?: string;
   onReorder?: (orderedIds: string[]) => void;
   onReorderRubrics?: (orderedKeys: string[]) => void;
+  /** Drop a row into another section of this card. The item itself is not changed. */
+  onMoveItem?: (itemId: string, zoneId: string, orderedIds: string[]) => void;
   /** Saved rubric order. Absent keeps Name, Company, Position, Web, … */
   rubricOrder?: string[];
-  /** Owner card: long-press drags a rubric, or a row inside its rubric. */
+  rubricLabels?: Record<string, string>;
+  itemZones?: Record<string, string>;
+  /** Owner card: long-press drags a rubric, or a row into any rubric. */
   canReorder?: boolean;
   onChooseHeader?: (itemId: string) => void;
   /** Public read-only card. The owner card keeps plain values. */
@@ -304,7 +344,10 @@ export function ContactItemChipList({
   const itemsRef = useRef(items);
   const onReorderRef = useRef(onReorder);
   const onRubricRef = useRef(onReorderRubrics);
+  const onMoveRef = useRef(onMoveItem);
   const rubricOrderRef = useRef(rubricOrder);
+  const edgeY = useRef(0);
+  const edgeLoop = useRef(0);
   const zonesRef = useRef<CardZoneSection[]>([]);
   const holdRef = useRef<HoldDrag | null>(null);
   const holdTimer = useRef<number | null>(null);
@@ -316,7 +359,7 @@ export function ContactItemChipList({
   const pendingFlip = useRef<{ tops: Map<string, number>; orderKey: string } | null>(null);
   const [lift, setLift] = useState<Lift | null>(null);
   const [fade, setFade] = useState({ top: false, bottom: false });
-  const composed = composeCard(items, publicToken);
+  const composed = composeCard(items, publicToken, { rubricLabels, itemZones });
   const orderedZones = orderCardZones(composed.zones, rubricOrder);
   const visualItems = orderedZones.flatMap((zone) =>
     zone.rows.flatMap((row) => (row.item ? [row.item] : [])),
@@ -327,9 +370,10 @@ export function ContactItemChipList({
     itemsRef.current = visualItems;
     onReorderRef.current = onReorder;
     onRubricRef.current = onReorderRubrics;
+    onMoveRef.current = onMoveItem;
     rubricOrderRef.current = rubricOrder;
     zonesRef.current = orderedZones;
-  }, [visualItems, onReorder, onReorderRubrics, rubricOrder, orderedZones]);
+  }, [visualItems, onReorder, onReorderRubrics, onMoveItem, rubricOrder, orderedZones]);
 
   useLayoutEffect(() => {
     const el = listRef.current;
@@ -375,6 +419,7 @@ export function ContactItemChipList({
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
       if (holdTimer.current) window.clearTimeout(holdTimer.current);
+      if (edgeLoop.current) cancelAnimationFrame(edgeLoop.current);
       detachGesture.current?.();
       document.removeEventListener("touchmove", blockTouchMove, true);
     };
@@ -515,24 +560,61 @@ export function ContactItemChipList({
     holdTimer.current = null;
   };
 
+  const stopEdgeScroll = () => {
+    if (edgeLoop.current) cancelAnimationFrame(edgeLoop.current);
+    edgeLoop.current = 0;
+  };
+
+  const pumpEdgeScroll = () => {
+    const scroller = listRef.current?.closest(".compass-card-scroll");
+    if (scroller instanceof HTMLElement) {
+      const rect = scroller.getBoundingClientRect();
+      const y = edgeY.current;
+      const band = 56;
+      if (y < rect.top + band) scroller.scrollTop -= 12;
+      else if (y > rect.bottom - band) scroller.scrollTop += 12;
+    }
+    const current = holdRef.current;
+    const list = listRef.current;
+    if (current?.active && current.kind === "item" && list) {
+      const drop = itemDropAt(list, edgeY.current, current.id);
+      if (drop && (drop.zoneId !== current.dropZoneId || drop.index !== current.dropIndex)) {
+        current.dropZoneId = drop.zoneId;
+        current.dropIndex = drop.index;
+        publishHold(current);
+      }
+    }
+    edgeLoop.current = requestAnimationFrame(pumpEdgeScroll);
+  };
+
   const finishHold = (commit: boolean) => {
     clearHoldTimer();
+    stopEdgeScroll();
     document.removeEventListener("touchmove", blockTouchMove, true);
     const current = holdRef.current;
     holdRef.current = null;
     setHold(null);
     if (!current?.active || !commit) return;
-    const to = dropIndex(current.index, current.dy, current.stride, current.count);
-    if (to === current.index) return;
     if (current.kind === "rubric") {
+      const to = dropIndex(current.index, current.dy, current.stride, current.count);
+      if (to === current.index) return;
       const visible = zonesRef.current.map((zone) => zone.id);
       onRubricRef.current?.(applyRubricMove(rubricOrderRef.current, visible, current.index, to));
       return;
     }
+    const allIds = zonesRef.current.flatMap((entry) => entry.rows.flatMap((row) => (row.item ? [row.item.id] : [])));
+    if (current.dropZoneId !== current.zoneId) {
+      const targetIds =
+        zonesRef.current
+          .find((entry) => entry.id === current.dropZoneId)
+          ?.rows.flatMap((row) => (row.item ? [row.item.id] : [])) ?? [];
+      onMoveRef.current?.(current.id, current.dropZoneId, placeItemInZone(allIds, current.id, targetIds, current.dropIndex));
+      return;
+    }
+    if (current.dropIndex === current.index) return;
     const zone = zonesRef.current.find((entry) => entry.id === current.zoneId);
     const groupIds = zone?.rows.flatMap((row) => (row.item ? [row.item.id] : [])) ?? [];
-    const allIds = zonesRef.current.flatMap((entry) => entry.rows.flatMap((row) => (row.item ? [row.item.id] : [])));
-    onReorderRef.current?.(reorderIdsInGroup(allIds, groupIds, current.index, to));
+    onReorderRef.current?.(reorderIdsInGroup(allIds, groupIds, current.index, current.dropIndex));
   };
 
   const armHold = (pointerId: number) => {
@@ -542,6 +624,8 @@ export function ContactItemChipList({
     suppressClick.current = true;
     document.addEventListener("touchmove", blockTouchMove, { passive: false, capture: true });
     reorderHaptic();
+    stopEdgeScroll();
+    edgeLoop.current = requestAnimationFrame(pumpEdgeScroll);
     publishHold(current);
   };
 
@@ -564,7 +648,6 @@ export function ContactItemChipList({
     let count = zones.length;
     if (row?.dataset.reorderRow) {
       const rows = [...section.querySelectorAll<HTMLElement>("[data-reorder-row]")];
-      if (rows.length < 2) return;
       kind = "item";
       id = row.dataset.reorderRow;
       index = rows.findIndex((entry) => entry.dataset.reorderRow === id);
@@ -588,6 +671,8 @@ export function ContactItemChipList({
       stride: elementStride(nodes, index),
       dy: 0,
       active: false,
+      dropZoneId: zoneId,
+      dropIndex: index,
     });
     clearHoldTimer();
     holdTimer.current = window.setTimeout(() => armHold(pointerId), REORDER_HOLD_MS);
@@ -609,6 +694,14 @@ export function ContactItemChipList({
       native.preventDefault();
       native.stopPropagation();
       current.dy = dy;
+      edgeY.current = native.clientY;
+      if (current.kind === "item" && listRef.current) {
+        const drop = itemDropAt(listRef.current, native.clientY, current.id);
+        if (drop) {
+          current.dropZoneId = drop.zoneId;
+          current.dropIndex = drop.index;
+        }
+      }
       publishHold(current);
     };
 
@@ -674,9 +767,12 @@ export function ContactItemChipList({
               ? rowShift(zoneIndex, hold.index, holdTarget, hold.stride)
               : 0;
           const rubricTy = rubricLifted ? hold?.dy ?? 0 : rubricShift;
+          const rubricLine = Boolean(hold?.active && hold.kind === "rubric" && holdTarget === zoneIndex && hold.index !== zoneIndex);
+          let itemSlot = 0;
           return (
+          <Fragment key={zone.id}>
+          {rubricLine ? <InsertLine /> : null}
           <section
-            key={zone.id}
             data-rubric={zone.id}
             data-pdf-block={markPdfBlocks ? "" : undefined}
             className={cn(
@@ -693,8 +789,11 @@ export function ContactItemChipList({
                 : undefined
             }
           >
-            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
-              <span className="t-label flex items-center gap-1 whitespace-nowrap">
+            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+              <span
+                data-rubric-handle=""
+                className="t-label flex min-h-11 items-center gap-1 self-stretch whitespace-nowrap py-2"
+              >
                 {rubricLifted ? <GripVertical className="size-3.5 shrink-0 text-[var(--ink)]" strokeWidth={1.5} aria-hidden /> : null}
                 {zone.title}
               </span>
@@ -704,39 +803,50 @@ export function ContactItemChipList({
                   const itemLifted = Boolean(
                     hold?.active && hold.kind === "item" && hold.zoneId === zone.id && hold.id === rowId,
                   );
+                  const sameZone = Boolean(hold?.active && hold.kind === "item" && hold.zoneId === zone.id && hold.dropZoneId === zone.id);
                   const itemShift =
-                    hold?.active && hold.kind === "item" && hold.zoneId === zone.id
-                      ? rowShift(rowIndex, hold.index, holdTarget, hold.stride)
+                    sameZone && hold
+                      ? rowShift(rowIndex, hold.index, hold.dropIndex, hold.stride)
                       : 0;
                   const itemTy = itemLifted ? hold?.dy ?? 0 : itemShift;
+                  const showItemLine = Boolean(
+                    hold?.active && hold.kind === "item" && hold.dropZoneId === zone.id && !itemLifted && itemSlot === hold.dropIndex,
+                  );
+                  if (!itemLifted) itemSlot += 1;
                   return (
-                    <div
-                      key={row.key}
-                      data-reorder-row={rowId}
-                      className={cn(itemLifted && DRAG_LIFT)}
-                      style={
-                        itemTy
-                          ? {
-                              transform: `translateY(${itemTy}px)`,
-                              transition: itemLifted || !motion ? "none" : "transform 250ms ease-out",
-                            }
-                          : undefined
-                      }
-                    >
-                      {itemLifted ? (
-                        <GripVertical className="mb-0.5 size-3.5 text-[var(--ink)]" strokeWidth={1.5} aria-hidden />
-                      ) : null}
-                      <EditorialValue
-                        row={row}
-                        onChooseHeader={onChooseHeader}
-                        underlineLink={underlineLinks}
-                      />
-                    </div>
+                    <Fragment key={row.key}>
+                      {showItemLine ? <InsertLine /> : null}
+                      <div
+                        data-reorder-row={rowId}
+                        className={cn(itemLifted && DRAG_LIFT)}
+                        style={
+                          itemTy
+                            ? {
+                                transform: `translateY(${itemTy}px)`,
+                                transition: itemLifted || !motion ? "none" : "transform 250ms ease-out",
+                              }
+                            : undefined
+                        }
+                      >
+                        {itemLifted ? (
+                          <GripVertical className="mb-0.5 size-3.5 text-[var(--ink)]" strokeWidth={1.5} aria-hidden />
+                        ) : null}
+                        <EditorialValue
+                          row={row}
+                          onChooseHeader={onChooseHeader}
+                          underlineLink={underlineLinks}
+                        />
+                      </div>
+                    </Fragment>
                   );
                 })}
+                {hold?.active && hold.kind === "item" && hold.dropZoneId === zone.id && itemSlot === hold.dropIndex ? (
+                  <InsertLine />
+                ) : null}
               </div>
             </div>
           </section>
+          </Fragment>
           );
         })}
       </div>

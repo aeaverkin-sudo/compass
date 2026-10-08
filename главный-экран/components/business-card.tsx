@@ -508,7 +508,7 @@ function PdfCard({
   ownerNotes: Card["nextScanAddons"];
   pdfMask: number[] | null;
 }) {
-  const zoneIds = orderCardZones(composeCard(items).zones, card.rubricOrder).map((zone) => zone.id);
+  const zoneIds = orderCardZones(composeCard(items, undefined, card).zones, card.rubricOrder).map((zone) => zone.id);
   const plan = pdfBlockPlan(zoneIds, pdfNotesPresent(readOnly ? deliveredNotes : ownerNotes));
   const shown = pdfMask ? plan.filter((_, index) => pdfMask.includes(index)) : plan;
   const zoneFilter = shown.flatMap((block) => (block.kind === "zone" ? [block.id] : []));
@@ -532,6 +532,8 @@ function PdfCard({
             underlineLinks
             publicToken={card.publicToken}
             rubricOrder={card.rubricOrder}
+            rubricLabels={card.rubricLabels}
+            itemZones={card.itemZones}
             markPdfBlocks
             pdfZoneIds={zoneFilter}
           />
@@ -624,6 +626,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
 ) {
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const setCardRubricOrder = useAppStore((state) => state.setCardRubricOrder);
+  const setItemZone = useAppStore((state) => state.setItemZone);
   const items = getCardItems(card, library);
   const chosen = items.find((item) => item.id === card.headerItemId);
   const positionTitle = chosen?.value.trim() || card.title.trim() || undefined;
@@ -983,11 +986,21 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         className={compact ? "pb-2" : undefined}
         listId={card.id}
         rubricOrder={card.rubricOrder}
+        rubricLabels={card.rubricLabels}
+        itemZones={card.itemZones}
         canReorder={!compact && !readOnly && Boolean(onCardUpdate)}
         onReorder={compact || (!readOnly && onCardUpdate) ? handleCommitOrder : undefined}
         onReorderRubrics={
           !compact && !readOnly && onCardUpdate
             ? (keys) => setCardRubricOrder(card.id, keys)
+            : undefined
+        }
+        onMoveItem={
+          !compact && !readOnly && onCardUpdate
+            ? (itemId, zoneId, orderedIds) => {
+                setItemZone(card.id, itemId, zoneId);
+                setCardItemOrder(card.id, orderedIds);
+              }
             : undefined
         }
         onChooseHeader={

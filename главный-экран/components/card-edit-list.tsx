@@ -1,11 +1,22 @@
 "use client";
 
-import { File as FileIcon, Minus, Plus, X } from "lucide-react";
+import { ArrowRightLeft, File as FileIcon, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { groupLibrary, orderCardZones, zoneForItem, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
+import {
+  CARD_ZONES,
+  effectiveZone,
+  groupLibrary,
+  orderCardZones,
+  placeItemInZone,
+  zoneForItem,
+  zoneTitle,
+  type CardDisplayRow,
+  type CardZoneId,
+} from "@/shared/services/card-zones";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu";
 import { detectContactType, isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
@@ -53,7 +64,7 @@ function enterFinishes(value: string) {
 function buildSections(card: Card, items: ContactItem[]): EditSection[] {
   const onCard = new Set(card.contactItemIds);
   const order = new Map(card.contactItemIds.map((id, index) => [id, index]));
-  const grouped = groupLibrary(items.filter(isContactFilled));
+  const grouped = groupLibrary(items.filter(isContactFilled), card);
 
   const sections = grouped.map((zone) => {
     const chosen = zone.rows
@@ -105,6 +116,112 @@ function RowMark({
   );
 }
 
+function SectionLabel({
+  title,
+  included,
+  onCommit,
+}: {
+  title: string;
+  included: boolean;
+  onCommit: (next: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pressedLong = useRef(false);
+  const longPress = useLongPress(() => {
+    pressedLong.current = true;
+  }, HOLD_MS);
+
+  useEffect(() => {
+    if (!editing) setDraft(title);
+  }, [editing, title]);
+
+  useLayoutEffect(() => {
+    if (!editing) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [editing]);
+
+  const commit = () => {
+    setEditing(false);
+    onCommit(draft);
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        aria-label="Section name"
+        maxLength={80}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          commit();
+        }}
+        className="t-label w-full min-h-11 bg-transparent py-2 text-[var(--ink)] outline-none"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="t-label min-h-11 w-full bg-transparent py-2 text-left whitespace-nowrap"
+      style={{ color: included ? "var(--grey)" : OFF_CARD }}
+      onPointerDown={(event) => {
+        pressedLong.current = false;
+        longPress.onPointerDown(event);
+      }}
+      onPointerMove={longPress.onPointerMove}
+      onPointerUp={() => {
+        longPress.onPointerUp();
+        if (pressedLong.current) return;
+        setDraft(title);
+        setEditing(true);
+      }}
+      onPointerCancel={() => {
+        pressedLong.current = false;
+        longPress.onPointerCancel();
+      }}
+      onContextMenu={longPress.onContextMenu}
+    >
+      {title}
+    </button>
+  );
+}
+
+function MoveToMenu({
+  choices,
+  onMove,
+}: {
+  choices: { id: string; title: string }[];
+  onMove: (zoneId: string) => void;
+}) {
+  if (choices.length === 0) return null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Move to"
+        onPointerDown={(event) => event.stopPropagation()}
+        className="flex size-5 shrink-0 items-center justify-center bg-transparent"
+      >
+        <ArrowRightLeft className="size-4 text-[#111]" strokeWidth={1} aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {choices.map((zone) => (
+          <DropdownMenuItem key={zone.id} onSelect={() => onMove(zone.id)}>
+            {zone.title}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function CardEditList({
   card,
   items,
@@ -123,6 +240,8 @@ export function CardEditList({
   const addItemToCard = useAppStore((state) => state.addItemToCard);
   const removeItemFromCard = useAppStore((state) => state.removeItemFromCard);
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
+  const setRubricLabel = useAppStore((state) => state.setRubricLabel);
+  const setItemZone = useAppStore((state) => state.setItemZone);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
@@ -172,6 +291,19 @@ export function CardEditList({
     if (card.headerItemId === item.id) updateCard(card.id, { title: trimmed });
   };
 
+  const moveRow = (itemId: string, zoneId: string) => {
+    setItemZone(card.id, itemId, zoneId);
+    const latest = useAppStore.getState();
+    const current = latest.cards.find((entry) => entry.id === card.id);
+    if (!current?.contactItemIds.includes(itemId)) return;
+    const zoneIds = current.contactItemIds.filter((id) => {
+      if (id === itemId) return false;
+      const entry = latest.contactItems.find((item) => item.id === id);
+      return Boolean(entry && effectiveZone(current, entry) === zoneId);
+    });
+    setCardItemOrder(card.id, placeItemInZone(current.contactItemIds, itemId, zoneIds, zoneIds.length));
+  };
+
   const eraseRow = (itemId: string) => {
     if (card.headerItemId === itemId) updateCard(card.id, { headerItemId: undefined, title: "" });
     setTextEditId(null);
@@ -188,12 +320,11 @@ export function CardEditList({
           className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b border-[var(--rule)]")}
         >
           <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
-            <span
-              className="t-label whitespace-nowrap"
-              style={{ color: section.included ? "var(--grey)" : OFF_CARD }}
-            >
-              {section.title}
-            </span>
+            <SectionLabel
+              title={section.title}
+              included={section.included}
+              onCommit={(next) => setRubricLabel(card.id, section.id, next)}
+            />
             <div className="flex min-w-0 flex-col gap-[6px]">
               {section.rows.map(({ row, onCard }) => {
                 const item = row.item;
@@ -203,7 +334,15 @@ export function CardEditList({
                     key={item.id}
                     text={lineOf(row)}
                     value={row.value}
-                    multiline={item.type === "text" && zoneForItem(item) === "additional"}
+                    multiline={
+                      item.type === "text" &&
+                      (item.value.includes("\n") || effectiveZone(card, item) === "additional")
+                    }
+                    moveChoices={CARD_ZONES.filter((zone) => zone.id !== effectiveZone(card, item)).map((zone) => ({
+                      id: zone.id,
+                      title: zoneTitle(card, zone.id, zone.title),
+                    }))}
+                    onMove={(zoneId) => moveRow(item.id, zoneId)}
                     onCard={onCard}
                     editing={textEditId === item.id}
                     deleteReady={deleteReadyId === item.id}
@@ -544,6 +683,8 @@ function EditRow({
   onEdit,
   onConfirm,
   onErase,
+  moveChoices,
+  onMove,
 }: {
   text: string;
   value: string;
@@ -559,6 +700,8 @@ function EditRow({
   onEdit: () => void;
   onConfirm: (next: string) => void;
   onErase: () => void;
+  moveChoices: { id: string; title: string }[];
+  onMove: (zoneId: string) => void;
 }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
@@ -617,7 +760,7 @@ function EditRow({
         aria-label={text}
         data-no-swipe
         className={cn(
-          "mr-[26px] min-w-0 overflow-clip",
+          "mr-[46px] min-w-0 overflow-clip",
           editing && "invisible pointer-events-none",
         )}
         style={{ color: onCard ? "#111" : OFF_CARD }}
@@ -688,10 +831,11 @@ function EditRow({
       {fades && !editing && !value.includes("\n") ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-[26px] w-4 bg-gradient-to-r from-transparent to-white"
+          className="pointer-events-none absolute inset-y-0 right-[46px] w-4 bg-gradient-to-r from-transparent to-white"
         />
       ) : null}
-      <div className="absolute inset-y-0 right-0 flex items-center">
+      <div className="absolute inset-y-0 right-0 flex items-center gap-1">
+        {!deleteReady && !editing ? <MoveToMenu choices={moveChoices} onMove={onMove} /> : null}
         {deleteReady ? (
           <button
             type="button"
