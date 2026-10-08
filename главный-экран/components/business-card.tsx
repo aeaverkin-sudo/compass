@@ -447,9 +447,9 @@ function CardShareFooter({
                 data-no-swipe
                 aria-label="Share"
                 onPointerDown={onPrepareShare}
-                className="text-[#111] outline-none"
+                className="flex items-center leading-none text-[#111] outline-none"
               >
-                <Share className="size-4" strokeWidth={1.25} aria-hidden />
+                <Share className="block size-4" strokeWidth={1.25} aria-hidden />
               </button>
             </Dialog.Trigger>
             <Dialog.Portal>
