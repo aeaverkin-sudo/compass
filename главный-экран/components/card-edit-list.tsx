@@ -18,7 +18,7 @@ import {
 import { detectContactType, isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
-import { useAppStore, type ContactItemSnapshot } from "@/shared/store/app-store";
+import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
@@ -221,15 +221,11 @@ export function CardEditList({
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const setRubricLabel = useAppStore((state) => state.setRubricLabel);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
-  const restoreContactItem = useAppStore((state) => state.restoreContactItem);
-  const commitContactItemDelete = useAppStore((state) => state.commitContactItemDelete);
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<{ id: string; count: number } | null>(null);
-  const [undo, setUndo] = useState<ContactItemSnapshot | null>(null);
-  const undoTimer = useRef<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
@@ -282,55 +278,8 @@ export function CardEditList({
     deleteContactItem(itemId);
   };
 
-  const undoRef = useRef<ContactItemSnapshot | null>(null);
-
-  const finishUndo = (commit: boolean) => {
-    if (undoTimer.current) window.clearTimeout(undoTimer.current);
-    undoTimer.current = null;
-    const current = undoRef.current;
-    undoRef.current = null;
-    setUndo(null);
-    if (commit && current) commitContactItemDelete(current.item.id);
-  };
-
-  useEffect(
-    () => () => {
-      if (undoTimer.current) window.clearTimeout(undoTimer.current);
-      const pending = undoRef.current;
-      undoRef.current = null;
-      if (pending) useAppStore.getState().commitContactItemDelete(pending.item.id);
-    },
-    [],
-  );
-
-  const beginDelete = (itemId: string) => {
-    setDeleteReadyId(null);
-    setConfirmDelete(null);
-    finishUndo(true);
-    const snapshot = deleteContactItem(itemId, { keepRemote: true });
-    if (!snapshot) return;
-    undoRef.current = snapshot;
-    setUndo(snapshot);
-    undoTimer.current = window.setTimeout(() => finishUndo(true), 3000);
-  };
-
   const askDelete = (itemId: string) => {
-    const cards = useAppStore.getState().cards.filter((entry) => entry.contactItemIds.includes(itemId));
-    const elsewhere = cards.some((entry) => entry.id !== card.id);
-    if (elsewhere) {
-      setConfirmDelete({ id: itemId, count: cards.length });
-      return;
-    }
-    beginDelete(itemId);
-  };
-
-  const cancelUndo = () => {
-    const current = undoRef.current;
-    undoRef.current = null;
-    if (undoTimer.current) window.clearTimeout(undoTimer.current);
-    undoTimer.current = null;
-    setUndo(null);
-    if (current) restoreContactItem(current);
+    setConfirmDelete(itemId);
   };
 
   return (
@@ -410,14 +359,17 @@ export function CardEditList({
       <Dialog.Root
         open={confirmDelete !== null}
         onOpenChange={(open) => {
-          if (!open) setConfirmDelete(null);
+          if (!open) {
+            setConfirmDelete(null);
+            setDeleteReadyId(null);
+          }
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-[#111]/20" />
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-transparent" />
           <Dialog.Content
             data-delete-confirm=""
-            className="fixed top-1/2 left-1/2 z-50 w-[min(100%-48px,320px)] -translate-x-1/2 -translate-y-1/2 bg-white p-6 outline-none"
+            className="fixed top-1/2 inset-x-0 z-50 -translate-y-1/2 bg-sky px-6 py-6 outline-none"
           >
             <Dialog.Title className="t-body text-[var(--ink)]">
               Delete from library
@@ -428,8 +380,10 @@ export function CardEditList({
                 type="button"
                 className="t-body text-[var(--ink)]"
                 onClick={() => {
-                  const id = confirmDelete?.id;
-                  if (id) beginDelete(id);
+                  const id = confirmDelete;
+                  setConfirmDelete(null);
+                  setDeleteReadyId(null);
+                  if (id) deleteContactItem(id);
                 }}
               >
                 Yes
@@ -444,18 +398,6 @@ export function CardEditList({
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
-      {undo
-        ? createPortal(
-            <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-white px-6 py-3 text-center">
-              <span className="t-body text-[var(--ink)]">Deleted</span>
-              <span className="t-body text-[var(--grey)]"> · </span>
-              <button type="button" className="t-body text-[var(--ink)] underline" onClick={cancelUndo}>
-                Undo
-              </button>
-            </div>,
-            document.body,
-          )
-        : null}
     </div>
   );
 }
