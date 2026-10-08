@@ -851,7 +851,8 @@ export function ContactItemChipList({
     host.addEventListener("lostpointercapture", lost);
   };
   const swallowReorderClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (!suppressClick.current) return;
+    // While arranging, an accidental tap on a link or value must not open it. Done lives outside this list.
+    if (!suppressClick.current && !arrangingRef.current) return;
     suppressClick.current = false;
     event.preventDefault();
     event.stopPropagation();
