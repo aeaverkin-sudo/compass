@@ -115,78 +115,88 @@ function RowMark({
 function SectionLabel({
   title,
   included,
+  editing,
+  onEdit,
   onCommit,
 }: {
   title: string;
   included: boolean;
+  editing: boolean;
+  onEdit: () => void;
   onCommit: (next: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(title);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const pressedLong = useRef(false);
-  const longPress = useLongPress(() => {
-    pressedLong.current = true;
-  }, HOLD_MS);
+  const labelRef = useRef<HTMLButtonElement>(null);
+  const dockRef = useRef<WrapFieldHandle>(null);
+  const dockBottom = useKeyboardDock(editing, true);
+  const openedAt = useRef(0);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
 
-  useEffect(() => {
-    if (!editing) setDraft(title);
-  }, [editing, title]);
+  const begin = () => {
+    openedAt.current = Date.now();
+    flushSync(() => {
+      onEdit();
+    });
+  };
 
   useLayoutEffect(() => {
     if (!editing) return;
-    inputRef.current?.focus();
-    inputRef.current?.select();
+    const list = labelRef.current?.closest("[data-card-chip-list]");
+    const rect = list?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
+    dockRef.current?.focusEnd();
   }, [editing]);
 
-  const commit = () => {
-    setEditing(false);
-    onCommit(draft);
-  };
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        value={draft}
-        aria-label="Section name"
-        maxLength={80}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter") return;
-          event.preventDefault();
-          commit();
-        }}
-        className="t-label w-full bg-transparent text-[var(--ink)] outline-none"
-      />
-    );
-  }
-
   return (
-    <button
-      type="button"
-      className="t-label w-full bg-transparent text-left whitespace-nowrap"
-      style={{ color: included ? "var(--grey)" : OFF_CARD }}
-      onPointerDown={(event) => {
-        pressedLong.current = false;
-        longPress.onPointerDown(event);
-      }}
-      onPointerMove={longPress.onPointerMove}
-      onPointerUp={() => {
-        longPress.onPointerUp();
-        if (pressedLong.current) return;
-        setDraft(title);
-        setEditing(true);
-      }}
-      onPointerCancel={() => {
-        pressedLong.current = false;
-        longPress.onPointerCancel();
-      }}
-      onContextMenu={longPress.onContextMenu}
-    >
-      {title}
-    </button>
+    <>
+      <button
+        ref={labelRef}
+        type="button"
+        className={cn(
+          "t-label w-full bg-transparent text-left whitespace-nowrap",
+          editing && "invisible pointer-events-none",
+        )}
+        style={{ color: included ? "var(--grey)" : OFF_CARD }}
+        onPointerUp={() => {
+          if (editing) return;
+          begin();
+        }}
+      >
+        {title}
+      </button>
+      {editing
+        ? createPortal(
+            <div
+              data-no-swipe
+              className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
+              style={{ paddingBottom: dockBottom }}
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
+              />
+              <div style={{ marginLeft: frame.left, width: frame.width }}>
+                <div className="flex flex-col justify-end border-b border-[var(--rule)]">
+                  <WrapField
+                    ref={dockRef}
+                    initial={title}
+                    label="Section name"
+                    onDone={onCommit}
+                    onBlur={(next) => {
+                      if (Date.now() - openedAt.current < 700) {
+                        dockRef.current?.focusEnd();
+                        return;
+                      }
+                      onCommit(next);
+                    }}
+                    className="bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -212,6 +222,7 @@ export function CardEditList({
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
+  const [sectionEditId, setSectionEditId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
 
@@ -277,7 +288,16 @@ export function CardEditList({
             <SectionLabel
               title={section.title}
               included={section.included}
-              onCommit={(next) => setRubricLabel(card.id, section.id, next)}
+              editing={sectionEditId === section.id}
+              onEdit={() => {
+                setTextEditId(null);
+                setDeleteReadyId(null);
+                setSectionEditId(section.id);
+              }}
+              onCommit={(next) => {
+                setRubricLabel(card.id, section.id, next);
+                setSectionEditId(null);
+              }}
             />
             <div className="flex min-w-0 flex-col gap-[6px]">
               {section.rows.map(({ row, onCard }) => {
@@ -301,6 +321,7 @@ export function CardEditList({
                     onRemove={() => removeItemFromCard(card.id, item.id)}
                     onEdit={() => {
                       setDeleteReadyId(null);
+                      setSectionEditId(null);
                       setTextEditId(item.id);
                     }}
                     onConfirm={(next) => {
