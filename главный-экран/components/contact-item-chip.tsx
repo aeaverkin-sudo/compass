@@ -38,7 +38,7 @@ function prefersMotion() {
   return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** How far a resting row moves while another row is held. */
+/** How far a resting row or section moves while another one is held. */
 export function rowShift(index: number, from: number, to: number, stride: number) {
   if (index === from) return 0;
   if (from < to && index > from && index <= to) return -stride;
@@ -149,6 +149,26 @@ function itemDropAt(
     }
   }
   return { zoneId, index, home: false, reject: false };
+}
+
+function readTranslateY(node: HTMLElement) {
+  const match = /translateY\(([-\d.]+)px\)/.exec(node.style.transform);
+  return match ? Number(match[1]) : 0;
+}
+
+/** One stop per section. The pointer hits the section box, never a row inside it. */
+function sectionDropIndex(list: HTMLElement, clientY: number, from: number) {
+  const sections = [...list.querySelectorAll<HTMLElement>("[data-rubric]")];
+  if (sections.length === 0) return from;
+  const boxes = sections.map((node) => {
+    const top = node.getBoundingClientRect().top - readTranslateY(node);
+    return { top, bottom: top + node.offsetHeight };
+  });
+  if (clientY <= boxes[0].top) return 0;
+  for (let index = 0; index < boxes.length; index += 1) {
+    if (clientY < boxes[index].bottom) return index;
+  }
+  return sections.length - 1;
 }
 
 function ContactItemChipRow({
@@ -460,11 +480,16 @@ export function ContactItemChipList({
     }
     const current = holdRef.current;
     const list = listRef.current;
-    if (current?.active && !current.settling && current.kind === "item" && list) {
-      const item = itemsRef.current.find((entry) => entry.id === current.id);
-      const natural = item ? zoneForItem(item) : current.zoneId;
-      const drop = itemDropAt(list, edgeX.current, edgeY.current, current.id, natural);
-      if (drop && noteDrop(current, drop)) publishHold(current);
+    if (current?.active && !current.settling && list) {
+      if (current.kind === "rubric") {
+        const to = sectionDropIndex(list, edgeY.current, current.index);
+        if (noteDrop(current, { zoneId: current.zoneId, index: to, home: false, reject: false })) publishHold(current);
+      } else if (current.kind === "item") {
+        const item = itemsRef.current.find((entry) => entry.id === current.id);
+        const natural = item ? zoneForItem(item) : current.zoneId;
+        const drop = itemDropAt(list, edgeX.current, edgeY.current, current.id, natural);
+        if (drop && noteDrop(current, drop)) publishHold(current);
+      }
     }
     edgeLoop.current = requestAnimationFrame(pumpEdgeScroll);
   };
@@ -502,7 +527,7 @@ export function ContactItemChipList({
     holdRef.current = null;
     setHold(null);
     if (current.kind === "rubric") {
-      const to = dropIndex(current.index, current.dy, current.stride, current.count);
+      const to = current.dropIndex;
       if (to === current.index) return;
       const visible = zonesRef.current.map((zone) => zone.id);
       onRubricRef.current?.(applyRubricMove(rubricOrderRef.current, visible, current.index, to));
@@ -709,7 +734,7 @@ export function ContactItemChipList({
             startY,
             index,
             count,
-            stride: elementStride(nodes, index) || 1,
+            stride: (kind === "rubric" ? section.offsetHeight : elementStride(nodes, index)) || 1,
             dy: 0,
             active: true,
             dropZoneId: zoneId,
@@ -752,11 +777,16 @@ export function ContactItemChipList({
       current.dy = dy;
       edgeX.current = native.clientX;
       edgeY.current = native.clientY;
-      if (current.kind === "item" && listRef.current) {
-        const item = itemsRef.current.find((entry) => entry.id === current.id);
-        const natural = item ? zoneForItem(item) : current.zoneId;
-        const drop = itemDropAt(listRef.current, native.clientX, native.clientY, current.id, natural);
-        if (drop) noteDrop(current, drop);
+      if (listRef.current) {
+        if (current.kind === "rubric") {
+          const to = sectionDropIndex(listRef.current, native.clientY, current.index);
+          noteDrop(current, { zoneId: current.zoneId, index: to, home: false, reject: false });
+        } else if (current.kind === "item") {
+          const item = itemsRef.current.find((entry) => entry.id === current.id);
+          const natural = item ? zoneForItem(item) : current.zoneId;
+          const drop = itemDropAt(listRef.current, native.clientX, native.clientY, current.id, natural);
+          if (drop) noteDrop(current, drop);
+        }
       }
       publishHold(current);
     };
@@ -777,7 +807,7 @@ export function ContactItemChipList({
       ended = true;
       clearEntry();
       detach();
-      if (holdRef.current?.active && !holdRef.current.settling) finishHold(false);
+      if (holdRef.current?.active && !holdRef.current.settling) finishHold(native.buttons === 0);
     };
 
     const onKey = (native: KeyboardEvent) => {
@@ -916,8 +946,8 @@ export function ContactItemChipList({
     if (!hold?.active || hold.kind !== "rubric" || hold.settling) return;
     const list = listRef.current;
     if (!list) return;
-    const nodes = [...list.querySelectorAll<HTMLElement>("[data-rubric]")];
-    const stride = elementStride(nodes, hold.index);
+    const node = [...list.querySelectorAll<HTMLElement>("[data-rubric]")][hold.index];
+    const stride = node?.offsetHeight ?? 0;
     if (!stride || Math.abs(stride - hold.stride) < 2) return;
     const current = holdRef.current;
     if (!current || current.kind !== "rubric" || current.id !== hold.id) return;
@@ -930,7 +960,7 @@ export function ContactItemChipList({
   if (!compact) {
     const zones = pdfZoneIds ? orderedZones.filter((zone) => pdfZoneIds.includes(zone.id)) : orderedZones;
     if (zones.length === 0) return null;
-    const holdTarget = hold?.active && hold.kind === "rubric" ? dropIndex(hold.index, hold.dy, hold.stride, hold.count) : 0;
+    const holdTarget = hold?.active && hold.kind === "rubric" ? hold.dropIndex : 0;
     const showReturn = Boolean(hold?.active && hold.kind === "item" && (hold.home || hold.reject));
     const header = listRef.current ? cardHeader(listRef.current) : null;
     return (
@@ -1067,11 +1097,11 @@ export function ContactItemChipList({
         })}
         {arranging && chromeHost
           ? createPortal(
-              <div data-arrange-chrome="" className="sticky bottom-0 z-30 flex justify-center bg-white py-3">
+              <div data-arrange-chrome="" className="pointer-events-none sticky bottom-0 z-30 flex justify-center pb-3">
                 <button
                   type="button"
                   data-arrange-done=""
-                  className="t-body bg-sky px-5 py-2 text-[var(--ink)]"
+                  className="pointer-events-auto t-body bg-sky px-5 py-2 text-[var(--ink)]"
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={leaveArrange}
                 >
