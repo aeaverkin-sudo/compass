@@ -7,6 +7,7 @@ import { Zone } from "@/shared/components/zone";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
 import type { CardData } from "@/shared/services/card-stats";
+import { NUMBER_CLASS } from "@/shared/components/section-number";
 import { NetworkBand } from "../network-band";
 
 function isCardData(value: unknown): value is CardData {
@@ -41,7 +42,7 @@ function Metric({
   const notes = note == null ? [] : Array.isArray(note) ? note : [note];
   return (
     <Zone label={label} rule={rule}>
-      <p className="text-[32px] leading-none font-normal tracking-[-0.03em] text-[var(--ink)] tabular-nums">{value}</p>
+      <p className={NUMBER_CLASS}>{value}</p>
       {notes.map((line, index) => (
         <p key={`${line}-${index}`} className="mt-1 t-meta text-[var(--grey)]">
           {line}

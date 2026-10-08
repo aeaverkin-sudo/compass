@@ -13,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import { GripHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { openHomeScreenAttachmentPdf } from "@/shared/components/pdf-preview-host";
 import { ARRANGE_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import {
@@ -30,6 +31,14 @@ import type { ContactItem } from "@/shared/types";
 export type ContactItemChipSize = "browse" | "compact";
 
 const GRAB_IDLE_MS = 1500;
+
+/** Where a section sits once the held one has taken its new slot. */
+function placedIndex(index: number, from: number, to: number) {
+  if (index === from) return to;
+  if (from < to && index > from && index <= to) return index - 1;
+  if (to < from && index >= to && index < from) return index + 1;
+  return index;
+}
 
 function prefersMotion() {
   return !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -937,8 +946,12 @@ export function ContactItemChipList({
               header,
             )
           : null}
-        {zones.map((zone) => {
+        {zones.map((zone, renderedIndex) => {
           const zoneIndex = orderedZones.findIndex((entry) => entry.id === zone.id);
+          const numberIndex =
+            hold?.active && hold.kind === "rubric"
+              ? placedIndex(zoneIndex, hold.index, holdTarget)
+              : renderedIndex;
           const rubricLifted = Boolean(hold?.active && hold.kind === "rubric" && hold.id === zone.id);
           const rubricShift =
             hold?.active && hold.kind === "rubric" ? rowShift(zoneIndex, hold.index, holdTarget, hold.stride) : 0;
@@ -983,11 +996,14 @@ export function ContactItemChipList({
                   <GripHorizontal className="size-4" strokeWidth={1.5} aria-hidden />
                 </button>
               ) : null}
-              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
-                <span className={cn("t-label block min-w-0 whitespace-normal line-clamp-3", arranging && "pr-6")}>
-                  {zone.title}
-                </span>
-                <div className={cn("flex min-w-0 flex-col gap-[6px]", rubricLifted && "hidden")}>
+              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+                <div className="min-w-0">
+                  <SectionNumber value={sectionNumberLabel(numberIndex)} />
+                  <span className={cn("t-label mt-[6px] block min-w-0 whitespace-normal line-clamp-3", arranging && "pr-6")}>
+                    {zone.title}
+                  </span>
+                </div>
+                <ValueCap className={cn("flex min-w-0 flex-col gap-[6px]", rubricLifted && "hidden")}>
                   {zone.rows.map((row, rowIndex) => {
                     const rowId = row.item?.id;
                     const itemLifted = Boolean(
@@ -1036,7 +1052,7 @@ export function ContactItemChipList({
                       </div>
                     );
                   })}
-                </div>
+                </ValueCap>
               </div>
             </section>
           );

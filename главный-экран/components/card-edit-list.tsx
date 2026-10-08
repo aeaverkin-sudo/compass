@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
+import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { DELETE_HOLD_MS } from "@/shared/lib/reorder-hold";
 import {
@@ -290,22 +291,27 @@ export function CardEditList({
           hidden={composing}
           className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b border-[var(--rule)]")}
         >
-          <div className="grid grid-cols-[86px_minmax(0,1fr)] items-baseline gap-x-[14px]">
-            <SectionLabel
-              title={section.title}
-              included={section.included}
-              editing={sectionEditId === section.id}
-              onEdit={() => {
-                setTextEditId(null);
-                setDeleteReadyId(null);
-                setSectionEditId(section.id);
-              }}
-              onCommit={(next) => {
-                setRubricLabel(card.id, section.id, next);
-                setSectionEditId(null);
-              }}
-            />
-            <div className="flex min-w-0 flex-col gap-[6px]">
+          <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+            <div className="min-w-0">
+              <SectionNumber value={sectionNumberLabel(index)} />
+              <div className="mt-[6px]">
+                <SectionLabel
+                  title={section.title}
+                  included={section.included}
+                  editing={sectionEditId === section.id}
+                  onEdit={() => {
+                    setTextEditId(null);
+                    setDeleteReadyId(null);
+                    setSectionEditId(section.id);
+                  }}
+                  onCommit={(next) => {
+                    setRubricLabel(card.id, section.id, next);
+                    setSectionEditId(null);
+                  }}
+                />
+              </div>
+            </div>
+            <ValueCap className="flex min-w-0 flex-col gap-[6px]">
               {section.rows.map(({ row, onCard }) => {
                 const item = row.item;
                 if (!item) return null;
@@ -338,7 +344,7 @@ export function CardEditList({
                   />
                 );
               })}
-            </div>
+            </ValueCap>
           </div>
         </section>
       ))}
