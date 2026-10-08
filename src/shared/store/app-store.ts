@@ -16,8 +16,8 @@ import {
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
-import { ensureCardIdentity, scheduleCardUpsert, writeCardListed, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
-import { normalizeRubricOrder } from "@/shared/services/card-zones";
+import { ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
+import { isCardZoneId, normalizeRubricOrder, zoneForItem } from "@/shared/services/card-zones";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
   deleteItemRow,
@@ -70,6 +70,10 @@ interface AppState {
   removeItemFromCard: (cardId: string, itemId: string) => void;
   setCardItemOrder: (cardId: string, orderedIds: string[]) => void;
   setCardRubricOrder: (cardId: string, orderedRubricKeys: string[]) => void;
+  /** Rename one section on this card. An empty title restores the built-in heading. */
+  setRubricLabel: (cardId: string, zoneId: string, title?: string) => void;
+  /** Show one row in another section on this card. The item itself stays unchanged. */
+  setItemZone: (cardId: string, itemId: string, zoneId?: string) => void;
   deleteContactItem: (itemId: string) => void;
 }
 
@@ -350,6 +354,41 @@ export const useAppStore = create<AppState>()(
         scheduleCardUpsert(next, { pulse: false });
       },
 
+      setRubricLabel: (cardId, zoneId, title) => {
+        if (!isCardZoneId(zoneId)) return;
+        const current = get().cards.find((card) => card.id === cardId);
+        if (!current) return;
+        const labels = { ...(current.rubricLabels ?? {}) };
+        const trimmed = title?.trim().slice(0, 80) ?? "";
+        if (trimmed) labels[zoneId] = trimmed;
+        else delete labels[zoneId];
+        const rubricLabels = Object.keys(labels).length > 0 ? labels : undefined;
+        const same = JSON.stringify(rubricLabels ?? null) === JSON.stringify(current.rubricLabels ?? null);
+        if (same) return;
+        const next = { ...current, rubricLabels, updatedAt: new Date().toISOString() };
+        set({ cards: get().cards.map((card) => (card.id === cardId ? next : card)) });
+        writeCardRubricLabels(cardId, rubricLabels ?? null);
+        scheduleCardUpsert(next, { pulse: false });
+      },
+
+      setItemZone: (cardId, itemId, zoneId) => {
+        const current = get().cards.find((card) => card.id === cardId);
+        const item = get().contactItems.find((entry) => entry.id === itemId);
+        if (!current || !item) return;
+        if (zoneId && !isCardZoneId(zoneId)) return;
+        const zones = { ...(current.itemZones ?? {}) };
+        const natural = zoneForItem(item);
+        if (!zoneId || zoneId === natural) delete zones[itemId];
+        else zones[itemId] = zoneId;
+        const itemZones = Object.keys(zones).length > 0 ? zones : undefined;
+        const same = JSON.stringify(itemZones ?? null) === JSON.stringify(current.itemZones ?? null);
+        if (same) return;
+        const next = { ...current, itemZones, updatedAt: new Date().toISOString() };
+        set({ cards: get().cards.map((card) => (card.id === cardId ? next : card)) });
+        writeCardItemZones(cardId, itemZones ?? null);
+        scheduleCardUpsert(next, { pulse: false });
+      },
+
       deleteContactItem: (itemId) => {
         const now = new Date().toISOString();
         const touched = get().cards.filter((card) => card.contactItemIds.includes(itemId)).map((card) => card.id);
@@ -357,11 +396,16 @@ export const useAppStore = create<AppState>()(
           contactItems: get()
             .contactItems.filter((item) => item.id !== itemId)
             .map((item, order) => ({ ...item, order })),
-          cards: get().cards.map((card) => ({
-            ...card,
-            contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
-            updatedAt: now,
-          })),
+          cards: get().cards.map((card) => {
+            const zones = card.itemZones ? { ...card.itemZones } : undefined;
+            if (zones) delete zones[itemId];
+            return {
+              ...card,
+              contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
+              itemZones: zones && Object.keys(zones).length > 0 ? zones : undefined,
+              updatedAt: now,
+            };
+          }),
         });
         const currentId = get().cards[get().currentCardIndex]?.id;
         void deleteItemRow(itemId).then(async () => {

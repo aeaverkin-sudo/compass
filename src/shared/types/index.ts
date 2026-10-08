@@ -85,6 +85,10 @@ export interface Card {
   itemOrderManual?: boolean;
   /** Rubric keys in display order. Missing keys follow the default zone order. */
   rubricOrder?: string[];
+  /** Пер-карточное переименование разделов: zoneId → своя подпись. */
+  rubricLabels?: Record<string, string>;
+  /** Пер-карточный перенос строки в другой раздел: itemId → zoneId. Сам айтем не меняется. */
+  itemZones?: Record<string, string>;
   /** Row from the position zone shown under the portfolio title. Absent until the user picks one. */
   headerItemId?: string;
   nextScanAddons: NextScanAddon[];

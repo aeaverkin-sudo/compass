@@ -17,6 +17,30 @@ export const CARD_ZONES = [
 
 export type CardZoneId = (typeof CARD_ZONES)[number]["id"];
 
+const ZONE_IDS = new Set<string>(CARD_ZONES.map((zone) => zone.id));
+
+export type CardZoneScope = {
+  rubricLabels?: Record<string, string>;
+  itemZones?: Record<string, string>;
+};
+
+export function isCardZoneId(value: string): value is CardZoneId {
+  return ZONE_IDS.has(value);
+}
+
+/** Shown heading. An empty override falls back to the built-in title. */
+export function zoneTitle(card: CardZoneScope | null | undefined, zoneId: string, defaultTitle: string) {
+  const custom = card?.rubricLabels?.[zoneId]?.trim();
+  return custom || defaultTitle;
+}
+
+/** This card's section for the row. The item's own type stays where it is. */
+export function effectiveZone(card: CardZoneScope | null | undefined, item: ContactItem): CardZoneId {
+  const override = card?.itemZones?.[item.id];
+  if (override && isCardZoneId(override)) return override;
+  return zoneForItem(item);
+}
+
 export type PositionLine = {
   title: string;
   company?: string;
@@ -344,22 +368,28 @@ function trackedHref(token: string | undefined, itemId: string, direct: string) 
 export function composeCard(
   items: ContactItem[],
   publicToken?: string,
+  scope?: CardZoneScope,
 ): { position: PositionLine | null; zones: CardZoneSection[] } {
   const buckets = new Map<CardZoneId, CardDisplayRow[]>();
-  for (const item of items) pushDisplayed(buckets, item, publicToken);
-  return { position: null, zones: sectionsFrom(buckets) };
+  for (const item of items) pushDisplayed(buckets, item, publicToken, scope);
+  return { position: null, zones: sectionsFrom(buckets, scope) };
 }
 
-export function groupLibrary(items: ContactItem[]): CardZoneSection[] {
+export function groupLibrary(items: ContactItem[], scope?: CardZoneScope): CardZoneSection[] {
   const buckets = new Map<CardZoneId, CardDisplayRow[]>();
-  for (const item of items) pushDisplayed(buckets, item);
-  return sectionsFrom(buckets);
+  for (const item of items) pushDisplayed(buckets, item, undefined, scope);
+  return sectionsFrom(buckets, scope);
 }
 
-function pushDisplayed(buckets: Map<CardZoneId, CardDisplayRow[]>, item: ContactItem, publicToken?: string) {
+function pushDisplayed(
+  buckets: Map<CardZoneId, CardDisplayRow[]>,
+  item: ContactItem,
+  publicToken?: string,
+  scope?: CardZoneScope,
+) {
   const split = splitPresentation(item);
   if (!split) return;
-  const zone = zoneForItem(item);
+  const zone = effectiveZone(scope, item);
   const rows = buckets.get(zone) ?? [];
   const direct = item.attachmentId ? `/f/${item.attachmentId}` : item.url;
   rows.push({
@@ -381,15 +411,29 @@ function splitPresentation(item: ContactItem): { axis: string; value: string } |
   return { axis: "", value: display };
 }
 
-function sectionsFrom(buckets: Map<CardZoneId, CardDisplayRow[]>) {
+function sectionsFrom(buckets: Map<CardZoneId, CardDisplayRow[]>, scope?: CardZoneScope) {
   return CARD_ZONES.flatMap((zone) => {
     const rows = buckets.get(zone.id) ?? [];
     if (rows.length === 0) return [];
-    return [{ id: zone.id, title: zone.title, rows }];
+    return [{ id: zone.id, title: zoneTitle(scope, zone.id, zone.title), rows }];
   });
 }
 
-const ZONE_IDS = new Set<string>(CARD_ZONES.map((zone) => zone.id));
+/** Place one row at `index` inside a section. Every other id keeps its place. */
+export function placeItemInZone(allIds: string[], itemId: string, zoneItemIds: string[], index: number) {
+  const rest = allIds.filter((id) => id !== itemId);
+  const zone = zoneItemIds.filter((id) => id !== itemId && rest.includes(id));
+  const at = Math.max(0, Math.min(index, zone.length));
+  const anchor = zone[at];
+  if (anchor) {
+    rest.splice(rest.indexOf(anchor), 0, itemId);
+    return rest;
+  }
+  const previous = zone[zone.length - 1];
+  if (!previous) return [...rest, itemId];
+  rest.splice(rest.indexOf(previous) + 1, 0, itemId);
+  return rest;
+}
 
 /** Keep known rubric keys. Anything else is ignored. */
 export function normalizeRubricOrder(value: unknown): string[] | undefined {
@@ -400,6 +444,30 @@ export function normalizeRubricOrder(value: unknown): string[] | undefined {
     keys.push(entry);
   }
   return keys.length > 0 ? keys : undefined;
+}
+
+/** Keep known zone ids and a non-empty heading. */
+export function normalizeRubricLabels(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const labels: Record<string, string> = {};
+  for (const [zoneId, title] of Object.entries(value)) {
+    if (!isCardZoneId(zoneId) || typeof title !== "string") continue;
+    const trimmed = title.trim();
+    if (!trimmed) continue;
+    labels[zoneId] = trimmed;
+  }
+  return Object.keys(labels).length > 0 ? labels : undefined;
+}
+
+/** Keep overrides that name a real section. */
+export function normalizeItemZones(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const zones: Record<string, string> = {};
+  for (const [itemId, zoneId] of Object.entries(value)) {
+    if (!itemId || typeof zoneId !== "string" || !isCardZoneId(zoneId)) continue;
+    zones[itemId] = zoneId;
+  }
+  return Object.keys(zones).length > 0 ? zones : undefined;
 }
 
 /** Stored rubric order first. Rubrics the card has not ordered yet keep the default sequence. */

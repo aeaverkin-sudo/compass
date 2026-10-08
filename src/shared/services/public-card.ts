@@ -4,7 +4,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { HANDLE_RE } from "@/shared/services/card-handle";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
-import { normalizeRubricOrder } from "@/shared/services/card-zones";
+import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from "@/shared/services/card-zones";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { VIEWER_HEADER, viewerId } from "@/shared/lib/viewer";
@@ -21,6 +21,8 @@ type CardRow = {
   public_token: string;
   handle?: string | null;
   rubric_order?: unknown;
+  rubric_labels?: unknown;
+  item_zones?: unknown;
   is_public: boolean;
   photo_attachment_id: string | null;
   created_at: string;
@@ -79,23 +81,25 @@ async function readyAttachmentIds(ids: string[]): Promise<Set<string>> {
  */
 async function selectPublicRow(column: "public_token" | "handle", value: string): Promise<CardRow | null> {
   const admin = createAdminSupabaseClient();
-  const withRubric = await admin
-    .from("cards")
-    .select(`${CARD_PUBLIC_COLUMNS}, handle, rubric_order`)
-    .eq(column, value)
-    .maybeSingle();
-  const withHandle =
-    withRubric.error && /rubric_order/i.test(withRubric.error.message)
-      ? await admin.from("cards").select(`${CARD_PUBLIC_COLUMNS}, handle`).eq(column, value).maybeSingle()
-      : withRubric;
-  if (!withHandle.error) return withHandle.data as CardRow | null;
-  if (!/handle/i.test(withHandle.error.message)) throw new Error(withHandle.error.message);
-  const plain = await admin.from("cards").select(CARD_PUBLIC_COLUMNS).eq(column, value).maybeSingle();
-  if (plain.error) {
-    if (column === "handle" && /handle/i.test(plain.error.message)) return null;
-    throw new Error(plain.error.message);
+  const optional = ["item_zones", "rubric_labels", "rubric_order", "handle"];
+  let selected = `${CARD_PUBLIC_COLUMNS}, handle, rubric_order, rubric_labels, item_zones`;
+  let loaded = await admin.from("cards").select(selected).eq(column, value).maybeSingle();
+  for (let attempt = 0; attempt < optional.length && loaded.error; attempt += 1) {
+    const message = loaded.error.message;
+    if (!/column|schema/i.test(message)) break;
+    const missing = optional.find((name) => new RegExp(name, "i").test(message) && selected.includes(name));
+    if (!missing) break;
+    selected = selected
+      .split(", ")
+      .filter((part) => part !== missing)
+      .join(", ");
+    loaded = await admin.from("cards").select(selected).eq(column, value).maybeSingle();
   }
-  return plain.data as CardRow | null;
+  if (loaded.error) {
+    if (column === "handle" && /handle/i.test(loaded.error.message)) return null;
+    throw new Error(loaded.error.message);
+  }
+  return loaded.data as CardRow | null;
 }
 
 export const loadPublicCardByHandle = cache(async (handle: string): Promise<PublicCard | null> => {
@@ -172,6 +176,8 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
     photoAttachmentId: row.photo_attachment_id,
     contactItemIds: items.map((item) => item.id),
     rubricOrder: normalizeRubricOrder(row.rubric_order),
+    rubricLabels: normalizeRubricLabels(row.rubric_labels),
+    itemZones: normalizeItemZones(row.item_zones),
     nextScanAddons: [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
