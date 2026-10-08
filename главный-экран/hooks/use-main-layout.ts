@@ -2,10 +2,10 @@
 
 import { useLayoutEffect, useState } from "react";
 import {
-  browseBandHeightPx,
   libraryCardHeightPx,
   librarySheetTopPx,
   libraryStackTopPx,
+  writeScreenVars,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
   SCREEN_TOP_AXIS_PX,
@@ -42,36 +42,13 @@ function readSafeAreaInset(edge: "top" | "bottom") {
   return size;
 }
 
-/** `svh` is the visible height. `lvh` is the stable full screen, the same in every browser on this phone. */
-function readViewport(unit: "svh" | "lvh") {
-  const probe = document.createElement("div");
-  probe.style.cssText = `position:fixed;top:0;height:100${unit};visibility:hidden;pointer-events:none`;
-  document.documentElement.appendChild(probe);
-  const height = probe.getBoundingClientRect().height;
-  probe.remove();
-  return height || window.innerHeight;
-}
-
 function computeLayout(): MainLayout | null {
   if (typeof window === "undefined") return null;
 
-  const visibleH = readViewport("svh");
-  const fullH = readViewport("lvh");
+  const { visible: visibleH, band: bandH } = writeScreenVars();
   const safeTop = readSafeAreaInset("top");
   const qrTop = safeTop + SCREEN_TOP_AXIS_PX;
   const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
-  const bandH = Math.max(0, Math.round(browseBandHeightPx(fullH)));
-  const root = document.documentElement;
-  root.style.setProperty("--app-h", `${Math.round(visibleH)}px`);
-  root.style.setProperty("--band-h", `${bandH}px`);
-  root.classList.add("compass-sized");
-  const shell = document.querySelector("main.compass-main");
-  const vv = window.visualViewport;
-  if (vv && shell) {
-    const gap = shell.getBoundingClientRect().bottom - vv.height;
-    const lift = gap > 0 && gap < 120 ? Math.round(gap) : 0;
-    root.style.setProperty("--vv-bottom", `${lift}px`);
-  }
   const cardBottomBrowse = visibleH - bandH;
   const browseHeight = cardBottomBrowse - cardTopBrowse;
   const libraryHeight = libraryCardHeightPx(visibleH, safeTop);

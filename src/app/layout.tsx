@@ -17,6 +17,12 @@ html:not(.compass-sized) .compass-layer,html:not(.compass-sized) .compass-sky-ba
 html:not(.compass-settled) .compass-card-library{transition:none!important}
 main.compass-main.fixed.top-0{height:var(--app-h,100svh)}
 div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100svh);bottom:auto;background:#fff}
+@media (hover:hover) and (pointer:fine){
+  html{bottom:0!important;height:auto!important}
+  main.compass-main.fixed.top-0{bottom:0;height:auto}
+  main.compass-main:not(.fixed){height:var(--app-h,100dvh)}
+  div.compass-main.fixed.inset-y-0:not([class*="overflow"]){bottom:0!important;height:auto!important}
+}
 `;
 
 export const metadata: Metadata = {

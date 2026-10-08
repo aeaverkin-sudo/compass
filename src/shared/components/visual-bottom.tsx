@@ -2,6 +2,7 @@
 
 import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
+import { desktopWindow, writeScreenVars } from "@main/layout";
 
 /** Taller than this is the keyboard, which the edit dock already follows. */
 const KEYBOARD_MIN_PX = 120;
@@ -11,6 +12,7 @@ const KEYBOARD_MIN_PX = 120;
  * of the layout viewport still sits under the visible viewport.
  */
 function publicBandLift(vv: VisualViewport | null) {
+  if (desktopWindow()) return 0;
   if (!vv || !document.querySelector("[data-public-card]")) return 0;
   const byViewport = Math.round(window.innerHeight - vv.offsetTop - vv.height);
   const card = document.querySelector("[data-public-card]");
@@ -30,8 +32,8 @@ function readSafeBottom() {
 }
 
 /**
- * The shell is already 100svh, so the first frame is the small viewport.
- * visualViewport only nudges the band if that shell still slips under the toolbar.
+ * The head script has already sized the shell. On a phone, the band lifts only
+ * when that shell still sits under the toolbar. A desktop window is not lifted.
  * The band stays hidden until this runs, which is before the first paint.
  */
 export function VisualBottom() {
@@ -43,13 +45,8 @@ export function VisualBottom() {
 
     const write = () => {
       frame = 0;
+      writeScreenVars();
       const vv = window.visualViewport;
-      const shell = document.querySelector("main.compass-main");
-      if (vv && shell) {
-        const gap = shell.getBoundingClientRect().bottom - vv.height;
-        const lift = gap > 0 && gap < KEYBOARD_MIN_PX ? Math.round(gap) : 0;
-        root.style.setProperty("--vv-bottom", `${lift}px`);
-      }
       const chrome = vv ? root.getBoundingClientRect().bottom - vv.height : 0;
       const safe = chrome > 8 && chrome < KEYBOARD_MIN_PX ? 0 : Math.round(readSafeBottom());
       root.style.setProperty("--band-safe", `${safe}px`);

@@ -94,8 +94,11 @@ export function layoutTop(offsetPx: number) {
   return `${offsetPx}px`;
 }
 
-/** Slimmer than the full-screen remainder: 55% of (0.27 × lvh − 118px). */
+/** Slimmer than the full-screen remainder: 55% of (0.27 × screen − 118px). */
 export const BAND_HEIGHT_SCALE = 0.55;
+
+/** Shortest sky plaque that still holds the three labels. Desktop windows only. */
+export const MIN_BAND_PX = 44;
 
 /** Pixels trimmed off the band so the card, the plate and the veil share one edge. */
 export function bandHeightOffsetPx() {
@@ -103,12 +106,61 @@ export function bandHeightOffsetPx() {
 }
 
 /**
- * Declared band height from the stable full screen (`lvh`), not the visible remainder.
+ * Declared band height from the stable full screen (`lvh` on a phone, the window on a desktop).
  * Same number on one phone in the home-screen app, Safari and Chrome.
+ * A desktop window never goes under one label row: a short window would otherwise collapse the plaque.
  */
-export function browseBandHeightPx(fullH: number) {
+export function browseBandHeightPx(fullH: number, desktop = false) {
   const share = (100 - CARD_BOTTOM_TARGET_LVH) / 100;
-  return BAND_HEIGHT_SCALE * (fullH * share - bandHeightOffsetPx());
+  const raw = BAND_HEIGHT_SCALE * (fullH * share - bandHeightOffsetPx());
+  return Math.max(desktop ? MIN_BAND_PX : 0, raw);
+}
+
+/** A phone has a collapsing toolbar. A desktop window does not, even when `svh` is short of it. */
+export function desktopWindow() {
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+export function probeViewport(unit: "svh" | "lvh") {
+  const probe = document.createElement("div");
+  probe.style.cssText = `position:fixed;top:0;height:100${unit};visibility:hidden;pointer-events:none`;
+  document.documentElement.appendChild(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height || window.innerHeight;
+}
+
+/**
+ * Phones keep `svh`, so the browser toolbar does not jump the stack.
+ * A desktop window uses the real window: `svh` there can stay short of a resized window.
+ */
+export function visibleScreenPx(svh: number, innerH: number, desktop: boolean) {
+  return Math.round(desktop ? Math.max(svh, innerH) : svh);
+}
+
+/** Lift the plaque only for a phone toolbar. On a desktop that lift is the white gap under the bar. */
+export function bandLiftPx(desktop: boolean, gap: number) {
+  if (desktop || !(gap > 0 && gap < 120)) return 0;
+  return Math.round(gap);
+}
+
+/** Writes `--app-h`, `--band-h` and `--vv-bottom` from the same rules as the head script. */
+export function writeScreenVars() {
+  const root = document.documentElement;
+  const desktop = desktopWindow();
+  const svh = probeViewport("svh");
+  const lvh = probeViewport("lvh");
+  const visible = visibleScreenPx(svh, window.innerHeight, desktop);
+  const full = desktop ? visible : lvh;
+  const band = Math.round(browseBandHeightPx(full, desktop));
+  root.style.setProperty("--app-h", `${visible}px`);
+  root.style.setProperty("--band-h", `${band}px`);
+  const shell = document.querySelector("main.compass-main, div.compass-main");
+  const vv = window.visualViewport;
+  const gap = vv && shell ? shell.getBoundingClientRect().bottom - vv.height : 0;
+  root.style.setProperty("--vv-bottom", `${bandLiftPx(desktop, gap)}px`);
+  root.classList.add("compass-sized");
+  return { visible, band, desktop };
 }
 
 /** Same height as `browseBandHeightPx`, for the plaque before the layout hook measures the screen. */
@@ -142,14 +194,22 @@ function probe(unit){
   el.remove();
   return h||window.innerHeight;
 }
-var full=probe("lvh");
-var visible=probe("svh");
-var band=Math.max(0,Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset})));
-var vv=window.visualViewport;
+var desktop=window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+var svh=probe("svh");
+var lvh=probe("lvh");
+var inner=window.innerHeight;
+var visible=desktop?Math.max(svh,inner):svh;
+var full=desktop?visible:lvh;
+var band=Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset}));
+if(band<0)band=0;
+if(desktop&&band<${MIN_BAND_PX})band=${MIN_BAND_PX};
 var lift=0;
-if(vv){
-  var gap=Math.round(visible-vv.height);
-  if(gap>0&&gap<120)lift=gap;
+if(!desktop){
+  var vv=window.visualViewport;
+  if(vv){
+    var gap=Math.round(visible-vv.height);
+    if(gap>0&&gap<120)lift=gap;
+  }
 }
 root.style.setProperty("--app-h",Math.round(visible)+"px");
 root.style.setProperty("--band-h",band+"px");
