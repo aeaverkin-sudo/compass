@@ -143,10 +143,9 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   if (isAttachmentType(item.type)) return "files";
   if (item.type === "spotify") return "lifestyle";
   if (CONTACT_TYPES.has(item.type)) return "contact";
-  if (item.type === "position" || (item.type === "text" && !item.typeManual && parseDescription(item.value).position)) return "position";
-  if (item.type === "text" && !item.typeManual && isCompanyLine(item.value)) return "company";
-  if (item.type === "text" && !item.typeManual && isPersonName(item.value)) return "name";
-  if (item.label.trim().toLowerCase() === "position" && !item.typeManual) return "position";
+  if (isExplicitPosition(item) || (item.type === "text" && parseDescription(item.value).position)) return "position";
+  if (item.type === "text" && isCompanyLine(item.value)) return "company";
+  if (item.type === "text" && isPersonName(item.value)) return "name";
   return "additional";
 }
 
@@ -388,26 +387,10 @@ function pushDisplayed(buckets: Map<CardZoneId, CardDisplayRow[]>, item: Contact
 function splitPresentation(item: ContactItem): { axis: string; value: string } | null {
   const display = itemDisplayValue(item).trim();
   if (!display || display === "+") return null;
-  const custom = item.label.trim();
-  if (custom) return { axis: custom, value: display };
   const zone = zoneForItem(item);
   if (zone === "social" || zone === "lifestyle") return { axis: typeLabel(item.type), value: display };
   if (zone === "files") return { axis: FILE_AXIS[item.type] ?? "FILE", value: display };
   return { axis: "", value: display };
-}
-
-/** Put one id after the last row already in the target group. An empty group takes the end. */
-export function placeItemInZone(allIds: string[], itemId: string, zoneIds: string[]): string[] {
-  const rest = allIds.filter((id) => id !== itemId);
-  let insertAt = rest.length;
-  for (let index = rest.length - 1; index >= 0; index -= 1) {
-    if (zoneIds.includes(rest[index] ?? "")) {
-      insertAt = index + 1;
-      break;
-    }
-  }
-  rest.splice(insertAt, 0, itemId);
-  return rest;
 }
 
 function sectionsFrom(buckets: Map<CardZoneId, CardDisplayRow[]>) {

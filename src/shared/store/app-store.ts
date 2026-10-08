@@ -7,7 +7,6 @@ import {
   contactItemFromAttachment,
   createEmptyContactItem,
   isContactFilled,
-  contactItemForRubric,
   normalizeContactItem,
 } from "@/shared/services/contact-item";
 import {
@@ -29,7 +28,7 @@ import {
   unlinkItem,
 } from "@/shared/services/card-items-sync";
 import { cardHasPhoto } from "@/shared/services/card-photo";
-import type { Card, ContactItem, ContactType, User } from "@/shared/types";
+import type { Card, ContactItem, User } from "@/shared/types";
 
 type OnboardingPayload = {
   displayName: string;
@@ -61,8 +60,6 @@ interface AppState {
   /** Add an empty draft to the library pool (not bound to any card). One draft at a time. */
   addContactItem: () => string | null;
   updateContactItem: (itemId: string, data: Partial<Pick<ContactItem, "value" | "label">>) => void;
-  /** Keep the value and file. Change the rubric and stop auto-classification. */
-  setContactItemType: (itemId: string, type: ContactType) => boolean;
   /** Replace one library row as given. Used when a typed field keeps its kind. */
   setContactItem: (item: ContactItem) => void;
   updateContactItemAttachment: (
@@ -227,25 +224,12 @@ export const useAppStore = create<AppState>()(
       updateContactItem: (itemId, data) => {
         const nextItems = get().contactItems.map((item) => {
           if (item.id !== itemId) return item;
-          if (data.value === undefined) {
-            return { ...item, ...data, typeManual: data.label !== undefined ? true : item.typeManual };
-          }
+          if (data.value === undefined) return { ...item, ...data };
           return normalizeContactItem(item, data.value);
         });
         set({ contactItems: nextItems });
         const next = nextItems.find((item) => item.id === itemId);
         if (next) scheduleItemUpsert(next);
-      },
-
-      setContactItemType: (itemId, type) => {
-        const item = get().contactItems.find((entry) => entry.id === itemId);
-        if (!item) return false;
-        const next = contactItemForRubric(item, type);
-        if (!next) return false;
-        const nextItems = get().contactItems.map((current) => (current.id === itemId ? next : current));
-        set({ contactItems: nextItems });
-        scheduleItemUpsert(next);
-        return true;
       },
 
       setContactItem: (item) => {

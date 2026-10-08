@@ -1,16 +1,15 @@
 "use client";
 
-import { CornerDownLeft, File as FileIcon, Minus, Plus, X } from "lucide-react";
+import { File as FileIcon, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { groupLibrary, inheritedLineType, orderCardZones, placeItemInZone, zoneForItem, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
+import { groupLibrary, inheritedLineType, orderCardZones, type CardDisplayRow, type CardZoneId } from "@/shared/services/card-zones";
 import { contactLineAsType, isAttachmentType, isContactFilled, messengerCountryHint, splitDraftLines } from "@/shared/services/contact-item";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu";
 import { customDisplayName } from "@/shared/services/link-display";
 import { useAppStore } from "@/shared/store/app-store";
-import type { Card, ContactItem, ContactType } from "@/shared/types";
+import type { Card, ContactItem } from "@/shared/types";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
@@ -19,48 +18,6 @@ const HOLD_MS = 500;
 const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-const RUBRIC_CHOICES: { title: string; type: ContactType }[] = [
-  { title: "Additional", type: "text" },
-  { title: "Position", type: "position" },
-  { title: "Web", type: "website" },
-  { title: "Instagram", type: "instagram" },
-  { title: "Telegram", type: "telegram" },
-  { title: "WhatsApp", type: "whatsapp" },
-  { title: "LinkedIn", type: "linkedin" },
-  { title: "Email", type: "email" },
-  { title: "Phone", type: "phone" },
-  { title: "YouTube", type: "youtube" },
-  { title: "TikTok", type: "tiktok" },
-  { title: "X", type: "x" },
-  { title: "GitHub", type: "github" },
-];
-
-function insertLineBreak(field: HTMLTextAreaElement, commit: (value: string) => void) {
-  const start = field.selectionStart ?? field.value.length;
-  const end = field.selectionEnd ?? start;
-  const next = `${field.value.slice(0, start)}\n${field.value.slice(end)}`;
-  commit(next);
-  window.requestAnimationFrame(() => {
-    field.focus({ preventScroll: true });
-    field.setSelectionRange(start + 1, start + 1);
-  });
-}
-
-function NewLineButton({ onPress }: { onPress: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-label="New line"
-      data-no-swipe
-      onMouseDown={(event) => event.preventDefault()}
-      onPointerDown={(event) => event.preventDefault()}
-      onClick={onPress}
-      className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[var(--ink)]"
-    >
-      <CornerDownLeft className="size-5" strokeWidth={1.5} aria-hidden />
-    </button>
-  );
-}
 /** The writing line grows upward to this height, then scrolls inside. */
 const FIELD_MAX_PX = 120;
 const BLUR_GUARD_MS = 300;
@@ -148,7 +105,6 @@ export function CardEditList({
   const updateCard = useAppStore((state) => state.updateCard);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
   const setContactItem = useAppStore((state) => state.setContactItem);
-  const setContactItemType = useAppStore((state) => state.setContactItemType);
   const addContactItem = useAppStore((state) => state.addContactItem);
   const addItemToCard = useAppStore((state) => state.addItemToCard);
   const removeItemFromCard = useAppStore((state) => state.removeItemFromCard);
@@ -208,7 +164,7 @@ export function CardEditList({
       return;
     }
     const inherit = inheritedLineType(item);
-    if (inherit) setContactItem({ ...contactLineAsType(item, first, inherit), label: item.label, typeManual: true });
+    if (inherit) setContactItem(contactLineAsType(item, first, inherit));
     else if (first !== shown) updateContactItem(item.id, { value: first });
     if (card.headerItemId === item.id) updateCard(card.id, { title: first });
     for (const line of rest) {
@@ -216,7 +172,7 @@ export function CardEditList({
       if (!id) continue;
       const seed = useAppStore.getState().contactItems.find((row) => row.id === id);
       if (!seed) continue;
-      if (inherit) setContactItem({ ...contactLineAsType(seed, line, inherit), typeManual: true });
+      if (inherit) setContactItem(contactLineAsType(seed, line, inherit));
       else updateContactItem(id, { value: line });
       const created = useAppStore.getState().contactItems.find((row) => row.id === id);
       if (!created || !isContactFilled(created)) {
@@ -225,29 +181,6 @@ export function CardEditList({
       }
       include(id);
     }
-  };
-
-  const renameRow = (item: ContactItem, next: string, shown: string) => {
-    const trimmed = next.trim();
-    const current = item.label.trim();
-    if (trimmed === current || (trimmed === shown && !current)) return;
-    updateContactItem(item.id, { label: trimmed });
-  };
-
-  const retargetRow = (item: ContactItem, type: ContactType) => {
-    const moved = setContactItemType(item.id, type);
-    if (!moved) return;
-    const state = useAppStore.getState();
-    const nextItem = state.contactItems.find((entry) => entry.id === item.id);
-    const nextCard = state.cards.find((entry) => entry.id === card.id);
-    if (!nextItem || !nextCard) return;
-    const zone = zoneForItem(nextItem);
-    const zoneIds = nextCard.contactItemIds.filter((id) => {
-      if (id === item.id) return false;
-      const row = state.contactItems.find((entry) => entry.id === id);
-      return Boolean(row && zoneForItem(row) === zone);
-    });
-    setCardItemOrder(card.id, placeItemInZone(nextCard.contactItemIds, item.id, zoneIds));
   };
 
   const eraseRow = (itemId: string) => {
@@ -280,11 +213,7 @@ export function CardEditList({
                   <EditRow
                     key={item.id}
                     text={lineOf(row)}
-                    label={item.label.trim() || row.axis || section.title}
                     value={row.value}
-                    choices={isAttachmentType(item.type) ? [] : RUBRIC_CHOICES}
-                    onRename={(next) => renameRow(item, next, item.label.trim() || row.axis || section.title)}
-                    onRetype={(type) => retargetRow(item, type)}
                     onCard={onCard}
                     editing={textEditId === item.id}
                     deleteReady={deleteReadyId === item.id}
@@ -614,13 +543,6 @@ function AddLine({
                     className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--grey)]"
                     style={{ fontSize: 16, lineHeight: "normal" }}
                   />
-                  <NewLineButton
-                    onPress={() => {
-                      const field = fieldRef.current;
-                      if (!field) return;
-                      insertLineBreak(field, setText);
-                    }}
-                  />
                 </div>
               </div>
             </div>,
@@ -633,11 +555,7 @@ function AddLine({
 
 function EditRow({
   text,
-  label,
   value,
-  choices,
-  onRename,
-  onRetype,
   onCard,
   editing,
   deleteReady,
@@ -650,11 +568,7 @@ function EditRow({
   onErase,
 }: {
   text: string;
-  label: string;
   value: string;
-  choices: { title: string; type: ContactType }[];
-  onRename: (next: string) => void;
-  onRetype: (type: ContactType) => void;
   onCard: boolean;
   editing: boolean;
   deleteReady: boolean;
@@ -726,37 +640,7 @@ function EditRow({
   }, [draft, editing, frame.width]);
 
   return (
-    <div ref={rowRef} className={cn("relative flex min-w-0 items-baseline gap-2", holding && "opacity-40")}>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          aria-label={`Label ${label}`}
-          data-no-swipe
-          onPointerDown={(event) => event.stopPropagation()}
-          className="shrink-0 t-label text-[var(--grey)]"
-        >
-          {label}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <div className="px-3 py-2" onKeyDown={(event) => event.stopPropagation()}>
-            <input
-              defaultValue={label}
-              aria-label="Row label"
-              className="w-full bg-transparent t-body text-[#111] outline-none"
-              onBlur={(event) => onRename(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
-                event.preventDefault();
-                onRename(event.currentTarget.value);
-              }}
-            />
-          </div>
-          {choices.map((choice) => (
-            <DropdownMenuItem key={choice.type} onSelect={() => onRetype(choice.type)}>
-              {choice.title}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <div ref={rowRef} className={cn("relative min-w-0", holding && "opacity-40")}>
       <div
         ref={fieldRef}
         aria-label={text}
@@ -786,7 +670,7 @@ function EditRow({
           ref={lineRef}
           className="w-max whitespace-nowrap t-body select-none"
         >
-          {value}
+          {text}
         </div>
       </div>
       {editing
@@ -801,7 +685,7 @@ function EditRow({
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                <div className="flex items-end gap-[11px] border-b border-[var(--rule)]">
+                <div className="flex flex-col justify-end border-b border-[var(--rule)]">
                   <textarea
                     ref={dockRef}
                     rows={1}
@@ -826,14 +710,7 @@ function EditRow({
                       }
                       onConfirm(next);
                     }}
-                    className="compass-input block min-w-0 flex-1 resize-none overflow-y-auto bg-transparent t-body text-[var(--ink)] caret-[var(--ink)] outline-none"
-                  />
-                  <NewLineButton
-                    onPress={() => {
-                      const field = dockRef.current;
-                      if (!field) return;
-                      insertLineBreak(field, setDraft);
-                    }}
+                    className="compass-input block w-full resize-none overflow-y-auto bg-transparent t-body text-[var(--ink)] caret-[var(--ink)] outline-none"
                   />
                 </div>
               </div>
