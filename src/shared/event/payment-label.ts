@@ -1,9 +1,14 @@
+export type PriceTier = {
+  price: number | null;
+};
+
 export type EventPay = {
   isPaid: boolean;
   paymentUrl: string | null;
   paymentNote: string | null;
   price: number | null;
   currency: string;
+  tiers?: PriceTier[];
 };
 
 export type PaymentTally = {
@@ -52,6 +57,36 @@ export function priceLabel(price: number | null, currency: string): string | nul
   if (code === "USD") return `$${amount}`;
   if (code === "GBP") return `£${amount}`;
   return `${amount} ${code}`;
+}
+
+/** Messenger line. One price is €10. Several tariffs are from €10, the cheapest paid one. Free stays empty. */
+export function previewPriceLabel(pay: {
+  isPaid: boolean;
+  price: number | null;
+  currency: string;
+  tiers?: PriceTier[] | null;
+}): string | null {
+  const tiers = (pay.tiers ?? []).filter((tier) => tier.price != null && Number.isFinite(tier.price));
+  if (tiers.length > 0) {
+    const paid = tiers.map((tier) => tier.price as number).filter((price) => price > 0);
+    if (paid.length === 0) return null;
+    const label = priceLabel(Math.min(...paid), pay.currency);
+    if (!label) return null;
+    return tiers.length > 1 ? `from ${label}` : label;
+  }
+  if (!pay.isPaid || pay.price == null || pay.price <= 0) return null;
+  return priceLabel(pay.price, pay.currency);
+}
+
+/** Stable piece of the preview image address. A price change makes a new link. */
+export function previewPriceKey(pay: {
+  isPaid: boolean;
+  price: number | null;
+  currency: string;
+  tiers?: PriceTier[] | null;
+}): string {
+  const tiers = (pay.tiers ?? []).map((tier) => (tier.price == null ? "" : String(tier.price))).join(",");
+  return [pay.isPaid ? "1" : "0", pay.price ?? "", pay.currency, tiers].join("|");
 }
 
 export function payView(paidStatus: string, paidSource: string | null): PayView {

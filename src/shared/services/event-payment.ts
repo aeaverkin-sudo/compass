@@ -27,19 +27,35 @@ function readPrice(value: unknown): number | null {
 
 const EMPTY_PAY: EventPay = { isPaid: false, paymentUrl: null, paymentNote: null, price: null, currency: "EUR" };
 
+function readTiers(value: unknown): { price: number | null }[] {
+  if (!Array.isArray(value)) return [];
+  const tiers: { price: number | null }[] = [];
+  for (const item of value) {
+    if (item != null && typeof item === "object" && "price" in item) {
+      tiers.push({ price: readPrice((item as { price: unknown }).price) });
+      continue;
+    }
+    if (typeof item === "number" || typeof item === "string") tiers.push({ price: readPrice(item) });
+  }
+  return tiers;
+}
+
 function payFrom(row: {
   is_paid?: boolean | null;
   payment_url?: string | null;
   payment_note?: string | null;
   price?: number | string | null;
   currency?: string | null;
+  price_tiers?: unknown;
 }): EventPay {
+  const tiers = readTiers(row.price_tiers);
   return {
     isPaid: row.is_paid === true,
     paymentUrl: row.payment_url?.trim() || null,
     paymentNote: row.payment_note?.trim() || null,
     price: readPrice(row.price),
     currency: (row.currency ?? "").trim().toUpperCase() || "EUR",
+    ...(tiers.length > 0 ? { tiers } : {}),
   };
 }
 
@@ -68,6 +84,16 @@ export async function loadEventPay(eventId: string): Promise<EventPay> {
   }
   if (full.error || !full.data) return EMPTY_PAY;
   return payFrom(full.data);
+}
+
+/** Preview price. A missing `price_tiers` column keeps the single price. */
+export async function loadPreviewPay(eventId: string): Promise<EventPay> {
+  const pay = await loadEventPay(eventId);
+  const admin = createAdminSupabaseClient();
+  const row = await admin.from("events").select("price_tiers").eq("id", eventId).maybeSingle();
+  if (row.error || !row.data) return pay;
+  const tiers = readTiers((row.data as { price_tiers?: unknown }).price_tiers);
+  return tiers.length > 0 ? { ...pay, tiers } : pay;
 }
 
 type PaymentDraft = {

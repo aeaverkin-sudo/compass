@@ -4,11 +4,11 @@ import { EventJoin } from "./join/event-join";
 import { CoverButton } from "@/shared/event/cover-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
-import { priceLabel } from "@/shared/event/payment-label";
+import { previewPriceKey, previewPriceLabel, priceLabel } from "@/shared/event/payment-label";
 import { ensurePayCode, loadOwnerEventCounts, loadOwnedBadge, loadOwnRegistration } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
-import { loadEventPay } from "@/shared/services/event-payment";
-import { eventShareLine } from "@/shared/event/when";
+import { loadEventPay, loadPreviewPay } from "@/shared/services/event-payment";
+import { eventPreviewLine } from "@/shared/event/when";
 import { eventPublicPath } from "@/shared/event/slug";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 
@@ -23,12 +23,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { code } = await params;
   const event = await loadEventInvite(code);
   if (!event) return { title: "ADED" };
+  const pay = await loadPreviewPay(event.id);
   const origin = await requestOrigin();
   const title = event.name || "ADED";
-  const description = eventShareLine(event.date, event.endsAt, event.place, event.placeSecret) ?? undefined;
+  const description = eventPreviewLine(event.date, event.endsAt, event.place, event.placeSecret, previewPriceLabel(pay)) ?? undefined;
   const slug = event.slug?.trim() || event.code.trim() || code;
   const url = `${origin}${eventPublicPath(slug)}`;
-  const image = `${url}/opengraph-image?v=${previewVersion(event)}`;
+  const image = `${url}/opengraph-image?v=${previewVersion(event, pay)}`;
   return {
     title,
     description,
@@ -57,8 +58,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-function previewVersion(event: { name: string; date: string | null; endsAt: string | null; place: string | null; logoAttachmentId: string | null; theme: string; layout: string }) {
-  const raw = [event.name, event.date, event.endsAt, event.place, event.logoAttachmentId, event.theme, event.layout].join("\n");
+function previewVersion(
+  event: { name: string; date: string | null; endsAt: string | null; place: string | null; logoAttachmentId: string | null; theme: string; layout: string },
+  pay: { isPaid: boolean; price: number | null; currency: string; tiers?: { price: number | null }[] },
+) {
+  const raw = [event.name, event.date, event.endsAt, event.place, event.logoAttachmentId, event.theme, event.layout, previewPriceKey(pay)].join("\n");
   let hash = 0;
   for (let index = 0; index < raw.length; index += 1) hash = (hash * 31 + raw.charCodeAt(index)) >>> 0;
   return hash.toString(36);

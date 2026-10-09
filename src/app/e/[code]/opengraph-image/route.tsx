@@ -3,7 +3,9 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { ogPosterElement } from "@/shared/event/og-poster";
 import type { TeamRoleName } from "@/shared/event/permissions";
-import { eventShareLine } from "@/shared/event/when";
+import { previewPriceLabel } from "@/shared/event/payment-label";
+import { eventPreviewLine } from "@/shared/event/when";
+import { loadPreviewPay } from "@/shared/services/event-payment";
 import { downloadAttachmentBytes, loadAttachment } from "@/shared/services/attachment-api";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 
@@ -110,12 +112,13 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const roleValue = query.get("role");
     const role = roleValue && ROLES.has(roleValue as TeamRoleName) ? (roleValue as TeamRoleName) : null;
     const event = await loadEventInvite(code);
+    const pay = event ? await loadPreviewPay(event.id) : null;
     const loaded = await loadedFonts();
     const photo = event ? await logoDataUrl(event) : null;
     const element = event
       ? ogPosterElement({
           name: event.name || "ADED",
-          meta: eventShareLine(event.date, event.endsAt, event.place, event.placeSecret),
+          meta: eventPreviewLine(event.date, event.endsAt, event.place, event.placeSecret, pay ? previewPriceLabel(pay) : null),
           themeId: event.theme,
           layout: event.layout,
           photo,

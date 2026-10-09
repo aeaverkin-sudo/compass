@@ -54,6 +54,20 @@ export function eventShareLine(
   return bits.length > 0 ? bits.join(" · ") : null;
 }
 
+/** Date, place, and the price label. A free event keeps the date and place only. */
+export function eventPreviewLine(
+  date: string | null,
+  endsAt: string | null,
+  place: string | null,
+  placeSecret: boolean,
+  price: string | null,
+): string | null {
+  const share = eventShareLine(date, endsAt, place, placeSecret);
+  const fare = price?.trim() || null;
+  const bits = [share, fare].filter((bit): bit is string => Boolean(bit));
+  return bits.length > 0 ? bits.join(" · ") : null;
+}
+
 /** «11 Oct 2026 · 15:00–19:00». No end keeps the start. No start is nothing. */
 export function formatEventRange(startIso: string | null, endIso: string | null): string | null {
   const start = parsed(startIso);
