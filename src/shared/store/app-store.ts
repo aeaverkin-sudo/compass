@@ -45,6 +45,8 @@ interface AppState {
   completeOnboarding: (payload: OnboardingPayload) => void;
   markMainIntroSeen: () => void;
   markEmptyFillHintSeen: () => void;
+  markFirstRowHintSeen: () => void;
+  markAddLibraryHintSeen: () => void;
   markPasswordHintSeen: () => void;
   setMonochrome: (value: boolean) => void;
   setCurrentCardIndex: (index: number) => void;
@@ -166,6 +168,16 @@ export const useAppStore = create<AppState>()(
       markEmptyFillHintSeen: () => {
         if (get().user.emptyFillHintSeen) return;
         set({ user: { ...get().user, emptyFillHintSeen: true } });
+      },
+
+      markFirstRowHintSeen: () => {
+        if (get().user.firstRowHintSeen) return;
+        set({ user: { ...get().user, firstRowHintSeen: true } });
+      },
+
+      markAddLibraryHintSeen: () => {
+        if (get().user.addLibraryHintSeen) return;
+        set({ user: { ...get().user, addLibraryHintSeen: true } });
       },
 
       markPasswordHintSeen: () => {

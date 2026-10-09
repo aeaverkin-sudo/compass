@@ -19,6 +19,7 @@ import {
 import { detectContactType, isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
+import { SkyHint } from "@/shared/components/sky-hint";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
@@ -228,6 +229,7 @@ export function CardEditList({
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
+  const [libraryHint, setLibraryHint] = useState<"add" | "first" | null>(null);
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
@@ -356,12 +358,33 @@ export function CardEditList({
         onOpenChange={(open) => {
           setComposing(open);
           onComposingChange?.(open);
+          if (open && !useAppStore.getState().user.addLibraryHintSeen) setLibraryHint("add");
         }}
-        onAdded={(itemId) => {
-          const first = useAppStore.getState().cards[0];
-          if (first?.id === card.id) include(itemId);
+        onAdded={() => {
+          const user = useAppStore.getState().user;
+          if (user.firstRowHintSeen) return;
+          if (!user.addLibraryHintSeen) useAppStore.getState().markAddLibraryHintSeen();
+          setLibraryHint("first");
         }}
       />
+      {libraryHint === "add" ? (
+        <SkyHint
+          text="Add anything to the library and use it in different portfolios"
+          onDone={() => {
+            useAppStore.getState().markAddLibraryHintSeen();
+            setLibraryHint(null);
+          }}
+        />
+      ) : null}
+      {libraryHint === "first" ? (
+        <SkyHint
+          text="Tap it to use in the portfolio"
+          onDone={() => {
+            useAppStore.getState().markFirstRowHintSeen();
+            setLibraryHint(null);
+          }}
+        />
+      ) : null}
       <Dialog.Root
         open={confirmDelete !== null}
         onOpenChange={(open) => {
