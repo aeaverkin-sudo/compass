@@ -82,6 +82,28 @@ function charTop(node: Text, index: number): number | null {
   return rect ? rect.top : null;
 }
 
+function isSpace(char: string | undefined) {
+  return char != null && /\s/.test(char);
+}
+
+/** A break already sits on a space, or at either end of the paragraph. */
+function atWordBreak(text: string, index: number) {
+  if (index <= 0 || index >= text.length) return true;
+  return isSpace(text[index - 1]) || isSpace(text[index]);
+}
+
+/**
+ * The visual line can end one letter into the next word.
+ * Pull that letter back so the whole word starts the next line.
+ * A word longer than the line stays cut, without an inserted hyphen.
+ */
+function snapLineEnd(text: string, start: number, end: number, limit: number) {
+  if (end >= limit || atWordBreak(text, end)) return end;
+  let index = end;
+  while (index > start && !isSpace(text[index - 1])) index -= 1;
+  return index > start ? index : end;
+}
+
 /** Exclusive end of the visual line that starts at `start`, not past `limit`. */
 function exclusiveEndOfLine(node: Text, start: number, limit: number): number {
   const origin = charTop(node, start);
@@ -118,7 +140,7 @@ function measureLines(body: HTMLElement, node: Text): LineCut[] | null {
     }
     let at = para.start;
     while (at < para.end) {
-      const end = exclusiveEndOfLine(node, at, para.end);
+      const end = snapLineEnd(text, at, exclusiveEndOfLine(node, at, para.end), para.end);
       raw.push({ start: at, end, paragraph, top: charTop(node, at) });
       if (end <= at) break;
       at = end;
@@ -360,6 +382,8 @@ export function CardPdfSource({ input, epoch, children }: CardPdfSourceProps) {
           failCardPdf(inputRef.current, new Error("The card has nothing to print"));
           return;
         }
+        article.style.hyphens = "none";
+        article.style.setProperty("-webkit-hyphens", "none");
         const measured = collectCard(source);
         if (measured.blocks.length === 0) {
           failCardPdf(inputRef.current, new Error("The card has nothing to print"));
