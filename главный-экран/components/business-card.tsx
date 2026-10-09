@@ -981,8 +981,11 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {!compact && scrolledUnderQr ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-white to-white/0"
-          style={{ height: TOP_VEIL_PX }}
+          className="pointer-events-none absolute inset-x-0 top-0 z-10"
+          style={{
+            height: TOP_VEIL_PX,
+            background: "linear-gradient(to bottom, white 0%, white 60%, transparent 100%)",
+          }}
         />
       ) : null}
       </div>

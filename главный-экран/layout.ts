@@ -46,8 +46,8 @@ export const BOTTOM_PLATE_DROP_PX = (96 / 25.4) * 3;
 /** The sky plate starts this far below the card edge. */
 export const BOTTOM_PLATE_LOWER_PX = (96 / 25.4) * 2;
 
-/** Browse veils: solid white to clear in 3mm. Top and bottom share this. */
-export const TOP_VEIL_PX = (96 / 25.4) * 3;
+/** Browse veil: one line of body text, so a scrolling row hides before the fade. */
+export const TOP_VEIL_PX = (96 / 25.4) * 7;
 
 /** Base overlap of the library preview onto the QR zone. */
 export const QR_OVERLAP_LIBRARY_BASE_PX = 112;
