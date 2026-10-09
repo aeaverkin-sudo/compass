@@ -48,6 +48,7 @@ export function AccountBand({
   const pdf = medium === "pdf" || (medium == null && !safe);
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
   const liveHref = `${origin}/c/${encodeURIComponent(token)}`;
+  const lift = "var(--band-safe, 0px)";
   const door = cn(
     "press t-caps flex flex-1 touch-manipulation items-center text-[#111] [-webkit-tap-highlight-color:transparent]",
     safe ? "h-full" : "min-h-11 py-3",
@@ -62,7 +63,8 @@ export function AccountBand({
       )}
       style={{
         fontFamily: FONT,
-        height: safe ? `var(--band-h, ${browseBandHeightCss()})` : undefined,
+        height: safe ? `calc(var(--band-h, ${browseBandHeightCss()}) + ${lift})` : undefined,
+        paddingBottom: safe ? lift : undefined,
         paddingLeft: inset,
         paddingRight: inset,
       }}
