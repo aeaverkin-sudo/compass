@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { browseBandHeightCss } from "@main/layout";
 import { cn } from "@/lib/utils";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -50,8 +51,10 @@ export function AccountBand({
   const origin = useOrigin();
   const registerHref = `${origin}/register`;
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
-  const door =
-    "press flex min-h-11 flex-1 touch-manipulation items-center py-3 text-[#111] [-webkit-tap-highlight-color:transparent]";
+  const door = cn(
+    "press flex flex-1 touch-manipulation items-center text-[#111] [-webkit-tap-highlight-color:transparent]",
+    safe ? "h-full" : "min-h-11 py-3",
+  );
   return (
     <nav
       aria-label="Account"
@@ -62,12 +65,12 @@ export function AccountBand({
       )}
       style={{
         fontFamily: FONT,
-        paddingBottom: safe ? "calc(var(--band-safe, 0px) + var(--vv-bottom, 0px))" : undefined,
+        height: safe ? `var(--band-h, ${browseBandHeightCss()})` : undefined,
         paddingLeft: inset,
         paddingRight: inset,
       }}
     >
-      <div className="flex min-h-11 items-stretch">
+      <div className={cn("flex items-stretch", safe ? "h-full" : "min-h-11")}>
         <a href={saveHref} className={cn(door, "text-left")}>
           <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
             Save to your

@@ -50,7 +50,9 @@ export function VisualBottom() {
       const chrome = vv ? root.getBoundingClientRect().bottom - vv.height : 0;
       const safe = chrome > 8 && chrome < KEYBOARD_MIN_PX ? 0 : Math.round(readSafeBottom());
       root.style.setProperty("--band-safe", `${safe}px`);
-      root.style.setProperty("--public-band-bottom", `${publicBandLift(vv)}px`);
+      const vvBottom = Number.parseFloat(root.style.getPropertyValue("--vv-bottom")) || 0;
+      const lift = Math.max(safe, vvBottom, publicBandLift(vv));
+      root.style.setProperty("--public-band-bottom", `${lift}px`);
       root.classList.add("compass-band-ready");
     };
 
