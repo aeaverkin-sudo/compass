@@ -292,7 +292,7 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
         return {
           publicToken: row.public_token,
           code: row.code,
-          invitePath: `/e/${row.public_token}`,
+          invitePath: `/e/${row.code?.trim() || row.public_token}`,
           logoUrl: row.logo_attachment_id ? `/f/${row.logo_attachment_id}` : null,
         };
       }

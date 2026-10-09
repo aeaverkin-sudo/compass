@@ -25,7 +25,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const origin = await requestOrigin();
   const title = event.name || "ADED";
   const description = eventShareLine(event.date, event.endsAt, event.place, event.placeSecret) ?? undefined;
-  const url = `${origin}/e/${encodeURIComponent(code)}`;
+  const slug = event.code.trim() || code;
+  const url = `${origin}/e/${encodeURIComponent(slug)}`;
+  const image = `${url}/opengraph-image?v=${previewVersion(event)}`;
   return {
     title,
     description,
@@ -33,17 +35,32 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title,
       description,
       url,
+      siteName: "ADED",
       type: "website",
       images: [
         {
-          url: `${origin}/e/${encodeURIComponent(code)}/opengraph-image`,
+          url: image,
           width: 1200,
           height: 630,
           alt: title,
+          type: "image/png",
         },
       ],
     },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
   };
+}
+
+function previewVersion(event: { name: string; date: string | null; endsAt: string | null; place: string | null; logoAttachmentId: string | null; theme: string; layout: string }) {
+  const raw = [event.name, event.date, event.endsAt, event.place, event.logoAttachmentId, event.theme, event.layout].join("\n");
+  let hash = 0;
+  for (let index = 0; index < raw.length; index += 1) hash = (hash * 31 + raw.charCodeAt(index)) >>> 0;
+  return hash.toString(36);
 }
 
 export default async function EventInvitePage({ params, searchParams }: PageProps) {

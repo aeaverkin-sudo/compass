@@ -46,12 +46,13 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   ]);
   const origin = await requestOrigin();
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
+  const shareCode = event.code.trim() || event.publicToken;
 
   return (
     <ManageHome
       lookup={lookup}
       name={event.name}
-      shareUrl={`${origin}/e/${event.publicToken}`}
+      shareUrl={`${origin}/e/${encodeURIComponent(shareCode)}`}
       sections={sections}
       canEdit={event.role === "owner" || event.permissions.edit}
       flash={flash}

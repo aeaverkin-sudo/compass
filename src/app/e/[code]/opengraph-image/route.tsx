@@ -25,9 +25,23 @@ function fonts() {
     fontData = Promise.all([
       readFile(join(process.cwd(), "public/fonts/Arimo-Regular.ttf")),
       readFile(join(process.cwd(), "public/fonts/Arimo-Bold.ttf")),
-    ]).then(([regular, bold]) => ({ regular: asArrayBuffer(regular), bold: asArrayBuffer(bold) }));
+    ])
+      .then(([regular, bold]) => ({ regular: asArrayBuffer(regular), bold: asArrayBuffer(bold) }))
+      .catch((error: unknown) => {
+        fontData = null;
+        throw error;
+      });
   }
   return fontData;
+}
+
+async function loadedFonts() {
+  try {
+    return await fonts();
+  } catch (error) {
+    console.error("[og] fonts", error);
+    return null;
+  }
 }
 
 async function logoDataUrl(event: EventInvite): Promise<string | null> {
@@ -49,19 +63,57 @@ async function logoDataUrl(event: EventInvite): Promise<string | null> {
   }
 }
 
+const FRESH = "public, max-age=86400, stale-while-revalidate=604800";
+const BRIEF = "public, max-age=60";
+
+function paint(element: ReturnType<typeof ogPosterElement>, loaded: { regular: ArrayBuffer; bold: ArrayBuffer } | null, cache: string) {
+  return new ImageResponse(element, {
+    width: WIDTH,
+    height: HEIGHT,
+    fonts: loaded
+      ? [
+          { name: "Arimo", data: loaded.regular, weight: 400, style: "normal" },
+          { name: "Arimo", data: loaded.bold, weight: 700, style: "normal" },
+        ]
+      : undefined,
+    headers: { "Cache-Control": cache },
+  });
+}
+
+async function solidCard() {
+  const { default: sharp } = await import("sharp");
+  return sharp({
+    create: { width: WIDTH, height: HEIGHT, channels: 3, background: "#111111" },
+  })
+    .png()
+    .toBuffer();
+}
+
+function spareCard(name: string) {
+  return ogPosterElement({
+    name: name || "ADED",
+    meta: null,
+    themeId: "noir",
+    layout: "grid",
+    photo: null,
+    team: false,
+    role: null,
+  });
+}
+
 /** Link image. `?team=1` adds the working ribbon; the file convention would drop that query. */
 export async function GET(request: Request, context: { params: Promise<{ code: string }> }) {
-  const { code } = await context.params;
-  const query = new URL(request.url).searchParams;
-  const team = query.get("team") === "1";
-  const roleValue = query.get("role");
-  const role = roleValue && ROLES.has(roleValue as TeamRoleName) ? (roleValue as TeamRoleName) : null;
-  const event = await loadEventInvite(code);
-  const loaded = await fonts();
-  const photo = event ? await logoDataUrl(event) : null;
-  const element = ogPosterElement(
-    event
-      ? {
+  try {
+    const { code } = await context.params;
+    const query = new URL(request.url).searchParams;
+    const team = query.get("team") === "1";
+    const roleValue = query.get("role");
+    const role = roleValue && ROLES.has(roleValue as TeamRoleName) ? (roleValue as TeamRoleName) : null;
+    const event = await loadEventInvite(code);
+    const loaded = await loadedFonts();
+    const photo = event ? await logoDataUrl(event) : null;
+    const element = event
+      ? ogPosterElement({
           name: event.name || "ADED",
           meta: eventShareLine(event.date, event.endsAt, event.place, event.placeSecret),
           themeId: event.theme,
@@ -69,25 +121,24 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
           photo,
           team,
           role: team ? role : null,
-        }
-      : {
-          name: "ADED",
-          meta: null,
-          themeId: "noir",
-          layout: "grid",
-          photo: null,
-          team: false,
-          role: null,
-        },
-  );
-
-  return new ImageResponse(element, {
-    width: WIDTH,
-    height: HEIGHT,
-    fonts: [
-      { name: "Arimo", data: loaded.regular, weight: 400, style: "normal" },
-      { name: "Arimo", data: loaded.bold, weight: 700, style: "normal" },
-    ],
-    headers: { "Cache-Control": "public, max-age=300" },
-  });
+        })
+      : spareCard("ADED");
+    return paint(element, loaded, event ? FRESH : BRIEF);
+  } catch (error) {
+    console.error("[og] event", error);
+    try {
+      return paint(spareCard("ADED"), null, BRIEF);
+    } catch (fallbackError) {
+      console.error("[og] spare", fallbackError);
+      try {
+        const png = await solidCard();
+        return new Response(new Uint8Array(png), {
+          status: 200,
+          headers: { "Content-Type": "image/png", "Cache-Control": BRIEF },
+        });
+      } catch {
+        return new Response(null, { status: 200, headers: { "Cache-Control": "no-store" } });
+      }
+    }
+  }
 }

@@ -26,6 +26,7 @@ div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100
 `;
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://adedme.com"),
   title: "ADED",
   description: "ADED",
   manifest: "/manifest.json",

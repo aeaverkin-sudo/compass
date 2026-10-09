@@ -2,11 +2,21 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import type { PublicCard } from "@/shared/services/public-card";
 
+const PUBLIC_ORIGIN = "https://adedme.com";
+
+function forwardedHost(value: string | null): string | null {
+  const host = value?.split(",")[0]?.trim() ?? "";
+  if (!host) return null;
+  const name = host.split(":")[0]?.toLowerCase() ?? "";
+  if (name === "localhost" || name === "127.0.0.1" || name.endsWith(".local")) return null;
+  return host;
+}
+
 export async function requestOrigin(): Promise<string> {
   const headerList = await headers();
-  const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
-  const proto = headerList.get("x-forwarded-proto") ?? "https";
-  if (!host) return "https://www.adedme.com";
+  const host = forwardedHost(headerList.get("x-forwarded-host") ?? headerList.get("host"));
+  if (!host) return PUBLIC_ORIGIN;
+  const proto = headerList.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
   return `${proto}://${host}`;
 }
 
