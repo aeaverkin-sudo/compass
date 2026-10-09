@@ -38,19 +38,23 @@ export function AccountBand({
   token,
   inset,
   safe = true,
+  medium,
   onPdf,
   onPreparePdf,
 }: {
   token: string;
   inset?: number;
   safe?: boolean;
+  /** Painted PDF uses the live-card door. The web plaque keeps Get your PDF file. */
+  medium?: "web" | "pdf";
   /** Web door. The painted PDF keeps its own right-hand link. */
   onPdf?: () => void;
   onPreparePdf?: () => void;
 }) {
   const origin = useOrigin();
-  const registerHref = `${origin}/register`;
+  const pdf = medium === "pdf" || (medium == null && !safe);
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
+  const liveHref = `${origin}/c/${encodeURIComponent(token)}`;
   const door = cn(
     "press flex flex-1 touch-manipulation items-center text-[#111] [-webkit-tap-highlight-color:transparent]",
     safe ? "h-full" : "min-h-11 py-3",
@@ -78,7 +82,15 @@ export function AccountBand({
             network
           </span>
         </a>
-        {onPdf ? (
+        {pdf ? (
+          <a href={liveHref} className={cn(door, "justify-end text-right")}>
+            <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
+              Open live
+              <br />
+              card
+            </span>
+          </a>
+        ) : (
           <button
             type="button"
             onPointerDown={onPreparePdf}
@@ -91,14 +103,6 @@ export function AccountBand({
               PDF file
             </span>
           </button>
-        ) : (
-          <a href={registerHref} className={cn(door, "justify-end text-right")}>
-            <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
-              Get your
-              <br />
-              profile
-            </span>
-          </a>
         )}
       </div>
     </nav>
