@@ -105,11 +105,12 @@ function RowMark({
         else onAdd();
       }}
       className="flex size-5 shrink-0 items-center justify-center bg-transparent"
+      style={{ color: OFF_CARD }}
     >
       {onCard ? (
-        <Minus className="size-5 text-[#111]" strokeWidth={1} aria-hidden />
+        <Minus className="size-5" strokeWidth={1} aria-hidden />
       ) : (
-        <Plus className="size-5" strokeWidth={1} style={{ color: OFF_CARD }} aria-hidden />
+        <Plus className="size-5" strokeWidth={1} aria-hidden />
       )}
     </button>
   );
