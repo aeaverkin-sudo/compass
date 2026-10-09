@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /** Four corners. Same grey and a similar weight to the 1/3 counter. No fill, no caption. */
 export function ScanIcon() {
-  return <Scan className="size-3.5" strokeWidth={1} aria-hidden />;
+  return <Scan className="size-[16.1px]" strokeWidth={1} aria-hidden />;
 }
 
 /** The same scan control on the portfolio QR and on Network. */
