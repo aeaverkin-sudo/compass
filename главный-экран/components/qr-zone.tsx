@@ -58,7 +58,7 @@ export function QrZone({ url, visible, topOffsetPx, sheetIndex, sheetTotal, coun
       ) : null}
       {visible ? (
         <div className="absolute top-0 z-10" style={{ right: counterRightCss }}>
-          <ScanButton />
+          <ScanButton corner />
         </div>
       ) : null}
       {visible ? (
