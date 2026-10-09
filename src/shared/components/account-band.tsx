@@ -39,7 +39,7 @@ export function AccountBand({
   token: string;
   inset?: number;
   safe?: boolean;
-  /** Painted PDF carries the ADED mark. The web plaque keeps Get your PDF file. */
+  /** Painted PDF carries the ADED mark. The web plaque keeps Get PDF file. */
   medium?: "web" | "pdf";
   /** Web door. The painted PDF keeps its own right-hand link. */
   onPdf?: () => void;
@@ -72,7 +72,7 @@ export function AccountBand({
       <div className={cn("flex items-stretch", safe ? "h-full" : "min-h-11")}>
         <a href={saveHref} className={cn(door, "text-left")}>
           <span data-pdf-link="" className="inline-block w-fit">
-            Save to your
+            Save to
             <br />
             network
           </span>
@@ -89,7 +89,7 @@ export function AccountBand({
             className={cn(door, "justify-end border-0 bg-transparent text-right")}
           >
             <span data-pdf-link="" className="inline-block w-fit">
-              Get your
+              Get
               <br />
               PDF file
             </span>
