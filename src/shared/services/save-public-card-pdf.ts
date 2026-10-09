@@ -142,27 +142,25 @@ function previewPdf(file: File) {
   );
 }
 
-export type CardShareChoice = "link" | "pdf";
+export type CardShareChoice = "link";
 
-export type ResolvedCardShare =
-  | { method: "share"; data: ShareData; includesFile: boolean }
-  | { method: "file"; file: File }
-  | { method: "wait" };
-
-/** What the tap can hand to the system sheet without waiting. */
-export function resolveCardShare(
-  choice: CardShareChoice,
-  link: { title: string; url: string },
-  file: File | null,
-  canShare: (data: ShareData) => boolean,
-): ResolvedCardShare {
-  if (choice === "link") {
-    return { method: "share", data: { title: link.title, url: link.url }, includesFile: false };
-  }
-  if (!file) return { method: "wait" };
-  const pdf: ShareData = { files: [file] };
-  if (canShare(pdf)) return { method: "share", data: pdf, includesFile: true };
-  return { method: "file", file };
+/**
+ * Owner share. Call from the menu item's click so `navigator.share` stays in that tap.
+ * The sheet carries the live link.
+ * Resolves true when the link was handed off. Cancel resolves false.
+ */
+export function shareCardChoice(link: { title: string; url: string }): Promise<boolean> {
+  const title = link.title.trim() || "Portfolio";
+  const url = link.url;
+  const data: ShareData = { title, url };
+  if (!canSend(data)) return copyLink(url);
+  return navigator.share(data).then(
+    () => true,
+    (error: unknown) => {
+      if (error instanceof DOMException && error.name === "AbortError") return false;
+      return copyLink(url);
+    },
+  );
 }
 
 function canSend(data: ShareData): boolean {
@@ -201,57 +199,6 @@ function sharePdfFile(file: File): Promise<boolean> {
       if (error instanceof DOMException && error.name === "AbortError") return false;
       handFile(file);
       return !isHomeScreenApp();
-    },
-  );
-}
-
-/**
- * Owner share. Call from the menu item's click so `navigator.share` stays in that tap.
- * Link sends the URL. PDF sends the file.
- * Resolves true when the link or the file was handed off. Cancel resolves false.
- */
-export function shareCardChoice(
-  input: CardPdfInput,
-  choice: CardShareChoice,
-  link: { title: string; url: string },
-): Promise<boolean> {
-  const title = link.title.trim() || "Portfolio";
-  const url = link.url;
-  const ready = peekPublicCardPdf(input);
-  const file = ready ? toFile(ready) : null;
-  const resolved = resolveCardShare(choice, { title, url }, file, canSend);
-
-  if (resolved.method === "wait") {
-    return primePublicCardPdf(input)
-      .then((built) => sharePdfFile(toFile(built)))
-      .catch((error) => {
-        console.error("[pdf] share failed", error);
-        return false;
-      });
-  }
-
-  if (resolved.method === "file") {
-    handFile(resolved.file);
-    return Promise.resolve(!isHomeScreenApp());
-  }
-
-  if (!canSend(resolved.data)) {
-    if (resolved.includesFile && file) {
-      handFile(file);
-      return Promise.resolve(!isHomeScreenApp());
-    }
-    return copyLink(url);
-  }
-
-  return navigator.share(resolved.data).then(
-    () => true,
-    (error: unknown) => {
-      if (error instanceof DOMException && error.name === "AbortError") return false;
-      if (resolved.includesFile && file) {
-        handFile(file);
-        return !isHomeScreenApp();
-      }
-      return copyLink(url);
     },
   );
 }

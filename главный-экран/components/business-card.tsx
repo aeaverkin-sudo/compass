@@ -6,16 +6,10 @@ import { Plus, Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { flushNotesSync, notesAreSyncing, releaseOwnerNotes } from "@/shared/services/notes-sync";
+import { flushNotesSync, releaseOwnerNotes } from "@/shared/services/notes-sync";
 import { publicCardUrl } from "@/shared/services/public-card-url";
-import {
-  primePublicCardPdf,
-  shareCardChoice,
-  subscribeCardPdfStale,
-  type CardShareChoice,
-} from "@/shared/services/save-public-card-pdf";
+import { shareCardChoice, type CardShareChoice } from "@/shared/services/save-public-card-pdf";
 import { AccountBand } from "@/shared/components/account-band";
-import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
@@ -417,7 +411,6 @@ function CompactHeader({
 
 const SHARE_CHOICES: { choice: CardShareChoice; label: string }[] = [
   { choice: "link", label: "Link" },
-  { choice: "pdf", label: "PDF" },
 ];
 
 function CardShareFooter({
@@ -478,7 +471,7 @@ function CardShareFooter({
                 data-no-swipe
                 onOpenAutoFocus={(event) => event.preventDefault()}
                 onCloseAutoFocus={(event) => event.preventDefault()}
-                className="fixed z-40 w-max border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
+                className="fixed z-40 flex w-max min-h-[77.6875px] min-w-[68.1875px] items-center justify-center border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
                 style={{
                   right: place.right,
                   bottom: place.bottom,
@@ -486,7 +479,7 @@ function CardShareFooter({
                 }}
               >
                 <Dialog.Title className="sr-only">Share</Dialog.Title>
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center justify-center">
                   {SHARE_CHOICES.map(({ choice, label }) => (
                     <Dialog.Close asChild key={choice}>
                       <button
@@ -656,73 +649,15 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
     .join("|");
 
-  const [pdfGeneration, setPdfGeneration] = useState(0);
-
-  useEffect(
-    () =>
-      subscribeCardPdfStale((cardId) => {
-        if (cardId === card.id) setPdfGeneration((value) => value + 1);
-      }),
-    [card.id],
-  );
-
-  const shareInput = () => {
-    if (!card.publicToken) return null;
-    if (readOnly) {
-      return {
-        cardId: card.id,
-        publicToken: card.publicToken,
-        displayName: card.displayName,
-        notes: deliveredNotes,
-      };
-    }
-    return {
-      cardId: card.id,
-      publicToken: card.publicToken,
-      displayName: card.displayName,
-      revision: `${card.photoAttachmentId ?? ""}\n${card.title}\n${ownerNotesKey}`,
-    };
-  };
-
-  useEffect(() => {
-    if (pdf || readOnly || compact || editing || frozen || !ready || !card.publicToken) return;
-    let cancelled = false;
-    let wait: number | undefined;
-    const prepare = () => {
-      if (cancelled) return;
-      if (notesAreSyncing(card.id)) {
-        wait = window.setTimeout(prepare, 200);
-        return;
-      }
-      void primePublicCardPdf({
-        cardId: card.id,
-        publicToken: card.publicToken,
-        displayName: card.displayName,
-        revision: `${card.photoAttachmentId ?? ""}\n${card.title}\n${ownerNotesKey}`,
-      }).catch((error) => console.error("[pdf] prepare failed", error));
-    };
-    prepare();
-    return () => {
-      cancelled = true;
-      if (wait !== undefined) window.clearTimeout(wait);
-    };
-    // ownerNotesKey stands in for card.nextScanAddons. The server reads the pending notes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdf, readOnly, compact, editing, frozen, ready, card.id, card.publicToken, ownerNotesKey, pdfGeneration]);
-
   const primeShare = () => {
     flushNotesSync(card.id);
-    const input = shareInput();
-    if (!input || notesAreSyncing(card.id)) return;
-    void primePublicCardPdf(input).catch((error) => console.error("[pdf] prepare failed", error));
   };
 
-  const handleShare = (choice: CardShareChoice) => {
-    const input = shareInput();
-    if (!input) return;
+  const handleShare = () => {
+    if (!card.publicToken) return;
     const title = card.displayName.trim() || "Portfolio";
     const hadNotes = ownerNotesKey.length > 0;
-    void shareCardChoice(input, choice, { title, url: publicCardUrl(card) }).then((sent) => {
+    void shareCardChoice({ title, url: publicCardUrl(card) }).then((sent) => {
       if (sent) {
         void fetch("/api/network/share", {
           method: "POST",
@@ -731,7 +666,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         });
       }
       if (!sent || readOnly || !hadNotes) return;
-      releaseOwnerNotes(card.id, choice, card.publicToken);
+      releaseOwnerNotes(card.id, "link", card.publicToken);
     });
   };
 
@@ -846,35 +781,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     );
   }
 
-  const paintPdf = !compact && !editing && !frozen && ready && Boolean(card.publicToken) && !readOnly;
-
   return (
-    <>
-    {paintPdf ? (
-      <CardPdfSource
-        key={`${card.publicToken}:${ownerNotesKey}:${pdfGeneration}:${card.displayName}:${card.photoAttachmentId ?? ""}`}
-        input={{
-          cardId: card.id,
-          publicToken: card.publicToken,
-          displayName: card.displayName,
-          revision: `${card.photoAttachmentId ?? ""}\n${card.title}\n${ownerNotesKey}`,
-        }}
-        epoch={pdfGeneration}
-      >
-        {(mask) => (
-          <PdfCard
-            card={card}
-            items={items}
-            positionTitle={positionTitle}
-            ready={ready}
-            readOnly={false}
-            deliveredNotes={deliveredNotes}
-            ownerNotes={nextScanAddons}
-            pdfMask={mask}
-          />
-        )}
-      </CardPdfSource>
-    ) : null}
     <article
       ref={(node) => {
         articleRef.current = node;
@@ -1095,6 +1002,5 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
     </article>
-    </>
   );
 });
