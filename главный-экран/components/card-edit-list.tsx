@@ -378,7 +378,7 @@ export function CardEditList({
       ) : null}
       {libraryHint === "first" ? (
         <SkyHint
-          text="Tap it to use in the portfolio"
+          text="Tap + to use in the portfolio"
           onDone={() => {
             useAppStore.getState().markFirstRowHintSeen();
             setLibraryHint(null);
