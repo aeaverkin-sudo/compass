@@ -33,7 +33,7 @@ type EventJoinProps = {
 export function EventJoin({ lookup, event, origin, portfolios, registration, badge, pay }: EventJoinProps) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(portfolios[0]?.id ?? null);
   const [error, setError] = useState<string | null>(null);
   const [consentAnalytics, setConsentAnalytics] = useState(true);
   const [consentConnections, setConsentConnections] = useState(true);
@@ -312,18 +312,20 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
             </div>
           </div>
         </div>
-        <div className="pb-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
-          <button
-            type="button"
-            disabled={!selectedId || busy !== null}
-            onClick={() => {
-              if (selectedId) void choose(selectedId);
-            }}
-            className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
-          >
-            I'm going →
-          </button>
-        </div>
+        {portfolios.length > 0 ? (
+          <div className="pb-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => {
+                if (selectedId) void choose(selectedId);
+              }}
+              className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+            >
+              I'm going →
+            </button>
+          </div>
+        ) : null}
         {error ? <p className="mb-0 t-meta text-[var(--grey)]">{error}</p> : null}
       </div>
       <NetworkBand current="event" />
