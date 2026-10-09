@@ -8,7 +8,6 @@ import {
   writeScreenVars,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
-  PHOTO_RAISE_PX,
   SCREEN_TOP_AXIS_PX,
   RULE_GAP_PX,
   SHEET_INSET,
@@ -49,9 +48,9 @@ function computeLayout(): MainLayout | null {
   const { visible: visibleH, band: bandH } = writeScreenVars();
   const safeTop = readSafeAreaInset("top");
   const qrTop = safeTop + SCREEN_TOP_AXIS_PX;
-  const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX - PHOTO_RAISE_PX;
+  const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const cardBottomBrowse = visibleH - bandH;
-  const browseHeight = cardBottomBrowse - cardTopBrowse - PHOTO_RAISE_PX;
+  const browseHeight = cardBottomBrowse - cardTopBrowse;
   const libraryHeight = libraryCardHeightPx(visibleH, safeTop);
   const browseMenuCenterY = cardBottomBrowse + bandH / 2;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
