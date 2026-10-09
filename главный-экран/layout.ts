@@ -18,6 +18,8 @@ export const CARD_NAME_GAP_PX = 8;
 export const QR_GAP_SYMMETRIC_PX = 18;
 /** Extra 0.5mm between the QR and the rule, and between the rule and the photo. */
 export const RULE_GAP_PX = QR_GAP_SYMMETRIC_PX + 96 / 25.4 / 2;
+/** Pull the photo and the text under it up inside the card. The card box stays. */
+export const CARD_TOP_TRIM_PX = 9;
 /** t-label line of the sheet counter plus its mb-1. It sits between the QR and the photo. */
 const SHEET_MARK_BLOCK_PX = 11 * 1.45 + 4;
 /** Bottom of the QR to the top edge of the photo. */
