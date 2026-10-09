@@ -6,6 +6,7 @@ import { requestOrigin } from "@/shared/services/public-card-meta";
 import { listEventManagers, loadManageEvent, managerCap, visibleSections } from "@/shared/services/event-manage";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay, loadPaymentTally } from "@/shared/services/event-payment";
+import { eventPublicPath } from "@/shared/event/slug";
 import { ManageHome } from "./manage-home";
 
 export const dynamic = "force-dynamic";
@@ -46,13 +47,13 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   ]);
   const origin = await requestOrigin();
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
-  const shareCode = event.code.trim() || event.publicToken;
+  const shareKey = invite.slug?.trim() || invite.code.trim() || event.publicToken;
 
   return (
     <ManageHome
       lookup={lookup}
       name={event.name}
-      shareUrl={`${origin}/e/${encodeURIComponent(shareCode)}`}
+      shareUrl={`${origin}${eventPublicPath(shareKey)}`}
       sections={sections}
       canEdit={event.role === "owner" || event.permissions.edit}
       flash={flash}

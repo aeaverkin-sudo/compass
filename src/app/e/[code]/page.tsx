@@ -9,6 +9,7 @@ import { ensurePayCode, loadOwnerEventCounts, loadOwnedBadge, loadOwnRegistratio
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { eventShareLine } from "@/shared/event/when";
+import { eventPublicPath } from "@/shared/event/slug";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +26,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const origin = await requestOrigin();
   const title = event.name || "ADED";
   const description = eventShareLine(event.date, event.endsAt, event.place, event.placeSecret) ?? undefined;
-  const slug = event.code.trim() || code;
-  const url = `${origin}/e/${encodeURIComponent(slug)}`;
+  const slug = event.slug?.trim() || event.code.trim() || code;
+  const url = `${origin}${eventPublicPath(slug)}`;
   const image = `${url}/opengraph-image?v=${previewVersion(event)}`;
   return {
     title,

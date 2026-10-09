@@ -11,6 +11,7 @@ import {
 } from "@/shared/services/attachment-api";
 import { CARD_ATTACHMENTS_BUCKET, IMAGE_BYTE_LIMIT, IMAGE_MIMES } from "@/shared/services/attachment-limits";
 import { uprightImage } from "@/shared/services/attachment-sanitize";
+import { eventNameSlug, eventPublicPath, indexedEventSlug } from "@/shared/event/slug";
 import { isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { formatEventRange } from "@/shared/event/when";
 
@@ -234,6 +235,24 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
   return listed.map(toListed);
 }
 
+async function nextEventSlug(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  name: string,
+): Promise<string | null> {
+  const stem = eventNameSlug(name);
+  if (!stem) return null;
+  for (let index = 1; index <= 500; index += 1) {
+    const candidate = indexedEventSlug(stem, index);
+    const found = await admin.from("events").select("id").eq("slug", candidate).maybeSingle();
+    if (found.error) {
+      if (/slug/i.test(found.error.message) && /column|schema/i.test(found.error.message)) return null;
+      throw new Error(found.error.message);
+    }
+    if (!found.data) return candidate;
+  }
+  return null;
+}
+
 export async function createEvent(input: CreateEventInput): Promise<CreatedEvent> {
   const logo = input.logo && input.logo.size > 0 ? await storeLogo(input.ownerId, input.logo) : null;
   const admin = createAdminSupabaseClient();
@@ -241,8 +260,12 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
   try {
     const insertEvent = async (row: Record<string, unknown>) => {
       let payload = row;
-      let inserted = await admin.from("events").insert(payload).select("public_token, code, logo_attachment_id").single();
-      for (let pass = 0; pass < 2 && inserted.error; pass += 1) {
+      const write = (body: Record<string, unknown>) =>
+        "slug" in body
+          ? admin.from("events").insert(body).select("public_token, code, logo_attachment_id, slug").single()
+          : admin.from("events").insert(body).select("public_token, code, logo_attachment_id").single();
+      let inserted = await write(payload);
+      for (let pass = 0; pass < 3 && inserted.error; pass += 1) {
         const message = inserted.error.message;
         if (/could not find the 'layout' column/i.test(message) && "layout" in payload) {
           const { layout: _layout, ...withoutLayout } = payload;
@@ -250,10 +273,13 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
         } else if (/could not find the 'ends_at' column/i.test(message) && "ends_at" in payload) {
           const { ends_at: _endsAt, ...withoutEnd } = payload;
           payload = withoutEnd;
+        } else if (/could not find the 'slug' column/i.test(message) && "slug" in payload) {
+          const { slug: _slug, ...withoutSlug } = payload;
+          payload = withoutSlug;
         } else {
           break;
         }
-        inserted = await admin.from("events").insert(payload).select("public_token, code, logo_attachment_id").single();
+        inserted = await write(payload);
       }
       return inserted;
     };
@@ -261,6 +287,7 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const publicToken = nanoid(PUBLIC_TOKEN_LENGTH);
       const code = eventCode();
+      const slug = await nextEventSlug(admin, input.name);
       const row = {
         owner_id: input.ownerId,
         name: input.name,
@@ -274,6 +301,7 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
         layout: input.layout,
         public_token: publicToken,
         code,
+        ...(slug ? { slug } : {}),
       };
       const paidRow = {
         ...row,
@@ -288,12 +316,17 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
       }
 
       if (!inserted.error && inserted.data) {
-        const row = inserted.data;
+        const saved = inserted.data as {
+          public_token: string;
+          code: string;
+          logo_attachment_id: string | null;
+          slug?: string | null;
+        };
         return {
-          publicToken: row.public_token,
-          code: row.code,
-          invitePath: `/e/${row.code?.trim() || row.public_token}`,
-          logoUrl: row.logo_attachment_id ? `/f/${row.logo_attachment_id}` : null,
+          publicToken: saved.public_token,
+          code: saved.code,
+          invitePath: eventPublicPath(saved.slug?.trim() || saved.code?.trim() || saved.public_token),
+          logoUrl: saved.logo_attachment_id ? `/f/${saved.logo_attachment_id}` : null,
         };
       }
       if (inserted.error?.code !== "23505") {

@@ -1,8 +1,10 @@
 const TOKEN = /^[A-Za-z0-9_-]{21}$/;
 const CODE = /^(?:[А-Я0-9]{4,6}|[A-HJ-NP-Z2-9]{4,6})$/;
+const NAME = /^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u;
 
 export function isEventLookup(value: string): boolean {
-  return TOKEN.test(value) || CODE.test(value);
+  if (value.length < 1 || value.length > 80) return false;
+  return TOKEN.test(value) || CODE.test(value) || NAME.test(value);
 }
 
 /** After sign-in, a guest may come back to join. */

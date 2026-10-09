@@ -18,6 +18,7 @@ export type EventInvite = {
   layout: EventLayoutId;
   publicToken: string;
   code: string;
+  slug: string | null;
 };
 
 type InviteRow = {
@@ -31,6 +32,7 @@ type InviteRow = {
   theme: string;
   public_token: string;
   code: string;
+  slug?: string | null;
 };
 
 /** One invite, by short code or public token. Missing and unknown lookups are the same. */
@@ -67,6 +69,7 @@ export async function loadEventInvite(lookup: string): Promise<EventInvite | nul
     layout: face.layout,
     publicToken: row.public_token,
     code: row.code,
+    slug: row.slug?.trim() || null,
   };
 }
 
