@@ -4,6 +4,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { HANDLE_RE } from "@/shared/services/card-handle";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
+import { photoLookValue } from "@/shared/lib/photo-look";
 import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from "@/shared/services/card-zones";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
@@ -23,6 +24,7 @@ type CardRow = {
   rubric_order?: unknown;
   rubric_labels?: unknown;
   item_zones?: unknown;
+  photo_look?: string | null;
   is_public: boolean;
   photo_attachment_id: string | null;
   created_at: string;
@@ -81,8 +83,8 @@ async function readyAttachmentIds(ids: string[]): Promise<Set<string>> {
  */
 async function selectPublicRow(column: "public_token" | "handle", value: string): Promise<CardRow | null> {
   const admin = createAdminSupabaseClient();
-  const optional = ["item_zones", "rubric_labels", "rubric_order", "handle"];
-  let selected = `${CARD_PUBLIC_COLUMNS}, handle, rubric_order, rubric_labels, item_zones`;
+  const optional = ["item_zones", "rubric_labels", "rubric_order", "handle", "photo_look"];
+  let selected = `${CARD_PUBLIC_COLUMNS}, handle, rubric_order, rubric_labels, item_zones, photo_look`;
   let loaded = await admin.from("cards").select(selected).eq(column, value).maybeSingle();
   for (let attempt = 0; attempt < optional.length && loaded.error; attempt += 1) {
     const message = loaded.error.message;
@@ -178,6 +180,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
     rubricOrder: normalizeRubricOrder(row.rubric_order),
     rubricLabels: normalizeRubricLabels(row.rubric_labels),
     itemZones: normalizeItemZones(row.item_zones),
+    photoLook: photoLookValue(row.photo_look),
     nextScanAddons: [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,

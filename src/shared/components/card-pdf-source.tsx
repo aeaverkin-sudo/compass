@@ -3,6 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cardSheetsToPdf } from "@/shared/services/card-pdf-file";
+import { applyPdfPhotoLook } from "@/shared/lib/photo-look";
 import { cardPdfFilename } from "@/shared/services/card-pdf-name";
 import { beginCardPdf, failCardPdf, publishCardPdf, type CardPdfInput } from "@/shared/services/save-public-card-pdf";
 import {
@@ -399,6 +400,7 @@ export function CardPdfSource({ input, epoch, children }: CardPdfSourceProps) {
           failCardPdf(inputRef.current, new Error("The card has nothing to print"));
           return;
         }
+        applyPdfPhotoLook(pagesHost);
         const bytes = await cardSheetsToPdf(painted);
         if (cancel) return;
         const copy = new Uint8Array(bytes.byteLength);

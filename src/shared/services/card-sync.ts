@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { handlesForCards, slugFromName } from "@/shared/services/card-handle";
+import { photoLookValue } from "@/shared/lib/photo-look";
 import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from "@/shared/services/card-zones";
 import type { Card, CardStatus } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
@@ -25,13 +26,14 @@ type CardRow = {
   rubric_order?: unknown;
   rubric_labels?: unknown;
   item_zones?: unknown;
+  photo_look?: string | null;
   photo_attachment_id: string | null;
   created_at: string;
   updated_at: string;
 };
 
 const CARD_COLUMNS =
-  "id, display_name, title, status, public_token, qr_version, is_public, listed, photo_attachment_id, created_at, updated_at";
+  "id, display_name, title, status, public_token, qr_version, is_public, listed, photo_look, photo_attachment_id, created_at, updated_at";
 
 const pendingUpserts = new Map<string, { timer: ReturnType<typeof setTimeout>; card: Card }>();
 let hydrateChain: Promise<void> = Promise.resolve();
@@ -117,6 +119,12 @@ function overlayScalars(local: Card, row: CardRow): Card {
       local.updatedAt > row.updated_at
         ? local.itemZones
         : (normalizeItemZones(row.item_zones) ?? local.itemZones),
+    photoLook:
+      local.updatedAt > row.updated_at
+        ? local.photoLook
+        : "photo_look" in row
+          ? photoLookValue(row.photo_look)
+          : local.photoLook,
     createdAt: row.created_at,
     updatedAt: keptLocalText && local.updatedAt > row.updated_at ? local.updatedAt : row.updated_at,
   };
@@ -137,6 +145,7 @@ function shellFromRow(row: CardRow): Card {
     rubricOrder: normalizeRubricOrder(row.rubric_order),
     rubricLabels: normalizeRubricLabels(row.rubric_labels),
     itemZones: normalizeItemZones(row.item_zones),
+    photoLook: photoLookValue(row.photo_look),
     contactItemIds: [],
     nextScanAddons: [],
     createdAt: row.created_at,
@@ -200,6 +209,7 @@ function scalarsEqual(a: Card, b: Card) {
     sameRubricOrder(a.rubricOrder, b.rubricOrder) &&
     sameRecord(a.rubricLabels, b.rubricLabels) &&
     sameRecord(a.itemZones, b.itemZones) &&
+    a.photoLook === b.photoLook &&
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt
   );
@@ -229,7 +239,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
     let handle = card.handle?.trim().toLowerCase() || null;
     let error: { message: string; code?: string } | null = null;
     const omit = new Set<string>();
-    for (let attempt = 0; attempt < 6; attempt += 1) {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
       const row: Record<string, unknown> = {
         id: card.id,
         owner_id: ownerId,
@@ -244,6 +254,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
         rubric_order: card.rubricOrder ?? null,
         rubric_labels: card.rubricLabels ?? null,
         item_zones: card.itemZones ?? null,
+        photo_look: card.photoLook ?? null,
         photo_attachment_id: card.photoAttachmentId ?? null,
         created_at: card.createdAt,
         updated_at: card.updatedAt,
@@ -270,7 +281,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
         continue;
       }
       if (/column|schema/i.test(error.message)) {
-        const optional = ["item_zones", "rubric_labels", "rubric_order", "handle"];
+        const optional = ["item_zones", "rubric_labels", "rubric_order", "handle", "photo_look"];
         const missing = optional.filter((column) => new RegExp(column, "i").test(error?.message ?? ""));
         if (/handle/i.test(error.message)) {
           missing.push("rubric_order", "rubric_labels", "item_zones");
@@ -431,7 +442,7 @@ async function selectCardRows(
   columns: string,
   ownerId: string,
 ) {
-  const optional = ["item_zones", "rubric_labels", "rubric_order", "searchable", "handle"];
+  const optional = ["item_zones", "rubric_labels", "rubric_order", "searchable", "handle", "photo_look"];
   let selected = columns;
   let loaded = await supabase.from("cards").select(selected).eq("owner_id", ownerId);
   for (let attempt = 0; attempt < optional.length && loaded.error; attempt += 1) {

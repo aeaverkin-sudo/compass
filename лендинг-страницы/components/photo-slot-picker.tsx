@@ -3,6 +3,7 @@
 import { Ellipsis, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { photoSlotLookClass, type PhotoLook } from "@/shared/lib/photo-look";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,14 +21,8 @@ export function photoRadiusForSize(sizePx: number) {
   return Math.round((13 / 118) * sizePx);
 }
 
-export type PhotoLook = "frame" | "shadow";
-
-export function photoSlotLookClass(look?: PhotoLook) {
-  return cn(
-    look === "frame" && "border border-[#d4d4d4]",
-    look === "shadow" && "shadow-[0_2px_8px_rgba(17,17,17,0.16)]",
-  );
-}
+export type { PhotoLook };
+export { photoSlotLookClass };
 
 type PhotoSlotPickerProps = {
   photo: string | null;
