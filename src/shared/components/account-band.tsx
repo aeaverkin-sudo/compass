@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { browseBandHeightCss } from "@main/layout";
+import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { cn } from "@/lib/utils";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -38,7 +39,7 @@ export function AccountBand({
   token: string;
   inset?: number;
   safe?: boolean;
-  /** Painted PDF uses the live-card door. The web plaque keeps Get your PDF file. */
+  /** Painted PDF carries the ADED mark. The web plaque keeps Get your PDF file. */
   medium?: "web" | "pdf";
   /** Web door. The painted PDF keeps its own right-hand link. */
   onPdf?: () => void;
@@ -47,7 +48,6 @@ export function AccountBand({
   const origin = useOrigin();
   const pdf = medium === "pdf" || (medium == null && !safe);
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
-  const liveHref = `${origin}/c/${encodeURIComponent(token)}`;
   const lift = "var(--band-safe, 0px)";
   const door = cn(
     "press t-caps flex flex-1 touch-manipulation items-center text-[#111] [-webkit-tap-highlight-color:transparent]",
@@ -78,13 +78,9 @@ export function AccountBand({
           </span>
         </a>
         {pdf ? (
-          <a href={liveHref} className={cn(door, "justify-end text-right")}>
-            <span data-pdf-link="" className="inline-block w-fit">
-              Open live
-              <br />
-              card
-            </span>
-          </a>
+          <span className="flex flex-1 items-center justify-end">
+            <AdedWordmark color="#111" className="block h-[calc(13px*1.45*2)] w-auto" />
+          </span>
         ) : (
           <button
             type="button"
