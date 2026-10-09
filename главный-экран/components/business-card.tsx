@@ -805,7 +805,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }
           : {
               height: readOnly ? "calc(100svh - var(--card-frame-top, 0px))" : browseCardHeight(),
-              paddingBottom: readOnly ? "var(--public-band-bottom, 0px)" : undefined,
             }
       }
     >
