@@ -37,14 +37,21 @@ export function AccountBand({
   token,
   inset,
   safe = true,
+  onPdf,
+  onPreparePdf,
 }: {
   token: string;
   inset?: number;
   safe?: boolean;
+  /** Web door. The painted PDF keeps its own right-hand link. */
+  onPdf?: () => void;
+  onPreparePdf?: () => void;
 }) {
   const origin = useOrigin();
   const registerHref = `${origin}/register`;
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
+  const door =
+    "press flex min-h-11 flex-1 touch-manipulation items-center py-3 text-[#111] [-webkit-tap-highlight-color:transparent]";
   return (
     <nav
       aria-label="Account"
@@ -61,26 +68,35 @@ export function AccountBand({
       }}
     >
       <div className="flex min-h-11 items-stretch">
-        <a
-          href={saveHref}
-          className="press flex min-h-11 flex-1 touch-manipulation items-center py-3 text-left text-[#111] [-webkit-tap-highlight-color:transparent]"
-        >
+        <a href={saveHref} className={cn(door, "text-left")}>
           <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
             Save to your
             <br />
-            Network
+            network
           </span>
         </a>
-        <a
-          href={registerHref}
-          className="press flex min-h-11 flex-1 touch-manipulation items-center justify-end py-3 text-right text-[#111] [-webkit-tap-highlight-color:transparent]"
-        >
-          <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
-            Get your
-            <br />
-            profile
-          </span>
-        </a>
+        {onPdf ? (
+          <button
+            type="button"
+            onPointerDown={onPreparePdf}
+            onClick={onPdf}
+            className={cn(door, "justify-end border-0 bg-transparent text-right")}
+          >
+            <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
+              Get your
+              <br />
+              PDF file
+            </span>
+          </button>
+        ) : (
+          <a href={registerHref} className={cn(door, "justify-end text-right")}>
+            <span data-pdf-link="" className="inline-block w-fit" style={LINK_LINE}>
+              Get your
+              <br />
+              profile
+            </span>
+          </a>
+        )}
       </div>
     </nav>
   );

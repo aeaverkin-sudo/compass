@@ -93,6 +93,10 @@ export function PublicCardClient({ card, items, publicToken, inside = false }: P
     }).catch(() => undefined);
   }, [offer, card.id, card.displayName, publicToken, notes]);
 
+  const preparePdf = () => {
+    void primePublicCardPdf(pdfInput()).catch(() => undefined);
+  };
+
   const savePdf = () => {
     setOfferOpen(false);
     void shareCardPdf(pdfInput());
@@ -105,7 +109,17 @@ export function PublicCardClient({ card, items, publicToken, inside = false }: P
       mode="browse"
       readOnly
       deliveredNotes={notes}
-      publicBar={inside ? undefined : <AccountBand token={card.publicToken} />}
+      publicBar={
+        inside ? undefined : (
+          <AccountBand
+            token={card.publicToken}
+            onPreparePdf={preparePdf}
+            onPdf={() => {
+              void shareCardPdf(pdfInput());
+            }}
+          />
+        )
+      }
     />
   );
 
@@ -150,9 +164,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false }: P
             <button
               type="button"
               className="px-2 py-2"
-              onPointerDown={() => {
-                void primePublicCardPdf(pdfInput()).catch(() => undefined);
-              }}
+              onPointerDown={preparePdf}
               onClick={savePdf}
             >
               Save
