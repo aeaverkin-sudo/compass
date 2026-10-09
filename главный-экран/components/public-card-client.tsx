@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useRouter } from "next/navigation";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { primePublicCardPdf, shareCardPdf, type CardPdfInput } from "@/shared/services/save-public-card-pdf";
 import { AccountBand } from "@/shared/components/account-band";
 import { BackButton } from "@/shared/components/back-button";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
+import { SkyToast } from "@/shared/components/sky-toast";
 import { BusinessCard } from "@main/components/business-card";
 import type { Card, ContactItem } from "@/shared/types";
 
@@ -15,26 +17,33 @@ type PublicCardClientProps = {
   publicToken: string;
   /** Opened from Network. Same card, back to the list, no sky plaque. */
   inside?: boolean;
+  /** In-app scan. One Save, then the person stays on this card. */
+  save?: boolean;
 };
+
+type SaveState = "loading" | "ready" | "saved" | "own" | "busy";
 
 /**
  * SSR shows the card with empty notes. A browser then asks once for delivery.
  * Crawlers without JS leave the pending row alone.
  * Notes ride along once delivered. The received card has no share control.
  */
-export function PublicCardClient({ card, items, publicToken, inside = false }: PublicCardClientProps) {
+export function PublicCardClient({ card, items, publicToken, inside = false, save = false }: PublicCardClientProps) {
+  const router = useRouter();
   const [notes, setNotes] = useState<DeliveredNote[]>([]);
   const [notesReady, setNotesReady] = useState(false);
   const [offerOpen, setOfferOpen] = useState(true);
   const [held, setHeld] = useState(inside);
   const [plaqueHeight, setPlaqueHeight] = useState(0);
+  const [saveState, setSaveState] = useState<SaveState>(save ? "loading" : "ready");
+  const [notice, setNotice] = useState<string | null>(null);
   const plaqueRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
     void Promise.all([
       fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, { method: "POST" }),
-      inside ? Promise.resolve(null) : fetch("/api/connections", { cache: "no-store" }),
+      inside && !save ? Promise.resolve(null) : fetch("/api/connections", { cache: "no-store" }),
     ])
       .then(async ([notesResponse, bookResponse]) => {
         if (cancelled) return;
@@ -51,15 +60,18 @@ export function PublicCardClient({ card, items, publicToken, inside = false }: P
           saved = rows.some((row) => row.savedCardToken === publicToken || row.savedCardToken === card.publicToken);
         }
         if (!inside) setHeld(owner || saved);
+        if (save) setSaveState(owner ? "own" : saved ? "saved" : "ready");
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (save) setSaveState((state) => (state === "loading" ? "ready" : state));
+      })
       .finally(() => {
         if (!cancelled) setNotesReady(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [inside, publicToken, card.publicToken]);
+  }, [inside, save, publicToken, card.publicToken]);
 
   const pdfInput = (): CardPdfInput => ({
     cardId: card.id,
@@ -102,6 +114,36 @@ export function PublicCardClient({ card, items, publicToken, inside = false }: P
     void shareCardPdf(pdfInput());
   };
 
+  const keep = async () => {
+    if (saveState !== "ready") return;
+    setSaveState("busy");
+    try {
+      const response = await fetch("/api/network/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: publicToken }),
+      });
+      if (response.status === 401) {
+        const next = `/scan/card?token=${encodeURIComponent(publicToken)}`;
+        router.push(`/register?signin=1&next=${encodeURIComponent(next)}`);
+        setSaveState("ready");
+        return;
+      }
+      if (response.status === 409) {
+        setSaveState("own");
+        return;
+      }
+      if (!response.ok) {
+        setSaveState("ready");
+        return;
+      }
+      setSaveState("saved");
+      setNotice("Saved to your network");
+    } catch {
+      setSaveState("ready");
+    }
+  };
+
   const sheet = (
     <BusinessCard
       card={card}
@@ -138,8 +180,10 @@ export function PublicCardClient({ card, items, publicToken, inside = false }: P
   if (inside) {
     return (
       <div className="bg-white pt-[84px]" style={{ "--card-frame-top": "84px" } as CSSProperties}>
-        <BackButton fallbackHref="/network" />
+        {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
+        <BackButton fallbackHref="/network" onBack={save ? () => router.push("/network") : undefined} />
         {sheet}
+        {save ? <SaveBar state={saveState} onSave={() => void keep()} /> : null}
       </div>
     );
   }
@@ -176,6 +220,30 @@ export function PublicCardClient({ card, items, publicToken, inside = false }: P
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-hidden">{sheet}</div>
+    </div>
+  );
+}
+
+function SaveBar({ state, onSave }: { state: SaveState; onSave: () => void }) {
+  return (
+    <div
+      className="fixed inset-x-0 bottom-0 z-30 px-[var(--gutter)]"
+      style={{ paddingBottom: "max(12px, var(--vv-bottom, env(safe-area-inset-bottom)))" }}
+    >
+      {state === "own" ? (
+        <p className="mb-0 text-center t-body text-[var(--ink)]">This is your card</p>
+      ) : state === "saved" ? (
+        <p className="mb-0 bg-sky py-3 text-center t-caps text-[var(--ink)]">Saved</p>
+      ) : state === "loading" ? null : (
+        <button
+          type="button"
+          disabled={state === "busy"}
+          onClick={onSave}
+          className="press w-full border-0 bg-sky py-3 t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+        >
+          Save to your network
+        </button>
+      )}
     </div>
   );
 }
