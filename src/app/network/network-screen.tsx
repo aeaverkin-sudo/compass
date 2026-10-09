@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
+import { ScanButton } from "@/shared/components/scan-icon";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { SkyToast } from "@/shared/components/sky-toast";
@@ -161,7 +162,12 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     >
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
-        <ScreenHeader title="Network" fallbackHref="/main" onBack={() => router.push("/main")} />
+        <ScreenHeader
+          title="Network"
+          fallbackHref="/main"
+          onBack={() => router.push("/main")}
+          trailing={<ScanButton />}
+        />
         <Zone
           label={<Search className="size-4 text-[#111]" strokeWidth={1.5} aria-hidden />}
           rule

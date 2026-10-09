@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
+import { ScanButton } from "@/shared/components/scan-icon";
 import { subscribeLiveQrPulse } from "@/shared/lib/live-qr-pulse";
 import { useAppStore } from "@/shared/store/app-store";
 import { QR_COLOR, BROWSE_QR_SIZE, layoutTop } from "../layout";
@@ -54,6 +55,11 @@ export function QrZone({ url, visible, topOffsetPx, sheetIndex, sheetTotal, coun
         >
           {sheetIndex}/{sheetTotal}
         </p>
+      ) : null}
+      {visible ? (
+        <div className="absolute top-0 z-10" style={{ right: counterRightCss }}>
+          <ScanButton />
+        </div>
       ) : null}
       {visible ? (
         <div
