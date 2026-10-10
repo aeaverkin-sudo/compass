@@ -64,7 +64,7 @@ export function AccountBand({
       style={{
         fontFamily: FONT,
         height: safe ? `calc(var(--band-h, ${browseBandHeightCss()}) + ${lift})` : undefined,
-        paddingBottom: safe ? lift : undefined,
+        paddingBottom: safe ? `calc(${lift} / 2)` : undefined,
         paddingLeft: inset,
         paddingRight: inset,
       }}
