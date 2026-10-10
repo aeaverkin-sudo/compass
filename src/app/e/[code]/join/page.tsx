@@ -7,6 +7,7 @@ import { loadEventInvite } from "@/shared/services/event-invite";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 import { ensurePayCode, listOwnPortfolios, loadOwnRegistration, loadOwnedBadge } from "@/shared/services/event-registration";
 import { loadEventPay } from "@/shared/services/event-payment";
+import { eventListStatus } from "@/shared/services/events";
 import { EventGate } from "./event-gate";
 import { EventJoin } from "./event-join";
 
@@ -38,6 +39,9 @@ export default async function EventJoinPage({ params }: PageProps) {
     lookup = decodeURIComponent(lookup);
   } catch {
     // A broken escape stays as written.
+  }
+  if (eventListStatus(event.date, Date.now(), event.endsAt) === "past") {
+    redirect(`/e/${encodeURIComponent(lookup)}`);
   }
   const next = `/e/${encodeURIComponent(lookup)}/join`;
   if (!user) {

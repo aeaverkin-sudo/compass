@@ -10,6 +10,7 @@ import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay, loadPreviewPay } from "@/shared/services/event-payment";
 import { eventPreviewLine } from "@/shared/event/when";
 import { eventPublicPath } from "@/shared/event/slug";
+import { eventListStatus } from "@/shared/services/events";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 
 export const dynamic = "force-dynamic";
@@ -96,7 +97,8 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const user = data.user ?? null;
   const pay = await loadEventPay(event.id);
   const posterPrice = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
-  if (user) {
+  const ended = eventListStatus(event.date, Date.now(), event.endsAt) === "past";
+  if (user && !ended) {
     const loaded = await loadOwnRegistration(event.id, user.id);
     const registration = loaded && pay.isPaid ? await ensurePayCode(event.id, user.id, loaded) : loaded;
     const badge = registration ? await loadOwnedBadge(user.id, registration.cardId) : null;
@@ -153,12 +155,16 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
           {counts ? (
             <p className="mt-8 mb-0 t-body">{`Registered ${counts.registered} · Checked-in ${counts.checkedIn}`}</p>
           ) : null}
-          <Link
-            href={`/e/${encodeURIComponent(lookup)}/join`}
-            className="press mt-8 inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
-          >
-            I'm going
-          </Link>
+          {ended ? (
+            <p className="mt-8 mb-0 t-meta text-[var(--grey)]">This event has ended</p>
+          ) : (
+            <Link
+              href={`/e/${encodeURIComponent(lookup)}/join`}
+              className="press mt-8 inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+            >
+              I&apos;m going
+            </Link>
+          )}
         </div>
       </div>
     </main>

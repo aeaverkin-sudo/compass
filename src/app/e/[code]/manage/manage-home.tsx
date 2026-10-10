@@ -39,6 +39,7 @@ export function ManageHome({
   managers,
   canRemove,
   teamFull,
+  endedLabel,
 }: {
   lookup: string;
   name: string;
@@ -66,11 +67,16 @@ export function ManageHome({
   managers: EventManager[];
   canRemove: boolean;
   teamFull: boolean;
+  /** Set once the event is over. Invite and check-in stay off. */
+  endedLabel: string | null;
 }) {
   const router = useRouter();
   const flashed = useRef(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const shown = (section: ManageSection) => sections.includes(section);
+  const shown = (section: ManageSection) => {
+    if (endedLabel && section === "checkin") return false;
+    return sections.includes(section);
+  };
   const href = (path: string) => `/e/${encodeURIComponent(lookup)}${path}`;
 
   useEffect(() => {
@@ -122,8 +128,9 @@ export function ManageHome({
     <ManageFrame title={name} fallbackHref="/network/event" onBack={() => router.replace("/network/event")}>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="pt-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
+        {endedLabel ? <p className="mb-4 t-meta text-[var(--grey)]">{`Ended ${endedLabel}`}</p> : null}
         <CoverButton event={poster} layout={cover.layout} themeId={cover.theme} variant="card" />
-        {shown("guests") ? (
+        {shown("guests") && !endedLabel ? (
           <button type="button" onClick={share} className={`mt-4 ${SKY}`}>
             Invite guests
           </button>

@@ -7,6 +7,8 @@ import { listEventManagers, loadManageEvent, managerCap, visibleSections } from 
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay, loadPaymentTally } from "@/shared/services/event-payment";
 import { eventPublicPath } from "@/shared/event/slug";
+import { formatEventWhen } from "@/shared/event/when";
+import { eventListStatus } from "@/shared/services/events";
 import { ManageHome } from "./manage-home";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +50,8 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   const origin = await requestOrigin();
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
   const shareKey = invite.slug?.trim() || invite.code.trim() || event.publicToken;
+  const ended = eventListStatus(invite.date, Date.now(), invite.endsAt) === "past";
+  const endedLabel = ended ? formatEventWhen(invite.endsAt ?? invite.date) : null;
 
   return (
     <ManageHome
@@ -77,6 +81,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
       managers={managers ?? []}
       canRemove={event.role === "owner"}
       teamFull={(managers?.length ?? event.managers) >= managerCap()}
+      endedLabel={endedLabel}
     />
   );
 }

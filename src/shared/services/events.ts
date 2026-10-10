@@ -32,6 +32,7 @@ export type ListedEvent = {
   publicToken: string;
   when: string | null;
   role: "owner" | "manager" | "guest";
+  status: EventListStatus;
 };
 
 /** Past follows the end. With no end, the start decides. No date is still a draft. */
@@ -159,12 +160,23 @@ function compareMyEvents(a: MineRow, b: MineRow): number {
   return left - right;
 }
 
-function toListed(row: MineRow): ListedEvent {
+/** Most recently finished first. */
+function comparePastEvents(a: MineRow, b: MineRow): number {
+  const left = startTime(a.endsIso ?? a.dateIso);
+  const right = startTime(b.endsIso ?? b.dateIso);
+  if (left === null && right === null) return a.name.localeCompare(b.name);
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return right - left;
+}
+
+function toListed(row: MineRow, now: number): ListedEvent {
   return {
     name: row.name,
     publicToken: row.publicToken,
     when: formatEventRange(row.dateIso, row.endsIso),
     role: row.role,
+    status: eventListStatus(row.dateIso, now, row.endsIso),
   };
 }
 
@@ -185,7 +197,7 @@ type EventListRow = {
   owner_id?: string;
 };
 
-/** Events I organise, plus events I joined and do not organise. Past ones stay off the list. */
+/** Events I organise, plus events I joined and do not organise. A past event stays for the owner and managers. */
 export async function listMyEvents(userId: string, now = Date.now()): Promise<ListedEvent[]> {
   const admin = createAdminSupabaseClient();
   const ownedSelect = await admin.from("events").select("name, date, ends_at, public_token").eq("owner_id", userId);
@@ -230,9 +242,14 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
     rows.push(asMine(row, row.id && teamIds.has(row.id) ? "manager" : "guest"));
     seen.add(row.public_token);
   }
-  const listed = rows.filter((row) => eventListStatus(row.dateIso, now, row.endsIso) !== "past");
-  listed.sort(compareMyEvents);
-  return listed.map(toListed);
+  const kept = rows.filter(
+    (row) => row.role !== "guest" || eventListStatus(row.dateIso, now, row.endsIso) !== "past",
+  );
+  const current = kept.filter((row) => eventListStatus(row.dateIso, now, row.endsIso) !== "past");
+  const past = kept.filter((row) => eventListStatus(row.dateIso, now, row.endsIso) === "past");
+  current.sort(compareMyEvents);
+  past.sort(comparePastEvents);
+  return [...current, ...past].map((row) => toListed(row, now));
 }
 
 async function nextEventSlug(

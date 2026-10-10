@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { registerForEvent, saveRegistrationConsent } from "@/shared/services/event-registration";
+import { loadEventInvite } from "@/shared/services/event-invite";
+import { eventListStatus } from "@/shared/services/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +30,10 @@ export async function POST(request: Request, context: RouteProps) {
   if (!userId) return noStore({ error: "Sign in to join." }, 401);
 
   const { code } = await context.params;
+  const event = await loadEventInvite(code);
+  if (event && eventListStatus(event.date, Date.now(), event.endsAt) === "past") {
+    return noStore({ error: "This event has ended" }, 410);
+  }
   let cardId = "";
   let consentAnalytics = false;
   let consentConnections = false;

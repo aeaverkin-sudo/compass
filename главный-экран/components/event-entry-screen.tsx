@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { EventForm } from "@/shared/event/event-form";
@@ -17,6 +18,7 @@ type ListedEvent = {
   publicToken: string;
   when: string | null;
   role: "owner" | "manager" | "guest";
+  status?: "draft" | "live" | "past";
 };
 
 const LINK = "press text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
@@ -123,6 +125,45 @@ function roleLine(event: ListedEvent): string {
   return `${role} · ${event.when ?? "No date"}`;
 }
 
+function EventGroup({
+  label,
+  events,
+  muted = false,
+  onOpen,
+}: {
+  label: string;
+  events: ListedEvent[];
+  muted?: boolean;
+  onOpen: (event: ListedEvent) => void;
+}) {
+  return (
+    <section>
+      <div
+        className="grid items-start"
+        style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
+      >
+        <span className="t-label pt-[14px]">{label}</span>
+        <ul>
+          {events.map((event) => (
+            <li key={event.publicToken}>
+              <button
+                type="button"
+                onClick={() => onOpen(event)}
+                className="press block w-full py-[14px] text-left [-webkit-tap-highlight-color:transparent]"
+              >
+                <span className={muted ? "block t-body text-[var(--grey)]" : "block t-body text-[var(--ink)]"}>
+                  {event.name}
+                </span>
+                <span className="mt-1 block t-meta text-[var(--grey)]">{roleLine(event)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 function ActionLink({ children, onClick }: { children: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className={LINK}>
@@ -188,6 +229,9 @@ export function EventEntryScreen() {
     setStep("entry");
   };
 
+  const pastEvents = events.filter((event) => event.status === "past");
+  const currentEvents = events.filter((event) => event.status !== "past");
+
   const openEvent = (event: ListedEvent) => {
     const token = encodeURIComponent(event.publicToken);
     if (event.role === "owner" || event.role === "manager") {
@@ -248,28 +292,17 @@ export function EventEntryScreen() {
                   No events yet.
                 </p>
               ) : (
-                <section>
-                  <div
-                    className="grid items-start"
-                    style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
-                  >
-                    <span className="t-label pt-[14px]">Events</span>
-                    <ul>
-                      {events.map((event) => (
-                        <li key={event.publicToken}>
-                          <button
-                            type="button"
-                            onClick={() => openEvent(event)}
-                            className="press block w-full py-[14px] text-left [-webkit-tap-highlight-color:transparent]"
-                          >
-                            <span className="block t-body text-[var(--ink)]">{event.name}</span>
-                            <span className="mt-1 block t-meta text-[var(--grey)]">{roleLine(event)}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </section>
+                <>
+                  {currentEvents.length > 0 ? (
+                    <EventGroup label="Events" events={currentEvents} onOpen={openEvent} />
+                  ) : null}
+                  {pastEvents.length > 0 ? (
+                    <>
+                      {currentEvents.length > 0 ? <Rule /> : null}
+                      <EventGroup label="Past" events={pastEvents} muted onOpen={openEvent} />
+                    </>
+                  ) : null}
+                </>
               )}
             </>
           ) : (
