@@ -189,7 +189,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
 
   return (
     <div
-      className="compass-main fixed inset-y-0 flex flex-col overflow-hidden bg-white"
+      className="compass-main fixed top-0 flex h-dvh flex-col overflow-hidden bg-white"
       style={{ "--card-frame-top": `${plaqueHeight}px` } as CSSProperties}
     >
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}

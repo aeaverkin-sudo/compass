@@ -1,11 +1,13 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { browseBandHeightCss } from "@main/layout";
+import { TabBand } from "@main/components/tab-band";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { cn } from "@/lib/utils";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const DOOR =
+  "press touch-manipulation flex h-full min-h-11 w-full items-center uppercase [-webkit-tap-highlight-color:transparent]";
 
 function subscribe() {
   return () => {};
@@ -25,8 +27,8 @@ function useOrigin() {
 }
 
 /**
- * Two doors under the portfolio name. The same markup on `/c/`, `/@handle`, and the shared PDF.
- * On the web the plaque sits above Safari's toolbar.
+ * Two doors under the portfolio name. The web plaque is the main TabBand.
+ * The painted PDF keeps its own row.
  */
 export function AccountBand({
   token,
@@ -48,53 +50,52 @@ export function AccountBand({
   const origin = useOrigin();
   const pdf = medium === "pdf" || (medium == null && !safe);
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
-  const lift = "var(--band-safe, 0px)";
-  const door = cn(
-    "press t-caps flex flex-1 touch-manipulation items-center text-[#111] [-webkit-tap-highlight-color:transparent]",
-    safe ? "h-full" : "min-h-11 py-3",
-  );
+  if (!pdf) {
+    return (
+      <TabBand
+        safeBottom
+        label="Account"
+        left={
+          <a href={saveHref} className={DOOR}>
+            <span data-pdf-link="">Save to network</span>
+          </a>
+        }
+        right={
+          <button
+            type="button"
+            onPointerDown={onPreparePdf}
+            onClick={onPdf}
+            className={cn(DOOR, "justify-end border-0 bg-transparent")}
+          >
+            <span data-pdf-link="">Get PDF file</span>
+          </button>
+        }
+      />
+    );
+  }
+  const pdfDoor =
+    "press t-caps flex min-h-11 flex-1 touch-manipulation items-center py-3 text-[#111] [-webkit-tap-highlight-color:transparent]";
   return (
     <nav
       aria-label="Account"
-      className={cn(
-        "bg-sky text-[var(--ink)]",
-        safe && "compass-sky-band",
-        inset == null && "px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
-      )}
+      className={cn("bg-sky text-[var(--ink)]", inset == null && "px-[calc(clamp(24px,6.1vw,28px)-3mm)]")}
       style={{
         fontFamily: FONT,
-        height: safe ? `calc(var(--band-h, ${browseBandHeightCss()}) + ${lift})` : undefined,
-        paddingBottom: safe ? `calc(${lift} / 2)` : undefined,
         paddingLeft: inset,
         paddingRight: inset,
       }}
     >
-      <div className={cn("flex items-stretch", safe ? "h-full" : "min-h-11")}>
-        <a href={saveHref} className={cn(door, "text-left")}>
+      <div className="flex min-h-11 items-stretch">
+        <a href={saveHref} className={cn(pdfDoor, "text-left")}>
           <span data-pdf-link="" className="inline-block w-fit">
             Save to
             <br />
             network
           </span>
         </a>
-        {pdf ? (
-          <span className="flex flex-1 items-center justify-end">
-            <AdedWordmark color="#111" className="block h-[calc(13px*1.45*2)] w-auto" />
-          </span>
-        ) : (
-          <button
-            type="button"
-            onPointerDown={onPreparePdf}
-            onClick={onPdf}
-            className={cn(door, "justify-end border-0 bg-transparent text-right")}
-          >
-            <span data-pdf-link="" className="inline-block w-fit">
-              Get
-              <br />
-              PDF file
-            </span>
-          </button>
-        )}
+        <span className="flex flex-1 items-center justify-end">
+          <AdedWordmark color="#111" className="block h-[calc(13px*1.45*2)] w-auto" />
+        </span>
       </div>
     </nav>
   );
