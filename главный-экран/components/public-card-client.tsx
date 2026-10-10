@@ -9,8 +9,6 @@ import { BackButton } from "@/shared/components/back-button";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { BusinessCard } from "@main/components/business-card";
-import { probeViewport } from "@main/layout";
-import { publicBandHost, publicBandLiftPx } from "@/shared/lib/in-app-browser";
 import type { Card, ContactItem } from "@/shared/types";
 
 type PublicCardClientProps = {
@@ -40,7 +38,6 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
   const [saveState, setSaveState] = useState<SaveState>(save ? "loading" : "ready");
   const [notice, setNotice] = useState<string | null>(null);
   const plaqueRef = useRef<HTMLDivElement>(null);
-  const geo = useGeoFlag();
 
   useEffect(() => {
     let cancelled = false;
@@ -223,112 +220,8 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-hidden">{sheet}</div>
-      {geo ? <BandGeo /> : null}
     </div>
   );
-}
-
-function useGeoFlag() {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    setOn(new URLSearchParams(window.location.search).get("geo") === "1");
-  }, []);
-  return on;
-}
-
-function BandGeo() {
-  const [lines, setLines] = useState<string[]>([]);
-
-  useEffect(() => {
-    let frame = 0;
-    const read = () => {
-      frame = 0;
-      setLines(readBandGeo());
-    };
-    const schedule = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(read);
-    };
-    read();
-    window.addEventListener("resize", schedule);
-    window.addEventListener("scroll", schedule);
-    const viewport = window.visualViewport;
-    viewport?.addEventListener("resize", schedule);
-    viewport?.addEventListener("scroll", schedule);
-    return () => {
-      if (frame) cancelAnimationFrame(frame);
-      window.removeEventListener("resize", schedule);
-      window.removeEventListener("scroll", schedule);
-      viewport?.removeEventListener("resize", schedule);
-      viewport?.removeEventListener("scroll", schedule);
-    };
-  }, []);
-
-  return (
-    <div className="fixed top-0 left-0 z-50 bg-white/90 p-2 font-mono text-[11px] leading-[1.3] text-[#111]">
-      {lines.map((line, index) => (
-        <div key={index}>{line}</div>
-      ))}
-    </div>
-  );
-}
-
-function readBandGeo() {
-  const host = publicBandHost();
-  const viewport = window.visualViewport;
-  const root = document.documentElement;
-  const nav = document.querySelector('nav.compass-sky-band[aria-label="Account"]');
-  const row = nav?.querySelector("div") ?? null;
-  const door = nav?.querySelector('a[href*="/save/"]') ?? null;
-  const text = door?.querySelector("span") ?? null;
-  const shell = document.querySelector("div.compass-main");
-  const safe = readSafeArea();
-  return [
-    `ua: ${navigator.userAgent.slice(0, 60)}`,
-    `host: ${host}  uaLift: ${publicBandLiftPx(host)}`,
-    `innerH: ${Math.round(window.innerHeight)}  vvH: ${num(viewport?.height)}  vvTop: ${num(viewport?.offsetTop)}`,
-    `lvh: ${Math.round(probeViewport("lvh"))}  svh: ${Math.round(probeViewport("svh"))}`,
-    `safeTop/Bottom: ${safe.top}/${safe.bottom}`,
-    `--band-h: ${cssPx(root, "--band-h")}  --band-safe: ${cssPx(root, "--band-safe")}  --vv-bottom: ${cssPx(root, "--vv-bottom")}`,
-    `nav: ${box(nav)}`,
-    `row: ${box(row)}`,
-    `door: ${box(door)}`,
-    `text: ${edges(text)}`,
-    `shell: ${edges(shell)}`,
-  ];
-}
-
-function readSafeArea() {
-  const probe = document.createElement("div");
-  probe.style.cssText =
-    "position:fixed;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)";
-  document.documentElement.appendChild(probe);
-  const style = getComputedStyle(probe);
-  const top = Math.round(Number.parseFloat(style.paddingTop) || 0);
-  const bottom = Math.round(Number.parseFloat(style.paddingBottom) || 0);
-  probe.remove();
-  return { top, bottom };
-}
-
-function cssPx(root: HTMLElement, name: string) {
-  const value = Number.parseFloat(root.style.getPropertyValue(name));
-  return Number.isFinite(value) ? String(Math.round(value)) : "—";
-}
-
-function num(value: number | undefined) {
-  return value == null ? "—" : String(Math.round(value));
-}
-
-function box(node: Element | null) {
-  if (!node) return "—";
-  const rect = node.getBoundingClientRect();
-  return `top ${Math.round(rect.top)} bottom ${Math.round(rect.bottom)} h ${Math.round(rect.height)}`;
-}
-
-function edges(node: Element | null) {
-  if (!node) return "—";
-  const rect = node.getBoundingClientRect();
-  return `top ${Math.round(rect.top)} bottom ${Math.round(rect.bottom)}`;
 }
 
 function SaveBar({ state, onSave }: { state: SaveState; onSave: () => void }) {
