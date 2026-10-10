@@ -81,6 +81,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
   });
 
   const offer = !inside && notesReady && !held && offerOpen;
+  const [paintPdf, setPaintPdf] = useState(false);
 
   useLayoutEffect(() => {
     const node = plaqueRef.current;
@@ -95,23 +96,18 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
     return () => observer.disconnect();
   }, [offer]);
 
-  useEffect(() => {
-    if (!offer) return;
-    void primePublicCardPdf({
-      cardId: card.id,
-      publicToken,
-      displayName: card.displayName,
-      notes,
-    }).catch(() => undefined);
-  }, [offer, card.id, card.displayName, publicToken, notes]);
-
   const preparePdf = () => {
+    setPaintPdf(true);
+    setNotice("Preparing PDF…");
     void primePublicCardPdf(pdfInput()).catch(() => undefined);
   };
 
   const savePdf = () => {
     setOfferOpen(false);
-    void shareCardPdf(pdfInput());
+    preparePdf();
+    void shareCardPdf(pdfInput()).finally(() => {
+      setNotice((current) => (current === "Preparing PDF…" ? null : current));
+    });
   };
 
   const keep = async () => {
@@ -157,7 +153,10 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
             token={card.publicToken}
             onPreparePdf={preparePdf}
             onPdf={() => {
-              void shareCardPdf(pdfInput());
+              preparePdf();
+              void shareCardPdf(pdfInput()).finally(() => {
+                setNotice((current) => (current === "Preparing PDF…" ? null : current));
+              });
             }}
           />
         )
@@ -165,7 +164,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
     />
   );
 
-  const pdfSheets = offer ? (
+  const pdfSheets = paintPdf ? (
     <CardPdfSource
       key={`${publicToken}:${notes.map((note) => `${note.id}:${note.content}`).join("|")}`}
       input={pdfInput()}
@@ -193,6 +192,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
       className="compass-main fixed inset-y-0 flex flex-col overflow-hidden bg-white"
       style={{ "--card-frame-top": `${plaqueHeight}px` } as CSSProperties}
     >
+      {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       {pdfSheets}
       {offer ? (
         <div
