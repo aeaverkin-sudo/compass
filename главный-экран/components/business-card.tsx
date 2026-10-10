@@ -441,7 +441,7 @@ function CardShareFooter({
   return (
     <footer className={cn(className)}>
       <p className="t-label">{name || "Name"}</p>
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between">
         <p className="t-label">Portfolio</p>
         {onShare ? (
           <Dialog.Root
@@ -461,7 +461,7 @@ function CardShareFooter({
                 onPointerDown={onPrepareShare}
                 className="flex items-center leading-none text-[#111] outline-none"
               >
-                <Share className="block size-4" strokeWidth={1.25} aria-hidden />
+                <Share className="block size-4 -translate-y-[3px]" strokeWidth={1.25} aria-hidden />
               </button>
             </Dialog.Trigger>
             <Dialog.Portal>
