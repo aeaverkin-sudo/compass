@@ -19,7 +19,7 @@ export function SkyHint({ text, onDone }: SkyHintProps) {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setShown(true));
     const close = () => doneRef.current();
-    document.addEventListener("pointerdown", close, { capture: true, once: true });
+    document.addEventListener("pointerdown", close, { capture: true, once: true, passive: true });
     return () => {
       window.cancelAnimationFrame(frame);
       document.removeEventListener("pointerdown", close, { capture: true });

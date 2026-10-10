@@ -93,10 +93,10 @@ export function BackButton({ fallbackHref, onBack }: BackButtonProps) {
     };
 
     document.addEventListener("scroll", onScroll, { capture: true, passive: true });
-    document.addEventListener("pointerdown", onPointerDown, { capture: true });
+    document.addEventListener("pointerdown", onPointerDown, { capture: true, passive: true });
     document.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
-    document.addEventListener("pointerup", onPointerUp, { capture: true });
-    document.addEventListener("pointercancel", onPointerUp, { capture: true });
+    document.addEventListener("pointerup", onPointerUp, { capture: true, passive: true });
+    document.addEventListener("pointercancel", onPointerUp, { capture: true, passive: true });
     return () => {
       clearIdle();
       document.removeEventListener("scroll", onScroll, { capture: true });
@@ -113,7 +113,7 @@ export function BackButton({ fallbackHref, onBack }: BackButtonProps) {
       type="button"
       aria-label="Back"
       onClick={go}
-      className="fixed z-30 flex w-11 items-center justify-start text-[#111]"
+      className="touch-manipulation fixed z-30 flex w-11 items-center justify-start text-[#111]"
       style={{
         top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
         left: `calc(var(--gutter) - ${ARROW_TIP_INSET_PX}px)`,

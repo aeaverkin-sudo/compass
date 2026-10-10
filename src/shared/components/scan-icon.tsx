@@ -15,7 +15,7 @@ export function ScanButton({ corner = false, className }: { corner?: boolean; cl
       aria-label="Scan"
       data-no-swipe
       className={cn(
-        "pointer-events-auto flex size-11 justify-end text-[var(--grey)] [-webkit-tap-highlight-color:transparent]",
+        "pointer-events-auto flex size-11 touch-manipulation justify-end text-[var(--grey)] [-webkit-tap-highlight-color:transparent]",
         corner ? "items-start" : "items-center",
         className,
       )}
