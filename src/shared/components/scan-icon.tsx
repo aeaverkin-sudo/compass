@@ -2,9 +2,9 @@ import { Scan } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-/** Four corners. Same grey and a similar weight to the 1/3 counter. No fill, no caption. */
+/** Four corners. Same size and weight as TabBand t-caps. No fill, no caption. */
 export function ScanIcon() {
-  return <Scan className="size-[16.1px]" strokeWidth={1} aria-hidden />;
+  return <Scan className="size-[13px]" strokeWidth={2} aria-hidden />;
 }
 
 /** The same scan control on the portfolio QR and on Network. */
