@@ -3,6 +3,7 @@
 import {
   useEffect,
   useRef,
+  useState,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type TransitionEvent,
@@ -13,8 +14,19 @@ import { getNextScanAddons } from "@/shared/services/card-snapshot";
 import { RAIL_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
+import { cn } from "@/lib/utils";
 import { BROWSE_QR_SIZE, HERO_PHOTO_PX, layoutTop, railPhotoTopFromQrTop } from "../layout";
 import { NextScanMenu } from "./next-scan-menu";
+
+const SHIELD_EVENTS = [
+  "pointerdown",
+  "pointermove",
+  "pointerup",
+  "touchstart",
+  "touchmove",
+  "click",
+  "contextmenu",
+] as const;
 
 /** Visible mark heights. The size-11 tap sits on each mark and does not enter the column. */
 const SHARE_PX = 16.1;
@@ -22,14 +34,42 @@ const SCAN_PX = 16.1;
 const PLUS_PX = 18;
 const COUNT_PX = 11;
 
+const FREEZE_CLASS =
+  "select-none [-webkit-touch-callout:none] [-webkit-user-drag:none]";
+
 type RailDock = "qr" | "photo";
 type Anchor = { top: number; height: number };
 
-function RailMark({ height, children }: { height: number; children?: ReactNode }) {
+function RailMark({
+  height,
+  inert,
+  children,
+}: {
+  height: number;
+  inert: boolean;
+  children?: ReactNode;
+}) {
   return (
-    <div className="relative w-full shrink-0" style={{ height }}>
+    <div
+      className={cn("relative w-full shrink-0", FREEZE_CLASS)}
+      style={{ height }}
+      draggable={false}
+      onDragStart={(event) => event.preventDefault()}
+      onContextMenu={(event) => event.preventDefault()}
+    >
       {children != null ? (
-        <div className="pointer-events-auto absolute top-1/2 left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+        <div
+          className={cn(
+            "absolute top-1/2 left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center",
+            FREEZE_CLASS,
+            inert
+              ? "pointer-events-none [&_*]:!pointer-events-none"
+              : "pointer-events-auto",
+          )}
+          draggable={false}
+          onDragStart={(event) => event.preventDefault()}
+          onContextMenu={(event) => event.preventDefault()}
+        >
           {children}
         </div>
       ) : null}
@@ -120,12 +160,55 @@ export function SideRail({
   const pointerDownRef = useRef(false);
   const holdTimerRef = useRef<number | null>(null);
   const startRef = useRef({ x: 0, y: 0, pointerId: -1 });
-  const liftedRef = useRef(false);
+  const draggingRef = useRef(false);
   const settlingRef = useRef(false);
   const dragYRef = useRef(0);
   const moveFrameRef = useRef(0);
-  const suppressClickRef = useRef(false);
   const detachRef = useRef<(() => void) | null>(null);
+  const touchBlockRef = useRef<((event: TouchEvent) => void) | null>(null);
+  const shieldRef = useRef<HTMLDivElement | null>(null);
+  const shieldSwallowRef = useRef<((event: Event) => void) | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    for (const node of root.querySelectorAll<HTMLElement>("a, button, img, svg, p, span, div")) {
+      node.draggable = false;
+      node.setAttribute("draggable", "false");
+    }
+  }, [card.id, showPlus, dragging]);
+
+  const mountShield = () => {
+    if (shieldRef.current || typeof document === "undefined") return;
+    const shield = document.createElement("div");
+    shield.setAttribute("aria-hidden", "true");
+    shield.style.cssText = "position:fixed;inset:0;z-index:29;touch-action:none;";
+    const swallow = (event: Event) => {
+      if (event.cancelable) event.preventDefault();
+      event.stopPropagation();
+    };
+    shieldSwallowRef.current = swallow;
+    for (const type of SHIELD_EVENTS) {
+      shield.addEventListener(type, swallow, { capture: true, passive: false });
+    }
+    document.body.appendChild(shield);
+    shieldRef.current = shield;
+  };
+
+  const unmountShield = () => {
+    const shield = shieldRef.current;
+    if (!shield) return;
+    const swallow = shieldSwallowRef.current;
+    if (swallow) {
+      for (const type of SHIELD_EVENTS) {
+        shield.removeEventListener(type, swallow, true);
+      }
+    }
+    shield.remove();
+    shieldRef.current = null;
+    shieldSwallowRef.current = null;
+  };
 
   const clearHoldTimer = () => {
     if (holdTimerRef.current == null) return;
@@ -154,7 +237,7 @@ export function SideRail({
 
   const syncAnchors = () => {
     const node = rootRef.current;
-    if (!node || liftedRef.current || settlingRef.current) return;
+    if (!node || draggingRef.current || settlingRef.current) return;
     anchorsRef.current = measureAnchors(node, qrTop);
     paintDock(dockRef.current, { transition: "none", clearTransform: true });
   };
@@ -166,10 +249,27 @@ export function SideRail({
     node.style.willChange = "";
   };
 
+  const stopTouchBlock = () => {
+    if (!touchBlockRef.current) return;
+    document.removeEventListener("touchmove", touchBlockRef.current);
+    touchBlockRef.current = null;
+  };
+
+  const suppressNextClick = () => {
+    const swallow = (event: MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    document.addEventListener("click", swallow, { capture: true, once: true });
+  };
+
   const resetLift = () => {
-    liftedRef.current = false;
+    draggingRef.current = false;
+    setDragging(false);
     settlingRef.current = false;
     dragYRef.current = 0;
+    stopTouchBlock();
+    unmountShield();
     if (moveFrameRef.current) {
       cancelAnimationFrame(moveFrameRef.current);
       moveFrameRef.current = 0;
@@ -184,21 +284,26 @@ export function SideRail({
     paintDock(dockRef.current, { transition: "none" });
   };
 
+  const releaseCapture = () => {
+    const node = rootRef.current;
+    const pointerId = startRef.current.pointerId;
+    if (!node || pointerId < 0) return;
+    try {
+      if (node.hasPointerCapture(pointerId)) node.releasePointerCapture(pointerId);
+    } catch {
+      // Already released.
+    }
+  };
+
   const cancelGesture = () => {
+    const wasDragging = draggingRef.current;
     clearHoldTimer();
     pointerDownRef.current = false;
     detachRef.current?.();
     detachRef.current = null;
-    const node = rootRef.current;
-    const pointerId = startRef.current.pointerId;
-    if (node && pointerId >= 0) {
-      try {
-        if (node.hasPointerCapture(pointerId)) node.releasePointerCapture(pointerId);
-      } catch {
-        // Already released.
-      }
-    }
+    releaseCapture();
     resetLift();
+    if (wasDragging) suppressNextClick();
   };
 
   useEffect(() => {
@@ -220,7 +325,7 @@ export function SideRail({
 
   useEffect(() => {
     const onScroll = () => {
-      if (pointerDownRef.current || liftedRef.current) cancelGesture();
+      if (pointerDownRef.current && !draggingRef.current) cancelGesture();
     };
     const onHide = () => {
       if (document.visibilityState === "hidden") cancelGesture();
@@ -247,8 +352,11 @@ export function SideRail({
     const to = anchorsRef.current[next];
     const offset = fromTop - to.top;
     dockRef.current = next;
-    liftedRef.current = false;
+    draggingRef.current = false;
+    setDragging(false);
     settlingRef.current = true;
+    stopTouchBlock();
+    unmountShield();
     endLiftVisual();
     node.style.willChange = "transform";
     node.style.transition = "none";
@@ -279,9 +387,9 @@ export function SideRail({
     setRailDock(dockRef.current);
   };
 
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const onPointerDownCapture = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
-    if (settlingRef.current || liftedRef.current) return;
+    if (settlingRef.current || draggingRef.current) return;
     const pointerId = event.pointerId;
     const startX = event.clientX;
     const startY = event.clientY;
@@ -291,24 +399,32 @@ export function SideRail({
     clearHoldTimer();
     syncAnchors();
 
-    try {
-      host.setPointerCapture(pointerId);
-    } catch {
-      // Capture fails if the pointer is already up.
-    }
-
     holdTimerRef.current = window.setTimeout(() => {
       holdTimerRef.current = null;
       if (!pointerDownRef.current) return;
-      suppressClickRef.current = true;
-      liftedRef.current = true;
+      draggingRef.current = true;
+      setDragging(true);
       dragYRef.current = 0;
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      try {
+        host.setPointerCapture(pointerId);
+      } catch {
+        // Capture fails if the pointer is already up.
+      }
+      mountShield();
+      if (!touchBlockRef.current) {
+        const blockTouchMove = (native: TouchEvent) => {
+          if (native.cancelable) native.preventDefault();
+        };
+        touchBlockRef.current = blockTouchMove;
+        document.addEventListener("touchmove", blockTouchMove, { passive: false });
+      }
       host.style.transition = "transform 120ms ease-out, box-shadow 120ms ease-out";
       host.style.willChange = "transform";
       host.style.boxShadow = "0 6px 18px rgba(0,0,0,.14)";
       paintTransform(0, true);
       requestAnimationFrame(() => {
-        if (!rootRef.current || !liftedRef.current) return;
+        if (!rootRef.current || !draggingRef.current) return;
         rootRef.current.style.transition = "none";
       });
     }, RAIL_HOLD_MS);
@@ -319,7 +435,7 @@ export function SideRail({
       if (native.pointerId !== pointerId) return;
       const dx = native.clientX - startX;
       const dy = native.clientY - startY;
-      if (!liftedRef.current) {
+      if (!draggingRef.current) {
         if (Math.hypot(dx, dy) > REORDER_SLOP_PX) clearHoldTimer();
         return;
       }
@@ -328,7 +444,7 @@ export function SideRail({
       if (moveFrameRef.current) return;
       moveFrameRef.current = requestAnimationFrame(() => {
         moveFrameRef.current = 0;
-        if (!liftedRef.current) return;
+        if (!draggingRef.current) return;
         paintTransform(dragYRef.current, true);
       });
     };
@@ -343,15 +459,13 @@ export function SideRail({
     const cancel = (native: PointerEvent) => {
       if (native.pointerId !== pointerId || ended) return;
       ended = true;
+      const wasDragging = draggingRef.current;
       pointerDownRef.current = false;
       clearHoldTimer();
       detach();
-      try {
-        if (host.hasPointerCapture(pointerId)) host.releasePointerCapture(pointerId);
-      } catch {
-        // Already released.
-      }
+      releaseCapture();
       resetLift();
+      if (wasDragging) suppressNextClick();
     };
 
     const up = (native: PointerEvent) => {
@@ -360,13 +474,9 @@ export function SideRail({
       pointerDownRef.current = false;
       clearHoldTimer();
       detach();
-      try {
-        if (host.hasPointerCapture(pointerId)) host.releasePointerCapture(pointerId);
-      } catch {
-        // Already released.
-      }
+      releaseCapture();
 
-      if (!liftedRef.current) return;
+      if (!draggingRef.current) return;
       if (moveFrameRef.current) {
         cancelAnimationFrame(moveFrameRef.current);
         moveFrameRef.current = 0;
@@ -379,9 +489,11 @@ export function SideRail({
       const center = fromTop + fromHeight / 2;
       const qrCenter = anchors.qr.top + anchors.qr.height / 2;
       const photoCenter = anchors.photo.top + anchors.photo.height / 2;
-      const nearest: RailDock = Math.abs(center - qrCenter) <= Math.abs(center - photoCenter) ? "qr" : "photo";
+      const nearest: RailDock =
+        Math.abs(center - qrCenter) <= Math.abs(center - photoCenter) ? "qr" : "photo";
       const stay = Math.abs(dragYRef.current) < REORDER_SLOP_PX;
       finishDock(stay ? current : nearest, fromTop, fromHeight);
+      suppressNextClick();
     };
 
     detachRef.current = detach;
@@ -390,19 +502,18 @@ export function SideRail({
     document.addEventListener("pointercancel", cancel, true);
   };
 
-  const swallowClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!suppressClickRef.current) return;
-    suppressClickRef.current = false;
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
   const initial = anchorsRef.current[dockRef.current];
 
   return (
     <div
       ref={rootRef}
-      className="absolute z-30 flex touch-none flex-col items-center justify-between bg-sky text-[var(--ink)] select-none [&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current"
+      className={cn(
+        "absolute z-30 flex touch-none flex-col items-center justify-between bg-sky text-[var(--ink)]",
+        FREEZE_CLASS,
+        "[&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current",
+        "[&_a]:select-none [&_a]:[-webkit-touch-callout:none] [&_a]:[-webkit-user-drag:none]",
+        "[&_button]:select-none [&_button]:[-webkit-touch-callout:none] [&_button]:[-webkit-user-drag:none]",
+      )}
       style={{
         top: layoutTop(initial.top),
         height: initial.height,
@@ -411,22 +522,24 @@ export function SideRail({
         touchAction: "none",
         transition: "none",
       }}
-      onPointerDown={onPointerDown}
-      onClickCapture={swallowClick}
+      draggable={false}
+      onDragStart={(event) => event.preventDefault()}
+      onContextMenu={(event) => event.preventDefault()}
+      onPointerDownCapture={onPointerDownCapture}
       onTransitionEnd={onTransitionEnd}
     >
-      <RailMark height={SHARE_PX}>
+      <RailMark height={SHARE_PX} inert={dragging}>
         <CardShareControl
           card={card}
           onShare={canShare ? share.handleShare : undefined}
           onPrepareShare={canShare ? share.primeShare : undefined}
-          className="justify-center text-current"
+          className={cn("justify-center text-current", FREEZE_CLASS)}
         />
       </RailMark>
-      <RailMark height={SCAN_PX}>
-        <ScanButton className="justify-center text-current" />
+      <RailMark height={SCAN_PX} inert={dragging}>
+        <ScanButton className={cn("justify-center text-current", FREEZE_CLASS)} />
       </RailMark>
-      <RailMark height={PLUS_PX}>
+      <RailMark height={PLUS_PX} inert={dragging}>
         {showPlus ? (
           <NextScanMenu
             bare
@@ -435,7 +548,7 @@ export function SideRail({
           />
         ) : null}
       </RailMark>
-      <RailMark height={COUNT_PX}>
+      <RailMark height={COUNT_PX} inert={dragging}>
         <p className="text-center t-label text-[var(--ink)]" style={{ lineHeight: 1 }}>
           {index}/{total}
         </p>
