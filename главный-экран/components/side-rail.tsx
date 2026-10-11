@@ -6,7 +6,7 @@ import { CardShareControl, useCardShare } from "@/shared/components/card-share-c
 import { getNextScanAddons } from "@/shared/services/card-snapshot";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
-import { BROWSE_QR_SIZE, layoutTop, QR_COLOR } from "../layout";
+import { BROWSE_QR_SIZE, layoutTop } from "../layout";
 import { NextScanMenu } from "./next-scan-menu";
 
 /** Visible mark heights. The size-11 tap sits on each mark and does not enter the column. */
@@ -19,7 +19,7 @@ function RailMark({ height, children }: { height: number; children?: ReactNode }
   return (
     <div className="relative w-full shrink-0" style={{ height }}>
       {children != null ? (
-        <div className="pointer-events-auto absolute top-1/2 left-0 flex size-11 -translate-y-1/2 items-center justify-start">
+        <div className="pointer-events-auto absolute top-1/2 left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
           {children}
         </div>
       ) : null}
@@ -50,25 +50,19 @@ export function SideRail({
 
   return (
     <div
-      className="pointer-events-none absolute z-30 flex flex-col items-start justify-between [&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current"
-      style={{
-        top: layoutTop(qrTop),
-        height: BROWSE_QR_SIZE,
-        right: 0,
-        width: counterRightCss,
-        color: QR_COLOR,
-      }}
+      className="pointer-events-none absolute z-30 flex flex-col items-center justify-between bg-sky text-[var(--ink)] [&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current"
+      style={{ top: layoutTop(qrTop), height: BROWSE_QR_SIZE, right: 0, width: counterRightCss }}
     >
       <RailMark height={SHARE_PX}>
         <CardShareControl
           card={card}
           onShare={canShare ? share.handleShare : undefined}
           onPrepareShare={canShare ? share.primeShare : undefined}
-          className="justify-start text-current"
+          className="justify-center text-current"
         />
       </RailMark>
       <RailMark height={SCAN_PX}>
-        <ScanButton className="justify-start text-current" />
+        <ScanButton className="justify-center text-current" />
       </RailMark>
       <RailMark height={PLUS_PX}>
         {showPlus ? (
@@ -80,7 +74,7 @@ export function SideRail({
         ) : null}
       </RailMark>
       <RailMark height={COUNT_PX}>
-        <p className="text-left t-label" style={{ lineHeight: 1, color: "inherit" }}>
+        <p className="text-center t-label text-[var(--ink)]" style={{ lineHeight: 1 }}>
           {index}/{total}
         </p>
       </RailMark>
