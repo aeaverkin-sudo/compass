@@ -6,7 +6,7 @@ import { Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { flushNotesSync, releaseOwnerNotes } from "@/shared/services/notes-sync";
 import { getNextScanAddons } from "@/shared/services/card-snapshot";
-import { publicCardShareUrl } from "@/shared/services/public-card-url";
+import { publicCardUrl } from "@/shared/services/public-card-url";
 import { shareCardChoice, type CardShareChoice } from "@/shared/services/save-public-card-pdf";
 import type { Card } from "@/shared/types";
 
@@ -31,7 +31,7 @@ export function useCardShare(card: Card) {
     if (!token) return;
     const title = card.displayName.trim() || "Portfolio";
     const hadNotes = ownerNotesKey.length > 0;
-    void shareCardChoice({ title, url: publicCardShareUrl(card) }).then((sent) => {
+    void shareCardChoice({ title, url: publicCardUrl(card) }).then((sent) => {
       if (sent) {
         void fetch("/api/network/share", {
           method: "POST",

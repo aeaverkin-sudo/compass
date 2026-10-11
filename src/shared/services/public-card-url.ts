@@ -22,13 +22,3 @@ export function publicCardUrl(card: { publicToken: string; handle?: string }): s
   if (typeof window === "undefined") return path;
   return `${window.location.origin}${path}`;
 }
-
-/** Share → Link only. QR, PDF, and /save stay on `publicCardUrl` with a stable address. */
-export function publicCardShareUrl(
-  card: { publicToken: string; handle?: string; updatedAt?: string; photoAttachmentId?: string; photo?: string; displayName?: string },
-): string {
-  const base = publicCardUrl(card);
-  const v = publicCardPreviewVersion(card);
-  const join = base.includes("?") ? "&" : "?";
-  return `${base}${join}v=${v}`;
-}
