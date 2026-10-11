@@ -151,6 +151,7 @@ body {
   line-height: 1.45;
 }
 
+/* Caps off the plaques: plus-menu buttons, screen headers, the rail sheet count. */
 @utility t-caps {
   font-size: 13px;
   font-weight: 400;
@@ -159,7 +160,7 @@ body {
   text-transform: uppercase;
 }
 
-/* Caps on the sky plaques. */
+/* Caps on the sky plaques: TabBand, the PDF door, Create portfolio, the /c save offer. */
 @utility t-band {
   font-size: 14px;
   font-weight: 400;

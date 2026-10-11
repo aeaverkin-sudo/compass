@@ -61,11 +61,15 @@ function placeAgainstRail(anchor: HTMLElement | null) {
 export function CardShareControl({
   onShare,
   onPrepareShare,
+  size = 16.2,
+  stroke = 0.9,
   className,
 }: {
   card: Card;
   onShare?: (choice: CardShareChoice) => void;
   onPrepareShare?: () => void;
+  size?: number;
+  stroke?: number;
   className?: string;
 }) {
   const anchorRef = useRef<HTMLButtonElement>(null);
@@ -80,7 +84,7 @@ export function CardShareControl({
     return () => window.removeEventListener("resize", measure);
   }, [open]);
 
-  const icon = <Share className="size-[16.2px]" strokeWidth={0.9} aria-hidden />;
+  const icon = <Share size={size} strokeWidth={stroke} aria-hidden />;
 
   if (!onShare) {
     return <span className={cn("flex size-11 items-center justify-start text-current", className)}>{icon}</span>;
@@ -116,11 +120,10 @@ export function CardShareControl({
           data-no-swipe
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
-          className="fixed z-50 flex w-max min-h-[77.6875px] min-w-[68.1875px] items-center justify-center border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
+          className="fixed z-50 flex w-max min-h-[77.6875px] min-w-[68.1875px] items-center justify-center border-0 bg-sky px-1.5 py-1 text-center text-[var(--ink)] shadow-none outline-none"
           style={{
             right: place.right,
             top: place.top,
-            fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
           }}
         >
           <Dialog.Title className="sr-only">Share</Dialog.Title>

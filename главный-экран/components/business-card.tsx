@@ -36,7 +36,6 @@ import {
 const HERO_PHOTO_PX = 128;
 /** One letter starts here; from the third it shrinks to the name column. */
 const HERO_NAME_MAX_PX = 78;
-const HERO_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 /** Clear space after the descenders, before the role. */
 const HERO_ROLE_GAP_PX = 4;
 /**
@@ -56,7 +55,7 @@ const PLACEHOLDER = "Name or portfolio title";
 function textWidth(text: string, size: number, weight: number) {
   const probe = document.createElement("span");
   probe.textContent = text;
-  probe.style.cssText = `position:absolute;left:-9999px;white-space:nowrap;font-family:${HERO_FONT};font-weight:${weight};font-size:${size}px;line-height:1;letter-spacing:${weight === 600 ? "-1px" : "0px"}`;
+  probe.style.cssText = `position:absolute;left:-9999px;white-space:nowrap;font-family:${getComputedStyle(document.body).fontFamily};font-weight:${weight};font-size:${size}px;line-height:1;letter-spacing:${weight === 600 ? "-1px" : "0px"}`;
   document.body.appendChild(probe);
   const width = probe.getBoundingClientRect().width;
   probe.remove();
@@ -393,7 +392,7 @@ function CompactHeader({
           <p
             data-card-content
             className="text-center font-semibold tracking-[-1px] text-[var(--ink)]"
-            style={{ fontSize: CARD_HEADER_NAME_SIZE_PX, fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}
+            style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
           >
             {card.displayName}
           </p>
@@ -409,23 +408,10 @@ function CompactHeader({
   );
 }
 
-function CardShareFooter({ name, className }: { name: string; className?: string }) {
-  return (
-    <footer className={cn("grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]", className)}>
-      <span aria-hidden />
-      <div>
-        <p className="t-label">{name || "Name"}</p>
-        <p className="t-label">Portfolio</p>
-      </div>
-    </footer>
-  );
-}
-
 function PdfCard({
   card,
   items,
   positionTitle,
-  ready,
   readOnly,
   deliveredNotes,
   ownerNotes,
@@ -434,7 +420,6 @@ function PdfCard({
   card: Card;
   items: ContactItem[];
   positionTitle?: string;
-  ready: boolean;
   readOnly: boolean;
   deliveredNotes: DeliveredNote[];
   ownerNotes: Card["nextScanAddons"];
@@ -445,7 +430,7 @@ function PdfCard({
   const shown = pdfMask ? plan.filter((_, index) => pdfMask.includes(index)) : plan;
   const zoneFilter = shown.flatMap((block) => (block.kind === "zone" ? [block.id] : []));
   return (
-    <article data-pdf-card className="w-full shrink-0 bg-white text-[#111]" style={{ fontFamily: HERO_FONT }}>
+    <article data-pdf-card className="w-full shrink-0 bg-white text-[var(--ink)]">
       <div style={{ paddingLeft: PDF_PAD, paddingRight: PDF_PAD }}>
         {shown.some((block) => block.kind === "header") ? (
           <div data-pdf-block="">
@@ -475,7 +460,7 @@ function PdfCard({
         {shown.some((block) => block.kind === "footer") ? (
           <div data-pdf-block="">
             <div className="mt-4" style={{ marginLeft: -PDF_PAD, marginRight: -PDF_PAD }}>
-              <AccountBand token={card.publicToken} inset={PDF_PAD} safe={false} />
+              <AccountBand token={card.publicToken} inset={PDF_PAD} pdf />
             </div>
           </div>
         ) : null}
@@ -658,7 +643,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         card={card}
         items={items}
         positionTitle={positionTitle}
-        ready={ready}
         readOnly={readOnly}
         deliveredNotes={deliveredNotes}
         ownerNotes={nextScanAddons}
@@ -842,19 +826,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           className="mt-auto shrink-0 t-meta"
           style={{ paddingBottom: readOnly ? undefined : CARD_FOOTER_GAP_PX }}
         >
-          {readOnly && showShareFooter ? (
-            <>
-              <div aria-hidden className="h-[1lh]" />
-              <CardShareFooter name={card.displayName} />
-            </>
-          ) : null}
           {shareFootnote ? (
             <>
-              {readOnly && showShareFooter ? (
-                <div aria-hidden className="h-[2lh]" />
-              ) : (
-                <div aria-hidden className="h-[1lh]" />
-              )}
+              <div aria-hidden className="h-[1lh]" />
               <div className="text-center">{shareFootnote}</div>
             </>
           ) : null}

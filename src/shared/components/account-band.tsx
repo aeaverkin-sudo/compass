@@ -5,7 +5,6 @@ import { TabBand } from "@main/components/tab-band";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { cn } from "@/lib/utils";
 
-const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 const DOOR =
   "press touch-manipulation flex h-full min-h-11 w-full items-center uppercase [-webkit-tap-highlight-color:transparent]";
 
@@ -32,23 +31,21 @@ function useOrigin() {
  */
 export function AccountBand({
   token,
+  pdf = false,
   inset,
-  safe = true,
-  medium,
   onPdf,
   onPreparePdf,
 }: {
   token: string;
-  inset?: number;
-  safe?: boolean;
   /** Painted PDF carries the ADED mark. The web plaque keeps Get PDF file. */
-  medium?: "web" | "pdf";
+  pdf?: boolean;
+  /** PDF row pad. */
+  inset?: number;
   /** Web door. The painted PDF keeps its own right-hand link. */
   onPdf?: () => void;
   onPreparePdf?: () => void;
 }) {
   const origin = useOrigin();
-  const pdf = medium === "pdf" || (medium == null && !safe);
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
   if (!pdf) {
     return (
@@ -75,13 +72,12 @@ export function AccountBand({
     );
   }
   const pdfDoor =
-    "press t-band leading-[1.45] flex min-h-11 flex-1 touch-manipulation items-center py-3 text-[#111] [-webkit-tap-highlight-color:transparent]";
+    "press t-band leading-[1.45] flex min-h-11 flex-1 touch-manipulation items-center py-3 [-webkit-tap-highlight-color:transparent]";
   return (
     <nav
       aria-label="Account"
       className={cn("bg-sky text-[var(--ink)]", inset == null && "px-[calc(clamp(24px,6.1vw,28px)-3mm)]")}
       style={{
-        fontFamily: FONT,
         paddingLeft: inset,
         paddingRight: inset,
       }}

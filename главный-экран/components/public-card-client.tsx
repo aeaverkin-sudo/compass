@@ -275,9 +275,8 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
       {offer ? (
         <div
           ref={plaqueRef}
-          className="t-band shrink-0 bg-sky px-5 py-4 text-center text-[#111]"
+          className="t-band shrink-0 bg-sky px-5 py-4 text-center text-[var(--ink)]"
           style={{
-            fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
             paddingTop: "calc(env(safe-area-inset-top) + 16px)",
           }}
         >

@@ -29,13 +29,15 @@ const SHIELD_EVENTS = [
   "contextmenu",
 ] as const;
 
-/** Visible mark heights. The size-11 tap sits on each mark and does not enter the column. */
-const SHARE_PX = 16.1;
-const SCAN_PX = 16.1;
-const PLUS_PX = 18;
-const COUNT_PX = 11;
+/** Slot heights in the rail column. The size-11 tap sits on each slot and does not enter the column. */
+const SHARE_SLOT_PX = 16.1;
+const SCAN_SLOT_PX = 16.1;
+const PLUS_SLOT_PX = 18;
+const COUNT_SLOT_PX = 11;
 /** Micro sky inset so Share and the sheet count sit just inside the plate edges. */
 const EDGE_INSET_PX = 2;
+/** Share and Scan keep RAIL_STROKE_PX on screen at any svg size. The plus keeps its own stroke. */
+const SCREEN_STROKE_CLASS = "[&_svg_*]:[vector-effect:non-scaling-stroke]";
 
 const FREEZE_CLASS =
   "select-none [-webkit-touch-callout:none] [-webkit-user-drag:none]";
@@ -517,9 +519,6 @@ export function SideRail({
         "[&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current",
         "[&_a]:select-none [&_a]:[-webkit-touch-callout:none] [&_a]:[-webkit-user-drag:none]",
         "[&_button]:select-none [&_button]:[-webkit-touch-callout:none] [&_button]:[-webkit-user-drag:none]",
-        // One frame + one stroke for Share and Scan; the plus keeps its own 20 px and stroke 1.
-        "[&_svg:not([data-mark-plus])]:![width:var(--rail-mark)] [&_svg:not([data-mark-plus])]:![height:var(--rail-mark)]",
-        "[&_svg:not([data-mark-plus])]:![stroke-width:var(--rail-stroke)] [&_svg:not([data-mark-plus])_*]:![vector-effect:non-scaling-stroke]",
       )}
       style={{
         top: layoutTop(initial.top),
@@ -528,8 +527,6 @@ export function SideRail({
         width: counterRightCss,
         paddingTop: EDGE_INSET_PX,
         paddingBottom: EDGE_INSET_PX,
-        ["--rail-mark" as string]: `${MARK_PX}px`,
-        ["--rail-stroke" as string]: String(RAIL_STROKE_PX),
         touchAction: "none",
         transition: "none",
       }}
@@ -539,18 +536,24 @@ export function SideRail({
       onPointerDownCapture={onPointerDownCapture}
       onTransitionEnd={onTransitionEnd}
     >
-      <RailMark height={SHARE_PX} inert={dragging}>
+      <RailMark height={SHARE_SLOT_PX} inert={dragging}>
         <CardShareControl
           card={card}
           onShare={canShare ? share.handleShare : undefined}
           onPrepareShare={canShare ? share.primeShare : undefined}
-          className={cn("justify-center text-current", FREEZE_CLASS)}
+          size={MARK_PX}
+          stroke={RAIL_STROKE_PX}
+          className={cn("justify-center text-current", SCREEN_STROKE_CLASS, FREEZE_CLASS)}
         />
       </RailMark>
-      <RailMark height={SCAN_PX} inert={dragging}>
-        <ScanButton className={cn("justify-center text-current", FREEZE_CLASS)} />
+      <RailMark height={SCAN_SLOT_PX} inert={dragging}>
+        <ScanButton
+          size={MARK_PX}
+          stroke={RAIL_STROKE_PX}
+          className={cn("justify-center text-current", SCREEN_STROKE_CLASS, FREEZE_CLASS)}
+        />
       </RailMark>
-      <RailMark height={PLUS_PX} inert={dragging}>
+      <RailMark height={PLUS_SLOT_PX} inert={dragging}>
         {showPlus ? (
           <NextScanMenu
             bare
@@ -559,8 +562,8 @@ export function SideRail({
           />
         ) : null}
       </RailMark>
-      <RailMark height={COUNT_PX} inert={dragging}>
-        <p className="text-center t-caps text-[var(--ink)]" style={{ fontWeight: 300, lineHeight: 1 }}>
+      <RailMark height={COUNT_SLOT_PX} inert={dragging}>
+        <p className="text-center t-caps font-light leading-none text-[var(--ink)]">
           {index}/{total}
         </p>
       </RailMark>

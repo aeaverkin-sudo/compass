@@ -5,8 +5,6 @@ import { cn } from "@/lib/utils";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { browseBandHeightCss } from "../layout";
 
-const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
-
 /**
  * The sky plaque under the card. Profile and Network on the card, Event and Data
  * on the contact list: one height, one type, one gutter, one lift above the toolbar.
@@ -40,7 +38,6 @@ export function TabBand({
       style={{
         height: band,
         bottom: pin ? "var(--vv-bottom, 0px)" : undefined,
-        fontFamily: FONT,
         WebkitUserSelect: "none",
         userSelect: "none",
       }}

@@ -9,6 +9,3 @@ export const DELETE_HOLD_MS = 900;
 
 /** A move this large before the hold finishes is a scroll, not a drag. */
 export const REORDER_SLOP_PX = 8;
-
-/** The pointer must travel this far into the next section before the row enters it. */
-export const SECTION_ENTER_PX = 12;
