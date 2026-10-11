@@ -32,7 +32,6 @@ import {
   CARD_FOOTER_PAD_PX,
   CARD_HEADER_PAD_PX,
   CARD_TOP_TRIM_PX,
-  HEADER_FADE_IN_PX,
   HEADER_FADE_OUT_PX,
   RULE_GAP_PX,
   SECTION_PAD_PX,
@@ -300,7 +299,7 @@ function EditorialHeader({
           paddingLeft: plate ? "calc(clamp(24px, 6.1vw, 28px) - 3mm)" : undefined,
           paddingRight: plate ? "calc(clamp(24px, 6.1vw, 28px) - 3mm)" : undefined,
           background: plate
-            ? `linear-gradient(to bottom, #fff 0, #fff calc(100% - ${HEADER_FADE_IN_PX + HEADER_FADE_OUT_PX}px), rgba(255,255,255,0) 100%)`
+            ? `linear-gradient(to bottom, #fff 0, #fff calc(100% - ${HEADER_FADE_OUT_PX}px), rgba(255,255,255,.80) calc(100% - 4.8px), rgba(255,255,255,.45) calc(100% - 2.6px), rgba(255,255,255,.15) calc(100% - 1px), rgba(255,255,255,0) 100%)`
             : undefined,
         }}
       >
