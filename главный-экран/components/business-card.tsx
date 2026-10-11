@@ -1,14 +1,10 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import * as Dialog from "@radix-ui/react-dialog";
-import { Plus, Share } from "lucide-react";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { flushNotesSync, releaseOwnerNotes } from "@/shared/services/notes-sync";
-import { publicCardUrl } from "@/shared/services/public-card-url";
-import { shareCardChoice, type CardShareChoice } from "@/shared/services/save-public-card-pdf";
 import { AccountBand } from "@/shared/components/account-band";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
@@ -19,7 +15,6 @@ import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
 import { CardEditList } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
-import { NextScanMenu } from "./next-scan-menu";
 import { NotesRubric } from "./notes-rubric";
 import { useOwnerNotesDelivery } from "../hooks/use-owner-notes-delivery";
 import { clampNameLines, NameOrTitleField } from "@/shared/components/name-or-title-field";
@@ -257,8 +252,6 @@ function cardIsReady(card: Card) {
 function EditorialHeader({
   card,
   positionTitle,
-  showPlus,
-  nextScan,
   reserveSheetMark,
   onPhotoChange,
   onDisplayNameChange,
@@ -267,8 +260,6 @@ function EditorialHeader({
 }: {
   card: Card;
   positionTitle?: string;
-  showPlus: boolean;
-  nextScan: ReactNode;
   /** The old counter line. The number now sits on the QR; this keeps the photo where it was. */
   reserveSheetMark?: boolean;
   onPhotoChange?: (photo: string | null, file?: File) => void;
@@ -316,9 +307,6 @@ function EditorialHeader({
             />
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col">
-            {showPlus ? (
-              <div className="absolute top-0 right-0 z-10 translate-x-[6px] -translate-y-[6px]">{nextScan}</div>
-            ) : null}
             <HeroName
               value={card.displayName}
               onChange={onDisplayNameChange}
@@ -421,94 +409,11 @@ function CompactHeader({
   );
 }
 
-const SHARE_CHOICES: { choice: CardShareChoice; label: string }[] = [
-  { choice: "link", label: "Link" },
-];
-
-function CardShareFooter({
-  name,
-  className,
-  onShare,
-  onPrepareShare,
-}: {
-  name: string;
-  className?: string;
-  onShare?: (choice: CardShareChoice) => void;
-  onPrepareShare?: () => void;
-}) {
-  const anchorRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-  const [place, setPlace] = useState({ right: 0, bottom: 0 });
-
-  useLayoutEffect(() => {
-    if (!open) return;
-    const rect = anchorRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setPlace({
-      right: Math.max(0, window.innerWidth - rect.right),
-      bottom: window.innerHeight - rect.top + 8,
-    });
-  }, [open]);
-
+function CardShareFooter({ name, className }: { name: string; className?: string }) {
   return (
     <footer className={cn(className)}>
       <p className="t-label">{name || "Name"}</p>
-      <div className="flex items-end justify-between">
-        <p className="t-label">Portfolio</p>
-        {onShare ? (
-          <Dialog.Root
-            open={open}
-            onOpenChange={(next) => {
-              setOpen(next);
-              if (next) onPrepareShare?.();
-            }}
-          >
-            <Dialog.Trigger asChild>
-              <button
-                ref={anchorRef}
-                type="button"
-                data-card-content
-                data-no-swipe
-                aria-label="Share"
-                onPointerDown={onPrepareShare}
-                className="flex items-center leading-none text-[#111] outline-none"
-              >
-                <Share className="block size-4 -translate-y-[3px]" strokeWidth={1.25} aria-hidden />
-              </button>
-            </Dialog.Trigger>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 z-40 bg-[#111]/20" />
-              <Dialog.Content
-                aria-describedby={undefined}
-                data-no-swipe
-                onOpenAutoFocus={(event) => event.preventDefault()}
-                onCloseAutoFocus={(event) => event.preventDefault()}
-                className="fixed z-40 flex w-max min-h-[77.6875px] min-w-[68.1875px] items-center justify-center border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
-                style={{
-                  right: place.right,
-                  bottom: place.bottom,
-                  fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
-                }}
-              >
-                <Dialog.Title className="sr-only">Share</Dialog.Title>
-                <div className="flex flex-col items-center justify-center">
-                  {SHARE_CHOICES.map(({ choice, label }) => (
-                    <Dialog.Close asChild key={choice}>
-                      <button
-                        type="button"
-                        className="px-2.5 py-2 t-caps text-[var(--ink)] outline-none focus:outline-none focus-visible:outline-none"
-                        onClick={() => onShare(choice)}
-                      >
-                        {label}
-                      </button>
-                    </Dialog.Close>
-                  ))}
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
-        ) : null}
-      </div>
+      <p className="t-label">Portfolio</p>
     </footer>
   );
 }
@@ -541,12 +446,7 @@ function PdfCard({
       <div style={{ paddingLeft: PDF_PAD, paddingRight: PDF_PAD }}>
         {shown.some((block) => block.kind === "header") ? (
           <div data-pdf-block="">
-            <EditorialHeader
-              card={card}
-              positionTitle={positionTitle}
-              showPlus={false}
-              nextScan={null}
-            />
+            <EditorialHeader card={card} positionTitle={positionTitle} />
           </div>
         ) : null}
         {zoneFilter.length > 0 ? (
@@ -654,30 +554,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
   const ready = cardIsReady(card);
-  const ownerNotesKey = nextScanAddons
-    .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
-    .join("|");
-
-  const primeShare = () => {
-    flushNotesSync(card.id);
-  };
-
-  const handleShare = () => {
-    if (!card.publicToken) return;
-    const title = card.displayName.trim() || "Portfolio";
-    const hadNotes = ownerNotesKey.length > 0;
-    void shareCardChoice({ title, url: publicCardUrl(card) }).then((sent) => {
-      if (sent) {
-        void fetch("/api/network/share", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cardId: card.id }),
-        });
-      }
-      if (!sent || readOnly || !hadNotes) return;
-      releaseOwnerNotes(card.id, "link", card.publicToken);
-    });
-  };
 
   useOwnerNotesDelivery(card.id, !pdf && !readOnly && !compact && nextScanAddons.length > 0);
   const blank = !cardHasPhoto(card) && !card.displayName.trim();
@@ -829,16 +705,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               card={card}
               positionTitle={positionTitle}
               reserveSheetMark={ready && !readOnly && sheetIndex != null && sheetTotal != null}
-              showPlus={Boolean(onCardUpdate && ready && items.length > 0)}
-              nextScan={
-                onCardUpdate && ready ? (
-                  <NextScanMenu
-                    bare
-                    addons={nextScanAddons}
-                    onSetAddons={(addons) => onCardUpdate({ nextScanAddons: addons })}
-                  />
-                ) : null
-              }
               onPhotoChange={onPhotoChange}
               onDisplayNameChange={onDisplayNameChange}
               onCardUpdate={onCardUpdate}
@@ -974,11 +840,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           {showShareFooter ? (
             <>
               <div aria-hidden className="h-[1lh]" />
-              <CardShareFooter
-                name={card.displayName}
-                onShare={readOnly || !card.publicToken || frozen ? undefined : handleShare}
-                onPrepareShare={readOnly || !card.publicToken || frozen ? undefined : primeShare}
-              />
+              <CardShareFooter name={card.displayName} />
             </>
           ) : null}
           {shareFootnote ? (

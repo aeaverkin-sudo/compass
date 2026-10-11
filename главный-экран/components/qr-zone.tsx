@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
-import { ScanButton } from "@/shared/components/scan-icon";
 import { subscribeLiveQrPulse } from "@/shared/lib/live-qr-pulse";
 import { useAppStore } from "@/shared/store/app-store";
 import { QR_COLOR, BROWSE_QR_SIZE, layoutTop } from "../layout";
@@ -12,9 +11,6 @@ type QrZoneProps = {
   url: string;
   visible: boolean;
   topOffsetPx: number;
-  sheetIndex?: number;
-  sheetTotal?: number;
-  counterRightCss?: string;
 };
 
 /** Only the QR on the screen carries this. A shared link and a printed sheet do not. */
@@ -23,7 +19,7 @@ function liveQrUrl(url: string) {
   return `${url}${url.includes("?") ? "&" : "?"}src=qr`;
 }
 
-export function QrZone({ url, visible, topOffsetPx, sheetIndex, sheetTotal, counterRightCss }: QrZoneProps) {
+export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
   const currentCardId = useAppStore((state) => state.cards[state.currentCardIndex]?.id ?? "");
   const monochrome = useAppStore((state) => state.user.monochrome);
   const [breathe, setBreathe] = useState(false);
@@ -48,19 +44,6 @@ export function QrZone({ url, visible, topOffsetPx, sheetIndex, sheetTotal, coun
       style={{ top: layoutTop(topOffsetPx), height: BROWSE_QR_SIZE }}
       aria-hidden={!visible}
     >
-      {sheetIndex && sheetTotal ? (
-        <p
-          className="pointer-events-none absolute m-0 text-right t-label"
-          style={{ bottom: 0, right: counterRightCss, marginRight: "calc(-0.1em - 0.5px)", lineHeight: 1 }}
-        >
-          {sheetIndex}/{sheetTotal}
-        </p>
-      ) : null}
-      {visible ? (
-        <div className="absolute top-0 z-10" style={{ right: counterRightCss }}>
-          <ScanButton corner />
-        </div>
-      ) : null}
       {visible ? (
         <div
           className={cn(breathe && "compass-qr-breathe")}

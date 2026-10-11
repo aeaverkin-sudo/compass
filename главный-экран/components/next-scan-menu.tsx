@@ -151,11 +151,15 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
         onPointerDown={(event) => event.stopPropagation()}
         className={cn(
           "relative transition-opacity active:opacity-60",
-          bare ? "flex size-6 items-center justify-center" : "compass-icon-circle size-8",
+          bare ? "flex items-center justify-center" : "compass-icon-circle size-8",
           open && "z-[60]",
         )}
       >
-        <Plus className={cn(bare ? "size-5 text-[#111]" : "size-4 text-[var(--grey)]")} strokeWidth={1} aria-hidden />
+        {bare ? (
+          <span className="text-[18px] leading-none font-light text-[var(--grey)]">+</span>
+        ) : (
+          <Plus className="size-4 text-[var(--grey)]" strokeWidth={1} aria-hidden />
+        )}
         {notes.length > 0 ? (
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-none text-white">
             {notes.length}

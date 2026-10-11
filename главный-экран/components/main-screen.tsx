@@ -16,6 +16,7 @@ import {
 } from "@/shared/store/app-store";
 import { CardCarousel } from "./card-carousel";
 import { QrZone } from "./qr-zone";
+import { SideRail } from "./side-rail";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 
@@ -156,7 +157,6 @@ export function MainScreen() {
   const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
   const sheetTotal = portfolioLimit !== null && portfolioLimit >= cards.length ? portfolioLimit : cards.length;
   const sheetIndex = Math.min(browseIndex, Math.max(cards.length - 1, 0)) + 1;
-  const showSheetCount = cardReady && !viewingAddSlide && sheetTotal > 0;
   const sideInset = browseCarousel ? carouselSidePaddingPx(frameWidth, true) : edgeInsetBrowse;
   const counterRightCss = `calc(${sideInset}px + clamp(24px, 6.1vw, 28px) - 3mm)`;
 
@@ -164,16 +164,21 @@ export function MainScreen() {
     <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
         {layout ? (
-          <QrZone
-            url={cardUrl}
-            visible={cardReady}
-            topOffsetPx={layout.qrTop}
-            sheetIndex={showSheetCount ? sheetIndex : undefined}
-            sheetTotal={showSheetCount ? sheetTotal : undefined}
-            counterRightCss={counterRightCss}
-          />
+          <QrZone url={cardUrl} visible={cardReady} topOffsetPx={layout.qrTop} />
         ) : null}
       </div>
+
+      {layout && cardReady && browseCard ? (
+        <SideRail
+          qrTop={layout.qrTop}
+          counterRightCss={counterRightCss}
+          card={browseCard}
+          index={sheetIndex}
+          total={sheetTotal}
+          showPlus={shownHasBody}
+          frozen={frozen}
+        />
+      ) : null}
 
       {frozen && !composing ? (
         <p
