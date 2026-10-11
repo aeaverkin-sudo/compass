@@ -10,6 +10,7 @@ const FORBID = /не трог|не прав|не мен|не разреш|ост
 const BARE_YES = /^(?:да|yes|ok|ок|разрешаю|подтверждаю|можно)[.!\s]*$/i;
 const BARE_NO = /^(?:нет|no|не надо|не разрешаю)[.!\s]*$/i;
 const ALLOW = /разреша|подтвержда|можно править|можно менять|вноси правк|(?:^|\s)(?:да|yes|ок|ok)(?:\s|[.,!?]|$)/i;
+const QUESTION = /^(?:покажи|посмотри|что|как|где|почему|зачем)(?:\s|[,.:!?]|$)/i;
 const MUTATE =
   /(?:>>?|\|\s*tee\b|\bsed\s+-[^\n]*\bi\b|\bperl\s+-[^\n]*\bi\b|\bpython\d?(?:\.\d+)?\b|\bnode\b|\bruby\b|\brm\b|\bmv\b|\bcp\b|\btouch\b|\bgit\s+(?:add|checkout|restore|reset|commit|apply|am|stash)\b|\bpatch\b|\btee\b)/i;
 
@@ -40,7 +41,10 @@ function readLocks() {
 }
 
 function sentences(prompt) {
-  return String(prompt).split(/[\n.!?]+/);
+  return String(prompt)
+    .replace(/(\.[A-Za-z0-9]{1,8})\b/g, (token) => token.replace(".", "\u0000"))
+    .split(/[\n.!?]+/)
+    .map((part) => part.replaceAll("\u0000", "."));
 }
 
 function namedLocks(prompt, locks) {
@@ -59,7 +63,7 @@ function consentFromPrompt(prompt, locks, pending) {
   const text = String(prompt).trim();
   if (BARE_NO.test(text)) return [];
   if (BARE_YES.test(text)) return pending;
-  if (!ALLOW.test(text)) return [];
+  if (QUESTION.test(text) && !ALLOW.test(text)) return [];
   return namedLocks(text, locks);
 }
 
@@ -137,7 +141,7 @@ function denyEdit(hits, locks) {
   const file = hits.map((hit) => hit.file).join(", ");
   return {
     permission: "deny",
-    user_message: `Замок: ${label}. Правка ${file} остановлена. Напишите «разрешаю» или «да», если эту страницу можно менять.`,
+    user_message: `Замок: ${label}. Правка ${file} остановлена. Назовите этот файл в ТЗ или напишите «разрешаю».`,
     agent_message: `LOCKED (${label}): ${file}. The edit was blocked. Stop and ask the user to confirm. Do not retry, do not write the file from the shell, and do not write .cursor/locks/consent.json.`,
   };
 }
@@ -206,7 +210,16 @@ Lock list | .cursor/locks.txt | список замков
     }
   };
 
-  assert("task does not unlock", consentFromPrompt("На sign in убери логотип", locks, []), []);
+  assert(
+    "named request unlocks",
+    consentFromPrompt("На sign in убери логотип", locks, []),
+    ["src/app/register/register-screen.tsx"],
+  );
+  assert(
+    "path in the request unlocks",
+    consentFromPrompt("Поправь src/app/register/register-screen.tsx отступ", locks, []),
+    ["src/app/register/register-screen.tsx"],
+  );
   assert(
     "allow phrase unlocks",
     consentFromPrompt("разрешаю sign in", locks, []),
