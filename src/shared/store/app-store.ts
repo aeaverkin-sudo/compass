@@ -48,6 +48,7 @@ interface AppState {
   markFirstRowHintSeen: () => void;
   markAddLibraryHintSeen: () => void;
   markPasswordHintSeen: () => void;
+  setRailDock: (dock: "qr" | "photo") => void;
   setMonochrome: (value: boolean) => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
@@ -183,6 +184,11 @@ export const useAppStore = create<AppState>()(
       markPasswordHintSeen: () => {
         if (get().user.passwordHintSeen) return;
         set({ user: { ...get().user, passwordHintSeen: true } });
+      },
+
+      setRailDock: (dock) => {
+        if (get().user.railDock === dock) return;
+        set({ user: { ...get().user, railDock: dock } });
       },
 
       setMonochrome: (value) => set({ user: { ...get().user, monochrome: value } }),

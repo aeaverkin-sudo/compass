@@ -39,6 +39,16 @@ export const CARD_HEADER_PAD_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX
 export const SECTION_PAD_PX = 18;
 /** Browse QR, grown into the existing slot so it sits higher. The card does not move. */
 export const BROWSE_QR_SIZE = 150;
+/** Hero photo on the browse card. The rail can dock to this height. */
+export const HERO_PHOTO_PX = 128;
+/** Top of the hero photo: card top + plate paddingTop. */
+export function railPhotoTopPx(cardTopBrowse: number) {
+  return cardTopBrowse + RULE_GAP_PX - CARD_TOP_TRIM_PX;
+}
+/** Same photo top from the QR top, when the card top is not at hand. */
+export function railPhotoTopFromQrTop(qrTop: number) {
+  return qrTop + BROWSE_QR_SIZE + 2 * RULE_GAP_PX - QR_DROP_PX - CARD_TOP_TRIM_PX;
+}
 /** Slot from the safe area to the rule: 18 + 134 + 18. */
 export const HEADER_SLOT_PX = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
 /** Equal gap: island → QR, QR → rule, rule → photo. */

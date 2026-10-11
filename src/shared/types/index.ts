@@ -128,6 +128,8 @@ export interface User {
   addLibraryHintSeen?: boolean;
   /** True once the one-time password reminder has been shown on the portfolio. */
   passwordHintSeen?: boolean;
+  /** Where the QR side rail sits: beside the QR or beside the photo. */
+  railDock?: "qr" | "photo";
   /** Gray interface. Photos stay in color. */
   monochrome?: boolean;
   shareToken: string;
