@@ -33,6 +33,8 @@ const SHARE_PX = 16.1;
 const SCAN_PX = 16.1;
 const PLUS_PX = 18;
 const COUNT_PX = 11;
+/** Micro sky inset so Share and the sheet count sit just inside the plate edges. */
+const EDGE_INSET_PX = 2;
 
 const FREEZE_CLASS =
   "select-none [-webkit-touch-callout:none] [-webkit-user-drag:none]";
@@ -519,6 +521,8 @@ export function SideRail({
         height: initial.height,
         right: 0,
         width: counterRightCss,
+        paddingTop: EDGE_INSET_PX,
+        paddingBottom: EDGE_INSET_PX,
         touchAction: "none",
         transition: "none",
       }}
