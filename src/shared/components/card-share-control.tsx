@@ -80,7 +80,7 @@ export function CardShareControl({
     return () => window.removeEventListener("resize", measure);
   }, [open]);
 
-  const icon = <Share className="size-[18px]" strokeWidth={1.25} aria-hidden />;
+  const icon = <Share className="size-[16.2px]" strokeWidth={0.9} aria-hidden />;
 
   if (!onShare) {
     return <span className={cn("flex size-11 items-center justify-start text-current", className)}>{icon}</span>;

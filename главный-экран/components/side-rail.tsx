@@ -35,6 +35,8 @@ const PLUS_PX = 18;
 const COUNT_PX = 11;
 /** Micro sky inset so Share and the sheet count sit just inside the plate edges. */
 const EDGE_INSET_PX = 2;
+/** Screen stroke for Share, Scan, and Plus — matches the Light 1/3 stem (~0.9 px). */
+const RAIL_STROKE_PX = 0.9;
 
 const FREEZE_CLASS =
   "select-none [-webkit-touch-callout:none] [-webkit-user-drag:none]";
@@ -516,6 +518,9 @@ export function SideRail({
         "[&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current",
         "[&_a]:select-none [&_a]:[-webkit-touch-callout:none] [&_a]:[-webkit-user-drag:none]",
         "[&_button]:select-none [&_button]:[-webkit-touch-callout:none] [&_button]:[-webkit-user-drag:none]",
+        // One screen stroke (RAIL_STROKE_PX); sizes −10% from B2.
+        "[&_svg]:![stroke-width:var(--rail-stroke)] [&_svg_*]:![vector-effect:non-scaling-stroke]",
+        "[&_svg.lucide-share]:!size-[16.2px] [&_svg.lucide-scan]:!size-[16.2px] [&_svg.lucide-plus]:!size-[23.4px]",
       )}
       style={{
         top: layoutTop(initial.top),
@@ -524,6 +529,7 @@ export function SideRail({
         width: counterRightCss,
         paddingTop: EDGE_INSET_PX,
         paddingBottom: EDGE_INSET_PX,
+        ["--rail-stroke" as string]: String(RAIL_STROKE_PX),
         touchAction: "none",
         transition: "none",
       }}
