@@ -57,7 +57,7 @@ export function CardShareControl({
 }) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
-  const [place, setPlace] = useState({ right: 0, bottom: 0 });
+  const [place, setPlace] = useState({ right: 0, top: 0 });
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -65,7 +65,7 @@ export function CardShareControl({
     if (!rect) return;
     setPlace({
       right: Math.max(0, window.innerWidth - rect.right),
-      bottom: window.innerHeight - rect.top + 8,
+      top: rect.bottom + 8,
     });
   }, [open]);
 
@@ -108,7 +108,7 @@ export function CardShareControl({
           className="fixed z-40 flex w-max min-h-[77.6875px] min-w-[68.1875px] items-center justify-center border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
           style={{
             right: place.right,
-            bottom: place.bottom,
+            top: place.top,
             fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
           }}
         >
