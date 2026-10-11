@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import type { PublicCard } from "@/shared/services/public-card";
+import { publicCardPreviewVersion } from "@/shared/services/public-card-url";
 
 const PUBLIC_ORIGIN = "https://adedme.com";
 
@@ -26,7 +27,10 @@ export async function metadataForPublicCard(loaded: PublicCard | null, path: str
   const origin = await requestOrigin();
   const title = loaded.card.displayName.trim() || "ADED";
   const description = loaded.card.title.trim();
-  const image = loaded.card.photoAttachmentId ? `${origin}/f/${loaded.card.photoAttachmentId}` : undefined;
+  const v = publicCardPreviewVersion(loaded.card);
+  const image = loaded.card.photoAttachmentId
+    ? `${origin}/f/${loaded.card.photoAttachmentId}?v=${v}`
+    : undefined;
   return {
     title,
     description: description || undefined,
@@ -36,6 +40,12 @@ export async function metadataForPublicCard(loaded: PublicCard | null, path: str
       url: `${origin}${path}`,
       type: "website",
       images: image ? [{ url: image, alt: title }] : undefined,
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title,
+      description: description || undefined,
+      images: image ? [image] : undefined,
     },
   };
 }

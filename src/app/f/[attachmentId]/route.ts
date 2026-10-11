@@ -17,6 +17,8 @@ import { attachmentIsPublic } from "@/shared/services/public-card";
 export const runtime = "nodejs";
 
 const IMMUTABLE_CACHE = "private, max-age=31536000, immutable";
+/** Link-preview fetches use `?v=`; keep them short so a new photo is not stuck for a day. */
+const PREVIEW_CACHE = "public, max-age=300, s-maxage=300";
 
 function nosniff(response: NextResponse) {
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -69,10 +71,12 @@ export async function GET(
   const { attachmentId } = await context.params;
   if (!isUuid(attachmentId)) return notFound();
 
+  const preview = new URL(request.url).searchParams.has("v");
+  const cache = preview ? PREVIEW_CACHE : IMMUTABLE_CACHE;
   // Bytes behind an id never change, so a cached copy is always current.
   const etag = `"${attachmentId}"`;
   if (request.headers.get("if-none-match") === etag) {
-    return nosniff(new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": IMMUTABLE_CACHE } }));
+    return nosniff(new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": cache } }));
   }
 
   let row: AttachmentRow | null;
@@ -117,7 +121,7 @@ export async function GET(
         "Content-Type": row.mime,
         "Content-Length": String(image.data.size),
         "Content-Disposition": dispositionHeader(row),
-        "Cache-Control": IMMUTABLE_CACHE,
+        "Cache-Control": cache,
         ETag: etag,
         "X-Content-Type-Options": "nosniff",
       },
