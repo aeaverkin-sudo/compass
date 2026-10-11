@@ -106,7 +106,7 @@ export function LandingPage({ next = null, fresh = false }: { next?: string | nu
   };
 
   return (
-    <main className="compass-main flex h-svh flex-col overflow-hidden bg-transparent">
+    <main className="compass-main flex h-svh flex-col overflow-hidden bg-background">
       <div className="flex flex-1 flex-col items-center justify-center px-8 pb-[14vh]">
         <PhotoSlotPicker
           photo={photo}

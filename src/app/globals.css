@@ -17,6 +17,7 @@
   --sky: #c5e8f7;
   --pay-confirmed: #1f9d57;
   --pay-pending: #c98a00;
+  --brand-orange: #E8640C;
   --event-theme-paper: #ffffff;
   --event-theme-paper-ink: #111111;
   --event-theme-stone: #ebebeb;
@@ -29,6 +30,7 @@
   --event-theme-blue-ink: #ffffff;
   --event-theme-noir: #111111;
   --event-theme-noir-ink: #ffffff;
+  --backdrop: #eceae6;
   --border: rgba(20, 20, 20, 0.55);
   --toggle-off: #d8d5cc;
   --toggle-dot-off: #d8d2c4;
@@ -37,7 +39,7 @@
 }
 
 html {
-  background-color: var(--background);
+  background: var(--backdrop);
   transition: background-color 500ms ease-out;
   position: fixed;
   inset: 0;
@@ -49,7 +51,6 @@ html {
 html.compass-ready {
   --background: var(--background-ready);
   --theme-color: var(--theme-color-ready);
-  background-color: var(--background-ready);
 }
 
 html.compass-mono {
@@ -78,6 +79,13 @@ body {
   -webkit-tap-highlight-color: transparent;
   overflow: hidden;
   overscroll-behavior: none;
+}
+
+/* Phone: 100vw, full screen. Wider: a 430px column. Only fixed shells — a static page would shift. */
+.compass-main.fixed {
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100vw, 430px);
 }
 
 .compass-main,
