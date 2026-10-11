@@ -1,5 +1,6 @@
 "use client";
 
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { TabBand } from "./tab-band";
 
 type BottomNavProps = {
@@ -28,11 +29,11 @@ export function BottomNav({
           <button
             type="button"
             aria-label="Add"
-            className="flex h-full min-h-11 w-full items-center text-[22.15px] leading-none font-light tracking-normal"
+            className="flex h-full min-h-11 w-full items-center"
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => onAdd?.()}
           >
-            +
+            <MarkPlus />
           </button>
         ) : (
           <button
@@ -70,7 +71,7 @@ export function BottomNav({
         editing ? (
           <button
             type="button"
-            className="flex h-full min-h-11 w-full items-center justify-end t-caps"
+            className="flex h-full min-h-11 w-full items-center justify-end"
             onClick={() => onDone?.()}
           >
             OK

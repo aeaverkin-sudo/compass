@@ -15,6 +15,7 @@ import { RAIL_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
 import { cn } from "@/lib/utils";
+import { MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { BROWSE_QR_SIZE, HERO_PHOTO_PX, layoutTop, railPhotoTopFromQrTop } from "../layout";
 import { NextScanMenu } from "./next-scan-menu";
 
@@ -35,15 +36,6 @@ const PLUS_PX = 18;
 const COUNT_PX = 11;
 /** Micro sky inset so Share and the sheet count sit just inside the plate edges. */
 const EDGE_INSET_PX = 2;
-/** Cap size of the sheet count (`t-caps` Light). Turn the dial with MARK_SCALE only. */
-const CAPS_PX = 13;
-const CAP_HEIGHT_PX = CAPS_PX * 0.714;
-const MARK_SCALE = 1.25;
-const MARK_VISIBLE_PX = CAP_HEIGHT_PX * MARK_SCALE;
-/** One svg frame for Share, Scan, and Plus (visible glyph ≈ 19/24 of the box). */
-const MARK_PX = (MARK_VISIBLE_PX * 24) / 19;
-/** Screen stroke — matches the Light 1/3 stem (~0.9 px). */
-const RAIL_STROKE_PX = 0.9;
 
 const FREEZE_CLASS =
   "select-none [-webkit-touch-callout:none] [-webkit-user-drag:none]";
