@@ -31,6 +31,7 @@ import {
   CARD_PHOTO_TOP_PX,
   LIBRARY_NAME_FADE_PX,
   CARD_FOOTER_PAD_PX,
+  CARD_HEADER_PAD_PX,
   CARD_TOP_TRIM_PX,
   RULE_GAP_PX,
   type MainScreenMode,
@@ -283,7 +284,7 @@ function EditorialHeader({
           1
         </p>
       ) : null}
-      <div className="relative pb-[22px]" style={{ paddingTop: RULE_GAP_PX - CARD_TOP_TRIM_PX }}>
+      <div className="relative" style={{ paddingTop: RULE_GAP_PX - CARD_TOP_TRIM_PX, paddingBottom: CARD_HEADER_PAD_PX }}>
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
           {onPhotoChange ? (
             <PhotoSlotPicker

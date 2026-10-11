@@ -31,6 +31,10 @@ export const CARD_FOOTER_GAP_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX
 /** Below the t-label baseline inside its line box: half-leading + descent. */
 const LABEL_BELOW_BASELINE_PX = (11 * 1.45 - 11) / 2 + 11 * 0.21;
 export const CARD_FOOTER_PAD_PX = CARD_FOOTER_GAP_PX - LABEL_BELOW_BASELINE_PX;
+/** Section block padding in the chip list (py-[18px]). One number for all sections. */
+export const SECTION_PAD_PX = 18;
+/** Under the hero photo, so the first section's top edge sits one A below the photo. */
+export const CARD_HEADER_PAD_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX - SECTION_PAD_PX;
 /** Browse QR, grown into the existing slot so it sits higher. The card does not move. */
 export const BROWSE_QR_SIZE = 150;
 /** Slot from the safe area to the rule: 18 + 134 + 18. */
