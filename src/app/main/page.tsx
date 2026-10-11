@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainScreen } from "@main/components/main-screen";
-import { BandGeo } from "@/shared/components/band-geo";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";

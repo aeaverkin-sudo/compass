@@ -6,7 +6,6 @@ import type { DeliveredNote } from "@/shared/services/notes-types";
 import { primePublicCardPdf, shareCardPdf, type CardPdfInput } from "@/shared/services/save-public-card-pdf";
 import { AccountBand } from "@/shared/components/account-band";
 import { BackButton } from "@/shared/components/back-button";
-import { BandGeo } from "@/shared/components/band-geo";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { BusinessCard } from "@main/components/business-card";
@@ -223,7 +222,6 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
           });
         }}
       />
-      <BandGeo page="/c" />
     </div>
   );
 }
