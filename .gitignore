@@ -45,3 +45,7 @@ next-env.d.ts
 
 # Screen-lock consent for the current chat. The lock list itself stays tracked.
 .cursor/locks/
+
+# iCloud / Finder duplicate copies
+* 2.*
+* 3.*
