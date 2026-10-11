@@ -3,7 +3,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { primePublicCardPdf, shareCardPdf, type CardPdfInput } from "@/shared/services/save-public-card-pdf";
+import {
+  peekPublicCardPdf,
+  primePublicCardPdf,
+  shareCardPdfIfReady,
+  type CardPdfInput,
+} from "@/shared/services/save-public-card-pdf";
 import { AccountBand } from "@/shared/components/account-band";
 import { BackButton } from "@/shared/components/back-button";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
@@ -24,6 +29,19 @@ type PublicCardClientProps = {
 
 type SaveState = "loading" | "ready" | "saved" | "own" | "busy";
 
+function scheduleIdle(run: () => void): () => void {
+  const win = window as Window & {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (typeof win.requestIdleCallback === "function") {
+    const id = win.requestIdleCallback(run, { timeout: 2500 });
+    return () => win.cancelIdleCallback?.(id);
+  }
+  const id = window.setTimeout(run, 1500);
+  return () => window.clearTimeout(id);
+}
+
 /**
  * SSR shows the card with empty notes. A browser then asks once for delivery.
  * Crawlers without JS leave the pending row alone.
@@ -38,7 +56,11 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
   const [plaqueHeight, setPlaqueHeight] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>(save ? "loading" : "ready");
   const [notice, setNotice] = useState<string | null>(null);
+  const [paintPdf, setPaintPdf] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [savePdfDoor, setSavePdfDoor] = useState(false);
   const plaqueRef = useRef<HTMLDivElement>(null);
+  const waitingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +104,6 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
   });
 
   const offer = !inside && notesReady && !held && offerOpen;
-  const [paintPdf, setPaintPdf] = useState(false);
 
   useLayoutEffect(() => {
     const node = plaqueRef.current;
@@ -97,18 +118,72 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
     return () => observer.disconnect();
   }, [offer]);
 
+  /** After first paint / idle: build the PDF so the first Get PDF tap can share sync. */
+  useEffect(() => {
+    if (inside || !notesReady) return;
+    let cancelled = false;
+    const cancelIdle = scheduleIdle(() => {
+      if (cancelled) return;
+      setPaintPdf(true);
+      void primePublicCardPdf({
+        cardId: card.id,
+        publicToken,
+        displayName: card.displayName,
+        notes,
+      }).catch(() => undefined);
+    });
+    return () => {
+      cancelled = true;
+      cancelIdle();
+    };
+  }, [inside, notesReady, card.id, card.displayName, publicToken, notes]);
+
+  const openSavePdfDoor = () => {
+    setPreparing(false);
+    setNotice(null);
+    setSavePdfDoor(true);
+  };
+
   const preparePdf = () => {
     setPaintPdf(true);
-    setNotice("Preparing PDF…");
     void primePublicCardPdf(pdfInput()).catch(() => undefined);
+  };
+
+  /** Must stay sync until `navigator.share` — no await before the handoff. */
+  const onPdfTap = () => {
+    const input = pdfInput();
+    preparePdf();
+    if (shareCardPdfIfReady(input, { onShareFailed: openSavePdfDoor })) {
+      setPreparing(false);
+      setSavePdfDoor(false);
+      return;
+    }
+    setSavePdfDoor(false);
+    setPreparing(true);
+    if (waitingRef.current) return;
+    waitingRef.current = true;
+    void primePublicCardPdf(input)
+      .then(() => {
+        waitingRef.current = false;
+        if (peekPublicCardPdf(input)) openSavePdfDoor();
+        else setPreparing(false);
+      })
+      .catch(() => {
+        waitingRef.current = false;
+        setPreparing(false);
+      });
+  };
+
+  const onSavePdfDoorTap = () => {
+    const input = pdfInput();
+    if (shareCardPdfIfReady(input, { onShareFailed: openSavePdfDoor })) {
+      setSavePdfDoor(false);
+    }
   };
 
   const savePdf = () => {
     setOfferOpen(false);
-    preparePdf();
-    void shareCardPdf(pdfInput()).finally(() => {
-      setNotice((current) => (current === "Preparing PDF…" ? null : current));
-    });
+    onPdfTap();
   };
 
   const keep = async () => {
@@ -180,6 +255,22 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
       style={{ "--card-frame-top": `${plaqueHeight}px` } as CSSProperties}
     >
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
+      {preparing ? (
+        <p className="pointer-events-none fixed top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center t-body text-[var(--ink)]">
+          Preparing PDF…
+        </p>
+      ) : null}
+      {savePdfDoor ? (
+        <div className="fixed top-1/2 left-1/2 z-40 max-w-[280px] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center">
+          <button
+            type="button"
+            className="t-caps text-[var(--ink)] outline-none"
+            onClick={onSavePdfDoorTap}
+          >
+            SAVE PDF
+          </button>
+        </div>
+      ) : null}
       {pdfSheets}
       {offer ? (
         <div
@@ -215,12 +306,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
       <AccountBand
         token={card.publicToken}
         onPreparePdf={preparePdf}
-        onPdf={() => {
-          preparePdf();
-          void shareCardPdf(pdfInput()).finally(() => {
-            setNotice((current) => (current === "Preparing PDF…" ? null : current));
-          });
-        }}
+        onPdf={onPdfTap}
       />
     </div>
   );

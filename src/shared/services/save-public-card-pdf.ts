@@ -94,7 +94,8 @@ export function failCardPdf(input: CardPdfInput, error: unknown) {
   entries.set(input.cardId, { generation: entry.generation });
 }
 
-function peekPublicCardPdf(input: CardPdfInput): ReadyPdf | null {
+/** Cached file for this card revision, if the idle/paint path already finished. */
+export function peekPublicCardPdf(input: CardPdfInput): ReadyPdf | null {
   const entry = entries.get(input.cardId);
   return entry?.key === inputKey(input) ? (entry.ready ?? null) : null;
 }
@@ -186,35 +187,42 @@ function copyLink(url: string): Promise<boolean> {
   );
 }
 
-/** True when the file was handed off. False when the share sheet is cancelled. */
-function sharePdfFile(file: File): Promise<boolean> {
+/**
+ * Hand the ready PDF from a user gesture. Must run in the same turn as the tap —
+ * never after `await`. Returns false when the cache is still empty.
+ * AbortError (user closed the sheet) is silent; any other share failure calls `onShareFailed`.
+ */
+export function shareCardPdfIfReady(
+  input: CardPdfInput,
+  opts?: { onShareFailed?: () => void },
+): boolean {
+  const ready = peekPublicCardPdf(input);
+  if (!ready) return false;
+  const file = toFile(ready);
   const shareData: ShareData = { files: [file] };
   if (!canSend(shareData)) {
     handFile(file);
-    return Promise.resolve(!isHomeScreenApp());
+    return true;
   }
-  return navigator.share(shareData).then(
-    () => true,
-    (error: unknown) => {
-      if (error instanceof DOMException && error.name === "AbortError") return false;
-      handFile(file);
-      return !isHomeScreenApp();
-    },
-  );
+  try {
+    void navigator.share(shareData).then(
+      () => undefined,
+      (error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        opts?.onShareFailed?.();
+      },
+    );
+  } catch {
+    opts?.onShareFailed?.();
+  }
+  return true;
 }
 
 /**
- * Share the card as a PDF file — never as a link.
- * iOS opens the sheet only when share() runs in the tap itself, so the file is
- * normally prebuilt. If it is still building, the file is shared the moment it lands.
+ * @deprecated Prefer `shareCardPdfIfReady` from a click. Kept for call sites that
+ * only need a best-effort handoff when the file is already cached.
  */
 export function shareCardPdf(input: CardPdfInput): Promise<boolean> {
-  const ready = peekPublicCardPdf(input);
-  if (ready) return sharePdfFile(toFile(ready));
-  return primePublicCardPdf(input)
-    .then((built) => sharePdfFile(toFile(built)))
-    .catch((error) => {
-      console.error("[pdf] share failed", error);
-      return false;
-    });
+  if (shareCardPdfIfReady(input)) return Promise.resolve(true);
+  return Promise.resolve(false);
 }
