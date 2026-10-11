@@ -25,7 +25,7 @@ Sign in and Sign up | src/app/register/page.tsx | sign in, sign-in, signin, sign
 Network | src/app/network/page.tsx | network, нетворк, страницу контактов, контакты, no contacts, network/page
 Network | src/app/network/network-screen.tsx | network, нетворк, страницу контактов, контакты, no contacts, network-screen
 
-Список замков | .cursor/locks.txt | locks.txt, список замков, замок на
-Список замков | .cursor/hooks/lock-screens.mjs | lock-screens
-Список замков | .cursor/hooks.json | hooks.json
-Список замков | .cursor/rules/locked-screens.mdc | locked-screens
+Список замков | .cursor/locks.txt | locks.txt, список замков, замок на, замок
+Список замков | .cursor/hooks/lock-screens.mjs | lock-screens, замок
+Список замков | .cursor/hooks.json | hooks.json, замок
+Список замков | .cursor/rules/locked-screens.mdc | locked-screens, замок

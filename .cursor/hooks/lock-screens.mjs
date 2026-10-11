@@ -8,6 +8,7 @@ function projectPath(...parts) {
 
 const FORBID = /не трог|не прав|не мен|не разреш|оставь|don't touch|do not (?:touch|edit|change)|leave it/i;
 const BARE_YES = /^(?:да|yes|ok|ок|разрешаю|подтверждаю|можно)[.!\s]*$/i;
+const BARE_CONTINUE = /^(?:делай|сделай|погнали|го|поехали)[.!\s]*$/i;
 const BARE_NO = /^(?:нет|no|не надо|не разрешаю)[.!\s]*$/i;
 const ALLOW = /разреша|подтвержда|можно править|можно менять|вноси правк|(?:^|\s)(?:да|yes|ок|ok)(?:\s|[.,!?]|$)/i;
 const QUESTION = /^(?:покажи|посмотри|что|как|где|почему|зачем)(?:\s|[,.:!?]|$)/i;
@@ -59,12 +60,18 @@ function namedLocks(prompt, locks) {
   return [...open];
 }
 
-function consentFromPrompt(prompt, locks, pending) {
+/** Opens named screens, or reopens the last topic / stopped page on «да» / «делай». */
+function consentFromPrompt(prompt, locks, pending = [], topic = []) {
   const text = String(prompt).trim();
-  if (BARE_NO.test(text)) return [];
-  if (BARE_YES.test(text)) return pending;
-  if (QUESTION.test(text) && !ALLOW.test(text)) return [];
-  return namedLocks(text, locks);
+  if (BARE_NO.test(text)) return { files: [], topic: [] };
+  if (BARE_YES.test(text) || BARE_CONTINUE.test(text)) {
+    const reuse = pending.length > 0 ? pending : topic;
+    return { files: reuse, topic: reuse.length > 0 ? reuse : topic };
+  }
+  if (QUESTION.test(text) && !ALLOW.test(text)) return { files: [], topic };
+  const named = namedLocks(text, locks);
+  if (named.length > 0) return { files: named, topic: named };
+  return { files: [], topic: [] };
 }
 
 function consentPath() {
@@ -77,16 +84,17 @@ function readState() {
     return {
       files: new Set(Array.isArray(data.files) ? data.files : []),
       pending: Array.isArray(data.pending) ? data.pending : [],
+      topic: Array.isArray(data.topic) ? data.topic : [],
     };
   } catch {
-    return { files: new Set(), pending: [] };
+    return { files: new Set(), pending: [], topic: [] };
   }
 }
 
-function writeState(files, pending) {
+function writeState(files, pending, topic = []) {
   const file = consentPath();
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify({ files: [...files], pending }));
+  fs.writeFileSync(file, JSON.stringify({ files: [...files], pending, topic: [...topic] }));
 }
 
 function relative(file) {
@@ -136,12 +144,13 @@ function lockedHits(files, locks) {
 function denyEdit(hits, locks) {
   const labels = new Set(hits.map((hit) => hit.label));
   const pending = locks.filter((lock) => labels.has(lock.label)).map((lock) => lock.file);
-  writeState(readState().files, pending);
+  const state = readState();
+  writeState(state.files, pending, pending);
   const label = hits[0].label;
   const file = hits.map((hit) => hit.file).join(", ");
   return {
     permission: "deny",
-    user_message: `Замок: ${label}. Правка ${file} остановлена. Назовите этот файл в ТЗ или напишите «разрешаю».`,
+    user_message: `Замок: ${label}. Правка ${file} остановлена. Назовите этот файл в ТЗ, напишите «разрешаю» или «делай».`,
     agent_message: `LOCKED (${label}): ${file}. The edit was blocked. Stop and ask the user to confirm. Do not retry, do not write the file from the shell, and do not write .cursor/locks/consent.json.`,
   };
 }
@@ -150,8 +159,9 @@ function handle(input, locks = readLocks()) {
   const event = input.hook_event_name || "";
 
   if (event === "beforeSubmitPrompt" || (input.prompt && !input.tool_name && !input.command)) {
-    const pending = readState().pending;
-    writeState(new Set(consentFromPrompt(input.prompt || "", locks, pending)), []);
+    const state = readState();
+    const next = consentFromPrompt(input.prompt || "", locks, state.pending, state.topic);
+    writeState(new Set(next.files), [], next.topic);
     return { continue: true };
   }
 
@@ -212,27 +222,32 @@ Lock list | .cursor/locks.txt | список замков
 
   assert(
     "named request unlocks",
-    consentFromPrompt("На sign in убери логотип", locks, []),
+    consentFromPrompt("На sign in убери логотип", locks, []).files,
     ["src/app/register/register-screen.tsx"],
   );
   assert(
     "path in the request unlocks",
-    consentFromPrompt("Поправь src/app/register/register-screen.tsx отступ", locks, []),
+    consentFromPrompt("Поправь src/app/register/register-screen.tsx отступ", locks, []).files,
     ["src/app/register/register-screen.tsx"],
   );
   assert(
     "allow phrase unlocks",
-    consentFromPrompt("разрешаю sign in", locks, []),
+    consentFromPrompt("разрешаю sign in", locks, []).files,
     ["src/app/register/register-screen.tsx"],
   );
   assert(
     "bare yes uses pending",
-    consentFromPrompt("да", locks, ["src/app/register/register-screen.tsx"]),
+    consentFromPrompt("да", locks, ["src/app/register/register-screen.tsx"]).files,
     ["src/app/register/register-screen.tsx"],
   );
-  assert("all screens stays locked", consentFromPrompt("Сделай сетку на всех экранах", locks, []), []);
-  assert("question stays locked", consentFromPrompt("Покажи, как выглядит sign in", locks, []), []);
-  assert("forbid stays locked", consentFromPrompt("Не трогай sign in, поправь событие", locks, []), []);
+  assert(
+    "continue uses topic",
+    consentFromPrompt("делай", locks, [], ["src/app/register/register-screen.tsx"]).files,
+    ["src/app/register/register-screen.tsx"],
+  );
+  assert("all screens stays locked", consentFromPrompt("Сделай сетку на всех экранах", locks, []).files, []);
+  assert("question stays locked", consentFromPrompt("Покажи, как выглядит sign in", locks, []).files, []);
+  assert("forbid stays locked", consentFromPrompt("Не трогай sign in, поправь событие", locks, []).files, []);
 
   const dir = fs.mkdtempSync(path.join("/tmp", "compass-lock-"));
   const previous = process.cwd();
@@ -254,6 +269,17 @@ Lock list | .cursor/locks.txt | список замков
     handle({ hook_event_name: "beforeSubmitPrompt", prompt: "да" });
     assert(
       "yes allows the stopped edit",
+      handle({
+        hook_event_name: "preToolUse",
+        tool_name: "StrReplace",
+        tool_input: { path: "src/app/register/register-screen.tsx", old_string: "a", new_string: "b" },
+      }).permission,
+      "allow",
+    );
+    handle({ hook_event_name: "beforeSubmitPrompt", prompt: "На sign in убери отступ" });
+    handle({ hook_event_name: "beforeSubmitPrompt", prompt: "делай" });
+    assert(
+      "continue allows the named topic",
       handle({
         hook_event_name: "preToolUse",
         tool_name: "StrReplace",
