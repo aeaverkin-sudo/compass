@@ -35,7 +35,14 @@ const PLUS_PX = 18;
 const COUNT_PX = 11;
 /** Micro sky inset so Share and the sheet count sit just inside the plate edges. */
 const EDGE_INSET_PX = 2;
-/** Screen stroke for Share, Scan, and Plus — matches the Light 1/3 stem (~0.9 px). */
+/** Cap size of the sheet count (`t-caps` Light). Turn the dial with MARK_SCALE only. */
+const CAPS_PX = 13;
+const CAP_HEIGHT_PX = CAPS_PX * 0.714;
+const MARK_SCALE = 1.25;
+const MARK_VISIBLE_PX = CAP_HEIGHT_PX * MARK_SCALE;
+/** One svg frame for Share, Scan, and Plus (visible glyph ≈ 19/24 of the box). */
+const MARK_PX = (MARK_VISIBLE_PX * 24) / 19;
+/** Screen stroke — matches the Light 1/3 stem (~0.9 px). */
 const RAIL_STROKE_PX = 0.9;
 
 const FREEZE_CLASS =
@@ -518,9 +525,9 @@ export function SideRail({
         "[&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current",
         "[&_a]:select-none [&_a]:[-webkit-touch-callout:none] [&_a]:[-webkit-user-drag:none]",
         "[&_button]:select-none [&_button]:[-webkit-touch-callout:none] [&_button]:[-webkit-user-drag:none]",
-        // One screen stroke (RAIL_STROKE_PX); sizes −10% from B2.
+        // One frame + one stroke for Share, Scan, and Plus.
+        "[&_svg]:![width:var(--rail-mark)] [&_svg]:![height:var(--rail-mark)]",
         "[&_svg]:![stroke-width:var(--rail-stroke)] [&_svg_*]:![vector-effect:non-scaling-stroke]",
-        "[&_svg.lucide-share]:!size-[16.2px] [&_svg.lucide-scan]:!size-[16.2px] [&_svg.lucide-plus]:!size-[23.4px]",
       )}
       style={{
         top: layoutTop(initial.top),
@@ -529,6 +536,7 @@ export function SideRail({
         width: counterRightCss,
         paddingTop: EDGE_INSET_PX,
         paddingBottom: EDGE_INSET_PX,
+        ["--rail-mark" as string]: `${MARK_PX}px`,
         ["--rail-stroke" as string]: String(RAIL_STROKE_PX),
         touchAction: "none",
         transition: "none",
