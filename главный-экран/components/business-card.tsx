@@ -24,7 +24,6 @@ import { NotesRubric } from "./notes-rubric";
 import { useOwnerNotesDelivery } from "../hooks/use-owner-notes-delivery";
 import { clampNameLines, NameOrTitleField } from "@/shared/components/name-or-title-field";
 import {
-  TOP_VEIL_PX,
   browseCardHeight,
   CARD_HEADER_NAME_SIZE_PX,
   CARD_PHOTO_SIZE_PX,
@@ -678,7 +677,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const bare = !compact && ready && items.length === 0 && !editing;
   const articleRef = useRef<HTMLElement | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
-  const [scrolledUnderQr, setScrolledUnderQr] = useState(false);
   const [previewPull, setPreviewPull] = useState(0);
   const [previewPulling, setPreviewPulling] = useState(false);
   const [previewFade, setPreviewFade] = useState({ top: false, bottom: false });
@@ -874,11 +872,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
           !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
         )}
-        onScroll={
-          compact
-            ? syncPreviewFade
-            : (event) => setScrolledUnderQr(event.currentTarget.scrollTop > 2)
-        }
+        onScroll={compact ? syncPreviewFade : undefined}
       >
       <div
         className={compact ? "flex w-full flex-col" : "flex w-full grow flex-col"}
@@ -980,16 +974,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ) : null}
       </div>
       </div>
-      {!compact && scrolledUnderQr ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 z-10"
-          style={{
-            height: TOP_VEIL_PX,
-            background: "linear-gradient(to bottom, white 0%, white 60%, transparent 100%)",
-          }}
-        />
-      ) : null}
       </div>
       {compact && (previewFade.top || previewPull < 0) ? (
         <div
