@@ -23,9 +23,14 @@ export const CARD_TOP_TRIM_PX = 9;
 /** t-label line of the sheet counter plus its mb-1. It sits between the QR and the photo. */
 const SHEET_MARK_BLOCK_PX = 11 * 1.45 + 4;
 /** Bottom of the QR to the top edge of the photo. */
-const QR_TO_PHOTO_PX = RULE_GAP_PX + SHEET_MARK_BLOCK_PX + RULE_GAP_PX;
+export const QR_TO_PHOTO_PX = RULE_GAP_PX + SHEET_MARK_BLOCK_PX + RULE_GAP_PX;
 /** Lower the QR by one quarter of that gap. The card stays. */
 export const QR_DROP_PX = QR_TO_PHOTO_PX / 4;
+/** Baseline of the Portfolio line to the sky plaque: the same gap as the QR to the photo. */
+export const CARD_FOOTER_GAP_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX;
+/** Below the t-label baseline inside its line box: half-leading + descent. */
+const LABEL_BELOW_BASELINE_PX = (11 * 1.45 - 11) / 2 + 11 * 0.21;
+export const CARD_FOOTER_PAD_PX = CARD_FOOTER_GAP_PX - LABEL_BELOW_BASELINE_PX;
 /** Browse QR, grown into the existing slot so it sits higher. The card does not move. */
 export const BROWSE_QR_SIZE = 150;
 /** Slot from the safe area to the rule: 18 + 134 + 18. */

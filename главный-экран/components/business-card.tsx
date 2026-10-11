@@ -30,6 +30,7 @@ import {
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
   LIBRARY_NAME_FADE_PX,
+  CARD_FOOTER_PAD_PX,
   CARD_TOP_TRIM_PX,
   RULE_GAP_PX,
   type MainScreenMode,
@@ -954,7 +955,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
       {!compact && !editing && (showShareFooter || shareFootnote || publicBar) ? (
-        <div className={cn("mt-auto shrink-0 t-meta", !readOnly && "pb-[2lh]")}>
+        <div className="mt-auto shrink-0 t-meta" style={{ paddingBottom: readOnly ? undefined : CARD_FOOTER_PAD_PX }}>
           {showShareFooter ? (
             <>
               <div aria-hidden className="h-[1lh]" />
