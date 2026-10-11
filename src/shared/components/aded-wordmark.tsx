@@ -79,8 +79,30 @@ const MARK: [number, number, number, number][] = [
   [44, 16, 10, 1],
 ];
 
+/** Unit cells from MARK — one [x, y] per grid square. */
+const MESH_CELLS: [number, number][] = MARK.flatMap(([x, y, w, h]) => {
+  const cells: [number, number][] = [];
+  for (let dy = 0; dy < h; dy += 1) {
+    for (let dx = 0; dx < w; dx += 1) {
+      cells.push([x + dx, y + dy]);
+    }
+  }
+  return cells;
+});
+
+const MESH_STROKE = 0.14;
+
 /** Pixel wordmark. Orange unless `color` is set. Height follows the 54×17 grid. */
-export function AdedWordmark({ className, color }: { className?: string; color?: string }) {
+export function AdedWordmark({
+  className,
+  color,
+  variant = "solid",
+}: {
+  className?: string;
+  color?: string;
+  variant?: "solid" | "mesh";
+}) {
+  const s = MESH_STROKE;
   return (
     <svg
       viewBox="0 0 54 17"
@@ -90,9 +112,22 @@ export function AdedWordmark({ className, color }: { className?: string; color?:
       className={className ?? "block h-auto w-full"}
       style={{ color: color ?? "#E8640C" }}
     >
-      {MARK.map(([x, y, width, height]) => (
-        <rect key={`${x}-${y}-${width}`} x={x} y={y} width={width} height={height} fill="currentColor" />
-      ))}
+      {variant === "mesh"
+        ? MESH_CELLS.map(([x, y]) => (
+            <rect
+              key={`${x}-${y}`}
+              x={x + s / 2}
+              y={y + s / 2}
+              width={1 - s}
+              height={1 - s}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={s}
+            />
+          ))
+        : MARK.map(([x, y, width, height]) => (
+            <rect key={`${x}-${y}-${width}`} x={x} y={y} width={width} height={height} fill="currentColor" />
+          ))}
     </svg>
   );
 }

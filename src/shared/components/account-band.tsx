@@ -95,7 +95,7 @@ export function AccountBand({
           </span>
         </a>
         <span className="flex flex-1 items-center justify-end">
-          <AdedWordmark color="#111" className="block h-[calc(13px*1.45*2)] w-auto" />
+          <AdedWordmark variant="mesh" className="block h-[calc(13px*1.45*2)] w-auto" />
         </span>
       </div>
     </nav>
