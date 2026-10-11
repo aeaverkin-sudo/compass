@@ -17,6 +17,7 @@ export function TabBand({
   center,
   pin = false,
   label,
+  inset = "var(--gutter)",
 }: {
   left: ReactNode;
   right: ReactNode;
@@ -24,6 +25,8 @@ export function TabBand({
   /** Fixed to the screen bottom, over the card. The list uses the in-flow bar. */
   pin?: boolean;
   label?: string;
+  /** Horizontal pad for the door row. Public /c matches the card rule axis. */
+  inset?: string;
 }) {
   useMainLayout();
   const band = `var(--band-h, ${browseBandHeightCss()})`;
@@ -42,7 +45,10 @@ export function TabBand({
         userSelect: "none",
       }}
     >
-      <div className="flex h-full items-stretch px-[var(--gutter)]">
+      <div
+        className="flex h-full items-stretch"
+        style={{ paddingLeft: inset, paddingRight: inset }}
+      >
         <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{left}</div>
         {center != null ? <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{center}</div> : null}
         <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{right}</div>

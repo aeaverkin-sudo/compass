@@ -474,8 +474,6 @@ function PdfCard({
         ) : null}
         {shown.some((block) => block.kind === "footer") ? (
           <div data-pdf-block="">
-            <div aria-hidden className="h-[1lh]" />
-            <CardShareFooter name={card.displayName} />
             <div className="mt-4" style={{ marginLeft: -PDF_PAD, marginRight: -PDF_PAD }}>
               <AccountBand token={card.publicToken} inset={PDF_PAD} safe={false} />
             </div>
@@ -560,7 +558,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
 
   useOwnerNotesDelivery(card.id, !pdf && !readOnly && !compact && nextScanAddons.length > 0);
   const blank = !cardHasPhoto(card) && !card.displayName.trim();
-  const showShareFooter = !compact && !editing && ready && (items.length > 0 || Boolean(card.publicToken));
+  const showShareFooter =
+    !readOnly && !compact && !editing && ready && (items.length > 0 || Boolean(card.publicToken));
   const bare = !compact && ready && items.length === 0 && !editing;
   const articleRef = useRef<HTMLElement | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);

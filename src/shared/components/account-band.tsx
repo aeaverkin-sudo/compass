@@ -54,6 +54,7 @@ export function AccountBand({
     return (
       <TabBand
         pin
+        inset="calc(clamp(24px, 6.1vw, 28px) - 3mm)"
         label="Account"
         left={
           <a href={saveHref} className={DOOR}>
