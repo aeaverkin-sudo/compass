@@ -336,7 +336,12 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
         )}
       >
         {bare ? (
-          <span className="t-caps leading-none text-current">+</span>
+          <Plus
+            className="size-[26px] text-current"
+            strokeWidth={1.1}
+            strokeLinecap="round"
+            aria-hidden
+          />
         ) : (
           <Plus className="size-4 text-[var(--grey)]" strokeWidth={1} aria-hidden />
         )}

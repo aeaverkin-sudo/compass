@@ -554,7 +554,7 @@ export function SideRail({
         ) : null}
       </RailMark>
       <RailMark height={COUNT_PX} inert={dragging}>
-        <p className="text-center t-caps text-[var(--ink)]" style={{ lineHeight: 1 }}>
+        <p className="text-center t-caps text-[var(--ink)]" style={{ fontWeight: 300, lineHeight: 1 }}>
           {index}/{total}
         </p>
       </RailMark>

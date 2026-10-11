@@ -41,6 +41,7 @@ export function TabBand({
         height: band,
         bottom: pin ? "var(--vv-bottom, 0px)" : undefined,
         fontFamily: FONT,
+        fontWeight: 300,
         WebkitUserSelect: "none",
         userSelect: "none",
       }}
