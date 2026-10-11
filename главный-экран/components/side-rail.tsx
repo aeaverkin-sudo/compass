@@ -516,8 +516,6 @@ export function SideRail({
         "[&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current",
         "[&_a]:select-none [&_a]:[-webkit-touch-callout:none] [&_a]:[-webkit-user-drag:none]",
         "[&_button]:select-none [&_button]:[-webkit-touch-callout:none] [&_button]:[-webkit-user-drag:none]",
-        // Bare plus still ships font-light 18px; match t-caps until next-scan-menu can change.
-        "[&_button>span.font-light]:!text-[13px] [&_button>span.font-light]:!font-normal [&_button>span.font-light]:!leading-none [&_button>span.font-light]:tracking-[0.14em]",
       )}
       style={{
         top: layoutTop(initial.top),
