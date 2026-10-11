@@ -69,10 +69,10 @@ export function CardShareControl({
     });
   }, [open]);
 
-  const icon = <Share className="size-[16.1px] text-[var(--grey)]" strokeWidth={1} aria-hidden />;
+  const icon = <Share className="size-[16.1px]" strokeWidth={1} aria-hidden />;
 
   if (!onShare) {
-    return <span className={cn("flex size-11 items-center justify-start", className)}>{icon}</span>;
+    return <span className={cn("flex size-11 items-center justify-start text-current", className)}>{icon}</span>;
   }
 
   return (
@@ -91,7 +91,7 @@ export function CardShareControl({
           aria-label="Share"
           onPointerDown={onPrepareShare}
           className={cn(
-            "flex size-11 items-center justify-start text-[var(--grey)] outline-none",
+            "flex size-11 items-center justify-start text-current outline-none",
             className,
           )}
         >

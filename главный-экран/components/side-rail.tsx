@@ -6,7 +6,7 @@ import { CardShareControl, useCardShare } from "@/shared/components/card-share-c
 import { getNextScanAddons } from "@/shared/services/card-snapshot";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
-import { BROWSE_QR_SIZE, layoutTop } from "../layout";
+import { BROWSE_QR_SIZE, layoutTop, QR_COLOR } from "../layout";
 import { NextScanMenu } from "./next-scan-menu";
 
 /** Visible mark heights. The size-11 tap sits on each mark and does not enter the column. */
@@ -50,19 +50,25 @@ export function SideRail({
 
   return (
     <div
-      className="pointer-events-none absolute z-30 flex flex-col items-start justify-between"
-      style={{ top: layoutTop(qrTop), height: BROWSE_QR_SIZE, right: 0, width: counterRightCss }}
+      className="pointer-events-none absolute z-30 flex flex-col items-start justify-between [&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current"
+      style={{
+        top: layoutTop(qrTop),
+        height: BROWSE_QR_SIZE,
+        right: 0,
+        width: counterRightCss,
+        color: QR_COLOR,
+      }}
     >
       <RailMark height={SHARE_PX}>
         <CardShareControl
           card={card}
           onShare={canShare ? share.handleShare : undefined}
           onPrepareShare={canShare ? share.primeShare : undefined}
-          className="justify-start"
+          className="justify-start text-current"
         />
       </RailMark>
       <RailMark height={SCAN_PX}>
-        <ScanButton className="justify-start" />
+        <ScanButton className="justify-start text-current" />
       </RailMark>
       <RailMark height={PLUS_PX}>
         {showPlus ? (
@@ -74,7 +80,7 @@ export function SideRail({
         ) : null}
       </RailMark>
       <RailMark height={COUNT_PX}>
-        <p className="text-left t-label text-[var(--grey)]" style={{ lineHeight: 1 }}>
+        <p className="text-left t-label" style={{ lineHeight: 1, color: "inherit" }}>
           {index}/{total}
         </p>
       </RailMark>
