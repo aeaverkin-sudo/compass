@@ -120,7 +120,7 @@ export function layoutTop(offsetPx: number) {
 /** Slimmer than the full-screen remainder: 55% of (0.27 × screen − 118px). */
 export const BAND_HEIGHT_SCALE = 0.55;
 
-/** Shortest sky plaque that still holds the three labels. Desktop windows only. */
+/** Shortest sky plaque anywhere — one tap row. */
 export const MIN_BAND_PX = 44;
 
 /** Pixels trimmed off the band so the card and the sky plate share one edge. */
@@ -136,7 +136,7 @@ export function bandHeightOffsetPx() {
 export function browseBandHeightPx(fullH: number, desktop = false) {
   const share = (100 - CARD_BOTTOM_TARGET_LVH) / 100;
   const raw = BAND_HEIGHT_SCALE * (fullH * share - bandHeightOffsetPx());
-  return Math.max(desktop ? MIN_BAND_PX : 0, raw);
+  return Math.max(MIN_BAND_PX, raw);
 }
 
 /** A phone has a collapsing toolbar. A desktop window does not, even when `svh` is short of it. */
@@ -188,7 +188,7 @@ export function writeScreenVars() {
 /** Same height as `browseBandHeightPx`, for the plaque before the layout hook measures the screen. */
 export function browseBandHeightCss() {
   const offset = bandHeightOffsetPx();
-  return `calc(${BAND_HEIGHT_SCALE} * (${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${offset}px))`;
+  return `max(${MIN_BAND_PX}px, calc(${BAND_HEIGHT_SCALE} * (${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${offset}px)))`;
 }
 
 export function browseCardHeight() {
@@ -224,7 +224,7 @@ var visible=desktop?Math.max(svh,inner):svh;
 var full=desktop?visible:lvh;
 var band=Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset}));
 if(band<0)band=0;
-if(desktop&&band<${MIN_BAND_PX})band=${MIN_BAND_PX};
+if(band<${MIN_BAND_PX})band=${MIN_BAND_PX};
 var lift=0;
 if(!desktop){
   var vv=window.visualViewport;
