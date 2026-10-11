@@ -33,7 +33,7 @@ export default async function PublicCardPage({ params, searchParams }: PageProps
   );
 
   return (
-    <main className="compass-main min-h-lvh bg-white">
+    <main className="min-h-lvh bg-white">
       <ViewerMirror />
       <PublicCardClient
         card={loaded.card}

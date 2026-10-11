@@ -370,7 +370,7 @@ export function CardPdfSource({ input, epoch, children }: CardPdfSourceProps) {
     let cancel = false;
     const pagesHost = document.createElement("div");
     pagesHost.setAttribute("aria-hidden", "true");
-    pagesHost.className = "pointer-events-none fixed top-0 -z-10";
+    pagesHost.className = "compass-pdf-stage pointer-events-none fixed top-0 -z-10";
     pagesHost.style.left = `${-PDF_PAGE_W - 32}px`;
     document.body.appendChild(pagesHost);
 
@@ -424,7 +424,11 @@ export function CardPdfSource({ input, epoch, children }: CardPdfSourceProps) {
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div aria-hidden className="pointer-events-none fixed top-0 -z-10" style={{ left: -PDF_PAGE_W - 32 }}>
+    <div
+      aria-hidden
+      className="compass-pdf-stage pointer-events-none fixed top-0 -z-10"
+      style={{ left: -PDF_PAGE_W - 32 }}
+    >
       <div ref={sourceRef} style={{ width: PDF_PAGE_W }}>
         {children(null)}
       </div>

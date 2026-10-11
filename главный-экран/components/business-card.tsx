@@ -511,8 +511,6 @@ type BusinessCardProps = {
   deliveredNotes?: DeliveredNote[];
   /** Trial add slide: same empty start, taps ask to register. */
   onPortfolioStartBlocked?: () => void;
-  /** Public /c/ only: sky actions under the portfolio line. */
-  publicBar?: ReactNode;
   /** Print sheets of this same card. No QR, no share, no fixed screen height. */
   pdf?: boolean;
   /** Null paints every block. An array is one phone sheet. */
@@ -543,7 +541,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     shareFootnote,
     deliveredNotes = [],
     onPortfolioStartBlocked,
-    publicBar,
     pdf = false,
     pdfMask = null,
     sheetIndex,
@@ -685,7 +682,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         compact
           ? "compass-card compass-card-library relative min-h-0 w-full min-w-0 justify-start overflow-hidden pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
           : "relative min-h-0 overflow-hidden bg-white text-[#111]",
-        !compact && readOnly && "h-svh",
       )}
       style={
         compact
@@ -694,7 +690,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               paddingTop: LIBRARY_NAME_FADE_PX,
             }
           : {
-              height: readOnly ? "calc(100svh - var(--card-frame-top, 0px))" : browseCardHeight(),
+              height: readOnly ? "100%" : browseCardHeight(),
             }
       }
     >
@@ -741,7 +737,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               </p>
             ) : null}
           </div>
-          {publicBar ? <div className="mt-auto -mx-[calc(clamp(24px,6.1vw,28px)-3mm)]">{publicBar}</div> : null}
         </div>
       ) : null}
       <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
@@ -843,7 +838,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           deliveredNotes={readOnly ? deliveredNotes : undefined}
         />
       ) : null}
-      {!compact && !editing && (showShareFooter || shareFootnote || publicBar) ? (
+      {!compact && !editing && (showShareFooter || shareFootnote) ? (
         <div
           className="mt-auto shrink-0 t-meta"
           style={{ paddingBottom: readOnly ? undefined : CARD_FOOTER_GAP_PX }}
@@ -863,9 +858,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               )}
               <div className="text-center">{shareFootnote}</div>
             </>
-          ) : null}
-          {publicBar && !bare ? (
-            <div className="mt-4 -mx-[calc(clamp(24px,6.1vw,28px)-3mm)]">{publicBar}</div>
           ) : null}
         </div>
       ) : null}

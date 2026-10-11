@@ -168,9 +168,8 @@ export function writeScreenVars() {
   const band = Math.round(browseBandHeightPx(full, desktop));
   root.style.setProperty("--app-h", `${visible}px`);
   root.style.setProperty("--band-h", `${band}px`);
-  const shell = document.querySelector("main.compass-main, div.compass-main");
   const vv = window.visualViewport;
-  const gap = vv && shell ? shell.getBoundingClientRect().bottom - vv.height : 0;
+  const gap = vv ? visible - vv.height : 0;
   root.style.setProperty("--vv-bottom", `${bandLiftPx(desktop, gap)}px`);
   root.classList.add("compass-sized");
   return { visible, band, desktop };

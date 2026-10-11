@@ -10,6 +10,7 @@ import { BandGeo } from "@/shared/components/band-geo";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { BusinessCard } from "@main/components/business-card";
+import { browseBandHeightCss } from "@main/layout";
 import type { Card, ContactItem } from "@/shared/types";
 
 type PublicCardClientProps = {
@@ -148,20 +149,6 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
       mode="browse"
       readOnly
       deliveredNotes={notes}
-      publicBar={
-        inside ? undefined : (
-          <AccountBand
-            token={card.publicToken}
-            onPreparePdf={preparePdf}
-            onPdf={() => {
-              preparePdf();
-              void shareCardPdf(pdfInput()).finally(() => {
-                setNotice((current) => (current === "Preparing PDF…" ? null : current));
-              });
-            }}
-          />
-        )
-      }
     />
   );
 
@@ -190,7 +177,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
 
   return (
     <div
-      className="compass-main fixed top-0 flex h-dvh flex-col overflow-hidden bg-white"
+      className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-white"
       style={{ "--card-frame-top": `${plaqueHeight}px` } as CSSProperties}
     >
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
@@ -220,7 +207,22 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
           </div>
         </div>
       ) : null}
-      <div className="min-h-0 flex-1 overflow-hidden">{sheet}</div>
+      <div
+        className="min-h-0 flex-1 overflow-hidden"
+        style={{ paddingBottom: `calc(var(--band-h, ${browseBandHeightCss()}) + var(--vv-bottom, 0px))` }}
+      >
+        {sheet}
+      </div>
+      <AccountBand
+        token={card.publicToken}
+        onPreparePdf={preparePdf}
+        onPdf={() => {
+          preparePdf();
+          void shareCardPdf(pdfInput()).finally(() => {
+            setNotice((current) => (current === "Preparing PDF…" ? null : current));
+          });
+        }}
+      />
       <BandGeo page="/c" />
     </div>
   );
