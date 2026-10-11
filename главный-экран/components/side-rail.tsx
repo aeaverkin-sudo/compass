@@ -509,12 +509,16 @@ export function SideRail({
   return (
     <div
       ref={rootRef}
+      data-side-rail
       className={cn(
         "absolute z-30 flex touch-none flex-col items-center justify-between bg-sky text-[var(--ink)]",
         FREEZE_CLASS,
         "[&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current",
         "[&_a]:select-none [&_a]:[-webkit-touch-callout:none] [&_a]:[-webkit-user-drag:none]",
         "[&_button]:select-none [&_button]:[-webkit-touch-callout:none] [&_button]:[-webkit-user-drag:none]",
+        // Same optical weight as TabBand t-caps (13 / 400) — slots and plate stay put.
+        "[&_svg]:!size-[13px] [&_svg]:![stroke-width:2px]",
+        "[&_button>span.font-light]:!text-[13px] [&_button>span.font-light]:!font-normal [&_button>span.font-light]:!leading-none [&_button>span.font-light]:tracking-[0.14em]",
       )}
       style={{
         top: layoutTop(initial.top),
@@ -553,7 +557,7 @@ export function SideRail({
         ) : null}
       </RailMark>
       <RailMark height={COUNT_PX} inert={dragging}>
-        <p className="text-center t-label text-[var(--ink)]" style={{ lineHeight: 1 }}>
+        <p className="text-center t-caps text-[var(--ink)]" style={{ lineHeight: 1 }}>
           {index}/{total}
         </p>
       </RailMark>

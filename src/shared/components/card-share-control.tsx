@@ -14,6 +14,8 @@ const SHARE_CHOICES: { choice: CardShareChoice; label: string }[] = [
   { choice: "link", label: "Link" },
 ];
 
+const RAIL_POPUP_GAP_PX = 8;
+
 /** Owner share from the rail. The public card has no share control. */
 export function useCardShare(card: Card) {
   const ownerNotesKey = getNextScanAddons(card)
@@ -45,6 +47,17 @@ export function useCardShare(card: Card) {
   return { primeShare, handleShare };
 }
 
+function placeAgainstRail(anchor: HTMLElement | null) {
+  if (!anchor) return { right: 0, top: 0 };
+  const rect = anchor.getBoundingClientRect();
+  const rail = anchor.closest("[data-side-rail]");
+  const railLeft = rail?.getBoundingClientRect().left ?? rect.left;
+  return {
+    right: Math.max(0, window.innerWidth - railLeft),
+    top: rect.bottom + RAIL_POPUP_GAP_PX,
+  };
+}
+
 export function CardShareControl({
   onShare,
   onPrepareShare,
@@ -61,12 +74,10 @@ export function CardShareControl({
 
   useLayoutEffect(() => {
     if (!open) return;
-    const rect = anchorRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setPlace({
-      right: Math.max(0, window.innerWidth - rect.right),
-      top: rect.bottom + 8,
-    });
+    const measure = () => setPlace(placeAgainstRail(anchorRef.current));
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
   }, [open]);
 
   const icon = <Share className="size-[16.1px]" strokeWidth={1} aria-hidden />;
@@ -99,13 +110,13 @@ export function CardShareControl({
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-[#111]/20" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-transparent" />
         <Dialog.Content
           aria-describedby={undefined}
           data-no-swipe
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}
-          className="fixed z-40 flex w-max min-h-[77.6875px] min-w-[68.1875px] items-center justify-center border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
+          className="fixed z-50 flex w-max min-h-[77.6875px] min-w-[68.1875px] items-center justify-center border-0 bg-sky px-1.5 py-1 text-center text-[#111] shadow-none outline-none"
           style={{
             right: place.right,
             top: place.top,
