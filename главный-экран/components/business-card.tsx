@@ -24,7 +24,7 @@ import {
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
   LIBRARY_NAME_FADE_PX,
-  CARD_FOOTER_PAD_PX,
+  CARD_FOOTER_GAP_PX,
   CARD_HEADER_PAD_PX,
   CARD_TOP_TRIM_PX,
   HEADER_FADE_PX,
@@ -844,8 +844,11 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
       {!compact && !editing && (showShareFooter || shareFootnote || publicBar) ? (
-        <div className="mt-auto shrink-0 t-meta" style={{ paddingBottom: readOnly ? undefined : CARD_FOOTER_PAD_PX }}>
-          {showShareFooter ? (
+        <div
+          className="mt-auto shrink-0 t-meta"
+          style={{ paddingBottom: readOnly ? undefined : CARD_FOOTER_GAP_PX }}
+        >
+          {readOnly && showShareFooter ? (
             <>
               <div aria-hidden className="h-[1lh]" />
               <CardShareFooter name={card.displayName} />
@@ -853,7 +856,11 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           ) : null}
           {shareFootnote ? (
             <>
-              {showShareFooter ? <div aria-hidden className="h-[2lh]" /> : <div aria-hidden className="h-[1lh]" />}
+              {readOnly && showShareFooter ? (
+                <div aria-hidden className="h-[2lh]" />
+              ) : (
+                <div aria-hidden className="h-[1lh]" />
+              )}
               <div className="text-center">{shareFootnote}</div>
             </>
           ) : null}

@@ -26,7 +26,7 @@ const SHEET_MARK_BLOCK_PX = 11 * 1.45 + 4;
 export const QR_TO_PHOTO_PX = RULE_GAP_PX + SHEET_MARK_BLOCK_PX + RULE_GAP_PX;
 /** Lower the QR by one quarter of that gap. The card stays. */
 export const QR_DROP_PX = QR_TO_PHOTO_PX / 4;
-/** Baseline of the Portfolio line to the sky plaque: the same gap as the QR to the photo. */
+/** Last section to the sky plaque on the owner card: the same gap as the QR to the photo. */
 export const CARD_FOOTER_GAP_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX;
 /** Below the t-label baseline inside its line box: half-leading + descent. */
 const LABEL_BELOW_BASELINE_PX = (11 * 1.45 - 11) / 2 + 11 * 0.21;
