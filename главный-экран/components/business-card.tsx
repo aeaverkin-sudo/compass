@@ -32,8 +32,6 @@ import {
   CARD_FOOTER_PAD_PX,
   CARD_HEADER_PAD_PX,
   CARD_TOP_TRIM_PX,
-  HEADER_FADE_IN_PX,
-  HEADER_FADE_OUT_PX,
   RULE_GAP_PX,
   SECTION_PAD_PX,
   type MainScreenMode,
@@ -275,7 +273,7 @@ function EditorialHeader({
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
-  /** Screen plate: one A under the photo, fading across the scroll. */
+  /** Screen plate is one A under the photo. The PDF keeps the shorter pad. */
   plate?: boolean;
 }) {
   const photoSrc = cardPhotoSrc(card);
@@ -290,18 +288,10 @@ function EditorialHeader({
         </p>
       ) : null}
       <div
-        className={cn("relative", plate && "z-10")}
+        className="relative"
         style={{
           paddingTop: RULE_GAP_PX - CARD_TOP_TRIM_PX,
-          paddingBottom: plate ? CARD_HEADER_PAD_PX + HEADER_FADE_OUT_PX : CARD_HEADER_PAD_PX - SECTION_PAD_PX,
-          marginBottom: plate ? -HEADER_FADE_OUT_PX : undefined,
-          marginLeft: plate ? "calc(-1 * (clamp(24px, 6.1vw, 28px) - 3mm))" : undefined,
-          marginRight: plate ? "calc(-1 * (clamp(24px, 6.1vw, 28px) - 3mm))" : undefined,
-          paddingLeft: plate ? "calc(clamp(24px, 6.1vw, 28px) - 3mm)" : undefined,
-          paddingRight: plate ? "calc(clamp(24px, 6.1vw, 28px) - 3mm)" : undefined,
-          background: plate
-            ? `linear-gradient(to bottom, #fff 0, #fff calc(100% - ${HEADER_FADE_IN_PX + HEADER_FADE_OUT_PX}px), rgba(255,255,255,0) 100%)`
-            : undefined,
+          paddingBottom: plate ? CARD_HEADER_PAD_PX : CARD_HEADER_PAD_PX - SECTION_PAD_PX,
         }}
       >
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>

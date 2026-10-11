@@ -33,9 +33,6 @@ const LABEL_BELOW_BASELINE_PX = (11 * 1.45 - 11) / 2 + 11 * 0.21;
 export const CARD_FOOTER_PAD_PX = CARD_FOOTER_GAP_PX - LABEL_BELOW_BASELINE_PX;
 /** Hero plate below the photo: one A. Same gap as QR → photo. */
 export const CARD_HEADER_PAD_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX;
-/** Plate fade: 0.5 mm above the edge, 1 mm below it (iPhone glass, 6.4 px per mm). */
-export const HEADER_FADE_IN_PX = 3.2;
-export const HEADER_FADE_OUT_PX = 6.4;
 /** py-[18px] of every section. */
 export const SECTION_PAD_PX = 18;
 /** Browse QR, grown into the existing slot so it sits higher. The card does not move. */
