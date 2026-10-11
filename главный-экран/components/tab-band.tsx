@@ -16,6 +16,7 @@ export function TabBand({
   right,
   center,
   pin = false,
+  safeBottom = false,
   label,
 }: {
   left: ReactNode;
@@ -23,6 +24,8 @@ export function TabBand({
   center?: ReactNode;
   /** Fixed to the screen bottom, over the card. The list uses the in-flow bar. */
   pin?: boolean;
+  /** Blue home-indicator strip under the labels. The text stays in `--band-h`. */
+  safeBottom?: boolean;
   label?: string;
 }) {
   useMainLayout();
@@ -35,7 +38,8 @@ export function TabBand({
         pin && "pointer-events-auto absolute inset-x-0 z-30",
       )}
       style={{
-        height: band,
+        height: safeBottom ? `calc(${band} + env(safe-area-inset-bottom, 0px))` : band,
+        paddingBottom: safeBottom ? "env(safe-area-inset-bottom, 0px)" : undefined,
         bottom: pin ? "var(--vv-bottom, 0px)" : undefined,
         fontFamily: FONT,
         WebkitUserSelect: "none",

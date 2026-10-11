@@ -1,11 +1,13 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { browseBandHeightCss } from "@main/layout";
+import { TabBand } from "@main/components/tab-band";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { cn } from "@/lib/utils";
 
 const FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+const DOOR =
+  "press touch-manipulation flex h-full min-h-11 w-full items-center uppercase [-webkit-tap-highlight-color:transparent]";
 
 function subscribe() {
   return () => {};
@@ -25,7 +27,7 @@ function useOrigin() {
 }
 
 /**
- * Two doors under the portfolio name. The web plaque is `--band-h` tall.
+ * Two doors under the portfolio name. The web plaque is the main TabBand.
  * The painted PDF keeps its own row.
  */
 export function AccountBand({
@@ -49,44 +51,26 @@ export function AccountBand({
   const pdf = medium === "pdf" || (medium == null && !safe);
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
   if (!pdf) {
-    const door =
-      "press t-caps flex h-full flex-1 touch-manipulation items-center text-[#111] [-webkit-tap-highlight-color:transparent]";
     return (
-      <nav
-        aria-label="Account"
-        className={cn(
-          "compass-sky-band bg-sky text-[var(--ink)]",
-          inset == null && "px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
-        )}
-        style={{
-          fontFamily: FONT,
-          height: `var(--band-h, ${browseBandHeightCss()})`,
-          paddingLeft: inset,
-          paddingRight: inset,
-        }}
-      >
-        <div className="flex h-full items-stretch">
-          <a href={saveHref} className={cn(door, "text-left")}>
-            <span data-pdf-link="" className="inline-block w-fit">
-              Save to
-              <br />
-              network
-            </span>
+      <TabBand
+        safeBottom
+        label="Account"
+        left={
+          <a href={saveHref} className={DOOR}>
+            <span data-pdf-link="">Save to network</span>
           </a>
+        }
+        right={
           <button
             type="button"
             onPointerDown={onPreparePdf}
             onClick={onPdf}
-            className={cn(door, "justify-end border-0 bg-transparent text-right")}
+            className={cn(DOOR, "justify-end border-0 bg-transparent")}
           >
-            <span data-pdf-link="" className="inline-block w-fit">
-              Get
-              <br />
-              PDF file
-            </span>
+            <span data-pdf-link="">Get PDF file</span>
           </button>
-        </div>
-      </nav>
+        }
+      />
     );
   }
   const pdfDoor =
