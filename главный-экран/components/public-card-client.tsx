@@ -275,7 +275,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
       {offer ? (
         <div
           ref={plaqueRef}
-          className="t-caps shrink-0 bg-sky px-5 py-4 text-center text-[#111]"
+          className="t-band shrink-0 bg-sky px-5 py-4 text-center text-[#111]"
           style={{
             fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif',
             paddingTop: "calc(env(safe-area-inset-top) + 16px)",
@@ -285,13 +285,13 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
           <div className="mt-3 flex items-baseline justify-center gap-6">
             <button
               type="button"
-              className="t-caps px-2 py-2"
+              className="t-band px-2 py-2"
               onPointerDown={preparePdf}
               onClick={savePdf}
             >
               Save
             </button>
-            <button type="button" className="t-caps px-2 py-2" onClick={() => setOfferOpen(false)}>
+            <button type="button" className="t-band px-2 py-2" onClick={() => setOfferOpen(false)}>
               Not now
             </button>
           </div>

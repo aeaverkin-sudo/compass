@@ -129,7 +129,7 @@ export function CardShareControl({
               <Dialog.Close asChild key={choice}>
                 <button
                   type="button"
-                  className="px-2.5 py-2 t-caps text-[var(--ink)] outline-none focus:outline-none focus-visible:outline-none"
+                  className="flex w-full items-center px-3 py-2.5 text-left t-meta text-[var(--ink)] outline-none focus:outline-none focus-visible:outline-none"
                   onClick={() => onShare(choice)}
                 >
                   {label}

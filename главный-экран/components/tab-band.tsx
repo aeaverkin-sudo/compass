@@ -34,14 +34,13 @@ export function TabBand({
     <nav
       aria-label={label}
       className={cn(
-        "compass-sky-band shrink-0 bg-sky t-caps text-[var(--ink)] select-none [-webkit-touch-callout:none]",
+        "compass-sky-band shrink-0 bg-sky t-band text-[var(--ink)] select-none [-webkit-touch-callout:none]",
         pin && "pointer-events-auto absolute inset-x-0 z-30",
       )}
       style={{
         height: band,
         bottom: pin ? "var(--vv-bottom, 0px)" : undefined,
         fontFamily: FONT,
-        fontWeight: 300,
         WebkitUserSelect: "none",
         userSelect: "none",
       }}

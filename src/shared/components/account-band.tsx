@@ -75,7 +75,7 @@ export function AccountBand({
     );
   }
   const pdfDoor =
-    "press t-caps flex min-h-11 flex-1 touch-manipulation items-center py-3 text-[#111] [-webkit-tap-highlight-color:transparent]";
+    "press t-band flex min-h-11 flex-1 touch-manipulation items-center py-3 text-[#111] [-webkit-tap-highlight-color:transparent]";
   return (
     <nav
       aria-label="Account"
