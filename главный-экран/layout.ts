@@ -31,10 +31,13 @@ export const CARD_FOOTER_GAP_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX
 /** Below the t-label baseline inside its line box: half-leading + descent. */
 const LABEL_BELOW_BASELINE_PX = (11 * 1.45 - 11) / 2 + 11 * 0.21;
 export const CARD_FOOTER_PAD_PX = CARD_FOOTER_GAP_PX - LABEL_BELOW_BASELINE_PX;
-/** Section block padding in the chip list (py-[18px]). One number for all sections. */
+/** Hero plate below the photo: one A. Same gap as QR → photo. */
+export const CARD_HEADER_PAD_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX;
+/** Plate fade: 0.5 mm above the edge, 1 mm below it (iPhone glass, 6.4 px per mm). */
+export const HEADER_FADE_IN_PX = 3.2;
+export const HEADER_FADE_OUT_PX = 6.4;
+/** py-[18px] of every section. */
 export const SECTION_PAD_PX = 18;
-/** Under the hero photo, so the first section's top edge sits one A below the photo. */
-export const CARD_HEADER_PAD_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX - SECTION_PAD_PX;
 /** Browse QR, grown into the existing slot so it sits higher. The card does not move. */
 export const BROWSE_QR_SIZE = 150;
 /** Slot from the safe area to the rule: 18 + 134 + 18. */
@@ -55,8 +58,8 @@ export const BOTTOM_PLATE_DROP_PX = (96 / 25.4) * 3;
 /** The sky plate starts this far below the card edge. */
 export const BOTTOM_PLATE_LOWER_PX = (96 / 25.4) * 2;
 
-/** Browse veil: one line of body text, so a scrolling row hides before the fade. */
-export const TOP_VEIL_PX = (96 / 25.4) * 7;
+/** Retired veil's share of the band offset. The live figure, so the plaque height stays. */
+const VEIL_EDGE_PX = (96 / 25.4) * 7;
 
 /** Base overlap of the library preview onto the QR zone. */
 export const QR_OVERLAP_LIBRARY_BASE_PX = 112;
@@ -111,9 +114,9 @@ export const BAND_HEIGHT_SCALE = 0.55;
 /** Shortest sky plaque that still holds the three labels. Desktop windows only. */
 export const MIN_BAND_PX = 44;
 
-/** Pixels trimmed off the band so the card, the plate and the veil share one edge. */
+/** Pixels trimmed off the band so the card and the sky plate share one edge. */
 export function bandHeightOffsetPx() {
-  return -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + TOP_VEIL_PX;
+  return -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + VEIL_EDGE_PX;
 }
 
 /**
