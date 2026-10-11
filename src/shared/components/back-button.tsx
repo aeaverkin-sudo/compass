@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
@@ -13,6 +14,8 @@ type BackButtonProps = {
   fallbackHref: string;
   /** Stay on this page and step back inside it. History is used when this is absent. */
   onBack?: () => void;
+  /** Ink by default. A dark screen passes its own text color. */
+  className?: string;
 };
 
 const SHOW_MS = 150;
@@ -26,7 +29,7 @@ const MOVE_PX = 8;
  * content so it stays clear of the arrow.
  * A scroll, or a touch that moves, fades the arrow. It returns when the motion stops.
  */
-export function BackButton({ fallbackHref, onBack }: BackButtonProps) {
+export function BackButton({ fallbackHref, onBack, className }: BackButtonProps) {
   const router = useRouter();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const idleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,7 +116,7 @@ export function BackButton({ fallbackHref, onBack }: BackButtonProps) {
       type="button"
       aria-label="Back"
       onClick={go}
-      className="touch-manipulation fixed z-30 flex w-11 items-center justify-start text-[#111]"
+      className={cn("touch-manipulation fixed z-30 flex w-11 items-center justify-start text-[#111]", className)}
       style={{
         top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
         left: `calc(var(--gutter) - ${ARROW_TIP_INSET_PX}px)`,

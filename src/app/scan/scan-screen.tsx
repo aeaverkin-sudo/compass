@@ -129,7 +129,7 @@ export function ScanScreen() {
       <p className="pointer-events-none absolute inset-x-6 bottom-24 text-center t-meta text-[var(--grey)]">
         {cameraOff ? "Camera is off. Allow it in Settings." : hint}
       </p>
-      <BackButton fallbackHref="/main" />
+      <BackButton fallbackHref="/main" className="text-white" />
     </main>
   );
 }
