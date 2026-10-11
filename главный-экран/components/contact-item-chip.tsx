@@ -305,7 +305,6 @@ export function ContactItemChipList({
   items,
   size,
   className,
-  style,
   listId,
   onReorder,
   onReorderRubrics,
@@ -323,7 +322,6 @@ export function ContactItemChipList({
   items: ContactItem[];
   size: ContactItemChipSize;
   className?: string;
-  style?: CSSProperties;
   listId?: string;
   onReorder?: (orderedIds: string[]) => void;
   onReorderRubrics?: (orderedKeys: string[]) => void;
@@ -924,7 +922,6 @@ export function ContactItemChipList({
       <div
         ref={listRef}
         className={cn("relative w-full min-w-0", hold?.active && "touch-none", arranging && "pb-16", className)}
-        style={style}
         data-card-chip-list={listId}
         data-card-content
         data-arranging={arranging ? "" : undefined}
