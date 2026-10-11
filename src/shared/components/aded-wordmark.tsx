@@ -90,7 +90,8 @@ const MESH_CELLS: [number, number][] = MARK.flatMap(([x, y, w, h]) => {
   return cells;
 });
 
-const MESH_STROKE = 0.14;
+const MESH_STROKE = 0.12;
+const MESH_OPACITY = 0.55;
 
 /** Pixel wordmark. Orange unless `color` is set. Height follows the 54×17 grid. */
 export function AdedWordmark({
@@ -123,6 +124,7 @@ export function AdedWordmark({
               fill="none"
               stroke="currentColor"
               strokeWidth={s}
+              strokeOpacity={MESH_OPACITY}
             />
           ))
         : MARK.map(([x, y, width, height]) => (
