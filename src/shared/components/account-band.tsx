@@ -75,7 +75,7 @@ export function AccountBand({
     );
   }
   const pdfDoor =
-    "press t-band flex min-h-11 flex-1 touch-manipulation items-center py-3 text-[#111] [-webkit-tap-highlight-color:transparent]";
+    "press t-band leading-[1.45] flex min-h-11 flex-1 touch-manipulation items-center py-3 text-[#111] [-webkit-tap-highlight-color:transparent]";
   return (
     <nav
       aria-label="Account"
@@ -95,7 +95,7 @@ export function AccountBand({
           </span>
         </a>
         <span className="flex flex-1 items-center justify-end">
-          <AdedWordmark variant="mesh" className="block h-[calc(13px*1.45*2)] w-auto" />
+          <AdedWordmark variant="mesh" className="block h-[calc(14px*1.45*2)] w-auto" />
         </span>
       </div>
     </nav>

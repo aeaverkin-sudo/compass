@@ -224,7 +224,7 @@ export function ProfileScreen() {
         <button
           type="button"
           disabled={atCardLimit || portfolioLimit === null}
-          className="mt-6 border-0 bg-sky px-[21.6px] py-[10.8px] t-band text-[var(--ink)] disabled:opacity-40"
+          className="mt-6 border-0 bg-sky px-[21.6px] py-[10.8px] t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:opacity-40"
           onClick={() => {
             if (portfolioLimit === null) return;
             updateSecondCardDraft({ displayName: "" }, portfolioLimit);
