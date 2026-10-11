@@ -31,8 +31,10 @@ export const CARD_FOOTER_GAP_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX
 /** Below the t-label baseline inside its line box: half-leading + descent. */
 const LABEL_BELOW_BASELINE_PX = (11 * 1.45 - 11) / 2 + 11 * 0.21;
 export const CARD_FOOTER_PAD_PX = CARD_FOOTER_GAP_PX - LABEL_BELOW_BASELINE_PX;
-/** Hero plate below the photo: one A. Same gap as QR → photo. */
-export const CARD_HEADER_PAD_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX;
+/** Last millimetre of the plate, painted as a mask on the scroll. */
+export const HEADER_FADE_PX = 6.4;
+/** Hero plate below the photo. The mask adds the rest of A. */
+export const CARD_HEADER_PAD_PX = QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX - HEADER_FADE_PX;
 /** py-[18px] of every section. */
 export const SECTION_PAD_PX = 18;
 /** Browse QR, grown into the existing slot so it sits higher. The card does not move. */

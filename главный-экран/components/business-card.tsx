@@ -32,6 +32,7 @@ import {
   CARD_FOOTER_PAD_PX,
   CARD_HEADER_PAD_PX,
   CARD_TOP_TRIM_PX,
+  HEADER_FADE_PX,
   RULE_GAP_PX,
   SECTION_PAD_PX,
   type MainScreenMode,
@@ -291,7 +292,7 @@ function EditorialHeader({
         className="relative"
         style={{
           paddingTop: RULE_GAP_PX - CARD_TOP_TRIM_PX,
-          paddingBottom: plate ? CARD_HEADER_PAD_PX : CARD_HEADER_PAD_PX - SECTION_PAD_PX,
+          paddingBottom: plate ? CARD_HEADER_PAD_PX : CARD_HEADER_PAD_PX + HEADER_FADE_PX - SECTION_PAD_PX,
         }}
       >
         <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
@@ -883,6 +884,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           compact && "compass-card-scroll w-full overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
           !compact && "compass-card-scroll overflow-x-hidden overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]",
         )}
+        style={
+          compact
+            ? undefined
+            : {
+                WebkitMaskImage: `linear-gradient(to bottom, transparent 0, #000 ${HEADER_FADE_PX}px)`,
+                maskImage: `linear-gradient(to bottom, transparent 0, #000 ${HEADER_FADE_PX}px)`,
+              }
+        }
         onScroll={compact ? syncPreviewFade : undefined}
       >
       <div
@@ -913,10 +922,14 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           onComposingChange={onComposingChange}
         />
       ) : (
+      <div
+        className={compact ? "contents" : undefined}
+        style={compact ? undefined : { marginTop: -(SECTION_PAD_PX - HEADER_FADE_PX) }}
+      >
       <ContactItemChipList
         items={items}
         size={compact ? "compact" : "browse"}
-        className={compact ? "pb-2" : "-mt-[18px]"}
+        className={compact ? "pb-2" : undefined}
         listId={card.id}
         rubricOrder={card.rubricOrder}
         rubricLabels={card.rubricLabels}
@@ -952,6 +965,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         underlineLinks={readOnly}
         publicToken={card.publicToken}
       />
+      </div>
       )}
 
       {!compact && !editing ? (
