@@ -32,8 +32,9 @@ import {
   CARD_FOOTER_PAD_PX,
   CARD_HEADER_PAD_PX,
   CARD_TOP_TRIM_PX,
-  HEADER_FADE_IN_PX,
-  HEADER_FADE_OUT_PX,
+  HEADER_FADE_PX,
+  QR_DROP_PX,
+  QR_TO_PHOTO_PX,
   RULE_GAP_PX,
   SECTION_PAD_PX,
   type MainScreenMode,
@@ -293,14 +294,11 @@ function EditorialHeader({
         className={cn("relative", plate && "z-10")}
         style={{
           paddingTop: RULE_GAP_PX - CARD_TOP_TRIM_PX,
-          paddingBottom: plate ? CARD_HEADER_PAD_PX + HEADER_FADE_OUT_PX : CARD_HEADER_PAD_PX - SECTION_PAD_PX,
-          marginBottom: plate ? -HEADER_FADE_OUT_PX : undefined,
-          marginLeft: plate ? "calc(-1 * (clamp(24px, 6.1vw, 28px) - 3mm))" : undefined,
-          marginRight: plate ? "calc(-1 * (clamp(24px, 6.1vw, 28px) - 3mm))" : undefined,
-          paddingLeft: plate ? "calc(clamp(24px, 6.1vw, 28px) - 3mm)" : undefined,
-          paddingRight: plate ? "calc(clamp(24px, 6.1vw, 28px) - 3mm)" : undefined,
+          paddingBottom: plate
+            ? CARD_HEADER_PAD_PX
+            : QR_TO_PHOTO_PX - QR_DROP_PX - CARD_TOP_TRIM_PX - SECTION_PAD_PX,
           background: plate
-            ? `linear-gradient(to bottom, #fff 0, #fff calc(100% - ${HEADER_FADE_IN_PX + HEADER_FADE_OUT_PX}px), rgba(255,255,255,0) 100%)`
+            ? `linear-gradient(to bottom, #fff 0, #fff calc(100% - ${HEADER_FADE_PX}px), rgba(255,255,255,.80) calc(100% - 4.8px), rgba(255,255,255,.45) calc(100% - 2.6px), rgba(255,255,255,.15) calc(100% - 1px), rgba(255,255,255,0) 100%)`
             : undefined,
         }}
       >
@@ -884,7 +882,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           {publicBar ? <div className="mt-auto -mx-[calc(clamp(24px,6.1vw,28px)-3mm)]">{publicBar}</div> : null}
         </div>
       ) : null}
-      <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
+      <div
+        className={cn("relative flex min-h-0 flex-1 flex-col", !compact && "z-0", bare && "hidden")}
+        style={compact ? undefined : { marginTop: -HEADER_FADE_PX }}
+      >
       <div
         ref={compact ? previewScrollRef : undefined}
         data-preview-scroll={compact ? "" : undefined}
@@ -926,7 +927,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       <ContactItemChipList
         items={items}
         size={compact ? "compact" : "browse"}
-        className={compact ? "pb-2" : "-mt-[18px]"}
+        className={compact ? "pb-2" : undefined}
+        style={compact ? undefined : { marginTop: -(SECTION_PAD_PX - HEADER_FADE_PX) }}
         listId={card.id}
         rubricOrder={card.rubricOrder}
         rubricLabels={card.rubricLabels}
