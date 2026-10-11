@@ -12,6 +12,6 @@ export const MARK_PX = (MARK_VISIBLE_PX * 24) / 19;
 export const RAIL_STROKE_PX = 0.9;
 
 /** The Edit row plus: 20 px, stroke 1, currentColor. */
-export function MarkPlus({ className }: { className?: string }) {
-  return <Plus className={cn("size-5 shrink-0", className)} strokeWidth={1} aria-hidden />;
+export function MarkPlus({ className, strokeWidth = 1 }: { className?: string; strokeWidth?: number }) {
+  return <Plus className={cn("size-5 shrink-0", className)} strokeWidth={strokeWidth} aria-hidden />;
 }

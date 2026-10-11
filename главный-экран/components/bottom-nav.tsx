@@ -33,7 +33,7 @@ export function BottomNav({
             onPointerDown={(event) => event.preventDefault()}
             onClick={() => onAdd?.()}
           >
-            <MarkPlus className="text-[var(--ink)]" />
+            <MarkPlus className="text-[var(--ink)]" strokeWidth={1.5} />
           </button>
         ) : (
           <button
