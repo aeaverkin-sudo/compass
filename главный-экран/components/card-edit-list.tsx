@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { DELETE_HOLD_MS } from "@/shared/lib/reorder-hold";
@@ -110,7 +111,7 @@ function RowMark({
       {onCard ? (
         <Minus className="size-5" strokeWidth={1} aria-hidden />
       ) : (
-        <Plus className="size-5" strokeWidth={1} aria-hidden />
+        <MarkPlus />
       )}
     </button>
   );

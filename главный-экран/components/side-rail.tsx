@@ -517,9 +517,9 @@ export function SideRail({
         "[&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current",
         "[&_a]:select-none [&_a]:[-webkit-touch-callout:none] [&_a]:[-webkit-user-drag:none]",
         "[&_button]:select-none [&_button]:[-webkit-touch-callout:none] [&_button]:[-webkit-user-drag:none]",
-        // One frame + one stroke for Share, Scan, and Plus.
-        "[&_svg]:![width:var(--rail-mark)] [&_svg]:![height:var(--rail-mark)]",
-        "[&_svg]:![stroke-width:var(--rail-stroke)] [&_svg_*]:![vector-effect:non-scaling-stroke]",
+        // One frame + one stroke for Share and Scan; the plus keeps its own 20 px and stroke 1.
+        "[&_svg:not([data-mark-plus])]:![width:var(--rail-mark)] [&_svg:not([data-mark-plus])]:![height:var(--rail-mark)]",
+        "[&_svg:not([data-mark-plus])]:![stroke-width:var(--rail-stroke)] [&_svg:not([data-mark-plus])_*]:![vector-effect:non-scaling-stroke]",
       )}
       style={{
         top: layoutTop(initial.top),
