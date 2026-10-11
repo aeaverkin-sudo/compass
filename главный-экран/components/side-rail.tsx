@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type TransitionEvent,
+} from "react";
 import { ScanButton } from "@/shared/components/scan-icon";
 import { CardShareControl, useCardShare } from "@/shared/components/card-share-control";
 import { getNextScanAddons } from "@/shared/services/card-snapshot";
@@ -17,6 +23,7 @@ const PLUS_PX = 18;
 const COUNT_PX = 11;
 
 type RailDock = "qr" | "photo";
+type Anchor = { top: number; height: number };
 
 function RailMark({ height, children }: { height: number; children?: ReactNode }) {
   return (
@@ -30,12 +37,55 @@ function RailMark({ height, children }: { height: number; children?: ReactNode }
   );
 }
 
-function dockTop(dock: RailDock, qrTop: number, photoTop: number) {
-  return dock === "qr" ? qrTop : photoTop;
-}
+function measureAnchors(rail: HTMLElement, fallbackQrTop: number): { qr: Anchor; photo: Anchor } {
+  const shell = rail.closest(".compass-main");
+  const fallback = {
+    qr: { top: fallbackQrTop, height: BROWSE_QR_SIZE },
+    photo: { top: railPhotoTopFromQrTop(fallbackQrTop), height: HERO_PHOTO_PX },
+  };
+  if (!shell) return fallback;
+  const shellRect = shell.getBoundingClientRect();
 
-function dockHeight(dock: RailDock) {
-  return dock === "qr" ? BROWSE_QR_SIZE : HERO_PHOTO_PX;
+  let qrEl: Element | null = null;
+  for (const svg of shell.querySelectorAll("svg")) {
+    if (rail.contains(svg)) continue;
+    const rect = svg.getBoundingClientRect();
+    if (rect.width >= 120 && Math.abs(rect.width - rect.height) < 3) {
+      qrEl = svg;
+      break;
+    }
+  }
+
+  let photoEl: Element | null = null;
+  for (const img of shell.querySelectorAll("img")) {
+    if (rail.contains(img)) continue;
+    const rect = img.getBoundingClientRect();
+    if (rect.width >= 110 && rect.width <= 140 && Math.abs(rect.width - rect.height) < 4) {
+      photoEl = img;
+      break;
+    }
+  }
+  if (!photoEl) {
+    for (const node of shell.querySelectorAll("div")) {
+      if (rail.contains(node)) continue;
+      const rect = node.getBoundingClientRect();
+      if (Math.abs(rect.width - HERO_PHOTO_PX) < 1.5 && Math.abs(rect.height - HERO_PHOTO_PX) < 1.5) {
+        photoEl = node;
+        break;
+      }
+    }
+  }
+
+  const qrRect = qrEl?.getBoundingClientRect();
+  const photoRect = photoEl?.getBoundingClientRect();
+  return {
+    qr: qrRect
+      ? { top: qrRect.top - shellRect.top, height: qrRect.height }
+      : fallback.qr,
+    photo: photoRect
+      ? { top: photoRect.top - shellRect.top, height: photoRect.height }
+      : fallback.photo,
+  };
 }
 
 export function SideRail({
@@ -55,34 +105,27 @@ export function SideRail({
   showPlus: boolean;
   frozen: boolean;
 }) {
-  const photoTop = railPhotoTopFromQrTop(qrTop);
   const updateCard = useAppStore((state) => state.updateCard);
   const setRailDock = useAppStore((state) => state.setRailDock);
-  const railDock = useAppStore((state) => state.user.railDock === "photo" ? "photo" : "qr");
+  const railDock = useAppStore((state) => (state.user.railDock === "photo" ? "photo" : "qr"));
   const share = useCardShare(card);
   const canShare = Boolean(card.publicToken) && !frozen;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<RailDock>(railDock);
+  const anchorsRef = useRef({
+    qr: { top: qrTop, height: BROWSE_QR_SIZE },
+    photo: { top: railPhotoTopFromQrTop(qrTop), height: HERO_PHOTO_PX },
+  });
   const pointerDownRef = useRef(false);
   const holdTimerRef = useRef<number | null>(null);
   const startRef = useRef({ x: 0, y: 0, pointerId: -1 });
   const liftedRef = useRef(false);
+  const settlingRef = useRef(false);
   const dragYRef = useRef(0);
+  const moveFrameRef = useRef(0);
   const suppressClickRef = useRef(false);
   const detachRef = useRef<(() => void) | null>(null);
-
-  const [dock, setDock] = useState<RailDock>(railDock);
-  const [lifted, setLifted] = useState(false);
-  const [dragY, setDragY] = useState(0);
-  const [settling, setSettling] = useState(false);
-
-  dockRef.current = dock;
-
-  useEffect(() => {
-    if (liftedRef.current || settling) return;
-    setDock(railDock);
-  }, [railDock, settling]);
 
   const clearHoldTimer = () => {
     if (holdTimerRef.current == null) return;
@@ -90,12 +133,55 @@ export function SideRail({
     holdTimerRef.current = null;
   };
 
+  const paintTransform = (dy: number, scale: boolean) => {
+    const node = rootRef.current;
+    if (!node) return;
+    node.style.transform = scale ? `translateY(${dy}px) scale(1.04)` : `translateY(${dy}px)`;
+  };
+
+  const paintDock = (dock: RailDock, opts?: { transition?: string; clearTransform?: boolean }) => {
+    const node = rootRef.current;
+    if (!node) return;
+    const anchor = anchorsRef.current[dock];
+    node.style.top = layoutTop(anchor.top);
+    node.style.height = `${anchor.height}px`;
+    if (opts?.transition != null) node.style.transition = opts.transition;
+    if (opts?.clearTransform) {
+      node.style.transform = "";
+      dragYRef.current = 0;
+    }
+  };
+
+  const syncAnchors = () => {
+    const node = rootRef.current;
+    if (!node || liftedRef.current || settlingRef.current) return;
+    anchorsRef.current = measureAnchors(node, qrTop);
+    paintDock(dockRef.current, { transition: "none", clearTransform: true });
+  };
+
+  const endLiftVisual = () => {
+    const node = rootRef.current;
+    if (!node) return;
+    node.style.boxShadow = "none";
+    node.style.willChange = "";
+  };
+
   const resetLift = () => {
     liftedRef.current = false;
+    settlingRef.current = false;
     dragYRef.current = 0;
-    setLifted(false);
-    setDragY(0);
-    setSettling(false);
+    if (moveFrameRef.current) {
+      cancelAnimationFrame(moveFrameRef.current);
+      moveFrameRef.current = 0;
+    }
+    const node = rootRef.current;
+    if (node) {
+      node.style.transition = "none";
+      node.style.transform = "";
+      node.style.boxShadow = "none";
+      node.style.willChange = "";
+    }
+    paintDock(dockRef.current, { transition: "none" });
   };
 
   const cancelGesture = () => {
@@ -114,6 +200,23 @@ export function SideRail({
     }
     resetLift();
   };
+
+  useEffect(() => {
+    dockRef.current = railDock;
+    syncAnchors();
+  }, [railDock, qrTop, card.id]);
+
+  useEffect(() => {
+    const onResize = () => syncAnchors();
+    window.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
+    const frame = requestAnimationFrame(syncAnchors);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
+    };
+  }, [qrTop, card.id]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -135,32 +238,50 @@ export function SideRail({
       window.removeEventListener("blur", onBlur);
       cancelGesture();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- cancel only while mounted
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount/unmount only
   }, []);
 
-  const finishDock = (next: RailDock, fromTop: number) => {
-    const toTop = dockTop(next, qrTop, photoTop);
-    setDock(next);
+  const finishDock = (next: RailDock, fromTop: number, fromHeight: number) => {
+    const node = rootRef.current;
+    if (!node) return;
+    const to = anchorsRef.current[next];
+    const offset = fromTop - to.top;
     dockRef.current = next;
-    setRailDock(next);
     liftedRef.current = false;
-    setLifted(false);
-    const offset = fromTop - toTop;
+    settlingRef.current = true;
+    endLiftVisual();
+    node.style.willChange = "transform";
+    node.style.transition = "none";
+    node.style.top = layoutTop(to.top);
+    node.style.height = `${fromHeight}px`;
     dragYRef.current = offset;
-    setDragY(offset);
-    setSettling(true);
+    paintTransform(offset, false);
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        dragYRef.current = 0;
-        setDragY(0);
-      });
+      if (!rootRef.current) return;
+      rootRef.current.style.transition = "transform 250ms ease-out, height 250ms ease-out";
+      rootRef.current.style.height = `${to.height}px`;
+      dragYRef.current = 0;
+      paintTransform(0, false);
     });
-    window.setTimeout(() => setSettling(false), 260);
+  };
+
+  const onTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.propertyName !== "transform") return;
+    if (!settlingRef.current) return;
+    settlingRef.current = false;
+    const node = rootRef.current;
+    if (!node) return;
+    node.style.transition = "none";
+    node.style.transform = "";
+    node.style.willChange = "";
+    paintDock(dockRef.current, { transition: "none" });
+    setRailDock(dockRef.current);
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
-    if (settling || liftedRef.current) return;
+    if (settlingRef.current || liftedRef.current) return;
     const pointerId = event.pointerId;
     const startX = event.clientX;
     const startY = event.clientY;
@@ -168,18 +289,28 @@ export function SideRail({
     pointerDownRef.current = true;
     startRef.current = { x: startX, y: startY, pointerId };
     clearHoldTimer();
+    syncAnchors();
+
+    try {
+      host.setPointerCapture(pointerId);
+    } catch {
+      // Capture fails if the pointer is already up.
+    }
 
     holdTimerRef.current = window.setTimeout(() => {
       holdTimerRef.current = null;
       if (!pointerDownRef.current) return;
       suppressClickRef.current = true;
       liftedRef.current = true;
-      setLifted(true);
-      try {
-        host.setPointerCapture(pointerId);
-      } catch {
-        // Capture fails if the pointer is already up.
-      }
+      dragYRef.current = 0;
+      host.style.transition = "transform 120ms ease-out, box-shadow 120ms ease-out";
+      host.style.willChange = "transform";
+      host.style.boxShadow = "0 6px 18px rgba(0,0,0,.14)";
+      paintTransform(0, true);
+      requestAnimationFrame(() => {
+        if (!rootRef.current || !liftedRef.current) return;
+        rootRef.current.style.transition = "none";
+      });
     }, RAIL_HOLD_MS);
 
     let ended = false;
@@ -194,7 +325,12 @@ export function SideRail({
       }
       if (native.cancelable) native.preventDefault();
       dragYRef.current = dy;
-      setDragY(dy);
+      if (moveFrameRef.current) return;
+      moveFrameRef.current = requestAnimationFrame(() => {
+        moveFrameRef.current = 0;
+        if (!liftedRef.current) return;
+        paintTransform(dragYRef.current, true);
+      });
     };
 
     const detach = () => {
@@ -231,17 +367,21 @@ export function SideRail({
       }
 
       if (!liftedRef.current) return;
+      if (moveFrameRef.current) {
+        cancelAnimationFrame(moveFrameRef.current);
+        moveFrameRef.current = 0;
+      }
 
       const current = dockRef.current;
-      const fromTop = dockTop(current, qrTop, photoTop) + dragYRef.current;
-      const fromHeight = dockHeight(current);
+      const anchors = anchorsRef.current;
+      const fromTop = anchors[current].top + dragYRef.current;
+      const fromHeight = anchors[current].height;
       const center = fromTop + fromHeight / 2;
-      const qrCenter = qrTop + BROWSE_QR_SIZE / 2;
-      const photoCenter = photoTop + HERO_PHOTO_PX / 2;
+      const qrCenter = anchors.qr.top + anchors.qr.height / 2;
+      const photoCenter = anchors.photo.top + anchors.photo.height / 2;
       const nearest: RailDock = Math.abs(center - qrCenter) <= Math.abs(center - photoCenter) ? "qr" : "photo";
       const stay = Math.abs(dragYRef.current) < REORDER_SLOP_PX;
-      const next = stay ? current : nearest;
-      finishDock(next, fromTop);
+      finishDock(stay ? current : nearest, fromTop, fromHeight);
     };
 
     detachRef.current = detach;
@@ -257,30 +397,23 @@ export function SideRail({
     event.stopPropagation();
   };
 
-  const top = dockTop(dock, qrTop, photoTop);
-  const height = dockHeight(dock);
-  const transition = settling
-    ? "transform 250ms ease-out, height 250ms ease-out, top 250ms ease-out, box-shadow 120ms ease-out"
-    : lifted
-      ? "transform 120ms ease-out, box-shadow 120ms ease-out"
-      : "transform 120ms ease-out, box-shadow 120ms ease-out, height 250ms ease-out, top 250ms ease-out";
+  const initial = anchorsRef.current[dockRef.current];
 
   return (
     <div
       ref={rootRef}
       className="absolute z-30 flex touch-none flex-col items-center justify-between bg-sky text-[var(--ink)] select-none [&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current"
       style={{
-        top: layoutTop(top),
-        height,
+        top: layoutTop(initial.top),
+        height: initial.height,
         right: 0,
         width: counterRightCss,
-        transform: `translateY(${dragY}px)${lifted ? " scale(1.04)" : ""}`,
-        boxShadow: lifted ? "0 6px 18px rgba(0,0,0,.14)" : "none",
-        transition,
         touchAction: "none",
+        transition: "none",
       }}
       onPointerDown={onPointerDown}
       onClickCapture={swallowClick}
+      onTransitionEnd={onTransitionEnd}
     >
       <RailMark height={SHARE_PX}>
         <CardShareControl
