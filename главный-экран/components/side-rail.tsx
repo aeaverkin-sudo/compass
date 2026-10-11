@@ -19,7 +19,7 @@ function RailMark({ height, children }: { height: number; children?: ReactNode }
   return (
     <div className="relative w-full shrink-0" style={{ height }}>
       {children != null ? (
-        <div className="pointer-events-auto absolute top-1/2 left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
+        <div className="pointer-events-auto absolute top-1/2 left-0 flex size-11 -translate-y-1/2 items-center justify-start">
           {children}
         </div>
       ) : null}
@@ -50,7 +50,7 @@ export function SideRail({
 
   return (
     <div
-      className="pointer-events-none absolute z-30 flex flex-col items-center justify-between"
+      className="pointer-events-none absolute z-30 flex flex-col items-start justify-between"
       style={{ top: layoutTop(qrTop), height: BROWSE_QR_SIZE, right: 0, width: counterRightCss }}
     >
       <RailMark height={SHARE_PX}>
@@ -58,10 +58,11 @@ export function SideRail({
           card={card}
           onShare={canShare ? share.handleShare : undefined}
           onPrepareShare={canShare ? share.primeShare : undefined}
+          className="justify-start"
         />
       </RailMark>
       <RailMark height={SCAN_PX}>
-        <ScanButton className="justify-center" />
+        <ScanButton className="justify-start" />
       </RailMark>
       <RailMark height={PLUS_PX}>
         {showPlus ? (
@@ -73,7 +74,7 @@ export function SideRail({
         ) : null}
       </RailMark>
       <RailMark height={COUNT_PX}>
-        <p className="t-label text-[var(--grey)]" style={{ lineHeight: 1 }}>
+        <p className="text-left t-label text-[var(--grey)]" style={{ lineHeight: 1 }}>
           {index}/{total}
         </p>
       </RailMark>

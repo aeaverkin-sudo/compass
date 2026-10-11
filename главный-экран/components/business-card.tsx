@@ -411,9 +411,12 @@ function CompactHeader({
 
 function CardShareFooter({ name, className }: { name: string; className?: string }) {
   return (
-    <footer className={cn(className)}>
-      <p className="t-label">{name || "Name"}</p>
-      <p className="t-label">Portfolio</p>
+    <footer className={cn("grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]", className)}>
+      <span aria-hidden />
+      <div>
+        <p className="t-label">{name || "Name"}</p>
+        <p className="t-label">Portfolio</p>
+      </div>
     </footer>
   );
 }
