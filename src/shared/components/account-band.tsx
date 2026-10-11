@@ -53,7 +53,7 @@ export function AccountBand({
   if (!pdf) {
     return (
       <TabBand
-        safeBottom
+        pin
         label="Account"
         left={
           <a href={saveHref} className={DOOR}>
