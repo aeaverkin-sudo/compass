@@ -130,6 +130,8 @@ export interface User {
   passwordHintSeen?: boolean;
   /** Where the QR side rail sits: beside the QR or beside the photo. */
   railDock?: "qr" | "photo";
+  /** The side rail's look, the same choices as the photo. Absent is the plain sky bar. */
+  railLook?: "frame" | "shadow";
   /** Gray interface. Photos stay in color. */
   monochrome?: boolean;
   shareToken: string;

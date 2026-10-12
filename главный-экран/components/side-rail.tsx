@@ -8,9 +8,17 @@ import {
   type ReactNode,
   type TransitionEvent,
 } from "react";
+import { Ellipsis } from "lucide-react";
 import { ScanButton } from "@/shared/components/scan-icon";
 import { CardShareControl, useCardShare } from "@/shared/components/card-share-control";
 import { getNextScanAddons } from "@/shared/services/card-snapshot";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/shared/components/ui/dropdown-menu";
+import { railLookClass } from "@/shared/lib/photo-look";
 import { RAIL_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
@@ -43,6 +51,13 @@ const FREEZE_CLASS =
   "select-none [-webkit-touch-callout:none] [-webkit-user-drag:none]";
 
 type RailDock = "qr" | "photo";
+type RailLook = "frame" | "shadow";
+
+const LOOKS: { look: RailLook | null; label: string }[] = [
+  { look: null, label: "BAR" },
+  { look: "frame", label: "FRAME" },
+  { look: "shadow", label: "SHADOW" },
+];
 type Anchor = { top: number; height: number };
 
 function RailMark({
@@ -153,6 +168,8 @@ export function SideRail({
   const updateCard = useAppStore((state) => state.updateCard);
   const setRailDock = useAppStore((state) => state.setRailDock);
   const railDock = useAppStore((state) => (state.user.railDock === "photo" ? "photo" : "qr"));
+  const railLook = useAppStore((state) => state.user.railLook);
+  const setRailLook = useAppStore((state) => state.setRailLook);
   const share = useCardShare(card);
   const canShare = Boolean(card.publicToken) && !frozen;
 
@@ -174,6 +191,19 @@ export function SideRail({
   const shieldRef = useRef<HTMLDivElement | null>(null);
   const shieldSwallowRef = useRef<((event: Event) => void) | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [styling, setStyling] = useState(false);
+
+  useEffect(() => {
+    if (!styling) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-slot='dropdown-menu-content']")) return;
+      if (rootRef.current?.contains(target as Node)) return;
+      setStyling(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [styling]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -250,7 +280,7 @@ export function SideRail({
   const endLiftVisual = () => {
     const node = rootRef.current;
     if (!node) return;
-    node.style.boxShadow = "none";
+    node.style.boxShadow = "";
     node.style.willChange = "";
   };
 
@@ -285,7 +315,7 @@ export function SideRail({
     if (node) {
       node.style.transition = "none";
       node.style.transform = "";
-      node.style.boxShadow = "none";
+      node.style.boxShadow = "";
       node.style.willChange = "";
     }
     paintDock(dockRef.current, { transition: "none" });
@@ -411,6 +441,7 @@ export function SideRail({
       if (!pointerDownRef.current) return;
       draggingRef.current = true;
       setDragging(true);
+      setStyling(true);
       dragYRef.current = 0;
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
       try {
@@ -518,6 +549,7 @@ export function SideRail({
       className={cn(
         "absolute z-30 flex touch-none flex-col items-center justify-between bg-sky text-[var(--ink)]",
         FREEZE_CLASS,
+        railLookClass(railLook),
         "[&_a]:text-current [&_button]:text-current [&_p]:text-current [&_span]:text-current [&_svg]:text-current",
         "[&_a]:select-none [&_a]:[-webkit-touch-callout:none] [&_a]:[-webkit-user-drag:none]",
         "[&_button]:select-none [&_button]:[-webkit-touch-callout:none] [&_button]:[-webkit-user-drag:none]",
@@ -538,6 +570,33 @@ export function SideRail({
       onPointerDownCapture={onPointerDownCapture}
       onTransitionEnd={onTransitionEnd}
     >
+      {styling ? (
+        <div
+          className={cn(
+            "absolute bottom-full left-1/2 flex size-11 -translate-x-1/2 items-center justify-center",
+            dragging ? "pointer-events-none" : "pointer-events-auto",
+          )}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Rail style"
+              className="flex size-11 items-center justify-center text-[var(--ink)]"
+            >
+              <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="bottom" className="min-w-0 px-4 py-3">
+              {LOOKS.map(({ look, label }) => {
+                const on = (railLook ?? null) === look;
+                return (
+                  <DropdownMenuItem key={label} onSelect={() => setRailLook(look)}>
+                    <span className={cn("t-body", on ? "text-[var(--ink)]" : "text-[var(--grey)]")}>{label}</span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
       <RailMark height={SHARE_SLOT_PX} inert={dragging}>
         <CardShareControl
           card={card}

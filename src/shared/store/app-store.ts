@@ -49,6 +49,7 @@ interface AppState {
   markAddLibraryHintSeen: () => void;
   markPasswordHintSeen: () => void;
   setRailDock: (dock: "qr" | "photo") => void;
+  setRailLook: (look: "frame" | "shadow" | null) => void;
   setMonochrome: (value: boolean) => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
@@ -190,6 +191,8 @@ export const useAppStore = create<AppState>()(
         if (get().user.railDock === dock) return;
         set({ user: { ...get().user, railDock: dock } });
       },
+
+      setRailLook: (look) => set({ user: { ...get().user, railLook: look ?? undefined } }),
 
       setMonochrome: (value) => set({ user: { ...get().user, monochrome: value } }),
 

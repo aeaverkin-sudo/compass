@@ -14,6 +14,14 @@ export function photoSlotLookClass(look?: PhotoLook) {
   );
 }
 
+/** The photo's frame and shadow on the side rail. The frame is an outline, so the rail keeps its size. */
+export function railLookClass(look?: PhotoLook) {
+  return cn(
+    look === "frame" && "outline outline-1 -outline-offset-1 outline-[#d4d4d4]",
+    look === "shadow" && "shadow-[0_2px_8px_rgba(17,17,17,0.16)]",
+  );
+}
+
 /**
  * html2canvas-pro does not rasterize this box-shadow.
  * Soft slabs, shifted down, sit in the padding under the photo and do rasterize.
