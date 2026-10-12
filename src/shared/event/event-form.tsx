@@ -1,20 +1,35 @@
 "use client";
 
-import { useEffect, useRef, type MouseEvent, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
 import { Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Zone } from "@/shared/components/zone";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { CoverButton } from "@/shared/event/cover-button";
 import { EVENT_LAYOUTS, EVENT_THEMES, layoutDefaultTheme } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { hasLightEdges } from "@/shared/lib/photo-look";
 import type { EventFormValues } from "@/shared/event/event-form-fields";
-import { CardInviteEditor } from "@/shared/event/card-invite-editor";
-import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
+import {
+  INVITE_BASE_LABELS,
+  INVITE_CUSTOM_MAX,
+  INVITE_TITLE_MAX,
+  INVITE_VALUE_MAX,
+  customInviteRows,
+  newInviteRow,
+  withInviteLabel,
+  type InviteBaseKind,
+  type InviteRow,
+} from "@/shared/event/invite-rows";
+import { parseInviteDate, parseInviteTime, shapeInviteDate, shapeInviteTime } from "@/shared/event/invite-when";
 
 export const PIC_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg";
 
 export type { EventFormValues };
 
 const PLAIN = "w-full bg-transparent text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
+const LABEL_FIELD =
+  "t-label m-0 block w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent p-0 outline-none";
 const SKY_BUTTON =
   "press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 
@@ -42,6 +57,7 @@ function GrowField({
   placeholder,
   ariaLabel,
   singleLine = false,
+  maxLength,
 }: {
   inputRef: RefObject<HTMLTextAreaElement | null>;
   value: string;
@@ -49,6 +65,7 @@ function GrowField({
   placeholder: string;
   ariaLabel: string;
   singleLine?: boolean;
+  maxLength?: number;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const size = (node: HTMLTextAreaElement) => {
@@ -71,6 +88,7 @@ function GrowField({
         ref={inputRef}
         rows={1}
         value={value}
+        maxLength={maxLength}
         aria-label={ariaLabel}
         placeholder={placeholder}
         className={`${PLAIN} absolute inset-x-0 top-0 resize-none overflow-hidden`}
@@ -91,71 +109,81 @@ function GrowField({
   );
 }
 
-function PlainField({
-  inputRef,
+/** A zone label typed in place. It wraps like the printed label; Enter ends the edit. */
+function LabelField({
   value,
-  onChange,
   placeholder,
+  onChange,
+  inputRef,
+  hint = false,
 }: {
-  inputRef: RefObject<HTMLInputElement | null>;
   value: string;
-  onChange: (value: string) => void;
   placeholder: string;
+  onChange: (value: string) => void;
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
+  /** The placeholder is a hint, not a default label. */
+  hint?: boolean;
 }) {
+  const own = useRef<HTMLTextAreaElement>(null);
+  const ref = inputRef ?? own;
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    node.style.height = "auto";
+    node.style.height = `${node.scrollHeight}px`;
+  }, [value, ref]);
   return (
-    <input
-      ref={inputRef}
+    <textarea
+      ref={ref}
+      rows={1}
       value={value}
-      onChange={(event) => onChange(event.target.value)}
+      maxLength={INVITE_TITLE_MAX}
+      aria-label={`${placeholder} label`}
       placeholder={placeholder}
-      className={PLAIN}
-      style={fieldStyle()}
+      onChange={(event) => onChange(event.target.value.replace(/\n/g, " "))}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          event.currentTarget.blur();
+        }
+      }}
+      className={cn(LABEL_FIELD, hint ? "placeholder:text-[var(--placeholder)]" : "placeholder:text-[var(--grey)]")}
     />
   );
 }
 
-function WhenField({
-  inputRef,
-  type,
-  value,
-  display,
+function CustomZone({
+  row,
+  focusTitle,
   onChange,
-  placeholder,
-  width,
 }: {
-  inputRef: RefObject<HTMLInputElement | null>;
-  type: "date" | "time";
-  value: string;
-  display: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  width: string;
+  row: InviteRow;
+  focusTitle: boolean;
+  onChange: (patch: Partial<InviteRow>) => void;
 }) {
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const valueRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (focusTitle) titleRef.current?.focus();
+  }, [focusTitle]);
   return (
-    <span className="relative inline-flex items-baseline" style={{ width }}>
-      <span
-        className="pointer-events-none whitespace-nowrap"
-        style={{ ...fieldStyle(), color: value ? "var(--ink)" : "var(--placeholder)" }}
-      >
-        {value ? display : placeholder}
-      </span>
-      <input
-        ref={inputRef}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-label={placeholder}
-        className="absolute inset-0 opacity-0"
-        style={{ width, appearance: "none", WebkitAppearance: "none" }}
+    <Zone
+      label={
+        <LabelField inputRef={titleRef} value={row.title} placeholder="title" hint onChange={(title) => onChange({ title })} />
+      }
+      rule
+      onClick={(event) => focusField(event, valueRef.current)}
+    >
+      <GrowField
+        inputRef={valueRef}
+        value={row.value ?? ""}
+        onChange={(value) => onChange({ value })}
+        placeholder="description"
+        ariaLabel={row.title || "Description"}
+        maxLength={INVITE_VALUE_MAX}
       />
-    </span>
+    </Zone>
   );
-}
-
-function fmtDate(value: string): string {
-  if (!value) return "";
-  const [year, month, day] = value.split("-");
-  return `${day}/${month}/${year.slice(2)}`;
 }
 
 function previewDate(date: string, time: string): string | null {
@@ -196,96 +224,105 @@ export function EventForm({
 }) {
   const nameRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
-  const timeRef = useRef<HTMLInputElement>(null);
-  const endRef = useRef<HTMLInputElement>(null);
   const placeRef = useRef<HTMLTextAreaElement>(null);
   const aboutRef = useRef<HTMLTextAreaElement>(null);
-  const aboutBox = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
+  const [addedRow, setAddedRow] = useState<string | null>(null);
 
-  const sizeAbout = (node: HTMLTextAreaElement) => {
-    node.style.height = "auto";
-    node.style.height = `${node.scrollHeight}px`;
-    const box = aboutBox.current;
-    if (!box) return;
-    const line = parseFloat(getComputedStyle(node).lineHeight) || 23;
-    box.style.marginBottom = `${Math.max(0, node.scrollHeight - line)}px`;
+  const rows = values.inviteRows;
+  const customs = customInviteRows(rows);
+  const dateWrong = values.dateText.trim().length > 0 && !parseInviteDate(values.dateText);
+  const timeWrong = values.timeText.trim().length > 0 && !parseInviteTime(values.timeText);
+
+  const label = (kind: InviteBaseKind) => (
+    <LabelField
+      value={rows.find((row) => row.kind === kind)?.title ?? ""}
+      placeholder={INVITE_BASE_LABELS[kind]}
+      onChange={(title) => onChange({ inviteRows: withInviteLabel(rows, kind, title) })}
+    />
+  );
+
+  const setCustom = (id: string, patch: Partial<InviteRow>) => {
+    onChange({ inviteRows: rows.map((row) => (row.id === id ? { ...row, ...patch } : row)) });
   };
 
-  useEffect(() => {
-    if (aboutRef.current) sizeAbout(aboutRef.current);
-  }, [values.about]);
+  const addCustom = () => {
+    if (customs.length >= INVITE_CUSTOM_MAX) return;
+    const row = newInviteRow();
+    setAddedRow(row.id);
+    onChange({ inviteRows: [...rows, row] });
+  };
 
-  const card = values.layout === "card";
+  const pickLogo = async (file: File) => {
+    onLogoFile(file);
+    const light = await hasLightEdges(file);
+    onChange({ logoLook: light ? "shadow" : null });
+  };
+
   const cover = {
-    name: card ? values.name.trim() : values.name.trim() || "Event name",
+    name: values.layout === "card" ? values.name.trim() : values.name.trim() || "Event name",
     description: values.about.trim() || null,
     date: previewDate(values.date, values.time),
     endDate: previewEnd(values.date, values.time, values.endTime),
     place: values.place.trim() || null,
     placeSecret: false,
     logoUrl,
-    inviteRows: values.inviteRows,
+    inviteRows: rows,
     logoLook: values.logoLook,
-  };
-
-  const setWhen = (patch: Partial<Pick<EventFormValues, "date" | "time" | "endTime">>) => {
-    const next = { ...values, ...patch };
-    onChange({ ...patch, dateText: inviteDateText(next.date), timeText: inviteTimeText(next.time, next.endTime) });
+    hints: true,
   };
 
   return (
     <>
-      {card ? (
-        <CardInviteEditor
-          values={values}
-          onChange={onChange}
-          logoUrl={logoUrl}
-          onLogoFile={onLogoFile}
-          onRemoveLogo={onRemoveLogo}
+      <Zone label={label("name")} rule onClick={(event) => focusField(event, nameRef.current)}>
+        <input
+          ref={nameRef}
+          value={values.name}
+          onChange={(event) => onChange({ name: event.target.value })}
+          placeholder="Event name"
+          className={PLAIN}
+          style={fieldStyle()}
         />
-      ) : (
-      <>
-      <Zone label="Name" rule onClick={(event) => focusField(event, nameRef.current)}>
-        <PlainField inputRef={nameRef} value={values.name} onChange={(name) => onChange({ name })} placeholder="Event name" />
       </Zone>
-      <Zone label="When" rule onClick={(event) => focusField(event, dateRef.current)}>
-        <div className="flex items-baseline">
-          <WhenField
-            inputRef={dateRef}
-            type="date"
-            value={values.date}
-            display={fmtDate(values.date)}
-            onChange={(date) => setWhen({ date })}
-            placeholder="Date"
-            width="8ch"
-          />
-          <div className="ml-6 flex items-baseline">
-            <WhenField
-              inputRef={timeRef}
-              type="time"
-              value={values.time}
-              display={values.time}
-              onChange={(time) => setWhen({ time })}
-              placeholder="Start"
-              width="5ch"
+      <Zone label={label("when")} rule onClick={(event) => focusField(event, dateRef.current)}>
+        <div className="flex items-baseline gap-6">
+          <div className="shrink-0" style={{ width: "9ch" }}>
+            <input
+              ref={dateRef}
+              value={values.dateText}
+              inputMode="numeric"
+              maxLength={10}
+              aria-label="Date"
+              placeholder="12.10.26"
+              onChange={(event) => {
+                const dateText = shapeInviteDate(event.target.value);
+                onChange({ dateText, date: parseInviteDate(dateText) ?? "" });
+              }}
+              className={PLAIN}
+              style={fieldStyle()}
             />
-            <span aria-hidden className="mx-2 text-[var(--grey)]" style={fieldStyle()}>
-              –
-            </span>
-            <WhenField
-              inputRef={endRef}
-              type="time"
-              value={values.endTime}
-              display={values.endTime}
-              onChange={(endTime) => setWhen({ endTime })}
-              placeholder="End"
-              width="5ch"
+            {dateWrong ? <p className="m-0 mt-1 whitespace-nowrap t-meta text-[var(--grey)]">Use 12.10.26</p> : null}
+          </div>
+          <div className="min-w-0 flex-1">
+            <input
+              value={values.timeText}
+              inputMode="numeric"
+              maxLength={11}
+              aria-label="Time"
+              placeholder="15:30–20:30"
+              onChange={(event) => {
+                const timeText = shapeInviteTime(event.target.value);
+                const parsed = parseInviteTime(timeText);
+                onChange({ timeText, time: parsed?.start ?? "", endTime: parsed?.end ?? "" });
+              }}
+              className={PLAIN}
+              style={fieldStyle()}
             />
+            {timeWrong ? <p className="m-0 mt-1 whitespace-nowrap t-meta text-[var(--grey)]">Use 15:30–20:30</p> : null}
           </div>
         </div>
       </Zone>
-      <Zone label="Place" rule onClick={(event) => focusField(event, placeRef.current)}>
+      <Zone label={label("place")} rule onClick={(event) => focusField(event, placeRef.current)}>
         <GrowField
           inputRef={placeRef}
           value={values.place}
@@ -305,15 +342,15 @@ export function EventForm({
         onChange={(event) => {
           const file = event.target.files?.[0];
           event.target.value = "";
-          if (file) onLogoFile(file);
+          if (file) void pickLogo(file);
         }}
       />
       <Zone
-        label="Pic"
+        label={label("pic")}
         align="center"
         rule
         onClick={(event) => {
-          if ((event.target as HTMLElement).closest("input, button")) return;
+          if ((event.target as HTMLElement).closest("input, textarea, button")) return;
           logoRef.current?.click();
         }}
       >
@@ -329,7 +366,10 @@ export function EventForm({
             {logoUrl && onRemoveLogo ? (
               <button
                 type="button"
-                onClick={onRemoveLogo}
+                onClick={() => {
+                  onChange({ logoLook: null });
+                  onRemoveLogo();
+                }}
                 className="press mt-1 border-0 bg-transparent p-0 t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
               >
                 Remove
@@ -338,27 +378,35 @@ export function EventForm({
           </span>
         </div>
       </Zone>
-      <Zone label="About" rule onClick={(event) => focusField(event, aboutRef.current)}>
-        <div ref={aboutBox} className="relative">
-          <span aria-hidden className="invisible block" style={fieldStyle()}>
-            {"\u00a0"}
-          </span>
-          <textarea
-            ref={aboutRef}
-            rows={1}
-            value={values.about}
-            aria-label="About"
-            className={`${PLAIN} absolute inset-x-0 top-0 resize-none overflow-hidden`}
-            style={fieldStyle()}
-            onChange={(event) => {
-              onChange({ about: event.target.value });
-              sizeAbout(event.target);
-            }}
-          />
-        </div>
+      <Zone label={label("about")} rule onClick={(event) => focusField(event, aboutRef.current)}>
+        <GrowField
+          inputRef={aboutRef}
+          value={values.about}
+          onChange={(about) => onChange({ about })}
+          placeholder="About the event"
+          ariaLabel="About"
+        />
       </Zone>
-      </>
-      )}
+      {customs.map((row) => (
+        <CustomZone
+          key={row.id}
+          row={row}
+          focusTitle={addedRow === row.id}
+          onChange={(patch) => setCustom(row.id, patch)}
+        />
+      ))}
+      {customs.length < INVITE_CUSTOM_MAX ? (
+        <Zone label={null} rule>
+          <button
+            type="button"
+            aria-label="Add a row"
+            onClick={addCustom}
+            className="press flex border-0 bg-transparent p-0 text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+          >
+            <MarkPlus />
+          </button>
+        </Zone>
+      ) : null}
       <Zone label="Style" rule>
         <div className="flex flex-wrap gap-4">
           {EVENT_LAYOUTS.map((item) => (
@@ -367,14 +415,7 @@ export function EventForm({
               type="button"
               aria-pressed={values.layout === item.id}
               onClick={() =>
-                onChange({
-                  layout: item.id,
-                  ...(item.id === "card"
-                    ? { theme: "paper" as const }
-                    : values.themeTouched
-                      ? {}
-                      : { theme: layoutDefaultTheme(item.id) }),
-                })
+                onChange({ layout: item.id, ...(values.themeTouched ? {} : { theme: layoutDefaultTheme(item.id) }) })
               }
               className="press border-0 bg-transparent p-0 t-caps [-webkit-tap-highlight-color:transparent]"
               style={{ color: values.layout === item.id ? "var(--ink)" : "var(--grey)" }}
@@ -384,9 +425,11 @@ export function EventForm({
           ))}
         </div>
       </Zone>
-      {card ? null : (
       <Zone label={<span className="t-label block whitespace-nowrap pt-[5px]">Color</span>} align="start">
-        <div className="grid grid-cols-6 items-start gap-2" style={{ maxWidth: 6 * 28 + 5 * 8 }}>
+        <div
+          className="grid items-start gap-2"
+          style={{ gridTemplateColumns: `repeat(${EVENT_THEMES.length}, minmax(0, 1fr))`, maxWidth: EVENT_THEMES.length * 36 - 8 }}
+        >
           {EVENT_THEMES.map((item) => (
             <button
               key={item.id}
@@ -408,7 +451,6 @@ export function EventForm({
           ))}
         </div>
       </Zone>
-      )}
       <div className="pb-4" style={{ marginLeft: VALUE_AXIS_PX }}>
         <button type="button" disabled={!values.name.trim() || saving} onClick={onSubmit} className={SKY_BUTTON}>
           {submitLabel}
@@ -417,7 +459,9 @@ export function EventForm({
         {error ? <p className="mt-2 t-meta text-[var(--ink)]">{error}</p> : null}
       </div>
       <div className="mt-8" style={{ marginLeft: VALUE_AXIS_PX, width: 150, paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}>
-        <CoverButton event={cover} layout={values.layout} themeId={values.theme} variant="card" />
+        <div className="border border-[#d4d4d4]">
+          <CoverButton event={cover} layout={values.layout} themeId={values.theme} variant="card" />
+        </div>
       </div>
     </>
   );

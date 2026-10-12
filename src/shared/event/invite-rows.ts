@@ -1,69 +1,88 @@
 import { nanoid } from "nanoid";
 
-export type InviteRowKind = "place" | "date" | "time" | "custom";
+export type InviteBaseKind = "name" | "when" | "place" | "pic" | "about";
+export type InviteRowKind = InviteBaseKind | "custom";
 
-/** One numbered row of the ADED card invite. Base rows keep their value in the event columns. */
+/**
+ * One form zone. A base zone keeps only its label here; its value sits in the event columns.
+ * A custom row keeps both.
+ */
 export type InviteRow = {
   id: string;
   kind: InviteRowKind;
   title: string;
-  /** Only when typed by hand. */
-  number?: string;
   /** Custom rows only. */
   value?: string;
 };
 
 export type InviteLogoLook = "frame" | "shadow";
 
-export const INVITE_ROWS_MAX = 12;
+export const INVITE_CUSTOM_MAX = 12;
 export const INVITE_TITLE_MAX = 40;
-export const INVITE_NUMBER_MAX = 4;
 export const INVITE_VALUE_MAX = 500;
 
-const BASE_TITLES: Record<Exclude<InviteRowKind, "custom">, string> = {
-  place: "Location",
-  date: "Date",
-  time: "Time",
+const BASE_KINDS: readonly InviteBaseKind[] = ["name", "when", "place", "pic", "about"];
+const ROWS_MAX = BASE_KINDS.length + INVITE_CUSTOM_MAX;
+
+export const INVITE_BASE_LABELS: Record<InviteBaseKind, string> = {
+  name: "Name",
+  when: "When",
+  place: "Place",
+  pic: "Pic",
+  about: "About",
 };
 
-export function defaultInviteRows(): InviteRow[] {
-  return (["place", "date", "time"] as const).map((kind) => ({ id: nanoid(8), kind, title: BASE_TITLES[kind] }));
-}
+/** Kinds and default titles of the first card preset. Its date and time are one When now. */
+const LEGACY_KINDS: Record<string, { kind: InviteBaseKind; title: string }> = {
+  date: { kind: "when", title: "Date" },
+  time: { kind: "when", title: "Time" },
+  place: { kind: "place", title: "Location" },
+};
 
 export function newInviteRow(): InviteRow {
-  return { id: nanoid(8), kind: "custom", title: "" };
+  return { id: nanoid(8), kind: "custom", title: "", value: "" };
 }
 
-function isKind(value: unknown): value is InviteRowKind {
-  return value === "place" || value === "date" || value === "time" || value === "custom";
+function text(value: unknown, max: number): string {
+  return typeof value === "string" ? value.slice(0, max) : "";
 }
 
-function text(value: unknown, max: number): string | undefined {
-  if (typeof value !== "string") return undefined;
-  return value.slice(0, max);
+function baseKind(value: unknown): InviteBaseKind | null {
+  return BASE_KINDS.find((kind) => kind === value) ?? null;
 }
 
 /**
- * Rows from stored or posted JSON. A broken row is dropped, a base kind counts once.
+ * Rows from stored or posted JSON. Broken rows are dropped, a base kind counts once, numbers are ignored.
+ * Old Date and Time rows become one When; their default titles become the new default.
  * `dropEmpty` also drops custom rows with nothing typed, for saving.
  */
 export function readInviteRows(input: unknown, dropEmpty = false): InviteRow[] {
   if (!Array.isArray(input)) return [];
-  const seen = new Set<InviteRowKind>();
+  const seen = new Set<InviteBaseKind>();
   const rows: InviteRow[] = [];
+  let custom = 0;
   for (const raw of input) {
-    if (rows.length >= INVITE_ROWS_MAX) break;
+    if (rows.length >= ROWS_MAX) break;
     if (!raw || typeof raw !== "object") continue;
     const entry = raw as Record<string, unknown>;
-    if (!isKind(entry.kind)) continue;
-    if (entry.kind !== "custom" && seen.has(entry.kind)) continue;
     const id = typeof entry.id === "string" && entry.id.trim() ? entry.id.slice(0, 40) : nanoid(8);
-    const title = text(entry.title, INVITE_TITLE_MAX) ?? "";
-    const number = text(entry.number, INVITE_NUMBER_MAX)?.trim() || undefined;
-    const value = entry.kind === "custom" ? text(entry.value, INVITE_VALUE_MAX) || undefined : undefined;
-    if (dropEmpty && entry.kind === "custom" && !title.trim() && !value?.trim() && !number) continue;
-    if (entry.kind !== "custom") seen.add(entry.kind);
-    rows.push({ id, kind: entry.kind, title, ...(number ? { number } : {}), ...(value !== undefined ? { value } : {}) });
+    let title = text(entry.title, INVITE_TITLE_MAX);
+    if (entry.kind === "custom") {
+      if (custom >= INVITE_CUSTOM_MAX) continue;
+      const value = text(entry.value, INVITE_VALUE_MAX);
+      if (dropEmpty && !title.trim() && !value.trim()) continue;
+      custom += 1;
+      rows.push({ id, kind: "custom", title, value });
+      continue;
+    }
+    const legacy = entry.kind === "date" || entry.kind === "time" ? LEGACY_KINDS[entry.kind] : null;
+    const kind = legacy?.kind ?? baseKind(entry.kind);
+    if (!kind || seen.has(kind)) continue;
+    const oldDefault = legacy?.title ?? (kind === "place" ? LEGACY_KINDS.place!.title : null);
+    if (oldDefault && title.trim() === oldDefault) title = "";
+    seen.add(kind);
+    if (dropEmpty && !title.trim()) continue;
+    rows.push({ id, kind, title });
   }
   return rows;
 }
@@ -72,15 +91,21 @@ export function isInviteLogoLook(value: unknown): value is InviteLogoLook {
   return value === "frame" || value === "shadow";
 }
 
-/**
- * Numbers counted over filled rows only: 01, 02, 03… A typed number shows as typed.
- * An empty row gets its position number, which the editor greys out.
- */
-export function inviteRowNumbers(rows: InviteRow[], filled: (row: InviteRow) => boolean): string[] {
-  let count = 0;
-  return rows.map((row, index) => {
-    if (filled(row)) count += 1;
-    if (row.number) return row.number;
-    return String(filled(row) ? count : index + 1).padStart(2, "0");
-  });
+/** The label a zone shows: the organiser's title, or the default one. */
+export function inviteLabel(rows: InviteRow[] | null | undefined, kind: InviteBaseKind): string {
+  const title = rows?.find((row) => row.kind === kind)?.title.trim();
+  return title || INVITE_BASE_LABELS[kind];
+}
+
+/** Rename a base zone. An empty title brings the default back. */
+export function withInviteLabel(rows: InviteRow[], kind: InviteBaseKind, title: string): InviteRow[] {
+  const next = title.slice(0, INVITE_TITLE_MAX);
+  if (rows.some((row) => row.kind === kind)) {
+    return rows.map((row) => (row.kind === kind ? { ...row, title: next } : row));
+  }
+  return [...rows, { id: nanoid(8), kind, title: next }];
+}
+
+export function customInviteRows(rows: InviteRow[] | null | undefined): InviteRow[] {
+  return (rows ?? []).filter((row) => row.kind === "custom");
 }

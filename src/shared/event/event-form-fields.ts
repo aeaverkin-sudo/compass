@@ -1,5 +1,5 @@
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
-import { defaultInviteRows, readInviteRows, type InviteLogoLook, type InviteRow } from "@/shared/event/invite-rows";
+import { readInviteRows, type InviteLogoLook, type InviteRow } from "@/shared/event/invite-rows";
 import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
 
 export type EventFormValues = {
@@ -12,10 +12,10 @@ export type EventFormValues = {
   theme: EventThemeId;
   layout: EventLayoutId;
   themeTouched: boolean;
-  /** ADED card rows, in order. Base rows keep their value in date, time and place. */
+  /** Renamed zone labels and the organiser's own rows. Base values stay in their own fields. */
   inviteRows: InviteRow[];
   logoLook: InviteLogoLook | null;
-  /** Date and time as typed on the card. Parsed into date, time and endTime. */
+  /** Date and time as typed. Parsed into date, time and endTime. */
   dateText: string;
   timeText: string;
 };
@@ -51,7 +51,6 @@ export function fieldsFromEvent(input: {
   const date = start?.date ?? "";
   const time = start?.time ?? "";
   const endTime = end?.time ?? "";
-  const rows = readInviteRows(input.inviteRows);
   return {
     name: input.name,
     date,
@@ -62,7 +61,7 @@ export function fieldsFromEvent(input: {
     theme: input.theme,
     layout: input.layout,
     themeTouched: true,
-    inviteRows: rows.length > 0 ? rows : defaultInviteRows(),
+    inviteRows: readInviteRows(input.inviteRows),
     logoLook: input.logoLook ?? null,
     dateText: inviteDateText(date),
     timeText: inviteTimeText(time, endTime),
@@ -84,10 +83,8 @@ export function appendEventFields(body: FormData, values: EventFormValues, logo:
     if (values.endTime <= (values.time || "00:00")) end.setDate(end.getDate() + 1);
     if (!Number.isNaN(end.getTime())) body.set("end", end.toISOString());
   }
-  if (values.layout === "card") {
-    body.set("invite_rows", JSON.stringify(readInviteRows(values.inviteRows, true)));
-    body.set("logo_look", values.logoLook ?? "");
-  }
+  body.set("invite_rows", JSON.stringify(readInviteRows(values.inviteRows, true)));
+  body.set("logo_look", values.logoLook ?? "");
   if (logo) body.set("logo", logo);
   if (removeLogo) body.set("remove_logo", "1");
 }

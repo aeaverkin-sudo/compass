@@ -214,14 +214,14 @@ export function HeroName({
             onChange(clamp(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre text-[#111] outline-none"
-          style={empty ? { ...lineStyle, color: "transparent", caretColor: "#111" } : lineStyle}
+          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre text-[var(--ink)] outline-none"
+          style={empty ? { ...lineStyle, color: "transparent", caretColor: "var(--ink)" } : lineStyle}
         />
         </>
       ) : (
         <div
           className={cn(
-            "w-full overflow-x-hidden overflow-y-visible text-left text-[#111]",
+            "w-full overflow-x-hidden overflow-y-visible text-left text-[var(--ink)]",
             wrapWord ? "whitespace-pre-wrap break-all" : "whitespace-nowrap",
           )}
           style={lineStyle}

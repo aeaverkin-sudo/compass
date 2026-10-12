@@ -5,14 +5,13 @@ export const EVENT_THEMES = [
   { id: "sky", label: "Sky", ground: "#c5e8f7", ink: "#111111", dark: false },
   { id: "orange", label: "Orange", ground: "#E8640C", ink: "#ffffff", dark: true },
   { id: "blue", label: "Blue", ground: "#1f3bd6", ink: "#ffffff", dark: true },
-  { id: "noir", label: "Noir", ground: "#111111", ink: "#ffffff", dark: true },
 ] as const;
 
 export type EventThemeId = (typeof EVENT_THEMES)[number]["id"];
 
 export const EVENT_LAYOUTS = [
   { id: "card", label: "1", defaultTheme: "paper" },
-  { id: "grid", label: "2", defaultTheme: "noir" },
+  { id: "grid", label: "2", defaultTheme: "paper" },
   { id: "corners", label: "3", defaultTheme: "stone" },
   { id: "oversized", label: "4", defaultTheme: "blue" },
 ] as const;
@@ -27,8 +26,9 @@ const RETIRED_THEMES: Record<string, EventThemeId> = {
   clay: "stone",
   sand: "stone",
   mist: "stone",
-  ink: "noir",
-  night: "noir",
+  noir: "paper",
+  ink: "paper",
+  night: "paper",
   cobalt: "blue",
 };
 

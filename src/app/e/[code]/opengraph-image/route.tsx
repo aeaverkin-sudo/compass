@@ -95,7 +95,7 @@ function spareCard(name: string) {
   return ogPosterElement({
     name: name || "ADED",
     meta: null,
-    themeId: "noir",
+    themeId: "paper",
     layout: "grid",
     photo: null,
     team: false,

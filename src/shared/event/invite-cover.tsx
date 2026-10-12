@@ -24,6 +24,8 @@ export type InviteCoverEvent = {
   price?: string | null;
   inviteRows?: InviteRow[] | null;
   logoLook?: InviteLogoLook | null;
+  /** Form preview only: style 1 shows placeholders for what is still empty. */
+  hints?: boolean;
 };
 
 type InviteCoverProps = {
@@ -58,7 +60,6 @@ function modernTitleSize(name: string): number {
 }
 
 function coverPaint(layout: EventLayoutId, themeId: EventThemeId) {
-  if (layout === "card") return { background: "#ffffff", color: "var(--ink)" };
   const modern = layout === "oversized";
   return {
     background: modern ? MODERN_PAPER : `var(--event-theme-${themeId})`,
@@ -176,7 +177,7 @@ function Cover({
         ...paint,
       }}
     >
-      {layout === "card" ? <CardInvite event={event} height={full ? null : DESIGN_H} /> : null}
+      {layout === "card" ? <CardInvite event={event} themeId={themeId} /> : null}
       {layout === "grid" ? <EditorialCover event={event} full={full} /> : null}
       {layout === "corners" ? <FashionCover event={event} full={full} /> : null}
       {layout === "oversized" ? <ModernCover event={event} full={full} /> : null}
