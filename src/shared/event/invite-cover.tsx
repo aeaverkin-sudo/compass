@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode }
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
 import { dottedDate, eventClock, eventDayLong, eventDaySlash, eventTimeRange } from "@/shared/event/when";
 import { CardInvite } from "@/shared/event/card-invite";
+import { eventTitleLine } from "@/shared/event/event-title";
 import type { InviteLogoLook, InviteRow } from "@/shared/event/invite-rows";
 
 const DESIGN_W = 286;
@@ -165,6 +166,7 @@ function Cover({
   full: boolean;
 }) {
   const paint = coverPaint(layout, themeId);
+  const poster = layout === "card" ? event : { ...event, name: eventTitleLine(event.name) };
   return (
     <div
       style={{
@@ -178,9 +180,9 @@ function Cover({
       }}
     >
       {layout === "card" ? <CardInvite event={event} themeId={themeId} /> : null}
-      {layout === "grid" ? <EditorialCover event={event} full={full} /> : null}
-      {layout === "corners" ? <FashionCover event={event} full={full} /> : null}
-      {layout === "oversized" ? <ModernCover event={event} full={full} /> : null}
+      {layout === "grid" ? <EditorialCover event={poster} full={full} /> : null}
+      {layout === "corners" ? <FashionCover event={poster} full={full} /> : null}
+      {layout === "oversized" ? <ModernCover event={poster} full={full} /> : null}
     </div>
   );
 }

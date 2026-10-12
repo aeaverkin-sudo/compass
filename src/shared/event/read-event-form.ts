@@ -1,5 +1,6 @@
 import { isEventLayout, isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { readEventDate } from "@/shared/services/events";
+import { clampEventTitle } from "@/shared/event/event-title";
 import { isInviteLogoLook, readInviteRows, type InviteLogoLook, type InviteRow } from "@/shared/event/invite-rows";
 
 export type EventFormInput = {
@@ -35,7 +36,7 @@ function inviteRowsField(value: FormDataEntryValue | null): InviteRow[] | undefi
 export function readEventForm(
   form: FormData,
 ): { ok: true; value: EventFormInput } | { ok: false; status: number; error: string } {
-  const name = textField(form.get("name"), 160);
+  const name = clampEventTitle(textField(form.get("name"), 160));
   if (!name) return { ok: false, status: 400, error: "Add an event name." };
 
   const themeRaw = textField(form.get("theme"), 20);

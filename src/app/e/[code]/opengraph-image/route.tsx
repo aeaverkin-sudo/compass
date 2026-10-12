@@ -8,6 +8,7 @@ import { eventPreviewLine } from "@/shared/event/when";
 import { loadPreviewPay } from "@/shared/services/event-payment";
 import { downloadAttachmentBytes, loadAttachment } from "@/shared/services/attachment-api";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -117,7 +118,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const photo = event ? await logoDataUrl(event) : null;
     const element = event
       ? ogPosterElement({
-          name: event.name || "ADED",
+          name: eventTitleLine(event.name) || "ADED",
           meta: eventPreviewLine(event.date, event.endsAt, event.place, event.placeSecret, pay ? previewPriceLabel(pay) : null),
           themeId: event.theme,
           layout: event.layout,

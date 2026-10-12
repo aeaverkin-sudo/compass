@@ -10,6 +10,7 @@ import type { InviteCoverEvent } from "@/shared/event/invite-cover";
 import type { TeamRoleName } from "@/shared/event/permissions";
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 /** Zone rows already pad 18px. These keep the poster and the button on the mock's gaps. */
 const ZONE_PAD_PX = 18;
@@ -127,7 +128,7 @@ export function AcceptScreen({
         <CoverButton variant="card" layout={layout} themeId={themeId} event={cover} />
       </div>
       <Zone label="Event">
-        <p className="m-0 t-body text-[var(--ink)]">{eventName}</p>
+        <p className="m-0 t-body text-[var(--ink)]">{eventTitleLine(eventName)}</p>
       </Zone>
       <Rule />
       <Zone label="From">

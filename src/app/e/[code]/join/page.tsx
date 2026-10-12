@@ -10,6 +10,7 @@ import { loadEventPay } from "@/shared/services/event-payment";
 import { eventListStatus } from "@/shared/services/events";
 import { EventGate } from "./event-gate";
 import { EventJoin } from "./event-join";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export default async function EventJoinPage({ params }: PageProps) {
   if (!user) {
     return (
       <EventGate
-        name={event.name}
+        name={eventTitleLine(event.name)}
         next={isEventJoinPath(next) ? next : "/main"}
         inviteHref={`/e/${encodeURIComponent(lookup)}`}
       />

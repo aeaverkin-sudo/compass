@@ -12,6 +12,7 @@ import { eventPreviewLine } from "@/shared/event/when";
 import { eventPublicPath } from "@/shared/event/slug";
 import { eventListStatus } from "@/shared/services/events";
 import { requestOrigin } from "@/shared/services/public-card-meta";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!event) return { title: "ADED" };
   const pay = await loadPreviewPay(event.id);
   const origin = await requestOrigin();
-  const title = event.name || "ADED";
+  const title = eventTitleLine(event.name) || "ADED";
   const description = eventPreviewLine(event.date, event.endsAt, event.place, event.placeSecret, previewPriceLabel(pay)) ?? undefined;
   const slug = event.slug?.trim() || event.code.trim() || code;
   const url = `${origin}${eventPublicPath(slug)}`;

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { listEventGuests, loadManageEvent } from "@/shared/services/event-manage";
 import { GuestsScreen } from "./guests-screen";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function ManageGuestsPage({ params }: PageProps) {
   return (
     <GuestsScreen
       lookup={lookup}
-      name={access.event.name}
+      name={eventTitleLine(access.event.name)}
       guests={list.guests}
       canMark={access.event.role === "owner" || access.event.permissions.payments}
       isPaid={access.event.isPaid}

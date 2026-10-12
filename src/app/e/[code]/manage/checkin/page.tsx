@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadCheckinDesk, loadManageEvent } from "@/shared/services/event-manage";
 import { CheckinScreen } from "./checkin-screen";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function ManageCheckinPage({ params }: PageProps) {
   return (
     <CheckinScreen
       lookup={lookup}
-      name={access.event.name}
+      name={eventTitleLine(access.event.name)}
       registered={desk.registered}
       checkedIn={desk.checkedIn}
       last={desk.last}

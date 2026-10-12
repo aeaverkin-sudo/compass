@@ -7,6 +7,7 @@ import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadInvitePreview, loadManagerInvite } from "@/shared/services/event-manage";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 import { AcceptScreen } from "./accept-screen";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 export const dynamic = "force-dynamic";
 
@@ -41,9 +42,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (preview.kind !== "open") return { title: "Team invite" };
 
   const origin = await requestOrigin();
-  const title = `You're invited to help run ${preview.eventName}`;
+  const title = `You're invited to help run ${eventTitleLine(preview.eventName)}`;
   const when = formatEventRange(preview.date, preview.endsAt);
-  const description = `${preview.ownerName} added you to the team for ${preview.eventName}${when ? ` — ${when}` : ""}. Role: ${preview.role}.`;
+  const description = `${preview.ownerName} added you to the team for ${eventTitleLine(preview.eventName)}${when ? ` — ${when}` : ""}. Role: ${preview.role}.`;
   const url = `${origin}/e/${encodeURIComponent(lookup)}/team/${encodeURIComponent(inviteToken)}`;
   const image = `${origin}/e/${encodeURIComponent(lookup)}/opengraph-image?team=1&role=${encodeURIComponent(preview.role)}`;
   return {
@@ -90,7 +91,7 @@ export default async function ManagerInvitePage({ params, searchParams }: PagePr
       return inviteNotice(`/e/${encodeURIComponent(lookup)}`, "This link has already been used.");
     }
     if (invite.kind === "owner") {
-      return inviteNotice(`/e/${encodeURIComponent(lookup)}/manage`, `You organise ${invite.eventName}.`);
+      return inviteNotice(`/e/${encodeURIComponent(lookup)}/manage`, `You organise ${eventTitleLine(invite.eventName)}.`);
     }
     return (
       <AcceptScreen

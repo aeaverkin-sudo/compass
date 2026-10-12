@@ -12,6 +12,7 @@ import { isInviteLogoLook, readInviteRows } from "@/shared/event/invite-rows";
 import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
 import { COLUMN_GAP_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 type Step = "entry" | "create";
 
@@ -166,7 +167,7 @@ function EventGroup({
                 className="press block w-full py-[14px] text-left [-webkit-tap-highlight-color:transparent]"
               >
                 <span className={muted ? "block t-body text-[var(--grey)]" : "block t-body text-[var(--ink)]"}>
-                  {event.name}
+                  {eventTitleLine(event.name)}
                 </span>
                 <span className="mt-1 block t-meta text-[var(--grey)]">{roleLine(event)}</span>
               </button>

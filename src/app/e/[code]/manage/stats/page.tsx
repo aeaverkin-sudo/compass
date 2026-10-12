@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadManageEvent, readEventStats } from "@/shared/services/event-manage";
 import { StatsScreen } from "./stats-screen";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function ManageStatsPage({ params }: PageProps) {
   return (
     <StatsScreen
       lookup={lookup}
-      name={access.event.name}
+      name={eventTitleLine(access.event.name)}
       date={access.event.date}
       endsAt={access.event.endsAt}
       isPaid={access.event.isPaid}

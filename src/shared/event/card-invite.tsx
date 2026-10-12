@@ -8,6 +8,7 @@ import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import { customInviteRows, inviteLabel, type InviteLogoLook, type InviteRow } from "@/shared/event/invite-rows";
 import { eventThemeById, type EventThemeId } from "@/shared/event/themes";
 import { sameEvening } from "@/shared/event/when";
+import { EVENT_TITLE_LINES } from "@/shared/event/event-title";
 import { CARD_HEADER_PAD_PX, HEADER_FADE_PX, HERO_PHOTO_PX, SECTION_PAD_PX } from "@main/layout";
 
 const SHEET_W = 286;
@@ -196,7 +197,7 @@ export function CardInvite({ event, themeId }: { event: CardInviteEvent; themeId
             />
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col">
-            {named || event.hints ? <HeroName value={event.name} placeholder="Event name" maxLines={3} align="center" /> : null}
+            {named || event.hints ? <HeroName value={event.name} placeholder="Event title" maxLines={EVENT_TITLE_LINES} align="center" /> : null}
           </div>
         </div>
         {lines.length > 0 ? (

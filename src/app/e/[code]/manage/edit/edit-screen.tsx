@@ -6,6 +6,7 @@ import { Rule } from "@/shared/components/rule";
 import { EventForm } from "@/shared/event/event-form";
 import { appendEventFields, type EventFormValues } from "@/shared/event/event-form-fields";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { eventTitleLine } from "@/shared/event/event-title";
 import { ManageFrame } from "../manage-frame";
 
 const SKY =
@@ -60,7 +61,7 @@ export function EditScreen({
     }
   };
 
-  const deleteName = values.name.trim() || initial.name.trim();
+  const deleteName = eventTitleLine(values.name) || eventTitleLine(initial.name);
 
   const remove = async () => {
     if (!isOwner || deletingLock.current || savingLock.current) return;

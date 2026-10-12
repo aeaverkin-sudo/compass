@@ -17,6 +17,7 @@ import { GuestsZone } from "./guests-zone";
 import { PaymentScreen } from "./payment/payment-screen";
 import { TeamZone } from "./team-zone";
 import type { InviteLogoLook, InviteRow } from "@/shared/event/invite-rows";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 const SKY =
   "press w-full border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
@@ -96,7 +97,7 @@ export function ManageHome({
   const share = () => {
     const canShare = typeof navigator.share === "function" ? (data: { title: string; url: string }) => navigator.share(data) : undefined;
     void shareInviteLink(
-      { title: name, url: shareUrl },
+      { title: eventTitleLine(name), url: shareUrl },
       {
         share: canShare,
         writeText: async (value) => {
@@ -130,7 +131,7 @@ export function ManageHome({
     shown("guests") || shown("payment") || shown("managers") || shown("checkin") || shown("analytics");
 
   return (
-    <ManageFrame title={name} fallbackHref="/network/event" onBack={() => router.replace("/network/event")}>
+    <ManageFrame title={eventTitleLine(name)} fallbackHref="/network/event" onBack={() => router.replace("/network/event")}>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="pt-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
         {endedLabel ? <p className="mb-4 t-meta text-[var(--grey)]">{`Ended ${endedLabel}`}</p> : null}

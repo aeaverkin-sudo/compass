@@ -25,7 +25,7 @@ const BASE_KINDS: readonly InviteBaseKind[] = ["name", "when", "place", "pic", "
 const ROWS_MAX = BASE_KINDS.length + INVITE_CUSTOM_MAX;
 
 export const INVITE_BASE_LABELS: Record<InviteBaseKind, string> = {
-  name: "Name",
+  name: "Title",
   when: "When",
   place: "Place",
   pic: "Pic",

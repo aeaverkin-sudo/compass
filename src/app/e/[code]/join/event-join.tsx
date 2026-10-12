@@ -19,6 +19,7 @@ import { payButtonLabel, payView, priceLabel, type EventPay } from "@/shared/eve
 import { COLUMN_GAP_PX, HEADER_ROW_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { BadgeFace, EventRegistration, PortfolioChoice } from "@/shared/services/event-registration";
 import type { EventInvite } from "@/shared/services/event-invite";
+import { eventTitleLine } from "@/shared/event/event-title";
 
 type EventJoinProps = {
   lookup: string;
@@ -225,7 +226,7 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         <ScreenHeader title="Your badge" fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
         <p className="mb-0 t-meta text-[var(--grey)]">
-          Pick the card you bring to {event.name} — your badge at the door, and what you share.
+          Pick the card you bring to {eventTitleLine(event.name)} — your badge at the door, and what you share.
         </p>
         <div
           className="grid items-start pt-[18px]"

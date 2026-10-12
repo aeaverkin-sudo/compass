@@ -9,6 +9,7 @@ import { CoverButton } from "@/shared/event/cover-button";
 import { EVENT_LAYOUTS, EVENT_THEMES, layoutDefaultTheme } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { hasLightEdges } from "@/shared/lib/photo-look";
+import { EVENT_TITLE_LINES, clampEventTitle } from "@/shared/event/event-title";
 import type { EventFormValues } from "@/shared/event/event-form-fields";
 import {
   INVITE_BASE_LABELS,
@@ -57,6 +58,7 @@ function GrowField({
   placeholder,
   ariaLabel,
   singleLine = false,
+  maxLines,
   maxLength,
 }: {
   inputRef: RefObject<HTMLTextAreaElement | null>;
@@ -65,6 +67,8 @@ function GrowField({
   placeholder: string;
   ariaLabel: string;
   singleLine?: boolean;
+  /** Enter breaks the line until this many lines. */
+  maxLines?: number;
   maxLength?: number;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -93,13 +97,10 @@ function GrowField({
         placeholder={placeholder}
         className={`${PLAIN} absolute inset-x-0 top-0 resize-none overflow-hidden`}
         style={fieldStyle()}
-        onKeyDown={
-          singleLine
-            ? (event) => {
-                if (event.key === "Enter") event.preventDefault();
-              }
-            : undefined
-        }
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+          if (singleLine || (maxLines && value.split("\n").length >= maxLines)) event.preventDefault();
+        }}
         onChange={(event) => {
           onChange(event.target.value);
           size(event.target);
@@ -222,7 +223,7 @@ export function EventForm({
   error: string | null;
   onSubmit: () => void;
 }) {
-  const nameRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLTextAreaElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
   const placeRef = useRef<HTMLTextAreaElement>(null);
   const aboutRef = useRef<HTMLTextAreaElement>(null);
@@ -275,13 +276,13 @@ export function EventForm({
   return (
     <>
       <Zone label={label("name")} rule onClick={(event) => focusField(event, nameRef.current)}>
-        <input
-          ref={nameRef}
+        <GrowField
+          inputRef={nameRef}
           value={values.name}
-          onChange={(event) => onChange({ name: event.target.value })}
-          placeholder="Event name"
-          className={PLAIN}
-          style={fieldStyle()}
+          onChange={(name) => onChange({ name: clampEventTitle(name) })}
+          placeholder="Event title"
+          ariaLabel="Title"
+          maxLines={EVENT_TITLE_LINES}
         />
       </Zone>
       <Zone label={label("when")} rule onClick={(event) => focusField(event, dateRef.current)}>
