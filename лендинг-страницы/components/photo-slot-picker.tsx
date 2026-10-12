@@ -3,7 +3,7 @@
 import { Ellipsis, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { photoSlotLookClass, type PhotoLook } from "@/shared/lib/photo-look";
+import { hasLightEdges, photoSlotLookClass, type PhotoLook } from "@/shared/lib/photo-look";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +63,11 @@ export function PhotoSlotPicker({
       (nextPhoto, file) => {
         onPhotoChange(nextPhoto, file);
         setEditing(false);
+        if (onPhotoLook && !photoLook) {
+          void hasLightEdges(file).then((light) => {
+            if (light) onPhotoLook("shadow");
+          });
+        }
       },
       () => setEditing(false),
     );

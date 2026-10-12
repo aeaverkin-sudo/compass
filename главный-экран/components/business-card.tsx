@@ -123,12 +123,17 @@ function EmptyPortfolioStart({
   onPhotoChange,
   onDisplayNameChange,
   onStartBlocked,
+  onCardUpdate,
 }: {
   card: Card;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
   onStartBlocked?: () => void;
+  onCardUpdate?: (data: Partial<Card>) => void;
 }) {
+  const setPhotoLook = onCardUpdate
+    ? (look: "frame" | "shadow" | null) => onCardUpdate({ photoLook: look ?? undefined })
+    : undefined;
   return (
     <div className="flex w-full flex-col items-center" style={{ paddingTop: CARD_PHOTO_TOP_PX }}>
       {onPhotoChange ? (
@@ -138,6 +143,8 @@ function EmptyPortfolioStart({
           sizePx={CARD_PHOTO_SIZE_PX}
           borderRadiusPx={0}
           onPickBlocked={onStartBlocked}
+          photoLook={card.photoLook}
+          onPhotoLook={setPhotoLook}
         />
       ) : null}
       {onDisplayNameChange ? (
@@ -477,6 +484,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               onPhotoChange={onPhotoChange}
               onDisplayNameChange={onDisplayNameChange}
               onStartBlocked={onPortfolioStartBlocked}
+              onCardUpdate={onCardUpdate}
             />
           ) : (
             <EditorialHeader
