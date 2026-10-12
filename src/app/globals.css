@@ -169,6 +169,17 @@ body {
   text-transform: uppercase;
 }
 
+/* iOS ignores user-scalable=no, so a tap still waits for a double-tap zoom and two quick taps can zoom instead of click. */
+@layer base {
+  button,
+  a,
+  label,
+  summary,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
 /* Instant press. The tap highlight is off, so the finger needs this. */
 @utility press {
   transition: opacity 60ms linear;

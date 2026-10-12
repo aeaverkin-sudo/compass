@@ -266,6 +266,8 @@ export function SideRail({
       event.stopPropagation();
     };
     document.addEventListener("click", swallow, { capture: true, once: true });
+    // iOS often sends no click after a drag; a lingering swallow would eat the next real tap anywhere.
+    window.setTimeout(() => document.removeEventListener("click", swallow, { capture: true }), 500);
   };
 
   const resetLift = () => {
