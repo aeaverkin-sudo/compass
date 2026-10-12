@@ -2,6 +2,12 @@ import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isEventLookup } from "@/shared/event/lookup";
 import { eventThemeFromStored, isEventLayout, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { formatEventWhen } from "@/shared/event/when";
+import {
+  isInviteLogoLook,
+  readInviteRows,
+  type InviteLogoLook,
+  type InviteRow as CardInviteRow,
+} from "@/shared/event/invite-rows";
 
 export { formatEventWhen };
 
@@ -16,6 +22,8 @@ export type EventInvite = {
   placeSecret: boolean;
   theme: EventThemeId;
   layout: EventLayoutId;
+  inviteRows: CardInviteRow[] | null;
+  logoLook: InviteLogoLook | null;
   publicToken: string;
   code: string;
   slug: string | null;
@@ -67,15 +75,45 @@ export async function loadEventInvite(lookup: string): Promise<EventInvite | nul
     placeSecret: row.place_secret,
     theme: eventThemeFromStored(row.theme),
     layout: face.layout,
+    inviteRows: face.inviteRows ?? null,
+    logoLook: face.logoLook ?? null,
     publicToken: row.public_token,
     code: row.code,
     slug: row.slug?.trim() || null,
   };
 }
 
-/** Layout and end time sit beside the invite. A missing end column still opens. */
-async function readEventFace(eventId: string): Promise<{ layout: EventLayoutId; endsAt: string | null }> {
+type EventFace = {
+  layout: EventLayoutId;
+  endsAt: string | null;
+  inviteRows?: CardInviteRow[] | null;
+  logoLook?: InviteLogoLook | null;
+};
+
+/** Layout, end time and the card rows sit beside the invite. Missing columns still open. */
+async function readEventFace(eventId: string): Promise<EventFace> {
   const admin = createAdminSupabaseClient();
+  const withCard = await admin
+    .from("events")
+    .select("layout, ends_at, invite_rows, logo_look")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!withCard.error && withCard.data) {
+    const row = withCard.data as {
+      layout?: string | null;
+      ends_at?: string | null;
+      invite_rows?: unknown;
+      logo_look?: string | null;
+    };
+    const value = String(row.layout ?? "");
+    const rows = readInviteRows(row.invite_rows);
+    return {
+      layout: isEventLayout(value) ? value : "grid",
+      endsAt: row.ends_at ?? null,
+      inviteRows: rows.length > 0 ? rows : null,
+      logoLook: isInviteLogoLook(row.logo_look) ? row.logo_look : null,
+    };
+  }
   const withEnd = await admin.from("events").select("layout, ends_at").eq("id", eventId).maybeSingle();
   if (withEnd.error && /ends_at/i.test(withEnd.error.message) && /column|schema/i.test(withEnd.error.message)) {
     const layoutOnly = await admin.from("events").select("layout").eq("id", eventId).maybeSingle();

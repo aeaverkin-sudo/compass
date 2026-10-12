@@ -57,6 +57,8 @@ export async function PATCH(request: Request, context: RouteProps) {
       endsAt: fields.endsAt,
       theme: fields.theme,
       layout: fields.layout,
+      inviteRows: fields.inviteRows,
+      logoLook: fields.logoLook,
       logo: fields.logo,
       removeLogo: fields.removeLogo,
     });

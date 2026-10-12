@@ -1,5 +1,6 @@
 import { isEventLayout, isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { readEventDate } from "@/shared/services/events";
+import { isInviteLogoLook, readInviteRows, type InviteLogoLook, type InviteRow } from "@/shared/event/invite-rows";
 
 export type EventFormInput = {
   name: string;
@@ -11,11 +12,23 @@ export type EventFormInput = {
   layout: EventLayoutId;
   logo: File | null;
   removeLogo: boolean;
+  /** Absent when the form did not send the card rows. */
+  inviteRows?: InviteRow[];
+  logoLook?: InviteLogoLook | null;
 };
 
 function textField(value: FormDataEntryValue | null, max: number): string {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, max);
+}
+
+function inviteRowsField(value: FormDataEntryValue | null): InviteRow[] | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    return readInviteRows(JSON.parse(value.slice(0, 20000)), true);
+  } catch {
+    return [];
+  }
 }
 
 /** Shared checks for create and edit. Payment is not part of the form. */
@@ -38,6 +51,8 @@ export function readEventForm(
   if (endRaw && !endsAt) return { ok: false, status: 400, error: "That date could not be read." };
 
   const logo = form.get("logo");
+  const inviteRows = inviteRowsField(form.get("invite_rows"));
+  const lookRaw = form.get("logo_look");
   return {
     ok: true,
     value: {
@@ -50,6 +65,8 @@ export function readEventForm(
       layout: layoutRaw && isEventLayout(layoutRaw) ? layoutRaw : "grid",
       logo: logo instanceof File ? logo : null,
       removeLogo: form.get("remove_logo") === "1",
+      ...(inviteRows ? { inviteRows } : {}),
+      ...(typeof lookRaw === "string" ? { logoLook: isInviteLogoLook(lookRaw) ? lookRaw : null } : {}),
     },
   };
 }

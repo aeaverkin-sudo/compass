@@ -14,6 +14,27 @@ import { uprightImage } from "@/shared/services/attachment-sanitize";
 import { eventNameSlug, eventPublicPath, indexedEventSlug } from "@/shared/event/slug";
 import { isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { formatEventRange } from "@/shared/event/when";
+import type { InviteLogoLook, InviteRow } from "@/shared/event/invite-rows";
+
+/** Columns written before their SQL may have run. A missing one is dropped and the write retried. */
+const OPTIONAL_COLUMNS = ["layout", "ends_at", "slug", "invite_rows", "logo_look"] as const;
+
+function withoutMissingColumn(payload: Record<string, unknown>, message: string): Record<string, unknown> | null {
+  const column = OPTIONAL_COLUMNS.find(
+    (name) => name in payload && new RegExp(`could not find the '${name}' column`, "i").test(message),
+  );
+  if (!column) return null;
+  const rest = { ...payload };
+  delete rest[column];
+  return rest;
+}
+
+function cardFields(input: { inviteRows?: InviteRow[]; logoLook?: InviteLogoLook | null }) {
+  return {
+    ...(input.inviteRows ? { invite_rows: input.inviteRows } : {}),
+    ...(input.logoLook !== undefined ? { logo_look: input.logoLook } : {}),
+  };
+}
 
 const PUBLIC_TOKEN_LENGTH = 21;
 const eventCode = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 5);
@@ -57,6 +78,8 @@ export type CreateEventInput = {
   place: string | null;
   theme: EventThemeId;
   layout: EventLayoutId;
+  inviteRows?: InviteRow[];
+  logoLook?: InviteLogoLook | null;
   logo: File | null;
   isPaid: boolean;
   paymentUrl: string | null;
@@ -282,20 +305,10 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
           ? admin.from("events").insert(body).select("public_token, code, logo_attachment_id, slug").single()
           : admin.from("events").insert(body).select("public_token, code, logo_attachment_id").single();
       let inserted = await write(payload);
-      for (let pass = 0; pass < 3 && inserted.error; pass += 1) {
-        const message = inserted.error.message;
-        if (/could not find the 'layout' column/i.test(message) && "layout" in payload) {
-          const { layout: _layout, ...withoutLayout } = payload;
-          payload = withoutLayout;
-        } else if (/could not find the 'ends_at' column/i.test(message) && "ends_at" in payload) {
-          const { ends_at: _endsAt, ...withoutEnd } = payload;
-          payload = withoutEnd;
-        } else if (/could not find the 'slug' column/i.test(message) && "slug" in payload) {
-          const { slug: _slug, ...withoutSlug } = payload;
-          payload = withoutSlug;
-        } else {
-          break;
-        }
+      for (let pass = 0; pass < OPTIONAL_COLUMNS.length && inserted.error; pass += 1) {
+        const next = withoutMissingColumn(payload, inserted.error.message);
+        if (!next) break;
+        payload = next;
         inserted = await write(payload);
       }
       return inserted;
@@ -316,6 +329,7 @@ export async function createEvent(input: CreateEventInput): Promise<CreatedEvent
         place_secret: false,
         theme: input.theme,
         layout: input.layout,
+        ...cardFields(input),
         public_token: publicToken,
         code,
         ...(slug ? { slug } : {}),
@@ -368,6 +382,8 @@ export type UpdateEventInput = {
   endsAt: string | null;
   theme: EventThemeId;
   layout: EventLayoutId;
+  inviteRows?: InviteRow[];
+  logoLook?: InviteLogoLook | null;
   logo: File | null;
   removeLogo: boolean;
 };
@@ -385,23 +401,17 @@ export async function updateEvent(input: UpdateEventInput): Promise<void> {
       ends_at: input.endsAt,
       theme: input.theme,
       layout: input.layout,
+      ...cardFields(input),
     };
     if (logo) fields.logo_attachment_id = logo.id;
     else if (input.removeLogo) fields.logo_attachment_id = null;
 
     let payload = fields;
     let saved = await admin.from("events").update(payload).eq("id", input.eventId);
-    for (let pass = 0; pass < 2 && saved.error; pass += 1) {
-      const message = saved.error.message;
-      if (/could not find the 'layout' column/i.test(message) && "layout" in payload) {
-        const { layout: _layout, ...rest } = payload;
-        payload = rest;
-      } else if (/could not find the 'ends_at' column/i.test(message) && "ends_at" in payload) {
-        const { ends_at: _endsAt, ...rest } = payload;
-        payload = rest;
-      } else {
-        break;
-      }
+    for (let pass = 0; pass < OPTIONAL_COLUMNS.length && saved.error; pass += 1) {
+      const next = withoutMissingColumn(payload, saved.error.message);
+      if (!next) break;
+      payload = next;
       saved = await admin.from("events").update(payload).eq("id", input.eventId);
     }
     if (saved.error) throw new Error(saved.error.message);

@@ -113,6 +113,8 @@ export default async function ManagerInvitePage({ params, searchParams }: PagePr
           place: invite.place,
           placeSecret: invite.placeSecret,
           logoUrl: invite.logoUrl,
+          inviteRows: invite.inviteRows,
+          logoLook: invite.logoLook,
         }}
       />
     );
@@ -146,6 +148,8 @@ export default async function ManagerInvitePage({ params, searchParams }: PagePr
         place: preview.place,
         placeSecret: preview.placeSecret,
         logoUrl: preview.logoUrl,
+        inviteRows: preview.inviteRows,
+        logoLook: preview.logoLook,
       }}
     />
   );

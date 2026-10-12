@@ -16,6 +16,7 @@ import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { CARD_ATTACHMENTS_BUCKET, SIGNED_READ_SECONDS } from "@/shared/services/attachment-limits";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import { eventListStatus, type EventListStatus } from "@/shared/services/events";
+import type { InviteLogoLook, InviteRow } from "@/shared/event/invite-rows";
 
 export {
   EVENT_PERMISSIONS,
@@ -739,6 +740,8 @@ export type InvitePreview =
       placeSecret: boolean;
       theme: EventThemeId;
       layout: EventLayoutId;
+      inviteRows: InviteRow[] | null;
+      logoLook: InviteLogoLook | null;
       logoUrl: string | null;
       description: string | null;
       role: TeamRoleName;
@@ -762,6 +765,8 @@ export async function loadInvitePreview(lookup: string, token: string): Promise<
     placeSecret: invite.placeSecret,
     theme: invite.theme,
     layout: invite.layout,
+    inviteRows: invite.inviteRows,
+    logoLook: invite.logoLook,
     logoUrl: invite.logoAttachmentId ? `/e/${invite.publicToken}/logo` : null,
     description: invite.description,
     role: role.role,
@@ -786,6 +791,8 @@ export type ManagerInviteView =
       placeSecret: boolean;
       theme: EventThemeId;
       layout: EventLayoutId;
+      inviteRows: InviteRow[] | null;
+      logoLook: InviteLogoLook | null;
       logoUrl: string | null;
     };
 
@@ -810,6 +817,8 @@ export async function loadManagerInvite(lookup: string, token: string, userId: s
     placeSecret: invite.placeSecret,
     theme: invite.theme,
     layout: invite.layout,
+    inviteRows: invite.inviteRows,
+    logoLook: invite.logoLook,
     logoUrl: invite.logoAttachmentId ? `/e/${invite.publicToken}/logo` : null,
   };
 }

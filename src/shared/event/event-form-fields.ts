@@ -83,6 +83,10 @@ export function appendEventFields(body: FormData, values: EventFormValues, logo:
     const end = new Date(`${values.date}T${values.endTime}`);
     if (!Number.isNaN(end.getTime())) body.set("end", end.toISOString());
   }
+  if (values.layout === "card") {
+    body.set("invite_rows", JSON.stringify(readInviteRows(values.inviteRows, true)));
+    body.set("logo_look", values.logoLook ?? "");
+  }
   if (logo) body.set("logo", logo);
   if (removeLogo) body.set("remove_logo", "1");
 }

@@ -78,6 +78,8 @@ export function EventJoin({ lookup, event, origin, portfolios, registration, bad
       placeSecret: event.placeSecret,
       logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
       price,
+      inviteRows: event.inviteRows,
+      logoLook: event.logoLook,
     };
 
     const copyCode = async (code: string) => {

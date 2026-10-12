@@ -60,10 +60,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 function previewVersion(
-  event: { name: string; date: string | null; endsAt: string | null; place: string | null; logoAttachmentId: string | null; theme: string; layout: string },
+  event: {
+    name: string;
+    date: string | null;
+    endsAt: string | null;
+    place: string | null;
+    logoAttachmentId: string | null;
+    theme: string;
+    layout: string;
+    inviteRows: unknown;
+    logoLook: string | null;
+  },
   pay: { isPaid: boolean; price: number | null; currency: string; tiers?: { price: number | null }[] },
 ) {
-  const raw = [event.name, event.date, event.endsAt, event.place, event.logoAttachmentId, event.theme, event.layout, previewPriceKey(pay)].join("\n");
+  const raw = [
+    event.name,
+    event.date,
+    event.endsAt,
+    event.place,
+    event.logoAttachmentId,
+    event.theme,
+    event.layout,
+    previewPriceKey(pay),
+    JSON.stringify(event.inviteRows ?? null),
+    event.logoLook,
+  ].join("\n");
   let hash = 0;
   for (let index = 0; index < raw.length; index += 1) hash = (hash * 31 + raw.charCodeAt(index)) >>> 0;
   return hash.toString(36);
@@ -150,6 +171,8 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
               placeSecret: event.placeSecret,
               logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
               price: posterPrice,
+              inviteRows: event.inviteRows,
+              logoLook: event.logoLook,
             }}
           />
           {counts ? (

@@ -16,6 +16,7 @@ import { ManageFrame } from "./manage-frame";
 import { GuestsZone } from "./guests-zone";
 import { PaymentScreen } from "./payment/payment-screen";
 import { TeamZone } from "./team-zone";
+import type { InviteLogoLook, InviteRow } from "@/shared/event/invite-rows";
 
 const SKY =
   "press w-full border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
@@ -55,6 +56,8 @@ export function ManageHome({
     placeSecret: boolean;
     theme: EventThemeId;
     layout: EventLayoutId;
+    inviteRows: InviteRow[] | null;
+    logoLook: InviteLogoLook | null;
     logoUrl: string | null;
     price: string | null;
   };
@@ -120,6 +123,8 @@ export function ManageHome({
     placeSecret: cover.placeSecret,
     logoUrl: cover.logoUrl,
     price: cover.price,
+    inviteRows: cover.inviteRows,
+    logoLook: cover.logoLook,
   };
   const hasZone =
     shown("guests") || shown("payment") || shown("managers") || shown("checkin") || shown("analytics");

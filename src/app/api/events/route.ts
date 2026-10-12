@@ -48,6 +48,8 @@ export async function POST(request: Request) {
       place: fields.place,
       theme: fields.theme,
       layout: fields.layout,
+      inviteRows: fields.inviteRows,
+      logoLook: fields.logoLook,
       logo: fields.logo,
       isPaid: false,
       paymentUrl: null,

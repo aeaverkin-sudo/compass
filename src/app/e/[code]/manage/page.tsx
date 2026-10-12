@@ -69,6 +69,8 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
         placeSecret: invite.placeSecret,
         theme: invite.theme,
         layout: invite.layout,
+        inviteRows: invite.inviteRows,
+        logoLook: invite.logoLook,
         logoUrl: invite.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
         price: pay.isPaid ? priceLabel(pay.price, pay.currency) : null,
       }}
