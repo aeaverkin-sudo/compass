@@ -49,7 +49,7 @@ interface AppState {
   markAddLibraryHintSeen: () => void;
   markPasswordHintSeen: () => void;
   setRailDock: (dock: "qr" | "photo") => void;
-  setRailLook: (look: "frame" | "shadow" | null) => void;
+  setRailLook: (look: "shadow" | null) => void;
   setMonochrome: (value: boolean) => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;

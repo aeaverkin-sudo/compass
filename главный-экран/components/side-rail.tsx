@@ -51,11 +51,10 @@ const FREEZE_CLASS =
   "select-none [-webkit-touch-callout:none] [-webkit-user-drag:none]";
 
 type RailDock = "qr" | "photo";
-type RailLook = "frame" | "shadow";
+type RailLook = "shadow";
 
 const LOOKS: { look: RailLook | null; label: string }[] = [
   { look: null, label: "BASIC" },
-  { look: "frame", label: "FRAME" },
   { look: "shadow", label: "SHADOW" },
 ];
 type Anchor = { top: number; height: number };
@@ -168,7 +167,7 @@ export function SideRail({
   const updateCard = useAppStore((state) => state.updateCard);
   const setRailDock = useAppStore((state) => state.setRailDock);
   const railDock = useAppStore((state) => (state.user.railDock === "photo" ? "photo" : "qr"));
-  const railLook = useAppStore((state) => state.user.railLook);
+  const railLook = useAppStore((state) => (state.user.railLook === "shadow" ? "shadow" : undefined));
   const setRailLook = useAppStore((state) => state.setRailLook);
   const share = useCardShare(card);
   const canShare = Boolean(card.publicToken) && !frozen;
