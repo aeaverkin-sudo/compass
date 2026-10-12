@@ -397,6 +397,14 @@ export function writeCardSearchable(cardId: string, searchable: boolean) {
     });
 }
 
+/** Drop one portfolio's queued write, so a deleted portfolio is not saved back. */
+export function dropPendingCardUpsert(cardId: string) {
+  const pending = pendingUpserts.get(cardId);
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  pendingUpserts.delete(cardId);
+}
+
 /** Drop queued writes. Used when signing into an existing account so the trial card is not copied over. */
 export function dropPendingCardUpserts() {
   for (const pending of pendingUpserts.values()) clearTimeout(pending.timer);

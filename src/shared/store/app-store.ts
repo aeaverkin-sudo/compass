@@ -16,7 +16,7 @@ import {
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
-import { ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
+import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
 import { isCardZoneId, normalizeRubricOrder, zoneForItem } from "@/shared/services/card-zones";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
@@ -53,6 +53,10 @@ interface AppState {
   setMonochrome: (value: boolean) => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
+  /** The first portfolio: everything but the photo and the name comes off. The library stays. */
+  resetCard: (id: string) => void;
+  /** Any other portfolio, once the server has deleted it. The library stays. */
+  removeCard: (id: string) => void;
   /** Public/Private. The first card stays public. A new second card is created private. */
   setCardListed: (id: string, listed: boolean) => void;
   /** Whether connections may search this card's visible fields. The name stays findable. */
@@ -219,6 +223,35 @@ export const useAppStore = create<AppState>()(
         });
         scheduleCardUpsert(next);
         if ("nextScanAddons" in data) scheduleNotesSync(next);
+      },
+
+      resetCard: (id) => {
+        const current = get().cards.find((card) => card.id === id);
+        if (!current) return;
+        get().updateCard(id, {
+          contactItemIds: [],
+          title: "",
+          headerItemId: undefined,
+          itemOrderManual: false,
+          rubricOrder: undefined,
+          rubricLabels: undefined,
+          itemZones: undefined,
+          nextScanAddons: [],
+        });
+        for (const itemId of current.contactItemIds) void unlinkItem(id, itemId);
+      },
+
+      removeCard: (id) => {
+        const { cards, currentCardIndex } = get();
+        const index = cards.findIndex((card) => card.id === id);
+        if (index < 0 || cards.length <= 1) return;
+        dropPendingCardUpsert(id);
+        let next = cards.filter((card) => card.id !== id);
+        if (!next.some((card) => card.listed !== false)) {
+          next = next.map((card, position) => (position === 0 ? { ...card, listed: true } : card));
+        }
+        const shown = currentCardIndex >= index ? Math.max(0, currentCardIndex - 1) : currentCardIndex;
+        set({ cards: next, currentCardIndex: Math.min(shown, next.length - 1) });
       },
 
       setCardListed: (id, listed) => {
