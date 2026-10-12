@@ -354,23 +354,21 @@ body {
   scrollbar-width: none;
 }
 
-/* A row that just moved onto the card, or the twin of a refused duplicate. */
+/* The twin of a refused duplicate: a short lift and back. */
 @keyframes row-flash {
-  from {
-    background-color: var(--sky);
-  }
-  to {
-    background-color: transparent;
+  50% {
+    transform: scale(1.03);
   }
 }
 
 .row-flash {
-  animation: row-flash 600ms ease-out;
+  transform-origin: left center;
+  animation: row-flash 300ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .row-flash {
-    animation-timing-function: steps(1, end);
+    animation: none;
   }
 }
 

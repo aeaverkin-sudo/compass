@@ -1,4 +1,4 @@
-/** Sky under a row that just moved or was matched, fading out. The look is `.row-flash` in globals.css. */
+/** A short lift of a matched row and back. The look is `.row-flash` in globals.css. */
 export function flashRow(node: HTMLElement | null | undefined) {
   if (!node) return;
   node.classList.remove("row-flash");

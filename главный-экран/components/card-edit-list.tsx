@@ -911,7 +911,6 @@ function EditRow({
       if (kind === "add") onAdd();
       else onRemove();
       setToggling(null);
-      if (kind === "add") requestAnimationFrame(() => flashRow(rowRef.current));
     }, ROW_TOGGLE_MS);
   };
 
@@ -931,12 +930,7 @@ function EditRow({
   }, [editing]);
 
   return (
-    <div
-      ref={rowRef}
-      data-item-row={itemId}
-      className="relative min-w-0"
-      style={toggling === "add" ? { backgroundColor: "var(--sky)" } : undefined}
-    >
+    <div ref={rowRef} data-item-row={itemId} className="relative min-w-0">
       <div
         ref={fieldRef}
         aria-label={text}
