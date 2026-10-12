@@ -619,9 +619,12 @@ export function selectActiveCard(cards: Card[], currentCardIndex: number): Card 
   return cards[currentCardIndex] ?? cards[0];
 }
 
+/** One empty slot at a time: the next one opens only after the last portfolio has a photo or a name. */
 export function canAddMoreCards(cards: Card[], portfolioLimit: number | null): boolean {
   if (portfolioLimit === null) return false;
-  return cards.length > 0 && cards.length < portfolioLimit;
+  const last = cards[cards.length - 1];
+  if (!last || (!cardHasPhoto(last) && !last.displayName.trim())) return false;
+  return cards.length < portfolioLimit;
 }
 
 /** True when this portfolio is public and no other portfolio is. */
