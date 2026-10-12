@@ -36,7 +36,7 @@ const EMPTY_FORM: EventFormValues = {
   place: "",
   about: "",
   theme: "paper",
-  layout: "grid",
+  layout: "card",
   themeTouched: false,
 };
 

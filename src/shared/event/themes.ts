@@ -11,6 +11,7 @@ export const EVENT_THEMES = [
 export type EventThemeId = (typeof EVENT_THEMES)[number]["id"];
 
 export const EVENT_LAYOUTS = [
+  { id: "card", label: "ADED card", defaultTheme: "paper" },
   { id: "grid", label: "1", defaultTheme: "noir" },
   { id: "corners", label: "2", defaultTheme: "stone" },
   { id: "oversized", label: "3", defaultTheme: "blue" },
