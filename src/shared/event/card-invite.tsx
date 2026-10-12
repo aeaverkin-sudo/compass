@@ -6,6 +6,7 @@ import { HeroName } from "@/shared/components/hero-name";
 import { SectionNumber, ValueCap } from "@/shared/components/section-number";
 import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import { defaultInviteRows, inviteRowNumbers, type InviteLogoLook, type InviteRow } from "@/shared/event/invite-rows";
+import { sameEvening } from "@/shared/event/when";
 import { CARD_HEADER_PAD_PX, HEADER_FADE_PX, HERO_PHOTO_PX, SECTION_PAD_PX } from "@main/layout";
 
 /** The card is laid out at phone width, then scaled into the sheet. */
@@ -50,7 +51,7 @@ function timeValue(startIso: string | null, endIso: string | null): string {
   const start = parsed(startIso);
   if (!start) return "";
   const end = parsed(endIso);
-  const sameDay = end && end.toDateString() === start.toDateString();
+  const sameDay = end && (end.toDateString() === start.toDateString() || sameEvening(start, end));
   const endClock = end && sameDay ? clock(end) : "";
   const startClock = clock(start);
   if (startClock === "00:00" && !endClock) return "";

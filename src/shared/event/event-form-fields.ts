@@ -81,6 +81,7 @@ export function appendEventFields(body: FormData, values: EventFormValues, logo:
   }
   if (values.date && values.endTime) {
     const end = new Date(`${values.date}T${values.endTime}`);
+    if (values.endTime <= (values.time || "00:00")) end.setDate(end.getDate() + 1);
     if (!Number.isNaN(end.getTime())) body.set("end", end.toISOString());
   }
   if (values.layout === "card") {

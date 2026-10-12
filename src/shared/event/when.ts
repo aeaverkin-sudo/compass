@@ -32,6 +32,14 @@ function sameDay(left: Date, right: Date): boolean {
   );
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The end comes after the start by less than a day: one evening, even past midnight. */
+export function sameEvening(start: Date, end: Date): boolean {
+  const gap = end.getTime() - start.getTime();
+  return gap > 0 && gap < DAY_MS;
+}
+
 /** Date, then time when the organiser set one. Midnight stays a date only. */
 export function formatEventWhen(iso: string | null): string | null {
   const date = parsed(iso);
@@ -73,6 +81,9 @@ export function formatEventRange(startIso: string | null, endIso: string | null)
   const start = parsed(startIso);
   if (!start) return null;
   const end = parsed(endIso);
+  if (end && sameEvening(start, end) && !isMidnight(start)) {
+    return `${dayLabel(start)} · ${clock(start)}–${clock(end)}`;
+  }
   if (!end || isMidnight(end)) return formatEventWhen(startIso);
   if (!sameDay(start, end)) {
     const startWhen = formatEventWhen(startIso);
@@ -101,6 +112,7 @@ export function eventTimeRange(startIso: string | null, endIso: string | null): 
   if (!start || isMidnight(start)) return null;
   const startClock = clock(start);
   const end = parsed(endIso);
+  if (end && sameEvening(start, end)) return `${startClock} – ${clock(end)}`;
   if (!end || isMidnight(end) || !sameDay(start, end)) return startClock;
   return `${startClock} – ${clock(end)}`;
 }

@@ -164,9 +164,10 @@ function previewDate(date: string, time: string): string | null {
   return Number.isNaN(when.getTime()) ? null : when.toISOString();
 }
 
-function previewEnd(date: string, endTime: string): string | null {
+function previewEnd(date: string, time: string, endTime: string): string | null {
   if (!date || !endTime) return null;
   const end = new Date(`${date}T${endTime}`);
+  if (endTime <= (time || "00:00")) end.setDate(end.getDate() + 1);
   return Number.isNaN(end.getTime()) ? null : end.toISOString();
 }
 
@@ -220,7 +221,7 @@ export function EventForm({
     name: card ? values.name.trim() : values.name.trim() || "Event name",
     description: values.about.trim() || null,
     date: previewDate(values.date, values.time),
-    endDate: previewEnd(values.date, values.endTime),
+    endDate: previewEnd(values.date, values.time, values.endTime),
     place: values.place.trim() || null,
     placeSecret: false,
     logoUrl,
