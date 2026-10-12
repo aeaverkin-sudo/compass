@@ -7,5 +7,8 @@ export const RAIL_HOLD_MS = 500;
 /** Hold on an edit row before it can be deleted from the library. */
 export const DELETE_HOLD_MS = 900;
 
+/** A tap on + or − shows on the row this long before the row moves. */
+export const ROW_TOGGLE_MS = 350;
+
 /** A move this large before the hold finishes is a scroll, not a drag. */
 export const REORDER_SLOP_PX = 8;

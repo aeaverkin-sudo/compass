@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { openHomeScreenAttachmentPdf } from "@/shared/components/pdf-preview-host";
 import { ARRANGE_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
+import { tick } from "@/shared/lib/haptic";
 import {
   applyRubricMove,
   composeCard,
@@ -94,11 +95,7 @@ function elementStride(nodes: HTMLElement[], index: number) {
 }
 
 function reorderHaptic() {
-  try {
-    navigator.vibrate?.(10);
-  } catch {
-    // Vibration is blocked in some browsers.
-  }
+  tick();
 }
 
 function cardHeader(list: HTMLElement) {

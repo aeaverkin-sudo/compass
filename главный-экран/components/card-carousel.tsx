@@ -111,6 +111,8 @@ export function CardCarousel({
   const syncingScroll = useRef(false);
   const scrolledRecently = useRef(false);
   const scrollResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeRef = useRef(activeIndex);
   const [containerWidth, setContainerWidth] = useState(0);
 
   const isBrowse = mode === "browse";
@@ -206,6 +208,30 @@ export function CardCarousel({
     [onUpdateCard],
   );
 
+  /** Once the swipe settles, every card out of frame goes back to its top. The one in frame is left alone. */
+  const topLeftCards = useCallback(() => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => {
+      settleTimer.current = null;
+      const slides = scrollRef.current?.querySelectorAll<HTMLElement>(".compass-carousel-slide");
+      slides?.forEach((slide, index) => {
+        if (index === activeRef.current) return;
+        slide.querySelectorAll<HTMLElement>(".compass-card-scroll").forEach((scroller) => {
+          if (scroller.scrollTop !== 0) scroller.scrollTo({ top: 0, behavior: "auto" });
+        });
+      });
+    }, 180);
+  }, []);
+
+  useEffect(() => () => {
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+  }, []);
+
+  useEffect(() => {
+    activeRef.current = activeIndex;
+    if (!editing) topLeftCards();
+  }, [activeIndex, editing, topLeftCards]);
+
   useEffect(() => {
     if (!multiSlide || slideWidthPx === 0) return;
     syncingScroll.current = true;
@@ -289,6 +315,7 @@ export function CardCarousel({
   const handleScroll = () => {
     const node = scrollRef.current;
     if (!node || syncingScroll.current || !multiSlide || slideWidthPx === 0) return;
+    if (!editing) topLeftCards();
     if (editing) {
       const locked = lockedScroll.current;
       if (locked != null && Math.abs(node.scrollLeft - locked) > 1) {

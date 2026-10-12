@@ -8,7 +8,9 @@ import { cn } from "@/lib/utils";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { DELETE_HOLD_MS } from "@/shared/lib/reorder-hold";
+import { DELETE_HOLD_MS, ROW_TOGGLE_MS } from "@/shared/lib/reorder-hold";
+import { tick } from "@/shared/lib/haptic";
+import { flashRow } from "@/shared/lib/row-flash";
 import {
   effectiveZone,
   groupLibrary,
@@ -17,10 +19,16 @@ import {
   type CardDisplayRow,
   type CardZoneId,
 } from "@/shared/services/card-zones";
-import { detectContactType, isContactFilled, messengerCountryHint } from "@/shared/services/contact-item";
+import {
+  detectContactType,
+  findIdenticalItem,
+  isContactFilled,
+  messengerCountryHint,
+} from "@/shared/services/contact-item";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
 import { SkyHint } from "@/shared/components/sky-hint";
+import { SkyToast } from "@/shared/components/sky-toast";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card, ContactItem } from "@/shared/types";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
@@ -32,6 +40,7 @@ const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
+const DUPLICATE_NOTICE = "Already in your library";
 
 type EditSection = {
   id: CardZoneId;
@@ -87,26 +96,15 @@ function buildSections(card: Card, items: ContactItem[]): EditSection[] {
   return sections.filter((section) => section.rows.length > 0);
 }
 
-function RowMark({
-  onCard,
-  onAdd,
-  onRemove,
-}: {
-  onCard: boolean;
-  onAdd: () => void;
-  onRemove: () => void;
-}) {
+function RowMark({ onCard, active, onToggle }: { onCard: boolean; active: boolean; onToggle: () => void }) {
   return (
     <button
       type="button"
       data-no-swipe
       aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
-      onClick={() => {
-        if (onCard) onRemove();
-        else onAdd();
-      }}
+      onClick={onToggle}
       className="flex size-5 shrink-0 items-center justify-center bg-transparent"
-      style={{ color: OFF_CARD }}
+      style={{ color: active ? "var(--ink)" : OFF_CARD }}
     >
       {onCard ? (
         <Minus className="size-5" strokeWidth={1} aria-hidden />
@@ -232,6 +230,14 @@ export function CardEditList({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   const [libraryHint, setLibraryHint] = useState<"add" | "first" | null>(null);
+  const [duplicateNotice, setDuplicateNotice] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const refuseDuplicate = (twinId: string) => {
+    tick();
+    flashRow(listRef.current?.querySelector<HTMLElement>(`[data-item-row="${CSS.escape(twinId)}"]`));
+    setDuplicateNotice((count) => count + 1);
+  };
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
@@ -272,6 +278,13 @@ export function CardEditList({
         item.type !== "position" &&
         item.type !== "email" &&
         item.type !== "phone");
+    if (!stored) {
+      const twin = findIdenticalItem(useAppStore.getState().contactItems, trimmed, item.id);
+      if (twin) {
+        refuseDuplicate(twin.id);
+        return;
+      }
+    }
     updateContactItem(item.id, stored ? { label: trimmed } : { value: trimmed });
     if (card.headerItemId === item.id) updateCard(card.id, { title: trimmed });
   };
@@ -288,7 +301,7 @@ export function CardEditList({
   };
 
   return (
-    <div data-card-chip-list={card.id} data-card-content>
+    <div ref={listRef} data-card-chip-list={card.id} data-card-content>
       {sections.map((section, index) => (
         <section
           key={section.id}
@@ -322,6 +335,7 @@ export function CardEditList({
                 return (
                   <EditRow
                     key={item.id}
+                    itemId={item.id}
                     text={lineOf(row)}
                     value={row.value}
                     multiline={
@@ -357,6 +371,7 @@ export function CardEditList({
         openOnMount={composeOnMount}
         openAddRef={openAddRef}
         onFocus={() => setTextEditId(null)}
+        onDuplicate={refuseDuplicate}
         onOpenChange={(open) => {
           setComposing(open);
           onComposingChange?.(open);
@@ -370,6 +385,9 @@ export function CardEditList({
         }}
       />
       {composing ? null : <PortfolioDelete card={card} />}
+      {duplicateNotice > 0 ? (
+        <SkyToast key={duplicateNotice} text={DUPLICATE_NOTICE} onDone={() => setDuplicateNotice(0)} />
+      ) : null}
       {libraryHint === "add" ? (
         <SkyHint
           text="Add anything to the library and use it in different portfolios"
@@ -531,6 +549,7 @@ function AddLine({
   openOnMount,
   openAddRef,
   onFocus,
+  onDuplicate,
   onOpenChange,
   onAdded,
 }: {
@@ -539,6 +558,8 @@ function AddLine({
   /** The plate's +. Called inside the tap, so the focus still raises the keyboard. */
   openAddRef?: RefObject<(() => void) | null>;
   onFocus: () => void;
+  /** The typed line is already a library row. The line stays open with its text. */
+  onDuplicate: (twinId: string) => void;
   /** While open, the card shows only the QR, the photo and the name above the line. */
   onOpenChange: (open: boolean) => void;
   onAdded: (itemId: string) => void;
@@ -628,6 +649,11 @@ function AddLine({
       return true;
     }
     if (!value) return true;
+    const twin = findIdenticalItem(useAppStore.getState().contactItems, value);
+    if (twin) {
+      onDuplicate(twin.id);
+      return false;
+    }
     const countryHint = messengerCountryHint(value);
     if (countryHint) {
       setHint(countryHint);
@@ -807,6 +833,7 @@ function AddLine({
 }
 
 function EditRow({
+  itemId,
   text,
   value,
   multiline,
@@ -821,6 +848,7 @@ function EditRow({
   onConfirm,
   onErase,
 }: {
+  itemId: string;
   text: string;
   value: string;
   /** Additional text. Enter stays inside this one block. */
@@ -846,15 +874,12 @@ function EditRow({
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
   const [fades, setFades] = useState(false);
+  const [toggling, setToggling] = useState<"add" | "remove" | null>(null);
   const longPress = useLongPress(() => {
     pressedLong.current = true;
     setHolding(false);
     window.getSelection()?.removeAllRanges();
-    try {
-      navigator.vibrate?.(10);
-    } catch {
-      // Vibration is blocked in some browsers.
-    }
+    tick();
     onArmDelete();
   }, DELETE_HOLD_MS);
   const release = () => {
@@ -876,6 +901,20 @@ function EditRow({
     return () => observer.disconnect();
   }, [editing, text, value]);
 
+  /** The tap is felt and shown at once; the row moves a moment later. */
+  const toggle = () => {
+    if (toggling) return;
+    tick();
+    const kind = onCard ? "remove" : "add";
+    setToggling(kind);
+    window.setTimeout(() => {
+      if (kind === "add") onAdd();
+      else onRemove();
+      setToggling(null);
+      if (kind === "add") requestAnimationFrame(() => flashRow(rowRef.current));
+    }, ROW_TOGGLE_MS);
+  };
+
   const beginEdit = () => {
     openedAt.current = Date.now();
     flushSync(() => {
@@ -892,7 +931,12 @@ function EditRow({
   }, [editing]);
 
   return (
-    <div ref={rowRef} className="relative min-w-0">
+    <div
+      ref={rowRef}
+      data-item-row={itemId}
+      className="relative min-w-0"
+      style={toggling === "add" ? { backgroundColor: "var(--sky)" } : undefined}
+    >
       <div
         ref={fieldRef}
         aria-label={text}
@@ -902,7 +946,10 @@ function EditRow({
           editing && "invisible pointer-events-none",
           (holding || deleteReady) && "opacity-40",
         )}
-        style={{ color: onCard ? "#111" : OFF_CARD }}
+        style={{
+          color: toggling === "add" ? "var(--ink)" : toggling === "remove" ? OFF_CARD : onCard ? "#111" : OFF_CARD,
+          transition: toggling ? `color ${ROW_TOGGLE_MS}ms ease` : undefined,
+        }}
         onPointerDown={(event) => {
           if (editing || deleteReady) return;
           pressedLong.current = false;
@@ -922,7 +969,8 @@ function EditRow({
         <div
           ref={lineRef}
           className={cn(
-            "t-body select-none",
+            "t-body origin-left select-none transition-transform duration-150 motion-reduce:transform-none motion-reduce:transition-none",
+            toggling === "add" && "scale-[1.03]",
             value.includes("\n") || value.includes("  ") ? "w-full whitespace-pre-wrap" : "w-max whitespace-nowrap",
           )}
         >
@@ -986,7 +1034,7 @@ function EditRow({
             <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
           </button>
         ) : (
-          <RowMark onCard={onCard} onAdd={onAdd} onRemove={onRemove} />
+          <RowMark onCard={onCard} active={toggling === "add"} onToggle={toggle} />
         )}
       </div>
     </div>

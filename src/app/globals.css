@@ -354,6 +354,26 @@ body {
   scrollbar-width: none;
 }
 
+/* A row that just moved onto the card, or the twin of a refused duplicate. */
+@keyframes row-flash {
+  from {
+    background-color: var(--sky);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.row-flash {
+  animation: row-flash 600ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-flash {
+    animation-timing-function: steps(1, end);
+  }
+}
+
 .compass-preview-scroll::-webkit-scrollbar,
 .compass-card-scroll::-webkit-scrollbar {
   display: none;

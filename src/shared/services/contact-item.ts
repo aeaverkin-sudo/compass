@@ -132,6 +132,13 @@ export function isContactFilled(item: ContactItem): boolean {
   return item.value.trim().length > 0;
 }
 
+/** A library row with exactly this value, edges trimmed and nothing else. Files are not compared. */
+export function findIdenticalItem(items: ContactItem[], value: string, exceptId?: string): ContactItem | undefined {
+  const line = value.trim();
+  if (!line) return undefined;
+  return items.find((item) => item.id !== exceptId && !isAttachmentType(item.type) && item.value.trim() === line);
+}
+
 export function createEmptyContactItem(order: number): ContactItem {
   return {
     id: crypto.randomUUID(),
