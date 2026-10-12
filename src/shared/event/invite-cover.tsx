@@ -3,6 +3,8 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
 import { dottedDate, eventClock, eventDayLong, eventDaySlash, eventTimeRange } from "@/shared/event/when";
+import { CardInvite } from "@/shared/event/card-invite";
+import type { InviteLogoLook, InviteRow } from "@/shared/event/invite-rows";
 
 const DESIGN_W = 286;
 const DESIGN_H = 404;
@@ -20,6 +22,8 @@ export type InviteCoverEvent = {
   placeSecret: boolean;
   logoUrl: string | null;
   price?: string | null;
+  inviteRows?: InviteRow[] | null;
+  logoLook?: InviteLogoLook | null;
 };
 
 type InviteCoverProps = {
@@ -54,6 +58,7 @@ function modernTitleSize(name: string): number {
 }
 
 function coverPaint(layout: EventLayoutId, themeId: EventThemeId) {
+  if (layout === "card") return { background: "#ffffff", color: "var(--ink)" };
   const modern = layout === "oversized";
   return {
     background: modern ? MODERN_PAPER : `var(--event-theme-${themeId})`,
@@ -171,6 +176,7 @@ function Cover({
         ...paint,
       }}
     >
+      {layout === "card" ? <CardInvite event={event} height={full ? null : DESIGN_H} /> : null}
       {layout === "grid" ? <EditorialCover event={event} full={full} /> : null}
       {layout === "corners" ? <FashionCover event={event} full={full} /> : null}
       {layout === "oversized" ? <ModernCover event={event} full={full} /> : null}
