@@ -13,12 +13,14 @@ import { eventPublicPath } from "@/shared/event/slug";
 import { eventListStatus } from "@/shared/services/events";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 import { eventTitleLine } from "@/shared/event/event-title";
+import { findPassGuest } from "@/shared/services/event-guest-pass";
+import { GuestAccept } from "./guest-accept";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ from?: string | string[] }>;
+  searchParams: Promise<{ from?: string | string[]; g?: string | string[] }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -120,7 +122,9 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const pay = await loadEventPay(event.id);
   const posterPrice = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
   const ended = eventListStatus(event.date, Date.now(), event.endsAt) === "past";
-  if (user && !ended) {
+  const guestToken = Array.isArray(query.g) ? query.g[0] : query.g;
+  const guest = guestToken ? await findPassGuest(event.id, guestToken) : null;
+  if (user && !ended && !guest) {
     const loaded = await loadOwnRegistration(event.id, user.id);
     const registration = loaded && pay.isPaid ? await ensurePayCode(event.id, user.id, loaded) : loaded;
     const badge = registration ? await loadOwnedBadge(user.id, registration.cardId) : null;
@@ -159,6 +163,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
       ) : null}
       <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex w-full max-w-[380px] flex-col items-center">
+          {guest ? <p className="mt-0 mb-4 t-meta text-[var(--grey)]">{`Invitation for ${guest.name}`}</p> : null}
           <CoverButton
             variant="card"
             layout={event.layout}
@@ -179,7 +184,12 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
           {counts ? (
             <p className="mt-8 mb-0 t-body">{`Registered ${counts.registered} · Checked-in ${counts.checkedIn}`}</p>
           ) : null}
-          {ended ? (
+          {guest && (!ended || guest.registrationId) ? (
+            <>
+              {ended ? <p className="mt-8 mb-0 t-meta text-[var(--grey)]">This event has ended</p> : null}
+              <GuestAccept lookup={lookup} token={guest.token} auto={ended} />
+            </>
+          ) : ended ? (
             <p className="mt-8 mb-0 t-meta text-[var(--grey)]">This event has ended</p>
           ) : (
             <Link
