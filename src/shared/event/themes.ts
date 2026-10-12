@@ -11,10 +11,10 @@ export const EVENT_THEMES = [
 export type EventThemeId = (typeof EVENT_THEMES)[number]["id"];
 
 export const EVENT_LAYOUTS = [
-  { id: "card", label: "ADED card", defaultTheme: "paper" },
-  { id: "grid", label: "1", defaultTheme: "noir" },
-  { id: "corners", label: "2", defaultTheme: "stone" },
-  { id: "oversized", label: "3", defaultTheme: "blue" },
+  { id: "card", label: "1", defaultTheme: "paper" },
+  { id: "grid", label: "2", defaultTheme: "noir" },
+  { id: "corners", label: "3", defaultTheme: "stone" },
+  { id: "oversized", label: "4", defaultTheme: "blue" },
 ] as const;
 
 export type EventLayoutId = (typeof EVENT_LAYOUTS)[number]["id"];
