@@ -333,7 +333,7 @@ function parseCsv(text: string, delimiter: "," | ";"): string[][] {
   return rows;
 }
 
-function tableFrom(text: string): string[][] {
+export function tableFrom(text: string): string[][] {
   const sample = text.slice(0, 4000);
   const delimiter = (sample.match(/;/g) ?? []).length > (sample.match(/,/g) ?? []).length ? ";" : ",";
   return parseCsv(text, delimiter);

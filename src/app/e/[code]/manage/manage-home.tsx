@@ -14,6 +14,9 @@ import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { EventManager, ManageSection } from "@/shared/services/event-manage";
 import { ManageFrame } from "./manage-frame";
 import { GuestsZone } from "./guests-zone";
+import { ListsZone } from "./lists-zone";
+import { PassesZone } from "./passes-zone";
+import type { BookList, GuestPass, NamePair } from "@/shared/event/guest-book";
 import { PaymentScreen } from "./payment/payment-screen";
 import { TeamZone } from "./team-zone";
 import type { InviteLogoLook, InviteRow } from "@/shared/event/invite-rows";
@@ -42,6 +45,7 @@ export function ManageHome({
   canRemove,
   teamFull,
   endedLabel,
+  book,
 }: {
   lookup: string;
   name: string;
@@ -73,6 +77,8 @@ export function ManageHome({
   teamFull: boolean;
   /** Set once the event is over. Invite and check-in stay off. */
   endedLabel: string | null;
+  /** Guest lists. Null until the lists migration has run, and the zones stay hidden. */
+  book: { lists: BookList[]; pairs: NamePair[]; passes: GuestPass[]; total: number; going: number; checkedIn: number } | null;
 }) {
   const router = useRouter();
   const flashed = useRef(false);
@@ -147,11 +153,24 @@ export function ManageHome({
         <>
           <GuestsZone
             href={href("/manage/guests")}
-            going={going}
+            total={book ? book.total : null}
+            going={book ? book.going : going}
             confirmed={confirmed}
-            checkedIn={checkedIn}
+            checkedIn={book ? book.checkedIn : checkedIn}
             isPaid={isPaid}
           />
+          {book ? (
+            <>
+              <Rule />
+              <ListsZone lookup={lookup} lists={book.lists} pairs={book.pairs} guestsHref={href("/manage/guests")} />
+              {book.passes.length > 0 ? (
+                <>
+                  <Rule />
+                  <PassesZone passes={book.passes} inviteUrl={shareUrl} onNotice={setNotice} />
+                </>
+              ) : null}
+            </>
+          ) : null}
           {after("guests") ? <Rule /> : null}
         </>
       ) : null}

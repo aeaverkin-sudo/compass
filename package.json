@@ -31,6 +31,7 @@
     "qrcode.react": "^4.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "read-excel-file": "^9.3.12",
     "resend": "^6.30.0",
     "sharp": "^0.35.5",
     "tailwind-merge": "^3.7.0",

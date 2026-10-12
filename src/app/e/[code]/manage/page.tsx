@@ -6,6 +6,7 @@ import { requestOrigin } from "@/shared/services/public-card-meta";
 import { listEventManagers, loadManageEvent, managerCap, visibleSections } from "@/shared/services/event-manage";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay, loadPaymentTally } from "@/shared/services/event-payment";
+import { loadGuestBook } from "@/shared/services/event-guest-lists";
 import { eventPublicPath } from "@/shared/event/slug";
 import { formatEventWhen } from "@/shared/event/when";
 import { eventListStatus } from "@/shared/services/events";
@@ -43,9 +44,15 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   const invite = await loadEventInvite(lookup);
   if (!invite) notFound();
   const pay = await loadEventPay(event.id);
-  const [managers, tally] = await Promise.all([
+  const [managers, tally, book] = await Promise.all([
     sections.includes("managers") ? listEventManagers(event.id) : Promise.resolve(null),
     sections.includes("payment") ? loadPaymentTally(event.id) : Promise.resolve(null),
+    sections.includes("guests")
+      ? loadGuestBook(event.id).catch((error) => {
+          console.error("[events] guest book", error);
+          return null;
+        })
+      : Promise.resolve(null),
   ]);
   const origin = await requestOrigin();
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
@@ -84,6 +91,18 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
       canRemove={event.role === "owner"}
       teamFull={(managers?.length ?? event.managers) >= managerCap()}
       endedLabel={endedLabel}
+      book={
+        book
+          ? {
+              lists: book.lists,
+              pairs: book.pairs,
+              passes: book.passes,
+              total: book.total,
+              going: book.going,
+              checkedIn: book.checkedIn,
+            }
+          : null
+      }
     />
   );
 }
