@@ -1,5 +1,7 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { GUEST_COOKIE } from "@/shared/services/event-guest-pass";
 import { registerForEvent, saveRegistrationConsent } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { eventListStatus } from "@/shared/services/events";
@@ -51,11 +53,17 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   try {
-    const result = await registerForEvent(userId, code, cardId, {
-      analytics: consentAnalytics,
-      connections: consentConnections,
-    });
+    const jar = await cookies();
+    const guestToken = jar.get(GUEST_COOKIE)?.value ?? null;
+    const result = await registerForEvent(
+      userId,
+      code,
+      cardId,
+      { analytics: consentAnalytics, connections: consentConnections },
+      guestToken,
+    );
     if (!result.ok) return noStore({ error: result.error }, result.status);
+    if (guestToken) jar.delete(GUEST_COOKIE);
     return noStore({
       regToken: result.registration.regToken,
       cardId: result.registration.cardId,

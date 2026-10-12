@@ -1,6 +1,10 @@
+import { phoneDigits, phonesMatch, PHONE_TAIL_DIGITS } from "@/shared/event/guest-import";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 
 const GUEST_TOKEN = /^[A-Za-z0-9_-]{21}$/;
+
+/** Carries the personal link through sign-in to the Join that follows. */
+export const GUEST_COOKIE = "aded_guest";
 
 export type PassGuest = {
   id: string;
@@ -73,4 +77,98 @@ export async function markGuestOpened(eventId: string, token: unknown): Promise<
     .select("id");
   if (error) return false;
   return (data ?? []).length > 0;
+}
+
+/** Name and surname on two lines, split at the first space. */
+export function passCardName(name: string): string {
+  const line = name.replace(/\s+/g, " ").trim();
+  const space = line.indexOf(" ");
+  return space > 0 ? `${line.slice(0, space)}\n${line.slice(space + 1)}` : line;
+}
+
+async function linkByToken(eventId: string, registrationId: string, token: string): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const now = new Date().toISOString();
+  let linked = await admin
+    .from("event_guests")
+    .update({ registration_id: registrationId, accepted_at: now })
+    .eq("event_id", eventId)
+    .eq("token", token)
+    .is("registration_id", null)
+    .select("id");
+  if (linked.error && /accepted_at/i.test(linked.error.message)) {
+    linked = await admin
+      .from("event_guests")
+      .update({ registration_id: registrationId })
+      .eq("event_id", eventId)
+      .eq("token", token)
+      .is("registration_id", null)
+      .select("id");
+  }
+  if (linked.error) throw new Error(linked.error.message);
+  if ((linked.data ?? []).length > 0) return;
+  const stamped = await admin
+    .from("event_guests")
+    .update({ accepted_at: now })
+    .eq("event_id", eventId)
+    .eq("token", token)
+    .eq("registration_id", registrationId)
+    .is("accepted_at", null);
+  if (stamped.error && !/accepted_at/i.test(stamped.error.message)) throw new Error(stamped.error.message);
+}
+
+async function linkByContact(eventId: string, registrationId: string, userId: string): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const taken = await admin.from("event_guests").select("id").eq("registration_id", registrationId).limit(1);
+  if (taken.error) throw new Error(taken.error.message);
+  if ((taken.data ?? []).length > 0) return;
+
+  const loaded = await admin.auth.admin.getUserById(userId);
+  const email = loaded.data.user?.email?.trim().toLowerCase();
+  if (email) {
+    const byEmail = await admin
+      .from("event_guests")
+      .update({ registration_id: registrationId })
+      .eq("event_id", eventId)
+      .eq("email", email)
+      .is("registration_id", null)
+      .select("id");
+    if (byEmail.error) throw new Error(byEmail.error.message);
+    if ((byEmail.data ?? []).length > 0) return;
+  }
+
+  const phone = loaded.data.user?.phone?.trim();
+  if (!phone) return;
+  const tail = phoneDigits(phone).slice(-PHONE_TAIL_DIGITS);
+  if (tail.length < PHONE_TAIL_DIGITS) return;
+  const near = await admin
+    .from("event_guests")
+    .select("id, phone")
+    .eq("event_id", eventId)
+    .is("registration_id", null)
+    .like("phone", `%${tail}`);
+  if (near.error) throw new Error(near.error.message);
+  const match = ((near.data ?? []) as { id: string; phone: string | null }[]).find((row) => row.phone && phonesMatch(row.phone, phone));
+  if (!match) return;
+  const byPhone = await admin.from("event_guests").update({ registration_id: registrationId }).eq("id", match.id).is("registration_id", null);
+  if (byPhone.error) throw new Error(byPhone.error.message);
+}
+
+/**
+ * A registration finds its list guest. The personal link names the guest and
+ * marks the acceptance; otherwise the account's email, then its phone.
+ * A missing guest table or a taken guest leaves the registration as it is.
+ */
+export async function linkGuestOnRegister(
+  eventId: string,
+  registrationId: string,
+  userId: string,
+  guestToken?: string | null,
+): Promise<void> {
+  try {
+    if (isGuestToken(guestToken)) await linkByToken(eventId, registrationId, guestToken);
+    else await linkByContact(eventId, registrationId, userId);
+  } catch (error) {
+    console.error("[events] guest link", error);
+  }
 }

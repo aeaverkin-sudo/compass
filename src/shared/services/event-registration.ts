@@ -3,6 +3,7 @@ import { makePayCode } from "@/shared/event/pay-code";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isUuid } from "@/shared/services/attachment-api";
+import { linkGuestOnRegister } from "@/shared/services/event-guest-pass";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 
@@ -17,7 +18,7 @@ export type EventRegistration = {
   consentAnalytics: boolean;
   consentConnections: boolean;
   paidStatus: "paid" | "unpaid" | null;
-  paidSource: "return" | "statement" | "manual" | "name" | null;
+  paidSource: "return" | "statement" | "manual" | "name" | "list" | null;
   payCode: string | null;
 };
 
@@ -60,7 +61,8 @@ function mapRegistration(row: RegistrationRow): EventRegistration {
     consentAnalytics: row.consent_analytics,
     consentConnections: row.consent_connections,
     paidStatus: paid === "paid" || paid === "unpaid" ? paid : null,
-    paidSource: source === "return" || source === "statement" || source === "manual" || source === "name" ? source : null,
+    paidSource:
+      source === "return" || source === "statement" || source === "manual" || source === "name" || source === "list" ? source : null,
     payCode: row.pay_code?.trim() || null,
   };
 }
@@ -211,6 +213,7 @@ export async function registerForEvent(
   lookup: string,
   cardId: string,
   consent: { analytics: boolean; connections: boolean } = { analytics: false, connections: false },
+  guestToken: string | null = null,
 ): Promise<{ ok: true; event: EventInvite; registration: EventRegistration } | { ok: false; status: number; error: string }> {
   const event = await loadEventInvite(lookup);
   if (!event) return { ok: false, status: 404, error: "Event not found" };
@@ -226,7 +229,10 @@ export async function registerForEvent(
   if (!card || card.owner_id !== userId) return { ok: false, status: 403, error: "That portfolio is not yours." };
 
   const existing = await loadOwnRegistration(event.id, userId);
-  if (existing) return { ok: true, event, registration: existing };
+  if (existing) {
+    if (guestToken) await linkGuestOnRegister(event.id, existing.id, userId, guestToken);
+    return { ok: true, event, registration: existing };
+  }
 
   let withCode = true;
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -241,7 +247,10 @@ export async function registerForEvent(
     }).select("id");
     if (!inserted.error) {
       const registration = await loadOwnRegistration(event.id, userId);
-      if (registration) return { ok: true, event, registration };
+      if (registration) {
+        await linkGuestOnRegister(event.id, registration.id, userId, guestToken);
+        return { ok: true, event, registration };
+      }
       throw new Error("Could not join.");
     }
     if (withCode && missingColumn(inserted.error.message, "pay_code")) {

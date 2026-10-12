@@ -134,6 +134,40 @@ export async function startTrialClock(userId: string): Promise<AccountStatus> {
   return statusFrom(await readClock(userId));
 }
 
+const EVENT_LENGTH_MS = 12 * HOUR_MS;
+
+/** End of the event for a guest clock. No end: start + 12h. No date: the moment of acceptance. */
+export function eventGuestEnd(event: { date: string | null; endsAt: string | null }, acceptedAt = Date.now()): number {
+  const end = event.endsAt ? new Date(event.endsAt).getTime() : Number.NaN;
+  if (Number.isFinite(end)) return end;
+  const start = event.date ? new Date(event.date).getTime() : Number.NaN;
+  if (Number.isFinite(start)) return start + EVENT_LENGTH_MS;
+  return acceptedAt;
+}
+
+/**
+ * An event guest keeps the card 60h after the event, then 40h frozen.
+ * A guest of two events keeps the later clock. A registered account has no clock.
+ */
+export async function startEventGuestClock(userId: string, eventEnd: number): Promise<void> {
+  const current = await readClock(userId);
+  if (current?.registered_at) return;
+  let draft = eventEnd + TRIAL_MS;
+  let purge = draft + GRACE_MS;
+  const keptDraft = current?.draft_expires_at ? new Date(current.draft_expires_at).getTime() : Number.NaN;
+  const keptPurge = current?.purge_at ? new Date(current.purge_at).getTime() : Number.NaN;
+  if (Number.isFinite(keptDraft)) draft = Math.max(draft, keptDraft);
+  if (Number.isFinite(keptPurge)) purge = Math.max(purge, keptPurge);
+
+  const admin = createAdminSupabaseClient();
+  const clock = { draft_expires_at: new Date(draft).toISOString(), purge_at: new Date(purge).toISOString() };
+  const marked = await admin.from("profiles").update({ ...clock, event_trial: true }).eq("id", userId).is("registered_at", null);
+  if (!marked.error) return;
+  if (!/event_trial/i.test(marked.error.message)) throw new Error(marked.error.message);
+  const kept = await admin.from("profiles").update(clock).eq("id", userId).is("registered_at", null);
+  if (kept.error) throw new Error(kept.error.message);
+}
+
 export async function clearTrialClock(userId: string): Promise<void> {
   const admin = createAdminSupabaseClient();
   const now = new Date().toISOString();

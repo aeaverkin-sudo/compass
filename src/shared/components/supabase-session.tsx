@@ -39,7 +39,7 @@ function acceptUser(user: User) {
     return;
   }
   if (!user.is_anonymous) {
-    markRegisteredDevice();
+    if (user.app_metadata?.event_trial !== true) markRegisteredDevice();
     clearRegistrationRequired();
     if (consumeOAuthReplaceLocal()) {
       dropPendingCardUpserts();

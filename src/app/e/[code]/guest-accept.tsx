@@ -63,13 +63,17 @@ export function GuestAccept({ lookup, token, auto }: { lookup: string; token: st
     setHint(null);
     try {
       const supabase = createBrowserSupabaseClient();
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) await supabase.auth.signInAnonymously();
-      const response = await fetch(`${base}/guest-accept`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
+      const post = () =>
+        fetch(`${base}/guest-accept`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+      let response = await post();
+      if (response.status === 401) {
+        await supabase.auth.signInAnonymously();
+        response = await post();
+      }
       const reply = (await response.json()) as AcceptReply;
       if (!response.ok || !reply.kind) {
         setHint(reply.error ?? "Could not open your pass.");

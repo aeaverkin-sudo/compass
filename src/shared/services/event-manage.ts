@@ -146,7 +146,7 @@ type CountRow = { paid_status?: string | null; paid_source?: string | null; chec
 function isConfirmed(status: string | null | undefined, source: string | null | undefined, sourceKnown: boolean): boolean {
   if (status !== "paid") return false;
   if (!sourceKnown) return true;
-  return source === "statement" || source === "name" || source === "manual";
+  return source === "statement" || source === "name" || source === "manual" || source === "list";
 }
 
 async function countGuests(eventId: string): Promise<{ registered: number; paid: number; checkedIn: number }> {

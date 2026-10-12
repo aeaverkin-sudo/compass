@@ -43,7 +43,7 @@ function emailTaken(error: { message?: string; code?: string } | null) {
   return text.includes("already") || text.includes("email_exists") || text.includes("duplicate");
 }
 
-async function userIdForEmail(email: string): Promise<string | null> {
+export async function userIdForEmail(email: string): Promise<string | null> {
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin.rpc("auth_user_id_by_email", { address: email });
   if (error) throw new Error(error.message);

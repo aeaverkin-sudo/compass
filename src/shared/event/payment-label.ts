@@ -90,9 +90,11 @@ export function previewPriceKey(pay: {
 }
 
 export function payView(paidStatus: string, paidSource: string | null): PayView {
-  const confirmed = paidStatus === "paid" && (paidSource === "statement" || paidSource === "name" || paidSource === "manual");
+  const confirmed =
+    paidStatus === "paid" && (paidSource === "statement" || paidSource === "name" || paidSource === "manual" || paidSource === "list");
   if (confirmed) {
-    const method = paidSource === "statement" ? "by code" : paidSource === "name" ? "by name" : "manual";
+    const method =
+      paidSource === "statement" ? "by code" : paidSource === "name" ? "by name" : paidSource === "list" ? "paid list" : "manual";
     return { key: "confirmed", label: "Confirmed", long: "Payment confirmed", method, dot: "var(--pay-confirmed)" };
   }
   const saysPaid = paidStatus === "paid" && paidSource === "return";
