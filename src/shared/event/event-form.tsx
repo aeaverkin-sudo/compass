@@ -7,6 +7,8 @@ import { CoverButton } from "@/shared/event/cover-button";
 import { EVENT_LAYOUTS, EVENT_THEMES, layoutDefaultTheme } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { EventFormValues } from "@/shared/event/event-form-fields";
+import { CardInviteEditor } from "@/shared/event/card-invite-editor";
+import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
 
 export const PIC_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg";
 
@@ -213,18 +215,36 @@ export function EventForm({
     if (aboutRef.current) sizeAbout(aboutRef.current);
   }, [values.about]);
 
+  const card = values.layout === "card";
   const cover = {
-    name: values.name.trim() || "Event name",
+    name: card ? values.name.trim() : values.name.trim() || "Event name",
     description: values.about.trim() || null,
     date: previewDate(values.date, values.time),
     endDate: previewEnd(values.date, values.endTime),
     place: values.place.trim() || null,
     placeSecret: false,
     logoUrl,
+    inviteRows: values.inviteRows,
+    logoLook: values.logoLook,
+  };
+
+  const setWhen = (patch: Partial<Pick<EventFormValues, "date" | "time" | "endTime">>) => {
+    const next = { ...values, ...patch };
+    onChange({ ...patch, dateText: inviteDateText(next.date), timeText: inviteTimeText(next.time, next.endTime) });
   };
 
   return (
     <>
+      {card ? (
+        <CardInviteEditor
+          values={values}
+          onChange={onChange}
+          logoUrl={logoUrl}
+          onLogoFile={onLogoFile}
+          onRemoveLogo={onRemoveLogo}
+        />
+      ) : (
+      <>
       <Zone label="Name" rule onClick={(event) => focusField(event, nameRef.current)}>
         <PlainField inputRef={nameRef} value={values.name} onChange={(name) => onChange({ name })} placeholder="Event name" />
       </Zone>
@@ -235,7 +255,7 @@ export function EventForm({
             type="date"
             value={values.date}
             display={fmtDate(values.date)}
-            onChange={(date) => onChange({ date })}
+            onChange={(date) => setWhen({ date })}
             placeholder="Date"
             width="8ch"
           />
@@ -245,7 +265,7 @@ export function EventForm({
               type="time"
               value={values.time}
               display={values.time}
-              onChange={(time) => onChange({ time })}
+              onChange={(time) => setWhen({ time })}
               placeholder="Start"
               width="5ch"
             />
@@ -257,7 +277,7 @@ export function EventForm({
               type="time"
               value={values.endTime}
               display={values.endTime}
-              onChange={(endTime) => onChange({ endTime })}
+              onChange={(endTime) => setWhen({ endTime })}
               placeholder="End"
               width="5ch"
             />
@@ -336,6 +356,8 @@ export function EventForm({
           />
         </div>
       </Zone>
+      </>
+      )}
       <Zone label="Style" rule>
         <div className="flex flex-wrap gap-4">
           {EVENT_LAYOUTS.map((item) => (
@@ -346,7 +368,11 @@ export function EventForm({
               onClick={() =>
                 onChange({
                   layout: item.id,
-                  ...(values.themeTouched ? {} : { theme: layoutDefaultTheme(item.id) }),
+                  ...(item.id === "card"
+                    ? { theme: "paper" as const }
+                    : values.themeTouched
+                      ? {}
+                      : { theme: layoutDefaultTheme(item.id) }),
                 })
               }
               className="press border-0 bg-transparent p-0 t-caps [-webkit-tap-highlight-color:transparent]"
@@ -357,6 +383,7 @@ export function EventForm({
           ))}
         </div>
       </Zone>
+      {card ? null : (
       <Zone label={<span className="t-label block whitespace-nowrap pt-[5px]">Color</span>} align="start">
         <div className="grid grid-cols-6 items-start gap-2" style={{ maxWidth: 6 * 28 + 5 * 8 }}>
           {EVENT_THEMES.map((item) => (
@@ -380,6 +407,7 @@ export function EventForm({
           ))}
         </div>
       </Zone>
+      )}
       <div className="pb-4" style={{ marginLeft: VALUE_AXIS_PX }}>
         <button type="button" disabled={!values.name.trim() || saving} onClick={onSubmit} className={SKY_BUTTON}>
           {submitLabel}

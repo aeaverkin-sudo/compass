@@ -1,4 +1,6 @@
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
+import { defaultInviteRows, readInviteRows, type InviteLogoLook, type InviteRow } from "@/shared/event/invite-rows";
+import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
 
 export type EventFormValues = {
   name: string;
@@ -10,6 +12,12 @@ export type EventFormValues = {
   theme: EventThemeId;
   layout: EventLayoutId;
   themeTouched: boolean;
+  /** ADED card rows, in order. Base rows keep their value in date, time and place. */
+  inviteRows: InviteRow[];
+  logoLook: InviteLogoLook | null;
+  /** Date and time as typed on the card. Parsed into date, time and endTime. */
+  dateText: string;
+  timeText: string;
 };
 
 function pad(value: number): string {
@@ -35,19 +43,29 @@ export function fieldsFromEvent(input: {
   endsAt: string | null;
   theme: EventThemeId;
   layout: EventLayoutId;
+  inviteRows?: InviteRow[] | null;
+  logoLook?: InviteLogoLook | null;
 }): EventFormValues {
   const start = clockFromIso(input.date);
   const end = clockFromIso(input.endsAt);
+  const date = start?.date ?? "";
+  const time = start?.time ?? "";
+  const endTime = end?.time ?? "";
+  const rows = readInviteRows(input.inviteRows);
   return {
     name: input.name,
-    date: start?.date ?? "",
-    time: start?.time ?? "",
-    endTime: end?.time ?? "",
+    date,
+    time,
+    endTime,
     place: input.place ?? "",
     about: input.description ?? "",
     theme: input.theme,
     layout: input.layout,
     themeTouched: true,
+    inviteRows: rows.length > 0 ? rows : defaultInviteRows(),
+    logoLook: input.logoLook ?? null,
+    dateText: inviteDateText(date),
+    timeText: inviteTimeText(time, endTime),
   };
 }
 

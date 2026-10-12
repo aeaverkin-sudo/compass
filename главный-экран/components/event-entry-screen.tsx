@@ -8,6 +8,8 @@ import { Zone } from "@/shared/components/zone";
 import { EventForm } from "@/shared/event/event-form";
 import { appendEventFields, type EventFormValues } from "@/shared/event/event-form-fields";
 import { isEventLayout, isEventTheme } from "@/shared/event/themes";
+import { defaultInviteRows, isInviteLogoLook, readInviteRows } from "@/shared/event/invite-rows";
+import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
 import { COLUMN_GAP_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 
@@ -38,6 +40,10 @@ const EMPTY_FORM: EventFormValues = {
   theme: "paper",
   layout: "card",
   themeTouched: false,
+  inviteRows: defaultInviteRows(),
+  logoLook: null,
+  dateText: "",
+  timeText: "",
 };
 
 function isDraftString(value: unknown): value is string {
@@ -72,6 +78,7 @@ function readEventDraft(): EventDraft | null {
     ) {
       return null;
     }
+    const inviteRows = readInviteRows(data.inviteRows);
     return {
       name: data.name,
       date: data.date,
@@ -82,6 +89,10 @@ function readEventDraft(): EventDraft | null {
       theme,
       layout,
       themeTouched: data.themeTouched,
+      inviteRows: inviteRows.length > 0 ? inviteRows : defaultInviteRows(),
+      logoLook: isInviteLogoLook(data.logoLook) ? data.logoLook : null,
+      dateText: isDraftString(data.dateText) ? data.dateText : inviteDateText(data.date),
+      timeText: isDraftString(data.timeText) ? data.timeText : inviteTimeText(data.time, data.endTime),
       savedAt: data.savedAt,
     };
   } catch {
@@ -116,7 +127,11 @@ function sameDraft(a: EventFormValues, b: EventFormValues) {
     a.about === b.about &&
     a.theme === b.theme &&
     a.layout === b.layout &&
-    a.themeTouched === b.themeTouched
+    a.themeTouched === b.themeTouched &&
+    a.logoLook === b.logoLook &&
+    a.dateText === b.dateText &&
+    a.timeText === b.timeText &&
+    JSON.stringify(a.inviteRows) === JSON.stringify(b.inviteRows)
   );
 }
 
@@ -318,6 +333,14 @@ export function EventEntryScreen() {
                 };
                 reader.readAsDataURL(file);
               }}
+              onRemoveLogo={
+                values.layout === "card"
+                  ? () => {
+                      logoFile.current = null;
+                      setLogo(null);
+                    }
+                  : undefined
+              }
               submitLabel="Create"
               hint="Next: invite guests, add a co-host, set up payment."
               saving={saving}
