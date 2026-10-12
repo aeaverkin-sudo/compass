@@ -119,7 +119,7 @@ export function CardInvite({ event, height }: { event: CardInviteEvent; height: 
             />
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col">
-            {event.name.trim() ? <HeroName value={event.name} placeholder="Event name" maxLines={3} /> : null}
+            {event.name.trim() ? <HeroName value={event.name} placeholder="Event name" maxLines={3} align="center" /> : null}
           </div>
         </div>
         {rows.length > 0 ? (

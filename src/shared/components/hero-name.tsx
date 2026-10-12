@@ -55,6 +55,7 @@ export function HeroName({
   roleBelow,
   placeholder = "Name or portfolio title",
   maxLines = 2,
+  align = "bottom",
 }: {
   value: string;
   onChange?: (displayName: string) => void;
@@ -62,7 +63,10 @@ export function HeroName({
   roleBelow?: boolean;
   placeholder?: string;
   maxLines?: number;
+  /** Center puts the lines themselves, without the descender pad, on the middle of the photo. */
+  align?: "bottom" | "center";
 }) {
+  const centered = align === "center";
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(16);
   const [wrapWord, setWrapWord] = useState(false);
@@ -123,6 +127,7 @@ export function HeroName({
     boxSizing: "border-box" as const,
     height: size * (empty ? 1 : lineCount) + rolePad,
     paddingBottom: rolePad,
+    ...(centered ? { marginBottom: -rolePad } : {}),
   };
 
   const holdScroll = (node: HTMLTextAreaElement) => {
@@ -149,14 +154,24 @@ export function HeroName({
   };
 
   return (
-    <div ref={boxRef} data-card-content className="relative flex min-h-0 w-full min-w-0 flex-1 items-end overflow-x-hidden overflow-y-visible">
+    <div
+      ref={boxRef}
+      data-card-content
+      className={cn(
+        "relative flex min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-visible",
+        centered ? "items-center" : "items-end",
+      )}
+    >
       {onChange ? (
         <>
         {empty ? (
           <span
             aria-hidden
-            className="pointer-events-none absolute left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]"
-            style={{ fontSize: size, fontWeight: 400, lineHeight: 1, bottom: descender }}
+            className={cn(
+              "pointer-events-none absolute left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]",
+              centered && "top-1/2 -translate-y-1/2",
+            )}
+            style={{ fontSize: size, fontWeight: 400, lineHeight: 1, bottom: centered ? undefined : descender }}
           >
             {placeholder}
           </span>

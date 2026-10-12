@@ -394,7 +394,7 @@ export function CardInviteEditor({
           onPhotoLook={(logoLook) => onChange({ logoLook })}
         />
         <div className="relative flex h-full min-w-0 flex-1 flex-col">
-          <HeroName value={values.name} onChange={(name) => onChange({ name })} placeholder="Event name" maxLines={3} />
+          <HeroName value={values.name} onChange={(name) => onChange({ name })} placeholder="Event name" maxLines={3} align="center" />
         </div>
       </div>
       <InviteRows values={values} onChange={onChange} />
