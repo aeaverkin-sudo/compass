@@ -54,7 +54,7 @@ type RailDock = "qr" | "photo";
 type RailLook = "frame" | "shadow";
 
 const LOOKS: { look: RailLook | null; label: string }[] = [
-  { look: null, label: "BAR" },
+  { look: null, label: "BASIC" },
   { look: "frame", label: "FRAME" },
   { look: "shadow", label: "SHADOW" },
 ];

@@ -14,10 +14,10 @@ export function photoSlotLookClass(look?: PhotoLook) {
   );
 }
 
-/** The photo's frame and shadow on the side rail. The frame is an outline, so the rail keeps its size. */
+/** The photo's frame and shadow on the side rail. Frame drops the sky for white; the outline keeps the rail's size. */
 export function railLookClass(look?: PhotoLook) {
   return cn(
-    look === "frame" && "outline outline-1 -outline-offset-1 outline-[#d4d4d4]",
+    look === "frame" && "bg-white outline -outline-offset-1 outline-[#d4d4d4]",
     look === "shadow" && "shadow-[0_2px_8px_rgba(17,17,17,0.16)]",
   );
 }
