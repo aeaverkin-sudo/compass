@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Zone } from "@/shared/components/zone";
@@ -62,6 +62,8 @@ function GrowField({
   singleLine = false,
   maxLines,
   maxLength,
+  onKeyDown,
+  fieldId,
 }: {
   inputRef: RefObject<HTMLTextAreaElement | null>;
   value: string;
@@ -72,6 +74,9 @@ function GrowField({
   /** Enter breaks the line until this many lines. */
   maxLines?: number;
   maxLength?: number;
+  onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  /** Marks an own row's value, so a removed row can hand the focus up. */
+  fieldId?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const size = (node: HTMLTextAreaElement) => {
@@ -99,8 +104,10 @@ function GrowField({
         placeholder={placeholder}
         className={`${PLAIN} absolute inset-x-0 top-0 resize-none overflow-hidden`}
         style={fieldStyle()}
+        data-row-value={fieldId}
         onKeyDown={(event) => {
-          if (event.key !== "Enter") return;
+          onKeyDown?.(event);
+          if (event.defaultPrevented || event.key !== "Enter") return;
           if (singleLine || (maxLines && value.split("\n").length >= maxLines)) event.preventDefault();
         }}
         onChange={(event) => {
@@ -119,11 +126,13 @@ function LabelField({
   onChange,
   inputRef,
   hint = false,
+  onKeyDown,
 }: {
   value: string;
   placeholder: string;
   onChange: (value: string) => void;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
+  onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   /** The placeholder is a hint, not a default label. */
   hint?: boolean;
 }) {
@@ -145,6 +154,8 @@ function LabelField({
       placeholder={placeholder}
       onChange={(event) => onChange(event.target.value.replace(/\n/g, " "))}
       onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (event.defaultPrevented) return;
         if (event.key === "Enter") {
           event.preventDefault();
           event.currentTarget.blur();
@@ -159,12 +170,20 @@ function CustomZone({
   row,
   focusTurn,
   onChange,
+  onRemove,
 }: {
   row: InviteRow;
   /** Each new turn puts the focus in the title. */
   focusTurn: number;
   onChange: (patch: Partial<InviteRow>) => void;
+  /** Backspace in a row with nothing typed in either field. */
+  onRemove: () => void;
 }) {
+  const removeIfEmpty = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Backspace" || row.title || row.value) return;
+    event.preventDefault();
+    onRemove();
+  };
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
@@ -173,7 +192,14 @@ function CustomZone({
   return (
     <Zone
       label={
-        <LabelField inputRef={titleRef} value={row.title} placeholder="title" hint onChange={(title) => onChange({ title })} />
+        <LabelField
+          inputRef={titleRef}
+          value={row.title}
+          placeholder="title"
+          hint
+          onChange={(title) => onChange({ title })}
+          onKeyDown={removeIfEmpty}
+        />
       }
       rule
       onClick={(event) => focusField(event, valueRef.current)}
@@ -185,6 +211,8 @@ function CustomZone({
         placeholder="description"
         ariaLabel={row.title || "Description"}
         maxLength={INVITE_VALUE_MAX}
+        onKeyDown={removeIfEmpty}
+        fieldId={row.id}
       />
     </Zone>
   );
@@ -295,6 +323,19 @@ export function EventForm({
 
   const setCustom = (id: string, patch: Partial<InviteRow>) => {
     onChange({ inviteRows: rows.map((row) => (row.id === id ? { ...row, ...patch } : row)) });
+  };
+
+  const removeCustom = (id: string) => {
+    const index = customs.findIndex((row) => row.id === id);
+    const above = index > 0 ? customs[index - 1] : undefined;
+    const field = above ? document.querySelector<HTMLTextAreaElement>(`[data-row-value="${CSS.escape(above.id)}"]`) : null;
+    if (field) {
+      field.focus();
+      field.setSelectionRange(field.value.length, field.value.length);
+    } else {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    }
+    onChange({ inviteRows: rows.filter((row) => row.id !== id) });
   };
 
   const addCustom = () => {
@@ -458,6 +499,7 @@ export function EventForm({
           row={row}
           focusTurn={focusRow.id === row.id ? focusRow.turn : 0}
           onChange={(patch) => setCustom(row.id, patch)}
+          onRemove={() => removeCustom(row.id)}
         />
       ))}
       {customs.length < INVITE_CUSTOM_MAX ? (
