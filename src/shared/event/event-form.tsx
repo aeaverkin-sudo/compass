@@ -157,18 +157,19 @@ function LabelField({
 
 function CustomZone({
   row,
-  focusTitle,
+  focusTurn,
   onChange,
 }: {
   row: InviteRow;
-  focusTitle: boolean;
+  /** Each new turn puts the focus in the title. */
+  focusTurn: number;
   onChange: (patch: Partial<InviteRow>) => void;
 }) {
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
-    if (focusTitle) titleRef.current?.focus();
-  }, [focusTitle]);
+    if (focusTurn > 0) titleRef.current?.focus();
+  }, [focusTurn]);
   return (
     <Zone
       label={
@@ -274,7 +275,7 @@ export function EventForm({
   const placeRef = useRef<HTMLTextAreaElement>(null);
   const aboutRef = useRef<HTMLTextAreaElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
-  const [addedRow, setAddedRow] = useState<string | null>(null);
+  const [focusRow, setFocusRow] = useState({ id: "", turn: 0 });
 
   const rows = values.inviteRows;
   const customs = customInviteRows(rows);
@@ -297,9 +298,14 @@ export function EventForm({
   };
 
   const addCustom = () => {
+    const blank = customs.find((row) => !row.title.trim() && !row.value?.trim());
+    if (blank) {
+      setFocusRow((current) => ({ id: blank.id, turn: current.turn + 1 }));
+      return;
+    }
     if (customs.length >= INVITE_CUSTOM_MAX) return;
     const row = newInviteRow();
-    setAddedRow(row.id);
+    setFocusRow((current) => ({ id: row.id, turn: current.turn + 1 }));
     onChange({ inviteRows: [...rows, row] });
   };
 
@@ -450,7 +456,7 @@ export function EventForm({
         <CustomZone
           key={row.id}
           row={row}
-          focusTitle={addedRow === row.id}
+          focusTurn={focusRow.id === row.id ? focusRow.turn : 0}
           onChange={(patch) => setCustom(row.id, patch)}
         />
       ))}
