@@ -9,6 +9,7 @@ import { CoverButton } from "@/shared/event/cover-button";
 import { EVENT_LAYOUTS, EVENT_THEMES, layoutDefaultTheme } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { hasLightEdges } from "@/shared/lib/photo-look";
+import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { EVENT_TITLE_LINES, clampEventTitle } from "@/shared/event/event-title";
 import type { EventFormValues } from "@/shared/event/event-form-fields";
 import {
@@ -31,6 +32,7 @@ export type { EventFormValues };
 const PLAIN = "w-full bg-transparent text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 const LABEL_FIELD =
   "t-label m-0 block w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent p-0 outline-none";
+const LOGO_LOOKS = ["plain", "shadow", "frame"] as const;
 const SKY_BUTTON =
   "press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 
@@ -303,8 +305,13 @@ export function EventForm({
 
   const pickLogo = async (file: File) => {
     onLogoFile(file);
-    const light = await hasLightEdges(file);
-    onChange({ logoLook: light ? "shadow" : null });
+    if (values.logoLook) return;
+    if (await hasLightEdges(file)) onChange({ logoLook: "shadow" });
+  };
+
+  const removeLogo = () => {
+    onChange({ logoLook: null });
+    onRemoveLogo?.();
   };
 
   const cover = {
@@ -394,14 +401,25 @@ export function EventForm({
         align="center"
         rule
         onClick={(event) => {
-          if ((event.target as HTMLElement).closest("input, textarea, button")) return;
+          if ((event.target as HTMLElement).closest("input, textarea, button, [data-card-content]")) return;
           logoRef.current?.click();
         }}
       >
         <div className="flex items-center gap-[14px]">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="" className="size-12 object-contain" />
+            <PhotoSlotPicker
+              photo={logoUrl}
+              onPhotoChange={(photo) => {
+                if (!photo) removeLogo();
+              }}
+              onPick={() => logoRef.current?.click()}
+              sizePx={48}
+              borderRadiusPx={0}
+              surfaceClassName=""
+              photoLook={values.logoLook ?? undefined}
+              onPhotoLook={(logoLook) => onChange({ logoLook })}
+              lookOptions={LOGO_LOOKS}
+            />
           ) : (
             <Plus className="size-7 shrink-0 text-hint" strokeWidth={1.5} aria-hidden />
           )}
@@ -410,10 +428,7 @@ export function EventForm({
             {logoUrl && onRemoveLogo ? (
               <button
                 type="button"
-                onClick={() => {
-                  onChange({ logoLook: null });
-                  onRemoveLogo();
-                }}
+                onClick={removeLogo}
                 className="press mt-1 border-0 bg-transparent p-0 t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
               >
                 Remove

@@ -37,7 +37,13 @@ type PhotoSlotPickerProps = {
   photoLook?: PhotoLook;
   /** Long-press then offers FRAME and SHADOW. Omitted on the landing page. */
   onPhotoLook?: (look: PhotoLook | null) => void;
+  /** The «···» menu, in order. Plain is the slot without a look. Default FRAME and SHADOW, each tapped off again. */
+  lookOptions?: readonly LookOption[];
+  /** Picks the file itself instead of the photo picker. A short tap on the photo then replaces it. */
+  onPick?: () => void;
 };
+
+type LookOption = "plain" | PhotoLook;
 
 export function PhotoSlotPicker({
   photo,
@@ -49,6 +55,8 @@ export function PhotoSlotPicker({
   onPickBlocked,
   photoLook,
   onPhotoLook,
+  lookOptions,
+  onPick,
 }: PhotoSlotPickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const pointersDown = useRef(0);
@@ -59,6 +67,11 @@ export function PhotoSlotPicker({
     sizePx >= LANDING_PHOTO_SIZE_PX - 1 ? "size-[18px] text-hairline" : "size-[15px] text-hairline";
 
   const pickPhoto = () => {
+    if (onPick) {
+      setEditing(false);
+      onPick();
+      return;
+    }
     openNativePhotoPicker(
       (nextPhoto, file) => {
         onPhotoChange(nextPhoto, file);
@@ -168,6 +181,10 @@ export function PhotoSlotPicker({
             aria-label="Hold to change photo"
             className="compass-press relative size-full touch-none select-none"
             {...longPress}
+            onClick={(event) => {
+              longPress.onClick(event);
+              if (!event.defaultPrevented && onPick) onPick();
+            }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photo} alt="" className="size-full object-cover" draggable={false} />
@@ -213,16 +230,20 @@ export function PhotoSlotPicker({
               <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" side="bottom" className="min-w-0 px-4 py-3">
-              <DropdownMenuItem onSelect={() => onPhotoLook(photoLook === "frame" ? null : "frame")}>
-                <span className={cn("t-body", photoLook === "frame" ? "text-[var(--ink)]" : "text-[var(--grey)]")}>
-                  FRAME
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onPhotoLook(photoLook === "shadow" ? null : "shadow")}>
-                <span className={cn("t-body", photoLook === "shadow" ? "text-[var(--ink)]" : "text-[var(--grey)]")}>
-                  SHADOW
-                </span>
-              </DropdownMenuItem>
+              {(lookOptions ?? (["frame", "shadow"] as const)).map((option) => {
+                const look = option === "plain" ? undefined : option;
+                const chosen = photoLook === look;
+                return (
+                  <DropdownMenuItem
+                    key={option}
+                    onSelect={() => onPhotoLook(lookOptions ? (look ?? null) : chosen ? null : (look ?? null))}
+                  >
+                    <span className={cn("t-body", chosen ? "text-[var(--ink)]" : "text-[var(--grey)]")}>
+                      {option.toUpperCase()}
+                    </span>
+                  </DropdownMenuItem>
+                );
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
           <button
