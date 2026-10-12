@@ -22,7 +22,7 @@ import {
   type InviteBaseKind,
   type InviteRow,
 } from "@/shared/event/invite-rows";
-import { parseInviteDate, parseInviteTime, shapeInviteDate, shapeInviteTime } from "@/shared/event/invite-when";
+import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
 
 export const PIC_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg";
 
@@ -187,6 +187,50 @@ function CustomZone({
   );
 }
 
+function WhenField({
+  inputRef,
+  type,
+  value,
+  display,
+  onChange,
+  placeholder,
+  width,
+}: {
+  inputRef?: RefObject<HTMLInputElement | null>;
+  type: "date" | "time";
+  value: string;
+  display: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  width: string;
+}) {
+  return (
+    <span className="relative inline-flex items-baseline" style={{ width }}>
+      <span
+        className="pointer-events-none whitespace-nowrap"
+        style={{ ...fieldStyle(), color: value ? "var(--ink)" : "var(--placeholder)" }}
+      >
+        {value ? display : placeholder}
+      </span>
+      <input
+        ref={inputRef}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-label={placeholder}
+        className="absolute inset-0 opacity-0"
+        style={{ width, appearance: "none", WebkitAppearance: "none" }}
+      />
+    </span>
+  );
+}
+
+function fmtDate(value: string): string {
+  if (!value) return "";
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year.slice(2)}`;
+}
+
 function previewDate(date: string, time: string): string | null {
   if (!date) return null;
   const when = new Date(`${date}T${time || "00:00"}`);
@@ -232,8 +276,11 @@ export function EventForm({
 
   const rows = values.inviteRows;
   const customs = customInviteRows(rows);
-  const dateWrong = values.dateText.trim().length > 0 && !parseInviteDate(values.dateText);
-  const timeWrong = values.timeText.trim().length > 0 && !parseInviteTime(values.timeText);
+
+  const setWhen = (patch: Partial<Pick<EventFormValues, "date" | "time" | "endTime">>) => {
+    const next = { ...values, ...patch };
+    onChange({ ...patch, dateText: inviteDateText(next.date), timeText: inviteTimeText(next.time, next.endTime) });
+  };
 
   const label = (kind: InviteBaseKind) => (
     <LabelField
@@ -286,40 +333,36 @@ export function EventForm({
         />
       </Zone>
       <Zone label={label("when")} rule onClick={(event) => focusField(event, dateRef.current)}>
-        <div className="flex items-baseline gap-6">
-          <div className="shrink-0" style={{ width: "9ch" }}>
-            <input
-              ref={dateRef}
-              value={values.dateText}
-              inputMode="numeric"
-              maxLength={10}
-              aria-label="Date"
-              placeholder="12.10.26"
-              onChange={(event) => {
-                const dateText = shapeInviteDate(event.target.value);
-                onChange({ dateText, date: parseInviteDate(dateText) ?? "" });
-              }}
-              className={PLAIN}
-              style={fieldStyle()}
+        <div className="flex items-baseline">
+          <WhenField
+            inputRef={dateRef}
+            type="date"
+            value={values.date}
+            display={fmtDate(values.date)}
+            onChange={(date) => setWhen({ date })}
+            placeholder="Date"
+            width="8ch"
+          />
+          <div className="ml-6 flex items-baseline">
+            <WhenField
+              type="time"
+              value={values.time}
+              display={values.time}
+              onChange={(time) => setWhen({ time })}
+              placeholder="Start"
+              width="5ch"
             />
-            {dateWrong ? <p className="m-0 mt-1 whitespace-nowrap t-meta text-[var(--grey)]">Use 12.10.26</p> : null}
-          </div>
-          <div className="min-w-0 flex-1">
-            <input
-              value={values.timeText}
-              inputMode="numeric"
-              maxLength={11}
-              aria-label="Time"
-              placeholder="15:30–20:30"
-              onChange={(event) => {
-                const timeText = shapeInviteTime(event.target.value);
-                const parsed = parseInviteTime(timeText);
-                onChange({ timeText, time: parsed?.start ?? "", endTime: parsed?.end ?? "" });
-              }}
-              className={PLAIN}
-              style={fieldStyle()}
+            <span aria-hidden className="mx-2 text-[var(--grey)]" style={fieldStyle()}>
+              –
+            </span>
+            <WhenField
+              type="time"
+              value={values.endTime}
+              display={values.endTime}
+              onChange={(endTime) => setWhen({ endTime })}
+              placeholder="End"
+              width="5ch"
             />
-            {timeWrong ? <p className="m-0 mt-1 whitespace-nowrap t-meta text-[var(--grey)]">Use 15:30–20:30</p> : null}
           </div>
         </div>
       </Zone>
