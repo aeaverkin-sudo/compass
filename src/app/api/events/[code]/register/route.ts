@@ -5,6 +5,7 @@ import { GUEST_COOKIE } from "@/shared/services/event-guest-pass";
 import { registerForEvent, saveRegistrationConsent } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { eventListStatus } from "@/shared/services/events";
+import { isPermanentAccount, joinWithOwnCard } from "@/shared/services/guest-accept";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,6 +56,13 @@ export async function POST(request: Request, context: RouteProps) {
   try {
     const jar = await cookies();
     const guestToken = jar.get(GUEST_COOKIE)?.value ?? null;
+    if (!cardId) {
+      if (!event) return noStore({ error: "Event not found" }, 404);
+      if (!(await isPermanentAccount({ id: userId, anonymous: false }))) return noStore({ error: "Choose a portfolio." }, 400);
+      const joined = await joinWithOwnCard(userId, event, code, guestToken);
+      if (guestToken) jar.delete(GUEST_COOKIE);
+      return noStore({ joined: Boolean(joined) });
+    }
     const result = await registerForEvent(
       userId,
       code,

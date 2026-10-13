@@ -3,7 +3,7 @@ import { makePayCode } from "@/shared/event/pay-code";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isUuid } from "@/shared/services/attachment-api";
-import { linkGuestOnRegister } from "@/shared/services/event-guest-pass";
+import { linkGuestOnRegister, type GuestContact } from "@/shared/services/event-guest-pass";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 
@@ -214,6 +214,7 @@ export async function registerForEvent(
   cardId: string,
   consent: { analytics: boolean; connections: boolean } = { analytics: false, connections: false },
   guestToken: string | null = null,
+  contact: GuestContact | null = null,
 ): Promise<{ ok: true; event: EventInvite; registration: EventRegistration } | { ok: false; status: number; error: string }> {
   const event = await loadEventInvite(lookup);
   if (!event) return { ok: false, status: 404, error: "Event not found" };
@@ -230,7 +231,7 @@ export async function registerForEvent(
 
   const existing = await loadOwnRegistration(event.id, userId);
   if (existing) {
-    if (guestToken) await linkGuestOnRegister(event.id, existing.id, userId, guestToken);
+    if (guestToken || contact) await linkGuestOnRegister(event.id, existing.id, userId, guestToken, contact);
     return { ok: true, event, registration: existing };
   }
 
@@ -248,7 +249,7 @@ export async function registerForEvent(
     if (!inserted.error) {
       const registration = await loadOwnRegistration(event.id, userId);
       if (registration) {
-        await linkGuestOnRegister(event.id, registration.id, userId, guestToken);
+        await linkGuestOnRegister(event.id, registration.id, userId, guestToken, contact);
         return { ok: true, event, registration };
       }
       throw new Error("Could not join.");

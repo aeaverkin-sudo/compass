@@ -21,15 +21,19 @@ import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
-import { isEventJoinPath, isEventTeamPath } from "@/shared/event/lookup";
+import { isEventInvitePath, isEventJoinPath, isEventTeamPath } from "@/shared/event/lookup";
 import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { useAppStore } from "@/shared/store/app-store";
 
-/** A card save, an event join, or a manager invite may pull the person back. Anything else opens the main screen. */
+/** A card save, an event invite or join, or a manager invite may pull the person back. Anything else opens the main screen. */
 function afterAuthPath(next: string | null) {
   if (next && next.startsWith("/save/") && !next.includes("//") && !next.includes("\\")) return next;
-  if (next && (isEventJoinPath(next) || isEventTeamPath(next))) return next;
+  if (next && (isEventJoinPath(next) || isEventTeamPath(next) || isEventInvitePath(next))) return next;
   return "/main";
+}
+
+function keepsNext(path: string) {
+  return path.startsWith("/save/") || isEventJoinPath(path) || isEventTeamPath(path) || isEventInvitePath(path);
 }
 
 function deviceHasCard(cards: { displayName: string; photoAttachmentId?: string; photo?: string }[]) {
@@ -118,7 +122,7 @@ function accountAlreadyExists(code: string | undefined, message: string | undefi
 function signInHref(nextPath: string, error?: string) {
   const query = new URLSearchParams();
   query.set("signin", "1");
-  if (nextPath.startsWith("/save/") || isEventJoinPath(nextPath) || isEventTeamPath(nextPath)) query.set("next", nextPath);
+  if (keepsNext(nextPath)) query.set("next", nextPath);
   if (error) query.set("error", error);
   return `/register?${query.toString()}`;
 }
@@ -417,10 +421,11 @@ export function RegisterScreen() {
     };
     const signUpHref = (() => {
       const query = new URLSearchParams();
-      if (nextPath.startsWith("/save/") || isEventJoinPath(nextPath) || isEventTeamPath(nextPath)) query.set("next", nextPath);
+      if (keepsNext(nextPath)) query.set("next", nextPath);
       const text = query.toString();
       return text ? `/register?${text}` : "/register";
     })();
+    const eventPath = isEventInvitePath(nextPath) || isEventJoinPath(nextPath);
     return (
       <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
         <ScreenHeader title="Sign in" fallbackHref="/" onBack={signInMail ? leaveSignInMail : undefined} />
@@ -488,7 +493,13 @@ export function RegisterScreen() {
           <>
             <Zone label="Sign in">
               <div className="-my-3">
-              {inApp ? null : (
+              {inApp ? (
+                eventPath ? (
+                  <p className="my-3 t-meta text-[var(--grey)]">
+                    Google sign-in doesn&apos;t work here — use your email and password, or open the link in Safari.
+                  </p>
+                ) : null
+              ) : (
                 <button
                   type="button"
                   onClick={() => void signInExistingGoogle()}
@@ -514,12 +525,16 @@ export function RegisterScreen() {
               </button>
               </div>
             </Zone>
-            <Rule />
-            <Zone label="No account">
-              <Link href={signUpHref} className="t-caps text-[var(--ink)]">
-                Sign up
-              </Link>
-            </Zone>
+            {eventPath ? null : (
+              <>
+                <Rule />
+                <Zone label="No account">
+                  <Link href={signUpHref} className="t-caps text-[var(--ink)]">
+                    Sign up
+                  </Link>
+                </Zone>
+              </>
+            )}
           </>
         )}
         <Message text={message} />

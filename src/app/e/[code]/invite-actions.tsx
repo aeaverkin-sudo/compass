@@ -1,0 +1,326 @@
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Rule } from "@/shared/components/rule";
+import { SkyToast } from "@/shared/components/sky-toast";
+import { Zone } from "@/shared/components/zone";
+import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
+import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
+import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { dropPendingNotes } from "@/shared/services/notes-sync";
+import { useAppStore } from "@/shared/store/app-store";
+
+const SKY =
+  "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
+const FIELD =
+  "compass-input block w-full border-0 bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
+
+type AcceptReply = {
+  kind?: "go" | "here" | "signin" | "other-device";
+  next?: string;
+  notice?: string | null;
+  tokenHash?: string;
+  cardId?: string | null;
+  confirmEmail?: string | null;
+  error?: string;
+};
+
+/** Another person's portfolios must not stay in this browser once the guest signs in. */
+function clearLocal() {
+  dropPendingCardUpserts();
+  dropPendingItemUpserts();
+  dropPendingNotes();
+  const user = useAppStore.getState().user;
+  useAppStore.setState({ cards: [], contactItems: [], currentCardIndex: 0, user: { ...user, onboarded: false } });
+}
+
+function deviceTimeZone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function Footnote() {
+  return (
+    <p className="mt-3 mb-0 max-w-[280px] text-center t-meta text-[var(--grey)]">
+      * I agree to the event rules,{" "}
+      <Link href="/terms" className="text-[var(--grey)] underline">
+        Terms
+      </Link>{" "}
+      and{" "}
+      <Link href="/privacy" className="text-[var(--grey)] underline">
+        Privacy
+      </Link>
+      .
+    </p>
+  );
+}
+
+type InviteActionsProps = {
+  lookup: string;
+  /** The personal link token. Null on the open link. */
+  token: string | null;
+  /** A registered account: one button, straight to the event page. */
+  permanent: boolean;
+  /** This session already holds a pass on this event. */
+  holdsPass: boolean;
+  /** Run the tap once the session is known: a return from sign-in, or a pass after the event. */
+  auto: boolean;
+  /** After the event only the personal link still opens a pass. */
+  ended: boolean;
+  signInHref: string;
+  poster: ReactNode;
+};
+
+export function InviteActions({ lookup, token, permanent, holdsPass, auto, ended, signInHref, poster }: InviteActionsProps) {
+  const router = useRouter();
+  const sessionReady = useSessionBootstrap();
+  const [busy, setBusy] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; next: string } | null>(null);
+  const [form, setForm] = useState(false);
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const opened = useRef(false);
+  const autoRan = useRef(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const base = `/api/events/${encodeURIComponent(lookup)}`;
+  const joinPath = `/e/${encodeURIComponent(lookup)}/join`;
+
+  useEffect(() => {
+    if (!token || opened.current) return;
+    opened.current = true;
+    void fetch(`${base}/guest-open`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    }).catch(() => undefined);
+  }, [base, token]);
+
+  const enterPass = async (cardId: string | null | undefined) => {
+    await hydrateCardsFromServer();
+    const state = useAppStore.getState();
+    const index = cardId ? state.cards.findIndex((card) => card.id === cardId) : -1;
+    if (index >= 0) state.setCurrentCardIndex(index);
+    router.replace("/main");
+  };
+
+  const fail = (text: string) => {
+    setHint(text);
+    setBusy(false);
+  };
+
+  /** One reply shape from the personal link and the open link. */
+  const follow = async (send: () => Promise<Response>) => {
+    const supabase = createBrowserSupabaseClient();
+    let response = await send();
+    if (response.status === 401) {
+      await supabase.auth.signInAnonymously();
+      response = await send();
+    }
+    const reply = (await response.json()) as AcceptReply;
+    if (!response.ok || !reply.kind) return fail(reply.error ?? "Could not open your pass.");
+    if (reply.kind === "other-device") return fail("Open this link on the phone you used first");
+    if (reply.kind === "go" && reply.next) {
+      if (reply.notice) {
+        setNotice({ text: reply.notice, next: reply.next });
+        return;
+      }
+      window.location.assign(reply.next);
+      return;
+    }
+    if (reply.kind === "signin" && reply.tokenHash) {
+      clearLocal();
+      const signed = await supabase.auth.verifyOtp({ token_hash: reply.tokenHash, type: "magiclink" });
+      if (signed.error) return fail("Could not open your pass.");
+    }
+    if (reply.confirmEmail) {
+      await supabase.auth
+        .updateUser({ email: reply.confirmEmail }, { emailRedirectTo: `${window.location.origin}/main` })
+        .catch(() => undefined);
+    }
+    await enterPass(reply.cardId);
+  };
+
+  const acceptToken = async () => {
+    if (busy || !token) return;
+    setBusy(true);
+    setHint(null);
+    try {
+      await follow(() =>
+        fetch(`${base}/guest-accept`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, timeZone: deviceTimeZone() }),
+        }),
+      );
+    } catch {
+      fail("Could not open your pass.");
+    }
+  };
+
+  const joinOwn = async () => {
+    if (busy) return;
+    setBusy(true);
+    setHint(null);
+    try {
+      const response = await fetch(`${base}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        return fail(body.error ?? "Could not join.");
+      }
+      window.location.assign(joinPath);
+    } catch {
+      fail("Could not join.");
+    }
+  };
+
+  const submitOpen = async () => {
+    if (busy) return;
+    if (!name.trim()) return fail("Add your name.");
+    if (!contact.trim()) return fail("Add your email or phone.");
+    setBusy(true);
+    setHint(null);
+    try {
+      await follow(() =>
+        fetch(`${base}/pass`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, contact, timeZone: deviceTimeZone() }),
+        }),
+      );
+    } catch {
+      fail("Could not open your pass.");
+    }
+  };
+
+  const createPass = () => {
+    if (token) return void acceptToken();
+    if (holdsPass) return void enterPass(null);
+    setHint(null);
+    setForm(true);
+    window.setTimeout(() => nameRef.current?.focus(), 0);
+  };
+
+  const primary = permanent ? (token ? acceptToken : joinOwn) : acceptToken;
+  const primaryRef = useRef(primary);
+  useEffect(() => {
+    primaryRef.current = primary;
+  });
+  useEffect(() => {
+    if (!auto || !token || !sessionReady || autoRan.current) return;
+    autoRan.current = true;
+    void primaryRef.current();
+  }, [auto, token, sessionReady]);
+
+  const toast = notice ? (
+    <SkyToast
+      key={notice.text}
+      text={notice.text}
+      onDone={() => {
+        const next = notice.next;
+        setNotice(null);
+        window.location.assign(next);
+      }}
+    />
+  ) : null;
+
+  if (form) {
+    return (
+      <>
+        <div className="mx-auto w-[62%]">{poster}</div>
+        <form
+          className="mt-6 w-full"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitOpen();
+          }}
+        >
+          <Rule />
+          <Zone label="Name" rule>
+            <input
+              ref={nameRef}
+              type="text"
+              autoComplete="name"
+              aria-label="Name"
+              placeholder="Name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className={FIELD}
+            />
+          </Zone>
+          <Zone label="Email or phone" rule>
+            <input
+              type="text"
+              inputMode="email"
+              autoCapitalize="none"
+              autoComplete="email"
+              aria-label="Email or phone"
+              placeholder="name@mail.com"
+              value={contact}
+              onChange={(event) => setContact(event.target.value)}
+              className={FIELD}
+            />
+          </Zone>
+          <div className="mt-6 flex flex-col items-center">
+            <button type="submit" disabled={busy || !sessionReady} className={SKY}>
+              Continue
+            </button>
+            <Footnote />
+            {hint ? <p className="mt-3 mb-0 text-center t-meta text-[var(--ink)]">{hint}</p> : null}
+          </div>
+        </form>
+        {toast}
+      </>
+    );
+  }
+
+  if (ended || (auto && token)) {
+    return (
+      <>
+        {poster}
+        {hint ? <p className="mt-8 mb-0 text-center t-meta text-[var(--grey)]">{hint}</p> : null}
+        {toast}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {poster}
+      <div className="mt-8 flex flex-col items-center">
+        {permanent ? (
+          <button type="button" disabled={busy || !sessionReady} onClick={() => void primary()} className={SKY}>
+            I&apos;m going *
+          </button>
+        ) : (
+          <>
+            <button type="button" disabled={busy || !sessionReady} onClick={createPass} className={SKY}>
+              I&apos;m going
+              <br />
+              Create my pass *
+            </button>
+            <Link
+              href={signInHref}
+              className="press mt-4 inline-block t-caps text-[var(--grey)] no-underline [-webkit-tap-highlight-color:transparent]"
+            >
+              Open in my account
+            </Link>
+          </>
+        )}
+        <Footnote />
+        {hint ? <p className="mt-3 mb-0 text-center t-meta text-[var(--ink)]">{hint}</p> : null}
+      </div>
+      {toast}
+    </>
+  );
+}

@@ -117,14 +117,17 @@ async function linkByToken(eventId: string, registrationId: string, token: strin
   if (stamped.error && !/accepted_at/i.test(stamped.error.message)) throw new Error(stamped.error.message);
 }
 
-async function linkByContact(eventId: string, registrationId: string, userId: string): Promise<void> {
+/** A contact typed on the open link, instead of the account's own. */
+export type GuestContact = { email: string | null; phone: string | null };
+
+async function linkByContact(eventId: string, registrationId: string, userId: string, typed: GuestContact | null): Promise<void> {
   const admin = createAdminSupabaseClient();
   const taken = await admin.from("event_guests").select("id").eq("registration_id", registrationId).limit(1);
   if (taken.error) throw new Error(taken.error.message);
   if ((taken.data ?? []).length > 0) return;
 
-  const loaded = await admin.auth.admin.getUserById(userId);
-  const email = loaded.data.user?.email?.trim().toLowerCase();
+  const loaded = typed ? null : await admin.auth.admin.getUserById(userId);
+  const email = (typed ? typed.email : loaded?.data.user?.email)?.trim().toLowerCase();
   if (email) {
     const byEmail = await admin
       .from("event_guests")
@@ -137,7 +140,7 @@ async function linkByContact(eventId: string, registrationId: string, userId: st
     if ((byEmail.data ?? []).length > 0) return;
   }
 
-  const phone = loaded.data.user?.phone?.trim();
+  const phone = (typed ? typed.phone : loaded?.data.user?.phone)?.trim();
   if (!phone) return;
   const tail = phoneDigits(phone).slice(-PHONE_TAIL_DIGITS);
   if (tail.length < PHONE_TAIL_DIGITS) return;
@@ -164,10 +167,11 @@ export async function linkGuestOnRegister(
   registrationId: string,
   userId: string,
   guestToken?: string | null,
+  typed: GuestContact | null = null,
 ): Promise<void> {
   try {
     if (isGuestToken(guestToken)) await linkByToken(eventId, registrationId, guestToken);
-    else await linkByContact(eventId, registrationId, userId);
+    else await linkByContact(eventId, registrationId, userId, typed);
   } catch (error) {
     console.error("[events] guest link", error);
   }

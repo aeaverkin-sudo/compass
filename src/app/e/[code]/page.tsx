@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { EventJoin } from "./join/event-join";
 import { CoverButton } from "@/shared/event/cover-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { previewPriceKey, previewPriceLabel, priceLabel } from "@/shared/event/payment-label";
-import { ensurePayCode, loadOwnerEventCounts, loadOwnedBadge, loadOwnRegistration } from "@/shared/services/event-registration";
+import { loadOwnerEventCounts } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay, loadPreviewPay } from "@/shared/services/event-payment";
 import { eventPreviewLine } from "@/shared/event/when";
@@ -14,13 +13,14 @@ import { eventListStatus } from "@/shared/services/events";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 import { eventTitleLine } from "@/shared/event/event-title";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
-import { GuestAccept } from "./guest-accept";
+import { holdsEventPass, isPermanentAccount } from "@/shared/services/guest-accept";
+import { InviteActions } from "./invite-actions";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ from?: string | string[]; g?: string | string[] }>;
+  searchParams: Promise<{ from?: string | string[]; g?: string | string[]; go?: string | string[] }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -123,28 +123,36 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const posterPrice = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
   const ended = eventListStatus(event.date, Date.now(), event.endsAt) === "past";
   const guestToken = Array.isArray(query.g) ? query.g[0] : query.g;
+  const go = (Array.isArray(query.go) ? query.go[0] : query.go) === "1";
   const guest = guestToken ? await findPassGuest(event.id, guestToken) : null;
-  if (user && !ended && !guest) {
-    const loaded = await loadOwnRegistration(event.id, user.id);
-    const registration = loaded && pay.isPaid ? await ensurePayCode(event.id, user.id, loaded) : loaded;
-    const badge = registration ? await loadOwnedBadge(user.id, registration.cardId) : null;
-    if (registration && badge) {
-      const origin = await requestOrigin();
-      return (
-        <EventJoin
-          lookup={lookup}
-          event={event}
-          origin={origin}
-          portfolios={[]}
-          registration={registration}
-          badge={badge}
-          pay={pay}
-        />
-      );
-    }
-  }
+  const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
+  const permanent = await isPermanentAccount(session);
+  const holdsPass = !permanent && !guest && (await holdsEventPass(session, event.id));
   const viewerId = user && !user.is_anonymous ? user.id : null;
   const counts = await loadOwnerEventCounts(event.id, viewerId);
+  const back = guest ? `/e/${encodeURIComponent(lookup)}?g=${guest.token}&go=1` : `/e/${encodeURIComponent(lookup)}/join`;
+  const signInHref = `/register?signin=1&next=${encodeURIComponent(back)}`;
+  const opensPass = !ended || Boolean(guest?.registrationId);
+  const auto = Boolean(guest) && ((ended && Boolean(guest?.registrationId)) || (go && permanent));
+  const poster = (
+    <CoverButton
+      variant="card"
+      layout={event.layout}
+      themeId={event.theme}
+      event={{
+        name: event.name,
+        description: event.description,
+        date: event.date,
+        endDate: event.endsAt,
+        place: event.place,
+        placeSecret: event.placeSecret,
+        logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
+        price: posterPrice,
+        inviteRows: event.inviteRows,
+        logoLook: event.logoLook,
+      }}
+    />
+  );
 
   return (
     <main className="compass-main flex h-dvh w-full flex-col overflow-hidden bg-white text-[var(--ink)]">
@@ -164,41 +172,24 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
       <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex w-full max-w-[380px] flex-col items-center">
           {guest ? <p className="mt-0 mb-4 t-meta text-[var(--grey)]">{`Invitation for ${guest.name}`}</p> : null}
-          <CoverButton
-            variant="card"
-            layout={event.layout}
-            themeId={event.theme}
-            event={{
-              name: event.name,
-              description: event.description,
-              date: event.date,
-              endDate: event.endsAt,
-              place: event.place,
-              placeSecret: event.placeSecret,
-              logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
-              price: posterPrice,
-              inviteRows: event.inviteRows,
-              logoLook: event.logoLook,
-            }}
-          />
+          {opensPass ? (
+            <InviteActions
+              lookup={lookup}
+              token={guest?.token ?? null}
+              permanent={permanent}
+              holdsPass={holdsPass}
+              auto={auto}
+              ended={ended}
+              signInHref={signInHref}
+              poster={poster}
+            />
+          ) : (
+            poster
+          )}
           {counts ? (
             <p className="mt-8 mb-0 t-body">{`Registered ${counts.registered} · Checked-in ${counts.checkedIn}`}</p>
           ) : null}
-          {guest && (!ended || guest.registrationId) ? (
-            <>
-              {ended ? <p className="mt-8 mb-0 t-meta text-[var(--grey)]">This event has ended</p> : null}
-              <GuestAccept lookup={lookup} token={guest.token} auto={ended} />
-            </>
-          ) : ended ? (
-            <p className="mt-8 mb-0 t-meta text-[var(--grey)]">This event has ended</p>
-          ) : (
-            <Link
-              href={`/e/${encodeURIComponent(lookup)}/join`}
-              className="press mt-8 inline-block bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
-            >
-              I&apos;m going
-            </Link>
-          )}
+          {ended ? <p className="mt-8 mb-0 t-meta text-[var(--grey)]">This event has ended</p> : null}
         </div>
       </div>
     </main>

@@ -23,6 +23,30 @@ export function isEventJoinPath(path: string): boolean {
   return isEventLookup(lookup);
 }
 
+/** After sign-in, a guest comes back to the invite. `g` (a personal token) and `go=1` are the only query it may carry. */
+export function isEventInvitePath(path: string): boolean {
+  if (!path.startsWith("/e/") || path.includes("//") || path.includes("\\") || path.includes("#")) return false;
+  const cut = path.indexOf("?");
+  const pathname = cut === -1 ? path : path.slice(0, cut);
+  if (cut !== -1) {
+    const search = new URLSearchParams(path.slice(cut + 1));
+    for (const [key, value] of search) {
+      if (key === "g" && TOKEN.test(value)) continue;
+      if (key === "go" && value === "1") continue;
+      return false;
+    }
+  }
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts.length !== 2 || parts[0] !== "e") return false;
+  let lookup = parts[1] ?? "";
+  try {
+    lookup = decodeURIComponent(lookup);
+  } catch {
+    return false;
+  }
+  return isEventLookup(lookup);
+}
+
 /** After sign-in, an invited manager may come back to accept. `accept=1` is the only query this path may carry. */
 export function isEventTeamPath(path: string): boolean {
   if (!path.startsWith("/e/") || path.includes("//") || path.includes("\\") || path.includes("#")) {
