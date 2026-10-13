@@ -39,7 +39,7 @@ import {
 const HERO_PHOTO_PX = 128;
 
 function cardIsReady(card: Card) {
-  return Boolean(cardHasPhoto(card) && card.displayName.trim());
+  return Boolean(card.displayName.trim());
 }
 
 function EditorialHeader({
@@ -103,7 +103,9 @@ function EditorialHeader({
               fetchPriority="high"
               className={cn("size-[128px] shrink-0 object-cover", photoSlotLookClass(card.photoLook))}
             />
-          ) : null}
+          ) : (
+            <span aria-hidden className="size-[128px] shrink-0 bg-[#f3f3f3]" />
+          )}
           <div className="relative flex h-full min-w-0 flex-1 flex-col">
             <HeroName
               value={card.displayName}

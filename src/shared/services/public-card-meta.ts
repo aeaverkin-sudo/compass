@@ -30,7 +30,7 @@ export async function metadataForPublicCard(loaded: PublicCard | null, path: str
   const v = publicCardPreviewVersion(loaded.card);
   const image = loaded.card.photoAttachmentId
     ? `${origin}/f/${loaded.card.photoAttachmentId}?v=${v}`
-    : undefined;
+    : `${origin}/og/card-blank`;
   return {
     title,
     description: description || undefined,
@@ -42,7 +42,7 @@ export async function metadataForPublicCard(loaded: PublicCard | null, path: str
       images: image ? [{ url: image, alt: title }] : undefined,
     },
     twitter: {
-      card: image ? "summary_large_image" : "summary",
+      card: loaded.card.photoAttachmentId ? "summary_large_image" : "summary",
       title,
       description: description || undefined,
       images: image ? [image] : undefined,

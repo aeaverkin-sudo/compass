@@ -48,16 +48,15 @@ export type PublicCard = {
   ownerId: string;
 };
 
-/** Name, a ready stored photo, and is_public. Archived and suspended stay private. */
+/** A name and is_public. The photo is optional. Archived and suspended stay private. */
 export function cardIsPubliclyServed(row: {
   is_public: boolean;
   status: string;
   display_name: string | null;
-  photo_attachment_id: string | null;
 }): boolean {
   if (!row.is_public) return false;
   if (row.status === "archived" || row.status === "suspended") return false;
-  return Boolean(row.display_name?.trim() && row.photo_attachment_id);
+  return Boolean(row.display_name?.trim());
 }
 
 function publicUrl(url: string | null, attachmentId: string | null, readyIds: Set<string>): string {
@@ -118,10 +117,11 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
   if (!TOKEN_RE.test(token)) return null;
 
   const row = await selectPublicRow("public_token", token);
-  if (!row || !cardIsPubliclyServed(row) || !row.photo_attachment_id) return null;
+  if (!row || !cardIsPubliclyServed(row)) return null;
 
-  const readyIds = await readyAttachmentIds([row.photo_attachment_id]);
-  if (!readyIds.has(row.photo_attachment_id)) return null;
+  const photoReady = row.photo_attachment_id
+    ? (await readyAttachmentIds([row.photo_attachment_id])).has(row.photo_attachment_id)
+    : false;
 
   const admin = createAdminSupabaseClient();
   const { data: linkData, error: linkError } = await admin
@@ -175,7 +175,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
     publicToken: row.public_token,
     handle: row.handle?.trim().toLowerCase() || undefined,
     qrVersion: 1,
-    photoAttachmentId: row.photo_attachment_id,
+    photoAttachmentId: photoReady ? (row.photo_attachment_id ?? undefined) : undefined,
     contactItemIds: items.map((item) => item.id),
     rubricOrder: normalizeRubricOrder(row.rubric_order),
     rubricLabels: normalizeRubricLabels(row.rubric_labels),

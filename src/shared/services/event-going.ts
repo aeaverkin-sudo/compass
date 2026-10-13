@@ -5,11 +5,12 @@ export type GoingPerson = {
   token: string;
   name: string;
   title: string;
-  photoUrl: string;
+  photoUrl: string | null;
   self: boolean;
 };
 
 export type GoingSummary = {
+  /** The people on the going list, so the number matches it. */
   going: number;
   /** Check-ins once the door opened, else everyone who was going. */
   wereThere: number;
@@ -56,7 +57,8 @@ export async function loadGoingSummary(eventId: string, viewerId: string | null)
   if (!(await isRegistered(eventId, viewerId))) return null;
 
   const admin = createAdminSupabaseClient();
-  const [going, checkedIn, met] = await Promise.all([
+  const [going, everyone, checkedIn, met] = await Promise.all([
+    loadGoingPeople(eventId, viewerId),
     admin.from("event_registrations").select("id", { count: "exact", head: true }).eq("event_id", eventId),
     admin
       .from("event_registrations")
@@ -69,12 +71,12 @@ export async function loadGoingSummary(eventId: string, viewerId: string | null)
       .eq("owner_id", viewerId)
       .eq("source_event_id", eventId),
   ]);
-  if (going.error) throw new Error(going.error.message);
+  if (everyone.error) throw new Error(everyone.error.message);
   if (checkedIn.error) throw new Error(checkedIn.error.message);
-  const total = going.count ?? 0;
+  const total = everyone.count ?? 0;
   const inside = checkedIn.count ?? 0;
   return {
-    going: total,
+    going: going?.length ?? 0,
     wereThere: inside > 0 ? inside : total,
     met: met.error ? 0 : (met.count ?? 0),
   };
@@ -82,7 +84,7 @@ export async function loadGoingSummary(eventId: string, viewerId: string | null)
 
 /**
  * Cards of those going who allow connections. A card that is not served
- * publicly (no name, no ready photo, private) stays out: it would not open.
+ * publicly (no name, private) stays out: it would not open.
  */
 export async function loadGoingPeople(eventId: string, viewerId: string | null): Promise<GoingPerson[] | null> {
   if (!viewerId) return null;
@@ -131,12 +133,12 @@ export async function loadGoingPeople(eventId: string, viewerId: string | null):
   for (const row of rows) {
     const card = byId.get(row.card_id);
     if (!card || card.owner_id !== row.user_id || !cardIsPubliclyServed(card)) continue;
-    if (!card.photo_attachment_id || !ready.has(card.photo_attachment_id)) continue;
+    const photo = card.photo_attachment_id && ready.has(card.photo_attachment_id) ? card.photo_attachment_id : null;
     people.push({
       token: card.public_token,
       name: (card.display_name ?? "").replace(/\s*\n\s*/g, " ").trim(),
       title: (card.title ?? "").trim(),
-      photoUrl: `/f/${card.photo_attachment_id}`,
+      photoUrl: photo ? `/f/${photo}` : null,
       self: row.user_id === viewerId,
     });
   }

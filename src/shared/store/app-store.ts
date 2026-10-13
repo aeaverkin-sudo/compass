@@ -685,5 +685,5 @@ export function isSolePublic(cards: Card[], id: string): boolean {
 }
 
 export function isCardReady(card: Card | null): card is Card {
-  return Boolean(card?.displayName.trim() && cardHasPhoto(card));
+  return Boolean(card?.displayName.trim());
 }

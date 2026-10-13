@@ -45,8 +45,12 @@ export default async function EventGoingPage({ params }: PageProps) {
                   className="press flex w-full min-w-0 items-center no-underline [-webkit-tap-highlight-color:transparent]"
                   style={{ gap: COLUMN_GAP_PX }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={person.photoUrl} alt="" className="size-[40px] shrink-0 object-cover" />
+                  {person.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={person.photoUrl} alt="" className="size-[40px] shrink-0 object-cover" />
+                  ) : (
+                    <span aria-hidden className="size-[40px] shrink-0 bg-[#f3f3f3]" />
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate t-body text-[var(--ink)]">{person.name}</span>
                     {person.title ? (

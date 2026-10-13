@@ -329,7 +329,7 @@ export function ProfileScreen() {
                     </>
                   ) : (
                     <p className="mt-2 t-meta text-[var(--ink)]">
-                      Inactive until you add a name and a photo.
+                      Inactive until you add a name.
                     </p>
                   )}
                 </div>

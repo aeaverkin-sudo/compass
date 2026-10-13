@@ -75,10 +75,10 @@ export function ensureCardIdentity(card: Card): Card {
   };
 }
 
-/** A card with a QR is public: name plus a stored photo. A local preview is not enough for /c/. */
+/** A card with a name is public. The photo is optional. */
 export function statusForPublish(card: Card): CardStatus {
   if (card.status === "archived" || card.status === "suspended") return card.status;
-  if (card.displayName.trim() && card.photoAttachmentId) return "published";
+  if (card.displayName.trim()) return "published";
   return "draft";
 }
 
