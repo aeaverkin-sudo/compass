@@ -30,6 +30,7 @@ export type PurgeReport = {
   expiredCodes: number;
   staleTransfers: number;
   orphanFiles: number;
+  scrubbedGuests: number;
 };
 
 async function idsOf(table: "cards" | "items" | "transfer_items" | "events", column: string, ids: string[]) {
@@ -63,6 +64,72 @@ async function dropAttachment(row: AttachmentRow) {
   await deleteAttachment(row.id, row.owner_id);
 }
 
+const KEPT_MARKS = /checked_in_at|paid_status|paid_source/i;
+
+/**
+ * The organiser keeps In and Paid after a pass account is gone: the list guest takes them
+ * from the registration before it is deleted. Without the columns nothing is copied.
+ */
+async function keepGuestMarks(userId: string) {
+  const admin = createAdminSupabaseClient();
+  const regs = await admin
+    .from("event_registrations")
+    .select("id, checked_in_at, paid_status, paid_source")
+    .eq("user_id", userId);
+  if (regs.error) {
+    if (KEPT_MARKS.test(regs.error.message)) return;
+    throw new Error(regs.error.message);
+  }
+  type Marks = { id: string; checked_in_at: string | null; paid_status: string | null; paid_source: string | null };
+  for (const reg of (regs.data ?? []) as Marks[]) {
+    if (!reg.checked_in_at && !reg.paid_status) continue;
+    const copied = await admin
+      .from("event_guests")
+      .update({ checked_in_at: reg.checked_in_at, paid_status: reg.paid_status, paid_source: reg.paid_source })
+      .eq("registration_id", reg.id);
+    if (copied.error) {
+      if (KEPT_MARKS.test(copied.error.message)) return;
+      throw new Error(copied.error.message);
+    }
+  }
+}
+
+const GUEST_NAME = "Guest";
+
+/**
+ * 90 days after an event its list guests lose their name, contact and link.
+ * The rows stay, so the organiser's counts stay.
+ */
+async function scrubOldGuests() {
+  const admin = createAdminSupabaseClient();
+  const due = await admin
+    .from("events")
+    .select("id")
+    .lte("guests_purge_at", new Date().toISOString())
+    .is("guests_purged_at", null)
+    .limit(USER_BATCH);
+  if (due.error) {
+    if (/guests_purge_at|guests_purged_at/i.test(due.error.message)) return 0;
+    throw new Error(due.error.message);
+  }
+  let count = 0;
+  for (const event of (due.data ?? []) as { id: string }[]) {
+    const scrubbed = await admin
+      .from("event_guests")
+      .update({ name: GUEST_NAME, email: null, phone: null, token: null })
+      .eq("event_id", event.id)
+      .select("id");
+    if (scrubbed.error) {
+      console.error("[purge] guests", event.id, scrubbed.error.message);
+      continue;
+    }
+    count += (scrubbed.data ?? []).length;
+    const stamped = await admin.from("events").update({ guests_purged_at: new Date().toISOString() }).eq("id", event.id);
+    if (stamped.error) console.error("[purge] guests stamp", event.id, stamped.error.message);
+  }
+  return count;
+}
+
 async function purgeUsers(filter: "trial" | "anon") {
   const admin = createAdminSupabaseClient();
   const now = Date.now();
@@ -81,6 +148,7 @@ async function purgeUsers(filter: "trial" | "anon") {
   for (const row of data ?? []) {
     const id = row.id as string;
     try {
+      if (filter === "trial") await keepGuestMarks(id);
       await deleteOwnAccount(id);
       count += 1;
     } catch (reason) {
@@ -233,11 +301,13 @@ export async function runPurge(): Promise<PurgeReport> {
   const orphanRows = await purgeOrphanRows();
   const looseCard = await sweepBucket(CARD_ATTACHMENTS_BUCKET);
   const looseTransfer = await sweepBucket(TRANSFER_ASSETS_BUCKET);
+  const scrubbedGuests = await scrubOldGuests();
   return {
     purgedTrials,
     purgedAnon,
     expiredCodes,
     staleTransfers,
     orphanFiles: orphanRows + looseCard + looseTransfer,
+    scrubbedGuests,
   };
 }

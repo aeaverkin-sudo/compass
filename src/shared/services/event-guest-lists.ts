@@ -31,6 +31,10 @@ type GuestRow = {
   opened_at: string | null;
   registration_id: string | null;
   created_at: string | null;
+  /** Copied from the registration before a pass account is deleted. */
+  checked_in_at?: string | null;
+  paid_status?: string | null;
+  paid_source?: string | null;
 };
 type ListRow = { id: string; name: string; is_paid: boolean; created_at: string | null };
 type MemberRow = { guest_id: string; list_id: string };
@@ -83,17 +87,25 @@ async function guarded<T extends object>(run: () => Promise<Call<T>>): Promise<C
   }
 }
 
+const GUEST_BASE = "id, name, email, phone, token, sent_at, opened_at, registration_id, created_at";
+const GUEST_KEPT = "checked_in_at, paid_status, paid_source";
+
 async function readGuests(eventId: string): Promise<GuestRow[]> {
   const admin = createAdminSupabaseClient();
-  return allRows<GuestRow>((from, to) =>
+  const page = (select: string) => (from: number, to: number) =>
     admin
       .from("event_guests")
-      .select("id, name, email, phone, token, sent_at, opened_at, registration_id, created_at")
+      .select(select)
       .eq("event_id", eventId)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
-      .range(from, to),
-  );
+      .range(from, to);
+  try {
+    return await allRows<GuestRow>(page(`${GUEST_BASE}, ${GUEST_KEPT}`));
+  } catch (error) {
+    if (!(error instanceof Error) || !/checked_in_at|paid_status|paid_source/i.test(error.message)) throw error;
+    return allRows<GuestRow>(page(GUEST_BASE));
+  }
 }
 
 async function readLists(eventId: string): Promise<ListRow[]> {
@@ -441,8 +453,18 @@ async function readMembersOf(guestId: string): Promise<string[]> {
   return ((data ?? []) as { list_id: string }[]).map((row) => row.list_id);
 }
 
+function keptPaid(value: string | null | undefined): BookGuest["paidStatus"] {
+  return value === "paid" || value === "unpaid" ? value : null;
+}
+
+function keptSource(value: string | null | undefined): BookGuest["paidSource"] {
+  return value === "return" || value === "statement" || value === "manual" || value === "name" || value === "list" ? value : null;
+}
+
 function listStatus(guest: GuestRow, registration: EventGuest | undefined): GuestStatus {
   if (registration) return registration.checkedIn ? "in" : "going";
+  if (guest.checked_in_at) return "in";
+  if (guest.paid_status) return "going";
   if (guest.opened_at) return "opened";
   if (guest.sent_at) return "sent";
   return "not_sent";
@@ -512,8 +534,8 @@ export async function loadGuestBook(eventId: string, registrations?: EventGuest[
         status: listStatus(guest, registration),
         photoUrl: registration?.photoUrl ?? null,
         cardToken: registration?.cardToken ?? null,
-        paidStatus: registration?.paidStatus ?? null,
-        paidSource: registration?.paidSource ?? null,
+        paidStatus: registration?.paidStatus ?? keptPaid(guest.paid_status),
+        paidSource: registration?.paidSource ?? keptSource(guest.paid_source),
         registeredAt: registration?.registeredAt ?? null,
         addedAt: guest.created_at,
       };
