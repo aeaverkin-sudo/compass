@@ -11,6 +11,7 @@ import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { APP_VERSION, SUPPORT_EMAIL } from "@/shared/lib/app-info";
+import { deletionLine } from "@/shared/lib/deletion-date";
 import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
@@ -100,9 +101,7 @@ export function ProfileScreen() {
           <div className="py-[18px]">
             {account.eventPass ? (
               <>
-                <p className={ZONE_VALUE}>
-                  {`Event pass — ${account.eventPass.frozenHoursLeft ?? account.hoursLeft ?? 0}h left.`}
-                </p>
+                <p className={ZONE_VALUE}>{deletionLine(account.eventPass.deleteAt)}</p>
                 <KeepProfileButton className="mt-6 px-6 py-3" />
               </>
             ) : (

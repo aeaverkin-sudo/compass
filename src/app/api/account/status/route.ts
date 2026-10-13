@@ -58,6 +58,7 @@ export async function GET() {
 
     const status: AccountStatus = {
       ...clock,
+      ...(eventPass ? { frozen: false } : {}),
       email: user && !user.is_anonymous ? user.email ?? null : null,
       provider: user ? providerOf(user) : null,
       consentVersion,

@@ -265,9 +265,8 @@ export function MainScreen() {
               if (pass && eventPass) {
                 return (
                   <EventPassFooter
-                    eventName={pass.eventName}
                     ended={pass.ended}
-                    frozenHoursLeft={eventPass.frozenHoursLeft}
+                    deleteAt={eventPass.deleteAt}
                     needsEmail={eventPass.needsEmail}
                     pendingEmail={eventPass.pendingEmail}
                     onAdd={() => {
