@@ -25,6 +25,8 @@ type PublicCardClientProps = {
   inside?: boolean;
   /** In-app scan. One Save, then the person stays on this card. */
   save?: boolean;
+  /** The owner deleted the profile. The book's copy, read only. */
+  deleted?: boolean;
 };
 
 type SaveState = "loading" | "ready" | "saved" | "own" | "busy";
@@ -47,7 +49,14 @@ function scheduleIdle(run: () => void): () => void {
  * Crawlers without JS leave the pending row alone.
  * Notes ride along once delivered. The received card has no share control.
  */
-export function PublicCardClient({ card, items, publicToken, inside = false, save = false }: PublicCardClientProps) {
+export function PublicCardClient({
+  card,
+  items,
+  publicToken,
+  inside = false,
+  save = false,
+  deleted = false,
+}: PublicCardClientProps) {
   const router = useRouter();
   const [notes, setNotes] = useState<DeliveredNote[]>([]);
   const [notesReady, setNotesReady] = useState(false);
@@ -63,6 +72,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
   const waitingRef = useRef(false);
 
   useEffect(() => {
+    if (deleted) return;
     let cancelled = false;
     void Promise.all([
       fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, { method: "POST" }),
@@ -94,7 +104,7 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
     return () => {
       cancelled = true;
     };
-  }, [inside, save, publicToken, card.publicToken]);
+  }, [deleted, inside, save, publicToken, card.publicToken]);
 
   const pdfInput = (): CardPdfInput => ({
     cardId: card.id,
@@ -244,7 +254,8 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
         {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
         <BackButton fallbackHref="/network" onBack={save ? () => router.push("/network") : undefined} />
         {sheet}
-        {save ? <SaveBar state={saveState} onSave={() => void keep()} /> : null}
+        {deleted ? <SaveBar state="deleted" onSave={() => undefined} /> : null}
+        {save && !deleted ? <SaveBar state={saveState} onSave={() => void keep()} /> : null}
       </div>
     );
   }
@@ -311,13 +322,15 @@ export function PublicCardClient({ card, items, publicToken, inside = false, sav
   );
 }
 
-function SaveBar({ state, onSave }: { state: SaveState; onSave: () => void }) {
+function SaveBar({ state, onSave }: { state: SaveState | "deleted"; onSave: () => void }) {
   return (
     <div
       className="fixed inset-x-0 bottom-0 z-30 px-[var(--gutter)]"
       style={{ paddingBottom: "max(12px, var(--vv-bottom, env(safe-area-inset-bottom)))" }}
     >
-      {state === "own" ? (
+      {state === "deleted" ? (
+        <p className="mb-0 text-center t-body text-[var(--grey)]">Profile deleted</p>
+      ) : state === "own" ? (
         <p className="mb-0 text-center t-body text-[var(--ink)]">This is your card</p>
       ) : state === "saved" ? (
         <p className="mb-0 bg-sky py-3 text-center t-caps text-[var(--ink)]">Saved</p>

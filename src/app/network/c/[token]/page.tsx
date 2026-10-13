@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicCardClient } from "@main/components/public-card-client";
 import { loadPublicCard } from "@/shared/services/public-card";
+import { loadDeletedCard } from "@/shared/services/connection-snapshot";
+import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +16,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return { title: name ? `${name} — ADED` : "ADED" };
 }
 
-/** A saved contact, opened from Network. The public /c/ link is unchanged. */
+/** A saved contact, opened from Network. The public /c/ link is unchanged. A deleted profile opens as the book kept it. */
 export default async function NetworkCardPage({ params }: PageProps) {
   const { token } = await params;
   const loaded = await loadPublicCard(token);
-  if (!loaded) notFound();
+  if (!loaded) {
+    const supabase = await createServerSupabaseClient();
+    const { data } = await supabase.auth.getUser();
+    const kept = data.user ? await loadDeletedCard(data.user.id, token) : null;
+    if (!kept) notFound();
+    return (
+      <main className="compass-main min-h-lvh bg-white">
+        <PublicCardClient inside deleted card={kept.card} items={kept.items} publicToken={token} />
+      </main>
+    );
+  }
 
   return (
     <main className="compass-main min-h-lvh bg-white">

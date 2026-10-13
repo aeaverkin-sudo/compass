@@ -2,6 +2,7 @@ import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { deleteAttachment, removeStoredObject } from "@/shared/services/attachment-api";
 import { CARD_ATTACHMENTS_BUCKET, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
 import { deleteOwnAccount } from "@/shared/services/account-delete";
+import { keepSavedCardSnapshots } from "@/shared/services/connection-snapshot";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -149,6 +150,7 @@ async function purgeUsers(filter: "trial" | "anon") {
     const id = row.id as string;
     try {
       if (filter === "trial") await keepGuestMarks(id);
+      await keepSavedCardSnapshots(id);
       await deleteOwnAccount(id);
       count += 1;
     } catch (reason) {

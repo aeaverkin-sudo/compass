@@ -19,6 +19,7 @@ type ConnectionRow = {
   saved_card_token: string;
   source_event_id: string | null;
   created_at: string;
+  snapshot?: { title?: unknown } | null;
 };
 
 type CardFace = {
@@ -52,15 +53,15 @@ export async function GET() {
 
   try {
     const supabase = await createServerSupabaseClient();
-    const loaded = await supabase
-      .from("connections")
-      .select("id, display_name, state, saved_card_id, saved_card_token, source_event_id, created_at")
-      .eq("owner_id", owner.id)
-      .order("created_at", { ascending: true });
+    const read = (columns: string) =>
+      supabase.from("connections").select(columns).eq("owner_id", owner.id).order("created_at", { ascending: true });
+    const base = "id, display_name, state, saved_card_id, saved_card_token, source_event_id, created_at";
+    const withSnapshot = await read(`${base}, snapshot`);
+    const loaded = withSnapshot.error && /snapshot/i.test(withSnapshot.error.message) ? await read(base) : withSnapshot;
     if (loaded.error) throw new Error(loaded.error.message);
 
-    const rows = (loaded.data ?? []) as ConnectionRow[];
-    const ids = [...new Set(rows.map((row) => row.saved_card_id))];
+    const rows = (loaded.data ?? []) as unknown as ConnectionRow[];
+    const ids = [...new Set(rows.flatMap((row) => (row.saved_card_id ? [row.saved_card_id] : [])))];
     const faces = new Map<string, CardFace>();
     const lines = new Map<string, string>();
     if (ids.length > 0) {
@@ -115,7 +116,8 @@ export async function GET() {
     return noStore({
       connections: rows.map((row) => {
         const face = faces.get(row.saved_card_id);
-        const role = face?.title?.trim() ?? "";
+        const kept = typeof row.snapshot?.title === "string" ? row.snapshot.title.trim() : "";
+        const role = face?.title?.trim() || kept;
         const active = row.state !== "pending";
         const deep = active && face?.searchable !== false;
         return {
