@@ -45,6 +45,64 @@ function trialLine(hoursLeft: number | null) {
   return `Trial — ${hoursLeft}h left.`;
 }
 
+type Sharing = { analytics: boolean; connections: boolean };
+
+/** What every event registration shares. Moved here from the event page. */
+function SharingSettings({ initial }: { initial: Sharing }) {
+  const [sharing, setSharing] = useState(initial);
+
+  const save = (next: Sharing) => {
+    const previous = sharing;
+    setSharing(next);
+    void fetch("/api/account/sharing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    })
+      .then((response) => {
+        if (!response.ok) setSharing(previous);
+      })
+      .catch(() => setSharing(previous));
+  };
+
+  return (
+    <div className="flex min-w-0 flex-col gap-5">
+      <div className="flex items-start gap-3">
+        <Switch
+          checked={sharing.analytics}
+          onCheckedChange={(checked) => save({ ...sharing, analytics: checked === true })}
+          aria-labelledby="profile-sharing-analytics"
+          className="mt-[2px] shrink-0"
+        />
+        <span className="min-w-0">
+          <span id="profile-sharing-analytics" className="block t-body text-[var(--ink)]">
+            Share anonymous analytics
+          </span>
+          <span className="mt-1 block t-meta text-[var(--grey)]">
+            Nobody sees your personal details — only an anonymous business summary.
+          </span>
+        </span>
+      </div>
+      <div className="flex items-start gap-3">
+        <Switch
+          checked={sharing.connections}
+          onCheckedChange={(checked) => save({ ...sharing, connections: checked === true })}
+          aria-labelledby="profile-sharing-connections"
+          className="mt-[2px] shrink-0"
+        />
+        <span className="min-w-0">
+          <span id="profile-sharing-connections" className="block t-body text-[var(--ink)]">
+            Allow connections
+          </span>
+          <span className="mt-1 block t-meta text-[var(--grey)]">
+            Your summary can be matched to the right people — say, an investor you&apos;re looking for.
+          </span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ProfileShell({ children }: { children: ReactNode }) {
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
@@ -279,6 +337,10 @@ export function ProfileScreen() {
             BW mode
           </span>
         </div>
+      </Zone>
+
+      <Zone label="Sharing" align="start" rule>
+        <SharingSettings initial={account.sharing ?? { analytics: true, connections: true }} />
       </Zone>
 
       <Zone label="Manage" rule>

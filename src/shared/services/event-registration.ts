@@ -212,7 +212,7 @@ export async function registerForEvent(
   userId: string,
   lookup: string,
   cardId: string,
-  consent: { analytics: boolean; connections: boolean } = { analytics: false, connections: false },
+  consent: SharingConsent | null = null,
   guestToken: string | null = null,
   contact: GuestContact | null = null,
 ): Promise<{ ok: true; event: EventInvite; registration: EventRegistration } | { ok: false; status: number; error: string }> {
@@ -235,6 +235,7 @@ export async function registerForEvent(
     return { ok: true, event, registration: existing };
   }
 
+  const sharing = consent ?? (await readSharingConsent(userId));
   let withCode = true;
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const inserted = await admin.from("event_registrations").insert({
@@ -242,8 +243,8 @@ export async function registerForEvent(
       user_id: userId,
       card_id: cardId,
       reg_token: nanoid(TOKEN_LENGTH),
-      consent_analytics: consent.analytics,
-      consent_connections: consent.connections,
+      consent_analytics: sharing.analytics,
+      consent_connections: sharing.connections,
       ...(withCode ? { pay_code: makePayCode() } : {}),
     }).select("id");
     if (!inserted.error) {
@@ -379,25 +380,58 @@ export async function openEventBadge(lookup: string, regToken: string, viewerId:
   return { kind: "checked-in", name, at: at ?? new Date().toISOString(), already };
 }
 
-export async function saveRegistrationConsent(
+export type SharingConsent = { analytics: boolean; connections: boolean };
+
+/** Account settings from Profile. Both stay on until the person turns them off. */
+export async function readSharingConsent(userId: string): Promise<SharingConsent> {
+  const admin = createAdminSupabaseClient();
+  const loaded = await admin.auth.admin.getUserById(userId);
+  const meta = loaded.data.user?.user_metadata ?? {};
+  return { analytics: meta.sharing_analytics !== false, connections: meta.sharing_connections !== false };
+}
+
+/** Profile changes the account settings and every registration the person already has. */
+export async function saveSharingConsent(userId: string, consent: SharingConsent): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const loaded = await admin.auth.admin.getUserById(userId);
+  const user = loaded.data.user;
+  if (!user) throw new Error("User not found");
+  const updated = await admin.auth.admin.updateUserById(userId, {
+    user_metadata: { ...user.user_metadata, sharing_analytics: consent.analytics, sharing_connections: consent.connections },
+  });
+  if (updated.error) throw new Error(updated.error.message);
+  const regs = await admin
+    .from("event_registrations")
+    .update({ consent_analytics: consent.analytics, consent_connections: consent.connections })
+    .eq("user_id", userId);
+  if (regs.error) throw new Error(regs.error.message);
+}
+
+/** The badge moves to another of the person's own cards. The registration and its QR stay. */
+export async function moveRegistrationCard(
   userId: string,
   lookup: string,
-  consent: { analytics: boolean; connections: boolean },
+  cardId: string,
 ): Promise<{ ok: true; registration: EventRegistration } | { ok: false; status: number; error: string }> {
   const event = await loadEventInvite(lookup);
   if (!event) return { ok: false, status: 404, error: "Event not found" };
+  if (!isUuid(cardId)) return { ok: false, status: 400, error: "Choose a portfolio." };
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin
+  const card = await admin.from("cards").select("id, owner_id").eq("id", cardId).maybeSingle();
+  if (card.error) throw new Error(card.error.message);
+  if (!card.data || card.data.owner_id !== userId) return { ok: false, status: 403, error: "That portfolio is not yours." };
+  const moved = await admin
     .from("event_registrations")
-    .update({
-      consent_analytics: consent.analytics,
-      consent_connections: consent.connections,
-    })
+    .update({ card_id: cardId })
     .eq("event_id", event.id)
     .eq("user_id", userId)
-    .select("id, event_id, card_id, reg_token, consent_analytics, consent_connections")
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) return { ok: false, status: 404, error: "Join the event first." };
-  return { ok: true, registration: mapRegistration(data as RegistrationRow) };
+    .select("id");
+  if (moved.error) {
+    if (/card_not_yours/i.test(moved.error.message)) return { ok: false, status: 403, error: "That portfolio is not yours." };
+    throw new Error(moved.error.message);
+  }
+  if ((moved.data ?? []).length === 0) return { ok: false, status: 404, error: "Join the event first." };
+  const registration = await loadOwnRegistration(event.id, userId);
+  if (!registration) return { ok: false, status: 404, error: "Join the event first." };
+  return { ok: true, registration };
 }

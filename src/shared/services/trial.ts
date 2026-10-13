@@ -28,6 +28,8 @@ export type AccountStatus = {
   catalog: Record<PlanId, { portfolios: number; bytes: number }>;
   /** An unkept event guest account. Null for everyone else. */
   eventPass?: EventPassStatus | null;
+  /** Account settings for event registrations. On until turned off. */
+  sharing?: { analytics: boolean; connections: boolean };
 };
 
 export type EventPassCard = { cardId: string; eventName: string; ended: boolean };

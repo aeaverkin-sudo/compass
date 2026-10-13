@@ -64,6 +64,10 @@ export async function GET() {
       consentVersion,
       bytesUsed,
       eventPass,
+      sharing: {
+        analytics: user?.user_metadata?.sharing_analytics !== false,
+        connections: user?.user_metadata?.sharing_connections !== false,
+      },
     };
     return NextResponse.json(status, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

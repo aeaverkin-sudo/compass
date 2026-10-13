@@ -280,22 +280,23 @@ async function reenter(guest: PassGuest, session: SessionUser, joinPath: string)
 }
 
 /**
- * A permanent account joins with its own card: the first portfolio, changed later on the event page.
- * Without a portfolio the event page opens as it is.
+ * A permanent account joins with its own card: the one tapped, or the first portfolio, changed later on the event page.
+ * Without a portfolio the event page opens as it is. The consent is recorded once, with the new registration.
  */
 export async function joinWithOwnCard(
   userId: string,
   event: EventInvite,
   lookup: string,
   guestToken: string | null,
-): Promise<string | null> {
+  chosenCardId: string | null = null,
+): Promise<{ ok: true; registrationId: string | null } | { ok: false; status: number; error: string }> {
   const existing = await loadOwnRegistration(event.id, userId);
-  const cardId = existing?.cardId ?? (await listOwnPortfolios(userId))[0]?.id;
-  if (!cardId) return null;
+  const cardId = existing?.cardId ?? chosenCardId ?? (await listOwnPortfolios(userId))[0]?.id;
+  if (!cardId) return { ok: true, registrationId: null };
   const joined = await registerForEvent(userId, lookup, cardId, undefined, guestToken);
-  if (!joined.ok) return null;
-  await settleRegistration(userId, joined.registration.id, await linkedGuestId(joined.registration.id));
-  return joined.registration.id;
+  if (!joined.ok) return joined;
+  if (!existing) await settleRegistration(userId, joined.registration.id, await linkedGuestId(joined.registration.id));
+  return { ok: true, registrationId: joined.registration.id };
 }
 
 /** The pass account gets its clock, a card (the first pass card when it has one) and a registration. */

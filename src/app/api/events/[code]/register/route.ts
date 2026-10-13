@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { GUEST_COOKIE } from "@/shared/services/event-guest-pass";
-import { registerForEvent, saveRegistrationConsent } from "@/shared/services/event-registration";
+import { moveRegistrationCard } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { eventListStatus } from "@/shared/services/events";
 import { isPermanentAccount, joinWithOwnCard } from "@/shared/services/guest-accept";
@@ -16,101 +16,65 @@ function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-/** A session may join with its own card. A trial session counts. No session does not. */
-async function signedInId(): Promise<string | null> {
+/** Only a registered account joins with its own card. A pass is made on the invite. */
+async function permanentId(): Promise<string | null> {
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
-  return data.user.id;
+  const session = { id: data.user.id, anonymous: Boolean(data.user.is_anonymous) };
+  return (await isPermanentAccount(session)) ? session.id : null;
 }
 
-function flag(value: unknown): boolean | null {
-  return typeof value === "boolean" ? value : null;
+async function readCardId(request: Request): Promise<string> {
+  try {
+    const body = (await request.json()) as { cardId?: unknown };
+    return typeof body.cardId === "string" ? body.cardId : "";
+  } catch {
+    return "";
+  }
 }
 
+/** I'm going, or a tap on a portfolio: registers with that card, or the first one. */
 export async function POST(request: Request, context: RouteProps) {
-  const userId = await signedInId();
+  const userId = await permanentId();
   if (!userId) return noStore({ error: "Sign in to join." }, 401);
 
   const { code } = await context.params;
   const event = await loadEventInvite(code);
-  if (event && eventListStatus(event.date, Date.now(), event.endsAt) === "past") {
+  if (!event) return noStore({ error: "Event not found" }, 404);
+  if (eventListStatus(event.date, Date.now(), event.endsAt) === "past") {
     return noStore({ error: "This event has ended" }, 410);
   }
-  let cardId = "";
-  let consentAnalytics = false;
-  let consentConnections = false;
-  try {
-    const body = (await request.json()) as {
-      cardId?: unknown;
-      consentAnalytics?: unknown;
-      consentConnections?: unknown;
-    };
-    cardId = typeof body.cardId === "string" ? body.cardId : "";
-    consentAnalytics = body.consentAnalytics === true;
-    consentConnections = body.consentConnections === true;
-  } catch {
-    return noStore({ error: "Choose a portfolio." }, 400);
-  }
+  const cardId = await readCardId(request);
 
   try {
     const jar = await cookies();
     const guestToken = jar.get(GUEST_COOKIE)?.value ?? null;
-    if (!cardId) {
-      if (!event) return noStore({ error: "Event not found" }, 404);
-      if (!(await isPermanentAccount({ id: userId, anonymous: false }))) return noStore({ error: "Choose a portfolio." }, 400);
-      const joined = await joinWithOwnCard(userId, event, code, guestToken);
-      if (guestToken) jar.delete(GUEST_COOKIE);
-      return noStore({ joined: Boolean(joined) });
-    }
-    const result = await registerForEvent(
-      userId,
-      code,
-      cardId,
-      { analytics: consentAnalytics, connections: consentConnections },
-      guestToken,
-    );
-    if (!result.ok) return noStore({ error: result.error }, result.status);
+    const joined = await joinWithOwnCard(userId, event, code, guestToken, cardId || null);
+    if (!joined.ok) return noStore({ error: joined.error }, joined.status);
     if (guestToken) jar.delete(GUEST_COOKIE);
-    return noStore({
-      regToken: result.registration.regToken,
-      cardId: result.registration.cardId,
-      consentAnalytics: result.registration.consentAnalytics,
-      consentConnections: result.registration.consentConnections,
-    });
+    return noStore({ joined: Boolean(joined.registrationId) });
   } catch (error) {
     console.error("[events] register", error);
     return noStore({ error: "Could not join." }, 500);
   }
 }
 
+/** Another card for the badge. The registration and its check-in link stay. */
 export async function PATCH(request: Request, context: RouteProps) {
-  const userId = await signedInId();
+  const userId = await permanentId();
   if (!userId) return noStore({ error: "Sign in to join." }, 401);
 
   const { code } = await context.params;
-  let analytics: boolean | null = null;
-  let connections: boolean | null = null;
-  try {
-    const body = (await request.json()) as { analytics?: unknown; connections?: unknown };
-    analytics = flag(body.analytics);
-    connections = flag(body.connections);
-  } catch {
-    analytics = null;
-  }
-  if (analytics === null || connections === null) {
-    return noStore({ error: "Choose both answers." }, 400);
-  }
+  const cardId = await readCardId(request);
+  if (!cardId) return noStore({ error: "Choose a portfolio." }, 400);
 
   try {
-    const result = await saveRegistrationConsent(userId, code, { analytics, connections });
+    const result = await moveRegistrationCard(userId, code, cardId);
     if (!result.ok) return noStore({ error: result.error }, result.status);
-    return noStore({
-      consentAnalytics: result.registration.consentAnalytics,
-      consentConnections: result.registration.consentConnections,
-    });
+    return noStore({ cardId: result.registration.cardId });
   } catch (error) {
-    console.error("[events] consent", error);
+    console.error("[events] badge", error);
     return noStore({ error: "Could not save." }, 500);
   }
 }
