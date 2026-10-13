@@ -348,6 +348,11 @@ export function InviteActions({
               <br />
               Create my pass *
             </button>
+            {token ? (
+              <p className="mt-3 mb-0 text-center t-meta text-[var(--grey)]">
+                This link is your pass — don&apos;t forward it.
+              </p>
+            ) : null}
             <Link
               href={signInHref}
               className="press mt-4 inline-block t-caps text-[var(--grey)] no-underline [-webkit-tap-highlight-color:transparent]"

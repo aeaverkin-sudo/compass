@@ -35,6 +35,7 @@ export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }
     setBusy(true);
     setMessage(null);
     const { error } = await createBrowserSupabaseClient().auth.updateUser({ password: password.trim() });
+    if (!error) await fetch("/api/account/password-set", { method: "POST" }).catch(() => undefined);
     setBusy(false);
     setMessage(error ? error.message : "Password saved.");
   };

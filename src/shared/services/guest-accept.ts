@@ -73,9 +73,13 @@ function signInPath(next: string): string {
   return `/register?signin=1&next=${encodeURIComponent(next)}`;
 }
 
-async function magicHash(userId: string): Promise<string | null> {
+/** Set once the account has its own password. From then on only the password signs in. */
+export const PASSWORD_SET = "password_set_at";
+
+async function magicHash(userId: string): Promise<string | "password" | null> {
   const admin = createAdminSupabaseClient();
   const loaded = await admin.auth.admin.getUserById(userId);
+  if (loaded.data.user?.app_metadata?.[PASSWORD_SET]) return "password";
   const email = loaded.data.user?.email?.trim().toLowerCase();
   if (!email) return null;
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email });
@@ -268,6 +272,7 @@ async function paysFirst(eventId: string, userId: string): Promise<boolean> {
 async function enterAsPass(userId: string, session: SessionUser, cardId: string | null, pay = false): Promise<GuestAcceptResult> {
   if (session?.id === userId) return { ok: true, kind: "here", cardId, pay };
   const tokenHash = await magicHash(userId);
+  if (tokenHash === "password") return { ok: true, kind: "go", next: signInPath("/main") };
   if (tokenHash) return { ok: true, kind: "signin", tokenHash, cardId, pay };
   return { ok: true, kind: "other-device" };
 }
