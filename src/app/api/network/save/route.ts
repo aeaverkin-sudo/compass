@@ -12,14 +12,14 @@ function noStore(body: unknown, status = 200) {
 }
 
 /**
- * Saves a public card into the signed-in book. Same upsert as `/save/{token}`,
- * without leaving the card.
+ * Saves a public card into the session's book, a trial or anonymous pass account included.
+ * Same upsert as `/save/{token}`, without leaving the card.
  */
 export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  if (!user || user.is_anonymous) return noStore({ error: "Sign in" }, 401);
+  if (!user) return noStore({ error: "Sign in" }, 401);
 
   let token = "";
   try {

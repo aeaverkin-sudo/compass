@@ -19,8 +19,8 @@ function ownCard(token: string) {
 }
 
 /**
- * Saves someone else's public card into the signed-in book, then opens Network.
- * A visitor without an account is sent through the existing sign-in and brought back.
+ * Saves someone else's public card into the book of whoever holds a session, then opens Network.
+ * A trial or event pass account saves too, anonymous included. Only no session goes to sign-in.
  */
 export default async function SaveCardPage({ params }: PageProps) {
   const { token } = await params;
@@ -29,7 +29,7 @@ export default async function SaveCardPage({ params }: PageProps) {
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  if (!user || user.is_anonymous) {
+  if (!user) {
     redirect(`/register?signin=1&next=${encodeURIComponent(`/save/${token}`)}`);
   }
 
