@@ -19,7 +19,7 @@ export function SendScreen({
   ready,
 }: {
   lookup: string;
-  /** The mail the first guest gets. */
+  /** The body of the first guest's mail, laid out on the cabinet's column. */
   preview: string | null;
   count: number;
   passes: GuestPass[];
@@ -74,11 +74,10 @@ export function SendScreen({
     <ManageFrame title="Send passes" fallbackHref={back} onBack={() => router.replace(back)}>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       {preview ? (
-        <iframe
-          title="The mail your guests get"
-          srcDoc={preview}
-          sandbox=""
-          className="mt-[18px] block h-[760px] w-full border border-[var(--rule)] bg-white"
+        <div
+          aria-label="The mail your guests get"
+          className="pointer-events-none mt-[18px] w-full select-none bg-white"
+          dangerouslySetInnerHTML={{ __html: preview }}
         />
       ) : null}
       <div className="pt-[18px] pb-8" style={{ marginLeft: VALUE_AXIS_PX }}>

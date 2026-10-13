@@ -10,6 +10,7 @@ const RULE = "#999999";
 const SKY = "#c5e8f7";
 const WIDTH = 480;
 const OUTER = 40;
+const SIDE = 16;
 const LABEL = 86;
 const GAP = 14;
 const AXIS = LABEL + GAP;
@@ -30,7 +31,15 @@ export type EventMailInput = {
   footer: { logoSrc: string; unsubscribeHref: string | null } | { plain: string };
 };
 
-export type RenderedMail = { html: string; text: string };
+/** `body` is the inside of `<body>`: the cabinet preview sets it on the screen's own grid. */
+export type RenderedMail = { html: string; text: string; body: string };
+
+export type MailFrame = {
+  /** 480 in the mail; "100%" fills the preview column. */
+  width?: number | "100%";
+  /** Space around the mail: 40 above and below, 16 at the sides. */
+  outer?: { y: number; x: number };
+};
 
 function escape(value: string): string {
   return value
@@ -86,22 +95,27 @@ function posterRow(poster: NonNullable<EventMailInput["poster"]>): string {
 
 const MASTHEAD = `<tr><td style="padding:0 0 12px;font-family:${FONT};font-size:13px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase;color:${INK};">ADED</td></tr>`;
 
-export function renderEventMail(input: EventMailInput): RenderedMail {
+export function renderEventMail(input: EventMailInput, frame: MailFrame = {}): RenderedMail {
+  const width = frame.width ?? WIDTH;
+  const outer = frame.outer ?? { y: OUTER, x: SIDE };
+  const widthAttr = width === "100%" ? "100%" : String(width);
+  const widthStyle = width === "100%" ? "100%" : `${width}px`;
   const branded = !("plain" in input.footer);
   const top = input.poster ? posterRow(input.poster) : branded ? "" : MASTHEAD;
   const zones = input.zones.map((zone, index) => zoneRow(zone, index === 0 && !input.poster)).join("\n");
   const button = input.button ? buttonRow(input.button, input.footnote) : "";
 
-  const html = `<!doctype html>
-<html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="color-scheme" content="light" /><meta name="format-detection" content="telephone=no,date=no,address=no,email=no" /></head>
-<body style="margin:0;padding:0;background:#ffffff;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background:#ffffff;"><tr><td align="center" style="padding:${OUTER}px 16px;">
-<table role="presentation" width="${WIDTH}" cellpadding="0" cellspacing="0" border="0" style="width:${WIDTH}px;max-width:100%;">
+  const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background:#ffffff;"><tr><td align="center" style="padding:${outer.y}px ${outer.x}px;">
+<table role="presentation" width="${widthAttr}" cellpadding="0" cellspacing="0" border="0" style="width:${widthStyle};max-width:100%;">
 ${top}
 ${zones}
 ${button}
 ${footerRow(input.footer)}
-</table></td></tr></table>
+</table></td></tr></table>`;
+  const html = `<!doctype html>
+<html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="color-scheme" content="light" /><meta name="format-detection" content="telephone=no,date=no,address=no,email=no" /></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+${body}
 </body></html>`;
 
   const lines = branded ? [] : ["ADED", ""];
@@ -109,5 +123,5 @@ ${footerRow(input.footer)}
   if (input.button) lines.push("", `${input.button.label}: ${input.button.href}`);
   if (input.footnote) lines.push(input.footnote);
   lines.push("", footerText(input.footer));
-  return { html, text: lines.join("\n") };
+  return { html, text: lines.join("\n"), body };
 }

@@ -39,7 +39,7 @@ export default async function SendPassesPage({ params }: PageProps) {
   if (!event) notFound();
   const invitees = ready ? await pendingInvitees(access.event.id) : [];
   const first = invitees[0];
-  const preview = first ? inviteMail(origin, event, first).html : null;
+  const preview = first ? inviteMail(origin, event, first, { width: "100%", outer: { y: 0, x: 0 } }).body : null;
 
   return (
     <SendScreen

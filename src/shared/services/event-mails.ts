@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { renderEventMail, type MailZone, type RenderedMail } from "@/shared/mail/event-mail";
+import { renderEventMail, type MailFrame, type MailZone, type RenderedMail } from "@/shared/mail/event-mail";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { eventTitleLine } from "@/shared/event/event-title";
 import { priceLabel } from "@/shared/event/payment-label";
@@ -90,7 +90,12 @@ function placeZone(event: MailEvent, withPrice: boolean): MailZone | null {
   return value ? { label: "Place", value } : null;
 }
 
-export function inviteMail(origin: string, event: MailEvent, guest: { name: string; token: string }): RenderedMail {
+export function inviteMail(
+  origin: string,
+  event: MailEvent,
+  guest: { name: string; token: string },
+  frame?: MailFrame,
+): RenderedMail {
   const zones: (MailZone | null)[] = [
     { label: "Invitation for", value: guest.name, lead: true },
     { label: "Event", value: event.name },
@@ -105,7 +110,7 @@ export function inviteMail(origin: string, event: MailEvent, guest: { name: stri
     button: { label: "I'M GOING", href: link },
     footnote: INVITE_NOTE,
     footer: { logoSrc: adedLogo(origin), unsubscribeHref: unsubscribePage(origin, event, guest.token) },
-  });
+  }, frame);
 }
 
 export function inviteSubject(event: MailEvent): string {
