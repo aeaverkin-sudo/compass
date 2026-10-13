@@ -1,5 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { publicOrigin } from "@/shared/lib/public-origin";
+import { sendFreezeMails } from "@/shared/services/freeze-mail";
 import { runPurge } from "@/shared/services/trial-purge";
 
 export const runtime = "nodejs";
@@ -18,7 +20,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
   try {
-    const report = await runPurge();
+    const purged = await runPurge();
+    let freezeMails = 0;
+    try {
+      freezeMails = await sendFreezeMails(publicOrigin(request));
+    } catch (mailError) {
+      console.error("[purge] freeze mails", mailError);
+    }
+    const report = { ...purged, freezeMails };
     console.info("[purge]", report);
     return NextResponse.json(report, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

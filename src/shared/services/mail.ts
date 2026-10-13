@@ -35,6 +35,15 @@ export async function sendChangeCode(to: string, code: string) {
   );
 }
 
+/** The one mail an event guest gets when the card freezes. */
+export async function sendFreezeNotice(to: string, eventName: string, link: string) {
+  await send(
+    to,
+    `Your card from ${eventName}`,
+    `Your card and the people you met are frozen for 40 hours, then they will be deleted. Keep your profile — one tap, free: ${link}`,
+  );
+}
+
 export async function sendPasswordReset(to: string, link: string) {
   await send(
     to,
