@@ -165,6 +165,34 @@ export async function logMail(eventId: string, kind: MailKind, guestId: string |
   if (error && !/duplicate|unique/i.test(error.message)) console.error("[mail] log", error.message);
 }
 
+const GUEST_TOKEN = /^[A-Za-z0-9_-]{21}$/;
+
+/** No more invites or reminders for this guest. The deletion mail still goes: it is about the data. */
+export async function unsubscribeGuest(eventId: string, token: unknown): Promise<boolean> {
+  if (typeof token !== "string" || !GUEST_TOKEN.test(token)) return false;
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin
+    .from("event_guests")
+    .update({ unsubscribed_at: new Date().toISOString() })
+    .eq("event_id", eventId)
+    .eq("token", token)
+    .select("id, unsubscribed_at");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
+/** Resend reported a bounce or a complaint for this mail: no more mail to that guest. */
+export async function markBounced(providerId: string): Promise<boolean> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.from("event_mail_log").select("guest_id").eq("provider_id", providerId);
+  if (error) throw new Error(error.message);
+  const guestIds = [...new Set(((data ?? []) as { guest_id: string | null }[]).flatMap((row) => (row.guest_id ? [row.guest_id] : [])))];
+  if (guestIds.length === 0) return false;
+  const updated = await admin.from("event_guests").update({ bounced_at: new Date().toISOString() }).in("id", guestIds).is("bounced_at", null);
+  if (updated.error) throw new Error(updated.error.message);
+  return true;
+}
+
 export type ReminderState = { ready: boolean; enabled: boolean; sentAt: string | null };
 
 export async function loadReminder(eventId: string): Promise<ReminderState> {
