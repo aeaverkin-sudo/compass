@@ -1,0 +1,104 @@
+/**
+ * One layout for every event mail: the zone grid of the cabinet and Profile.
+ * Tables and inline styles only, so Gmail, Outlook and Apple Mail draw it the same.
+ */
+
+const FONT = "Arial, Helvetica, sans-serif";
+const INK = "#111111";
+const GREY = "#999999";
+const RULE = "#999999";
+const SKY = "#c5e8f7";
+const WIDTH = 480;
+const OUTER = 40;
+const LABEL = 86;
+const GAP = 14;
+const POSTER = 400;
+
+export type MailZone = { label: string; value: string; lead?: boolean };
+
+export type EventMailInput = {
+  /** The OG poster of the event, 1200×630. */
+  poster?: { src: string; alt: string } | null;
+  zones: MailZone[];
+  button?: { label: string; href: string } | null;
+  footnote?: string | null;
+  /** `Sent by … via ADED.` with the unsubscribe link, or a plain line. */
+  footer: { organiser: string; unsubscribeHref: string | null } | { plain: string };
+};
+
+export type RenderedMail = { html: string; text: string };
+
+function escape(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function zoneRow(zone: MailZone, first: boolean): string {
+  const border = first ? "" : `border-top:1px solid ${RULE};`;
+  const value = zone.lead
+    ? `font-family:${FONT};font-size:26px;line-height:1.2;font-weight:600;letter-spacing:-0.5px;color:${INK};`
+    : `font-family:${FONT};font-size:15.5px;line-height:1.45;color:${INK};`;
+  return `<tr><td style="${border}padding:18px 0;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="${LABEL}" valign="top" style="width:${LABEL}px;padding-top:${zone.lead ? 9 : 3}px;font-family:${FONT};font-size:11px;line-height:1.35;letter-spacing:0.1em;text-transform:uppercase;color:${GREY};">${escape(zone.label)}</td>
+<td valign="top" style="padding-left:${GAP}px;${value}">${escape(zone.value)}</td>
+</tr></table></td></tr>`;
+}
+
+function buttonRow(button: { label: string; href: string }, footnote: string | null | undefined): string {
+  const note = footnote
+    ? `<p style="margin:12px 0 0;font-family:${FONT};font-size:12px;line-height:1.45;color:${GREY};">${escape(footnote)}</p>`
+    : "";
+  return `<tr><td style="padding:0 0 24px ${LABEL + GAP}px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${SKY}" style="background:${SKY};">
+<a href="${escape(button.href)}" style="display:inline-block;padding:11px 22px;font-family:${FONT};font-size:13px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase;color:${INK};text-decoration:none;">${escape(button.label)}</a>
+</td></tr></table>${note}</td></tr>`;
+}
+
+function footerRow(footer: EventMailInput["footer"]): string {
+  const style = `border-top:1px solid ${RULE};padding:18px 0 0;font-family:${FONT};font-size:12px;line-height:1.45;color:${GREY};`;
+  if ("plain" in footer) return `<tr><td style="${style}">${escape(footer.plain)}</td></tr>`;
+  const sent = `Sent by ${escape(footer.organiser)} via ADED.`;
+  const unsubscribe = footer.unsubscribeHref
+    ? ` <a href="${escape(footer.unsubscribeHref)}" style="color:${GREY};text-decoration:underline;">Unsubscribe</a> from this event's mail.`
+    : "";
+  return `<tr><td style="${style}">${sent}${unsubscribe}</td></tr>`;
+}
+
+function footerText(footer: EventMailInput["footer"]): string {
+  if ("plain" in footer) return footer.plain;
+  const sent = `Sent by ${footer.organiser} via ADED.`;
+  return footer.unsubscribeHref ? `${sent} Unsubscribe from this event's mail: ${footer.unsubscribeHref}` : sent;
+}
+
+export function renderEventMail(input: EventMailInput): RenderedMail {
+  const poster = input.poster
+    ? `<tr><td align="center" style="padding:24px 0 32px;"><img src="${escape(input.poster.src)}" width="${POSTER}" alt="${escape(input.poster.alt)}" style="display:block;width:${POSTER}px;max-width:100%;height:auto;border:0;outline:none;" /></td></tr>`
+    : `<tr><td style="padding:12px 0 0;"></td></tr>`;
+  const zones = input.zones.map((zone, index) => zoneRow(zone, index === 0)).join("\n");
+  const button = input.button ? buttonRow(input.button, input.footnote) : "";
+
+  const html = `<!doctype html>
+<html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="color-scheme" content="light" /></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background:#ffffff;"><tr><td align="center" style="padding:${OUTER}px 16px;">
+<table role="presentation" width="${WIDTH}" cellpadding="0" cellspacing="0" border="0" style="width:${WIDTH}px;max-width:100%;">
+<tr><td style="font-family:${FONT};font-size:13px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase;color:${INK};">ADED</td></tr>
+${poster}
+${zones}
+${button}
+${footerRow(input.footer)}
+</table></td></tr></table>
+</body></html>`;
+
+  const lines = ["ADED", ""];
+  for (const zone of input.zones) lines.push(`${zone.label}: ${zone.value}`);
+  if (input.button) lines.push("", `${input.button.label}: ${input.button.href}`);
+  if (input.footnote) lines.push(input.footnote);
+  lines.push("", footerText(input.footer));
+  return { html, text: lines.join("\n") };
+}

@@ -18,6 +18,64 @@ async function send(to: string, subject: string, text: string) {
   if (error) throw new Error(error.message);
 }
 
+export type HtmlMail = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string | null;
+  headers?: Record<string, string>;
+};
+
+export type BatchOutcome = { ok: true; id: string } | { ok: false; error: string };
+
+export const BATCH_MAX = 100;
+
+function payload(mail: HtmlMail) {
+  return {
+    from: process.env.EMAIL_FROM!,
+    to: mail.to,
+    subject: mail.subject,
+    html: mail.html,
+    text: mail.text,
+    ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
+    ...(mail.headers ? { headers: mail.headers } : {}),
+  };
+}
+
+/** One laid-out mail. Returns the Resend id. */
+export async function sendHtmlMail(mail: HtmlMail): Promise<string | null> {
+  if (!mailConfigured()) throw new Error("mail_not_configured");
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const { data, error } = await resend.emails.send(payload(mail));
+  if (error) throw new Error(error.message);
+  return data?.id ?? null;
+}
+
+/** Up to 100 mails in one call. One bad address fails alone, the rest go. */
+export async function sendHtmlBatch(mails: HtmlMail[], idempotencyKey?: string): Promise<BatchOutcome[]> {
+  if (!mailConfigured()) throw new Error("mail_not_configured");
+  if (mails.length === 0) return [];
+  if (mails.length > BATCH_MAX) throw new Error("batch_too_large");
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const { data, error } = await resend.batch.send(mails.map(payload), {
+    batchValidation: "permissive",
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+  });
+  if (error || !data) {
+    const message = error?.message ?? "Resend refused the batch.";
+    return mails.map(() => ({ ok: false, error: message }));
+  }
+  const failed = new Map((data.errors ?? []).map((item) => [item.index, item.message]));
+  const ids = [...data.data];
+  return mails.map((_, index) => {
+    const reason = failed.get(index);
+    if (reason) return { ok: false, error: reason };
+    const id = ids.shift()?.id;
+    return id ? { ok: true, id } : { ok: false, error: "No id from Resend." };
+  });
+}
+
 export async function sendStarterCode(to: string, code: string) {
   await send(
     to,
