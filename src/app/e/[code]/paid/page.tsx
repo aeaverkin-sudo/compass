@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadOwnRegistration } from "@/shared/services/event-registration";
 import { markPaidFromReturn } from "@/shared/services/event-payment";
+import { isPermanentAccount } from "@/shared/services/guest-accept";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +32,12 @@ export default async function EventPaidPage({ params }: PageProps) {
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  if (!user || user.is_anonymous) redirect(invite);
+  if (!user) redirect(invite);
 
   const registration = await loadOwnRegistration(event.id, user.id);
   if (!registration) redirect(invite);
 
   await markPaidFromReturn(event.id, user.id);
-  redirect(`/e/${encodeURIComponent(lookup)}/join`);
+  const permanent = await isPermanentAccount({ id: user.id, anonymous: Boolean(user.is_anonymous) });
+  redirect(permanent ? `/e/${encodeURIComponent(lookup)}/join` : "/main");
 }

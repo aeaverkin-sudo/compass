@@ -85,12 +85,14 @@ function AddEmail({ pendingEmail }: { pendingEmail: string | null }) {
 /** Under the rows of a guest's event card: add more, then Wallet before the end or Keep after it. */
 export function EventPassFooter({
   ended,
+  payPending,
   deleteAt,
   needsEmail,
   pendingEmail,
   onAdd,
 }: {
   ended: boolean;
+  payPending: boolean;
   deleteAt: string | null;
   needsEmail: boolean;
   pendingEmail: string | null;
@@ -124,7 +126,13 @@ export function EventPassFooter({
         </>
       ) : (
         <>
-          <div className="mt-6">
+          {payPending ? (
+            <p className="mt-6 mb-0 inline-flex max-w-[260px] items-center gap-2 text-center t-meta text-[var(--grey)]">
+              <span aria-hidden className="inline-block size-1.5 shrink-0 rounded-full bg-[var(--pay-pending)]" />
+              Payment pending — the organiser will confirm it.
+            </p>
+          ) : null}
+          <div className={payPending ? "mt-3" : "mt-6"}>
             <button
               type="button"
               data-card-content

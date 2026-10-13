@@ -25,6 +25,7 @@ type AcceptReply = {
   tokenHash?: string;
   cardId?: string | null;
   confirmEmail?: string | null;
+  pay?: boolean;
   error?: string;
 };
 
@@ -102,12 +103,12 @@ export function InviteActions({ lookup, token, permanent, holdsPass, auto, ended
     }).catch(() => undefined);
   }, [base, token]);
 
-  const enterPass = async (cardId: string | null | undefined) => {
+  const enterPass = async (cardId: string | null | undefined, pay = false) => {
     await hydrateCardsFromServer();
     const state = useAppStore.getState();
     const index = cardId ? state.cards.findIndex((card) => card.id === cardId) : -1;
     if (index >= 0) state.setCurrentCardIndex(index);
-    router.replace("/main");
+    router.replace(pay ? `/e/${encodeURIComponent(lookup)}/pay` : "/main");
   };
 
   const fail = (text: string) => {
@@ -144,7 +145,7 @@ export function InviteActions({ lookup, token, permanent, holdsPass, auto, ended
         .updateUser({ email: reply.confirmEmail }, { emailRedirectTo: `${window.location.origin}/main` })
         .catch(() => undefined);
     }
-    await enterPass(reply.cardId);
+    await enterPass(reply.cardId, reply.pay === true);
   };
 
   const acceptToken = async () => {

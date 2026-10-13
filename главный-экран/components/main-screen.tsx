@@ -266,6 +266,7 @@ export function MainScreen() {
                 return (
                   <EventPassFooter
                     ended={pass.ended}
+                    payPending={pass.payPending}
                     deleteAt={eventPass.deleteAt}
                     needsEmail={eventPass.needsEmail}
                     pendingEmail={eventPass.pendingEmail}

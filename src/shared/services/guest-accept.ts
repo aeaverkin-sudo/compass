@@ -7,6 +7,8 @@ import { findPassGuest, passCardName, type PassGuest } from "@/shared/services/e
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import { listOwnPortfolios, loadOwnRegistration, registerForEvent } from "@/shared/services/event-registration";
 import { eventListStatus } from "@/shared/services/events";
+import { loadEventPay } from "@/shared/services/event-payment";
+import { payView } from "@/shared/event/payment-label";
 import { eventGuestEnd, startEventGuestClock } from "@/shared/services/trial";
 
 export type SessionUser = { id: string; anonymous: boolean } | null;
@@ -15,9 +17,9 @@ export type GuestAcceptResult =
   /** Leave for this path. A notice is shown first. */
   | { ok: true; kind: "go"; next: string; notice?: string }
   /** This browser already holds the guest's account. A new email still waits for its confirmation. */
-  | { ok: true; kind: "here"; cardId: string | null; confirmEmail?: string }
-  /** The browser signs in as the guest with this one-time hash. */
-  | { ok: true; kind: "signin"; tokenHash: string; cardId: string | null }
+  | { ok: true; kind: "here"; cardId: string | null; confirmEmail?: string; pay?: boolean }
+  /** The browser signs in as the guest with this one-time hash. Pay: the payment screen comes before the pass. */
+  | { ok: true; kind: "signin"; tokenHash: string; cardId: string | null; pay?: boolean }
   /** A phone-only guest on a device that never held the pass. */
   | { ok: true; kind: "other-device" }
   | { ok: false; status: number; error: string };
@@ -253,10 +255,18 @@ async function settleRegistration(userId: string, registrationId: string, guestI
   }
 }
 
-async function enterAsPass(userId: string, session: SessionUser, cardId: string | null): Promise<GuestAcceptResult> {
-  if (session?.id === userId) return { ok: true, kind: "here", cardId };
+/** A paid event shows the payment screen first, unless a paid list has already confirmed it. */
+async function paysFirst(eventId: string, userId: string): Promise<boolean> {
+  const pay = await loadEventPay(eventId);
+  if (!pay.isPaid) return false;
+  const registration = await loadOwnRegistration(eventId, userId);
+  return payView(registration?.paidStatus ?? "", registration?.paidSource ?? null).key !== "confirmed";
+}
+
+async function enterAsPass(userId: string, session: SessionUser, cardId: string | null, pay = false): Promise<GuestAcceptResult> {
+  if (session?.id === userId) return { ok: true, kind: "here", cardId, pay };
   const tokenHash = await magicHash(userId);
-  if (tokenHash) return { ok: true, kind: "signin", tokenHash, cardId };
+  if (tokenHash) return { ok: true, kind: "signin", tokenHash, cardId, pay };
   return { ok: true, kind: "other-device" };
 }
 
@@ -307,7 +317,7 @@ async function issuePass(
   lookup: string,
   guest: PassGuest | null,
   timeZone: string | null,
-): Promise<{ ok: true; registrationId: string; cardId: string } | { ok: false; status: number; error: string }> {
+): Promise<{ ok: true; registrationId: string; cardId: string; pay: boolean } | { ok: false; status: number; error: string }> {
   await markPassAccount(userId, timeZone);
   await startEventGuestClock(userId, eventGuestEnd(event));
 
@@ -324,7 +334,7 @@ async function issuePass(
     }
   }
   await settleRegistration(userId, joined.registration.id, guest?.id ?? (await linkedGuestId(joined.registration.id)));
-  return { ok: true, registrationId: joined.registration.id, cardId: joined.registration.cardId };
+  return { ok: true, registrationId: joined.registration.id, cardId: joined.registration.cardId, pay: await paysFirst(event.id, userId) };
 }
 
 /**
@@ -369,8 +379,8 @@ export async function acceptGuestPass(
 
   const issued = await issuePass(userId, guest, event, lookup, guest, validTimeZone(timeZone));
   if (!issued.ok) return issued;
-  if (guest.email) return enterAsPass(userId, session, issued.cardId);
-  return { ok: true, kind: "here", cardId: issued.cardId };
+  if (guest.email) return enterAsPass(userId, session, issued.cardId, issued.pay);
+  return { ok: true, kind: "here", cardId: issued.cardId, pay: issued.pay };
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -422,5 +432,5 @@ export async function createOpenPass(
   const admin = createAdminSupabaseClient();
   const current = contact.email ? (await admin.auth.admin.getUserById(session.id)).data.user?.email?.toLowerCase() : null;
   const confirmEmail = contact.email && current !== contact.email ? contact.email : undefined;
-  return { ok: true, kind: "here", cardId: issued.cardId, confirmEmail };
+  return { ok: true, kind: "here", cardId: issued.cardId, confirmEmail, pay: issued.pay };
 }

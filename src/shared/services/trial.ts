@@ -32,7 +32,8 @@ export type AccountStatus = {
   sharing?: { analytics: boolean; connections: boolean };
 };
 
-export type EventPassCard = { cardId: string; eventName: string; ended: boolean };
+/** payPending: a paid event the organiser has not confirmed yet. */
+export type EventPassCard = { cardId: string; eventName: string; ended: boolean; payPending: boolean };
 
 export type EventPassStatus = {
   passes: EventPassCard[];
