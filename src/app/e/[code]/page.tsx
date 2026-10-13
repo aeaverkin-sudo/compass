@@ -14,6 +14,8 @@ import { requestOrigin } from "@/shared/services/public-card-meta";
 import { eventTitleLine } from "@/shared/event/event-title";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
 import { holdsEventPass, isPermanentAccount } from "@/shared/services/guest-accept";
+import { loadGoingSummary } from "@/shared/services/event-going";
+import { GoingLine } from "@/shared/event/going-line";
 import { InviteActions } from "./invite-actions";
 
 export const dynamic = "force-dynamic";
@@ -138,12 +140,13 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const holdsPass = !permanent && !guest && (await holdsEventPass(session, event.id));
   const viewerId = user && !user.is_anonymous ? user.id : null;
   const counts = await loadOwnerEventCounts(event.id, viewerId);
+  const going = guest ? null : await loadGoingSummary(event.id, user?.id ?? null);
   const back = guest ? `/e/${encodeURIComponent(lookup)}?g=${guest.token}&go=1` : `/e/${encodeURIComponent(lookup)}/join`;
   const signInHref = `/register?signin=1&next=${encodeURIComponent(back)}`;
   const opensPass = !ended || Boolean(guest?.registrationId);
   const auto =
     Boolean(guest) && ((ended && Boolean(guest?.registrationId)) || (go && (permanent || Boolean(guest?.registrationId))));
-  const poster = (
+  const cover = (
     <CoverButton
       variant="card"
       layout={event.layout}
@@ -162,6 +165,21 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
         logoLook: event.logoLook,
       }}
     />
+  );
+  const poster = going ? (
+    <>
+      {cover}
+      <GoingLine
+        lookup={lookup}
+        going={going.going}
+        wereThere={going.wereThere}
+        met={going.met}
+        ended={ended}
+        className="mt-4"
+      />
+    </>
+  ) : (
+    cover
   );
 
   return (

@@ -45,6 +45,7 @@ export function ManageHome({
   canRemove,
   teamFull,
   endedLabel,
+  showGoing,
   book,
 }: {
   lookup: string;
@@ -78,6 +79,8 @@ export function ManageHome({
   teamFull: boolean;
   /** Set once the event is over. Invite and check-in stay off. */
   endedLabel: string | null;
+  /** Guests see who's going under the poster. */
+  showGoing: boolean;
   /** Guest lists. Null until the lists migration has run, and the zones stay hidden. */
   book: { lists: BookList[]; pairs: NamePair[]; passes: GuestPass[]; total: number; going: number; checkedIn: number } | null;
 }) {
@@ -160,6 +163,8 @@ export function ManageHome({
             confirmed={confirmed}
             checkedIn={book ? book.checkedIn : checkedIn}
             isPaid={isPaid}
+            lookup={lookup}
+            showGoing={showGoing}
           />
           {book ? (
             <>

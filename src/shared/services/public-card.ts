@@ -68,7 +68,7 @@ function publicUrl(url: string | null, attachmentId: string | null, readyIds: Se
   return "";
 }
 
-async function readyAttachmentIds(ids: string[]): Promise<Set<string>> {
+export async function readyAttachmentIds(ids: string[]): Promise<Set<string>> {
   const unique = [...new Set(ids)];
   if (unique.length === 0) return new Set();
   const admin = createAdminSupabaseClient();

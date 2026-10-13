@@ -27,6 +27,8 @@ type PublicCardClientProps = {
   save?: boolean;
   /** The owner deleted the profile. The book's copy, read only. */
   deleted?: boolean;
+  /** Where back leads instead of Network, e.g. the event's going list. */
+  backHref?: string;
 };
 
 type SaveState = "loading" | "ready" | "saved" | "own" | "busy";
@@ -56,6 +58,7 @@ export function PublicCardClient({
   inside = false,
   save = false,
   deleted = false,
+  backHref,
 }: PublicCardClientProps) {
   const router = useRouter();
   const [notes, setNotes] = useState<DeliveredNote[]>([]);
@@ -252,7 +255,10 @@ export function PublicCardClient({
     return (
       <div className="bg-white pt-[84px]" style={{ "--card-frame-top": "84px" } as CSSProperties}>
         {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
-        <BackButton fallbackHref="/network" onBack={save ? () => router.push("/network") : undefined} />
+        <BackButton
+          fallbackHref={backHref ?? "/network"}
+          onBack={save ? () => router.push(backHref ?? "/network") : undefined}
+        />
         {sheet}
         {deleted ? <SaveBar state="deleted" onSave={() => undefined} /> : null}
         {save && !deleted ? <SaveBar state={saveState} onSave={() => void keep()} /> : null}

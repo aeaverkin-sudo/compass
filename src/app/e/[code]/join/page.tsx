@@ -7,6 +7,7 @@ import { ensurePayCode, listOwnPortfolios, loadOwnRegistration } from "@/shared/
 import { loadEventPay } from "@/shared/services/event-payment";
 import { eventListStatus } from "@/shared/services/events";
 import { holdsEventPass, isPermanentAccount } from "@/shared/services/guest-accept";
+import { loadGoingSummary } from "@/shared/services/event-going";
 import { EventJoin } from "./event-join";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,7 @@ export default async function EventJoinPage({ params }: PageProps) {
   const loaded = await loadOwnRegistration(event.id, user.id);
   const registration = loaded && pay.isPaid ? await ensurePayCode(event.id, user.id, loaded) : loaded;
   const portfolios = await listOwnPortfolios(user.id);
+  const going = await loadGoingSummary(event.id, user.id);
 
   return (
     <EventJoin
@@ -59,6 +61,7 @@ export default async function EventJoinPage({ params }: PageProps) {
       portfolios={portfolios}
       registration={registration}
       pay={pay}
+      going={going}
     />
   );
 }
