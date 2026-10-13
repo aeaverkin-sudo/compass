@@ -64,6 +64,22 @@ export async function findPassGuest(eventId: string, token: unknown): Promise<Pa
   return guestFrom(result.data as PassGuestRow);
 }
 
+/** The personal link of this token, wherever its event is. It enters the pass by itself. */
+export async function guestEntryPath(token: unknown): Promise<string | null> {
+  if (!isGuestToken(token)) return null;
+  const admin = createAdminSupabaseClient();
+  const guest = await admin.from("event_guests").select("event_id").eq("token", token).maybeSingle();
+  if (guest.error || !guest.data) return null;
+  const eventId = (guest.data as { event_id: string }).event_id;
+  const withSlug = await admin.from("events").select("code, slug").eq("id", eventId).maybeSingle();
+  const event = withSlug.error && /slug/i.test(withSlug.error.message)
+    ? await admin.from("events").select("code").eq("id", eventId).maybeSingle()
+    : withSlug;
+  if (event.error || !event.data) return null;
+  const row = event.data as { slug?: string | null; code: string };
+  return `/e/${encodeURIComponent(row.slug?.trim() || row.code)}?g=${token}&go=1`;
+}
+
 /** First open of the personal link. Called from the page script, not on GET. */
 export async function markGuestOpened(eventId: string, token: unknown): Promise<boolean> {
   if (!isGuestToken(token)) return false;

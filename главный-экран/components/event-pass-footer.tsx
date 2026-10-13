@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { SkyToast } from "@/shared/components/sky-toast";
@@ -82,7 +83,7 @@ function AddEmail({ pendingEmail }: { pendingEmail: string | null }) {
   );
 }
 
-/** Under the rows of a guest's event card: add more, then Wallet before the end or Keep after it. */
+/** Under the rows of a guest's event card: add more, then the scanner and Wallet before the end, or Keep after it. */
 export function EventPassFooter({
   ended,
   payPending,
@@ -133,6 +134,17 @@ export function EventPassFooter({
             </p>
           ) : null}
           <div className={payPending ? "mt-3" : "mt-6"}>
+            <Link
+              href="/scan"
+              data-card-content
+              data-no-swipe
+              className="press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline"
+            >
+              Scan a card
+            </Link>
+          </div>
+          <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">Scan a guest&apos;s QR to keep their card.</p>
+          <div className="mt-6">
             <button
               type="button"
               data-card-content

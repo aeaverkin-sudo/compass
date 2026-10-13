@@ -20,7 +20,12 @@ export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ from?: string | string[]; g?: string | string[]; go?: string | string[] }>;
+  searchParams: Promise<{
+    from?: string | string[];
+    g?: string | string[];
+    go?: string | string[];
+    then?: string | string[];
+  }>;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -126,6 +131,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const ended = eventListStatus(event.date, Date.now(), event.endsAt) === "past";
   const guestToken = Array.isArray(query.g) ? query.g[0] : query.g;
   const go = (Array.isArray(query.go) ? query.go[0] : query.go) === "1";
+  const then = (Array.isArray(query.then) ? query.then[0] : query.then) === "scan" ? "/scan" : null;
   const guest = guestToken ? await findPassGuest(event.id, guestToken) : null;
   const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
   const permanent = await isPermanentAccount(session);
@@ -135,7 +141,8 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const back = guest ? `/e/${encodeURIComponent(lookup)}?g=${guest.token}&go=1` : `/e/${encodeURIComponent(lookup)}/join`;
   const signInHref = `/register?signin=1&next=${encodeURIComponent(back)}`;
   const opensPass = !ended || Boolean(guest?.registrationId);
-  const auto = Boolean(guest) && ((ended && Boolean(guest?.registrationId)) || (go && permanent));
+  const auto =
+    Boolean(guest) && ((ended && Boolean(guest?.registrationId)) || (go && (permanent || Boolean(guest?.registrationId))));
   const poster = (
     <CoverButton
       variant="card"
@@ -184,6 +191,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
               auto={auto}
               ended={ended}
               signInHref={signInHref}
+              then={then}
               poster={poster}
             />
           ) : (

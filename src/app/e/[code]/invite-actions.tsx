@@ -75,10 +75,22 @@ type InviteActionsProps = {
   /** After the event only the personal link still opens a pass. */
   ended: boolean;
   signInHref: string;
+  /** Where the pass goes once it is open, instead of the card. */
+  then?: string | null;
   poster: ReactNode;
 };
 
-export function InviteActions({ lookup, token, permanent, holdsPass, auto, ended, signInHref, poster }: InviteActionsProps) {
+export function InviteActions({
+  lookup,
+  token,
+  permanent,
+  holdsPass,
+  auto,
+  ended,
+  signInHref,
+  then = null,
+  poster,
+}: InviteActionsProps) {
   const router = useRouter();
   const sessionReady = useSessionBootstrap();
   const [busy, setBusy] = useState(false);
@@ -108,7 +120,7 @@ export function InviteActions({ lookup, token, permanent, holdsPass, auto, ended
     const state = useAppStore.getState();
     const index = cardId ? state.cards.findIndex((card) => card.id === cardId) : -1;
     if (index >= 0) state.setCurrentCardIndex(index);
-    router.replace(pay ? `/e/${encodeURIComponent(lookup)}/pay` : "/main");
+    router.replace(pay ? `/e/${encodeURIComponent(lookup)}/pay` : (then ?? "/main"));
   };
 
   const fail = (text: string) => {
