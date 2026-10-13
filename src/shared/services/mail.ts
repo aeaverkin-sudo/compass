@@ -45,6 +45,11 @@ export async function sendFreezeNotice(to: string, eventName: string, deleteOn: 
   await send(to, `Your card from ${eventName}`, body);
 }
 
+/** The open link, the same email on another device. The link signs in once. */
+export async function sendPassLink(to: string, eventName: string, link: string) {
+  await send(to, `Your pass for ${eventName}`, `Open this link to get your pass: ${link}`);
+}
+
 export async function sendPasswordReset(to: string, link: string) {
   await send(
     to,

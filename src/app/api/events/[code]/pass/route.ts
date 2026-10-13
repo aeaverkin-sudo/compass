@@ -2,11 +2,19 @@ import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { createOpenPass } from "@/shared/services/guest-accept";
 import { acceptReply, noStore } from "@/shared/services/guest-accept-reply";
 import { requestIp } from "@/shared/services/event-pass-guard";
+import { publicOrigin } from "@/shared/lib/public-origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type RouteProps = { params: Promise<{ code: string }> };
+
+/** A sign-in link goes out by mail. The site address comes first, never a request header alone. */
+function mailOrigin(request: Request): string {
+  const canonical = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (canonical && /^https?:\/\//i.test(canonical)) return canonical;
+  return publicOrigin(request);
+}
 
 /** Create my pass on the open link: a name and an email or a phone. */
 export async function POST(request: Request, context: RouteProps) {
@@ -28,6 +36,7 @@ export async function POST(request: Request, context: RouteProps) {
       await createOpenPass(code, { name: body.name, contact: body.contact, timeZone: body.timeZone }, session, {
         ip: requestIp(request),
         trap,
+        origin: mailOrigin(request),
       }),
     );
   } catch (error) {

@@ -19,7 +19,8 @@ const FIELD =
   "compass-input block w-full border-0 bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 
 type AcceptReply = {
-  kind?: "go" | "here" | "signin" | "other-device";
+  kind?: "go" | "here" | "signin" | "other-device" | "notice";
+  text?: string;
   next?: string;
   notice?: string | null;
   tokenHash?: string;
@@ -30,7 +31,7 @@ type AcceptReply = {
 };
 
 /** Another person's portfolios must not stay in this browser once the guest signs in. */
-function clearLocal() {
+export function clearLocal() {
   dropPendingCardUpserts();
   dropPendingItemUpserts();
   dropPendingNotes();
@@ -143,6 +144,7 @@ export function InviteActions({
     const reply = (await response.json()) as AcceptReply;
     if (!response.ok || !reply.kind) return fail(reply.error ?? "Could not open your pass.");
     if (reply.kind === "other-device") return fail("Open this link on the phone you used first");
+    if (reply.kind === "notice") return fail(reply.text ?? "");
     if (reply.kind === "go" && reply.next) {
       if (reply.notice) {
         setNotice({ text: reply.notice, next: reply.next });

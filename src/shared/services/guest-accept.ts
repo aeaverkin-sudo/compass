@@ -10,6 +10,7 @@ import { eventListStatus } from "@/shared/services/events";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { payView } from "@/shared/event/payment-label";
 import { eventGuestEnd, startEventGuestClock } from "@/shared/services/trial";
+import { sendPassLink } from "@/shared/services/mail";
 import { holderOfContact, passAllowed, recordPass, TRY_LATER } from "@/shared/services/event-pass-guard";
 import { loadEventSeats, SOLD_OUT } from "@/shared/services/event-seats";
 
@@ -24,6 +25,8 @@ export type GuestAcceptResult =
   | { ok: true; kind: "signin"; tokenHash: string; cardId: string | null; pay?: boolean }
   /** A phone-only guest on a device that never held the pass. */
   | { ok: true; kind: "other-device" }
+  /** Nothing to open here. The line says what happens next. */
+  | { ok: true; kind: "notice"; text: string }
   | { ok: false; status: number; error: string };
 
 export const TAKEN_EMAIL = "This email already has an ADED profile";
@@ -85,6 +88,49 @@ async function magicHash(userId: string): Promise<string | "password" | null> {
   const link = await admin.auth.admin.generateLink({ type: "magiclink", email });
   if (link.error) throw new Error(link.error.message);
   return link.data.properties?.hashed_token ?? null;
+}
+
+async function authUser(userId: string) {
+  const admin = createAdminSupabaseClient();
+  return (await admin.auth.admin.getUserById(userId)).data.user ?? null;
+}
+
+async function hasPassword(userId: string): Promise<boolean> {
+  return Boolean((await authUser(userId))?.app_metadata?.[PASSWORD_SET]);
+}
+
+/** The account's own confirmed address, not one only typed on a card. */
+async function ownsEmail(userId: string, email: string): Promise<boolean> {
+  return (await authUser(userId))?.email?.trim().toLowerCase() === email;
+}
+
+export const PHONE_HAS_PASS = "This phone already has a pass. Open it on the device you used first.";
+
+/**
+ * The open link, the same email on another device: the pass is issued to that
+ * account and the sign-in goes to the address. Whoever reads the mail gets in.
+ * The mail counts in the open link limit.
+ */
+async function mailPassLink(
+  userId: string,
+  person: PassPerson & { email: string },
+  event: EventInvite,
+  lookup: string,
+  timeZone: unknown,
+  guard: { ip: string; origin: string },
+): Promise<GuestAcceptResult> {
+  if (!(await passAllowed(event.id, guard.ip))) return { ok: false, status: 429, error: TRY_LATER };
+  const fresh = !(await loadOwnRegistration(event.id, userId));
+  if (fresh && (await loadEventSeats(event.id)).soldOut) return { ok: false, status: 409, error: SOLD_OUT };
+  const issued = await issuePass(userId, person, event, lookup, null, validTimeZone(timeZone));
+  if (!issued.ok) return issued;
+  const tokenHash = await magicHash(userId);
+  if (!tokenHash || tokenHash === "password") return { ok: true, kind: "notice", text: PHONE_HAS_PASS };
+  const slug = encodeURIComponent(event.slug ?? event.code);
+  const link = `${guard.origin}/e/${slug}/enter?t=${encodeURIComponent(tokenHash)}${issued.pay ? "&pay=1" : ""}`;
+  await sendPassLink(person.email, event.name.replace(/\s+/g, " ").trim(), link);
+  await recordPass(event.id, guard.ip);
+  return { ok: true, kind: "notice", text: `We sent a link to ${person.email} — open it to get your pass.` };
 }
 
 async function createEmailGuest(email: string): Promise<string> {
@@ -409,13 +455,14 @@ export function readPassContact(raw: unknown): { email: string | null; phone: st
 /**
  * Create my pass on the open link: a name and an email or a phone.
  * The pass lives on this browser's session. A typed email is confirmed by Supabase afterwards,
- * so it never signs anybody in by itself.
+ * so it never signs anybody in by itself. An email that already holds an event pass elsewhere
+ * gets its sign-in by mail; a permanent account or one with a password goes to Sign in.
  */
 export async function createOpenPass(
   lookup: string,
   input: { name: unknown; contact: unknown; timeZone?: unknown },
   session: SessionUser,
-  guard: { ip: string; trap: boolean },
+  guard: { ip: string; trap: boolean; origin: string },
 ): Promise<GuestAcceptResult> {
   const event = await loadEventInvite(lookup);
   if (!event) return { ok: false, status: 404, error: "Event not found" };
@@ -433,18 +480,14 @@ export async function createOpenPass(
   if (!contact) return { ok: false, status: 400, error: "Add your email or phone." };
 
   const holder = await holderOfContact(event.id, contact);
-  if (holder && holder !== session?.id) {
-    if (await isPermanentAccount({ id: holder, anonymous: false })) {
+  const emailOwner = contact.email ? await userIdForEmail(contact.email) : null;
+  const other = [holder, emailOwner].find((id): id is string => Boolean(id) && id !== session?.id) ?? null;
+  if (other) {
+    if (!isPassAccount(await accountKind(other)) || (await hasPassword(other))) {
       return { ok: true, kind: "go", next: signInPath(joinPath), notice: TAKEN_EMAIL };
     }
-    return { ok: true, kind: "other-device" };
-  }
-
-  if (contact.email) {
-    const owner = await userIdForEmail(contact.email);
-    if (owner && owner !== session?.id) {
-      return { ok: true, kind: "go", next: signInPath(joinPath), notice: TAKEN_EMAIL };
-    }
+    if (!contact.email || !(await ownsEmail(other, contact.email))) return { ok: true, kind: "notice", text: PHONE_HAS_PASS };
+    return mailPassLink(other, { name, ...contact, email: contact.email }, event, lookup, input.timeZone, guard);
   }
   if (!session) return { ok: false, status: 401, error: "Open the link again." };
 
