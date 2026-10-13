@@ -14,7 +14,8 @@ import { eventHasEnded } from "@/shared/services/events";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 import { eventTitleLine } from "@/shared/event/event-title";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
-import { holdsEventPass, isPermanentAccount } from "@/shared/services/guest-accept";
+import { holdsEventPass, isPermanentAccount, mayJoinWithoutLink } from "@/shared/services/guest-accept";
+import { loadOpenLink } from "@/shared/services/event-open-link";
 import { loadGoingSummary } from "@/shared/services/event-going";
 import { GoingLine } from "@/shared/event/going-line";
 import { InviteActions } from "./invite-actions";
@@ -143,7 +144,11 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const counts = await loadOwnerEventCounts(event.id, viewerId);
   const going = guest ? null : await loadGoingSummary(event.id, user?.id ?? null);
   const seats = await loadEventSeats(event.id);
-  const soldOut = seats.soldOut && !(user && (await loadOwnRegistration(event.id, user.id)));
+  const registered = Boolean(user && (await loadOwnRegistration(event.id, user.id)));
+  const soldOut = seats.soldOut && !registered;
+  const byLink = !guest && !holdsPass && !registered;
+  const mayJoin = user && permanent ? await mayJoinWithoutLink(event.id, user.id) : (await loadOpenLink(event.id)).open;
+  const closed = byLink && !mayJoin;
   const back = guest ? `/e/${encodeURIComponent(lookup)}?g=${guest.token}&go=1` : `/e/${encodeURIComponent(lookup)}/join`;
   const signInHref = `/register?signin=1&next=${encodeURIComponent(back)}`;
   const opensPass = !ended || Boolean(guest?.registrationId);
@@ -215,6 +220,8 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
               then={then}
               poster={poster}
               soldOut={soldOut}
+              closed={closed}
+              placesLeft={seats.capacity != null && !soldOut ? seats.left : null}
             />
           ) : (
             poster

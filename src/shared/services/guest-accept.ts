@@ -13,6 +13,7 @@ import { eventGuestEnd, startEventGuestClock } from "@/shared/services/trial";
 import { sendPassLink } from "@/shared/services/mail";
 import { holderOfContact, passAllowed, recordPass, TRY_LATER } from "@/shared/services/event-pass-guard";
 import { loadEventSeats, SOLD_OUT } from "@/shared/services/event-seats";
+import { ensureOpenLinkGuest, loadOpenLink } from "@/shared/services/event-open-link";
 
 export type SessionUser = { id: string; anonymous: boolean } | null;
 
@@ -104,6 +105,33 @@ async function ownsEmail(userId: string, email: string): Promise<boolean> {
   return (await authUser(userId))?.email?.trim().toLowerCase() === email;
 }
 
+export const BY_INVITATION = "This event is by invitation.";
+
+/** The open link is on, or this account's email is on a list. */
+export async function mayJoinWithoutLink(eventId: string, userId: string): Promise<boolean> {
+  return (await loadOpenLink(eventId)).open || (await invitedByEmail(eventId, userId));
+}
+
+/** A list guest with this account's email gets in on a closed event without the personal link. */
+async function invitedByEmail(eventId: string, userId: string): Promise<boolean> {
+  const email = (await authUser(userId))?.email?.trim().toLowerCase();
+  if (!email) return false;
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.from("event_guests").select("id").eq("event_id", eventId).eq("email", email).limit(1);
+  return !error && (data ?? []).length > 0;
+}
+
+/** The name on the card and the account's email, for the Open link list. */
+async function accountPerson(userId: string, cardId: string): Promise<PassPerson> {
+  const admin = createAdminSupabaseClient();
+  const [user, card] = await Promise.all([
+    authUser(userId),
+    admin.from("cards").select("display_name").eq("id", cardId).maybeSingle(),
+  ]);
+  const name = ((card.data as { display_name?: string | null } | null)?.display_name ?? "").replace(/\s+/g, " ").trim();
+  return { name, email: user?.email?.trim().toLowerCase() ?? null, phone: user?.phone?.trim() || null };
+}
+
 export const PHONE_HAS_PASS = "This phone already has a pass. Open it on the device you used first.";
 
 /**
@@ -124,6 +152,7 @@ async function mailPassLink(
   if (fresh && (await loadEventSeats(event.id)).soldOut) return { ok: false, status: 409, error: SOLD_OUT };
   const issued = await issuePass(userId, person, event, lookup, null, validTimeZone(timeZone));
   if (!issued.ok) return issued;
+  await ensureOpenLinkGuest(event.id, issued.registrationId, person);
   const tokenHash = await magicHash(userId);
   if (!tokenHash || tokenHash === "password") return { ok: true, kind: "notice", text: PHONE_HAS_PASS };
   const slug = encodeURIComponent(event.slug ?? event.code);
@@ -356,12 +385,17 @@ export async function joinWithOwnCard(
   const existing = await loadOwnRegistration(event.id, userId);
   const cardId = existing?.cardId ?? chosenCardId ?? (await listOwnPortfolios(userId))[0]?.id;
   if (!cardId) return { ok: true, registrationId: null };
-  if (!existing && !guestToken && (await loadEventSeats(event.id)).soldOut) {
+  const viaOpenLink = !existing && !guestToken;
+  if (viaOpenLink && !(await mayJoinWithoutLink(event.id, userId))) {
+    return { ok: false, status: 403, error: BY_INVITATION };
+  }
+  if (viaOpenLink && (await loadEventSeats(event.id)).soldOut) {
     return { ok: false, status: 409, error: SOLD_OUT };
   }
   const joined = await registerForEvent(userId, lookup, cardId, undefined, guestToken);
   if (!joined.ok) return joined;
   if (!existing) await settleRegistration(userId, joined.registration.id, await linkedGuestId(joined.registration.id));
+  if (viaOpenLink) await ensureOpenLinkGuest(event.id, joined.registration.id, await accountPerson(userId, cardId));
   return { ok: true, registrationId: joined.registration.id };
 }
 
@@ -473,6 +507,7 @@ export async function createOpenPass(
   const joinPath = `${base}/join`;
   if (guard.trap) return { ok: true, kind: "go", next: base };
   if (await isPermanentAccount(session)) return { ok: true, kind: "go", next: joinPath };
+  if (!(await loadOpenLink(event.id)).open) return { ok: false, status: 403, error: BY_INVITATION };
 
   const name = typeof input.name === "string" ? input.name.replace(/\s+/g, " ").trim().slice(0, 80) : "";
   if (!name) return { ok: false, status: 400, error: "Add your name." };
@@ -499,6 +534,7 @@ export async function createOpenPass(
   const issued = await issuePass(session.id, { name, ...contact }, event, lookup, null, validTimeZone(input.timeZone));
   if (!issued.ok) return issued;
   if (fresh) await recordPass(event.id, guard.ip);
+  await ensureOpenLinkGuest(event.id, issued.registrationId, { name, ...contact });
   const admin = createAdminSupabaseClient();
   const current = contact.email ? (await admin.auth.admin.getUserById(session.id)).data.user?.email?.toLowerCase() : null;
   const confirmEmail = contact.email && current !== contact.email ? contact.email : undefined;

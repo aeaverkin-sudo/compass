@@ -6,7 +6,7 @@ import { loadEventInvite } from "@/shared/services/event-invite";
 import { ensurePayCode, listOwnPortfolios, loadOwnRegistration } from "@/shared/services/event-registration";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { eventHasEnded } from "@/shared/services/events";
-import { holdsEventPass, isPermanentAccount } from "@/shared/services/guest-accept";
+import { holdsEventPass, isPermanentAccount, mayJoinWithoutLink } from "@/shared/services/guest-accept";
 import { loadGoingSummary } from "@/shared/services/event-going";
 import { EventJoin } from "./event-join";
 
@@ -49,6 +49,7 @@ export default async function EventJoinPage({ params }: PageProps) {
 
   const pay = await loadEventPay(event.id);
   const loaded = await loadOwnRegistration(event.id, user.id);
+  if (!loaded && !(await mayJoinWithoutLink(event.id, user.id))) redirect(invite);
   const registration = loaded && pay.isPaid ? await ensurePayCode(event.id, user.id, loaded) : loaded;
   const portfolios = await listOwnPortfolios(user.id);
   const going = await loadGoingSummary(event.id, user.id);

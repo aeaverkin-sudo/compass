@@ -47,7 +47,7 @@ function deviceTimeZone(): string | null {
   }
 }
 
-function Footnote() {
+function Footnote({ openLink = false }: { openLink?: boolean }) {
   return (
     <p className="mt-3 mb-0 max-w-[280px] text-center t-meta text-[var(--grey)]">
       * I agree to the event rules,{" "}
@@ -58,7 +58,7 @@ function Footnote() {
       <Link href="/privacy" className="text-[var(--grey)] underline">
         Privacy
       </Link>
-      .
+      .{openLink ? " The host sees my name and contact." : null}
     </p>
   );
 }
@@ -81,6 +81,10 @@ type InviteActionsProps = {
   poster: ReactNode;
   /** Every seat is taken. Someone already going still gets in. */
   soldOut?: boolean;
+  /** The open link is off and this visitor has no pass: no buttons. */
+  closed?: boolean;
+  /** Seats left when the event has a limit. */
+  placesLeft?: number | null;
 };
 
 export function InviteActions({
@@ -94,6 +98,8 @@ export function InviteActions({
   then = null,
   poster,
   soldOut = false,
+  closed = false,
+  placesLeft = null,
 }: InviteActionsProps) {
   const router = useRouter();
   const sessionReady = useSessionBootstrap();
@@ -304,7 +310,10 @@ export function InviteActions({
             <button type="submit" disabled={busy || !sessionReady} className={SKY}>
               Continue
             </button>
-            <Footnote />
+            {placesLeft != null ? (
+              <p className="mt-3 mb-0 text-center t-meta text-[var(--grey)]">{`${placesLeft} ${placesLeft === 1 ? "place" : "places"} left`}</p>
+            ) : null}
+            <Footnote openLink />
             {hint ? <p className="mt-3 mb-0 text-center t-meta text-[var(--ink)]">{hint}</p> : null}
           </div>
         </form>
@@ -327,7 +336,19 @@ export function InviteActions({
     <>
       {poster}
       <div className="mt-8 flex flex-col items-center">
-        {soldOut && !token && !holdsPass ? (
+        {closed && !token ? (
+          <>
+            <p className="m-0 text-center t-meta text-[var(--grey)]">This event is by invitation.</p>
+            {permanent ? null : (
+              <Link
+                href={signInHref}
+                className="press mt-4 inline-block t-caps text-[var(--grey)] no-underline [-webkit-tap-highlight-color:transparent]"
+              >
+                Open in my account
+              </Link>
+            )}
+          </>
+        ) : soldOut && !token && !holdsPass ? (
           <>
             <p className="m-0 t-caps text-[var(--grey)]">Sold out</p>
             {permanent ? null : (
@@ -363,7 +384,7 @@ export function InviteActions({
             </Link>
           </>
         )}
-        <Footnote />
+        {closed && !token ? null : <Footnote openLink={!token} />}
         {hint ? <p className="mt-3 mb-0 text-center t-meta text-[var(--ink)]">{hint}</p> : null}
       </div>
       {toast}
