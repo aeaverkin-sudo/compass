@@ -78,6 +78,8 @@ type InviteActionsProps = {
   /** Where the pass goes once it is open, instead of the card. */
   then?: string | null;
   poster: ReactNode;
+  /** Every seat is taken. Someone already going still gets in. */
+  soldOut?: boolean;
 };
 
 export function InviteActions({
@@ -90,6 +92,7 @@ export function InviteActions({
   signInHref,
   then = null,
   poster,
+  soldOut = false,
 }: InviteActionsProps) {
   const router = useRouter();
   const sessionReady = useSessionBootstrap();
@@ -99,6 +102,7 @@ export function InviteActions({
   const [form, setForm] = useState(false);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
+  const [website, setWebsite] = useState("");
   const opened = useRef(false);
   const autoRan = useRef(false);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -208,7 +212,7 @@ export function InviteActions({
         fetch(`${base}/pass`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, contact, timeZone: deviceTimeZone() }),
+          body: JSON.stringify({ name, contact, website, timeZone: deviceTimeZone() }),
         }),
       );
     } catch {
@@ -284,6 +288,16 @@ export function InviteActions({
               className={FIELD}
             />
           </Zone>
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden
+            value={website}
+            onChange={(event) => setWebsite(event.target.value)}
+            className="pointer-events-none absolute -left-[9999px] h-px w-px opacity-0"
+          />
           <div className="mt-6 flex flex-col items-center">
             <button type="submit" disabled={busy || !sessionReady} className={SKY}>
               Continue
@@ -311,7 +325,19 @@ export function InviteActions({
     <>
       {poster}
       <div className="mt-8 flex flex-col items-center">
-        {permanent ? (
+        {soldOut && !token && !holdsPass ? (
+          <>
+            <p className="m-0 t-caps text-[var(--grey)]">Sold out</p>
+            {permanent ? null : (
+              <Link
+                href={signInHref}
+                className="press mt-4 inline-block t-caps text-[var(--grey)] no-underline [-webkit-tap-highlight-color:transparent]"
+              >
+                Open in my account
+              </Link>
+            )}
+          </>
+        ) : permanent ? (
           <button type="button" disabled={busy || !sessionReady} onClick={() => void primary()} className={SKY}>
             I&apos;m going *
           </button>

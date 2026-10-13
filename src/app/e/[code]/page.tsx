@@ -4,7 +4,8 @@ import { CoverButton } from "@/shared/event/cover-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { previewPriceKey, previewPriceLabel, priceLabel } from "@/shared/event/payment-label";
-import { loadOwnerEventCounts } from "@/shared/services/event-registration";
+import { loadOwnerEventCounts, loadOwnRegistration } from "@/shared/services/event-registration";
+import { loadEventSeats } from "@/shared/services/event-seats";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay, loadPreviewPay } from "@/shared/services/event-payment";
 import { eventPreviewLine } from "@/shared/event/when";
@@ -141,6 +142,8 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const viewerId = user && !user.is_anonymous ? user.id : null;
   const counts = await loadOwnerEventCounts(event.id, viewerId);
   const going = guest ? null : await loadGoingSummary(event.id, user?.id ?? null);
+  const seats = await loadEventSeats(event.id);
+  const soldOut = seats.soldOut && !(user && (await loadOwnRegistration(event.id, user.id)));
   const back = guest ? `/e/${encodeURIComponent(lookup)}?g=${guest.token}&go=1` : `/e/${encodeURIComponent(lookup)}/join`;
   const signInHref = `/register?signin=1&next=${encodeURIComponent(back)}`;
   const opensPass = !ended || Boolean(guest?.registrationId);
@@ -211,6 +214,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
               signInHref={signInHref}
               then={then}
               poster={poster}
+              soldOut={soldOut}
             />
           ) : (
             poster

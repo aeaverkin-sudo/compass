@@ -10,6 +10,8 @@ import { eventListStatus } from "@/shared/services/events";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { payView } from "@/shared/event/payment-label";
 import { eventGuestEnd, startEventGuestClock } from "@/shared/services/trial";
+import { holderOfContact, passAllowed, recordPass, TRY_LATER } from "@/shared/services/event-pass-guard";
+import { loadEventSeats, SOLD_OUT } from "@/shared/services/event-seats";
 
 export type SessionUser = { id: string; anonymous: boolean } | null;
 
@@ -303,6 +305,9 @@ export async function joinWithOwnCard(
   const existing = await loadOwnRegistration(event.id, userId);
   const cardId = existing?.cardId ?? chosenCardId ?? (await listOwnPortfolios(userId))[0]?.id;
   if (!cardId) return { ok: true, registrationId: null };
+  if (!existing && !guestToken && (await loadEventSeats(event.id)).soldOut) {
+    return { ok: false, status: 409, error: SOLD_OUT };
+  }
   const joined = await registerForEvent(userId, lookup, cardId, undefined, guestToken);
   if (!joined.ok) return joined;
   if (!existing) await settleRegistration(userId, joined.registration.id, await linkedGuestId(joined.registration.id));
@@ -405,19 +410,30 @@ export async function createOpenPass(
   lookup: string,
   input: { name: unknown; contact: unknown; timeZone?: unknown },
   session: SessionUser,
+  guard: { ip: string; trap: boolean },
 ): Promise<GuestAcceptResult> {
   const event = await loadEventInvite(lookup);
   if (!event) return { ok: false, status: 404, error: "Event not found" };
   if (eventListStatus(event.date, Date.now(), event.endsAt) === "past") {
     return { ok: false, status: 410, error: "This event has ended" };
   }
-  const joinPath = `/e/${encodeURIComponent(event.slug ?? event.code)}/join`;
+  const base = `/e/${encodeURIComponent(event.slug ?? event.code)}`;
+  const joinPath = `${base}/join`;
+  if (guard.trap) return { ok: true, kind: "go", next: base };
   if (await isPermanentAccount(session)) return { ok: true, kind: "go", next: joinPath };
 
   const name = typeof input.name === "string" ? input.name.replace(/\s+/g, " ").trim().slice(0, 80) : "";
   if (!name) return { ok: false, status: 400, error: "Add your name." };
   const contact = readPassContact(input.contact);
   if (!contact) return { ok: false, status: 400, error: "Add your email or phone." };
+
+  const holder = await holderOfContact(event.id, contact);
+  if (holder && holder !== session?.id) {
+    if (await isPermanentAccount({ id: holder, anonymous: false })) {
+      return { ok: true, kind: "go", next: signInPath(joinPath), notice: TAKEN_EMAIL };
+    }
+    return { ok: true, kind: "other-device" };
+  }
 
   if (contact.email) {
     const owner = await userIdForEmail(contact.email);
@@ -427,8 +443,14 @@ export async function createOpenPass(
   }
   if (!session) return { ok: false, status: 401, error: "Open the link again." };
 
+  const fresh = !(await loadOwnRegistration(event.id, session.id));
+  if (fresh) {
+    if ((await loadEventSeats(event.id)).soldOut) return { ok: false, status: 409, error: SOLD_OUT };
+    if (!(await passAllowed(event.id, guard.ip))) return { ok: false, status: 429, error: TRY_LATER };
+  }
   const issued = await issuePass(session.id, { name, ...contact }, event, lookup, null, validTimeZone(input.timeZone));
   if (!issued.ok) return issued;
+  if (fresh) await recordPass(event.id, guard.ip);
   const admin = createAdminSupabaseClient();
   const current = contact.email ? (await admin.auth.admin.getUserById(session.id)).data.user?.email?.toLowerCase() : null;
   const confirmEmail = contact.email && current !== contact.email ? contact.email : undefined;
