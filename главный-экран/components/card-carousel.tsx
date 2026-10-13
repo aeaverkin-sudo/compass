@@ -65,8 +65,10 @@ type CardCarouselProps = {
   /** Trial: the add slide looks empty but taps ask the person to register. */
   needsAccount?: boolean;
   onTrialSlot?: () => void;
-  /** Line under the portfolio name and share control. */
-  shareFootnote?: ReactNode;
+  /** Line under the portfolio name and share control. A function picks it per card. */
+  shareFootnote?: ReactNode | ((card: Card) => ReactNode);
+  /** Card id → pass line under the QR, for a guest's event cards. */
+  passMarks?: Record<string, string>;
 };
 
 function CarouselSpacer({ width }: { width: number }) {
@@ -106,7 +108,9 @@ export function CardCarousel({
   needsAccount = false,
   onTrialSlot,
   shareFootnote,
+  passMarks,
 }: CardCarouselProps) {
+  const footnoteFor = (card: Card) => (typeof shareFootnote === "function" ? shareFootnote(card) : shareFootnote);
   const scrollRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
   const scrolledRecently = useRef(false);
@@ -390,10 +394,11 @@ export function CardCarousel({
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
       frozen={frozen}
-      shareFootnote={card.id === ADD_SLIDE_ID ? undefined : shareFootnote}
+      shareFootnote={card.id === ADD_SLIDE_ID ? undefined : footnoteFor(card)}
       onPortfolioStartBlocked={onPortfolioStartBlocked}
       sheetIndex={isBrowse ? sheet?.index : undefined}
       sheetTotal={isBrowse ? sheet?.total : undefined}
+      sheetMark={isBrowse ? passMarks?.[card.id] : undefined}
     />
   );
 
@@ -452,9 +457,10 @@ export function CardCarousel({
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}
         frozen={frozen}
-        shareFootnote={shareFootnote}
+        shareFootnote={footnoteFor(activeCard)}
         sheetIndex={isBrowse ? 1 : undefined}
         sheetTotal={isBrowse ? sheetTotalCount : undefined}
+        sheetMark={isBrowse ? passMarks?.[activeCard.id] : undefined}
       />
     );
   }

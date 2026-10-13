@@ -26,6 +26,18 @@ export type AccountStatus = {
   bytesLimit: number;
   /** Both plans, so the profile can describe each one. The live ceilings are portfolioLimit and bytesLimit. */
   catalog: Record<PlanId, { portfolios: number; bytes: number }>;
+  /** An unkept event guest account. Null for everyone else. */
+  eventPass?: EventPassStatus | null;
+};
+
+export type EventPassCard = { cardId: string; eventName: string; ended: boolean };
+
+export type EventPassStatus = {
+  passes: EventPassCard[];
+  /** Hours until deletion once the card is frozen. */
+  frozenHoursLeft: number | null;
+  /** A confirmed email keeps the profile with one tap. A phone guest registers. */
+  keepByTap: boolean;
 };
 
 type ProfileClock = {

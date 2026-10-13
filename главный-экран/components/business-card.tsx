@@ -44,6 +44,7 @@ function EditorialHeader({
   card,
   positionTitle,
   reserveSheetMark,
+  sheetMark,
   onPhotoChange,
   onDisplayNameChange,
   onCardUpdate,
@@ -53,6 +54,8 @@ function EditorialHeader({
   positionTitle?: string;
   /** The old counter line. The number now sits on the QR; this keeps the photo where it was. */
   reserveSheetMark?: boolean;
+  /** An event card shows its pass line in that place. */
+  sheetMark?: string;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
   onCardUpdate?: (data: Partial<Card>) => void;
@@ -65,7 +68,9 @@ function EditorialHeader({
     : undefined;
   return (
     <div className="w-full">
-      {reserveSheetMark ? (
+      {sheetMark ? (
+        <p className="m-0 mb-1 text-center t-label">{sheetMark}</p>
+      ) : reserveSheetMark ? (
         <p aria-hidden className="invisible m-0 mb-1 text-right t-label">
           1
         </p>
@@ -300,6 +305,8 @@ type BusinessCardProps = {
   /** Place among the owner's portfolios. The counter is drawn on the QR. */
   sheetIndex?: number;
   sheetTotal?: number;
+  /** A guest's event card: `{EVENT} · PASS` under the QR. The card counts as ready without a photo. */
+  sheetMark?: string;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -327,6 +334,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     pdfMask = null,
     sheetIndex,
     sheetTotal,
+    sheetMark,
   },
   ref,
 ) {
@@ -338,7 +346,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const positionTitle = chosen?.value.trim() || card.title.trim() || undefined;
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
-  const ready = cardIsReady(card);
+  const ready = cardIsReady(card) || Boolean(sheetMark);
 
   useOwnerNotesDelivery(card.id, !pdf && !readOnly && !compact && nextScanAddons.length > 0);
   const blank = !cardHasPhoto(card) && !card.displayName.trim();
@@ -491,6 +499,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               card={card}
               positionTitle={positionTitle}
               reserveSheetMark={ready && !readOnly && sheetIndex != null && sheetTotal != null}
+              sheetMark={readOnly ? undefined : sheetMark}
               onPhotoChange={onPhotoChange}
               onDisplayNameChange={onDisplayNameChange}
               onCardUpdate={onCardUpdate}

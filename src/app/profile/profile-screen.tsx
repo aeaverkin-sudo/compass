@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
+import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
@@ -97,13 +98,24 @@ export function ProfileScreen() {
           <p className={cn("py-[18px]", ZONE_VALUE)}>…</p>
         ) : (
           <div className="py-[18px]">
-            <p className={ZONE_VALUE}>{trialLine(account.hoursLeft)}</p>
-            <Link
-              href="/register"
-              className="mt-6 inline-block border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)]"
-            >
-              Register
-            </Link>
+            {account.eventPass ? (
+              <>
+                <p className={ZONE_VALUE}>
+                  {`Event pass — ${account.eventPass.frozenHoursLeft ?? account.hoursLeft ?? 0}h left.`}
+                </p>
+                <KeepProfileButton className="mt-6 px-6 py-3" />
+              </>
+            ) : (
+              <>
+                <p className={ZONE_VALUE}>{trialLine(account.hoursLeft)}</p>
+                <Link
+                  href="/register"
+                  className="mt-6 inline-block border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)]"
+                >
+                  Register
+                </Link>
+              </>
+            )}
             <p className={cn("mt-8", ZONE_VALUE)}>
               {account.consentVersion ? `Consent v${account.consentVersion}` : "Not recorded"}
             </p>

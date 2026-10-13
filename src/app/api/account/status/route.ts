@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readyByteTotal, requireOwnerId } from "@/shared/services/attachment-api";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { readEventPass } from "@/shared/services/event-pass-status";
 import { readAccountStatus, type AccountProvider, type AccountStatus } from "@/shared/services/trial";
 
 export const runtime = "nodejs";
@@ -42,12 +43,22 @@ export async function GET() {
       console.error("[account] storage", storageError);
     }
 
+    let eventPass: AccountStatus["eventPass"] = null;
+    if (!clock.registered) {
+      try {
+        eventPass = await readEventPass(owner.id, Boolean(user && !user.is_anonymous && user.email && user.email_confirmed_at));
+      } catch (passError) {
+        console.error("[account] event pass", passError);
+      }
+    }
+
     const status: AccountStatus = {
       ...clock,
       email: user && !user.is_anonymous ? user.email ?? null : null,
       provider: user ? providerOf(user) : null,
       consentVersion,
       bytesUsed,
+      eventPass,
     };
     return NextResponse.json(status, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

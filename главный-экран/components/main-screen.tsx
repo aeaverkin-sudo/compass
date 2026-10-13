@@ -15,6 +15,7 @@ import {
   useAppStore,
 } from "@/shared/store/app-store";
 import { CardCarousel } from "./card-carousel";
+import { EventPassFooter } from "./event-pass-footer";
 import { QrZone } from "./qr-zone";
 import { SideRail } from "./side-rail";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
@@ -67,7 +68,10 @@ export function MainScreen() {
 
   const viewingAddSlide = showAddSlide && browseIndex >= cards.length;
   const browseCard = viewingAddSlide ? null : (cards[browseIndex] ?? cards[currentCardIndex] ?? null);
-  const cardReady = Boolean(browseCard && isCardReady(browseCard));
+  const eventPass = account?.eventPass ?? null;
+  const passes = new Map((eventPass?.passes ?? []).map((pass) => [pass.cardId, pass]));
+  const passMarks = Object.fromEntries([...passes].map(([cardId, pass]) => [cardId, `${pass.eventName} · Pass`]));
+  const cardReady = Boolean(browseCard && (passes.has(browseCard.id) || isCardReady(browseCard)));
   const shownHasBody = Boolean(browseCard && getCardItems(browseCard, contactItems).length > 0);
   const creatingFirstEmptyCard = !viewingAddSlide && cards.length === 1 && !cardReady;
   const hideNav = (cardReady && !shownHasBody) || creatingFirstEmptyCard;
@@ -180,7 +184,7 @@ export function MainScreen() {
         />
       ) : null}
 
-      {frozen && !composing ? (
+      {frozen && !composing && !eventPass ? (
         <p
           className="absolute inset-x-6 z-30 text-center t-meta text-[var(--ink)]"
           style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
@@ -253,16 +257,35 @@ export function MainScreen() {
             openAddRef={openAddRef}
             onComposingChange={onComposingChange}
             frozen={frozen}
-            shareFootnote={
-              account?.trial && !frozen && !composing ? (
+            passMarks={passMarks}
+            shareFootnote={(card) => {
+              if (composing) return null;
+              const pass = passes.get(card.id);
+              if (pass && eventPass) {
+                return (
+                  <EventPassFooter
+                    eventName={pass.eventName}
+                    ended={pass.ended}
+                    frozenHoursLeft={eventPass.frozenHoursLeft}
+                    onAdd={() => {
+                      if (frozen) return;
+                      const index = cards.findIndex((entry) => entry.id === card.id);
+                      if (index >= 0) setCurrentCardIndex(index);
+                      setComposeOnMount(true);
+                      setEditing(true);
+                    }}
+                  />
+                );
+              }
+              return account?.trial && !frozen && !eventPass ? (
                 <p className="t-meta text-[var(--ink)]">
                   Trial — {account.hoursLeft}h left.{" "}
                   <Link href="/register" className="underline">
                     Register now
                   </Link>
                 </p>
-              ) : null
-            }
+              ) : null;
+            }}
             needsAccount={needsAccount}
             onTrialSlot={() => showGate()}
             onFill={(cardId) => {
