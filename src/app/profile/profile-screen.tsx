@@ -92,29 +92,22 @@ export function ProfileScreen() {
     document.getElementById("subscription")?.scrollIntoView();
   }, [account]);
 
-  if (!account || !signedIn) {
+  const eventPass = !signedIn ? (account?.eventPass ?? null) : null;
+
+  if (!account || (!signedIn && !eventPass)) {
     return (
       <ProfileShell>
         {!account ? (
           <p className={cn("py-[18px]", ZONE_VALUE)}>…</p>
         ) : (
           <div className="py-[18px]">
-            {account.eventPass ? (
-              <>
-                <p className={ZONE_VALUE}>{deletionLine(account.eventPass.deleteAt)}</p>
-                <KeepProfileButton className="mt-6 px-6 py-3" />
-              </>
-            ) : (
-              <>
-                <p className={ZONE_VALUE}>{trialLine(account.hoursLeft)}</p>
-                <Link
-                  href="/register"
-                  className="mt-6 inline-block border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)]"
-                >
-                  Register
-                </Link>
-              </>
-            )}
+            <p className={ZONE_VALUE}>{trialLine(account.hoursLeft)}</p>
+            <Link
+              href="/register"
+              className="mt-6 inline-block border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)]"
+            >
+              Register
+            </Link>
             <p className={cn("mt-8", ZONE_VALUE)}>
               {account.consentVersion ? `Consent v${account.consentVersion}` : "Not recorded"}
             </p>
@@ -130,25 +123,38 @@ export function ProfileScreen() {
 
   return (
     <ProfileShell>
-      <Zone label="Account" rule>
-        <p className={ZONE_VALUE}>
-          {account.provider === "google"
-            ? "Signed in with Google."
-            : account.email
-              ? `Signed in as ${account.email}.`
-              : "Signed in."}
-        </p>
-        <p className="mt-3 flex gap-4 t-body">
-          {canChangePassword ? (
-            <Link href="/account/password" className="underline">
-              Change password
-            </Link>
+      {eventPass ? (
+        <Zone label="Event pass" align="start" rule>
+          <p className={ZONE_VALUE}>
+            {eventPass.passes[0] ? `Event pass · ${eventPass.passes[0].eventName}` : "Event pass"}
+          </p>
+          {deletionLine(eventPass.deleteAt) ? (
+            <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{deletionLine(eventPass.deleteAt)}</p>
           ) : null}
-          <button type="button" disabled={busy} onClick={() => void signOut()} className="underline disabled:opacity-40">
-            Sign out
-          </button>
-        </p>
-      </Zone>
+          <KeepProfileButton className="mt-6" />
+          {eventPass.keepByTap ? <p className="mt-2 mb-0 t-meta text-[var(--grey)]">Free. One tap — no password.</p> : null}
+        </Zone>
+      ) : (
+        <Zone label="Account" rule>
+          <p className={ZONE_VALUE}>
+            {account.provider === "google"
+              ? "Signed in with Google."
+              : account.email
+                ? `Signed in as ${account.email}.`
+                : "Signed in."}
+          </p>
+          <p className="mt-3 flex gap-4 t-body">
+            {canChangePassword ? (
+              <Link href="/account/password" className="underline">
+                Change password
+              </Link>
+            ) : null}
+            <button type="button" disabled={busy} onClick={() => void signOut()} className="underline disabled:opacity-40">
+              Sign out
+            </button>
+          </p>
+        </Zone>
+      )}
 
       <Zone id="subscription" label="Plan" rule>
         <p className={ZONE_VALUE}>{planTitle(account.plan)}</p>
@@ -289,7 +295,7 @@ export function ProfileScreen() {
         </p>
         {account.provider === "google" ? (
           <p className="mt-1 t-meta text-[var(--ink)]">Managed by Google</p>
-        ) : account.provider === "email" ? null : (
+        ) : account.provider === "email" || eventPass ? null : (
           <p className="mt-1 t-meta text-[var(--ink)]">Coming soon</p>
         )}
         <div className="hidden">
