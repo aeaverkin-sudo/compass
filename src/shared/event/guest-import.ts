@@ -157,6 +157,23 @@ export function readGuestTable(table: string[][]): GuestImport | { error: string
   return { guests, skipped, rows: body.length };
 }
 
+/**
+ * Pasted lines as a table. A line with no separator is split into its email,
+ * its phone and the words left, so "Anna Petrova +351 912 345 678" reads too.
+ */
+export function pastedTable(text: string): string[][] {
+  return text.split(/\r?\n/).map((line) => {
+    const cells = line.split(/[\t,;|]/).map((cell) => cell.trim()).filter(Boolean);
+    if (cells.length !== 1) return cells;
+    let rest = cells[0];
+    const email = rest.match(/[^\s@]+@[^\s@]+\.[^\s@]+/)?.[0] ?? "";
+    if (email) rest = rest.replace(email, " ");
+    const phone = rest.match(/\+?\d[\d\s().-]{4,}\d/)?.[0] ?? "";
+    if (phone) rest = rest.replace(phone, " ");
+    return [rest.replace(/\s+/g, " ").trim(), email, phone.trim()].filter(Boolean);
+  });
+}
+
 /** The list name a file gets by default. */
 export function listNameFromFile(fileName: string): string {
   const base = fileName.replace(/\.[^./\\]+$/, "").trim();
