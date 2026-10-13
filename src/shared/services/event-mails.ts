@@ -7,6 +7,7 @@ import { formatEventRange } from "@/shared/event/when";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { loadShowGoing } from "@/shared/services/event-going";
+import { posterUrl } from "@/shared/services/poster-snapshot";
 import { BATCH_MAX, mailConfigured, sendHtmlBatch, type HtmlMail } from "@/shared/services/mail";
 
 export type MailKind = "invite" | "reminder" | "deletion";
@@ -18,8 +19,8 @@ export type MailEvent = {
   when: string | null;
   place: string | null;
   price: string | null;
-  organiser: string;
-  replyTo: string | null;
+  /** The stored poster snapshot, or null before the first one. */
+  posterSrc: string | null;
 };
 
 export type Invitee = { id: string; name: string; email: string; token: string; sendCount: number };
@@ -33,26 +34,19 @@ function eventKey(event: Pick<EventInvite, "slug" | "code">): string {
   return encodeURIComponent(event.slug?.trim() || event.code);
 }
 
-async function organiserOf(eventId: string): Promise<{ name: string; email: string | null }> {
+/** A database without the poster columns, or an event without a snapshot, gives null. */
+async function storedPoster(eventId: string): Promise<string | null> {
   const admin = createAdminSupabaseClient();
-  const owner = await admin.from("events").select("owner_id").eq("id", eventId).maybeSingle();
-  const ownerId = (owner.data as { owner_id?: string } | null)?.owner_id;
-  if (!ownerId) return { name: "the host", email: null };
-  const [cards, user] = await Promise.all([
-    admin.from("cards").select("display_name, is_primary, created_at").eq("owner_id", ownerId).order("created_at"),
-    admin.auth.admin.getUserById(ownerId),
-  ]);
-  const rows = (cards.error ? [] : (cards.data ?? [])) as { display_name: string | null; is_primary?: boolean | null }[];
-  const card = rows.find((row) => row.is_primary && row.display_name?.trim()) ?? rows.find((row) => row.display_name?.trim());
-  const name = card?.display_name?.replace(/\s+/g, " ").trim() || "the host";
-  const email = user.data.user?.email_confirmed_at ? (user.data.user.email ?? null) : null;
-  return { name, email };
+  const loaded = await admin.from("events").select("poster_path, poster_updated_at").eq("id", eventId).maybeSingle();
+  if (loaded.error) return null;
+  const row = loaded.data as { poster_path?: string | null; poster_updated_at?: string | null } | null;
+  return posterUrl(row?.poster_path, row?.poster_updated_at);
 }
 
 export async function loadMailEvent(lookup: string): Promise<MailEvent | null> {
   const invite = await loadEventInvite(lookup);
   if (!invite) return null;
-  const [pay, organiser] = await Promise.all([loadEventPay(invite.id), organiserOf(invite.id)]);
+  const [pay, posterSrc] = await Promise.all([loadEventPay(invite.id), storedPoster(invite.id)]);
   return {
     id: invite.id,
     name: eventTitleLine(invite.name),
@@ -60,8 +54,7 @@ export async function loadMailEvent(lookup: string): Promise<MailEvent | null> {
     when: formatEventRange(invite.date, invite.endsAt, invite.timeZone),
     place: invite.placeSecret ? PLACE_SECRET : invite.place?.trim() || null,
     price: pay.isPaid ? priceLabel(pay.price, pay.currency) : null,
-    organiser: organiser.name,
-    replyTo: organiser.email,
+    posterSrc,
   };
 }
 
@@ -81,8 +74,15 @@ export function unsubscribeHeaders(origin: string, event: MailEvent, token: stri
   };
 }
 
-function poster(origin: string, event: MailEvent) {
-  return { src: `${origin}/e/${event.key}/opengraph-image`, alt: event.name };
+/** The snapshot of the live poster; until there is one, the OG image. The tap opens the same link as the button. */
+function poster(origin: string, event: MailEvent, href: string) {
+  return { src: event.posterSrc ?? `${origin}/e/${event.key}/opengraph-image`, alt: event.name, href };
+}
+
+/** The logo is a file of the site itself, by its public address. */
+function adedLogo(origin: string): string {
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  return `${site && /^https?:\/\//i.test(site) ? site : origin}/brand/aded-word.png`;
 }
 
 function placeZone(event: MailEvent, withPrice: boolean): MailZone | null {
@@ -98,17 +98,18 @@ export function inviteMail(origin: string, event: MailEvent, guest: { name: stri
     placeZone(event, true),
     { label: "Pass", value: PASS_LINE },
   ];
+  const link = personalLink(origin, event, guest.token);
   return renderEventMail({
-    poster: poster(origin, event),
+    poster: poster(origin, event, link),
     zones: zones.filter((zone): zone is MailZone => zone !== null),
-    button: { label: "I'M GOING", href: personalLink(origin, event, guest.token) },
+    button: { label: "I'M GOING", href: link },
     footnote: INVITE_NOTE,
-    footer: { organiser: event.organiser, unsubscribeHref: unsubscribePage(origin, event, guest.token) },
+    footer: { logoSrc: adedLogo(origin), unsubscribeHref: unsubscribePage(origin, event, guest.token) },
   });
 }
 
 export function inviteSubject(event: MailEvent): string {
-  return `${event.name} — your pass`;
+  return event.name;
 }
 
 /** Bounces and the mail log are in place: the event mails migration ran. */
@@ -235,10 +236,10 @@ export function reminderMail(
     { label: "Portfolio", value: PORTFOLIO_LINE },
   ];
   return renderEventMail({
-    poster: poster(origin, event),
+    poster: poster(origin, event, person.link),
     zones: zones.filter((zone): zone is MailZone => zone !== null),
     button: { label: "MY PASS & PORTFOLIO", href: person.link },
-    footer: { organiser: event.organiser, unsubscribeHref: person.token ? unsubscribePage(origin, event, person.token) : null },
+    footer: { logoSrc: adedLogo(origin), unsubscribeHref: person.token ? unsubscribePage(origin, event, person.token) : null },
   });
 }
 
@@ -356,7 +357,6 @@ async function remindEvent(eventId: string, lookup: string, origin: string): Pro
         subject: `Tomorrow — ${event.name}`,
         html: body.html,
         text: body.text,
-        replyTo: event.replyTo,
         ...(person.token ? { headers: unsubscribeHeaders(origin, event, person.token) } : {}),
       };
     });
@@ -407,7 +407,6 @@ export async function sendInvites(eventId: string, event: MailEvent, origin: str
         subject: inviteSubject(event),
         html: body.html,
         text: body.text,
-        replyTo: event.replyTo,
         headers: unsubscribeHeaders(origin, event, guest.token),
       };
     });

@@ -23,7 +23,6 @@ export type HtmlMail = {
   subject: string;
   html: string;
   text: string;
-  replyTo?: string | null;
   headers?: Record<string, string>;
 };
 
@@ -38,7 +37,6 @@ function payload(mail: HtmlMail) {
     subject: mail.subject,
     html: mail.html,
     text: mail.text,
-    ...(mail.replyTo ? { replyTo: mail.replyTo } : {}),
     ...(mail.headers ? { headers: mail.headers } : {}),
   };
 }
