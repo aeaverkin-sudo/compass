@@ -517,8 +517,8 @@ export async function checkInGuest(lookup: string, userId: string, regToken: str
 const NOT_ON_LIST = "Not on the list for this event";
 
 /**
- * A card QR at the door: the registration on this event made with that card.
- * Then the same check-in as a badge.
+ * A card QR at the door: the registration on this event of the card's owner, whichever
+ * of their cards they registered with. Then the same check-in as a badge.
  */
 export async function checkInByCard(
   lookup: string,
@@ -533,21 +533,32 @@ export async function checkInByCard(
   const admin = createAdminSupabaseClient();
   const found =
     "token" in card
-      ? await admin.from("cards").select("id").eq("public_token", card.token).maybeSingle()
-      : await admin.from("cards").select("id").eq("handle", card.handle.trim().toLowerCase()).maybeSingle();
+      ? await admin.from("cards").select("id, owner_id").eq("public_token", card.token).maybeSingle()
+      : await admin.from("cards").select("id, owner_id").eq("handle", card.handle.trim().toLowerCase()).maybeSingle();
   if (found.error) throw new Error(found.error.message);
-  const cardId = (found.data as { id: string } | null)?.id;
-  if (!cardId) return { ok: false, status: 404, error: NOT_ON_LIST };
+  const shown = found.data as { id: string; owner_id: string | null } | null;
+  if (!shown) return { ok: false, status: 404, error: NOT_ON_LIST };
 
-  const reg = await admin
+  const byCard = await admin
     .from("event_registrations")
     .select("reg_token")
     .eq("event_id", access.event.id)
-    .eq("card_id", cardId)
+    .eq("card_id", shown.id)
     .limit(1)
     .maybeSingle();
-  if (reg.error) throw new Error(reg.error.message);
-  const regToken = (reg.data as { reg_token: string } | null)?.reg_token;
+  if (byCard.error) throw new Error(byCard.error.message);
+  let regToken = (byCard.data as { reg_token: string } | null)?.reg_token;
+  if (!regToken && shown.owner_id) {
+    const byOwner = await admin
+      .from("event_registrations")
+      .select("reg_token")
+      .eq("event_id", access.event.id)
+      .eq("user_id", shown.owner_id)
+      .limit(1)
+      .maybeSingle();
+    if (byOwner.error) throw new Error(byOwner.error.message);
+    regToken = (byOwner.data as { reg_token: string } | null)?.reg_token;
+  }
   if (!regToken) return { ok: false, status: 404, error: NOT_ON_LIST };
   return checkInGuest(lookup, userId, regToken, confirm);
 }
