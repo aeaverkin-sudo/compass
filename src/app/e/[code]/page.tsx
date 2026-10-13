@@ -10,7 +10,7 @@ import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay, loadPreviewPay } from "@/shared/services/event-payment";
 import { eventPreviewLine } from "@/shared/event/when";
 import { eventPublicPath } from "@/shared/event/slug";
-import { eventListStatus } from "@/shared/services/events";
+import { eventHasEnded } from "@/shared/services/events";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 import { eventTitleLine } from "@/shared/event/event-title";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
@@ -131,7 +131,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const user = data.user ?? null;
   const pay = await loadEventPay(event.id);
   const posterPrice = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
-  const ended = eventListStatus(event.date, Date.now(), event.endsAt) === "past";
+  const ended = eventHasEnded(event.date, event.endsAt);
   const guestToken = Array.isArray(query.g) ? query.g[0] : query.g;
   const go = (Array.isArray(query.go) ? query.go[0] : query.go) === "1";
   const then = (Array.isArray(query.then) ? query.then[0] : query.then) === "scan" ? "/scan" : null;

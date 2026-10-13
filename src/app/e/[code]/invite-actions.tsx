@@ -197,7 +197,7 @@ export function InviteActions({
         const body = (await response.json().catch(() => ({}))) as { error?: string };
         return fail(body.error ?? "Could not join.");
       }
-      window.location.assign(joinPath);
+      router.push(joinPath);
     } catch {
       fail("Could not join.");
     }

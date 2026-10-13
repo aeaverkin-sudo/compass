@@ -5,7 +5,7 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { ensurePayCode, listOwnPortfolios, loadOwnRegistration } from "@/shared/services/event-registration";
 import { loadEventPay } from "@/shared/services/event-payment";
-import { eventListStatus } from "@/shared/services/events";
+import { eventHasEnded } from "@/shared/services/events";
 import { holdsEventPass, isPermanentAccount } from "@/shared/services/guest-accept";
 import { loadGoingSummary } from "@/shared/services/event-going";
 import { EventJoin } from "./event-join";
@@ -41,7 +41,7 @@ export default async function EventJoinPage({ params }: PageProps) {
     // A broken escape stays as written.
   }
   const invite = `/e/${encodeURIComponent(lookup)}`;
-  if (eventListStatus(event.date, Date.now(), event.endsAt) === "past") redirect(invite);
+  if (eventHasEnded(event.date, event.endsAt)) redirect(invite);
   const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
   if (!user || !(await isPermanentAccount(session))) {
     redirect((await holdsEventPass(session, event.id)) ? "/main" : invite);

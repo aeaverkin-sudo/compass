@@ -111,7 +111,9 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
   };
 
   const submitRef = useRef(submit);
-  submitRef.current = submit;
+  useEffect(() => {
+    submitRef.current = submit;
+  });
 
   useEffect(() => {
     const video = videoRef.current;

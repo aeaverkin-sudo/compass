@@ -281,6 +281,7 @@ export function ProfileScreen() {
             return (
               <li key={card.id} className="flex gap-4">
                 {photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={photo} alt="" className="size-12 border border-[#d4d4d4] object-cover" />
                 ) : (
                   <span className="size-12 shrink-0 border border-[#d4d4d4]" />
@@ -318,7 +319,7 @@ export function ProfileScreen() {
                     <>
                       {locked ? (
                         <p className="mt-2 t-meta text-[var(--ink)]">
-                          Your main portfolio is always public — it's how people find you.
+                          Your main portfolio is always public — it&apos;s how people find you.
                         </p>
                       ) : null}
                       <p className="mt-2 t-meta text-[var(--ink)]">

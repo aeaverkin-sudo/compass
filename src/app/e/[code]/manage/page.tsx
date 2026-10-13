@@ -10,7 +10,7 @@ import { loadGuestBook } from "@/shared/services/event-guest-lists";
 import { loadShowGoing } from "@/shared/services/event-going";
 import { eventPublicPath } from "@/shared/event/slug";
 import { formatEventWhen } from "@/shared/event/when";
-import { eventListStatus } from "@/shared/services/events";
+import { eventHasEnded } from "@/shared/services/events";
 import { ManageHome } from "./manage-home";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +59,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   const origin = await requestOrigin();
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
   const shareKey = invite.slug?.trim() || invite.code.trim() || event.publicToken;
-  const ended = eventListStatus(invite.date, Date.now(), invite.endsAt) === "past";
+  const ended = eventHasEnded(invite.date, invite.endsAt);
   const endedLabel = ended ? formatEventWhen(invite.endsAt ?? invite.date, invite.timeZone) : null;
 
   return (

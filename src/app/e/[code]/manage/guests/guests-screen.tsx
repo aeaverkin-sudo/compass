@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Rule } from "@/shared/components/rule";
@@ -59,7 +59,11 @@ export function GuestsScreen({
   const router = useRouter();
   const back = `/e/${encodeURIComponent(lookup)}/manage`;
   const [rows, setRows] = useState(guests);
-  useEffect(() => setRows(guests), [guests]);
+  const [shownGuests, setShownGuests] = useState(guests);
+  if (shownGuests !== guests) {
+    setShownGuests(guests);
+    setRows(guests);
+  }
   const [sort, setSort] = useState<Sort>("name");
   const [query, setQuery] = useState("");
   const [listFilter, setListFilter] = useState<string | null>(

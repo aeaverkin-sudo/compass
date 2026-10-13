@@ -213,18 +213,23 @@ export function EventEntryScreen() {
     writeEventDraft(values);
   }, [step, values]);
 
-  useEffect(() => {
-    const draft = readEventDraft();
-    if (draft) {
-      const { savedAt: _savedAt, ...fields } = draft;
-      setValues(fields);
-      draftEcho.current = fields;
-    } else {
-      clearEventDraft();
-      setValues((current) => ({ ...current, timeZone: browserTimeZone() }));
+  /** The draft comes back the first time the form opens. */
+  const openCreate = () => {
+    if (!draftReady.current) {
+      const draft = readEventDraft();
+      if (draft) {
+        const { savedAt, ...fields } = draft;
+        void savedAt;
+        setValues(fields);
+        draftEcho.current = fields;
+      } else {
+        clearEventDraft();
+        setValues((current) => ({ ...current, timeZone: browserTimeZone() }));
+      }
+      draftReady.current = true;
     }
-    draftReady.current = true;
-  }, []);
+    setStep("create");
+  };
 
   useEffect(() => {
     if (step !== "entry") return;
@@ -304,7 +309,7 @@ export function EventEntryScreen() {
           {step === "entry" ? (
             <>
               <Zone label="Create" rule>
-                <ActionLink onClick={() => setStep("create")}>Create an event</ActionLink>
+                <ActionLink onClick={openCreate}>Create an event</ActionLink>
                 <p className="mt-1 t-meta text-[var(--grey)]">For organisers: invite, check-in, stats.</p>
               </Zone>
               {events.length === 0 ? (

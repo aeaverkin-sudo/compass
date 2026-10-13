@@ -71,6 +71,11 @@ export function eventListStatus(
   return time < now ? "past" : "live";
 }
 
+/** Past at this moment. */
+export function eventHasEnded(date: string | null, endsAt: string | null): boolean {
+  return eventListStatus(date, Date.now(), endsAt) === "past";
+}
+
 export type CreateEventInput = {
   ownerId: string;
   name: string;

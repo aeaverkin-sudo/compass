@@ -330,7 +330,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     openAddRef,
     onComposingChange,
     readOnly = false,
-    frozen = false,
     shareFootnote,
     deliveredNotes = [],
     onPortfolioStartBlocked,

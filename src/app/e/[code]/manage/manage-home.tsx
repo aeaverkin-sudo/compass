@@ -86,7 +86,7 @@ export function ManageHome({
 }) {
   const router = useRouter();
   const flashed = useRef(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(flash === "saved" ? "Saved" : null);
   const shown = (section: ManageSection) => {
     if (endedLabel && section === "checkin") return false;
     return sections.includes(section);
@@ -96,7 +96,6 @@ export function ManageHome({
   useEffect(() => {
     if (!flash || flashed.current) return;
     flashed.current = true;
-    if (flash === "saved") setNotice("Saved");
     const url = new URL(window.location.href);
     url.searchParams.delete("created");
     url.searchParams.delete("saved");
