@@ -530,6 +530,8 @@ async function runHydrate() {
   const { migrateLocalMedia } = await import("@/shared/services/attachment-upload");
   await migrateLocalMedia();
 
+  useAppStore.getState().recoverFileRows();
+
   const { hydrateNotes } = await import("@/shared/services/notes-sync");
   await hydrateNotes();
 

@@ -1,4 +1,3 @@
-import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { CARD_ATTACHMENTS_BUCKET, isVideoMime } from "@/shared/services/attachment-limits";
 import { prepareImageUploadBlob } from "@/shared/services/attachment-storage";
 import type { ContactType } from "@/shared/types";
@@ -37,12 +36,14 @@ export async function uploadAttachment(input: {
   file: File;
   kind: UploadKind;
   cardId?: string;
+  /** PDF and video only: whole percent of bytes sent. */
+  onProgress?: (percent: number) => void;
 }): Promise<ReadyAttachment> {
   if (input.kind === "pdf") {
-    return uploadSigned(input.file, "application/pdf", input.cardId);
+    return uploadSigned(input.file, "application/pdf", input.cardId, input.onProgress);
   }
   if (input.kind === "video" || isVideoMime(videoMime(input.file))) {
-    return uploadSigned(input.file, videoMime(input.file), input.cardId);
+    return uploadSigned(input.file, videoMime(input.file), input.cardId, input.onProgress);
   }
   return uploadBuffered(input.file, input.kind, input.cardId);
 }
@@ -75,16 +76,94 @@ function videoMime(file: File): string {
   return file.type;
 }
 
-async function uploadSigned(file: File, mime: string, cardId?: string): Promise<ReadyAttachment> {
-  const opened = await fetch("/api/attachments/upload-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      mime,
-      byteSize: file.size,
-      originalName: file.name,
-      cardId,
-    }),
+/** Server calls answer within this, or the row turns to Upload failed. */
+const API_TIMEOUT_MS = 25_000;
+/** The file upload itself may take minutes. It fails only once bytes stop moving. */
+const UPLOAD_STALL_MS = 45_000;
+
+async function postJson(path: string, payload: unknown): Promise<Response> {
+  try {
+    return await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+      throw new Error("The server did not answer. Try again.");
+    }
+    throw new Error("No connection. Try again.");
+  }
+}
+
+/** Same request as `uploadToSignedUrl`, sent by XHR so the bytes report progress. */
+function putSigned(path: string, token: string, file: File, onProgress?: (percent: number) => void) {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!base || !anonKey) return Promise.reject(new Error("Upload is not configured"));
+  const encoded = `${CARD_ATTACHMENTS_BUCKET}/${path}`.split("/").map(encodeURIComponent).join("/");
+  const url = `${base}/storage/v1/object/upload/sign/${encoded}?token=${encodeURIComponent(token)}`;
+  const body = new FormData();
+  body.append("cacheControl", "3600");
+  body.append("", file);
+
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let stall = 0;
+    const watch = () => {
+      window.clearTimeout(stall);
+      stall = window.setTimeout(() => {
+        xhr.abort();
+        reject(new Error("The upload stopped. Try again."));
+      }, UPLOAD_STALL_MS);
+    };
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("apikey", anonKey);
+    xhr.setRequestHeader("Authorization", `Bearer ${anonKey}`);
+    xhr.setRequestHeader("x-upsert", "false");
+    xhr.upload.onprogress = (event) => {
+      watch();
+      if (event.lengthComputable && event.total > 0) {
+        onProgress?.(Math.min(99, Math.floor((event.loaded / event.total) * 100)));
+      }
+    };
+    xhr.onload = () => {
+      window.clearTimeout(stall);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+      let message = `Storage refused the file (${xhr.status})`;
+      try {
+        const parsed = JSON.parse(xhr.responseText) as { message?: string; error?: string };
+        message = parsed.message || parsed.error || message;
+      } catch {
+        // Not JSON. The status line is enough.
+      }
+      reject(new Error(message));
+    };
+    xhr.onerror = () => {
+      window.clearTimeout(stall);
+      reject(new Error("Connection lost. Try again."));
+    };
+    xhr.onabort = () => window.clearTimeout(stall);
+    watch();
+    xhr.send(body);
+  });
+}
+
+async function uploadSigned(
+  file: File,
+  mime: string,
+  cardId?: string,
+  onProgress?: (percent: number) => void,
+): Promise<ReadyAttachment> {
+  const opened = await postJson("/api/attachments/upload-url", {
+    mime,
+    byteSize: file.size,
+    originalName: file.name,
+    cardId,
   });
   if (!opened.ok) throw new Error(await errorText(opened));
 
@@ -93,18 +172,19 @@ async function uploadSigned(file: File, mime: string, cardId?: string): Promise<
     throw new Error("Could not start the upload");
   }
 
-  const supabase = createBrowserSupabaseClient();
-  const uploaded = await supabase.storage
-    .from(CARD_ATTACHMENTS_BUCKET)
-    .uploadToSignedUrl(ticket.path, ticket.token, file, { contentType: mime });
-  if (uploaded.error) throw new Error(uploaded.error.message);
+  await putSigned(ticket.path, ticket.token, file, onProgress);
 
-  const confirmed = await fetch("/api/attachments/finalize", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ attachmentId: ticket.attachmentId }),
-  });
+  const confirmed = await postJson("/api/attachments/finalize", { attachmentId: ticket.attachmentId });
   return readReady(confirmed);
+}
+
+/** A file row left without its file. The server links a complete pending upload, if there is one. */
+export async function recoverFileRow(itemId: string): Promise<string | null> {
+  const response = await postJson("/api/attachments/recover", { itemId });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(await errorText(response));
+  const body = (await response.json()) as { attachmentId?: string };
+  return body.attachmentId ?? null;
 }
 
 async function readReady(response: Response): Promise<ReadyAttachment> {

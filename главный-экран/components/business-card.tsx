@@ -9,6 +9,8 @@ import { AccountBand } from "@/shared/components/account-band";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
+import { useUploadStatus } from "@/shared/store/upload-status";
+import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 import { PhotoSlotPicker, photoSlotLookClass } from "@landing/components/photo-slot-picker";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
@@ -379,6 +381,17 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     [card.id, setCardItemOrder],
   );
 
+  const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
+  const retryFile = useCallback(
+    (itemId: string) => {
+      openContactAttachmentPicker((dataUrl, file) => {
+        const result = updateContactItemAttachment(card.id, itemId, file, dataUrl);
+        if (!result.ok) useUploadStatus.getState().fail(itemId, result.message);
+      });
+    },
+    [card.id, updateContactItemAttachment],
+  );
+
   useEffect(() => {
     if (!compact) return;
     const el = previewScrollRef.current;
@@ -620,6 +633,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         }
         underlineLinks={readOnly}
         publicToken={card.publicToken}
+        onRetryFile={!compact && !readOnly && onCardUpdate ? retryFile : undefined}
       />
       </div>
       )}

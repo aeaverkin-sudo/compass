@@ -10,11 +10,13 @@ import {
   normalizeContactItem,
 } from "@/shared/services/contact-item";
 import {
+  isAttachmentType,
   type PortfolioValidationResult,
   validatePortfolioAttachment,
 } from "@/shared/services/portfolio-limits";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
-import { uploadAttachment } from "@/shared/services/attachment-upload";
+import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-upload";
+import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
 import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
 import { isCardZoneId, normalizeRubricOrder, zoneForItem } from "@/shared/services/card-zones";
@@ -74,6 +76,8 @@ interface AppState {
     file: File,
     dataUrl: string,
   ) => PortfolioValidationResult;
+  /** File rows with neither a file nor a link: link a complete upload, or mark the row failed. */
+  recoverFileRows: () => void;
   addItemToCard: (cardId: string, itemId: string) => void;
   removeItemFromCard: (cardId: string, itemId: string) => void;
   setCardItemOrder: (cardId: string, orderedIds: string[]) => void;
@@ -118,6 +122,9 @@ function itemForDisk(item: ContactItem): ContactItem {
   }
   return item;
 }
+
+/** Latest upload per row. A replaced upload that finishes late is ignored. */
+const uploadRuns = new Map<string, number>();
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -319,8 +326,22 @@ export const useAppStore = create<AppState>()(
           ),
         });
 
-        void uploadAttachment({ file, kind: attachmentType, cardId })
+        const run = (uploadRuns.get(itemId) ?? 0) + 1;
+        uploadRuns.set(itemId, run);
+        const current = () => uploadRuns.get(itemId) === run;
+        useUploadStatus.getState().setStatus(itemId, { state: "uploading", percent: null });
+
+        void uploadAttachment({
+          file,
+          kind: attachmentType,
+          cardId,
+          onProgress: (percent) => {
+            if (current()) useUploadStatus.getState().setStatus(itemId, { state: "uploading", percent });
+          },
+        })
           .then((ready) => {
+            if (!current()) return;
+            useUploadStatus.getState().setStatus(itemId, null);
             const nextItems = get().contactItems.map((item) =>
               item.id === itemId
                 ? {
@@ -336,9 +357,38 @@ export const useAppStore = create<AppState>()(
           })
           .catch((error: unknown) => {
             console.error("[attachment]", error);
+            if (!current()) return;
+            const reason = error instanceof Error && error.message ? error.message : "Upload failed";
+            useUploadStatus.getState().fail(itemId, reason);
           });
 
         return { ok: true };
+      },
+
+      recoverFileRows: () => {
+        for (const item of get().contactItems) {
+          if (!isAttachmentType(item.type) || item.attachmentId || item.url) continue;
+          if (useUploadStatus.getState().byItem[item.id] || uploadRuns.has(item.id)) continue;
+          useUploadStatus.getState().setStatus(item.id, { state: "checking" });
+          void recoverFileRow(item.id)
+            .then((attachmentId) => {
+              if (uploadRuns.has(item.id)) return;
+              if (!attachmentId) {
+                useUploadStatus.getState().setStatus(item.id, { state: "failed" });
+                return;
+              }
+              useUploadStatus.getState().setStatus(item.id, null);
+              set({
+                contactItems: get().contactItems.map((entry) =>
+                  entry.id === item.id ? { ...entry, attachmentId } : entry,
+                ),
+              });
+            })
+            .catch((error: unknown) => {
+              console.error("[attachment] recover failed", error);
+              if (!uploadRuns.has(item.id)) useUploadStatus.getState().setStatus(item.id, { state: "failed" });
+            });
+        }
       },
 
       addItemToCard: (cardId, itemId) => {

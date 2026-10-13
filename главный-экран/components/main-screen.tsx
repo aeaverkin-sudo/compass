@@ -20,6 +20,7 @@ import { QrZone } from "./qr-zone";
 import { SideRail } from "./side-rail";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
+import { UploadNotice } from "@/shared/components/upload-notice";
 
 export function MainScreen() {
   const router = useRouter();
@@ -201,6 +202,8 @@ export function MainScreen() {
       ) : null}
 
       {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}
+
+      <UploadNotice />
 
       {layout && !composing && (editing || !hideNav) ? (
         <BottomNav

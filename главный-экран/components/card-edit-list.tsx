@@ -30,6 +30,8 @@ import { customDisplayName } from "@/shared/services/link-display";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useAppStore } from "@/shared/store/app-store";
+import { fileStatusLine, useUploadStatus } from "@/shared/store/upload-status";
+import { isAttachmentType } from "@/shared/services/portfolio-limits";
 import type { Card, ContactItem } from "@/shared/types";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
 import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
@@ -220,6 +222,7 @@ export function CardEditList({
   const updateContactItem = useAppStore((state) => state.updateContactItem);
   const addItemToCard = useAppStore((state) => state.addItemToCard);
   const removeItemFromCard = useAppStore((state) => state.removeItemFromCard);
+  const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const setRubricLabel = useAppStore((state) => state.setRubricLabel);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
@@ -300,6 +303,13 @@ export function CardEditList({
     setConfirmDelete(itemId);
   };
 
+  const retryFile = (itemId: string) => {
+    openContactAttachmentPicker((dataUrl, file) => {
+      const result = updateContactItemAttachment(card.id, itemId, file, dataUrl);
+      if (!result.ok) useUploadStatus.getState().fail(itemId, result.message);
+    });
+  };
+
   return (
     <div ref={listRef} data-card-chip-list={card.id} data-card-content>
       {sections.map((section, index) => (
@@ -359,6 +369,8 @@ export function CardEditList({
                       setTextEditId(null);
                     }}
                     onErase={() => eraseRow(item.id)}
+                    fileUrl={isAttachmentType(item.type) ? row.url : undefined}
+                    onRetryFile={() => retryFile(item.id)}
                   />
                 );
               })}
@@ -847,6 +859,8 @@ function EditRow({
   onEdit,
   onConfirm,
   onErase,
+  fileUrl,
+  onRetryFile,
 }: {
   itemId: string;
   text: string;
@@ -863,7 +877,13 @@ function EditRow({
   onEdit: () => void;
   onConfirm: (next: string) => void;
   onErase: () => void;
+  /** Set on file rows: the row shows its upload state under the name. */
+  fileUrl?: string;
+  onRetryFile: () => void;
 }) {
+  const fileStatus = useUploadStatus((state) => state.byItem[itemId]);
+  const statusLine = fileUrl === undefined ? null : fileStatusLine(fileStatus, fileUrl);
+  const uploadFailed = statusLine !== null && fileStatus?.state !== "uploading";
   const rowRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
@@ -971,6 +991,20 @@ function EditRow({
           {text}
         </div>
       </div>
+      {statusLine ? (
+        uploadFailed ? (
+          <button
+            type="button"
+            data-no-swipe
+            onClick={onRetryFile}
+            className="mr-[26px] block text-left t-meta text-[var(--grey)]"
+          >
+            {statusLine}
+          </button>
+        ) : (
+          <span className="mr-[26px] block t-meta text-[var(--grey)]">{statusLine}</span>
+        )
+      ) : null}
       {editing
         ? createPortal(
             <div

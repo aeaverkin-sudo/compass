@@ -27,6 +27,8 @@ import {
   type CardDisplayRow,
   type CardZoneSection,
 } from "@/shared/services/card-zones";
+import { isAttachmentType } from "@/shared/services/portfolio-limits";
+import { fileStatusLine, useUploadStatus } from "@/shared/store/upload-status";
 import type { ContactItem } from "@/shared/types";
 
 export type ContactItemChipSize = "browse" | "compact";
@@ -227,12 +229,20 @@ function EditorialValue({
   row,
   onChooseHeader,
   underlineLink = false,
+  onRetryFile,
 }: {
   row: CardDisplayRow;
   onChooseHeader?: (itemId: string) => void;
   /** Public card: underline only the link value, not the platform prefix. */
   underlineLink?: boolean;
+  /** Owner card: file rows show their upload state, and a failed one asks for the file again. */
+  onRetryFile?: (itemId: string) => void;
 }) {
+  const itemId = row.item?.id;
+  const fileStatus = useUploadStatus((state) => (itemId ? state.byItem[itemId] : undefined));
+  const statusLine =
+    onRetryFile && row.item && isAttachmentType(row.item.type) ? fileStatusLine(fileStatus, row.url) : null;
+  const failed = statusLine !== null && fileStatus?.state !== "uploading";
   const marked = underlineLink && Boolean(row.url);
   const value = marked ? (
     <span className="underline decoration-[#c9c6bf] underline-offset-[3px] [text-decoration-thickness:1px]">
@@ -258,8 +268,26 @@ function EditorialValue({
       ) : (
         value
       )}
+      {statusLine ? <span className="block t-meta text-[var(--grey)]">{statusLine}</span> : null}
     </span>
   );
+
+  if (failed && row.item && onRetryFile) {
+    const failedId = row.item.id;
+    return (
+      <button
+        type="button"
+        data-card-content
+        onClick={(event) => {
+          event.stopPropagation();
+          onRetryFile(failedId);
+        }}
+        className="block w-full min-w-0 text-left"
+      >
+        {body}
+      </button>
+    );
+  }
 
   if (row.item && row.url) {
     return (
@@ -315,6 +343,7 @@ export function ContactItemChipList({
   publicToken,
   pdfZoneIds = null,
   markPdfBlocks = false,
+  onRetryFile,
 }: {
   items: ContactItem[];
   size: ContactItemChipSize;
@@ -338,6 +367,8 @@ export function ContactItemChipList({
   /** Print sheet: only these zones, in the card's own order. */
   pdfZoneIds?: string[] | null;
   markPdfBlocks?: boolean;
+  /** Owner card only. File rows show Uploading… and Upload failed. */
+  onRetryFile?: (itemId: string) => void;
 }) {
   const compact = size === "compact";
   const listRef = useRef<HTMLDivElement>(null);
@@ -1034,7 +1065,12 @@ export function ContactItemChipList({
                         }
                       >
                         <div className={cn("min-w-0", arranging && "pr-7")}>
-                          <EditorialValue row={row} onChooseHeader={onChooseHeader} underlineLink={underlineLinks} />
+                          <EditorialValue
+                            row={row}
+                            onChooseHeader={onChooseHeader}
+                            underlineLink={underlineLinks}
+                            onRetryFile={onRetryFile}
+                          />
                         </div>
                         {arranging ? (
                           <button
