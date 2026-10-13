@@ -71,7 +71,6 @@ export function MainScreen() {
   const browseCard = viewingAddSlide ? null : (cards[browseIndex] ?? cards[currentCardIndex] ?? null);
   const eventPass = account?.eventPass ?? null;
   const passes = new Map((eventPass?.passes ?? []).map((pass) => [pass.cardId, pass]));
-  const passMarks = Object.fromEntries([...passes].map(([cardId, pass]) => [cardId, `${pass.eventName} · Pass`]));
   const cardReady = Boolean(browseCard && (passes.has(browseCard.id) || isCardReady(browseCard)));
   const shownHasBody = Boolean(browseCard && getCardItems(browseCard, contactItems).length > 0);
   const creatingFirstEmptyCard = !viewingAddSlide && cards.length === 1 && !cardReady;
@@ -260,7 +259,6 @@ export function MainScreen() {
             openAddRef={openAddRef}
             onComposingChange={onComposingChange}
             frozen={frozen}
-            passMarks={passMarks}
             shareFootnote={(card) => {
               if (composing) return null;
               const pass = passes.get(card.id);
@@ -270,6 +268,8 @@ export function MainScreen() {
                     eventName={pass.eventName}
                     ended={pass.ended}
                     frozenHoursLeft={eventPass.frozenHoursLeft}
+                    needsEmail={eventPass.needsEmail}
+                    pendingEmail={eventPass.pendingEmail}
                     onAdd={() => {
                       if (frozen) return;
                       const index = cards.findIndex((entry) => entry.id === card.id);

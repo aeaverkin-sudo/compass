@@ -4,17 +4,97 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { SkyToast } from "@/shared/components/sky-toast";
+import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+
+const FIELD =
+  "compass-input block w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 py-1 text-center t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
+
+/** A phone guest adds an email. Supabase sends the confirmation; the pass stays as it is until then. */
+function AddEmail({ pendingEmail }: { pendingEmail: string | null }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState<string | null>(pendingEmail);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (sent) {
+    return <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">{`Check ${sent} to confirm it.`}</p>;
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        data-card-content
+        data-no-swipe
+        onClick={() => setOpen(true)}
+        className="mt-3 max-w-[260px] border-0 bg-transparent p-0 text-center t-meta text-[var(--grey)]"
+      >
+        Add your email to keep this pass on any device.
+      </button>
+    );
+  }
+
+  const submit = async () => {
+    const value = email.trim().toLowerCase();
+    if (busy || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setError("Check the email.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const { error: updateError } = await createBrowserSupabaseClient().auth.updateUser(
+      { email: value },
+      { emailRedirectTo: `${window.location.origin}/main` },
+    );
+    setBusy(false);
+    if (updateError) {
+      setError(/already|exists|registered/i.test(updateError.message) ? "This email already has an ADED profile" : updateError.message);
+      return;
+    }
+    setSent(value);
+  };
+
+  return (
+    <form
+      data-card-content
+      data-no-swipe
+      className="mt-3 flex w-full max-w-[260px] flex-col items-center"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submit();
+      }}
+    >
+      <input
+        type="email"
+        autoFocus
+        autoCapitalize="none"
+        autoComplete="email"
+        aria-label="Email"
+        placeholder="name@mail.com"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        className={FIELD}
+      />
+      {error ? <p className="mt-2 mb-0 text-center t-meta text-[var(--ink)]">{error}</p> : null}
+    </form>
+  );
+}
 
 /** Under the rows of a guest's event card: add more, then Wallet before the end or Keep after it. */
 export function EventPassFooter({
   eventName,
   ended,
   frozenHoursLeft,
+  needsEmail,
+  pendingEmail,
   onAdd,
 }: {
   eventName: string;
   ended: boolean;
   frozenHoursLeft: number | null;
+  needsEmail: boolean;
+  pendingEmail: string | null;
   onAdd: () => void;
 }) {
   const [toast, setToast] = useState(false);
@@ -37,6 +117,7 @@ export function EventPassFooter({
           <p className="mt-2 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">
             Add your contacts, links, professional details, social media and files — the portfolio you share at this event.
           </p>
+          {needsEmail || pendingEmail ? <AddEmail pendingEmail={pendingEmail} /> : null}
         </>
       )}
       <div className={frozen ? undefined : "mt-6"}>

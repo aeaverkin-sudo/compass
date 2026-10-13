@@ -40,6 +40,9 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
+const LOOKING_FOR = "Looking for";
+/** An event pass keeps Event in Additional, so Looking for takes a section the pass never fills. */
+const LOOKING_FOR_ZONE = "background";
 const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
 const DUPLICATE_NOTICE = "Already in your library";
@@ -587,6 +590,10 @@ function AddLine({
   const [fileItemId, setFileItemId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  const [lookingFor, setLookingFor] = useState(false);
+  const passCard = useAppStore(
+    (state) => state.cards.find((card) => card.id === cardId)?.rubricLabels?.additional === "Event",
+  );
   const fileItem = useAppStore((state) =>
     fileItemId ? state.contactItems.find((item) => item.id === fileItemId) : undefined,
   );
@@ -637,6 +644,7 @@ function AddLine({
   const dismissLine = () => {
     if (closedRef.current) return;
     closedRef.current = true;
+    setLookingFor(false);
     setText("");
     setFileItemId(null);
     setOpen(false);
@@ -680,7 +688,18 @@ function AddLine({
       return true;
     }
     onAdded(id);
+    if (lookingFor) placeLookingFor(id);
     return true;
+  };
+
+  /** The pass's Looking for row is its own section, after the ones the card already has. */
+  const placeLookingFor = (itemId: string) => {
+    const state = useAppStore.getState();
+    const card = state.cards.find((entry) => entry.id === cardId);
+    state.setItemZone(cardId, itemId, LOOKING_FOR_ZONE);
+    state.setRubricLabel(cardId, LOOKING_FOR_ZONE, LOOKING_FOR);
+    const order = card?.rubricOrder ?? [];
+    if (order.length > 0 && !order.includes(LOOKING_FOR_ZONE)) state.setCardRubricOrder(cardId, [...order, LOOKING_FOR_ZONE]);
   };
 
   const close = (raw?: string) => {
@@ -787,11 +806,27 @@ function AddLine({
                 aria-hidden
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
-              <div style={{ marginLeft: frame.left, width: frame.width }}>
+              <div ref={rowRef} style={{ marginLeft: frame.left, width: frame.width }}>
                 {error ? <p className="pt-2 t-meta text-destructive">{error}</p> : null}
                 {hint ? <p className="pt-2 t-meta text-[var(--ink)]">{hint}</p> : null}
-                <div ref={rowRef} className="flex items-start gap-[11px] border-b border-[var(--rule)] py-2">
-                  {filePhoto ? (
+                {passCard && !lookingFor && !fileItem && !text ? (
+                  <button
+                    type="button"
+                    data-no-swipe
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setLookingFor(true);
+                      fieldRef.current?.focusEnd();
+                    }}
+                    className="block border-0 bg-transparent p-0 pt-2 text-left t-meta text-[var(--grey)]"
+                  >
+                    {LOOKING_FOR}
+                  </button>
+                ) : null}
+                <div className="flex items-start gap-[11px] border-b border-[var(--rule)] py-2">
+                  {lookingFor ? (
+                    <span className="shrink-0 pt-[3px] t-label">{LOOKING_FOR}</span>
+                  ) : filePhoto ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={filePhoto} alt="" className="size-10 shrink-0 object-cover" />
                   ) : fileItem ? (

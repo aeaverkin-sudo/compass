@@ -46,7 +46,11 @@ export async function GET() {
     let eventPass: AccountStatus["eventPass"] = null;
     if (!clock.registered) {
       try {
-        eventPass = await readEventPass(owner.id, Boolean(user && !user.is_anonymous && user.email && user.email_confirmed_at));
+        eventPass = await readEventPass(owner.id, {
+          keepByTap: Boolean(user && !user.is_anonymous && user.email && user.email_confirmed_at),
+          email: user?.email_confirmed_at ? user.email?.trim() || null : null,
+          pendingEmail: user?.new_email?.trim() || (user?.email_confirmed_at ? null : user?.email?.trim() || null),
+        });
       } catch (passError) {
         console.error("[account] event pass", passError);
       }

@@ -18,7 +18,11 @@ async function readEvents(ids: string[]): Promise<EventRow[]> {
 }
 
 /** The event cards of an unkept guest account. Anyone else, or a database without the column, gets null. */
-export async function readEventPass(userId: string, keepByTap: boolean, now = Date.now()): Promise<EventPassStatus | null> {
+export async function readEventPass(
+  userId: string,
+  mail: { keepByTap: boolean; email: string | null; pendingEmail: string | null },
+  now = Date.now(),
+): Promise<EventPassStatus | null> {
   const admin = createAdminSupabaseClient();
   const profile = await admin.from("profiles").select("event_trial, registered_at, draft_expires_at, purge_at").eq("id", userId).maybeSingle();
   if (profile.error || !profile.data) return null;
@@ -48,5 +52,11 @@ export async function readEventPass(userId: string, keepByTap: boolean, now = Da
   const purge = row.purge_at ? new Date(row.purge_at).getTime() : Number.NaN;
   const frozen = Number.isFinite(draft) && draft <= now;
   const frozenHoursLeft = frozen && Number.isFinite(purge) ? Math.max(1, Math.ceil((purge - now) / HOUR_MS)) : null;
-  return { passes, frozenHoursLeft, keepByTap };
+  return {
+    passes,
+    frozenHoursLeft,
+    keepByTap: mail.keepByTap,
+    needsEmail: !mail.email && !mail.pendingEmail,
+    pendingEmail: mail.email ? null : mail.pendingEmail,
+  };
 }

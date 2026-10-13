@@ -38,6 +38,10 @@ export type EventPassStatus = {
   frozenHoursLeft: number | null;
   /** A confirmed email keeps the profile with one tap. A phone guest registers. */
   keepByTap: boolean;
+  /** No email on the account and none waiting: the pass offers to add one. */
+  needsEmail: boolean;
+  /** An email sent for confirmation and not confirmed yet. */
+  pendingEmail: string | null;
 };
 
 type ProfileClock = {
