@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fail, isUuid, requireOwnerId } from "@/shared/services/attachment-api";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { saveConnection } from "@/shared/services/save-connection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,15 +56,8 @@ export async function POST(request: Request) {
     }
     if (to.data.owner_id === owner.id) return noStore({ error: "That card is yours" }, 400);
 
-    const inserted = await admin.from("connections").upsert(
-      {
-        owner_id: to.data.owner_id,
-        saved_card_id: from.data.id,
-        state: "pending",
-      },
-      { onConflict: "owner_id,saved_card_id", ignoreDuplicates: true },
-    );
-    if (inserted.error) throw new Error(inserted.error.message);
+    const inserted = await saveConnection({ ownerId: to.data.owner_id, cardId: from.data.id, state: "pending" });
+    if (!inserted.ok) throw new Error(inserted.message);
 
     return noStore({ ok: true });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { saveConnection } from "@/shared/services/save-connection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,12 +37,9 @@ export async function POST(request: Request) {
   if (!card.data) return noStore({ error: "Not found" }, 404);
   if (card.data.owner_id === user.id) return noStore({ error: "own" }, 409);
 
-  const saved = await admin.from("connections").upsert(
-    { owner_id: user.id, saved_card_id: card.data.id, state: "active" },
-    { onConflict: "owner_id,saved_card_id", ignoreDuplicates: true },
-  );
-  if (saved.error) {
-    if (/cannot_save_own_card/i.test(saved.error.message)) return noStore({ error: "own" }, 409);
+  const saved = await saveConnection({ ownerId: user.id, cardId: card.data.id, state: "active" });
+  if (!saved.ok) {
+    if (saved.own) return noStore({ error: "own" }, 409);
     return noStore({ error: "Could not save the card" }, 500);
   }
   return noStore({ ok: true });
