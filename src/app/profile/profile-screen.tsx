@@ -124,6 +124,7 @@ export function ProfileScreen() {
   const portfolioLimit = account?.portfolioLimit ?? null;
   const atCardLimit = portfolioLimit !== null && cards.length >= portfolioLimit;
   const [busy, setBusy] = useState(false);
+  const [walletCardId, setWalletCardId] = useState<string | null>(null);
   const signedIn = account?.registered === true;
   const canChangePassword = signedIn && account?.provider === "email";
 
@@ -143,6 +144,33 @@ export function ProfileScreen() {
     ignoreNextSignedOut();
     await createBrowserSupabaseClient().auth.signOut();
     router.push("/");
+  };
+
+  useEffect(() => {
+    let live = true;
+    void fetch("/api/cards/primary", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { cardId?: string | null } | null) => {
+        if (live && body?.cardId) setWalletCardId(body.cardId);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const putInWallet = (cardId: string) => {
+    const previous = walletCardId;
+    setWalletCardId(cardId);
+    void fetch("/api/cards/primary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId }),
+    })
+      .then((response) => {
+        if (!response.ok) setWalletCardId(previous);
+      })
+      .catch(() => setWalletCardId(previous));
   };
 
   useEffect(() => {
@@ -261,6 +289,19 @@ export function ProfileScreen() {
                   <p className="truncate t-body">
                     {card.displayName.trim() || "Untitled"}
                   </p>
+                  {ready && walletCardId ? (
+                    walletCardId === card.id ? (
+                      <p className="mt-1 mb-0 t-meta text-[var(--grey)]">In Wallet</p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => putInWallet(card.id)}
+                        className="mt-1 border-0 bg-transparent p-0 t-meta text-[var(--ink)] underline"
+                      >
+                        Put in Wallet
+                      </button>
+                    )
+                  ) : null}
                   <div className="mt-2 flex items-center gap-3">
                     <span className="t-label">
                       {isPublic ? "Public" : "Private"}
