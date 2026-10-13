@@ -3,6 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Smaller runtime footprint — important on Render free tier (512 MB).
   output: "standalone",
+  // The poster snapshot unpacks Chromium from these archives at run time; the trace cannot see them.
+  outputFileTracingIncludes: {
+    "/api/events": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/events/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+  },
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },

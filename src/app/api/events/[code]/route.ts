@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { readEventForm } from "@/shared/event/read-event-form";
+import { queuePosterSnapshot } from "@/shared/services/poster-snapshot";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadManageEvent } from "@/shared/services/event-manage";
@@ -63,6 +64,7 @@ export async function PATCH(request: Request, context: RouteProps) {
       logo: fields.logo,
       removeLogo: fields.removeLogo,
     });
+    after(() => queuePosterSnapshot(access.event.code));
     return noStore({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

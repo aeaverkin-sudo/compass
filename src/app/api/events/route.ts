@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
+import { queuePosterSnapshot } from "@/shared/services/poster-snapshot";
 import { readEventForm } from "@/shared/event/read-event-form";
 import { createEvent, listMyEvents } from "@/shared/services/events";
 
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
       isPaid: false,
       paymentUrl: null,
     });
+    after(() => queuePosterSnapshot(created.code));
     return noStore(created);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

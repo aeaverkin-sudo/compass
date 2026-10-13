@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { saveEventPay } from "@/shared/services/event-payment";
+import { queuePosterSnapshot } from "@/shared/services/poster-snapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export async function PATCH(request: Request, context: RouteProps) {
   try {
     const result = await saveEventPay(code, data.user.id, body);
     if (!result.ok) return noStore({ error: result.error }, result.status);
+    after(() => queuePosterSnapshot(code));
     return noStore({ ok: true });
   } catch (error) {
     console.error("[events] payment save", error);
