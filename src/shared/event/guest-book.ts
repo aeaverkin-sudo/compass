@@ -13,6 +13,9 @@ export type BookGuest = {
   listIds: string[];
   paidList: boolean;
   status: GuestStatus;
+  /** The pass went out, and the guest opened it. */
+  sent: boolean;
+  opened: boolean;
   photoUrl: string | null;
   cardToken: string | null;
   paidStatus: string | null;
@@ -21,9 +24,13 @@ export type BookGuest = {
   addedAt: string | null;
 };
 
+/** A file, or a system list: Added by hand and Open link. */
+export type GuestListKind = "file" | "manual" | "open";
+
 export type BookList = {
   id: string;
   name: string;
+  kind: GuestListKind;
   isPaid: boolean;
   total: number;
   email: number;

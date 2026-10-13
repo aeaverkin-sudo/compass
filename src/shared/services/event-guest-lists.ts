@@ -13,9 +13,12 @@ import {
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isUuid } from "@/shared/services/attachment-api";
 import { listEventGuests, loadManageEvent, type EventGuest } from "@/shared/services/event-manage";
+import { SYSTEM_LIST_NAME, systemListId, type GuestListKind } from "@/shared/services/event-open-link";
 
 const PAGE = 1000;
 const MIGRATION = "Guest lists need the guest-lists migration.";
+const CABINET_MIGRATION = "Adding by hand needs the event cabinet migration.";
+const SYSTEM_LIST = "This list can't be renamed or removed.";
 const TABLES = /event_guest_lists|event_guests|event_guest_list_members|event_guest_kept_pairs/i;
 
 type Failure = { ok: false; status: number; error: string };
@@ -36,7 +39,7 @@ type GuestRow = {
   paid_status?: string | null;
   paid_source?: string | null;
 };
-type ListRow = { id: string; name: string; is_paid: boolean; created_at: string | null };
+type ListRow = { id: string; name: string; is_paid: boolean; created_at: string | null; kind?: string | null };
 type MemberRow = { guest_id: string; list_id: string };
 type PairRow = { guest_a: string; guest_b: string };
 
@@ -110,15 +113,21 @@ async function readGuests(eventId: string): Promise<GuestRow[]> {
 
 async function readLists(eventId: string): Promise<ListRow[]> {
   const admin = createAdminSupabaseClient();
-  return allRows<ListRow>((from, to) =>
-    admin
-      .from("event_guest_lists")
-      .select("id, name, is_paid, created_at")
-      .eq("event_id", eventId)
-      .order("created_at", { ascending: true })
-      .range(from, to),
-  );
+  const page = (select: string) => (from: number, to: number) =>
+    admin.from("event_guest_lists").select(select).eq("event_id", eventId).order("created_at", { ascending: true }).range(from, to);
+  try {
+    return await allRows<ListRow>(page("id, name, is_paid, created_at, kind"));
+  } catch (error) {
+    if (!(error instanceof Error) || !/kind/i.test(error.message)) throw error;
+    return allRows<ListRow>(page("id, name, is_paid, created_at"));
+  }
 }
+
+function kindOf(list: ListRow): GuestListKind {
+  return list.kind === "manual" || list.kind === "open" ? list.kind : "file";
+}
+
+const KIND_ORDER: Record<GuestListKind, number> = { file: 0, manual: 1, open: 2 };
 
 async function readMembers(listIds: string[]): Promise<MemberRow[]> {
   if (listIds.length === 0) return [];
@@ -232,9 +241,6 @@ export async function importGuestList(
   const eventId = allowed.eventId;
   return guarded(async () => {
     const admin = createAdminSupabaseClient();
-    const existing = await readGuests(eventId);
-    const pool = poolOf(existing);
-
     const name = listNameFromFile(fileName);
     const created = await admin
       .from("event_guest_lists")
@@ -243,89 +249,112 @@ export async function importGuestList(
       .single();
     if (created.error || !created.data) fail(created.error ?? { message: "Could not create the list." });
     const listId = String((created.data as { id: string }).id);
-
-    const fresh: GuestRow[] = [];
-    const freshIds = new Set<string>();
-    const changed = new Map<string, Partial<GuestRow>>();
-    const members = new Set<string>();
-    let merged = 0;
-
-    for (const person of parsed.guests) {
-      const matchId = (person.email ? pool.byEmail.get(person.email) : undefined) ?? (person.phone ? findByPhone(pool, person.phone) : null);
-      if (!matchId) {
-        const guest: GuestRow = {
-          id: crypto.randomUUID(),
-          name: person.name.slice(0, 200),
-          email: person.email,
-          phone: person.phone,
-          token: nanoid(21),
-          sent_at: null,
-          opened_at: null,
-          registration_id: null,
-          created_at: null,
-        };
-        fresh.push(guest);
-        freshIds.add(guest.id);
-        remember(pool, guest);
-        members.add(guest.id);
-        continue;
-      }
-
-      const guest = pool.byId.get(matchId) as GuestRow;
-      if (!members.has(matchId) && !freshIds.has(matchId)) merged += 1;
-      members.add(matchId);
-      const patch: Partial<GuestRow> = {};
-      if (!guest.email && person.email && !pool.byEmail.has(person.email)) patch.email = person.email;
-      if (person.phone) {
-        if (!guest.phone && !findByPhone(pool, person.phone)) patch.phone = person.phone;
-        else if (guest.phone && phonesMatch(guest.phone, person.phone)) {
-          const fuller = fullerPhone(guest.phone, person.phone);
-          if (fuller !== guest.phone) patch.phone = fuller;
-        }
-      }
-      if (Object.keys(patch).length === 0) continue;
-      Object.assign(guest, patch);
-      remember(pool, guest);
-      if (freshIds.has(matchId)) continue;
-      changed.set(matchId, { ...(changed.get(matchId) ?? {}), ...patch });
-    }
-
-    for (const batch of chunks(fresh, 500)) {
-      const inserted = await admin.from("event_guests").insert(
-        batch.map((guest) => ({ id: guest.id, event_id: eventId, name: guest.name, email: guest.email, phone: guest.phone, token: guest.token })),
-      );
-      if (inserted.error) fail(inserted.error);
-    }
-    for (const batch of chunks([...changed], 10)) {
-      await Promise.all(
-        batch.map(async ([id, patch]) => {
-          const updated = await admin.from("event_guests").update(patch).eq("id", id).eq("event_id", eventId);
-          if (updated.error) fail(updated.error);
-        }),
-      );
-    }
-    for (const batch of chunks([...members], 500)) {
-      const linked = await admin
-        .from("event_guest_list_members")
-        .upsert(batch.map((guestId) => ({ guest_id: guestId, list_id: listId })), { onConflict: "guest_id,list_id", ignoreDuplicates: true });
-      if (linked.error) fail(linked.error);
-    }
-
-    await linkRegistrations(eventId, [...pool.byId.values()]);
-
+    const { added, merged } = await mergeIntoList(eventId, listId, parsed);
     return {
       ok: true,
-      report: { listId, name, added: fresh.length, merged, rows: parsed.rows, skipped: parsed.skipped },
+      report: { listId, name, added, merged, rows: parsed.rows, skipped: parsed.skipped },
     };
   });
 }
 
-async function ownList(eventId: string, listId: string): Promise<boolean> {
-  if (!isUuid(listId)) return false;
+/** Guests typed or pasted in the cabinet go to Added by hand, merged like a file. */
+export async function addGuestsByHand(lookup: string, actorId: string, parsed: GuestImport): Promise<Call<{ report: GuestListReport }>> {
+  const allowed = await access(lookup, actorId);
+  if (!allowed.ok) return allowed;
+  const eventId = allowed.eventId;
+  return guarded<{ report: GuestListReport }>(async () => {
+    const listId = await systemListId(eventId, "manual");
+    if (!listId) return { ok: false, status: 409, error: CABINET_MIGRATION };
+    const { added, merged } = await mergeIntoList(eventId, listId, parsed);
+    return {
+      ok: true,
+      report: { listId, name: SYSTEM_LIST_NAME.manual, added, merged, rows: parsed.rows, skipped: parsed.skipped },
+    };
+  });
+}
+
+async function mergeIntoList(eventId: string, listId: string, parsed: GuestImport): Promise<{ added: number; merged: number }> {
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin.from("event_guest_lists").select("id").eq("id", listId).eq("event_id", eventId).maybeSingle();
-  if (error) fail(error);
-  return Boolean(data);
+  const existing = await readGuests(eventId);
+  const pool = poolOf(existing);
+
+  const fresh: GuestRow[] = [];
+  const freshIds = new Set<string>();
+  const changed = new Map<string, Partial<GuestRow>>();
+  const members = new Set<string>();
+  let merged = 0;
+
+  for (const person of parsed.guests) {
+    const matchId = (person.email ? pool.byEmail.get(person.email) : undefined) ?? (person.phone ? findByPhone(pool, person.phone) : null);
+    if (!matchId) {
+      const guest: GuestRow = {
+        id: crypto.randomUUID(),
+        name: person.name.slice(0, 200),
+        email: person.email,
+        phone: person.phone,
+        token: nanoid(21),
+        sent_at: null,
+        opened_at: null,
+        registration_id: null,
+        created_at: null,
+      };
+      fresh.push(guest);
+      freshIds.add(guest.id);
+      remember(pool, guest);
+      members.add(guest.id);
+      continue;
+    }
+
+    const guest = pool.byId.get(matchId) as GuestRow;
+    if (!members.has(matchId) && !freshIds.has(matchId)) merged += 1;
+    members.add(matchId);
+    const patch: Partial<GuestRow> = {};
+    if (!guest.email && person.email && !pool.byEmail.has(person.email)) patch.email = person.email;
+    if (person.phone) {
+      if (!guest.phone && !findByPhone(pool, person.phone)) patch.phone = person.phone;
+      else if (guest.phone && phonesMatch(guest.phone, person.phone)) {
+        const fuller = fullerPhone(guest.phone, person.phone);
+        if (fuller !== guest.phone) patch.phone = fuller;
+      }
+    }
+    if (Object.keys(patch).length === 0) continue;
+    Object.assign(guest, patch);
+    remember(pool, guest);
+    if (freshIds.has(matchId)) continue;
+    changed.set(matchId, { ...(changed.get(matchId) ?? {}), ...patch });
+  }
+
+  for (const batch of chunks(fresh, 500)) {
+    const inserted = await admin.from("event_guests").insert(
+      batch.map((guest) => ({ id: guest.id, event_id: eventId, name: guest.name, email: guest.email, phone: guest.phone, token: guest.token })),
+    );
+    if (inserted.error) fail(inserted.error);
+  }
+  for (const batch of chunks([...changed], 10)) {
+    await Promise.all(
+      batch.map(async ([id, patch]) => {
+        const updated = await admin.from("event_guests").update(patch).eq("id", id).eq("event_id", eventId);
+        if (updated.error) fail(updated.error);
+      }),
+    );
+  }
+  for (const batch of chunks([...members], 500)) {
+    const linked = await admin
+      .from("event_guest_list_members")
+      .upsert(batch.map((guestId) => ({ guest_id: guestId, list_id: listId })), { onConflict: "guest_id,list_id", ignoreDuplicates: true });
+    if (linked.error) fail(linked.error);
+  }
+
+  await linkRegistrations(eventId, [...pool.byId.values()]);
+  return { added: fresh.length, merged };
+}
+
+/** The list's kind, or null when it is not this event's. */
+async function ownList(eventId: string, listId: string): Promise<GuestListKind | null> {
+  if (!isUuid(listId)) return null;
+  const lists = await readLists(eventId);
+  const list = lists.find((row) => row.id === listId);
+  return list ? kindOf(list) : null;
 }
 
 export async function updateGuestList(
@@ -337,9 +366,11 @@ export async function updateGuestList(
   const allowed = await access(lookup, actorId);
   if (!allowed.ok) return allowed;
   return guarded(async () => {
-    if (!(await ownList(allowed.eventId, listId))) return { ok: false, status: 404, error: "List not found" };
+    const kind = await ownList(allowed.eventId, listId);
+    if (!kind) return { ok: false, status: 404, error: "List not found" };
     const row: { name?: string; is_paid?: boolean } = {};
     if (typeof patch.name === "string") {
+      if (kind !== "file") return { ok: false, status: 400, error: SYSTEM_LIST };
       const name = patch.name.replace(/\s+/g, " ").trim().slice(0, 80);
       if (!name) return { ok: false, status: 400, error: "Name the list." };
       row.name = name;
@@ -359,7 +390,9 @@ export async function deleteGuestList(lookup: string, actorId: string, listId: s
   if (!allowed.ok) return allowed;
   return guarded(async () => {
     const eventId = allowed.eventId;
-    if (!(await ownList(eventId, listId))) return { ok: false, status: 404, error: "List not found" };
+    const kind = await ownList(eventId, listId);
+    if (!kind) return { ok: false, status: 404, error: "List not found" };
+    if (kind !== "file") return { ok: false, status: 400, error: SYSTEM_LIST };
     const admin = createAdminSupabaseClient();
     const touched = (await readMembers([listId])).map((row) => row.guest_id);
     const removed = await admin.from("event_guest_lists").delete().eq("id", listId).eq("event_id", eventId);
@@ -484,6 +517,8 @@ export function registrationGuest(reg: EventGuest): BookGuest {
     listIds: [],
     paidList: false,
     status: reg.checkedIn ? "in" : "going",
+    sent: false,
+    opened: false,
     photoUrl: reg.photoUrl,
     cardToken: reg.cardToken,
     paidStatus: reg.paidStatus,
@@ -532,6 +567,8 @@ export async function loadGuestBook(eventId: string, registrations?: EventGuest[
         listIds,
         paidList: listIds.some((id) => listById.get(id)?.is_paid),
         status: listStatus(guest, registration),
+        sent: Boolean(guest.sent_at),
+        opened: Boolean(guest.opened_at),
         photoUrl: registration?.photoUrl ?? null,
         cardToken: registration?.cardToken ?? null,
         paidStatus: registration?.paidStatus ?? keptPaid(guest.paid_status),
@@ -545,11 +582,13 @@ export async function loadGuestBook(eventId: string, registrations?: EventGuest[
     }
     book.sort((a, b) => a.name.localeCompare(b.name));
 
-    const bookLists: BookList[] = lists.map((list) => {
+    const ordered = [...lists].sort((a, b) => KIND_ORDER[kindOf(a)] - KIND_ORDER[kindOf(b)]);
+    const bookLists: BookList[] = ordered.map((list) => {
       const inList = book.filter((guest) => guest.listIds.includes(list.id));
       return {
         id: list.id,
         name: list.name,
+        kind: kindOf(list),
         isPaid: list.is_paid,
         total: inList.length,
         email: inList.filter((guest) => guest.email).length,

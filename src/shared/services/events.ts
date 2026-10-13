@@ -76,6 +76,14 @@ export function eventHasEnded(date: string | null, endsAt: string | null): boole
   return eventListStatus(date, Date.now(), endsAt) === "past";
 }
 
+const DOOR_OPENS_BEFORE_MS = 2 * 60 * 60 * 1000;
+
+/** From two hours before the start until the end. */
+export function eventDoorIsOpen(date: string | null, endsAt: string | null): boolean {
+  const start = date ? Date.parse(date) : NaN;
+  return Number.isFinite(start) && Date.now() >= start - DOOR_OPENS_BEFORE_MS && !eventHasEnded(date, endsAt);
+}
+
 export type CreateEventInput = {
   ownerId: string;
   name: string;

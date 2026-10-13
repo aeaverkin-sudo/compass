@@ -10,7 +10,11 @@ import { loadGuestBook } from "@/shared/services/event-guest-lists";
 import { loadShowGoing } from "@/shared/services/event-going";
 import { eventPublicPath } from "@/shared/event/slug";
 import { formatEventWhen } from "@/shared/event/when";
-import { eventHasEnded } from "@/shared/services/events";
+import { eventDoorIsOpen, eventHasEnded } from "@/shared/services/events";
+import { loadOpenLink } from "@/shared/services/event-open-link";
+import { countCardsExchanged } from "@/shared/services/event-export";
+import { isGoing } from "@/shared/event/guest-book";
+import { guestSources, isPaidGuest, isPendingGuest } from "@/shared/event/guest-sources";
 import { ManageHome } from "./manage-home";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +49,8 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   const invite = await loadEventInvite(lookup);
   if (!invite) notFound();
   const pay = await loadEventPay(event.id);
-  const [managers, tally, book, showGoing] = await Promise.all([
+  const ended = eventHasEnded(invite.date, invite.endsAt);
+  const [managers, tally, book, showGoing, openLink, cards] = await Promise.all([
     sections.includes("managers") ? listEventManagers(event.id) : Promise.resolve(null),
     sections.includes("payment") ? loadPaymentTally(event.id) : Promise.resolve(null),
     sections.includes("guests")
@@ -55,12 +60,24 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
         })
       : Promise.resolve(null),
     sections.includes("guests") ? loadShowGoing(event.id) : Promise.resolve(true),
+    loadOpenLink(event.id),
+    ended ? countCardsExchanged(event.id) : Promise.resolve(0),
   ]);
   const origin = await requestOrigin();
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
   const shareKey = invite.slug?.trim() || invite.code.trim() || event.publicToken;
-  const ended = eventHasEnded(invite.date, invite.endsAt);
-  const endedLabel = ended ? formatEventWhen(invite.endsAt ?? invite.date, invite.timeZone) : null;
+  const endedLabel = ended ? (formatEventWhen(invite.endsAt ?? invite.date, invite.timeZone) ?? "") : null;
+  const doorOpen = eventDoorIsOpen(invite.date, invite.endsAt);
+
+  const guests = book?.guests ?? [];
+  const lists = book?.lists ?? [];
+  const total = book ? book.total : event.registered;
+  const going = book ? book.going : event.registered;
+  const checkedIn = book ? book.checkedIn : event.checkedIn;
+  const paid = book ? guests.filter(isPaidGuest).length : event.paid;
+  const pending = book ? guests.filter(isPendingGuest).length : Math.max(0, event.registered - event.paid);
+  const counter = [String(total), `${going} going`, ...(pay.isPaid ? [`${paid} paid`] : []), `${checkedIn} in`].join(" · ");
+  const listed = guests.filter((guest) => guest.guestId && guest.sent);
 
   return (
     <ManageHome
@@ -69,6 +86,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
       shareUrl={`${origin}${eventPublicPath(shareKey)}`}
       sections={sections}
       canEdit={event.role === "owner" || event.permissions.edit}
+      canDelete={event.role === "owner"}
       flash={flash}
       cover={{
         description: invite.description,
@@ -84,29 +102,28 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
         logoUrl: invite.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,
         price: pay.isPaid ? priceLabel(pay.price, pay.currency) : null,
       }}
-      going={event.registered}
-      confirmed={event.paid}
-      checkedIn={event.checkedIn}
-      isPaid={pay.isPaid}
       pay={sections.includes("payment") ? pay : null}
       tally={tally}
       managers={managers ?? []}
       canRemove={event.role === "owner"}
       teamFull={(managers?.length ?? event.managers) >= managerCap()}
       endedLabel={endedLabel}
+      doorOpen={doorOpen}
       showGoing={showGoing}
-      book={
-        book
-          ? {
-              lists: book.lists,
-              pairs: book.pairs,
-              passes: book.passes,
-              total: book.total,
-              going: book.going,
-              checkedIn: book.checkedIn,
-            }
-          : null
-      }
+      openLink={{ open: openLink.open, capacity: openLink.capacity, joined: event.registered }}
+      guests={{
+        counter,
+        checkedIn,
+        sources: book ? guestSources(guests, lists) : [],
+        pairs: book?.pairs ?? [],
+        passes: book?.passes ?? [],
+        sent: {
+          sent: listed.length,
+          opened: listed.filter((guest) => guest.opened || isGoing(guest.status)).length,
+          going: listed.filter((guest) => isGoing(guest.status)).length,
+        },
+      }}
+      after={ended ? { came: checkedIn, total, cards, paid: pay.isPaid ? { paid, pending } : null } : null}
     />
   );
 }
