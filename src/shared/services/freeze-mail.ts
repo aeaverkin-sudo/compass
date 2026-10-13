@@ -1,6 +1,8 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { deletionDateLabel } from "@/shared/lib/deletion-date";
-import { mailConfigured, sendFreezeNotice } from "@/shared/services/mail";
+import { mailConfigured, sendHtmlMail } from "@/shared/services/mail";
+import { deletionMail, logMail } from "@/shared/services/event-mails";
+import { eventTitleLine } from "@/shared/event/event-title";
 import { eventGuestEnd } from "@/shared/services/trial";
 import { loadEventTimeZone } from "@/shared/services/event-time-zone";
 import { isTimeZone } from "@/shared/event/time-zone";
@@ -9,7 +11,7 @@ const BATCH = 50;
 const NOTICE_MS = 48 * 60 * 60 * 1000;
 
 type RegRow = { id: string; event_id: string };
-type GuestRow = { token: string; unsubscribed_at: string | null; registration_id: string };
+type GuestRow = { id: string; token: string; registration_id: string; bounced_at?: string | null };
 type EventRow = { id: string; name: string; code: string; slug?: string | null; date: string | null; ends_at?: string | null };
 
 async function readEvents(ids: string[]): Promise<EventRow[]> {
@@ -29,7 +31,10 @@ async function readEvents(ids: string[]): Promise<EventRow[]> {
  * The event that set the deletion date (the latest end), and the personal link that opens the pass.
  * A guest who came by the open link has no personal link; the pass opens on the same device.
  */
-async function mailTarget(userId: string, origin: string): Promise<{ event: EventRow; link: string; unsubscribed: boolean } | null> {
+async function mailTarget(
+  userId: string,
+  origin: string,
+): Promise<{ event: EventRow; link: string; guestId: string | null; bounced: boolean } | null> {
   const admin = createAdminSupabaseClient();
   const regs = await admin.from("event_registrations").select("id, event_id").eq("user_id", userId);
   if (regs.error) throw new Error(regs.error.message);
@@ -45,13 +50,11 @@ async function mailTarget(userId: string, origin: string): Promise<{ event: Even
   const latest = ordered[0];
   if (!latest) return null;
 
-  const guests = await admin
-    .from("event_guests")
-    .select("token, unsubscribed_at, registration_id")
-    .in(
-      "registration_id",
-      ordered.map((entry) => entry.row.id),
-    );
+  const regIds = ordered.map((entry) => entry.row.id);
+  let guests = await admin.from("event_guests").select("id, token, registration_id, bounced_at").in("registration_id", regIds);
+  if (guests.error && /bounced_at/i.test(guests.error.message)) {
+    guests = await admin.from("event_guests").select("id, token, registration_id").in("registration_id", regIds);
+  }
   const byReg = new Map(((guests.error ? [] : guests.data ?? []) as GuestRow[]).map((guest) => [guest.registration_id, guest]));
   const own = byReg.get(latest.row.id);
   const any = own ?? ordered.map((entry) => byReg.get(entry.row.id)).find(Boolean);
@@ -59,7 +62,7 @@ async function mailTarget(userId: string, origin: string): Promise<{ event: Even
   const link = any
     ? `${origin}/e/${encodeURIComponent(linkEvent.slug?.trim() || linkEvent.code)}?g=${any.token}`
     : `${origin}/main`;
-  return { event: latest.event, link, unsubscribed: Boolean(own?.unsubscribed_at ?? any?.unsubscribed_at) };
+  return { event: latest.event, link, guestId: own?.id ?? null, bounced: Boolean(own?.bounced_at ?? any?.bounced_at) };
 }
 
 /** Contacts this guest saved while at the event. */
@@ -75,9 +78,9 @@ async function metAt(userId: string, eventId: string): Promise<number> {
 }
 
 /**
- * One mail per event guest with an email, 48 hours before the deletion, then the stamp.
- * The stamp goes first, so two runs never send twice. An unsubscribed guest
- * or an account without an email is stamped without a mail.
+ * One mail per event guest with an email who met people at the event, 48 hours before
+ * the deletion. The stamp goes first, so two runs never send twice. Nobody met, no email
+ * or a bounce: stamped without a mail. Unsubscribing does not stop it: it is about the data.
  */
 export async function sendFreezeMails(origin: string): Promise<number> {
   if (!mailConfigured()) return 0;
@@ -115,11 +118,16 @@ export async function sendFreezeMails(origin: string): Promise<number> {
       const email = account?.email_confirmed_at ? account.email?.trim().toLowerCase() : null;
       if (!email) continue;
       const target = await mailTarget(row.id, origin);
-      if (!target || target.unsubscribed) continue;
+      if (!target || target.bounced) continue;
+      const met = await metAt(row.id, target.event.id);
+      if (met === 0) continue;
       const eventZone = await loadEventTimeZone(target.event.id);
       const deviceZone = account?.user_metadata?.time_zone;
-      const deleteOn = deletionDateLabel(row.purge_at, isTimeZone(deviceZone) ? deviceZone : eventZone);
-      await sendFreezeNotice(email, target.event.name, deleteOn, target.link, await metAt(row.id, target.event.id));
+      const expires = deletionDateLabel(row.purge_at, isTimeZone(deviceZone) ? deviceZone : eventZone);
+      const eventName = eventTitleLine(target.event.name);
+      const body = deletionMail({ eventName, met, expires, link: target.link });
+      const providerId = await sendHtmlMail({ to: email, subject: `Your card from ${eventName}`, html: body.html, text: body.text });
+      await logMail(target.event.id, "deletion", target.guestId, providerId);
       sent += 1;
     } catch (error) {
       console.error("[purge] freeze mail", row.id, error);

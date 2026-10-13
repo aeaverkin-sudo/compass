@@ -214,6 +214,23 @@ export function reminderMail(
   });
 }
 
+const KEEP_LINE =
+  "Free, one tap. Your card and your Network stay — share it in everyday life with the people you met and want to remember you.";
+
+/** 48 hours before the deletion, only to someone who met people. No poster, no unsubscribe. */
+export function deletionMail(input: { eventName: string; met: number; expires: string; link: string }): RenderedMail {
+  return renderEventMail({
+    zones: [
+      { label: "Your card", value: input.eventName, lead: true },
+      { label: "You met", value: `${input.met} ${input.met === 1 ? "person — their card is" : "people — their cards are"} in your Network.` },
+      { label: "Expires", value: `${input.expires} — the card and the people with it.` },
+      { label: "Keep it", value: KEEP_LINE },
+    ],
+    button: { label: "KEEP MY PROFILE", href: input.link },
+    footer: { plain: "ADED · adedme.com" },
+  });
+}
+
 const HOUR_MS = 60 * 60 * 1000;
 
 type Recipient = { email: string; guestId: string | null; token: string | null };
