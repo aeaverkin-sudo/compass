@@ -57,7 +57,7 @@ async function logoDataUrl(event: EventInvite): Promise<string | null> {
     const { default: sharp } = await import("sharp");
     const png = await sharp(Buffer.from(bytes), { failOn: "none" })
       .rotate()
-      .resize(840, 1260, { fit: "cover", position: "centre" })
+      .resize(920, 1260, { fit: "inside", withoutEnlargement: true })
       .png()
       .toBuffer();
     return `data:image/png;base64,${png.toString("base64")}`;

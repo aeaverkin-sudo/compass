@@ -24,8 +24,8 @@ export type PassInput = {
   serialNumber: string;
   organizationName: string;
   description: string;
-  /** The event logo as PNG. Without it, the ADED icon. */
-  logoPng?: Buffer | null;
+  /** The event logo as PNG at 1×, 2× and 3×, whole inside Apple's 160×50 box. Without it, the ADED icon. */
+  logo?: { x1: Buffer; x2: Buffer; x3: Buffer } | null;
   logoText?: string;
   header?: PassField | null;
   primary: PassField;
@@ -94,7 +94,11 @@ export async function buildPass(input: PassInput): Promise<Buffer> {
   const fallback = await adedIcon();
   pass.addBuffer("icon.png", fallback);
   pass.addBuffer("icon@2x.png", fallback);
-  pass.addBuffer("logo.png", input.logoPng ?? fallback);
+  pass.addBuffer("logo.png", input.logo?.x1 ?? fallback);
+  if (input.logo) {
+    pass.addBuffer("logo@2x.png", input.logo.x2);
+    pass.addBuffer("logo@3x.png", input.logo.x3);
+  }
   if (input.header) pass.headerFields.push(input.header);
   pass.primaryFields.push(input.primary);
   for (const field of input.secondary ?? []) pass.secondaryFields.push(field);

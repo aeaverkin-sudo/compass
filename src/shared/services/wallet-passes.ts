@@ -36,13 +36,28 @@ function cardName(card: CardRow | undefined): string {
   return card?.display_name?.replace(/\s+/g, " ").trim() || "Guest";
 }
 
-/** Wallet takes PNG only. Any other logo falls back to the ADED icon. */
-async function eventLogoPng(event: EventInvite): Promise<Buffer | null> {
+const LOGO_MIMES = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml"]);
+
+/** Wallet takes PNG: the logo is fitted whole inside 160×50 points, never cropped. Unreadable → the ADED icon. */
+async function eventLogo(event: EventInvite): Promise<{ x1: Buffer; x2: Buffer; x3: Buffer } | null> {
   if (!event.logoAttachmentId) return null;
   const row = await loadAttachment(event.logoAttachmentId);
-  if (!row || row.status !== "ready" || row.mime !== "image/png") return null;
+  if (!row || row.status !== "ready" || !LOGO_MIMES.has(row.mime)) return null;
   const bytes = await downloadAttachmentBytes(row);
-  return bytes ? Buffer.from(bytes) : null;
+  if (!bytes) return null;
+  try {
+    const { default: sharp } = await import("sharp");
+    const fit = (scale: number) =>
+      sharp(Buffer.from(bytes), { failOn: "none", density: 300 })
+        .rotate()
+        .resize(160 * scale, 50 * scale, { fit: "inside", withoutEnlargement: true })
+        .png()
+        .toBuffer();
+    const [x1, x2, x3] = await Promise.all([fit(1), fit(2), fit(3)]);
+    return { x1, x2, x3 };
+  } catch {
+    return null;
+  }
 }
 
 /** The guest account's deletion day, or null for a kept account. */
@@ -90,13 +105,13 @@ export async function buildEventPass(lookup: string, userId: string, origin: str
   const place = event.placeSecret ? PLACE_SECRET : event.place?.trim() || null;
   const when = formatEventRange(event.date, event.endsAt, event.timeZone);
   const day = eventDayLong(event.date, event.timeZone);
-  const logo = await eventLogoPng(event);
+  const logo = await eventLogo(event);
   const file = await buildPass({
     style: "eventTicket",
     serialNumber: `event-${registration.id}`,
     organizationName: event.name,
     description: event.name,
-    logoPng: logo,
+    logo,
     logoText: logo ? undefined : event.name,
     header: day ? { key: "day", label: "Date", value: day } : null,
     primary: { key: "guest", label: "Guest", value: cardName(registered ?? qrCard) },
