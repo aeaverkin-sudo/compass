@@ -62,6 +62,18 @@ async function mailTarget(userId: string, origin: string): Promise<{ event: Even
   return { event: latest.event, link, unsubscribed: Boolean(own?.unsubscribed_at ?? any?.unsubscribed_at) };
 }
 
+/** Contacts this guest saved while at the event. */
+async function metAt(userId: string, eventId: string): Promise<number> {
+  const admin = createAdminSupabaseClient();
+  const { count, error } = await admin
+    .from("connections")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_id", userId)
+    .eq("source_event_id", eventId);
+  if (error) return 0;
+  return count ?? 0;
+}
+
 /**
  * One mail per event guest with an email, 48 hours before the deletion, then the stamp.
  * The stamp goes first, so two runs never send twice. An unsubscribed guest
@@ -107,7 +119,7 @@ export async function sendFreezeMails(origin: string): Promise<number> {
       const eventZone = await loadEventTimeZone(target.event.id);
       const deviceZone = account?.user_metadata?.time_zone;
       const deleteOn = deletionDateLabel(row.purge_at, isTimeZone(deviceZone) ? deviceZone : eventZone);
-      await sendFreezeNotice(email, target.event.name, deleteOn, target.link);
+      await sendFreezeNotice(email, target.event.name, deleteOn, target.link, await metAt(row.id, target.event.id));
       sent += 1;
     } catch (error) {
       console.error("[purge] freeze mail", row.id, error);

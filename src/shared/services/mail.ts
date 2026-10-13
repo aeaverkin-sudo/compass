@@ -36,12 +36,13 @@ export async function sendChangeCode(to: string, code: string) {
 }
 
 /** The one mail an event guest gets, 48 hours before the deletion. */
-export async function sendFreezeNotice(to: string, eventName: string, deleteOn: string, link: string) {
-  await send(
-    to,
-    `Your card from ${eventName}`,
-    `Your card and the people you met will be deleted on ${deleteOn}. Keep your profile — one tap, free: ${link}`,
-  );
+/** With people saved at the event, the mail counts them. Without, the plain notice. */
+export async function sendFreezeNotice(to: string, eventName: string, deleteOn: string, link: string, met = 0) {
+  const body =
+    met > 0
+      ? `You met ${met} ${met === 1 ? "person" : "people"} at ${eventName}. Your card and these contacts will be deleted on ${deleteOn}. Keep them — one tap, free: ${link}`
+      : `Your card and the people you met will be deleted on ${deleteOn}. Keep your profile — one tap, free: ${link}`;
+  await send(to, `Your card from ${eventName}`, body);
 }
 
 export async function sendPasswordReset(to: string, link: string) {
