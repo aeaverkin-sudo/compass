@@ -43,6 +43,7 @@ export function GuestsScreen({
   inviteUrl,
   canMark,
   isPaid,
+  timeZone,
 }: {
   lookup: string;
   name: string;
@@ -53,6 +54,7 @@ export function GuestsScreen({
   inviteUrl: string;
   canMark: boolean;
   isPaid: boolean;
+  timeZone: string;
 }) {
   const router = useRouter();
   const back = `/e/${encodeURIComponent(lookup)}/manage`;
@@ -146,7 +148,7 @@ export function GuestsScreen({
 
   const metaLine = (guest: BookGuest): string => {
     if (!guest.guestId) {
-      const when = formatEventWhen(guest.registeredAt);
+      const when = formatEventWhen(guest.registeredAt, timeZone);
       return when ? `Registered ${when}` : "Registered";
     }
     const names = guest.listIds.map((id) => listNames.get(id)).filter(Boolean);

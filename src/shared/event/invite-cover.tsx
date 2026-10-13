@@ -19,6 +19,8 @@ export type InviteCoverEvent = {
   description: string | null;
   date: string | null;
   endDate: string | null;
+  /** The event's own zone. */
+  timeZone?: string | null;
   place: string | null;
   placeSecret: boolean;
   logoUrl: string | null;
@@ -206,8 +208,8 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 function EditorialCover({ event, full }: { event: InviteCoverEvent; full: boolean }) {
-  const date = eventDayLong(event.date);
-  const time = eventTimeRange(event.date, event.endDate);
+  const date = eventDayLong(event.date, event.timeZone);
+  const time = eventTimeRange(event.date, event.endDate, event.timeZone);
   const place = placeLine(event);
   const about = event.description?.trim() || null;
   const fields = (
@@ -320,9 +322,9 @@ function Corner({ x, y }: { x: "left" | "right"; y: "top" | "bottom" }) {
 
 function FashionCover({ event, full }: { event: InviteCoverEvent; full: boolean }) {
   const about = aboutLine(event);
-  const date = dottedDate(event.date);
+  const date = dottedDate(event.date, event.timeZone);
   const place = placeLine(event);
-  const time = eventClock(event.date);
+  const time = eventClock(event.date, event.timeZone);
   const footBits = [place, time, event.price?.trim() || null].filter((bit): bit is string => Boolean(bit));
   const foot = footBits.length > 0 ? footBits.join(" · ") : null;
   const hair: CSSProperties = { width: 34, height: 1, background: "currentColor", opacity: 0.5, margin: "16px 0" };
@@ -439,8 +441,8 @@ function FashionCover({ event, full }: { event: InviteCoverEvent; full: boolean 
 
 function ModernCover({ event, full }: { event: InviteCoverEvent; full: boolean }) {
   if (full) return <ModernFull event={event} />;
-  const day = eventDaySlash(event.date);
-  const time = eventTimeRange(event.date, event.endDate);
+  const day = eventDaySlash(event.date, event.timeZone);
+  const time = eventTimeRange(event.date, event.endDate, event.timeZone);
   const place = placeLine(event);
   const about = aboutLine(event);
 
@@ -544,8 +546,8 @@ function ModernCover({ event, full }: { event: InviteCoverEvent; full: boolean }
 }
 
 function ModernFull({ event }: { event: InviteCoverEvent }) {
-  const day = eventDaySlash(event.date);
-  const time = eventTimeRange(event.date, event.endDate);
+  const day = eventDaySlash(event.date, event.timeZone);
+  const time = eventTimeRange(event.date, event.endDate, event.timeZone);
   const place = placeLine(event);
   const about = aboutLine(event);
 

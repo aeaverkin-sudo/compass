@@ -1,6 +1,7 @@
 import { isEventLayout, isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { readEventDate } from "@/shared/services/events";
 import { clampEventTitle } from "@/shared/event/event-title";
+import { isTimeZone } from "@/shared/event/time-zone";
 import { isInviteLogoLook, readInviteRows, type InviteLogoLook, type InviteRow } from "@/shared/event/invite-rows";
 
 export type EventFormInput = {
@@ -9,6 +10,8 @@ export type EventFormInput = {
   place: string | null;
   date: string | null;
   endsAt: string | null;
+  /** Absent when the form did not send one: the stored zone stays. */
+  timeZone?: string;
   theme: EventThemeId;
   layout: EventLayoutId;
   logo: File | null;
@@ -51,6 +54,9 @@ export function readEventForm(
   const endsAt = readEventDate(endRaw);
   if (endRaw && !endsAt) return { ok: false, status: 400, error: "That date could not be read." };
 
+  const zoneRaw = textField(form.get("time_zone"), 64);
+  if (zoneRaw && !isTimeZone(zoneRaw)) return { ok: false, status: 400, error: "That time zone could not be read." };
+
   const logo = form.get("logo");
   const inviteRows = inviteRowsField(form.get("invite_rows"));
   const lookRaw = form.get("logo_look");
@@ -62,6 +68,7 @@ export function readEventForm(
       place: textField(form.get("place"), 240) || null,
       date,
       endsAt,
+      ...(zoneRaw ? { timeZone: zoneRaw } : {}),
       theme: themeRaw && isEventTheme(themeRaw) ? themeRaw : "paper",
       layout: layoutRaw && isEventLayout(layoutRaw) ? layoutRaw : "grid",
       logo: logo instanceof File ? logo : null,

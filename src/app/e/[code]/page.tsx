@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const pay = await loadPreviewPay(event.id);
   const origin = await requestOrigin();
   const title = eventTitleLine(event.name) || "ADED";
-  const description = eventPreviewLine(event.date, event.endsAt, event.place, event.placeSecret, previewPriceLabel(pay)) ?? undefined;
+  const description = eventPreviewLine(event.date, event.endsAt, event.place, event.placeSecret, previewPriceLabel(pay), event.timeZone) ?? undefined;
   const slug = event.slug?.trim() || event.code.trim() || code;
   const url = `${origin}${eventPublicPath(slug)}`;
   const image = `${url}/opengraph-image?v=${previewVersion(event, pay)}`;
@@ -67,6 +67,7 @@ function previewVersion(
     name: string;
     date: string | null;
     endsAt: string | null;
+    timeZone: string;
     place: string | null;
     logoAttachmentId: string | null;
     theme: string;
@@ -80,6 +81,7 @@ function previewVersion(
     event.name,
     event.date,
     event.endsAt,
+    event.timeZone,
     event.place,
     event.logoAttachmentId,
     event.theme,
@@ -144,6 +146,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
         description: event.description,
         date: event.date,
         endDate: event.endsAt,
+        timeZone: event.timeZone,
         place: event.place,
         placeSecret: event.placeSecret,
         logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,

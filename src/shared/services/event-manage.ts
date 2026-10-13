@@ -38,6 +38,7 @@ export type ManageEvent = {
   code: string;
   date: string | null;
   endsAt: string | null;
+  timeZone: string;
   place: string | null;
   placeSecret: boolean;
   isPaid: boolean;
@@ -270,6 +271,7 @@ export async function loadManageEvent(
       code: invite.code,
       date: invite.date,
       endsAt: invite.endsAt,
+      timeZone: invite.timeZone,
       place: invite.place,
       placeSecret: invite.placeSecret,
       isPaid: owner.isPaid,
@@ -774,6 +776,7 @@ export type InvitePreview =
       ownerName: string;
       date: string | null;
       endsAt: string | null;
+      timeZone: string;
       place: string | null;
       placeSecret: boolean;
       theme: EventThemeId;
@@ -799,6 +802,7 @@ export async function loadInvitePreview(lookup: string, token: string): Promise<
     ownerName: face.name === "Manager" ? "The organiser" : face.name,
     date: invite.date,
     endsAt: invite.endsAt,
+    timeZone: invite.timeZone,
     place: invite.place,
     placeSecret: invite.placeSecret,
     theme: invite.theme,
@@ -825,6 +829,7 @@ export type ManagerInviteView =
       description: string | null;
       date: string | null;
       endsAt: string | null;
+      timeZone: string;
       place: string | null;
       placeSecret: boolean;
       theme: EventThemeId;
@@ -851,6 +856,7 @@ export async function loadManagerInvite(lookup: string, token: string, userId: s
     description: invite.description,
     date: invite.date,
     endsAt: invite.endsAt,
+    timeZone: invite.timeZone,
     place: invite.place,
     placeSecret: invite.placeSecret,
     theme: invite.theme,

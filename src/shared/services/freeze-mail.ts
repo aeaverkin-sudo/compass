@@ -2,6 +2,8 @@ import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { deletionDateLabel } from "@/shared/lib/deletion-date";
 import { mailConfigured, sendFreezeNotice } from "@/shared/services/mail";
 import { eventGuestEnd } from "@/shared/services/trial";
+import { loadEventTimeZone } from "@/shared/services/event-time-zone";
+import { isTimeZone } from "@/shared/event/time-zone";
 
 const BATCH = 50;
 const NOTICE_MS = 48 * 60 * 60 * 1000;
@@ -102,13 +104,9 @@ export async function sendFreezeMails(origin: string): Promise<number> {
       if (!email) continue;
       const target = await mailTarget(row.id, origin);
       if (!target || target.unsubscribed) continue;
-      const zone = typeof account?.user_metadata?.time_zone === "string" ? account.user_metadata.time_zone : "UTC";
-      let deleteOn: string;
-      try {
-        deleteOn = deletionDateLabel(row.purge_at, zone);
-      } catch {
-        deleteOn = deletionDateLabel(row.purge_at, "UTC");
-      }
+      const eventZone = await loadEventTimeZone(target.event.id);
+      const deviceZone = account?.user_metadata?.time_zone;
+      const deleteOn = deletionDateLabel(row.purge_at, isTimeZone(deviceZone) ? deviceZone : eventZone);
       await sendFreezeNotice(email, target.event.name, deleteOn, target.link);
       sent += 1;
     } catch (error) {

@@ -119,7 +119,7 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const element = event
       ? ogPosterElement({
           name: eventTitleLine(event.name) || "ADED",
-          meta: eventPreviewLine(event.date, event.endsAt, event.place, event.placeSecret, pay ? previewPriceLabel(pay) : null),
+          meta: eventPreviewLine(event.date, event.endsAt, event.place, event.placeSecret, pay ? previewPriceLabel(pay) : null, event.timeZone),
           themeId: event.theme,
           layout: event.layout,
           photo,

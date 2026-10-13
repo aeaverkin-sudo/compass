@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       description: fields.description,
       date: fields.date,
       endsAt: fields.endsAt,
+      timeZone: fields.timeZone,
       place: fields.place,
       theme: fields.theme,
       layout: fields.layout,

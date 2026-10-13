@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const origin = await requestOrigin();
   const title = `You're invited to help run ${eventTitleLine(preview.eventName)}`;
-  const when = formatEventRange(preview.date, preview.endsAt);
+  const when = formatEventRange(preview.date, preview.endsAt, preview.timeZone);
   const description = `${preview.ownerName} added you to the team for ${eventTitleLine(preview.eventName)}${when ? ` — ${when}` : ""}. Role: ${preview.role}.`;
   const url = `${origin}/e/${encodeURIComponent(lookup)}/team/${encodeURIComponent(inviteToken)}`;
   const image = `${origin}/e/${encodeURIComponent(lookup)}/opengraph-image?team=1&role=${encodeURIComponent(preview.role)}`;
@@ -101,7 +101,7 @@ export default async function ManagerInvitePage({ params, searchParams }: PagePr
         eventName={invite.eventName}
         role={invite.role}
         roleDetail={invite.roleDetail}
-        when={formatEventRange(invite.date, invite.endsAt)}
+        when={formatEventRange(invite.date, invite.endsAt, invite.timeZone)}
         where={whereLine(invite.place, invite.placeSecret)}
         layout={invite.layout}
         themeId={invite.theme}
@@ -111,6 +111,7 @@ export default async function ManagerInvitePage({ params, searchParams }: PagePr
           description: invite.description,
           date: invite.date,
           endDate: invite.endsAt,
+          timeZone: invite.timeZone,
           place: invite.place,
           placeSecret: invite.placeSecret,
           logoUrl: invite.logoUrl,
@@ -134,7 +135,7 @@ export default async function ManagerInvitePage({ params, searchParams }: PagePr
       eventName={preview.eventName}
       role={preview.role}
       roleDetail={preview.roleDetail}
-      when={formatEventRange(preview.date, preview.endsAt)}
+      when={formatEventRange(preview.date, preview.endsAt, preview.timeZone)}
       where={whereLine(preview.place, preview.placeSecret)}
       layout={preview.layout}
       themeId={preview.theme}
@@ -146,6 +147,7 @@ export default async function ManagerInvitePage({ params, searchParams }: PagePr
         description: preview.description,
         date: preview.date,
         endDate: preview.endsAt,
+        timeZone: preview.timeZone,
         place: preview.place,
         placeSecret: preview.placeSecret,
         logoUrl: preview.logoUrl,

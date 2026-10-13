@@ -306,7 +306,7 @@ export async function loadOwnerEventCounts(
 export type BadgeOpen =
   | { kind: "missing" }
   | { kind: "badge"; name: string }
-  | { kind: "checked-in"; name: string; at: string; already: boolean };
+  | { kind: "checked-in"; name: string; at: string; already: boolean; timeZone: string };
 
 function badgeName(value: string | null | undefined): string {
   const name = (value ?? "").trim();
@@ -377,7 +377,7 @@ export async function openEventBadge(lookup: string, regToken: string, viewerId:
       already = true;
     }
   }
-  return { kind: "checked-in", name, at: at ?? new Date().toISOString(), already };
+  return { kind: "checked-in", name, at: at ?? new Date().toISOString(), already, timeZone: event.timeZone };
 }
 
 export type SharingConsent = { analytics: boolean; connections: boolean };

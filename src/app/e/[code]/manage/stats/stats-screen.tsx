@@ -13,10 +13,10 @@ import { ManageFrame } from "../manage-frame";
 
 const FIGURE = "text-[32px] leading-none font-normal tracking-[-0.03em] text-[var(--ink)] tabular-nums";
 
-function clock(iso: string) {
+function clock(iso: string, timeZone: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone }).format(date);
 }
 
 function statsFilename(name: string) {
@@ -50,7 +50,17 @@ function handPdf(bytes: Uint8Array, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function WaveChart({ bins, startAt, endAt }: { bins: number[]; startAt: string; endAt: string }) {
+function WaveChart({
+  bins,
+  startAt,
+  endAt,
+  timeZone,
+}: {
+  bins: number[];
+  startAt: string;
+  endAt: string;
+  timeZone: string;
+}) {
   const max = Math.max(...bins, 1);
   const peak = Math.max(...bins);
   return (
@@ -70,8 +80,8 @@ function WaveChart({ bins, startAt, endAt }: { bins: number[]; startAt: string; 
         ))}
       </div>
       <div className="mt-1 flex justify-between gap-3 t-meta text-[var(--grey)]">
-        <span>{clock(startAt)}</span>
-        <span>{clock(endAt)}</span>
+        <span>{clock(startAt, timeZone)}</span>
+        <span>{clock(endAt, timeZone)}</span>
       </div>
     </div>
   );
@@ -82,6 +92,7 @@ export function StatsScreen({
   name,
   date,
   endsAt,
+  timeZone,
   isPaid,
   stats,
 }: {
@@ -89,6 +100,7 @@ export function StatsScreen({
   name: string;
   date: string | null;
   endsAt: string | null;
+  timeZone: string;
   isPaid: boolean;
   stats: EventStats;
 }) {
@@ -97,7 +109,7 @@ export function StatsScreen({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const back = `/e/${encodeURIComponent(lookup)}/manage`;
-  const when = formatEventRange(date, endsAt);
+  const when = formatEventRange(date, endsAt, timeZone);
   const eventLine = when ? `${name} · ${when}` : name;
   const arrival = `${Math.round(stats.arrivalRate * 100)}% of registered`;
   const wave = stats.wave;
@@ -141,8 +153,8 @@ export function StatsScreen({
         <Zone label="Wave" rule>
           {wave && wave.peakCount > 0 ? (
             <>
-              <p className="t-body text-[var(--ink)]">{`Busiest ${clock(wave.peakAt)} · ${wave.peakCount} in over 10 min`}</p>
-              <WaveChart bins={wave.bins} startAt={wave.startAt} endAt={wave.endAt} />
+              <p className="t-body text-[var(--ink)]">{`Busiest ${clock(wave.peakAt, timeZone)} · ${wave.peakCount} in over 10 min`}</p>
+              <WaveChart bins={wave.bins} startAt={wave.startAt} endAt={wave.endAt} timeZone={timeZone} />
             </>
           ) : (
             <p className="t-meta text-[var(--grey)]">No check-ins yet</p>

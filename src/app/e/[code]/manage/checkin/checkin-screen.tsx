@@ -22,12 +22,14 @@ type CheckinScreenProps = {
   checkedIn: number;
   last: LastArrival | null;
   roster: { name: string; regToken: string }[];
+  /** The event's zone: arrival times read on the event's clock. */
+  timeZone: string;
 };
 
-function clock(iso: string): string {
+function clock(iso: string, timeZone: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone }).format(date);
 }
 
 function scanBody(key: ScanKey) {
@@ -53,7 +55,7 @@ function Corner({ x, y }: { x: "left" | "right"; y: "top" | "bottom" }) {
   );
 }
 
-export function CheckinScreen({ lookup, name, registered, checkedIn, last, roster }: CheckinScreenProps) {
+export function CheckinScreen({ lookup, name, registered, checkedIn, last, roster, timeZone }: CheckinScreenProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const busyRef = useRef(false);
   const seenRef = useRef<{ token: string; at: number } | null>(null);
@@ -179,11 +181,11 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
         <div className="mt-6 flex flex-col items-center gap-2">
           <CheckMark large />
           <p className="mb-0 t-body text-[var(--ink)]">{result.name}</p>
-          <p className="mb-0 t-meta text-[var(--grey)]">{clock(result.at)}</p>
+          <p className="mb-0 t-meta text-[var(--grey)]">{clock(result.at, timeZone)}</p>
         </div>
       ) : null}
       {result?.status === "already" ? (
-        <p className="mt-6 mb-0 text-center t-body text-[var(--ink)]">{`Already checked in · ${clock(result.at)}`}</p>
+        <p className="mt-6 mb-0 text-center t-body text-[var(--ink)]">{`Already checked in · ${clock(result.at, timeZone)}`}</p>
       ) : null}
       {result?.status === "pending" ? (
         <div className="mt-6 flex flex-col items-center text-center">
@@ -214,7 +216,7 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
           <>
             <p className="mb-0 t-body text-[var(--ink)]">{latest.name}</p>
             <p className="mt-1 mb-0 t-meta text-[var(--grey)]">
-              {`Checked in · ${clock(latest.at)}${latest.byViewer ? " · by you" : ""}`}
+              {`Checked in · ${clock(latest.at, timeZone)}${latest.byViewer ? " · by you" : ""}`}
             </p>
           </>
         ) : (

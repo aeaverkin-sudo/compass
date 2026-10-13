@@ -38,6 +38,7 @@ export default async function ManageStatsPage({ params }: PageProps) {
       name={eventTitleLine(access.event.name)}
       date={access.event.date}
       endsAt={access.event.endsAt}
+      timeZone={access.event.timeZone}
       isPaid={access.event.isPaid}
       stats={stats}
     />

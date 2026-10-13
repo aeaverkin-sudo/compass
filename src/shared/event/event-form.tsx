@@ -11,7 +11,8 @@ import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { hasLightEdges } from "@/shared/lib/photo-look";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { EVENT_TITLE_LINES, clampEventTitle } from "@/shared/event/event-title";
-import type { EventFormValues } from "@/shared/event/event-form-fields";
+import { formEndIso, formStartIso, type EventFormValues } from "@/shared/event/event-form-fields";
+import { canonicalTimeZone, isTimeZone } from "@/shared/event/time-zone";
 import {
   INVITE_BASE_LABELS,
   INVITE_CUSTOM_MAX,
@@ -262,17 +263,12 @@ function fmtDate(value: string): string {
   return `${day}/${month}/${year.slice(2)}`;
 }
 
-function previewDate(date: string, time: string): string | null {
-  if (!date) return null;
-  const when = new Date(`${date}T${time || "00:00"}`);
-  return Number.isNaN(when.getTime()) ? null : when.toISOString();
-}
-
-function previewEnd(date: string, time: string, endTime: string): string | null {
-  if (!date || !endTime) return null;
-  const end = new Date(`${date}T${endTime}`);
-  if (endTime <= (time || "00:00")) end.setDate(end.getDate() + 1);
-  return Number.isNaN(end.getTime()) ? null : end.toISOString();
+function timeZoneList(): string[] {
+  try {
+    return Intl.supportedValuesOf("timeZone");
+  } catch {
+    return [];
+  }
 }
 
 export function EventForm({
@@ -302,6 +298,14 @@ export function EventForm({
   const dateRef = useRef<HTMLInputElement>(null);
   const placeRef = useRef<HTMLTextAreaElement>(null);
   const aboutRef = useRef<HTMLTextAreaElement>(null);
+  const zoneRef = useRef<HTMLInputElement>(null);
+  const [zones, setZones] = useState<string[]>([]);
+  const [zoneText, setZoneText] = useState(values.timeZone);
+  const [zoneShown, setZoneShown] = useState(values.timeZone);
+  if (zoneShown !== values.timeZone) {
+    setZoneShown(values.timeZone);
+    setZoneText(values.timeZone);
+  }
   const logoRef = useRef<HTMLInputElement>(null);
   const [focusRow, setFocusRow] = useState({ id: "", turn: 0 });
 
@@ -364,8 +368,9 @@ export function EventForm({
   const cover = {
     name: values.layout === "card" ? values.name.trim() : values.name.trim() || "Event name",
     description: values.about.trim() || null,
-    date: previewDate(values.date, values.time),
-    endDate: previewEnd(values.date, values.time, values.endTime),
+    date: formStartIso(values),
+    endDate: formEndIso(values),
+    timeZone: values.timeZone,
     place: values.place.trim() || null,
     placeSecret: false,
     logoUrl,
@@ -419,6 +424,33 @@ export function EventForm({
             />
           </div>
         </div>
+      </Zone>
+      <Zone label="Time zone" rule onClick={(event) => focusField(event, zoneRef.current)}>
+        <input
+          ref={zoneRef}
+          value={zoneText}
+          list="event-time-zones"
+          aria-label="Time zone"
+          placeholder="Europe/Lisbon"
+          autoComplete="off"
+          spellCheck={false}
+          className={PLAIN}
+          style={fieldStyle()}
+          onFocus={() => {
+            if (zones.length === 0) setZones(timeZoneList());
+          }}
+          onChange={(event) => {
+            const next = event.target.value;
+            setZoneText(next);
+            if (isTimeZone(next.trim())) onChange({ timeZone: canonicalTimeZone(next.trim()) });
+          }}
+          onBlur={() => setZoneText(values.timeZone)}
+        />
+        <datalist id="event-time-zones">
+          {zones.map((zone) => (
+            <option key={zone} value={zone} />
+          ))}
+        </datalist>
       </Zone>
       <Zone label={label("place")} rule onClick={(event) => focusField(event, placeRef.current)}>
         <GrowField

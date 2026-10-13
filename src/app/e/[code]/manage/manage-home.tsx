@@ -57,6 +57,7 @@ export function ManageHome({
     description: string | null;
     date: string | null;
     endsAt: string | null;
+    timeZone: string;
     place: string | null;
     placeSecret: boolean;
     theme: EventThemeId;
@@ -126,6 +127,7 @@ export function ManageHome({
     description: cover.description,
     date: cover.date,
     endDate: cover.endsAt,
+    timeZone: cover.timeZone,
     place: cover.place,
     placeSecret: cover.placeSecret,
     logoUrl: cover.logoUrl,

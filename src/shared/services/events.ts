@@ -14,10 +14,11 @@ import { uprightImage } from "@/shared/services/attachment-sanitize";
 import { eventNameSlug, eventPublicPath, indexedEventSlug } from "@/shared/event/slug";
 import { isEventTheme, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { formatEventRange } from "@/shared/event/when";
+import { loadEventTimeZones } from "@/shared/services/event-time-zone";
 import type { InviteLogoLook, InviteRow } from "@/shared/event/invite-rows";
 
 /** Columns written before their SQL may have run. A missing one is dropped and the write retried. */
-const OPTIONAL_COLUMNS = ["layout", "ends_at", "slug", "invite_rows", "logo_look"] as const;
+const OPTIONAL_COLUMNS = ["layout", "ends_at", "slug", "invite_rows", "logo_look", "time_zone"] as const;
 
 function withoutMissingColumn(payload: Record<string, unknown>, message: string): Record<string, unknown> | null {
   const column = OPTIONAL_COLUMNS.find(
@@ -29,10 +30,11 @@ function withoutMissingColumn(payload: Record<string, unknown>, message: string)
   return rest;
 }
 
-function cardFields(input: { inviteRows?: InviteRow[]; logoLook?: InviteLogoLook | null }) {
+function cardFields(input: { inviteRows?: InviteRow[]; logoLook?: InviteLogoLook | null; timeZone?: string | null }) {
   return {
     ...(input.inviteRows ? { invite_rows: input.inviteRows } : {}),
     ...(input.logoLook !== undefined ? { logo_look: input.logoLook } : {}),
+    ...(input.timeZone ? { time_zone: input.timeZone } : {}),
   };
 }
 
@@ -75,6 +77,7 @@ export type CreateEventInput = {
   description: string | null;
   date: string | null;
   endsAt: string | null;
+  timeZone?: string | null;
   place: string | null;
   theme: EventThemeId;
   layout: EventLayoutId;
@@ -164,6 +167,7 @@ type MineRow = {
   publicToken: string;
   dateIso: string | null;
   endsIso: string | null;
+  timeZone?: string;
   role: "owner" | "manager" | "guest";
 };
 
@@ -197,7 +201,7 @@ function toListed(row: MineRow, now: number): ListedEvent {
   return {
     name: row.name,
     publicToken: row.publicToken,
-    when: formatEventRange(row.dateIso, row.endsIso),
+    when: formatEventRange(row.dateIso, row.endsIso, row.timeZone),
     role: row.role,
     status: eventListStatus(row.dateIso, now, row.endsIso),
   };
@@ -223,9 +227,9 @@ type EventListRow = {
 /** Events I organise, plus events I joined and do not organise. A past event stays for the owner and managers. */
 export async function listMyEvents(userId: string, now = Date.now()): Promise<ListedEvent[]> {
   const admin = createAdminSupabaseClient();
-  const ownedSelect = await admin.from("events").select("name, date, ends_at, public_token").eq("owner_id", userId);
+  const ownedSelect = await admin.from("events").select("id, name, date, ends_at, public_token").eq("owner_id", userId);
   const owned = ownedSelect.error && endsColumnMissing(ownedSelect.error.message)
-    ? await admin.from("events").select("name, date, public_token").eq("owner_id", userId)
+    ? await admin.from("events").select("id, name, date, public_token").eq("owner_id", userId)
     : ownedSelect;
   if (owned.error) throw new Error(owned.error.message);
 
@@ -252,11 +256,13 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
     extraRows = (extras.data ?? []) as EventListRow[];
   }
 
+  const zones = await loadEventTimeZones([...ownedRows, ...extraRows].map((row) => row.id ?? ""));
   const asMine = (row: EventListRow, role: MineRow["role"]): MineRow => ({
     name: row.name,
     publicToken: row.public_token,
     dateIso: row.date,
     endsIso: row.ends_at ?? null,
+    timeZone: row.id ? zones.get(row.id) : undefined,
     role,
   });
   const rows: MineRow[] = ownedRows.map((row) => asMine(row, "owner"));
@@ -380,6 +386,7 @@ export type UpdateEventInput = {
   place: string | null;
   date: string | null;
   endsAt: string | null;
+  timeZone?: string | null;
   theme: EventThemeId;
   layout: EventLayoutId;
   inviteRows?: InviteRow[];

@@ -7,7 +7,7 @@ import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components
 import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import { customInviteRows, inviteLabel, type InviteLogoLook, type InviteRow } from "@/shared/event/invite-rows";
 import { eventThemeById, type EventThemeId } from "@/shared/event/themes";
-import { sameEvening } from "@/shared/event/when";
+import { shortDate, shortTimeRange } from "@/shared/event/when";
 import { EVENT_TITLE_LINES } from "@/shared/event/event-title";
 import { CARD_HEADER_PAD_PX, HEADER_FADE_PX, HERO_PHOTO_PX, SECTION_PAD_PX } from "@main/layout";
 
@@ -36,6 +36,8 @@ export type CardInviteEvent = {
   placeSecret: boolean;
   date: string | null;
   endDate: string | null;
+  /** The event's own zone. Its times read the same on every device. */
+  timeZone?: string | null;
   /** A paid event's price label. It closes the rows. */
   price?: string | null;
   /** The form preview: empty When, Place and About show their placeholders. */
@@ -44,42 +46,11 @@ export type CardInviteEvent = {
 
 type Line = { id: string; label: string; value: string; hint: boolean };
 
-function parsed(iso: string | null): Date | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function pad(value: number) {
-  return String(value).padStart(2, "0");
-}
-
-function clock(date: Date) {
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-/** "12.10.26" */
-function dateValue(iso: string | null): string {
-  const date = parsed(iso);
-  if (!date) return "";
-  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${String(date.getFullYear()).slice(2)}`;
-}
-
-/** "15:30–20:30". Midnight start with no end is a date only. */
-function timeValue(startIso: string | null, endIso: string | null): string {
-  const start = parsed(startIso);
-  if (!start) return "";
-  const end = parsed(endIso);
-  const sameDay = end && (end.toDateString() === start.toDateString() || sameEvening(start, end));
-  const endClock = end && sameDay ? clock(end) : "";
-  const startClock = clock(start);
-  if (startClock === "00:00" && !endClock) return "";
-  return endClock ? `${startClock}–${endClock}` : startClock;
-}
-
 function inviteLines(event: CardInviteEvent): Line[] {
   const rows = event.inviteRows;
-  const when = [dateValue(event.date), timeValue(event.date, event.endDate)].filter(Boolean).join(" · ");
+  const when = [shortDate(event.date, event.timeZone), shortTimeRange(event.date, event.endDate, event.timeZone)]
+    .filter(Boolean)
+    .join(" · ");
   const place = event.placeSecret ? "Revealed closer to the date" : (event.place?.trim() ?? "");
   const base: Line[] = [
     { id: "when", label: inviteLabel(rows, "when"), value: when, hint: false },

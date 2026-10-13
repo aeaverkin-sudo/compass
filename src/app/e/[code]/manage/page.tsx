@@ -58,7 +58,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
   const shareKey = invite.slug?.trim() || invite.code.trim() || event.publicToken;
   const ended = eventListStatus(invite.date, Date.now(), invite.endsAt) === "past";
-  const endedLabel = ended ? formatEventWhen(invite.endsAt ?? invite.date) : null;
+  const endedLabel = ended ? formatEventWhen(invite.endsAt ?? invite.date, invite.timeZone) : null;
 
   return (
     <ManageHome
@@ -72,6 +72,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
         description: invite.description,
         date: invite.date,
         endsAt: invite.endsAt,
+        timeZone: invite.timeZone,
         place: invite.place,
         placeSecret: invite.placeSecret,
         theme: invite.theme,

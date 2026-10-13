@@ -9,18 +9,20 @@ type PageProps = { params: Promise<{ code: string; reg_token: string }> };
 
 export const metadata: Metadata = { title: "Check-in" };
 
-function formatCheckedInAt(iso: string): string {
+function formatCheckedInAt(iso: string, timeZone: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
   const day = new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone,
   }).format(date);
   const time = new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
+    timeZone,
   }).format(date);
   return `${day} · ${time}`;
 }
@@ -63,7 +65,7 @@ export default async function EventBadgePage({ params }: PageProps) {
     );
   }
 
-  const when = opened.already ? formatCheckedInAt(opened.at) : "";
+  const when = opened.already ? formatCheckedInAt(opened.at, opened.timeZone) : "";
   return (
     <main className="compass-main fixed inset-0 overflow-y-auto bg-white">
       <ScreenHeader title="Check-in" fallbackHref={`/e/${encodeURIComponent(lookup)}`} />

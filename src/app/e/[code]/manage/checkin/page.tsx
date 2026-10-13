@@ -37,6 +37,7 @@ export default async function ManageCheckinPage({ params }: PageProps) {
       checkedIn={desk.checkedIn}
       last={desk.last}
       roster={desk.roster}
+      timeZone={access.event.timeZone}
     />
   );
 }

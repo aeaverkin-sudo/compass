@@ -50,6 +50,7 @@ export default async function ManageGuestsPage({ params, searchParams }: PagePro
       inviteUrl={`${origin}${eventPublicPath(shareKey)}`}
       canMark={event.role === "owner" || event.permissions.payments}
       isPaid={event.isPaid}
+      timeZone={event.timeZone}
     />
   );
 }

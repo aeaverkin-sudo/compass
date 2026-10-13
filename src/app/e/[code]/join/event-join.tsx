@@ -162,6 +162,7 @@ export function EventJoin({ lookup, event, portfolios, registration, pay }: Even
     description: event.description,
     date: event.date,
     endDate: event.endsAt,
+    timeZone: event.timeZone,
     place: event.place,
     placeSecret: event.placeSecret,
     logoUrl: event.logoAttachmentId ? `/e/${event.publicToken}/logo` : null,

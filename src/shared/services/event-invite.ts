@@ -2,6 +2,7 @@ import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { isEventLookup } from "@/shared/event/lookup";
 import { eventThemeFromStored, isEventLayout, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { formatEventWhen } from "@/shared/event/when";
+import { loadEventTimeZone } from "@/shared/services/event-time-zone";
 import {
   isInviteLogoLook,
   readInviteRows,
@@ -18,6 +19,8 @@ export type EventInvite = {
   description: string | null;
   date: string | null;
   endsAt: string | null;
+  /** IANA zone the event's times are read in. */
+  timeZone: string;
   place: string | null;
   placeSecret: boolean;
   theme: EventThemeId;
@@ -63,8 +66,9 @@ export async function loadEventInvite(lookup: string): Promise<EventInvite | nul
   const row = (Array.isArray(loaded.data) ? loaded.data[0] : loaded.data) as InviteRow | undefined;
   if (!row?.id || !row.public_token || !row.code) return null;
 
-  const face = await readEventFace(row.id);
+  const [face, timeZone] = await Promise.all([readEventFace(row.id), loadEventTimeZone(row.id)]);
   return {
+    timeZone,
     id: row.id,
     name: row.name,
     logoAttachmentId: row.logo_attachment_id,

@@ -55,6 +55,7 @@ export async function PATCH(request: Request, context: RouteProps) {
       place: fields.place,
       date: fields.date,
       endsAt: fields.endsAt,
+      timeZone: fields.timeZone,
       theme: fields.theme,
       layout: fields.layout,
       inviteRows: fields.inviteRows,

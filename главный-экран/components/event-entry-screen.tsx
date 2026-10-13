@@ -13,6 +13,7 @@ import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
 import { COLUMN_GAP_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 import { eventTitleLine } from "@/shared/event/event-title";
+import { DEFAULT_EVENT_TIME_ZONE, browserTimeZone, isTimeZone } from "@/shared/event/time-zone";
 
 type Step = "entry" | "create";
 
@@ -45,6 +46,7 @@ const EMPTY_FORM: EventFormValues = {
   logoLook: null,
   dateText: "",
   timeText: "",
+  timeZone: DEFAULT_EVENT_TIME_ZONE,
 };
 
 function isDraftString(value: unknown): value is string {
@@ -93,6 +95,7 @@ function readEventDraft(): EventDraft | null {
       logoLook: isInviteLogoLook(data.logoLook) ? data.logoLook : null,
       dateText: isDraftString(data.dateText) ? data.dateText : inviteDateText(data.date),
       timeText: isDraftString(data.timeText) ? data.timeText : inviteTimeText(data.time, data.endTime),
+      timeZone: isTimeZone(data.timeZone) ? data.timeZone : browserTimeZone(),
       savedAt: data.savedAt,
     };
   } catch {
@@ -131,6 +134,7 @@ function sameDraft(a: EventFormValues, b: EventFormValues) {
     a.logoLook === b.logoLook &&
     a.dateText === b.dateText &&
     a.timeText === b.timeText &&
+    a.timeZone === b.timeZone &&
     JSON.stringify(a.inviteRows) === JSON.stringify(b.inviteRows)
   );
 }
@@ -217,6 +221,7 @@ export function EventEntryScreen() {
       draftEcho.current = fields;
     } else {
       clearEventDraft();
+      setValues((current) => ({ ...current, timeZone: browserTimeZone() }));
     }
     draftReady.current = true;
   }, []);
