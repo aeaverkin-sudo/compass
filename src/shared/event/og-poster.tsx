@@ -61,9 +61,20 @@ export function ogPosterElement(poster: OgPoster): ReactElement {
       ) : null}
       <div style={{ display: "flex", flex: 1 }}>
         {poster.photo ? (
-          // Satori paints a plain img. The poster masks stay on the live cover.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={poster.photo} alt="" width={460} height={photoHeight} style={{ objectFit: "cover" }} />
+          // Satori paints a plain img. The whole logo shows on the theme ground; the poster masks stay on the live cover.
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 460,
+              height: photoHeight,
+              background: theme.ground,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={poster.photo} alt="" width={460} height={photoHeight} style={{ objectFit: "contain" }} />
+          </div>
         ) : modern ? (
           <div style={{ width: 18, background: theme.ground }} />
         ) : null}

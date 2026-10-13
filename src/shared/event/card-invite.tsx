@@ -36,6 +36,8 @@ export type CardInviteEvent = {
   placeSecret: boolean;
   date: string | null;
   endDate: string | null;
+  /** A paid event's price label. It closes the rows. */
+  price?: string | null;
   /** The form preview: empty When, Place and About show their placeholders. */
   hints?: boolean;
 };
@@ -93,6 +95,8 @@ function inviteLines(event: CardInviteEvent): Line[] {
     if (value) lines.push({ id: row.id, label: row.title.trim(), value, hint: false });
     else if (event.hints && row.title.trim()) lines.push({ id: row.id, label: row.title.trim(), value: "description", hint: true });
   }
+  const price = event.price?.trim();
+  if (price) lines.push({ id: "price", label: "Price", value: price, hint: false });
   return lines;
 }
 
