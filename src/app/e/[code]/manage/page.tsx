@@ -9,11 +9,11 @@ import { loadEventPay, loadPaymentTally } from "@/shared/services/event-payment"
 import { loadGuestBook } from "@/shared/services/event-guest-lists";
 import { loadShowGoing } from "@/shared/services/event-going";
 import { eventPublicPath } from "@/shared/event/slug";
-import { formatEventWhen } from "@/shared/event/when";
+import { eventDayLong, formatEventWhen } from "@/shared/event/when";
 import { eventDoorIsOpen, eventHasEnded } from "@/shared/services/events";
 import { loadOpenLink } from "@/shared/services/event-open-link";
 import { countCardsExchanged } from "@/shared/services/event-export";
-import { eventMailsReady } from "@/shared/services/event-mails";
+import { eventMailsReady, loadReminder } from "@/shared/services/event-mails";
 import { isGoing } from "@/shared/event/guest-book";
 import { guestSources, isPaidGuest, isPendingGuest } from "@/shared/event/guest-sources";
 import { ManageHome } from "./manage-home";
@@ -51,7 +51,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   if (!invite) notFound();
   const pay = await loadEventPay(event.id);
   const ended = eventHasEnded(invite.date, invite.endsAt);
-  const [managers, tally, book, showGoing, openLink, cards, mailReady] = await Promise.all([
+  const [managers, tally, book, showGoing, openLink, cards, mailReady, reminder] = await Promise.all([
     sections.includes("managers") ? listEventManagers(event.id) : Promise.resolve(null),
     sections.includes("payment") ? loadPaymentTally(event.id) : Promise.resolve(null),
     sections.includes("guests")
@@ -64,6 +64,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
     loadOpenLink(event.id),
     ended ? countCardsExchanged(event.id) : Promise.resolve(0),
     sections.includes("guests") ? eventMailsReady() : Promise.resolve(false),
+    sections.includes("guests") ? loadReminder(event.id) : Promise.resolve({ ready: false, enabled: false, sentAt: null }),
   ]);
   const origin = await requestOrigin();
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
@@ -127,6 +128,11 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
           going: listed.filter((guest) => isGoing(guest.status)).length,
         },
         mail: { ready: mailReady, pending: pendingMail, withEmail: withEmail.length },
+        reminder: {
+          ready: reminder.ready && mailReady,
+          enabled: reminder.enabled,
+          sentLabel: reminder.sentAt ? (eventDayLong(reminder.sentAt, invite.timeZone) ?? null) : null,
+        },
       }}
       after={ended ? { came: checkedIn, total, cards, paid: pay.isPaid ? { paid, pending } : null } : null}
     />

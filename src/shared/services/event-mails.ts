@@ -6,6 +6,7 @@ import { priceLabel } from "@/shared/event/payment-label";
 import { formatEventRange } from "@/shared/event/when";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import { loadEventPay } from "@/shared/services/event-payment";
+import { loadShowGoing } from "@/shared/services/event-going";
 import { BATCH_MAX, mailConfigured, sendHtmlBatch, type HtmlMail } from "@/shared/services/mail";
 
 export type MailKind = "invite" | "reminder" | "deletion";
@@ -162,6 +163,176 @@ export async function logMail(eventId: string, kind: MailKind, guestId: string |
   const admin = createAdminSupabaseClient();
   const { error } = await admin.from("event_mail_log").insert({ event_id: eventId, guest_id: guestId, kind, provider_id: providerId });
   if (error && !/duplicate|unique/i.test(error.message)) console.error("[mail] log", error.message);
+}
+
+export type ReminderState = { ready: boolean; enabled: boolean; sentAt: string | null };
+
+export async function loadReminder(eventId: string): Promise<ReminderState> {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.from("events").select("reminder_enabled, reminder_sent_at").eq("id", eventId).maybeSingle();
+  if (error) {
+    if (/reminder_/i.test(error.message)) return { ready: false, enabled: false, sentAt: null };
+    throw new Error(error.message);
+  }
+  const row = data as { reminder_enabled?: boolean | null; reminder_sent_at?: string | null } | null;
+  return { ready: true, enabled: row?.reminder_enabled !== false, sentAt: row?.reminder_sent_at ?? null };
+}
+
+export async function saveReminder(eventId: string, on: boolean): Promise<boolean> {
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin.from("events").update({ reminder_enabled: on }).eq("id", eventId);
+  if (error) {
+    if (/reminder_/i.test(error.message)) return false;
+    throw new Error(error.message);
+  }
+  return true;
+}
+
+const DOOR_LINE = "Show your pass to enter — no printing, no app.";
+const PORTFOLIO_LINE =
+  "Add your contacts, links, professional details, social media and files — the portfolio you share at this event.";
+
+export function reminderMail(
+  origin: string,
+  event: MailEvent,
+  person: { link: string; token: string | null },
+  going: number | null,
+): RenderedMail {
+  const door = going != null ? `${going} ${going === 1 ? "person is" : "people are"} going. ${DOOR_LINE}` : DOOR_LINE;
+  const zones: (MailZone | null)[] = [
+    { label: "Tomorrow", value: event.name, lead: true },
+    event.when ? { label: "Date", value: event.when } : null,
+    placeZone(event, false),
+    { label: "Door", value: door },
+    { label: "Portfolio", value: PORTFOLIO_LINE },
+  ];
+  return renderEventMail({
+    poster: poster(origin, event),
+    zones: zones.filter((zone): zone is MailZone => zone !== null),
+    button: { label: "MY PASS & PORTFOLIO", href: person.link },
+    footer: { organiser: event.organiser, unsubscribeHref: person.token ? unsubscribePage(origin, event, person.token) : null },
+  });
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+
+type Recipient = { email: string; guestId: string | null; token: string | null };
+
+async function reminderRecipients(eventId: string): Promise<Recipient[]> {
+  const admin = createAdminSupabaseClient();
+  const regs = await admin.from("event_registrations").select("id, user_id").eq("event_id", eventId);
+  if (regs.error) throw new Error(regs.error.message);
+  const rows = (regs.data ?? []) as { id: string; user_id: string }[];
+  if (rows.length === 0) return [];
+  const guests = await admin
+    .from("event_guests")
+    .select("id, email, token, registration_id, unsubscribed_at, bounced_at")
+    .eq("event_id", eventId)
+    .not("registration_id", "is", null);
+  if (guests.error) throw new Error(guests.error.message);
+  type Row = { id: string; email: string | null; token: string; registration_id: string; unsubscribed_at: string | null; bounced_at: string | null };
+  const byReg = new Map(((guests.data ?? []) as Row[]).map((row) => [row.registration_id, row]));
+  const out: Recipient[] = [];
+  const seen = new Set<string>();
+  for (const reg of rows) {
+    const guest = byReg.get(reg.id);
+    if (guest && (guest.unsubscribed_at || guest.bounced_at)) continue;
+    let email = guest?.email?.trim().toLowerCase() ?? null;
+    if (!email) {
+      const user = await admin.auth.admin.getUserById(reg.user_id);
+      email = user.data.user?.email?.trim().toLowerCase() ?? null;
+    }
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    out.push({ email, guestId: guest?.id ?? null, token: guest?.token ?? null });
+  }
+  return out;
+}
+
+/**
+ * One reminder per event, 23 to 25 hours before the start, to everyone going with an email.
+ * The event is stamped first, so the hourly cron never sends it twice.
+ */
+export async function sendReminders(origin: string): Promise<number> {
+  if (!mailConfigured()) return 0;
+  const admin = createAdminSupabaseClient();
+  const now = Date.now();
+  const due = await admin
+    .from("events")
+    .select("id, code, slug")
+    .eq("reminder_enabled", true)
+    .is("reminder_sent_at", null)
+    .gte("date", new Date(now + 23 * HOUR_MS).toISOString())
+    .lte("date", new Date(now + 25 * HOUR_MS).toISOString())
+    .limit(20);
+  if (due.error) {
+    if (/reminder_|slug/i.test(due.error.message)) return 0;
+    throw new Error(due.error.message);
+  }
+  let sent = 0;
+  for (const row of (due.data ?? []) as { id: string; code: string; slug: string | null }[]) {
+    try {
+      const stamped = await admin
+        .from("events")
+        .update({ reminder_sent_at: new Date().toISOString() })
+        .eq("id", row.id)
+        .is("reminder_sent_at", null)
+        .select("id");
+      if (stamped.error) throw new Error(stamped.error.message);
+      if ((stamped.data ?? []).length === 0) continue;
+      sent += await remindEvent(row.id, row.slug?.trim() || row.code, origin);
+    } catch (error) {
+      console.error("[mail] reminder", row.id, error);
+    }
+  }
+  return sent;
+}
+
+async function remindEvent(eventId: string, lookup: string, origin: string): Promise<number> {
+  const event = await loadMailEvent(lookup);
+  if (!event) return 0;
+  const recipients = await reminderRecipients(eventId);
+  const [shown, regs] = await Promise.all([
+    loadShowGoing(eventId),
+    createAdminSupabaseClient().from("event_registrations").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+  ]);
+  const going = shown ? (regs.count ?? recipients.length) : null;
+  let sent = 0;
+  for (let index = 0; index < recipients.length; index += BATCH_MAX) {
+    const chunk = recipients.slice(index, index + BATCH_MAX);
+    const claims = await claimMail(eventId, "reminder", chunk.flatMap((person) => (person.guestId ? [person.guestId] : [])));
+    const claimed = chunk.filter((person) => !person.guestId || claims.has(person.guestId));
+    if (claimed.length === 0) continue;
+    const mails: HtmlMail[] = claimed.map((person) => {
+      const link = person.token ? personalLink(origin, event, person.token) : `${origin}/e/${event.key}/join`;
+      const body = reminderMail(origin, event, { link, token: person.token }, going);
+      return {
+        to: person.email,
+        subject: `Tomorrow — ${event.name}`,
+        html: body.html,
+        text: body.text,
+        replyTo: event.replyTo,
+        ...(person.token ? { headers: unsubscribeHeaders(origin, event, person.token) } : {}),
+      };
+    });
+    const outcomes = await sendHtmlBatch(mails, batchKey("reminder", [eventId, String(index)]));
+    const admin = createAdminSupabaseClient();
+    await Promise.all(
+      claimed.map(async (person, at) => {
+        const outcome = outcomes[at];
+        const logId = person.guestId ? claims.get(person.guestId) : undefined;
+        if (outcome.ok) {
+          sent += 1;
+          if (logId) await admin.from("event_mail_log").update({ provider_id: outcome.id }).eq("id", logId);
+          else await logMail(eventId, "reminder", null, outcome.id);
+        } else {
+          if (logId) await admin.from("event_mail_log").delete().eq("id", logId);
+          if (person.guestId) await admin.from("event_guests").update({ last_mail_error: outcome.error.slice(0, 500) }).eq("id", person.guestId);
+        }
+      }),
+    );
+  }
+  return sent;
 }
 
 function batchKey(kind: MailKind, logIds: string[]): string {

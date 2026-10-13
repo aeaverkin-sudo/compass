@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { publicOrigin } from "@/shared/lib/public-origin";
 import { sendFreezeMails } from "@/shared/services/freeze-mail";
+import { sendReminders } from "@/shared/services/event-mails";
 import { runPurge } from "@/shared/services/trial-purge";
 
 export const runtime = "nodejs";
@@ -27,7 +28,13 @@ export async function POST(request: Request) {
     } catch (mailError) {
       console.error("[purge] freeze mails", mailError);
     }
-    const report = { ...purged, freezeMails };
+    let reminders = 0;
+    try {
+      reminders = await sendReminders(publicOrigin(request));
+    } catch (mailError) {
+      console.error("[purge] reminders", mailError);
+    }
+    const report = { ...purged, freezeMails, reminders };
     console.info("[purge]", report);
     return NextResponse.json(report, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

@@ -91,6 +91,7 @@ export function ManageHome({
     passes: GuestPass[];
     sent: { sent: number; opened: number; going: number };
     mail: { ready: boolean; pending: number; withEmail: number };
+    reminder: { ready: boolean; enabled: boolean; sentLabel: string | null };
   };
   after: { came: number; total: number; cards: number; paid: { paid: number; pending: number } | null } | null;
 }) {
@@ -171,6 +172,7 @@ export function ManageHome({
           addHref={href("/manage/guests/add")}
           sendHref={href("/manage/send")}
           mail={guests.mail}
+          reminder={guests.reminder}
           counter={guests.counter}
           sources={guests.sources}
           pairs={guests.pairs}

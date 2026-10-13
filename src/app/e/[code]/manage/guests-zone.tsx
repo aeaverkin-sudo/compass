@@ -54,6 +54,7 @@ export function GuestsZone({
   addHref,
   sendHref,
   mail,
+  reminder,
   counter,
   sources,
   pairs,
@@ -70,6 +71,8 @@ export function GuestsZone({
   sendHref: string;
   /** Guests with an email who have not had the invite, and all guests with an email. */
   mail: { ready: boolean; pending: number; withEmail: number };
+  /** Reminder 24h before. `sentLabel` once it went. */
+  reminder: { ready: boolean; enabled: boolean; sentLabel: string | null };
   /** `164 · 57 going · 43 paid · 0 in`. */
   counter: string;
   sources: GuestSource[];
@@ -87,6 +90,7 @@ export function GuestsZone({
   const fileRef = useRef<HTMLInputElement>(null);
   const [held, setHeld] = useState<GuestSource | null>(null);
   const [going, setGoing] = useState(showGoing);
+  const [remind, setRemind] = useState(reminder.enabled);
   const [showPairs, setShowPairs] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +149,16 @@ export function GuestsZone({
       "Could not save.",
     );
     if (!done) setGoing(!next);
+  };
+
+  const toggleReminder = async (next: boolean) => {
+    setRemind(next);
+    const done = await call(
+      `${base}/reminder`,
+      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: next }) },
+      "Could not save.",
+    );
+    if (!done) setRemind(!next);
   };
 
   const resolve = (pair: NamePair, action: "merge" | "keep") =>
@@ -305,6 +319,21 @@ export function GuestsZone({
           <p className="mb-0 t-body text-[var(--ink)]">{`Sent ${sent.sent} · Opened ${sent.opened} · Going ${sent.going}`}</p>
         ) : null}
         {!empty ? exportRow : null}
+        {reminder.ready ? (
+          reminder.sentLabel ? (
+            <p className="mb-0 t-meta text-[var(--grey)]">{`Reminder sent ${reminder.sentLabel}`}</p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={remind}
+                disabled={busy}
+                onCheckedChange={(checked) => void toggleReminder(checked === true)}
+                aria-label="Reminder 24h before"
+              />
+              <span className="t-meta text-[var(--grey)]">{`Reminder 24h before · ${remind ? "on" : "off"}`}</span>
+            </div>
+          )
+        ) : null}
         <div className="flex items-center gap-3">
           <Switch checked={going} disabled={busy} onCheckedChange={(checked) => void toggleGoing(checked === true)} aria-label="Guests see who's going" />
           <span className="t-meta text-[var(--grey)]">{`Guests see who's going · ${going ? "on" : "off"}`}</span>
