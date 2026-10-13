@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import jsQR from "jsqr";
 import { Zone } from "@/shared/components/zone";
+import { scanKeyFromQr, scanKeyId, type ScanKey } from "@/shared/event/scan-key";
 import { CheckMark } from "../check-mark";
 import { ManageFrame } from "../manage-frame";
 
 type ScanResult =
   | { status: "ok"; name: string; at: string }
   | { status: "already"; name: string; at: string }
-  | { status: "pending"; name: string; payCode: string | null; regToken: string }
-  | { status: "missing" };
+  | { status: "pending"; name: string; payCode: string | null; key: ScanKey }
+  | { status: "missing"; text: string };
 
 type LastArrival = { name: string; at: string; byViewer: boolean };
 
@@ -29,16 +30,10 @@ function clock(iso: string): string {
   return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
 }
 
-function tokenFromQr(text: string): string | null {
-  const trimmed = text.trim();
-  try {
-    const url = new URL(trimmed, "https://adedme.com");
-    const match = url.pathname.match(/\/b\/([^/]+)/);
-    if (match?.[1]) return decodeURIComponent(match[1]);
-  } catch {
-    // Not a URL. A bare token still counts.
-  }
-  return /^[A-Za-z0-9_-]{21}$/.test(trimmed) ? trimmed : null;
+function scanBody(key: ScanKey) {
+  if (key.kind === "badge") return { regToken: key.token };
+  if (key.kind === "card") return { cardToken: key.token };
+  return { handle: key.handle };
 }
 
 function Corner({ x, y }: { x: "left" | "right"; y: "top" | "bottom" }) {
@@ -67,21 +62,28 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
   const [result, setResult] = useState<ScanResult | null>(null);
   const [query, setQuery] = useState("");
 
-  const submit = async (regToken: string, confirm = false) => {
+  const submit = async (key: ScanKey, confirm = false) => {
     if (busyRef.current) return;
     if (!confirm) {
+      const id = scanKeyId(key);
       const seen = seenRef.current;
-      if (seen && seen.token === regToken && Date.now() - seen.at < 3000) return;
-      seenRef.current = { token: regToken, at: Date.now() };
+      if (seen && seen.token === id && Date.now() - seen.at < 3000) return;
+      seenRef.current = { token: id, at: Date.now() };
     }
     busyRef.current = true;
     try {
       const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ regToken, confirm }),
+        body: JSON.stringify({ ...scanBody(key), confirm }),
       });
-      const body = (await response.json()) as { status?: string; name?: string; at?: string; payCode?: string | null };
+      const body = (await response.json()) as {
+        status?: string;
+        name?: string;
+        at?: string;
+        payCode?: string | null;
+        error?: string;
+      };
       if (body.status === "ok" && body.name && body.at) {
         setResult({ status: "ok", name: body.name, at: body.at });
         setCount((value) => value + 1);
@@ -93,10 +95,12 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
         return;
       }
       if (body.status === "pending" && body.name) {
-        setResult({ status: "pending", name: body.name, payCode: body.payCode ?? null, regToken });
+        setResult({ status: "pending", name: body.name, payCode: body.payCode ?? null, key });
         return;
       }
-      if (response.status === 404) setResult({ status: "missing" });
+      if (response.status === 404) {
+        setResult({ status: "missing", text: key.kind === "badge" ? "Event badge not found" : (body.error ?? "Not on the list for this event") });
+      }
     } catch {
       seenRef.current = null;
     } finally {
@@ -127,8 +131,8 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
       context.drawImage(video, 0, 0, width, height);
       const frame = context.getImageData(0, 0, width, height);
       const code = jsQR(frame.data, width, height, { inversionAttempts: "dontInvert" });
-      const token = code?.data ? tokenFromQr(code.data) : null;
-      if (token) void submitRef.current(token);
+      const key = code?.data ? scanKeyFromQr(code.data) : null;
+      if (key) void submitRef.current(key);
     };
 
     void (async () => {
@@ -193,7 +197,7 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
           </p>
           <button
             type="button"
-            onClick={() => void submit(result.regToken, true)}
+            onClick={() => void submit(result.key, true)}
             className="press mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
           >
             Confirm & let in
@@ -202,7 +206,7 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
         </div>
       ) : null}
       {result?.status === "missing" ? (
-        <p className="mt-6 mb-0 text-center t-meta text-[var(--grey)]">Event badge not found</p>
+        <p className="mt-6 mb-0 text-center t-meta text-[var(--grey)]">{result.text}</p>
       ) : null}
       <p className="mt-6 mb-0 text-center t-body text-[var(--ink)]">{`${name} · ${count} of ${registered} checked in`}</p>
       <Zone label="Last" rule>
@@ -231,7 +235,7 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
               <li key={guest.regToken}>
                 <button
                   type="button"
-                  onClick={() => void submit(guest.regToken)}
+                  onClick={() => void submit({ kind: "badge", token: guest.regToken })}
                   className="press block w-full py-2 text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
                 >
                   {guest.name}

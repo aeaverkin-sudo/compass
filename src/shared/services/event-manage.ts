@@ -512,6 +512,44 @@ export async function checkInGuest(lookup: string, userId: string, regToken: str
   return { ok: true, status: "already", name, at };
 }
 
+const NOT_ON_LIST = "Not on the list for this event";
+
+/**
+ * A card QR at the door: the registration on this event made with that card.
+ * Then the same check-in as a badge.
+ */
+export async function checkInByCard(
+  lookup: string,
+  userId: string,
+  card: { token: string } | { handle: string },
+  confirm = false,
+): Promise<CheckInOutcome> {
+  const access = await loadManageEvent(lookup, userId, "checkin");
+  if (access.kind === "missing") return { ok: false, status: 404, error: "Event not found" };
+  if (access.kind === "forbidden") return { ok: false, status: 403, error: "Not allowed" };
+
+  const admin = createAdminSupabaseClient();
+  const found =
+    "token" in card
+      ? await admin.from("cards").select("id").eq("public_token", card.token).maybeSingle()
+      : await admin.from("cards").select("id").eq("handle", card.handle.trim().toLowerCase()).maybeSingle();
+  if (found.error) throw new Error(found.error.message);
+  const cardId = (found.data as { id: string } | null)?.id;
+  if (!cardId) return { ok: false, status: 404, error: NOT_ON_LIST };
+
+  const reg = await admin
+    .from("event_registrations")
+    .select("reg_token")
+    .eq("event_id", access.event.id)
+    .eq("card_id", cardId)
+    .limit(1)
+    .maybeSingle();
+  if (reg.error) throw new Error(reg.error.message);
+  const regToken = (reg.data as { reg_token: string } | null)?.reg_token;
+  if (!regToken) return { ok: false, status: 404, error: NOT_ON_LIST };
+  return checkInGuest(lookup, userId, regToken, confirm);
+}
+
 /** Names the scanner can check in by hand, plus the latest arrival. */
 export async function loadCheckinDesk(eventId: string, viewerId: string): Promise<CheckInDesk> {
   const admin = createAdminSupabaseClient();
