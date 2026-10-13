@@ -7,6 +7,7 @@ import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { deletionLine } from "@/shared/lib/deletion-date";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 
 const FIELD =
   "compass-input block w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 py-1 text-center t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
@@ -149,7 +150,9 @@ export function EventPassFooter({
               type="button"
               data-card-content
               data-no-swipe
-              onClick={() => setToast(true)}
+              onClick={() => {
+                void openWalletPass("/api/wallet/event").then((opened) => setToast(!opened));
+              }}
               className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
             >
               Add to Apple Wallet
@@ -158,7 +161,7 @@ export function EventPassFooter({
           <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">Save this pass to enter the event.</p>
         </>
       )}
-      {toast ? <SkyToast text="Apple Wallet · coming soon" onDone={() => setToast(false)} /> : null}
+      {toast ? <SkyToast text={WALLET_SOON} onDone={() => setToast(false)} /> : null}
     </div>
   );
 }

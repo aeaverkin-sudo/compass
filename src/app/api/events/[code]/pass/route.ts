@@ -1,8 +1,11 @@
+import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { createOpenPass } from "@/shared/services/guest-accept";
 import { acceptReply, noStore } from "@/shared/services/guest-accept-reply";
 import { requestIp } from "@/shared/services/event-pass-guard";
 import { publicOrigin } from "@/shared/lib/public-origin";
+import { pkpassResponseHeaders, walletConfigured } from "@/shared/services/wallet-pass";
+import { buildEventPass } from "@/shared/services/wallet-passes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,5 +45,23 @@ export async function POST(request: Request, context: RouteProps) {
   } catch (error) {
     console.error("[events] open pass", error);
     return noStore({ error: "Could not open your pass." }, 500);
+  }
+}
+
+/** My event badge for Apple Wallet. Only a signed-in account with a registration gets it. */
+export async function GET(request: Request, context: RouteProps) {
+  if (!walletConfigured()) return noStore({ error: "wallet_not_configured" }, 503);
+  const { code } = await context.params;
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return noStore({ error: "Unauthorized" }, 401);
+
+  try {
+    const pass = await buildEventPass(code, data.user.id, publicOrigin(request));
+    if (!pass) return noStore({ error: "No pass for this event." }, 404);
+    return new NextResponse(new Uint8Array(pass.file), { headers: pkpassResponseHeaders(pass.name) });
+  } catch (error) {
+    console.error("[wallet] event", error instanceof Error ? error.message : error);
+    return noStore({ error: "Could not make the pass." }, 500);
   }
 }
