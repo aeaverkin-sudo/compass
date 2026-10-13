@@ -90,6 +90,7 @@ export function ManageHome({
     pairs: NamePair[];
     passes: GuestPass[];
     sent: { sent: number; opened: number; going: number };
+    mail: { ready: boolean; pending: number; withEmail: number };
   };
   after: { came: number; total: number; cards: number; paid: { paid: number; pending: number } | null } | null;
 }) {
@@ -168,6 +169,8 @@ export function ManageHome({
           lookup={lookup}
           guestsHref={href("/manage/guests")}
           addHref={href("/manage/guests/add")}
+          sendHref={href("/manage/send")}
+          mail={guests.mail}
           counter={guests.counter}
           sources={guests.sources}
           pairs={guests.pairs}

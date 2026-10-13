@@ -150,6 +150,7 @@ export function GuestsScreen({
       .join(" · ");
 
   const statusOf = (guest: BookGuest): { label: string; dot: string | null } => {
+    if (guest.bounced && !isGoing(guest.status)) return { label: "Bounced", dot: null };
     if (isPaid && isPendingGuest(guest) && guest.status !== "in") return { label: "Payment pending", dot: "var(--pay-pending)" };
     return guestStatusView(guest.status);
   };

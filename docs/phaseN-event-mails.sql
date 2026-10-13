@@ -38,8 +38,10 @@ create table if not exists public.event_mail_log (
   provider_id text
 );
 
+-- One invite, one reminder and one deletion mail per guest. Rows without a
+-- guest (a member's reminder) never collide: nulls are distinct.
 create unique index if not exists event_mail_log_once
-  on public.event_mail_log (guest_id, kind) where guest_id is not null and kind in ('invite', 'reminder');
+  on public.event_mail_log (guest_id, kind);
 
 create index if not exists event_mail_log_provider
   on public.event_mail_log (provider_id) where provider_id is not null;

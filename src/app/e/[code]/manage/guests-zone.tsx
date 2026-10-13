@@ -15,6 +15,8 @@ const ROW =
   "press inline-flex items-center gap-2 border-0 bg-transparent p-0 text-left t-body text-[var(--ink)] no-underline disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 const ACTION =
   "press border-0 bg-transparent p-0 t-meta text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
+const SKY =
+  "press self-start border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]";
 const ICON = { size: 16, strokeWidth: 1.25, className: "shrink-0 text-[var(--ink)]" } as const;
 const LONG_PRESS_MS = 500;
 
@@ -50,6 +52,8 @@ export function GuestsZone({
   lookup,
   guestsHref,
   addHref,
+  sendHref,
+  mail,
   counter,
   sources,
   pairs,
@@ -63,6 +67,9 @@ export function GuestsZone({
   lookup: string;
   guestsHref: string;
   addHref: string;
+  sendHref: string;
+  /** Guests with an email who have not had the invite, and all guests with an email. */
+  mail: { ready: boolean; pending: number; withEmail: number };
   /** `164 · 57 going · 43 paid · 0 in`. */
   counter: string;
   sources: GuestSource[];
@@ -273,6 +280,13 @@ export function GuestsZone({
               </ul>
             ) : null}
           </div>
+        ) : null}
+        {mail.ready && mail.pending > 0 ? (
+          <Link href={sendHref} className={SKY}>
+            {`Send ${mail.pending} ${mail.pending === 1 ? "pass" : "passes"}`}
+          </Link>
+        ) : mail.ready && mail.withEmail > 0 ? (
+          <p className="mb-0 t-meta text-[var(--grey)]">All passes sent</p>
         ) : null}
         {passes.length > 0 ? (
           <p className="mb-0 t-meta text-[var(--grey)]">

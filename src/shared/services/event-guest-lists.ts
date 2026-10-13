@@ -38,6 +38,8 @@ type GuestRow = {
   checked_in_at?: string | null;
   paid_status?: string | null;
   paid_source?: string | null;
+  bounced_at?: string | null;
+  unsubscribed_at?: string | null;
 };
 type ListRow = { id: string; name: string; is_paid: boolean; created_at: string | null; kind?: string | null };
 type MemberRow = { guest_id: string; list_id: string };
@@ -92,6 +94,7 @@ async function guarded<T extends object>(run: () => Promise<Call<T>>): Promise<C
 
 const GUEST_BASE = "id, name, email, phone, token, sent_at, opened_at, registration_id, created_at";
 const GUEST_KEPT = "checked_in_at, paid_status, paid_source";
+const GUEST_MAIL = "bounced_at, unsubscribed_at";
 
 async function readGuests(eventId: string): Promise<GuestRow[]> {
   const admin = createAdminSupabaseClient();
@@ -103,11 +106,16 @@ async function readGuests(eventId: string): Promise<GuestRow[]> {
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .range(from, to);
-  try {
-    return await allRows<GuestRow>(page(`${GUEST_BASE}, ${GUEST_KEPT}`));
-  } catch (error) {
-    if (!(error instanceof Error) || !/checked_in_at|paid_status|paid_source/i.test(error.message)) throw error;
-    return allRows<GuestRow>(page(GUEST_BASE));
+  const groups = [GUEST_KEPT, GUEST_MAIL];
+  for (;;) {
+    try {
+      return await allRows<GuestRow>(page([GUEST_BASE, ...groups].join(", ")));
+    } catch (error) {
+      if (!(error instanceof Error)) throw error;
+      const missing = groups.find((group) => group.split(", ").some((column) => new RegExp(column, "i").test(error.message)));
+      if (!missing) throw error;
+      groups.splice(groups.indexOf(missing), 1);
+    }
   }
 }
 
@@ -519,6 +527,8 @@ export function registrationGuest(reg: EventGuest): BookGuest {
     status: reg.checkedIn ? "in" : "going",
     sent: false,
     opened: false,
+    bounced: false,
+    unsubscribed: false,
     photoUrl: reg.photoUrl,
     cardToken: reg.cardToken,
     paidStatus: reg.paidStatus,
@@ -569,6 +579,8 @@ export async function loadGuestBook(eventId: string, registrations?: EventGuest[
         status: listStatus(guest, registration),
         sent: Boolean(guest.sent_at),
         opened: Boolean(guest.opened_at),
+        bounced: Boolean(guest.bounced_at),
+        unsubscribed: Boolean(guest.unsubscribed_at),
         photoUrl: registration?.photoUrl ?? null,
         cardToken: registration?.cardToken ?? null,
         paidStatus: registration?.paidStatus ?? keptPaid(guest.paid_status),

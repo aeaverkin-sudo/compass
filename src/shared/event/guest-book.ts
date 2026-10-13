@@ -16,6 +16,9 @@ export type BookGuest = {
   /** The pass went out, and the guest opened it. */
   sent: boolean;
   opened: boolean;
+  /** Resend reported a bounce or a complaint: no more mail. */
+  bounced: boolean;
+  unsubscribed: boolean;
   photoUrl: string | null;
   cardToken: string | null;
   paidStatus: string | null;

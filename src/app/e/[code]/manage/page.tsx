@@ -13,6 +13,7 @@ import { formatEventWhen } from "@/shared/event/when";
 import { eventDoorIsOpen, eventHasEnded } from "@/shared/services/events";
 import { loadOpenLink } from "@/shared/services/event-open-link";
 import { countCardsExchanged } from "@/shared/services/event-export";
+import { eventMailsReady } from "@/shared/services/event-mails";
 import { isGoing } from "@/shared/event/guest-book";
 import { guestSources, isPaidGuest, isPendingGuest } from "@/shared/event/guest-sources";
 import { ManageHome } from "./manage-home";
@@ -50,7 +51,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   if (!invite) notFound();
   const pay = await loadEventPay(event.id);
   const ended = eventHasEnded(invite.date, invite.endsAt);
-  const [managers, tally, book, showGoing, openLink, cards] = await Promise.all([
+  const [managers, tally, book, showGoing, openLink, cards, mailReady] = await Promise.all([
     sections.includes("managers") ? listEventManagers(event.id) : Promise.resolve(null),
     sections.includes("payment") ? loadPaymentTally(event.id) : Promise.resolve(null),
     sections.includes("guests")
@@ -62,6 +63,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
     sections.includes("guests") ? loadShowGoing(event.id) : Promise.resolve(true),
     loadOpenLink(event.id),
     ended ? countCardsExchanged(event.id) : Promise.resolve(0),
+    sections.includes("guests") ? eventMailsReady() : Promise.resolve(false),
   ]);
   const origin = await requestOrigin();
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
@@ -78,6 +80,8 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   const pending = book ? guests.filter(isPendingGuest).length : Math.max(0, event.registered - event.paid);
   const counter = [String(total), `${going} going`, ...(pay.isPaid ? [`${paid} paid`] : []), `${checkedIn} in`].join(" · ");
   const listed = guests.filter((guest) => guest.guestId && guest.sent);
+  const withEmail = guests.filter((guest) => guest.guestId && guest.email);
+  const pendingMail = withEmail.filter((guest) => !guest.sent && !guest.bounced && !guest.unsubscribed).length;
 
   return (
     <ManageHome
@@ -122,6 +126,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
           opened: listed.filter((guest) => guest.opened || isGoing(guest.status)).length,
           going: listed.filter((guest) => isGoing(guest.status)).length,
         },
+        mail: { ready: mailReady, pending: pendingMail, withEmail: withEmail.length },
       }}
       after={ended ? { came: checkedIn, total, cards, paid: pay.isPaid ? { paid, pending } : null } : null}
     />
