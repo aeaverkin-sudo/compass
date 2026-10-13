@@ -51,11 +51,10 @@ async function mailTarget(
   if (!latest) return null;
 
   const regIds = ordered.map((entry) => entry.row.id);
-  let guests = await admin.from("event_guests").select("id, token, registration_id, bounced_at").in("registration_id", regIds);
-  if (guests.error && /bounced_at/i.test(guests.error.message)) {
-    guests = await admin.from("event_guests").select("id, token, registration_id").in("registration_id", regIds);
-  }
-  const byReg = new Map(((guests.error ? [] : guests.data ?? []) as GuestRow[]).map((guest) => [guest.registration_id, guest]));
+  const read = (columns: string) => admin.from("event_guests").select(columns).in("registration_id", regIds);
+  let guests = await read("id, token, registration_id, bounced_at");
+  if (guests.error && /bounced_at/i.test(guests.error.message)) guests = await read("id, token, registration_id");
+  const byReg = new Map(((guests.error ? [] : guests.data ?? []) as unknown as GuestRow[]).map((guest) => [guest.registration_id, guest]));
   const own = byReg.get(latest.row.id);
   const any = own ?? ordered.map((entry) => byReg.get(entry.row.id)).find(Boolean);
   const linkEvent = any ? ordered.find((entry) => entry.row.id === any.registration_id)?.event ?? latest.event : latest.event;
