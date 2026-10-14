@@ -117,7 +117,7 @@ export function EventPassFooter({
         <Plus className="size-7 text-[var(--ink)]" strokeWidth={1} aria-hidden />
       </button>
       <p className="mt-2 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">
-        Add your contacts, links, professional details, social media and files — the portfolio you share at this event.
+        Add your position — e.g. founder, investor, designer.
       </p>
       {needsEmail || pendingEmail ? <AddEmail pendingEmail={pendingEmail} /> : null}
       {ended ? (
