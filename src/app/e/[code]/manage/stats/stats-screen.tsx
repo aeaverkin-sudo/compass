@@ -6,7 +6,6 @@ import { Download } from "lucide-react";
 import { Zone } from "@/shared/components/zone";
 import { formatEventRange } from "@/shared/event/when";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { snapshotToPdf } from "@/shared/services/card-pdf-file";
 import { isHomeScreenApp } from "@/shared/services/save-public-card-pdf";
 import type { EventStats } from "@/shared/services/event-manage";
 import { ManageFrame } from "../manage-frame";
@@ -120,6 +119,7 @@ export function StatsScreen({
     setBusy(true);
     setError(null);
     try {
+      const { snapshotToPdf } = await import("@/shared/services/card-pdf-file");
       handPdf(await snapshotToPdf(node), statsFilename(name));
     } catch {
       setError("Could not export the PDF.");

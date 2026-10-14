@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import jsQR from "jsqr";
 import { Scan } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
 import { cardLinkFromScan } from "@/shared/lib/card-scan";
@@ -39,6 +38,10 @@ export function ScanScreen() {
     let detector = detectorOrNull();
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d", { willReadFrequently: true });
+    let jsQR: (typeof import("jsqr"))["default"] | null = null;
+    void import("jsqr").then((module) => {
+      jsQR = module.default;
+    });
 
     const stop = () => {
       stopped = true;
@@ -75,7 +78,7 @@ export function ScanScreen() {
           detector = null;
         }
       }
-      if (!raw && context) {
+      if (!raw && context && jsQR) {
         const width = Math.min(video.videoWidth, 480);
         const height = Math.max(1, Math.round((width * video.videoHeight) / video.videoWidth));
         canvas.width = width;

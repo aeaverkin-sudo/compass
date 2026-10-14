@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import jsQR from "jsqr";
 import { Zone } from "@/shared/components/zone";
 import { scanKeyFromQr, scanKeyId, type ScanKey } from "@/shared/event/scan-key";
 import { CheckMark } from "../check-mark";
@@ -126,11 +125,15 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
     let timer = 0;
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d", { willReadFrequently: true });
+    let jsQR: (typeof import("jsqr"))["default"] | null = null;
+    void import("jsqr").then((module) => {
+      jsQR = module.default;
+    });
 
     const read = () => {
       if (stopped) return;
       timer = window.setTimeout(read, 250);
-      if (!context || video.readyState < 2 || !video.videoWidth) return;
+      if (!context || !jsQR || video.readyState < 2 || !video.videoWidth) return;
       const width = Math.min(video.videoWidth, 480);
       const height = Math.max(1, Math.round((width * video.videoHeight) / video.videoWidth));
       canvas.width = width;
