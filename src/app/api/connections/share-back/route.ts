@@ -13,9 +13,8 @@ function noStore(body: unknown, status = 200) {
 }
 
 /**
- * Writes a pending row into the other person's book.
- * The browser cannot: that row's owner_id is not the viewer.
- * An existing active or pending row is left as it is.
+ * Share back: my card goes straight into the other person's book, as any saved contact.
+ * The browser cannot write it: that row's owner_id is not the viewer. A row already there stays.
  */
 export async function POST(request: Request) {
   const owner = await requireOwnerId();
@@ -56,7 +55,7 @@ export async function POST(request: Request) {
     }
     if (to.data.owner_id === owner.id) return noStore({ error: "That card is yours" }, 400);
 
-    const inserted = await saveConnection({ ownerId: to.data.owner_id, cardId: from.data.id, state: "pending" });
+    const inserted = await saveConnection({ ownerId: to.data.owner_id, cardId: from.data.id });
     if (!inserted.ok) throw new Error(inserted.message);
 
     return noStore({ ok: true });

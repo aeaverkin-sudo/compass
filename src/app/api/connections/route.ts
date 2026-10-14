@@ -14,7 +14,6 @@ function noStore(body: unknown, status = 200) {
 type ConnectionRow = {
   id: string;
   display_name: string;
-  state: string;
   saved_card_id: string;
   saved_card_token: string;
   source_event_id: string | null;
@@ -55,7 +54,7 @@ export async function GET() {
     const supabase = await createServerSupabaseClient();
     const read = (columns: string) =>
       supabase.from("connections").select(columns).eq("owner_id", owner.id).order("created_at", { ascending: true });
-    const base = "id, display_name, state, saved_card_id, saved_card_token, source_event_id, created_at";
+    const base = "id, display_name, saved_card_id, saved_card_token, source_event_id, created_at";
     const withSnapshot = await read(`${base}, snapshot`);
     const loaded = withSnapshot.error && /snapshot/i.test(withSnapshot.error.message) ? await read(base) : withSnapshot;
     if (loaded.error) throw new Error(loaded.error.message);
@@ -80,7 +79,7 @@ export async function GET() {
       const openIds = [
         ...new Set(
           rows
-            .filter((row) => row.state !== "pending" && faces.get(row.saved_card_id)?.searchable !== false)
+            .filter((row) => faces.get(row.saved_card_id)?.searchable !== false)
             .map((row) => row.saved_card_id),
         ),
       ];
@@ -118,12 +117,11 @@ export async function GET() {
         const face = faces.get(row.saved_card_id);
         const kept = typeof row.snapshot?.title === "string" ? row.snapshot.title.trim() : "";
         const role = face?.title?.trim() || kept;
-        const active = row.state !== "pending";
-        const deep = active && face?.searchable !== false;
+        const deep = face?.searchable !== false;
         return {
           id: row.id,
           displayName: row.display_name,
-          state: active ? "active" : "pending",
+          state: "active",
           savedCardToken: row.saved_card_token,
           sourceEventId: row.source_event_id,
           createdAt: row.created_at,

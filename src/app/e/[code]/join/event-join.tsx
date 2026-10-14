@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
+import { PortfolioFace } from "@/shared/components/portfolio-face";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
 import { CoverButton } from "@/shared/event/cover-button";
@@ -31,29 +32,9 @@ type EventJoinProps = {
   going: GoingSummary | null;
 };
 
-function PortfolioPhoto({ src }: { src: string | null }) {
-  if (!src) return <span aria-hidden className="size-[40px] shrink-0 bg-[#f3f3f3]" />;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" className="size-[40px] shrink-0 object-cover" />;
-}
-
 /** A card with a name. Untitled and Inactive cards are not offered as a badge. */
 function isActive(portfolio: PortfolioChoice): boolean {
   return Boolean(portfolio.name.trim());
-}
-
-export function PortfolioFace({ portfolio, selected }: { portfolio: PortfolioChoice; selected: boolean }) {
-  return (
-    <>
-      <PortfolioPhoto src={portfolio.photoAttachmentId ? `/f/${portfolio.photoAttachmentId}` : null} />
-      <span className="min-w-0 flex-1">
-        <span className={`block truncate t-body ${selected ? "text-[var(--ink)]" : "text-[var(--grey)]"}`}>
-          {portfolio.name.replace(/\s*\n\s*/g, " ") || "Untitled"}
-        </span>
-        {portfolio.title ? <span className="mt-1 block truncate t-meta text-[var(--grey)]">{portfolio.title}</span> : null}
-      </span>
-    </>
-  );
 }
 
 /** Payment for the guest: price, Pay, the code, I've paid, then the status. */

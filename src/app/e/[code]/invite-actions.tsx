@@ -14,7 +14,7 @@ import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
 import { COLUMN_GAP_PX } from "@/shared/layout/axes";
 import type { PortfolioChoice } from "@/shared/services/event-registration";
-import { PortfolioFace } from "./join/event-join";
+import { PortfolioFace } from "@/shared/components/portfolio-face";
 
 const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";

@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   if (!card.data) return noStore({ error: "Not found" }, 404);
   if (card.data.owner_id === user.id) return noStore({ error: "own" }, 409);
 
-  const saved = await saveConnection({ ownerId: user.id, cardId: card.data.id, state: "active" });
+  const saved = await saveConnection({ ownerId: user.id, cardId: card.data.id });
   if (!saved.ok) {
     if (saved.own) return noStore({ error: "own" }, 409);
     return noStore({ error: "Could not save the card" }, 500);

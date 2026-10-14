@@ -44,7 +44,7 @@ export default async function SaveCardPage({ params }: PageProps) {
   if (!card.data) notFound();
   if (card.data.owner_id === user.id) return ownCard(token);
 
-  const saved = await saveConnection({ ownerId: user.id, cardId: card.data.id, state: "active" });
+  const saved = await saveConnection({ ownerId: user.id, cardId: card.data.id });
   if (!saved.ok) {
     if (saved.own) return ownCard(token);
     throw new Error(saved.message);
