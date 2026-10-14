@@ -29,11 +29,11 @@ export type PassInput = {
   /** The card photo, right of the name. */
   thumbnail?: PassImage | null;
   primary: PassField;
-  secondary?: PassField[];
-  auxiliary?: PassField[];
   backFields?: WalletBackField[];
   /** The QR. */
   barcodeMessage: string;
+  /** Wallet prints it under the QR. */
+  barcodeAltText?: string;
   expiresAt?: string | null;
 };
 
@@ -113,10 +113,13 @@ export async function buildPass(input: PassInput): Promise<Buffer> {
   addImage(pass, "logo", logo);
   if (input.thumbnail) addImage(pass, "thumbnail", input.thumbnail);
   pass.primaryFields.push(input.primary);
-  for (const field of input.secondary ?? []) pass.secondaryFields.push(field);
-  for (const field of input.auxiliary ?? []) pass.auxiliaryFields.push(field);
   for (const field of input.backFields ?? []) pass.backFields.push(field);
-  pass.setBarcodes({ message: input.barcodeMessage, format: "PKBarcodeFormatQR", messageEncoding: "iso-8859-1" });
+  pass.setBarcodes({
+    message: input.barcodeMessage,
+    format: "PKBarcodeFormatQR",
+    messageEncoding: "iso-8859-1",
+    ...(input.barcodeAltText ? { altText: input.barcodeAltText } : {}),
+  });
   if (input.expiresAt) pass.setExpirationDate(new Date(input.expiresAt));
   return pass.getAsBuffer();
 }
