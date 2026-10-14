@@ -1,48 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, startTransition, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Download } from "lucide-react";
+import { ChevronDown, Download } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Rule } from "@/shared/components/rule";
 import { SkyToast } from "@/shared/components/sky-toast";
+import { Zone } from "@/shared/components/zone";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import { Switch } from "@/shared/components/ui/switch";
+import { NUMBER_CLASS } from "@/shared/components/section-number";
 import {
   guestPassUrl,
-  guestStatusView,
   isGoing,
   whatsappHref,
   whatsappInvite,
   type BookGuest,
   type BookList,
+  type GuestPass,
+  type NamePair,
 } from "@/shared/event/guest-book";
-import {
-  guestSources,
-  isPaidGuest,
-  isPendingGuest,
-  sourceIds,
-  sourceLabel,
-  sourceNames,
-} from "@/shared/event/guest-sources";
+import { guestSources, isPaidGuest, sourceIds, sourceLabel, sourceNames } from "@/shared/event/guest-sources";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { useBusyAction } from "@/shared/hooks/use-busy-action";
 import { ManageFrame } from "../manage-frame";
+import { FilesZone } from "./files-zone";
+import { HandZone } from "./hand-zone";
+import { OpenLinkZone } from "./open-link-zone";
 
-type StatusFilter = "any" | "not_sent" | "going" | "paid" | "pending" | "in" | "declined";
+type Stage = "not_sent" | "sent" | "opened" | "confirmed";
+type Sort = "recent" | "name";
+
+const STAGES: { id: Stage; label: string }[] = [
+  { id: "not_sent", label: "Not sent" },
+  { id: "sent", label: "Sent" },
+  { id: "opened", label: "Opened" },
+  { id: "confirmed", label: "Confirmed" },
+];
 
 const CHIP = "press border-0 bg-transparent p-0 t-meta [-webkit-tap-highlight-color:transparent]";
 const ACTION = "press border-0 bg-transparent p-0 t-meta text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
+const ROW =
+  "press inline-flex items-center gap-2 border-0 bg-transparent p-0 text-left t-body text-[var(--ink)] no-underline disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
+const SKY =
+  "press self-start border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
+const BOX = "border border-[var(--rule)] bg-white data-[state=checked]:border-[var(--ink)]";
 
 function chipClass(selected: boolean): string {
   return `${CHIP} ${selected ? "text-[var(--ink)] underline decoration-1 underline-offset-[3px]" : "text-[var(--grey)]"}`;
 }
 
-const MATCH: Record<StatusFilter, (guest: BookGuest) => boolean> = {
-  any: () => true,
-  not_sent: (guest) => guest.status === "not_sent",
-  going: (guest) => isGoing(guest.status),
-  paid: isPaidGuest,
-  pending: isPendingGuest,
-  in: (guest) => guest.status === "in",
-  declined: (guest) => guest.status === "declined",
-};
+function Chips<T extends string>({
+  items,
+  selected,
+  onPick,
+}: {
+  items: { id: T; label: string }[];
+  selected: T | null;
+  onPick: (id: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      {items.map((item, index) => (
+        <Fragment key={item.id}>
+          {index > 0 ? <span className="t-meta text-[var(--grey)]">·</span> : null}
+          <button type="button" onClick={() => onPick(item.id)} className={chipClass(selected === item.id)}>
+            {item.label}
+          </button>
+        </Fragment>
+      ))}
+    </div>
+  );
+}
 
 export function GuestsScreen({
   lookup,
@@ -52,6 +82,11 @@ export function GuestsScreen({
   initialList,
   inviteUrl,
   isPaid,
+  pairs,
+  passes,
+  openLink,
+  mail,
+  reminder,
 }: {
   lookup: string;
   name: string;
@@ -61,6 +96,13 @@ export function GuestsScreen({
   initialList: string | null;
   inviteUrl: string;
   isPaid: boolean;
+  pairs: NamePair[];
+  /** Phone-only guests: their links go out by hand. */
+  passes: GuestPass[];
+  openLink: { open: boolean; capacity: number | null; joined: number };
+  /** `preview` is the body of the invitation, laid out on the cabinet's column. */
+  mail: { ready: boolean; preview: string | null };
+  reminder: { ready: boolean; enabled: boolean; sentLabel: string | null };
 }) {
   const router = useRouter();
   const back = `/e/${encodeURIComponent(lookup)}/manage`;
@@ -72,158 +114,364 @@ export function GuestsScreen({
   }
   const books = lists ?? [];
   const sources = guestSources(rows, books);
+  const [open, setOpen] = useState(Boolean(initialList));
   const [query, setQuery] = useState("");
   const [source, setSource] = useState<string | null>(
     initialList && sources.some((item) => item.id === initialList) ? initialList : null,
   );
-  const [status, setStatus] = useState<StatusFilter>("any");
+  const [stage, setStage] = useState<Stage | null>(null);
+  const [sort, setSort] = useState<Sort>("recent");
   const [picked, setPicked] = useState<string | null>(null);
+  const [ticked, setTicked] = useState<Set<string>>(() => new Set());
+  const [viewing, setViewing] = useState(false);
+  const [remind, setRemind] = useState(reminder.enabled);
   const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { busy: running, run } = useBusyAction<"send" | "reminder">();
+  const sendLock = useRef(false);
+
+  const recount = () => startTransition(() => router.refresh());
+
+  const confirmed = (guest: BookGuest) => (isPaid ? isPaidGuest(guest) : isGoing(guest.status));
+  const MATCH: Record<Stage, (guest: BookGuest) => boolean> = {
+    not_sent: (guest) => Boolean(guest.guestId) && !guest.sent && !confirmed(guest),
+    sent: (guest) => Boolean(guest.guestId) && guest.sent,
+    opened: (guest) => Boolean(guest.guestId) && guest.sent && (guest.opened || isGoing(guest.status)),
+    confirmed,
+  };
+  const stageOf = (guest: BookGuest): string => {
+    if (confirmed(guest)) return "Confirmed";
+    if (guest.bounced) return "Bounced";
+    if (guest.opened || isGoing(guest.status) || guest.status === "declined") return "Opened";
+    if (guest.sent) return "Sent";
+    return "Not sent";
+  };
+  const pendingMail = (guest: BookGuest) =>
+    Boolean(guest.guestId && guest.email) && !guest.sent && !guest.bounced && !guest.unsubscribed;
+
+  const sentCount = rows.filter(MATCH.sent).length;
+  const confirmedCount = rows.filter(confirmed).length;
+  const statusLine = STAGES.map((item) => `${item.label} ${rows.filter(MATCH[item.id]).length}`).join(" · ");
 
   const inSource = rows.filter((guest) => !source || sourceIds(guest, books).includes(source));
   const needle = query.trim().toLowerCase();
+  const stamp = (guest: BookGuest) => guest.registeredAt ?? guest.addedAt ?? "";
   const visible = inSource
-    .filter((guest) => MATCH[status](guest))
-    .filter((guest) => !needle || guest.name.toLowerCase().includes(needle));
+    .filter((guest) => !stage || MATCH[stage](guest))
+    .filter((guest) => !needle || guest.name.toLowerCase().includes(needle))
+    .sort((a, b) => (sort === "name" ? a.name.localeCompare(b.name) : stamp(b).localeCompare(stamp(a))));
 
-  const statusFilters: { id: StatusFilter; label: string }[] = [
-    { id: "any", label: "Any" },
-    { id: "not_sent", label: "Not sent" },
-    { id: "going", label: "Going" },
-    ...(isPaid
-      ? ([
-          { id: "paid", label: "Paid" },
-          { id: "pending", label: "Pending" },
-        ] as const)
-      : []),
-    { id: "in", label: "In" },
-    { id: "declined", label: "Not going" },
-  ];
+  const manual = new Set(books.filter((list) => list.kind === "manual").map((list) => list.id));
+  const byHand = rows.filter((guest) => guest.listIds.some((id) => manual.has(id)) && MATCH.not_sent(guest));
 
-  const copyLink = async (guest: BookGuest) => {
-    if (!guest.token) return;
+  const allTicked = visible.length > 0 && visible.every((guest) => ticked.has(guest.key));
+  const tickAll = () =>
+    setTicked((current) => {
+      const next = new Set(current);
+      for (const guest of visible) {
+        if (allTicked) next.delete(guest.key);
+        else next.add(guest.key);
+      }
+      return next;
+    });
+  const tick = (key: string, on: boolean) =>
+    setTicked((current) => {
+      const next = new Set(current);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+
+  const eligible = rows.filter(pendingMail);
+  const targets = ticked.size > 0 ? eligible.filter((guest) => ticked.has(guest.key)) : eligible;
+
+  const send = () =>
+    run("send", async () => {
+      if (sendLock.current || targets.length === 0) return;
+      sendLock.current = true;
+      setError(null);
+      try {
+        const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(ticked.size > 0 ? { guestIds: targets.map((guest) => guest.guestId) } : {}),
+        });
+        const body = (await response.json()) as { sent?: number; failed?: number; error?: string };
+        if (!response.ok) throw new Error(body.error ?? "Could not send.");
+        if (body.failed) setError(`${body.failed} not sent. They stay Not sent — try again later.`);
+        else setNotice(`Sent ${body.sent ?? targets.length}`);
+        setTicked(new Set());
+        // Who was sent comes back from the server only as counts.
+        recount();
+      } catch (failure) {
+        setError(failure instanceof Error ? failure.message : "Could not send.");
+      } finally {
+        sendLock.current = false;
+      }
+    });
+
+  const toggleReminder = (next: boolean) =>
+    run("reminder", async () => {
+      setRemind(next);
+      setError(null);
+      try {
+        const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/reminder`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ on: next }),
+        });
+        if (!response.ok) throw new Error();
+      } catch {
+        setRemind(!next);
+        setError("Could not save.");
+      }
+    });
+
+  const copy = async (text: string, done: string) => {
     try {
       if (!navigator.clipboard?.writeText) throw new Error("no clipboard");
-      await navigator.clipboard.writeText(guestPassUrl(inviteUrl, guest.token));
-      setNotice("Link copied");
+      await navigator.clipboard.writeText(text);
+      setNotice(done);
     } catch {
       setNotice("Could not copy");
     }
   };
 
+  const copyLinks = () =>
+    void copy(passes.map((pass) => `${pass.name} — ${guestPassUrl(inviteUrl, pass.token)}`).join("\n"), "Links copied");
+
   const metaLine = (guest: BookGuest): string =>
-    [guest.email ?? guest.phone, ...sourceNames(guest, books), isPaid && (isPaidGuest(guest) || guest.paidList) ? "Paid" : null]
-      .filter(Boolean)
-      .join(" · ");
+    [guest.email ?? guest.phone, ...sourceNames(guest, books)].filter(Boolean).join(" · ");
 
-  const statusOf = (guest: BookGuest): { label: string; dot: string | null } => {
-    if (guest.bounced && !isGoing(guest.status)) return { label: "Bounced", dot: null };
-    if (isPaid && isPendingGuest(guest) && guest.status !== "in") return { label: "Payment pending", dot: "var(--pay-pending)" };
-    return guestStatusView(guest.status);
-  };
-
-  const pick = (apply: () => void) => {
-    apply();
+  const pickSource = (id: string | null) => {
+    setSource(id);
     setPicked(null);
   };
 
   return (
-    <ManageFrame title={name} fallbackHref={back} onBack={() => router.replace(back)}>
+    <ManageFrame title="Guests" fallbackHref={back} onBack={() => router.replace(back)}>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
-      {rows.length === 0 ? (
-        <p className="mb-0 t-meta text-[var(--grey)]">No guests yet. Share the invite.</p>
-      ) : (
-        <>
-          <div className="flex flex-wrap gap-x-4 gap-y-2 pt-[18px]">
-            <button type="button" onClick={() => pick(() => setSource(null))} className={chipClass(source === null)}>
-              {`All ${rows.length}`}
-            </button>
-            {sources.map((item) => (
-              <button key={item.id} type="button" onClick={() => pick(() => setSource(item.id))} className={chipClass(source === item.id)}>
-                {`${sourceLabel(item.kind, item.name)} ${item.total}`}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
-            {statusFilters.map((item) => (
-              <button key={item.id} type="button" onClick={() => pick(() => setStatus(item.id))} className={chipClass(status === item.id)}>
-                {item.id === "any" ? item.label : `${item.label} ${inSource.filter(MATCH[item.id]).length}`}
-              </button>
-            ))}
-          </div>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Name"
-            aria-label="Name"
-            className="mt-4 w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 pb-1 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
-            style={{ fontSize: 16, fontWeight: 400, letterSpacing: "-0.015em", lineHeight: 1.45 }}
-          />
-          <ul className="pt-2">
-            {visible.map((guest, index) => {
-              const view = statusOf(guest);
-              const open = picked === guest.key;
-              const pass = guest.token ? guestPassUrl(inviteUrl, guest.token) : null;
-              return (
-                <li key={guest.key}>
-                  {index > 0 ? <Rule /> : null}
-                  <button
-                    type="button"
-                    onClick={() => setPicked(open ? null : guest.key)}
-                    className="press flex w-full items-baseline gap-3 border-0 bg-transparent px-0 py-3 text-left [-webkit-tap-highlight-color:transparent]"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate t-body text-[var(--ink)]">{guest.name}</span>
-                      <span className="mt-0.5 block t-meta text-[var(--grey)]">{metaLine(guest)}</span>
-                    </span>
-                    <span className="inline-flex shrink-0 items-center gap-1 t-meta text-[var(--ink)]">
-                      {view.dot ? <span aria-hidden className="inline-block size-1.5 rounded-full" style={{ background: view.dot }} /> : null}
-                      {view.label}
-                    </span>
-                  </button>
-                  {open && (pass || guest.cardToken) ? (
-                    <span className="flex flex-wrap gap-x-4 gap-y-1 pb-3">
-                      {guest.phone && pass ? (
-                        <a
-                          href={whatsappHref(guest.phone, whatsappInvite(name, pass))}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="t-meta text-[var(--ink)] underline decoration-1 underline-offset-[3px]"
-                        >
-                          WhatsApp
-                        </a>
-                      ) : null}
-                      {pass ? (
-                        <button
-                          type="button"
-                          onClick={() => void copyLink(guest)}
-                          className={`${ACTION} underline decoration-1 underline-offset-[3px]`}
-                        >
-                          Copy link
-                        </button>
-                      ) : null}
-                      {guest.cardToken ? (
-                        <Link href={`/c/${guest.cardToken}`} className="t-meta text-[var(--ink)] no-underline">
-                          Open card
-                        </Link>
-                      ) : null}
-                    </span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-          <Rule />
-          <a
-            href={`/api/events/${encodeURIComponent(lookup)}/guests/export`}
-            download
-            className="press mt-[18px] inline-flex items-center gap-2 t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+      <div className="pt-[18px] pb-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
+        <p className={cn(NUMBER_CLASS, "mb-0")}>{`${rows.length} guests`}</p>
+        <p className="mt-2 mb-0 t-body text-[var(--ink)]">{`${sentCount} sent · ${confirmedCount} confirmed`}</p>
+      </div>
+      <Rule />
+      <FilesZone
+        lookup={lookup}
+        files={sources.filter((item) => item.kind === "file")}
+        pairs={pairs}
+        onPick={(id) => {
+          pickSource(id);
+          setOpen(true);
+        }}
+        onChanged={recount}
+      />
+      <OpenLinkZone
+        lookup={lookup}
+        open={openLink.open}
+        capacity={openLink.capacity}
+        joined={openLink.joined}
+        shareUrl={inviteUrl}
+        onNotice={setNotice}
+      />
+      <Zone
+        label={
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+            className="press inline-flex items-center gap-1 border-0 bg-transparent p-0 t-label text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
           >
-            <Download size={16} strokeWidth={1.25} className="shrink-0 text-[var(--ink)]" />
-            Export — CSV with statuses
-          </a>
-        </>
-      )}
+            The list
+            <ChevronDown size={14} strokeWidth={1.25} className={cn("shrink-0 transition-transform", open && "rotate-180")} />
+          </button>
+        }
+        align="start"
+      >
+        {open ? (
+          <Chips
+            items={STAGES.map((item) => ({ id: item.id, label: `${item.label} ${inSource.filter(MATCH[item.id]).length}` }))}
+            selected={stage}
+            onPick={(id) => setStage((current) => (current === id ? null : id))}
+          />
+        ) : (
+          <p className="mb-0 t-meta text-[var(--grey)]">{statusLine}</p>
+        )}
+      </Zone>
+      {open ? (
+        <div className="pb-[18px]">
+            <div className="flex items-baseline justify-between gap-3">
+              <Chips
+                items={[
+                  { id: "recent" as Sort, label: "Recent" },
+                  { id: "name" as Sort, label: "By name" },
+                ]}
+                selected={sort}
+                onPick={setSort}
+              />
+              <label className="flex shrink-0 items-center gap-2 t-meta text-[var(--ink)]">
+                Mark all
+                <Checkbox checked={allTicked} onCheckedChange={tickAll} className={BOX} aria-label="Mark all" />
+              </label>
+            </div>
+            <div className="mt-2">
+              <Chips
+                items={[{ id: "all", label: "All" }, ...sources.map((item) => ({ id: item.id, label: sourceLabel(item.kind, item.name) }))]}
+                selected={source ?? "all"}
+                onPick={(id) => pickSource(id === "all" ? null : id)}
+              />
+            </div>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Name"
+              aria-label="Name"
+              className="mt-3 w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 pb-1 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
+              style={{ fontSize: 16, fontWeight: 400, letterSpacing: "-0.015em", lineHeight: 1.45 }}
+            />
+            <HandZone
+              lookup={lookup}
+              onAdded={(text) => {
+                setNotice(text);
+                recount();
+              }}
+            >
+              {byHand.length > 0 ? (
+                <ul className="mt-2">
+                  {byHand.map((guest) => (
+                    <li key={guest.key} className="flex items-baseline gap-3 py-1">
+                      <span className="min-w-0 flex-1 truncate t-body text-[var(--ink)]">
+                        {guest.name}
+                        <span className="t-meta text-[var(--grey)]">{` · ${guest.email ?? guest.phone ?? ""}`}</span>
+                      </span>
+                      <span className="shrink-0 t-meta text-[var(--grey)]">Not sent</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </HandZone>
+            <ul className="max-h-[max(176px,min(324px,calc(100dvh-484px)))] overflow-y-auto overscroll-contain">
+              {visible.map((guest, index) => {
+                const expanded = picked === guest.key;
+                const pass = guest.token ? guestPassUrl(inviteUrl, guest.token) : null;
+                return (
+                  <li key={guest.key}>
+                    {index > 0 ? <Rule /> : null}
+                    <div className="flex items-start gap-3 py-2">
+                      <Checkbox
+                        checked={ticked.has(guest.key)}
+                        onCheckedChange={(checked) => tick(guest.key, checked === true)}
+                        className={cn(BOX, "mt-[3px]")}
+                        aria-label={`Mark ${guest.name}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPicked(expanded ? null : guest.key)}
+                        className="press flex min-w-0 flex-1 items-baseline gap-2 border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate t-body text-[var(--ink)]">{guest.name}</span>
+                          <span className="mt-0.5 block truncate t-meta text-[var(--grey)]">{metaLine(guest)}</span>
+                        </span>
+                        <span className="inline-flex shrink-0 items-baseline gap-1 t-meta text-[var(--ink)]">
+                          {isPaid && isPaidGuest(guest) ? <span className="text-[var(--pay-confirmed)]">$</span> : null}
+                          {stageOf(guest)}
+                        </span>
+                      </button>
+                    </div>
+                    {expanded && (pass || guest.cardToken) ? (
+                      <span className="flex flex-wrap gap-x-4 gap-y-1 pb-3 pl-7">
+                        {guest.phone && pass ? (
+                          <a
+                            href={whatsappHref(guest.phone, whatsappInvite(name, pass))}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="t-meta text-[var(--ink)] underline decoration-1 underline-offset-[3px]"
+                          >
+                            WhatsApp
+                          </a>
+                        ) : null}
+                        {pass ? (
+                          <button
+                            type="button"
+                            onClick={() => void copy(pass, "Link copied")}
+                            className={`${ACTION} underline decoration-1 underline-offset-[3px]`}
+                          >
+                            Copy link
+                          </button>
+                        ) : null}
+                        {guest.cardToken ? (
+                          <Link href={`/c/${guest.cardToken}`} className="t-meta text-[var(--ink)] no-underline">
+                            Open card
+                          </Link>
+                        ) : null}
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-3 border-t border-[var(--rule)] py-[18px]">
+          {mail.preview ? (
+            <button type="button" aria-expanded={viewing} onClick={() => setViewing((value) => !value)} className={ROW}>
+              View invitation
+            </button>
+          ) : null}
+          {viewing && mail.preview ? (
+            <div
+              aria-label="The mail your guests get"
+              className="pointer-events-none w-full select-none bg-white"
+              dangerouslySetInnerHTML={{ __html: mail.preview }}
+            />
+          ) : null}
+          {reminder.ready ? (
+            reminder.sentLabel ? (
+              <p className="mb-0 t-meta text-[var(--grey)]">{`Reminder sent ${reminder.sentLabel}`}</p>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={remind}
+                  disabled={running !== null}
+                  onCheckedChange={(checked) => void toggleReminder(checked === true)}
+                  aria-label="Reminder 24h before"
+                />
+                <span className="t-meta text-[var(--grey)]">{`Reminder 24h before · ${remind ? "on" : "off"}`}</span>
+              </div>
+            )
+          ) : null}
+          {!mail.ready ? (
+            <p className="mb-0 t-meta text-[var(--grey)]">Sending needs the event mails migration.</p>
+          ) : eligible.length > 0 ? (
+            <button type="button" disabled={running !== null || targets.length === 0} onClick={() => void send()} className={SKY}>
+              {running === "send" ? "Sending…" : `Send invitation · ${targets.length} by mail`}
+            </button>
+          ) : rows.some((guest) => guest.email) ? (
+            <p className="mb-0 t-meta text-[var(--grey)]">All passes sent</p>
+          ) : null}
+          {passes.length > 0 ? (
+            <p className="mb-0 t-meta text-[var(--grey)]">
+              {`${passes.length} phone only — `}
+              <button
+                type="button"
+                onClick={copyLinks}
+                className="press border-0 bg-transparent p-0 t-meta text-[var(--grey)] underline underline-offset-2 [-webkit-tap-highlight-color:transparent]"
+              >
+                copy links
+              </button>
+              {" for WhatsApp"}
+            </p>
+          ) : null}
+          {error ? <p className="mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
+      </div>
+      <Rule />
+      <div className="py-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
+        <a href={`/api/events/${encodeURIComponent(lookup)}/guests/export`} download className={ROW}>
+          <Download size={16} strokeWidth={1.25} className="shrink-0 text-[var(--ink)]" />
+          Export guest list
+        </a>
+      </div>
     </ManageFrame>
   );
 }

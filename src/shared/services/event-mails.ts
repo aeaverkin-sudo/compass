@@ -432,10 +432,18 @@ function batchKey(kind: MailKind, logIds: string[]): string {
  * mail log first, so a second tap sends nothing twice. A refused mail frees the claim
  * and keeps the guest Not sent with the error.
  */
-export async function sendInvites(eventId: string, event: MailEvent, origin: string): Promise<{ sent: number; failed: number }> {
+export async function sendInvites(
+  eventId: string,
+  event: MailEvent,
+  origin: string,
+  /** The guests ticked on the list; empty or missing is everyone pending. */
+  only?: string[],
+): Promise<{ sent: number; failed: number }> {
   if (!mailConfigured()) throw new Error("mail_not_configured");
   const admin = createAdminSupabaseClient();
-  const invitees = await pendingInvitees(eventId);
+  const pending = await pendingInvitees(eventId);
+  const picked = only && only.length > 0 ? new Set(only) : null;
+  const invitees = picked ? pending.filter((guest) => picked.has(guest.id)) : pending;
   let sent = 0;
   let failed = 0;
   for (let index = 0; index < invitees.length; index += BATCH_MAX) {

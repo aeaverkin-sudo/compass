@@ -87,10 +87,8 @@ export function OpenLinkZone({
   };
 
   const shown = shareUrl.replace(/^https?:\/\//, "");
-  const left = limit ? Math.max(0, limit - joined) : null;
-
   return (
-    <Zone label="Open link" align="start">
+    <Zone label="Open link" align="start" rule>
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
           <Switch checked={on} disabled={busy} onCheckedChange={(checked) => void toggle(checked === true)} aria-label="Open link" />
@@ -121,7 +119,7 @@ export function OpenLinkZone({
               </span>
             ) : (
               <button type="button" disabled={busy} onClick={() => setEditing(true)} className={ROW}>
-                {limit ? `Capacity ${limit} · ${joined} joined · ${left} left` : `Capacity · no limit · ${joined} joined`}
+                {limit ? `Capacity ${limit} · ${joined} joined` : `Capacity · no limit · ${joined} joined`}
               </button>
             )}
           </>

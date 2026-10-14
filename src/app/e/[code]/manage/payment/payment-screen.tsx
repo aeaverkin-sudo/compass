@@ -303,20 +303,21 @@ export function PaymentScreen({ lookup, pay, tally, guests }: PaymentScreenProps
               </button>
             }
             align="start"
-            rule
+            rule={!open}
           >
             <p className="mb-0 t-body text-[var(--ink)]">{`${confirmed} confirmed · ${pending} pending · ${unpaid} unpaid`}</p>
-            {open ? (
-              <>
+          </Zone>
+          {open ? (
+            <div className="border-b border-[var(--rule)] pb-[18px]">
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Name"
                   aria-label="Name"
-                  className="mt-3 w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 pb-1 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
+                  className="w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 pb-1 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
                   style={{ fontSize: 16, fontWeight: 400, letterSpacing: "-0.015em", lineHeight: 1.45 }}
                 />
-                <ul className="max-h-[288px] overflow-y-auto overscroll-contain">
+                <ul className="max-h-[300px] overflow-y-auto overscroll-contain">
                   {visible.map((guest, index) => {
                     const paid = isPaidGuest(guest);
                     const waiting = isPendingGuest(guest);
@@ -340,9 +341,8 @@ export function PaymentScreen({ lookup, pay, tally, guests }: PaymentScreenProps
                     );
                   })}
                 </ul>
-              </>
-            ) : null}
-          </Zone>
+            </div>
+          ) : null}
           <div className="flex flex-col gap-1 py-[18px] t-meta text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
             <span>
               <span className="text-[var(--ink)]">Confirmed</span> — paid, matched by the statement or marked by you.
