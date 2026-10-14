@@ -26,8 +26,7 @@ export type MailEvent = {
 export type Invitee = { id: string; name: string; email: string; token: string; sendCount: number };
 
 const PLACE_SECRET = "Revealed closer to the date";
-const PASS_LINE =
-  "Your pass is one tap away. It is your card at the event — show it at the door, share it with people you meet.";
+const PASS_LINE = "Your pass is your portfolio at this event — show it at the door, share it with people you meet.";
 const INVITE_NOTE = "By tapping you agree to the event rules, Terms and Privacy. This link is your pass — don't forward it.";
 
 function eventKey(event: Pick<EventInvite, "slug" | "code">): string {
@@ -64,14 +63,6 @@ export function personalLink(origin: string, event: MailEvent, token: string): s
 
 export function unsubscribePage(origin: string, event: MailEvent, token: string): string {
   return `${origin}/e/${event.key}/unsubscribe?g=${encodeURIComponent(token)}`;
-}
-
-/** Gmail and Apple Mail show «Unsubscribe» and post here in one click. */
-export function unsubscribeHeaders(origin: string, event: MailEvent, token: string): Record<string, string> {
-  return {
-    "List-Unsubscribe": `<${origin}/api/events/${event.key}/unsubscribe?g=${encodeURIComponent(token)}>`,
-    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-  };
 }
 
 /** The snapshot of the live poster; until there is one, the OG image. The tap opens the same link as the button. */
@@ -362,7 +353,6 @@ async function remindEvent(eventId: string, lookup: string, origin: string): Pro
         subject: `Tomorrow — ${event.name}`,
         html: body.html,
         text: body.text,
-        ...(person.token ? { headers: unsubscribeHeaders(origin, event, person.token) } : {}),
       };
     });
     const outcomes = await sendHtmlBatch(mails, batchKey("reminder", [eventId, String(index)]));
@@ -412,7 +402,6 @@ export async function sendInvites(eventId: string, event: MailEvent, origin: str
         subject: inviteSubject(event),
         html: body.html,
         text: body.text,
-        headers: unsubscribeHeaders(origin, event, guest.token),
       };
     });
     const outcomes = await sendHtmlBatch(mails, batchKey("invite", claimed.map((guest) => claims.get(guest.id) as string)));
