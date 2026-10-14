@@ -142,6 +142,16 @@ export function posterUrl(path: string | null | undefined, updatedAt: string | n
   return version > 0 ? `${url}?v=${version}` : url;
 }
 
+/** The snapshot itself, or null when there is none yet or the bucket does not answer. */
+export async function loadPosterBytes(eventId: string): Promise<Buffer | null> {
+  const path = await loadPosterPath(eventId);
+  if (!path) return null;
+  const admin = createAdminSupabaseClient();
+  const loaded = await admin.storage.from(POSTER_BUCKET).download(path);
+  if (loaded.error || !loaded.data) return null;
+  return Buffer.from(await loaded.data.arrayBuffer());
+}
+
 /** The stored poster of this event, or null before the first snapshot or the poster migration. */
 export async function loadPosterPath(eventId: string): Promise<string | null> {
   const admin = createAdminSupabaseClient();

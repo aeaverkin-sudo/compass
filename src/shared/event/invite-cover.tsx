@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
+import { modernAccent, type EventLayoutId, type EventThemeId } from "@/shared/event/themes";
 import { dottedDate, eventClock, eventDayLong, eventDaySlash, eventTimeRange } from "@/shared/event/when";
 import { CardInvite } from "@/shared/event/card-invite";
 import { eventTitleLine } from "@/shared/event/event-title";
@@ -47,12 +47,6 @@ function placeLine(event: InviteCoverEvent): string | null {
 function aboutLine(event: InviteCoverEvent): string | null {
   const text = event.description?.trim();
   return text || null;
-}
-
-function modernAccent(themeId: EventThemeId): string {
-  if (themeId === "orange") return "#E8640C";
-  if (themeId === "blue") return "#1f3bd6";
-  return "#111111";
 }
 
 function modernTitleSize(name: string): number {

@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { ogPosterElement, type OgPhoto } from "@/shared/event/og-poster";
+import { ogPosterElement } from "@/shared/event/og-poster";
 import type { TeamRoleName } from "@/shared/event/permissions";
 import { previewPriceLabel } from "@/shared/event/payment-label";
 import { eventPreviewLine } from "@/shared/event/when";
 import { loadPreviewPay } from "@/shared/services/event-payment";
-import { downloadAttachmentBytes, loadAttachment } from "@/shared/services/attachment-api";
+import { loadPosterBytes } from "@/shared/services/poster-snapshot";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import { eventTitleLine } from "@/shared/event/event-title";
 
@@ -47,21 +47,14 @@ async function loadedFonts() {
   }
 }
 
-/** The logo fitted into 400×500 inside the 460 column, with its real size: Satori has no objectFit contain. */
-async function logoDataUrl(event: EventInvite): Promise<OgPhoto | null> {
-  if (!event.logoAttachmentId) return null;
+/** The poster snapshot at the card's 446×630; null sends the card to the panel alone. */
+async function posterDataUrl(event: EventInvite): Promise<string | null> {
   try {
-    const row = await loadAttachment(event.logoAttachmentId);
-    if (!row || row.status !== "ready") return null;
-    const bytes = await downloadAttachmentBytes(row);
+    const bytes = await loadPosterBytes(event.id);
     if (!bytes) return null;
     const { default: sharp } = await import("sharp");
-    const out = await sharp(Buffer.from(bytes), { failOn: "none" })
-      .rotate()
-      .resize(400, 500, { fit: "inside", withoutEnlargement: true })
-      .png()
-      .toBuffer({ resolveWithObject: true });
-    return { src: `data:image/png;base64,${out.data.toString("base64")}`, w: out.info.width, h: out.info.height };
+    const out = await sharp(bytes, { failOn: "none" }).resize(446, 630, { fit: "fill" }).png().toBuffer();
+    return `data:image/png;base64,${out.toString("base64")}`;
   } catch {
     return null;
   }
@@ -99,7 +92,7 @@ function spareCard(name: string) {
     meta: null,
     themeId: "paper",
     layout: "grid",
-    photo: null,
+    poster: null,
     team: false,
     role: null,
   });
@@ -116,14 +109,14 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     const event = await loadEventInvite(code);
     const pay = event ? await loadPreviewPay(event.id) : null;
     const loaded = await loadedFonts();
-    const photo = event ? await logoDataUrl(event) : null;
+    const poster = event ? await posterDataUrl(event) : null;
     const element = event
       ? ogPosterElement({
           name: eventTitleLine(event.name) || "ADED",
           meta: eventPreviewLine(event.date, event.endsAt, event.place, event.placeSecret, pay ? previewPriceLabel(pay) : null, event.timeZone),
           themeId: event.theme,
           layout: event.layout,
-          photo,
+          poster,
           team,
           role: team ? role : null,
         })

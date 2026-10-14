@@ -50,6 +50,13 @@ export function eventThemeById(id: EventThemeId) {
   return EVENT_THEMES.find((theme) => theme.id === id) ?? EVENT_THEMES[0];
 }
 
+/** The title colour of the oversized cover. */
+export function modernAccent(themeId: EventThemeId): string {
+  if (themeId === "orange") return "#E8640C";
+  if (themeId === "blue") return "#1f3bd6";
+  return "#111111";
+}
+
 export function layoutDefaultTheme(id: EventLayoutId): EventThemeId {
   return EVENT_LAYOUTS.find((layout) => layout.id === id)?.defaultTheme ?? "paper";
 }
