@@ -63,6 +63,7 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
   const [latest, setLatest] = useState(last);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [query, setQuery] = useState("");
+  const [confirming, setConfirming] = useState(false);
 
   const submit = async (key: ScanKey, confirm = false) => {
     if (busyRef.current) return;
@@ -73,6 +74,7 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
       seenRef.current = { token: id, at: Date.now() };
     }
     busyRef.current = true;
+    if (confirm) setConfirming(true);
     try {
       const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/checkin`, {
         method: "POST",
@@ -107,6 +109,7 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
       seenRef.current = null;
     } finally {
       busyRef.current = false;
+      setConfirming(false);
     }
   };
 
@@ -201,10 +204,11 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
           </p>
           <button
             type="button"
+            disabled={confirming}
             onClick={() => void submit(result.key, true)}
             className="press mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
           >
-            Confirm & let in
+            {confirming ? "Letting in…" : "Confirm & let in"}
           </button>
           <p className="mt-2 mb-0 t-meta text-[var(--grey)]">Not checked in yet.</p>
         </div>
