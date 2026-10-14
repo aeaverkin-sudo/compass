@@ -16,6 +16,7 @@ import { countCardsExchanged } from "@/shared/services/event-export";
 import { eventMailsReady, loadReminder } from "@/shared/services/event-mails";
 import { isGoing } from "@/shared/event/guest-book";
 import { guestSources, isPaidGuest, isPendingGuest } from "@/shared/event/guest-sources";
+import { loadPosterPath } from "@/shared/services/poster-snapshot";
 import { ManageHome } from "./manage-home";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +52,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   if (!invite) notFound();
   const pay = await loadEventPay(event.id);
   const ended = eventHasEnded(invite.date, invite.endsAt);
-  const [managers, tally, book, showGoing, openLink, cards, mailReady, reminder] = await Promise.all([
+  const [managers, tally, book, showGoing, openLink, cards, mailReady, reminder, posterPath] = await Promise.all([
     sections.includes("managers") ? listEventManagers(event.id) : Promise.resolve(null),
     sections.includes("payment") ? loadPaymentTally(event.id) : Promise.resolve(null),
     sections.includes("guests")
@@ -65,6 +66,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
     ended ? countCardsExchanged(event.id) : Promise.resolve(0),
     sections.includes("guests") ? eventMailsReady() : Promise.resolve(false),
     sections.includes("guests") ? loadReminder(event.id) : Promise.resolve({ ready: false, enabled: false, sentAt: null }),
+    sections.includes("guests") ? loadPosterPath(event.id) : Promise.resolve(null),
   ]);
   const origin = await requestOrigin();
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
@@ -115,6 +117,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
       endedLabel={endedLabel}
       doorOpen={doorOpen}
       showGoing={showGoing}
+      afishaHref={posterPath ? `/api/events/${encodeURIComponent(lookup)}/afisha` : null}
       openLink={{ open: openLink.open, capacity: openLink.capacity, joined: event.registered }}
       guests={{
         counter,

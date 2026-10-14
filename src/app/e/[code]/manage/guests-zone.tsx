@@ -63,6 +63,7 @@ export function GuestsZone({
   inviteUrl,
   sent,
   showGoing,
+  afishaHref,
   compact,
   onNotice,
 }: {
@@ -83,6 +84,7 @@ export function GuestsZone({
   inviteUrl: string;
   sent: { sent: number; opened: number; going: number };
   showGoing: boolean;
+  afishaHref: string | null;
   /** After the event: the counter and the export. */
   compact: boolean;
   onNotice: (text: string) => void;
@@ -193,6 +195,13 @@ export function GuestsZone({
     </a>
   );
 
+  const afishaRow = afishaHref ? (
+    <a href={afishaHref} download className={ROW}>
+      <Download {...ICON} />
+      Afisha as image
+    </a>
+  ) : null;
+
   if (compact) {
     return (
       <Zone label="Guests" align="start">
@@ -201,6 +210,7 @@ export function GuestsZone({
             {`${counter} ›`}
           </Link>
           {exportRow}
+          {afishaRow}
         </div>
       </Zone>
     );
@@ -323,6 +333,7 @@ export function GuestsZone({
           <p className="mb-0 t-body text-[var(--ink)]">{`Sent ${sent.sent} · Opened ${sent.opened} · Going ${sent.going}`}</p>
         ) : null}
         {!empty ? exportRow : null}
+        {afishaRow}
         {reminder.ready ? (
           reminder.sentLabel ? (
             <p className="mb-0 t-meta text-[var(--grey)]">{`Reminder sent ${reminder.sentLabel}`}</p>

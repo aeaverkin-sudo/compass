@@ -46,6 +46,7 @@ export function ManageHome({
   endedLabel,
   doorOpen,
   showGoing,
+  afishaHref,
   openLink,
   guests,
   after,
@@ -82,6 +83,8 @@ export function ManageHome({
   doorOpen: boolean;
   /** Guests see who's going under the poster. */
   showGoing: boolean;
+  /** The poster snapshot as a PNG; null before the first snapshot. */
+  afishaHref: string | null;
   openLink: { open: boolean; capacity: number | null; joined: number };
   guests: {
     counter: string;
@@ -180,6 +183,7 @@ export function ManageHome({
           inviteUrl={shareUrl}
           sent={guests.sent}
           showGoing={showGoing}
+          afishaHref={afishaHref}
           compact={ended}
           onNotice={setNotice}
         />

@@ -141,3 +141,11 @@ export function posterUrl(path: string | null | undefined, updatedAt: string | n
   const version = updatedAt ? new Date(updatedAt).getTime() : 0;
   return version > 0 ? `${url}?v=${version}` : url;
 }
+
+/** The stored poster of this event, or null before the first snapshot or the poster migration. */
+export async function loadPosterPath(eventId: string): Promise<string | null> {
+  const admin = createAdminSupabaseClient();
+  const loaded = await admin.from("events").select("poster_path").eq("id", eventId).maybeSingle();
+  if (loaded.error) return null;
+  return (loaded.data as { poster_path?: string | null } | null)?.poster_path ?? null;
+}
