@@ -158,7 +158,9 @@ export function GuestsScreen({
     .sort((a, b) => (sort === "name" ? a.name.localeCompare(b.name) : stamp(b).localeCompare(stamp(a))));
 
   const manual = new Set(books.filter((list) => list.kind === "manual").map((list) => list.id));
-  const byHand = rows.filter((guest) => guest.listIds.some((id) => manual.has(id)) && MATCH.not_sent(guest));
+  const isByHand = (guest: BookGuest) => guest.listIds.some((id) => manual.has(id));
+  const byHand = visible.filter(isByHand);
+  const imported = visible.filter((guest) => !isByHand(guest));
 
   const allTicked = visible.length > 0 && visible.every((guest) => ticked.has(guest.key));
   const tickAll = () =>
@@ -239,6 +241,66 @@ export function GuestsScreen({
   const metaLine = (guest: BookGuest): string =>
     [guest.email ?? guest.phone, ...sourceNames(guest, books)].filter(Boolean).join(" · ");
 
+  const guestRow = (guest: BookGuest, index: number) => {
+    const expanded = picked === guest.key;
+    const pass = guest.token ? guestPassUrl(inviteUrl, guest.token) : null;
+    return (
+      <li key={guest.key}>
+        {index > 0 ? <Rule /> : null}
+        <div className="flex items-start gap-3 py-2">
+          <Checkbox
+            checked={ticked.has(guest.key)}
+            onCheckedChange={(checked) => tick(guest.key, checked === true)}
+            className={cn(BOX, "mt-[3px]")}
+            aria-label={`Mark ${guest.name}`}
+          />
+          <button
+            type="button"
+            onClick={() => setPicked(expanded ? null : guest.key)}
+            className="press flex min-w-0 flex-1 items-baseline gap-2 border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate t-body text-[var(--ink)]">{guest.name}</span>
+              <span className="mt-0.5 block truncate t-meta text-[var(--grey)]">{metaLine(guest)}</span>
+            </span>
+            <span className="inline-flex shrink-0 items-baseline gap-1 t-meta text-[var(--ink)]">
+              {isPaid && isPaidGuest(guest) ? <span className="text-[var(--pay-confirmed)]">$</span> : null}
+              {stageOf(guest)}
+            </span>
+          </button>
+        </div>
+        {expanded && (pass || guest.cardToken) ? (
+          <span className="flex flex-wrap gap-x-4 gap-y-1 pb-3 pl-7">
+            {guest.phone && pass ? (
+              <a
+                href={whatsappHref(guest.phone, whatsappInvite(name, pass))}
+                target="_blank"
+                rel="noreferrer"
+                className="t-meta text-[var(--ink)] underline decoration-1 underline-offset-[3px]"
+              >
+                WhatsApp
+              </a>
+            ) : null}
+            {pass ? (
+              <button
+                type="button"
+                onClick={() => void copy(pass, "Link copied")}
+                className={`${ACTION} underline decoration-1 underline-offset-[3px]`}
+              >
+                Copy link
+              </button>
+            ) : null}
+            {guest.cardToken ? (
+              <Link href={`/c/${guest.cardToken}`} className="t-meta text-[var(--ink)] no-underline">
+                Open card
+              </Link>
+            ) : null}
+          </span>
+        ) : null}
+      </li>
+    );
+  };
+
   return (
     <ManageFrame title="Guests" fallbackHref={back} onBack={() => router.replace(back)}>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
@@ -313,80 +375,10 @@ export function GuestsScreen({
                 recount();
               }}
             >
-              {byHand.length > 0 ? (
-                <ul className="mt-2">
-                  {byHand.map((guest) => (
-                    <li key={guest.key} className="flex items-baseline gap-3 py-1">
-                      <span className="min-w-0 flex-1 truncate t-body text-[var(--ink)]">
-                        {guest.name}
-                        <span className="t-meta text-[var(--grey)]">{` · ${guest.email ?? guest.phone ?? ""}`}</span>
-                      </span>
-                      <span className="shrink-0 t-meta text-[var(--grey)]">Not sent</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+              {byHand.length > 0 ? <ul className="mt-2">{byHand.map(guestRow)}</ul> : null}
             </HandZone>
             <ul className="max-h-[max(176px,min(324px,calc(100dvh-484px)))] overflow-y-auto overscroll-contain">
-              {visible.map((guest, index) => {
-                const expanded = picked === guest.key;
-                const pass = guest.token ? guestPassUrl(inviteUrl, guest.token) : null;
-                return (
-                  <li key={guest.key}>
-                    {index > 0 ? <Rule /> : null}
-                    <div className="flex items-start gap-3 py-2">
-                      <Checkbox
-                        checked={ticked.has(guest.key)}
-                        onCheckedChange={(checked) => tick(guest.key, checked === true)}
-                        className={cn(BOX, "mt-[3px]")}
-                        aria-label={`Mark ${guest.name}`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setPicked(expanded ? null : guest.key)}
-                        className="press flex min-w-0 flex-1 items-baseline gap-2 border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate t-body text-[var(--ink)]">{guest.name}</span>
-                          <span className="mt-0.5 block truncate t-meta text-[var(--grey)]">{metaLine(guest)}</span>
-                        </span>
-                        <span className="inline-flex shrink-0 items-baseline gap-1 t-meta text-[var(--ink)]">
-                          {isPaid && isPaidGuest(guest) ? <span className="text-[var(--pay-confirmed)]">$</span> : null}
-                          {stageOf(guest)}
-                        </span>
-                      </button>
-                    </div>
-                    {expanded && (pass || guest.cardToken) ? (
-                      <span className="flex flex-wrap gap-x-4 gap-y-1 pb-3 pl-7">
-                        {guest.phone && pass ? (
-                          <a
-                            href={whatsappHref(guest.phone, whatsappInvite(name, pass))}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="t-meta text-[var(--ink)] underline decoration-1 underline-offset-[3px]"
-                          >
-                            WhatsApp
-                          </a>
-                        ) : null}
-                        {pass ? (
-                          <button
-                            type="button"
-                            onClick={() => void copy(pass, "Link copied")}
-                            className={`${ACTION} underline decoration-1 underline-offset-[3px]`}
-                          >
-                            Copy link
-                          </button>
-                        ) : null}
-                        {guest.cardToken ? (
-                          <Link href={`/c/${guest.cardToken}`} className="t-meta text-[var(--ink)] no-underline">
-                            Open card
-                          </Link>
-                        ) : null}
-                      </span>
-                    ) : null}
-                  </li>
-                );
-              })}
+              {imported.map(guestRow)}
             </ul>
         </div>
       ) : null}
