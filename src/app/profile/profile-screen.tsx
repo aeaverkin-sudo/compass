@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
+import { SkyToast } from "@/shared/components/sky-toast";
+import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
@@ -124,7 +126,9 @@ export function ProfileScreen() {
   const portfolioLimit = account?.portfolioLimit ?? null;
   const atCardLimit = portfolioLimit !== null && cards.length >= portfolioLimit;
   const [busy, setBusy] = useState(false);
-  const [walletCardId, setWalletCardId] = useState<string | null>(null);
+  const [walletCardId, setWalletCardId] = useState<string | null | undefined>(undefined);
+  const [walletNotice, setWalletNotice] = useState<string | null>(null);
+  const walletBusy = useRef(false);
   const signedIn = account?.registered === true;
   const canChangePassword = signedIn && account?.provider === "email";
 
@@ -151,26 +155,27 @@ export function ProfileScreen() {
     void fetch("/api/cards/primary", { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : null))
       .then((body: { cardId?: string | null } | null) => {
-        if (live && body?.cardId) setWalletCardId(body.cardId);
+        if (live) setWalletCardId(body?.cardId ?? null);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (live) setWalletCardId(null);
+      });
     return () => {
       live = false;
     };
   }, []);
 
   const putInWallet = (cardId: string) => {
-    const previous = walletCardId;
-    setWalletCardId(cardId);
-    void fetch("/api/cards/primary", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId }),
-    })
-      .then((response) => {
-        if (!response.ok) setWalletCardId(previous);
+    if (walletBusy.current) return;
+    walletBusy.current = true;
+    void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`)
+      .then((opened) => {
+        if (opened) setWalletCardId(cardId);
+        else setWalletNotice(WALLET_SOON);
       })
-      .catch(() => setWalletCardId(previous));
+      .finally(() => {
+        walletBusy.current = false;
+      });
   };
 
   useEffect(() => {
@@ -290,7 +295,7 @@ export function ProfileScreen() {
                   <p className="truncate t-body">
                     {card.displayName.trim() || "Untitled"}
                   </p>
-                  {ready && walletCardId ? (
+                  {ready && walletCardId !== undefined ? (
                     walletCardId === card.id ? (
                       <p className="mt-1 mb-0 t-meta text-[var(--grey)]">In Wallet</p>
                     ) : (
@@ -437,6 +442,7 @@ export function ProfileScreen() {
           </a>
         </p>
       </Zone>
+      {walletNotice ? <SkyToast text={walletNotice} onDone={() => setWalletNotice(null)} /> : null}
     </ProfileShell>
   );
 }
