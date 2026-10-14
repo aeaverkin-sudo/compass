@@ -9,8 +9,8 @@ import { publicCardPath } from "@/shared/services/public-card-url";
 export type WalletBackField = { key: string; label?: string; value: string; attributedValue?: string };
 
 /**
- * One personal pass per person, made from the primary card (`cards.is_primary`).
- * Put in Wallet on another card moves the primary flag and issues a new pass with that card's QR.
+ * Up to two passes per person, one per card. Put in Wallet makes that card the primary one;
+ * a third card replaces the pass put in Wallet longest ago.
  * A guest without an account holds the same pass of their one card; the door scanner takes any card of a registered owner.
  */
 export function walletCardQr(origin: string, card: { publicToken: string; handle?: string }): string {

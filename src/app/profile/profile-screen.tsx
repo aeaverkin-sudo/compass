@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
@@ -26,6 +27,8 @@ const ZONE_VALUE =
   "min-w-0 break-words t-body text-[var(--ink)]";
 
 const PAID_TIER_ENABLED = false;
+
+const PORTFOLIOS_OPEN_KEY = "aded:profile-portfolios-open";
 
 function formatBytes(bytes: number) {
   if (bytes <= 0) return "0 MB";
@@ -126,7 +129,7 @@ export function ProfileScreen() {
   const portfolioLimit = account?.portfolioLimit ?? null;
   const atCardLimit = portfolioLimit !== null && cards.length >= portfolioLimit;
   const [busy, setBusy] = useState(false);
-  const [walletCardId, setWalletCardId] = useState<string | null | undefined>(undefined);
+  const [portfoliosOpen, setPortfoliosOpen] = useState(true);
   const [walletNotice, setWalletNotice] = useState<string | null>(null);
   const walletBusy = useRef(false);
   const signedIn = account?.registered === true;
@@ -151,27 +154,26 @@ export function ProfileScreen() {
   };
 
   useEffect(() => {
-    let live = true;
-    void fetch("/api/cards/primary", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: { cardId?: string | null } | null) => {
-        if (live) setWalletCardId(body?.cardId ?? null);
-      })
-      .catch(() => {
-        if (live) setWalletCardId(null);
-      });
-    return () => {
-      live = false;
-    };
+    if (window.localStorage.getItem(PORTFOLIOS_OPEN_KEY) !== "0") return;
+    void Promise.resolve().then(() => setPortfoliosOpen(false));
   }, []);
+
+  const togglePortfolios = () => {
+    const next = !portfoliosOpen;
+    setPortfoliosOpen(next);
+    try {
+      window.localStorage.setItem(PORTFOLIOS_OPEN_KEY, next ? "1" : "0");
+    } catch {
+      /* private mode: open again on the next visit */
+    }
+  };
 
   const putInWallet = (cardId: string) => {
     if (walletBusy.current) return;
     walletBusy.current = true;
     void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`)
       .then((opened) => {
-        if (opened) setWalletCardId(cardId);
-        else setWalletNotice(WALLET_SOON);
+        if (!opened) setWalletNotice(WALLET_SOON);
       })
       .finally(() => {
         walletBusy.current = false;
@@ -276,8 +278,27 @@ export function ProfileScreen() {
             Do not collect card details here. */}
       </Zone>
 
-      <Zone label="Portfolios" align="start" rule>
-        <ul className="space-y-6">
+      <Zone
+        label={
+          <button
+            type="button"
+            aria-expanded={portfoliosOpen}
+            onClick={togglePortfolios}
+            className="press flex items-center gap-1 border-0 bg-transparent p-0 t-label [-webkit-tap-highlight-color:transparent]"
+          >
+            Portfolios
+            <ChevronRight
+              aria-hidden
+              className={cn("size-3 shrink-0 transition-transform", portfoliosOpen && "rotate-90")}
+              strokeWidth={1.5}
+            />
+          </button>
+        }
+        align="start"
+        rule
+      >
+        {portfoliosOpen ? (
+        <ul className="mb-6 space-y-6">
           {cards.map((card) => {
             const ready = isCardReady(card);
             const isPublic = ready && card.listed !== false;
@@ -295,18 +316,14 @@ export function ProfileScreen() {
                   <p className="truncate t-body">
                     {card.displayName.trim() || "Untitled"}
                   </p>
-                  {ready && walletCardId !== undefined ? (
-                    walletCardId === card.id ? (
-                      <p className="mt-1 mb-0 t-meta text-[var(--grey)]">In Wallet</p>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => putInWallet(card.id)}
-                        className="mt-1 border-0 bg-transparent p-0 t-meta text-[var(--ink)] underline"
-                      >
-                        Put in Wallet
-                      </button>
-                    )
+                  {ready ? (
+                    <button
+                      type="button"
+                      onClick={() => putInWallet(card.id)}
+                      className="mt-1 border-0 bg-transparent p-0 t-meta text-[var(--ink)] underline"
+                    >
+                      Put in Wallet
+                    </button>
                   ) : null}
                   <div className="mt-2 flex items-center gap-3">
                     <span className="t-label">
@@ -343,10 +360,11 @@ export function ProfileScreen() {
             );
           })}
         </ul>
+        ) : null}
         <button
           type="button"
           disabled={atCardLimit || portfolioLimit === null}
-          className="mt-6 border-0 bg-sky px-[21.6px] py-[10.8px] t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:opacity-40"
+          className="border-0 bg-sky px-[21.6px] py-[10.8px] t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:opacity-40"
           onClick={() => {
             if (portfolioLimit === null) return;
             updateSecondCardDraft({ displayName: "" }, portfolioLimit);

@@ -80,13 +80,46 @@ function backLink(key: string, text: string, url: string): WalletBackField {
 
 const UNDER_QR = "Open my portfolio · Scan a card — tap ··· above";
 
-/** The personal pass: one per person, so this card becomes the primary one. Null for someone else's card. */
+const WALLET_SLOTS = 2;
+
+type WalletSlot = { cardId: string; slot: number };
+
+function readSlots(value: unknown): WalletSlot[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (entry): entry is WalletSlot =>
+      Boolean(entry) && typeof entry.cardId === "string" && Number.isInteger(entry.slot) && entry.slot >= 1 && entry.slot <= WALLET_SLOTS,
+  );
+}
+
+/**
+ * Two passes per person at most. A card keeps its place; a new card takes a free one,
+ * else the place of the card put in Wallet longest ago, and that pass is replaced on the phone.
+ * The places live in the account's app metadata, newest last.
+ */
+async function walletSerial(ownerId: string, cardId: string): Promise<string> {
+  const admin = createAdminSupabaseClient();
+  const user = (await admin.auth.admin.getUserById(ownerId)).data.user;
+  const slots = readSlots(user?.app_metadata?.wallet_cards);
+  const own = slots.find((entry) => entry.cardId === cardId);
+  const taken = new Set(slots.map((entry) => entry.slot));
+  const free = Array.from({ length: WALLET_SLOTS }, (_, index) => index + 1).find((slot) => !taken.has(slot));
+  const slot = own?.slot ?? free ?? slots[0]?.slot ?? 1;
+  const next = [...slots.filter((entry) => entry.slot !== slot), { cardId, slot }];
+  if (user) {
+    const saved = await admin.auth.admin.updateUserById(ownerId, { app_metadata: { ...user.app_metadata, wallet_cards: next } });
+    if (saved.error) console.error("[wallet] slots", saved.error.message);
+  }
+  return slot === 1 ? `person-${ownerId}` : `person-${ownerId}-${slot}`;
+}
+
+/** The pass of one of my cards; this card becomes the primary one. Null for someone else's card. */
 export async function buildPersonalPass(cardId: string, ownerId: string, origin: string): Promise<BuiltPass | null> {
   const [card] = await readCards(ownerId, [cardId]);
   if (!card) return null;
   const name = cardName(card);
   const file = await buildPass({
-    serialNumber: `person-${ownerId}`,
+    serialNumber: await walletSerial(ownerId, card.id),
     organizationName: "ADED",
     description: name,
     thumbnail: await cardThumbnail(card),
