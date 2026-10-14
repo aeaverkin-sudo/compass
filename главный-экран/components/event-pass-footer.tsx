@@ -8,6 +8,7 @@ import { SkyToast } from "@/shared/components/sky-toast";
 import { deletionLine } from "@/shared/lib/deletion-date";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { useAppStore } from "@/shared/store/app-store";
 
 const FIELD =
   "compass-input block w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 py-1 text-center t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
@@ -151,11 +152,14 @@ export function EventPassFooter({
               data-card-content
               data-no-swipe
               onClick={() => {
-                void openWalletPass("/api/wallet/event").then((opened) => setToast(!opened));
+                const { cards, currentCardIndex } = useAppStore.getState();
+                const card = cards[currentCardIndex] ?? cards[0];
+                if (!card) return setToast(true);
+                void openWalletPass(`/api/cards/${card.id}/pass`).then((opened) => setToast(!opened));
               }}
               className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
             >
-              Add event pass to Apple Wallet
+              Add to Apple Wallet
             </button>
           </div>
           <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">

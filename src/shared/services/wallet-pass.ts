@@ -20,20 +20,14 @@ export type PassField = { key: string; label: string; value: string };
 /** One Wallet image at 1×, 2× and 3×. */
 export type PassImage = { x1: Buffer; x2: Buffer; x3: Buffer };
 
+/** One pass per person, `generic`: the card, its photo and its QR. Entry to an event goes by the card's owner. */
 export type PassInput = {
-  /** `eventTicket` for the event badge, `generic` for the personal pass. */
-  style: "eventTicket" | "generic";
   /** One pass per serial: the same serial replaces the pass already in Wallet. */
   serialNumber: string;
   organizationName: string;
   description: string;
-  /** The card photo, right of the name on the personal pass. */
+  /** The card photo, right of the name. */
   thumbnail?: PassImage | null;
-  /** The event band behind the top of the event pass. */
-  strip?: PassImage | null;
-  /** When Wallet brings the pass to the lock screen. */
-  relevantDate?: string | null;
-  header?: PassField | null;
   primary: PassField;
   secondary?: PassField[];
   auxiliary?: PassField[];
@@ -113,26 +107,17 @@ export async function buildPass(input: PassInput): Promise<Buffer> {
     foregroundColor: "rgb(17, 17, 17)",
     labelColor: "rgb(90, 111, 120)",
   });
-  pass.type = input.style;
+  pass.type = "generic";
   const { icon, logo } = await adedBrand();
   addImage(pass, "icon", icon);
   addImage(pass, "logo", logo);
   if (input.thumbnail) addImage(pass, "thumbnail", input.thumbnail);
-  if (input.strip) addImage(pass, "strip", input.strip);
-  if (input.header) pass.headerFields.push(input.header);
   pass.primaryFields.push(input.primary);
   for (const field of input.secondary ?? []) pass.secondaryFields.push(field);
   for (const field of input.auxiliary ?? []) pass.auxiliaryFields.push(field);
   for (const field of input.backFields ?? []) pass.backFields.push(field);
   pass.setBarcodes({ message: input.barcodeMessage, format: "PKBarcodeFormatQR", messageEncoding: "iso-8859-1" });
   if (input.expiresAt) pass.setExpirationDate(new Date(input.expiresAt));
-  if (input.relevantDate) {
-    const at = new Date(input.relevantDate);
-    if (!Number.isNaN(at.getTime())) {
-      pass.setRelevantDate(at);
-      pass.setRelevantDates([{ relevantDate: at.toISOString() }]);
-    }
-  }
   return pass.getAsBuffer();
 }
 
