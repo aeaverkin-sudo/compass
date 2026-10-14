@@ -16,7 +16,7 @@ function added(report: GuestListReport): string {
   return people === 1 ? "Guest added" : `${people} guests added`;
 }
 
-/** Under the search line, closed by a line: the add form, then the people added by hand who have not had the invite. */
+/** Between two lines: the add form, then the people added by hand who have not had the invite. */
 export function HandZone({
   lookup,
   children,
@@ -79,7 +79,7 @@ export function HandZone({
   };
 
   return (
-    <div className="border-b border-[var(--rule)] py-3">
+    <div className="mt-3 border-y border-[var(--rule)] py-3">
       <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className={LINK}>
         + Add a guest by hand
       </button>

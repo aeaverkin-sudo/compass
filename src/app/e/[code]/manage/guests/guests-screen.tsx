@@ -21,11 +21,12 @@ import {
   type GuestPass,
   type NamePair,
 } from "@/shared/event/guest-book";
-import { guestSources, isPaidGuest, sourceIds, sourceLabel, sourceNames } from "@/shared/event/guest-sources";
+import { guestSources, isPaidGuest, sourceNames } from "@/shared/event/guest-sources";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { useBusyAction } from "@/shared/hooks/use-busy-action";
 import { ManageFrame } from "../manage-frame";
 import { FilesZone } from "./files-zone";
+import { MailPreview } from "./mail-preview";
 import { HandZone } from "./hand-zone";
 import { OpenLinkZone } from "./open-link-zone";
 
@@ -55,16 +56,18 @@ function Chips<T extends string>({
   items,
   selected,
   onPick,
+  separator = "·",
 }: {
   items: { id: T; label: string }[];
   selected: T | null;
   onPick: (id: T) => void;
+  separator?: string;
 }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
       {items.map((item, index) => (
         <Fragment key={item.id}>
-          {index > 0 ? <span className="t-meta text-[var(--grey)]">·</span> : null}
+          {index > 0 ? <span className="t-meta text-[var(--grey)]">{separator}</span> : null}
           <button type="button" onClick={() => onPick(item.id)} className={chipClass(selected === item.id)}>
             {item.label}
           </button>
@@ -115,10 +118,6 @@ export function GuestsScreen({
   const books = lists ?? [];
   const sources = guestSources(rows, books);
   const [open, setOpen] = useState(Boolean(initialList));
-  const [query, setQuery] = useState("");
-  const [source, setSource] = useState<string | null>(
-    initialList && sources.some((item) => item.id === initialList) ? initialList : null,
-  );
   const [stage, setStage] = useState<Stage | null>(null);
   const [sort, setSort] = useState<Sort>("recent");
   const [picked, setPicked] = useState<string | null>(null);
@@ -153,12 +152,9 @@ export function GuestsScreen({
   const confirmedCount = rows.filter(confirmed).length;
   const statusLine = STAGES.map((item) => `${item.label} ${rows.filter(MATCH[item.id]).length}`).join(" · ");
 
-  const inSource = rows.filter((guest) => !source || sourceIds(guest, books).includes(source));
-  const needle = query.trim().toLowerCase();
   const stamp = (guest: BookGuest) => guest.registeredAt ?? guest.addedAt ?? "";
-  const visible = inSource
+  const visible = rows
     .filter((guest) => !stage || MATCH[stage](guest))
-    .filter((guest) => !needle || guest.name.toLowerCase().includes(needle))
     .sort((a, b) => (sort === "name" ? a.name.localeCompare(b.name) : stamp(b).localeCompare(stamp(a))));
 
   const manual = new Set(books.filter((list) => list.kind === "manual").map((list) => list.id));
@@ -243,11 +239,6 @@ export function GuestsScreen({
   const metaLine = (guest: BookGuest): string =>
     [guest.email ?? guest.phone, ...sourceNames(guest, books)].filter(Boolean).join(" · ");
 
-  const pickSource = (id: string | null) => {
-    setSource(id);
-    setPicked(null);
-  };
-
   return (
     <ManageFrame title="Guests" fallbackHref={back} onBack={() => router.replace(back)}>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
@@ -260,10 +251,7 @@ export function GuestsScreen({
         lookup={lookup}
         files={sources.filter((item) => item.kind === "file")}
         pairs={pairs}
-        onPick={(id) => {
-          pickSource(id);
-          setOpen(true);
-        }}
+        onPick={() => setOpen(true)}
         onChanged={recount}
       />
       <OpenLinkZone
@@ -290,7 +278,7 @@ export function GuestsScreen({
       >
         {open ? (
           <Chips
-            items={STAGES.map((item) => ({ id: item.id, label: `${item.label} ${inSource.filter(MATCH[item.id]).length}` }))}
+            items={STAGES.map((item) => ({ id: item.id, label: `${item.label} ${rows.filter(MATCH[item.id]).length}` }))}
             selected={stage}
             onPick={(id) => setStage((current) => (current === id ? null : id))}
           />
@@ -301,34 +289,23 @@ export function GuestsScreen({
       {open ? (
         <div className="pb-[18px]">
             <div className="flex items-baseline justify-between gap-3">
-              <Chips
-                items={[
-                  { id: "recent" as Sort, label: "Recent" },
-                  { id: "name" as Sort, label: "By name" },
-                ]}
-                selected={sort}
-                onPick={setSort}
-              />
+              <div className="flex items-baseline gap-2">
+                <span className="t-meta text-[var(--grey)]">Sort ·</span>
+                <Chips
+                  items={[
+                    { id: "recent" as Sort, label: "Recent" },
+                    { id: "name" as Sort, label: "By name" },
+                  ]}
+                  selected={sort}
+                  onPick={setSort}
+                  separator="/"
+                />
+              </div>
               <label className="flex shrink-0 items-center gap-2 t-meta text-[var(--ink)]">
                 Mark all
                 <Checkbox checked={allTicked} onCheckedChange={tickAll} className={BOX} aria-label="Mark all" />
               </label>
             </div>
-            <div className="mt-2">
-              <Chips
-                items={[{ id: "all", label: "All" }, ...sources.map((item) => ({ id: item.id, label: sourceLabel(item.kind, item.name) }))]}
-                selected={source ?? "all"}
-                onPick={(id) => pickSource(id === "all" ? null : id)}
-              />
-            </div>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Name"
-              aria-label="Name"
-              className="mt-3 w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 pb-1 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
-              style={{ fontSize: 16, fontWeight: 400, letterSpacing: "-0.015em", lineHeight: 1.45 }}
-            />
             <HandZone
               lookup={lookup}
               onAdded={(text) => {
@@ -419,13 +396,7 @@ export function GuestsScreen({
               View invitation
             </button>
           ) : null}
-          {viewing && mail.preview ? (
-            <div
-              aria-label="The mail your guests get"
-              className="pointer-events-none w-full select-none bg-white"
-              dangerouslySetInnerHTML={{ __html: mail.preview }}
-            />
-          ) : null}
+          {viewing && mail.preview ? <MailPreview html={mail.preview} /> : null}
           {reminder.ready ? (
             reminder.sentLabel ? (
               <p className="mb-0 t-meta text-[var(--grey)]">{`Reminder sent ${reminder.sentLabel}`}</p>

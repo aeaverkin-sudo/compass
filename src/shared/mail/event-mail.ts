@@ -41,6 +41,8 @@ export type MailFrame = {
   width?: number | "100%";
   /** Space around the mail: 40 above and below, 16 at the sides. */
   outer?: { y: number; x: number };
+  /** 300 in the mail; smaller in the cabinet preview. */
+  posterWidth?: number;
 };
 
 function escape(value: string): string {
@@ -91,8 +93,9 @@ function footerText(footer: EventMailInput["footer"]): string {
   return footer.unsubscribeHref ? `${SENT} Unsubscribe from this event's mail: ${footer.unsubscribeHref}` : SENT;
 }
 
-function posterRow(poster: NonNullable<EventMailInput["poster"]>): string {
-  return `<tr><td style="padding:0 0 24px ${AXIS}px;"><a href="${escape(poster.href)}" style="display:block;width:${POSTER_W}px;max-width:100%;text-decoration:none;"><img src="${escape(poster.src)}" width="${POSTER_W}" height="${POSTER_H}" alt="${escape(poster.alt)}" style="display:block;width:${POSTER_W}px;max-width:100%;height:auto;border:1px solid #e6e6e6;box-shadow:0 2px 12px rgba(0,0,0,.12);outline:none;" /></a></td></tr>`;
+function posterRow(poster: NonNullable<EventMailInput["poster"]>, width = POSTER_W): string {
+  const height = width === POSTER_W ? POSTER_H : Math.round((width * 404) / 286);
+  return `<tr><td style="padding:0 0 24px ${AXIS}px;"><a href="${escape(poster.href)}" style="display:block;width:${width}px;max-width:100%;text-decoration:none;"><img src="${escape(poster.src)}" width="${width}" height="${height}" alt="${escape(poster.alt)}" style="display:block;width:${width}px;max-width:100%;height:auto;border:1px solid #e6e6e6;box-shadow:0 2px 12px rgba(0,0,0,.12);outline:none;" /></a></td></tr>`;
 }
 
 const MASTHEAD = `<tr><td style="padding:0 0 12px;font-family:${FONT};font-size:13px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase;color:${INK};">ADED</td></tr>`;
@@ -103,7 +106,7 @@ export function renderEventMail(input: EventMailInput, frame: MailFrame = {}): R
   const widthAttr = width === "100%" ? "100%" : String(width);
   const widthStyle = width === "100%" ? "100%" : `${width}px`;
   const branded = !("plain" in input.footer);
-  const top = input.poster ? posterRow(input.poster) : branded ? "" : MASTHEAD;
+  const top = input.poster ? posterRow(input.poster, frame.posterWidth) : branded ? "" : MASTHEAD;
   const zones = input.zones.map((zone, index) => zoneRow(zone, index === 0 && !input.poster)).join("\n");
   const button = input.button ? buttonRow(input.button, input.footnote) : "";
   const closingLink = input.closing?.link

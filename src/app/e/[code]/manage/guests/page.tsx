@@ -10,6 +10,7 @@ import { requestOrigin } from "@/shared/services/public-card-meta";
 import { eventPublicPath } from "@/shared/event/slug";
 import { eventDayLong } from "@/shared/event/when";
 import { GuestsScreen } from "./guests-screen";
+import { MAIL_WIDTH } from "./mail-width";
 import { eventTitleLine } from "@/shared/event/event-title";
 
 export const dynamic = "force-dynamic";
@@ -54,7 +55,7 @@ export default async function ManageGuestsPage({ params, searchParams }: PagePro
   const sample = guests.find((guest) => guest.guestId && guest.email && guest.token && !guest.sent) ?? guests.find((guest) => guest.token);
   const preview =
     mailEvent && sample?.token
-      ? inviteMail(origin, mailEvent, { name: sample.name, token: sample.token }, { width: "100%", outer: { y: 0, x: 0 } }).body
+      ? inviteMail(origin, mailEvent, { name: sample.name, token: sample.token }, { width: MAIL_WIDTH, outer: { y: 0, x: 0 }, posterWidth: 160 }).body
       : null;
 
   return (
