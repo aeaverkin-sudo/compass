@@ -94,12 +94,15 @@ export function InviteCover({ event, layout, themeId, variant }: InviteCoverProp
   );
 }
 
+/** Sets the scale from the server HTML before the first paint, so the cover does not wait for hydration. */
+const SCALE_NOW = `(function(s){var f=s&&s.previousElementSibling;if(f&&f.clientWidth)f.style.setProperty("--cover-scale",String(f.clientWidth/${DESIGN_W}))})(document.currentScript)`;
+
 function Scaler({ variant, children }: { variant: InviteCoverProps["variant"]; children: ReactNode }) {
   const frame = useRef<HTMLDivElement>(null);
   const sheet = useRef<HTMLDivElement>(null);
   const full = variant === "full";
-  const [scale, setScale] = useState(variant === "page" ? 1 : 0.001);
   const [fullHeight, setFullHeight] = useState(DESIGN_H);
+  const transform = `scale(var(--cover-scale, ${variant === "page" ? 1 : 0.001}))`;
 
   useLayoutEffect(() => {
     const node = frame.current;
@@ -107,7 +110,7 @@ function Scaler({ variant, children }: { variant: InviteCoverProps["variant"]; c
     if (!node) return;
     const apply = () => {
       const next = node.clientWidth / DESIGN_W || 0.001;
-      setScale(next);
+      node.style.setProperty("--cover-scale", String(next));
       if (full && sheetNode) setFullHeight(Math.max(DESIGN_H * next, sheetNode.scrollHeight * next));
     };
     apply();
@@ -120,14 +123,17 @@ function Scaler({ variant, children }: { variant: InviteCoverProps["variant"]; c
   if (variant === "page") {
     return (
       <div className="relative mx-auto w-full max-w-[430px]">
-        <div ref={frame} className="relative w-full overflow-hidden" style={{ aspectRatio: `${DESIGN_W} / ${DESIGN_H}` }}>
-          <div
-            className="absolute top-0 left-0"
-            style={{ width: DESIGN_W, height: DESIGN_H, transform: `scale(${scale})`, transformOrigin: "top left" }}
-          >
+        <div
+          ref={frame}
+          suppressHydrationWarning
+          className="relative w-full overflow-hidden"
+          style={{ aspectRatio: `${DESIGN_W} / ${DESIGN_H}` }}
+        >
+          <div className="absolute top-0 left-0" style={{ width: DESIGN_W, height: DESIGN_H, transform, transformOrigin: "top left" }}>
             {children}
           </div>
         </div>
+        <script dangerouslySetInnerHTML={{ __html: SCALE_NOW }} />
       </div>
     );
   }
@@ -136,6 +142,7 @@ function Scaler({ variant, children }: { variant: InviteCoverProps["variant"]; c
     <div className="w-full">
       <div
         ref={frame}
+        suppressHydrationWarning
         className="relative w-full overflow-hidden"
         style={full ? { height: fullHeight } : { aspectRatio: `${DESIGN_W} / ${DESIGN_H}` }}
       >
@@ -145,13 +152,14 @@ function Scaler({ variant, children }: { variant: InviteCoverProps["variant"]; c
           style={{
             width: DESIGN_W,
             height: full ? "auto" : DESIGN_H,
-            transform: `scale(${scale})`,
+            transform,
             transformOrigin: "top left",
           }}
         >
           {children}
         </div>
       </div>
+      <script dangerouslySetInnerHTML={{ __html: SCALE_NOW }} />
     </div>
   );
 }
