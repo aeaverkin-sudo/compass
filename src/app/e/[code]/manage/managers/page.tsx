@@ -4,5 +4,5 @@ type PageProps = { params: Promise<{ code: string }> };
 
 export default async function ManageManagersPage({ params }: PageProps) {
   const { code } = await params;
-  redirect(`/e/${encodeURIComponent(code)}/manage`);
+  redirect(`/e/${encodeURIComponent(code)}/manage/staff`);
 }
