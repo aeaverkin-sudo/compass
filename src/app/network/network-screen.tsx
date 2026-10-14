@@ -75,6 +75,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     addedName ? `${addedName} — just added to your contacts` : null,
   );
   const ownerId = useRef<string | null>(null);
+  const inFlight = useRef(new Set<string>());
 
   const load = async () => {
     const response = await fetch("/api/connections", { cache: "no-store" });
@@ -124,32 +125,54 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   };
 
   const accept = async (id: string) => {
-    const userId = await readyOwnerId();
-    if (!userId) return;
-    const { error } = await createBrowserSupabaseClient()
-      .from("connections")
-      .update({ state: "active" })
-      .eq("id", id)
-      .eq("owner_id", userId);
-    if (error) return;
-    const name = contacts?.find((contact) => contact.id === id)?.displayName.trim() || "Untitled";
+    const before = contacts?.find((contact) => contact.id === id);
+    if (!before || inFlight.current.has(id)) return;
+    inFlight.current.add(id);
     setContacts((current) =>
       current?.map((contact) => (contact.id === id ? { ...contact, state: "active" } : contact)) ?? current,
     );
-    setNotice(`${name} — just added to your contacts`);
+    setNotice(`${before.displayName.trim() || "Untitled"} — just added to your contacts`);
+    try {
+      const userId = await readyOwnerId();
+      const { error } = userId
+        ? await createBrowserSupabaseClient()
+            .from("connections")
+            .update({ state: "active" })
+            .eq("id", id)
+            .eq("owner_id", userId)
+        : { error: true };
+      if (error) {
+        setNotice(null);
+        setContacts((current) => current?.map((contact) => (contact.id === id ? before : contact)) ?? current);
+      }
+    } finally {
+      inFlight.current.delete(id);
+    }
   };
 
   const remove = async (id: string) => {
-    const userId = await readyOwnerId();
-    if (!userId) return;
-    const { error } = await createBrowserSupabaseClient()
-      .from("connections")
-      .delete()
-      .eq("id", id)
-      .eq("owner_id", userId);
-    if (error) return;
+    const index = contacts?.findIndex((contact) => contact.id === id) ?? -1;
+    const before = index >= 0 ? contacts?.[index] : undefined;
+    if (!before || inFlight.current.has(id)) return;
+    inFlight.current.add(id);
     setArmedId(null);
     setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
+    try {
+      const userId = await readyOwnerId();
+      const { error } = userId
+        ? await createBrowserSupabaseClient().from("connections").delete().eq("id", id).eq("owner_id", userId)
+        : { error: true };
+      if (error) {
+        setContacts((current) => {
+          if (!current) return current;
+          const next = [...current];
+          next.splice(Math.min(index, next.length), 0, before);
+          return next;
+        });
+      }
+    } finally {
+      inFlight.current.delete(id);
+    }
   };
 
   const empty = contacts !== null && contacts.length === 0;

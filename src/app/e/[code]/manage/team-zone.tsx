@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Zone } from "@/shared/components/zone";
+import { useBusyAction } from "@/shared/hooks/use-busy-action";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { PermissionBoxes } from "@/shared/event/permission-boxes";
 import { shareInviteLink } from "@/shared/event/share-invite";
@@ -51,96 +52,91 @@ export function TeamZone({
   const [adding, setAdding] = useState(false);
   const [preset, setPreset] = useState<Preset>("cohost");
   const [custom, setCustom] = useState<EventPermissions>(allPermissions());
-  const [busy, setBusy] = useState(false);
+  const { busy: running, run } = useBusyAction<"save" | "remove" | "link">();
+  const busy = running !== null;
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => setRows(managers), [managers]);
+  const [shown, setShown] = useState(managers);
+  if (shown !== managers) {
+    setShown(managers);
+    setRows(managers);
+  }
 
   const draft = preset === "door" ? doorPermissions() : preset === "custom" ? custom : allPermissions();
 
-  const toggle = async (manager: EventManager, key: EventPermission, checked: boolean) => {
-    if (busy) return;
-    const next = { ...manager.permissions, [key]: checked };
-    setRows((current) => current.map((row) => (row.userId === manager.userId ? { ...row, permissions: next } : row)));
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/managers/${manager.userId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ permissions: next }),
-      });
-      if (!response.ok) {
+  const toggle = (manager: EventManager, key: EventPermission, checked: boolean) =>
+    run("save", async () => {
+      const next = { ...manager.permissions, [key]: checked };
+      setRows((current) => current.map((row) => (row.userId === manager.userId ? { ...row, permissions: next } : row)));
+      setError(null);
+      try {
+        const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/managers/${manager.userId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ permissions: next }),
+        });
+        if (!response.ok) {
+          setRows((current) => current.map((row) => (row.userId === manager.userId ? manager : row)));
+          setError("Could not update the manager.");
+        }
+      } catch {
         setRows((current) => current.map((row) => (row.userId === manager.userId ? manager : row)));
         setError("Could not update the manager.");
-        return;
       }
-      router.refresh();
-    } catch {
-      setRows((current) => current.map((row) => (row.userId === manager.userId ? manager : row)));
-      setError("Could not update the manager.");
-    } finally {
-      setBusy(false);
-    }
-  };
+    });
 
-  const remove = async (userId: string) => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/managers/${userId}`, { method: "DELETE" });
-      if (!response.ok) {
+  const remove = (userId: string) =>
+    run("remove", async () => {
+      setError(null);
+      try {
+        const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/managers/${userId}`, { method: "DELETE" });
+        if (!response.ok) {
+          setError("Could not remove the manager.");
+          return;
+        }
+        setRows((current) => current.filter((row) => row.userId !== userId));
+        setOpenId(null);
+        // «Up to 5» also counts open invites, which only the server knows.
+        startTransition(() => router.refresh());
+      } catch {
         setError("Could not remove the manager.");
-        return;
       }
-      setRows((current) => current.filter((row) => row.userId !== userId));
-      setOpenId(null);
-      router.refresh();
-    } catch {
-      setError("Could not remove the manager.");
-    } finally {
-      setBusy(false);
-    }
-  };
+    });
 
-  const sendLink = async () => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/managers/invite`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ permissions: draft }),
-      });
-      const body = (await response.json()) as { token?: string; publicToken?: string; error?: string };
-      if (!response.ok || !body.token || !body.publicToken) {
-        setError(body.error ?? "Could not create the link.");
-        return;
-      }
-      const url = `${window.location.origin}/e/${body.publicToken}/team/${body.token}`;
-      const title = `Help me run ${eventName}`;
-      const canShare = typeof navigator.share === "function" ? (data: { title: string; url: string }) => navigator.share(data) : undefined;
-      const outcome = await shareInviteLink(
-        { title, url },
-        {
-          share: canShare,
-          writeText: async (value) => {
-            if (!navigator.clipboard?.writeText) throw new Error("no clipboard");
-            await navigator.clipboard.writeText(value);
+  const sendLink = () =>
+    run("link", async () => {
+      setError(null);
+      try {
+        const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/managers/invite`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ permissions: draft }),
+        });
+        const body = (await response.json()) as { token?: string; publicToken?: string; error?: string };
+        if (!response.ok || !body.token || !body.publicToken) {
+          setError(body.error ?? "Could not create the link.");
+          return;
+        }
+        const url = `${window.location.origin}/e/${body.publicToken}/team/${body.token}`;
+        const title = `Help me run ${eventName}`;
+        const canShare = typeof navigator.share === "function" ? (data: { title: string; url: string }) => navigator.share(data) : undefined;
+        const outcome = await shareInviteLink(
+          { title, url },
+          {
+            share: canShare,
+            writeText: async (value) => {
+              if (!navigator.clipboard?.writeText) throw new Error("no clipboard");
+              await navigator.clipboard.writeText(value);
+            },
           },
-        },
-      );
-      if (outcome === "copied") onNotice("Link copied");
-      setAdding(false);
-      setPreset("cohost");
-    } catch {
-      setError("Could not create the link.");
-    } finally {
-      setBusy(false);
-    }
-  };
+        );
+        if (outcome === "copied") onNotice("Link copied");
+        setAdding(false);
+        setPreset("cohost");
+      } catch {
+        setError("Could not create the link.");
+      }
+    });
 
   return (
     <Zone label="Team" align={rows.length === 0 ? "baseline" : "start"}>
@@ -181,7 +177,7 @@ export function TeamZone({
                       onClick={() => void remove(manager.userId)}
                       className="press mt-1 border-0 bg-transparent p-0 t-meta text-[var(--grey)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
                     >
-                      Remove
+                      {running === "remove" ? "Removing…" : "Remove"}
                     </button>
                   ) : null}
                 </div>
@@ -243,7 +239,7 @@ export function TeamZone({
             </div>
           )}
           <button type="button" disabled={busy} onClick={() => void sendLink()} className={`mt-4 ${SKY}`}>
-            Send link
+            {running === "link" ? "Sending…" : "Send link"}
           </button>
         </div>
       ) : null}

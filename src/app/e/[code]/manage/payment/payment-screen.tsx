@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { startTransition, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 import { Switch } from "@/shared/components/ui/switch";
@@ -37,6 +37,7 @@ export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<Draft>(draftFrom(pay));
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<StatementReport | null>(null);
 
@@ -57,9 +58,7 @@ export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
       const body = (await response.json()) as { error?: string };
       if (!response.ok) {
         setError(body.error ?? "Could not save payment.");
-        return;
       }
-      router.refresh();
     } catch {
       setError("Could not save payment.");
     } finally {
@@ -74,7 +73,9 @@ export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
   };
 
   const importFile = async (file: File) => {
+    if (busy) return;
     setBusy(true);
+    setUploading(true);
     setError(null);
     setReport(null);
     try {
@@ -87,11 +88,13 @@ export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
         return;
       }
       setReport(body.report);
-      router.refresh();
+      // «still unpaid» and the guest list are recounted on the server from the matched payments.
+      startTransition(() => router.refresh());
     } catch {
       setError("Could not read the statement.");
     } finally {
       setBusy(false);
+      setUploading(false);
     }
   };
 
@@ -181,7 +184,7 @@ export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
               className="press inline-flex items-center gap-2 border-0 bg-transparent p-0 text-left t-body text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
             >
               <Upload className="text-[var(--ink)]" size={16} strokeWidth={1.25} />
-              Upload CSV or PDF
+              {uploading ? "Uploading…" : "Upload CSV or PDF"}
             </button>
             <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
               Upload your bank statement — CSV, or a PDF with selectable text. We match each guest by code, then by name, and don&apos;t store the file.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { startTransition, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -9,6 +9,7 @@ import { Switch } from "@/shared/components/ui/switch";
 import { Zone } from "@/shared/components/zone";
 import { guestPassUrl, type GuestListReport, type GuestPass, type NamePair } from "@/shared/event/guest-book";
 import type { GuestSource } from "@/shared/event/guest-sources";
+import { useBusyAction } from "@/shared/hooks/use-busy-action";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 
 const ROW =
@@ -92,54 +93,55 @@ export function GuestsZone({
   const [going, setGoing] = useState(showGoing);
   const [remind, setRemind] = useState(reminder.enabled);
   const [showPairs, setShowPairs] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const { busy: running, run } = useBusyAction<"upload" | "save">();
+  const busy = running !== null;
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<GuestListReport | null>(null);
   const base = `/api/events/${encodeURIComponent(lookup)}`;
   const exportHref = `${base}/guests/export`;
   const empty = sources.length === 0;
 
-  const call = async (url: string, init: RequestInit, fallback: string): Promise<boolean> => {
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await fetch(url, init);
-      const body = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        setError(body.error ?? fallback);
+  /** Counters, sources and pairs are counted on the server: a change to the lists re-reads them in the background. */
+  const recount = () => startTransition(() => router.refresh());
+
+  /** `again` false: the switch already shows the new value, nothing else on the screen moves. */
+  const call = (url: string, init: RequestInit, fallback: string, again = true): Promise<boolean> =>
+    run("save", async () => {
+      setError(null);
+      try {
+        const response = await fetch(url, init);
+        const body = (await response.json()) as { error?: string };
+        if (!response.ok) {
+          setError(body.error ?? fallback);
+          return false;
+        }
+        if (again) recount();
+        return true;
+      } catch {
+        setError(fallback);
         return false;
       }
-      router.refresh();
-      return true;
-    } catch {
-      setError(fallback);
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  };
+    }).then((done) => done === true);
 
-  const upload = async (file: File) => {
-    setBusy(true);
-    setError(null);
-    setReport(null);
-    try {
-      const form = new FormData();
-      form.set("file", file);
-      const response = await fetch(`${base}/guest-lists`, { method: "POST", body: form });
-      const body = (await response.json()) as { report?: GuestListReport; error?: string };
-      if (!response.ok || !body.report) {
-        setError(body.error ?? "Could not read that file.");
-        return;
+  const upload = (file: File) =>
+    run("upload", async () => {
+      setError(null);
+      setReport(null);
+      try {
+        const form = new FormData();
+        form.set("file", file);
+        const response = await fetch(`${base}/guest-lists`, { method: "POST", body: form });
+        const body = (await response.json()) as { report?: GuestListReport; error?: string };
+        if (!response.ok || !body.report) {
+          setError(body.error ?? "Could not read that file.");
+          return;
+        }
+        setReport(body.report);
+        recount();
+      } catch {
+        setError("Could not read that file.");
       }
-      setReport(body.report);
-      router.refresh();
-    } catch {
-      setError("Could not read that file.");
-    } finally {
-      setBusy(false);
-    }
-  };
+    });
 
   const toggleGoing = async (next: boolean) => {
     setGoing(next);
@@ -147,6 +149,7 @@ export function GuestsZone({
       `${base}/going`,
       { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: next }) },
       "Could not save.",
+      false,
     );
     if (!done) setGoing(!next);
   };
@@ -157,6 +160,7 @@ export function GuestsZone({
       `${base}/reminder`,
       { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ on: next }) },
       "Could not save.",
+      false,
     );
     if (!done) setRemind(!next);
   };
@@ -267,7 +271,7 @@ export function GuestsZone({
         <div className="flex flex-col gap-3">
           <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className={ROW}>
             <Upload {...ICON} />
-            Upload file
+            {running === "upload" ? "Uploading…" : "Upload file"}
           </button>
           <Link href={addHref} className={ROW}>
             <Plus {...ICON} />

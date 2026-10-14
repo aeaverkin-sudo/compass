@@ -60,7 +60,7 @@ export function EditZone({
                   This deletes the event and everything in it — guests, co-hosts, invites. This can&apos;t be undone.
                 </p>
                 <button type="button" disabled={deleting} onClick={() => void remove()} className={SKY}>
-                  {`Delete ${deleteName}`}
+                  {deleting ? "Deleting…" : `Delete ${deleteName}`}
                 </button>
                 {error ? <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
               </>

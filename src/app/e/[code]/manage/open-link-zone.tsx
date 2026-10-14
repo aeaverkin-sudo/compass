@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useBusyAction } from "@/shared/hooks/use-busy-action";
 import { Copy } from "lucide-react";
 import { Switch } from "@/shared/components/ui/switch";
 import { Zone } from "@/shared/components/zone";
@@ -25,36 +25,34 @@ export function OpenLinkZone({
   shareUrl: string;
   onNotice: (text: string) => void;
 }) {
-  const router = useRouter();
   const [on, setOn] = useState(open);
+  const [limit, setLimit] = useState(capacity);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(capacity ? String(capacity) : "");
-  const [busy, setBusy] = useState(false);
+  const { busy: running, run } = useBusyAction<"save">();
+  const busy = running !== null;
   const [error, setError] = useState<string | null>(null);
 
-  const save = async (body: { on?: boolean; capacity?: number | null }): Promise<boolean> => {
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/open-link`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        setError(payload.error ?? "Could not save.");
+  const save = (body: { on?: boolean; capacity?: number | null }): Promise<boolean> =>
+    run("save", async () => {
+      setError(null);
+      try {
+        const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/open-link`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const payload = (await response.json()) as { error?: string };
+        if (!response.ok) {
+          setError(payload.error ?? "Could not save.");
+          return false;
+        }
+        return true;
+      } catch {
+        setError("Could not save.");
         return false;
       }
-      router.refresh();
-      return true;
-    } catch {
-      setError("Could not save.");
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  };
+    }).then((done) => done === true);
 
   const toggle = async (next: boolean) => {
     setOn(next);
@@ -65,12 +63,17 @@ export function OpenLinkZone({
     setEditing(false);
     const text = draft.trim();
     const next = text ? Number(text) : null;
-    if (next === capacity) return;
+    if (next === limit) return;
     if (next !== null && (!Number.isInteger(next) || next < 1)) {
-      setDraft(capacity ? String(capacity) : "");
+      setDraft(limit ? String(limit) : "");
       return;
     }
-    if (!(await save({ capacity: next }))) setDraft(capacity ? String(capacity) : "");
+    const previous = limit;
+    setLimit(next);
+    if (!(await save({ capacity: next }))) {
+      setLimit(previous);
+      setDraft(previous ? String(previous) : "");
+    }
   };
 
   const copy = async () => {
@@ -84,7 +87,7 @@ export function OpenLinkZone({
   };
 
   const shown = shareUrl.replace(/^https?:\/\//, "");
-  const left = capacity ? Math.max(0, capacity - joined) : null;
+  const left = limit ? Math.max(0, limit - joined) : null;
 
   return (
     <Zone label="Open link" align="start">
@@ -118,7 +121,7 @@ export function OpenLinkZone({
               </span>
             ) : (
               <button type="button" disabled={busy} onClick={() => setEditing(true)} className={ROW}>
-                {capacity ? `Capacity ${capacity} · ${joined} joined · ${left} left` : `Capacity · no limit · ${joined} joined`}
+                {limit ? `Capacity ${limit} · ${joined} joined · ${left} left` : `Capacity · no limit · ${joined} joined`}
               </button>
             )}
           </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
@@ -80,6 +80,7 @@ export function GuestsScreen({
   const [status, setStatus] = useState<StatusFilter>("any");
   const [picked, setPicked] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const lock = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -103,7 +104,8 @@ export function GuestsScreen({
   ];
 
   const mark = async (guest: BookGuest) => {
-    if (!canMark || !isPaid || busyId || !guest.userId) return;
+    if (!canMark || !isPaid || lock.current || !guest.userId) return;
+    lock.current = true;
     const confirming = !isPaidGuest(guest);
     const next = {
       ...guest,
@@ -124,11 +126,11 @@ export function GuestsScreen({
         setError("Could not update the guest.");
         return;
       }
-      router.refresh();
     } catch {
       setRows((current) => current.map((row) => (row.key === guest.key ? guest : row)));
       setError("Could not update the guest.");
     } finally {
+      lock.current = false;
       setBusyId(null);
     }
   };
@@ -238,7 +240,7 @@ export function GuestsScreen({
                       ) : null}
                       {canPay ? (
                         <button type="button" disabled={busyId !== null} onClick={() => void mark(guest)} className={ACTION}>
-                          {isPaidGuest(guest) ? "Mark unpaid" : "Mark paid"}
+                          {busyId === guest.key ? "Saving…" : isPaidGuest(guest) ? "Mark unpaid" : "Mark paid"}
                         </button>
                       ) : null}
                       {guest.cardToken ? (

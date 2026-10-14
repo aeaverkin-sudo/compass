@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useBusyAction } from "@/shared/hooks/use-busy-action";
 import { Rule } from "@/shared/components/rule";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
@@ -24,14 +25,13 @@ export function AddGuestsScreen({ lookup }: { lookup: string }) {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { busy, run } = useBusyAction<"one" | "paste">();
   const [error, setError] = useState<string | null>(null);
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [report, setReport] = useState<GuestListReport | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const send = async (body: object): Promise<GuestListReport | string> => {
-    setBusy(true);
     try {
       const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/guests/add`, {
         method: "POST",
@@ -40,18 +40,17 @@ export function AddGuestsScreen({ lookup }: { lookup: string }) {
       });
       const payload = (await response.json()) as { report?: GuestListReport; error?: string };
       if (!response.ok || !payload.report) return payload.error ?? "Could not save.";
-      router.refresh();
       return payload.report;
     } catch {
       return "Could not save.";
-    } finally {
-      setBusy(false);
     }
   };
 
   const addOne = async () => {
+    if (!name.trim() || !contact.trim()) return;
     setError(null);
-    const result = await send({ name, contact });
+    const result = await run("one", () => send({ name, contact }));
+    if (result === undefined) return;
     if (typeof result === "string") {
       setError(result);
       return;
@@ -64,7 +63,8 @@ export function AddGuestsScreen({ lookup }: { lookup: string }) {
   const addPasted = async () => {
     setPasteError(null);
     setReport(null);
-    const result = await send({ text });
+    const result = await run("paste", () => send({ text }));
+    if (result === undefined) return;
     if (typeof result === "string") {
       setPasteError(result);
       return;
@@ -101,8 +101,8 @@ export function AddGuestsScreen({ lookup }: { lookup: string }) {
           }}
           className={FIELD}
         />
-        <button type="button" disabled={busy || !name.trim() || !contact.trim()} onClick={() => void addOne()} className={`mt-4 ${SKY}`}>
-          Add
+        <button type="button" disabled={busy !== null || !name.trim() || !contact.trim()} onClick={() => void addOne()} className={`mt-4 ${SKY}`}>
+          {busy === "one" ? "Adding…" : "Add"}
         </button>
         <p className="mt-3 mb-0 t-meta text-[var(--grey)]">Goes to «Added by hand».</p>
         {error ? <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
@@ -119,8 +119,8 @@ export function AddGuestsScreen({ lookup }: { lookup: string }) {
         <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
           One guest per line: a name, then an email or a phone. Copied from notes or a chat.
         </p>
-        <button type="button" disabled={busy || !text.trim()} onClick={() => void addPasted()} className={`mt-4 ${SKY}`}>
-          Add
+        <button type="button" disabled={busy !== null || !text.trim()} onClick={() => void addPasted()} className={`mt-4 ${SKY}`}>
+          {busy === "paste" ? "Adding…" : "Add"}
         </button>
         {report ? (
           <div className="mt-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { startTransition, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { guestPassUrl, type GuestPass } from "@/shared/event/guest-book";
@@ -44,7 +44,8 @@ export function SendScreen({
       if (!response.ok) throw new Error(body.error ?? "Could not send.");
       if (body.failed) {
         setError(`${body.failed} not sent. They stay Not sent — try again later.`);
-        router.refresh();
+        // Who was sent and who stays Not sent comes back from the server only as counts.
+        startTransition(() => router.refresh());
         lock.current = false;
         setBusy(false);
         return;
@@ -87,7 +88,7 @@ export function SendScreen({
           <>
             <p className="mb-0 t-meta text-[var(--grey)]">{`To ${count} ${count === 1 ? "guest" : "guests"} with an email.${phone}`}</p>
             <button type="button" disabled={busy} onClick={() => void send()} className={`mt-4 ${SKY}`}>
-              {`Send to ${count}`}
+              {busy ? "Sending…" : `Send to ${count}`}
             </button>
           </>
         ) : (
