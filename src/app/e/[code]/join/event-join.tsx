@@ -42,7 +42,7 @@ function isActive(portfolio: PortfolioChoice): boolean {
   return Boolean(portfolio.name.trim());
 }
 
-function PortfolioFace({ portfolio, selected }: { portfolio: PortfolioChoice; selected: boolean }) {
+export function PortfolioFace({ portfolio, selected }: { portfolio: PortfolioChoice; selected: boolean }) {
   return (
     <>
       <PortfolioPhoto src={portfolio.photoAttachmentId ? `/f/${portfolio.photoAttachmentId}` : null} />

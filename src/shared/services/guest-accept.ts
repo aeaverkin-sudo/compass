@@ -5,7 +5,7 @@ import { CONSENT_VERSION, type EventConsentPath } from "@/shared/services/consen
 import { userIdForEmail } from "@/shared/services/email-signup";
 import { findPassGuest, passCardName, type PassGuest } from "@/shared/services/event-guest-pass";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
-import { listOwnPortfolios, loadOwnRegistration, registerForEvent } from "@/shared/services/event-registration";
+import { listOwnPortfolios, loadOwnRegistration, registerForEvent, type PortfolioChoice } from "@/shared/services/event-registration";
 import { eventListStatus } from "@/shared/services/events";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { payView } from "@/shared/event/payment-label";
@@ -24,6 +24,8 @@ export type GuestAcceptResult =
   | { ok: true; kind: "here"; cardId: string | null; confirmEmail?: string; pay?: boolean }
   /** The browser signs in as the guest with this one-time hash. Pay: the payment screen comes before the pass. */
   | { ok: true; kind: "signin"; tokenHash: string; cardId: string | null; pay?: boolean }
+  /** An account is going: the page stays, with the badge card and the event page for Change. */
+  | { ok: true; kind: "going"; badge: PortfolioChoice | null; change: string }
   /** A phone-only guest on a device that never held the pass. */
   | { ok: true; kind: "other-device" }
   /** Nothing to open here. The line says what happens next. */
@@ -373,9 +375,11 @@ async function enterAsPass(userId: string, session: SessionUser, cardId: string 
   return { ok: true, kind: "other-device" };
 }
 
-/** Network › Events, with the You're going toast. */
-export function goingPath(eventName: string): string {
-  return `/network/event?going=${encodeURIComponent(eventName.replace(/\s+/g, " ").trim())}`;
+/** The card this account wears at the event. */
+async function badgeFace(userId: string, eventId: string): Promise<PortfolioChoice | null> {
+  const registration = await loadOwnRegistration(eventId, userId);
+  if (!registration?.cardId) return null;
+  return (await listOwnPortfolios(userId)).find((card) => card.id === registration.cardId) ?? null;
 }
 
 /** I'm going in the mail, a second time on a browser that does not hold the pass: the sign-in goes to the guest's address. */
@@ -420,9 +424,8 @@ async function reenter(
   const ownerId = data.user_id as string;
   const cardId = (data.card_id as string | null) ?? null;
   if (!isPassAccount(await accountKind(ownerId))) {
-    const next = from.source === "mail" ? goingPath(event.name) : joinPath;
-    if (session?.id === ownerId) return { ok: true, kind: "go", next };
-    return { ok: true, kind: "go", next: signInPath(next) };
+    if (session?.id === ownerId) return { ok: true, kind: "go", next: joinPath };
+    return { ok: true, kind: "go", next: signInPath(joinPath) };
   }
   if (from.source === "mail" && session?.id !== ownerId) {
     return mailSignIn(ownerId, guest, event, from, await paysFirst(event.id, ownerId));
@@ -528,8 +531,10 @@ export async function acceptGuestPass(
   if (await isPermanentAccount(session)) {
     const joined = await joinWithOwnCard(session!.id, event, lookup, guest.token, null, consentPath);
     if (!joined.ok) return joined;
-    if (joined.registrationId) await clearDecline(guest.id);
-    return { ok: true, kind: "go", next: joined.registrationId ? goingPath(event.name) : joinPath };
+    if (!joined.registrationId) return { ok: true, kind: "go", next: joinPath };
+    await clearDecline(guest.id);
+    if (from.source === "mail") return { ok: true, kind: "go", next: joinPath };
+    return { ok: true, kind: "going", badge: await badgeFace(session!.id, event.id), change: joinPath };
   }
 
   const emailOwner = guest.email ? await userIdForEmail(guest.email) : null;

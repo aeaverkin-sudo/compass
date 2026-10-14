@@ -12,6 +12,9 @@ import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
+import { COLUMN_GAP_PX } from "@/shared/layout/axes";
+import type { PortfolioChoice } from "@/shared/services/event-registration";
+import { PortfolioFace } from "./join/event-join";
 
 const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
@@ -19,7 +22,9 @@ const FIELD =
   "compass-input block w-full border-0 bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 
 type AcceptReply = {
-  kind?: "go" | "here" | "signin" | "other-device" | "notice";
+  kind?: "go" | "here" | "signin" | "other-device" | "notice" | "going";
+  badge?: PortfolioChoice | null;
+  change?: string;
   text?: string;
   next?: string;
   notice?: string | null;
@@ -113,6 +118,7 @@ export function InviteActions({
   const [hint, setHint] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; next: string } | null>(null);
   const [form, setForm] = useState(false);
+  const [going, setGoing] = useState<{ badge: PortfolioChoice | null; change: string } | null>(null);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [website, setWebsite] = useState("");
@@ -157,6 +163,11 @@ export function InviteActions({
     if (!response.ok || !reply.kind) return fail(reply.error ?? "Could not open your pass.");
     if (reply.kind === "other-device") return fail("Open this link on the phone you used first");
     if (reply.kind === "notice") return fail(reply.text ?? "");
+    if (reply.kind === "going") {
+      setGoing({ badge: reply.badge ?? null, change: reply.change ?? joinPath });
+      setBusy(false);
+      return;
+    }
     if (reply.kind === "go" && reply.next) {
       if (reply.notice) {
         setNotice({ text: reply.notice, next: reply.next });
@@ -264,6 +275,26 @@ export function InviteActions({
       }}
     />
   ) : null;
+
+  if (going) {
+    return (
+      <>
+        {poster}
+        <div className="mt-8 flex flex-col items-center">
+          <p className="m-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)]">You&apos;re going ✓</p>
+          <div className="mt-6 flex w-full max-w-[280px] min-w-0 items-center" style={{ gap: COLUMN_GAP_PX }}>
+            {going.badge ? <PortfolioFace portfolio={going.badge} selected /> : <span className="min-w-0 flex-1" />}
+            <Link
+              href={going.change}
+              className="press shrink-0 t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+            >
+              Change ›
+            </Link>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (form) {
     return (

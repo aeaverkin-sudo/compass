@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
-import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
 import { EventForm } from "@/shared/event/event-form";
 import { appendEventFields, type EventFormValues } from "@/shared/event/event-form-fields";
@@ -28,12 +27,6 @@ type ListedEvent = {
   place?: string | null;
   pass?: { cardName: string; photoUrl: string | null } | null;
 };
-
-export const GOING_TOAST_MS = 2500;
-
-export function goingToast(eventName: string): string {
-  return `You're going to ${eventTitleLine(eventName)}`;
-}
 
 const LINK = "press text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 
@@ -242,7 +235,6 @@ export function EventEntryScreen() {
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [events, setEvents] = useState<ListedEvent[]>([]);
-  const [toast, setToast] = useState<string | null>(null);
   const logoFile = useRef<File | null>(null);
   const savingLock = useRef(false);
   const draftReady = useRef(false);
@@ -273,16 +265,6 @@ export function EventEntryScreen() {
     }
     setStep("create");
   };
-
-  /** `?going=` from I'm going: the toast once, then the address is clean again. */
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const going = url.searchParams.get("going")?.trim();
-    if (!going) return;
-    url.searchParams.delete("going");
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
-    void Promise.resolve().then(() => setToast(goingToast(going)));
-  }, []);
 
   useEffect(() => {
     if (step !== "entry") return;
@@ -418,7 +400,6 @@ export function EventEntryScreen() {
         </div>
       </div>
       <NetworkBand current="event" />
-      {toast ? <SkyToast key={toast} text={toast} holdMs={GOING_TOAST_MS} onDone={() => setToast(null)} /> : null}
     </main>
   );
 }

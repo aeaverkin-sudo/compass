@@ -12,5 +12,6 @@ export function acceptReply(result: GuestAcceptResult) {
   if (result.kind === "signin") return noStore({ kind: "signin", tokenHash: result.tokenHash, cardId: result.cardId, pay: result.pay ?? false });
   if (result.kind === "here") return noStore({ kind: "here", cardId: result.cardId, confirmEmail: result.confirmEmail ?? null, pay: result.pay ?? false });
   if (result.kind === "notice") return noStore({ kind: "notice", text: result.text });
+  if (result.kind === "going") return noStore({ kind: "going", badge: result.badge, change: result.change });
   return noStore({ kind: "other-device" });
 }
