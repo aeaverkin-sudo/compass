@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { Zone } from "@/shared/components/zone";
 import { CoverButton } from "@/shared/event/cover-button";
 import { eventTitleLine } from "@/shared/event/event-title";
@@ -153,13 +152,12 @@ export function PaymentBlock({
   );
 }
 
-/** The event page of a registered account: poster, payment, the badge card, Wallet. */
+/** The event page of a registered account: poster, payment, the badge card. */
 export function EventJoin({ lookup, event, portfolios, registration, pay, going }: EventJoinProps) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(registration?.cardId ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const price = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
   const poster = {
     name: event.name,
@@ -224,7 +222,7 @@ export function EventJoin({ lookup, event, portfolios, registration, pay, going 
             <PaymentBlock lookup={lookup} pay={pay} registration={registration} />
           </Zone>
         ) : null}
-        <Zone label="Badge" align="start" rule>
+        <Zone label="Badge" align="start">
           <div className="flex flex-col gap-[18px]">
             {portfolios.map((portfolio) => {
               const selected = selectedId === portfolio.id;
@@ -254,26 +252,7 @@ export function EventJoin({ lookup, event, portfolios, registration, pay, going 
           <p className="mt-4 mb-0 t-meta text-[var(--grey)]">The card you bring — your badge at the door, and what you share.</p>
           {error ? <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
         </Zone>
-        <Zone label="Wallet" align="start">
-          <button
-            type="button"
-            onClick={() => {
-              if (!registration) {
-                setToast("Choose your badge first.");
-                return;
-              }
-              void openWalletPass(`/api/events/${encodeURIComponent(lookup)}/pass`).then((opened) => {
-                if (!opened) setToast(WALLET_SOON);
-              });
-            }}
-            className={SKY}
-          >
-            Add to Apple Wallet
-          </button>
-          <p className="mt-3 mb-0 t-meta text-[var(--grey)]">Save this pass to enter the event.</p>
-        </Zone>
       </div>
-      {toast ? <SkyToast key={toast} text={toast} onDone={() => setToast(null)} /> : null}
     </ManageFrame>
   );
 }

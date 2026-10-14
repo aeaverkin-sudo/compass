@@ -143,7 +143,7 @@ function previewPdf(file: File) {
   );
 }
 
-export type CardShareChoice = "link" | "wallet";
+export type CardShareChoice = "link";
 
 /**
  * Owner share. Call from the menu item's click so `navigator.share` stays in that tap.

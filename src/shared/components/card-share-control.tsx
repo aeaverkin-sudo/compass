@@ -8,13 +8,10 @@ import { flushNotesSync, releaseOwnerNotes } from "@/shared/services/notes-sync"
 import { getNextScanAddons } from "@/shared/services/card-snapshot";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import { shareCardChoice, type CardShareChoice } from "@/shared/services/save-public-card-pdf";
-import { SkyToast } from "@/shared/components/sky-toast";
-import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import type { Card } from "@/shared/types";
 
 const SHARE_CHOICES: { choice: CardShareChoice; label: string }[] = [
   { choice: "link", label: "Link" },
-  { choice: "wallet", label: "Add to Apple Wallet" },
 ];
 
 const RAIL_POPUP_GAP_PX = 8;
@@ -29,11 +26,7 @@ export function useCardShare(card: Card) {
     flushNotesSync(card.id);
   };
 
-  /** Wallet resolves to a notice when it is not set up yet. */
-  const handleShare = (choice: CardShareChoice = "link"): Promise<string | null> | void => {
-    if (choice === "wallet") {
-      return openWalletPass(`/api/cards/${encodeURIComponent(card.id)}/pass`).then((opened) => (opened ? null : WALLET_SOON));
-    }
+  const handleShare = () => {
     const token = card.publicToken;
     if (!token) return;
     const title = card.displayName.trim() || "Portfolio";
@@ -73,7 +66,7 @@ export function CardShareControl({
   className,
 }: {
   card: Card;
-  onShare?: (choice: CardShareChoice) => Promise<string | null> | void;
+  onShare?: (choice: CardShareChoice) => void;
   onPrepareShare?: () => void;
   size?: number;
   stroke?: number;
@@ -81,7 +74,6 @@ export function CardShareControl({
 }) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const [place, setPlace] = useState({ right: 0, top: 0 });
 
   useLayoutEffect(() => {
@@ -141,10 +133,7 @@ export function CardShareControl({
                 <button
                   type="button"
                   className="flex w-full items-center px-3 py-2.5 text-left t-meta text-[var(--ink)] outline-none focus:outline-none focus-visible:outline-none"
-                  onClick={() => {
-                    const pending = onShare(choice);
-                    if (pending) void pending.then((text) => setNotice(text));
-                  }}
+                  onClick={() => onShare(choice)}
                 >
                   {label}
                 </button>
@@ -153,7 +142,6 @@ export function CardShareControl({
           </div>
         </Dialog.Content>
       </Dialog.Portal>
-      {notice ? <SkyToast text={notice} onDone={() => setNotice(null)} /> : null}
     </Dialog.Root>
   );
 }
