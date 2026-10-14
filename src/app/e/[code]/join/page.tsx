@@ -7,7 +7,6 @@ import { ensurePayCode, listOwnPortfolios, loadOwnRegistration } from "@/shared/
 import { loadEventPay } from "@/shared/services/event-payment";
 import { eventHasEnded } from "@/shared/services/events";
 import { holdsEventPass, isPermanentAccount, mayJoinWithoutLink } from "@/shared/services/guest-accept";
-import { loadGoingSummary } from "@/shared/services/event-going";
 import { EventJoin } from "./event-join";
 
 export const dynamic = "force-dynamic";
@@ -52,8 +51,6 @@ export default async function EventJoinPage({ params }: PageProps) {
   if (!loaded && !(await mayJoinWithoutLink(event.id, user.id))) redirect(invite);
   const registration = loaded && pay.isPaid ? await ensurePayCode(event.id, user.id, loaded) : loaded;
   const portfolios = await listOwnPortfolios(user.id);
-  const going = await loadGoingSummary(event.id, user.id);
-
   return (
     <EventJoin
       key={`${registration?.id ?? "none"}:${registration?.cardId ?? ""}`}
@@ -62,7 +59,6 @@ export default async function EventJoinPage({ params }: PageProps) {
       portfolios={portfolios}
       registration={registration}
       pay={pay}
-      going={going}
     />
   );
 }

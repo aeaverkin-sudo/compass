@@ -5,13 +5,7 @@ import { loadPublicCard, loadPublicCardByHandle } from "@/shared/services/public
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { searchParams: Promise<{ token?: string; handle?: string; back?: string }> };
-
-/** Only an event's going list. Anything else falls back to Network. */
-function backPath(raw: string | undefined): string | undefined {
-  if (!raw || !/^\/e\/[^/?#]+\/going$/.test(raw)) return undefined;
-  return raw;
-}
+type PageProps = { searchParams: Promise<{ token?: string; handle?: string }> };
 
 export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
   const params = await searchParams;
@@ -42,7 +36,6 @@ export default async function ScanCardPage({ searchParams }: PageProps) {
         card={loaded.card}
         items={loaded.items}
         publicToken={loaded.card.publicToken}
-        backHref={backPath(params.back)}
       />
     </main>
   );

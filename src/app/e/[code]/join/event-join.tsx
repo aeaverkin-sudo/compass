@@ -12,9 +12,7 @@ import { eventDayLong } from "@/shared/event/when";
 import { payLinkWithCode } from "@/shared/event/pay-code";
 import { payButtonLabel, payView, priceLabel, type EventPay } from "@/shared/event/payment-label";
 import { COLUMN_GAP_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { GoingLine } from "@/shared/event/going-line";
 import type { EventInvite } from "@/shared/services/event-invite";
-import type { GoingSummary } from "@/shared/services/event-going";
 import type { EventRegistration, PortfolioChoice } from "@/shared/services/event-registration";
 import { ManageFrame } from "../manage/manage-frame";
 
@@ -29,7 +27,6 @@ type EventJoinProps = {
   portfolios: PortfolioChoice[];
   registration: EventRegistration | null;
   pay: EventPay;
-  going: GoingSummary | null;
 };
 
 /** A card with a name. Untitled and Inactive cards are not offered as a badge. */
@@ -154,7 +151,7 @@ export function PaymentBlock({
 }
 
 /** The event page of a registered account: poster, payment, the badge card. */
-export function EventJoin({ lookup, event, portfolios, registration, pay, going }: EventJoinProps) {
+export function EventJoin({ lookup, event, portfolios, registration, pay }: EventJoinProps) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(registration?.cardId ?? null);
   const [open, setOpen] = useState(false);
@@ -237,16 +234,6 @@ export function EventJoin({ lookup, event, portfolios, registration, pay, going 
     <ManageFrame title={eventTitleLine(event.name)} fallbackHref="/network/event">
       <div className="pt-[18px] pb-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
         <CoverButton variant="card" layout={event.layout} themeId={event.theme} event={poster} />
-        {going ? (
-          <GoingLine
-            lookup={lookup}
-            going={going.going}
-            wereThere={going.wereThere}
-            met={going.met}
-            ended={false}
-            className="mt-4"
-          />
-        ) : null}
       </div>
       <div className="border-t border-[var(--rule)]">
         {registration ? (

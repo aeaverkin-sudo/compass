@@ -6,7 +6,6 @@ import { priceLabel } from "@/shared/event/payment-label";
 import { formatEventRange } from "@/shared/event/when";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import { loadEventPay } from "@/shared/services/event-payment";
-import { loadShowGoing } from "@/shared/services/event-going";
 import { nanoid } from "nanoid";
 import { inboxMissing } from "@/shared/services/event-invite-inbox";
 import { posterUrl } from "@/shared/services/poster-snapshot";
@@ -235,14 +234,12 @@ export function reminderMail(
   origin: string,
   event: MailEvent,
   person: { link: string; token: string | null },
-  going: number | null,
 ): RenderedMail {
-  const door = going != null ? `${going} ${going === 1 ? "person is" : "people are"} going. ${DOOR_LINE}` : DOOR_LINE;
   const zones: (MailZone | null)[] = [
     { label: "Tomorrow", value: event.name, lead: true },
     event.when ? { label: "Date", value: event.when } : null,
     placeZone(event, false),
-    { label: "Door", value: door },
+    { label: "Door", value: DOOR_LINE },
     { label: "Portfolio", value: PORTFOLIO_LINE },
   ];
   return renderEventMail({
@@ -382,11 +379,6 @@ async function remindEvent(eventId: string, lookup: string, origin: string): Pro
   const event = await loadMailEvent(lookup);
   if (!event) return 0;
   const recipients = await reminderRecipients(eventId);
-  const [shown, regs] = await Promise.all([
-    loadShowGoing(eventId),
-    createAdminSupabaseClient().from("event_registrations").select("id", { count: "exact", head: true }).eq("event_id", eventId),
-  ]);
-  const going = shown ? (regs.count ?? recipients.length) : null;
   let sent = 0;
   for (let index = 0; index < recipients.length; index += BATCH_MAX) {
     const chunk = recipients.slice(index, index + BATCH_MAX);
@@ -395,7 +387,7 @@ async function remindEvent(eventId: string, lookup: string, origin: string): Pro
     if (claimed.length === 0) continue;
     const mails: HtmlMail[] = claimed.map((person) => {
       const link = person.token && !person.member ? personalLink(origin, event, person.token) : `${origin}/e/${event.key}/join`;
-      const body = reminderMail(origin, event, { link, token: person.token }, going);
+      const body = reminderMail(origin, event, { link, token: person.token });
       return {
         to: person.email,
         subject: `Tomorrow — ${event.name}`,

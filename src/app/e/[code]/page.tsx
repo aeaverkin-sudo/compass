@@ -16,8 +16,6 @@ import { eventTitleLine } from "@/shared/event/event-title";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
 import { holdsEventPass, isPermanentAccount, mayJoinWithoutLink } from "@/shared/services/guest-accept";
 import { loadOpenLink } from "@/shared/services/event-open-link";
-import { loadGoingSummary } from "@/shared/services/event-going";
-import { GoingLine } from "@/shared/event/going-line";
 import { InviteActions } from "./invite-actions";
 
 export const dynamic = "force-dynamic";
@@ -142,7 +140,6 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const holdsPass = !permanent && !guest && (await holdsEventPass(session, event.id));
   const viewerId = user && !user.is_anonymous ? user.id : null;
   const counts = await loadOwnerEventCounts(event.id, viewerId);
-  const going = guest ? null : await loadGoingSummary(event.id, user?.id ?? null);
   const seats = await loadEventSeats(event.id);
   const registered = Boolean(user && (await loadOwnRegistration(event.id, user.id)));
   const soldOut = seats.soldOut && !registered;
@@ -174,21 +171,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
       }}
     />
   );
-  const poster = going ? (
-    <>
-      {cover}
-      <GoingLine
-        lookup={lookup}
-        going={going.going}
-        wereThere={going.wereThere}
-        met={going.met}
-        ended={ended}
-        className="mt-4"
-      />
-    </>
-  ) : (
-    cover
-  );
+  const poster = cover;
 
   return (
     <main className="compass-main flex h-dvh w-full flex-col overflow-hidden bg-white text-[var(--ink)]">
