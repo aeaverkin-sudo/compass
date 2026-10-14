@@ -94,6 +94,6 @@ export function whatsappHref(phone: string, text: string): string {
   return `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(text)}`;
 }
 
-export function whatsappInvite(name: string, eventName: string, link: string): string {
-  return `Hi ${name}, you're invited to ${eventName}. Your pass: ${link}`;
+export function whatsappInvite(eventName: string, link: string): string {
+  return `You're invited to ${eventName}. Tap to get your pass: ${link}`;
 }

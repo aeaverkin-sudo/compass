@@ -27,8 +27,8 @@ export type EventMailInput = {
   zones: MailZone[];
   button?: { label: string; href: string } | null;
   footnote?: string | null;
-  /** The last line above the signature. */
-  closing?: string | null;
+  /** The last line above the signature, with an optional link after the text. */
+  closing?: { text: string; link?: { label: string; href: string } } | null;
   /** The ADED logo and `Sent by ADED.` with the unsubscribe link; or the 48h mail's ADED line on top and a plain line. */
   footer: { logoSrc: string; unsubscribeHref: string | null } | { plain: string };
 };
@@ -106,8 +106,11 @@ export function renderEventMail(input: EventMailInput, frame: MailFrame = {}): R
   const top = input.poster ? posterRow(input.poster) : branded ? "" : MASTHEAD;
   const zones = input.zones.map((zone, index) => zoneRow(zone, index === 0 && !input.poster)).join("\n");
   const button = input.button ? buttonRow(input.button, input.footnote) : "";
+  const closingLink = input.closing?.link
+    ? ` <a href="${escape(input.closing.link.href)}" style="color:${GREY};text-decoration:underline;">${escape(input.closing.link.label)}</a>`
+    : "";
   const closing = input.closing
-    ? `<tr><td style="padding:0 0 24px ${LABEL + GAP}px;${NOTE}">${escape(input.closing)}</td></tr>`
+    ? `<tr><td style="padding:0 0 24px ${LABEL + GAP}px;${NOTE}">${escape(input.closing.text)}${closingLink}</td></tr>`
     : "";
 
   const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background:#ffffff;"><tr><td align="center" style="padding:${outer.y}px ${outer.x}px;">
@@ -128,7 +131,10 @@ ${body}
   for (const zone of input.zones) lines.push(`${zone.label}: ${zone.value}`);
   if (input.button) lines.push("", `${input.button.label}: ${input.button.href}`);
   if (input.footnote) lines.push(input.footnote);
-  if (input.closing) lines.push("", input.closing);
+  if (input.closing) {
+    const link = input.closing.link ? ` ${input.closing.link.label}: ${input.closing.link.href}` : "";
+    lines.push("", `${input.closing.text}${link}`);
+  }
   lines.push("", footerText(input.footer));
   return { html, text: lines.join("\n"), body };
 }

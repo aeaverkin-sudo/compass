@@ -223,7 +223,7 @@ export function GuestsScreen({
                     <span className="flex flex-wrap gap-x-4 gap-y-1 pb-3">
                       {guest.phone && pass ? (
                         <a
-                          href={whatsappHref(guest.phone, whatsappInvite(guest.name, name, pass))}
+                          href={whatsappHref(guest.phone, whatsappInvite(name, pass))}
                           target="_blank"
                           rel="noreferrer"
                           className="t-meta text-[var(--ink)] underline decoration-1 underline-offset-[3px]"

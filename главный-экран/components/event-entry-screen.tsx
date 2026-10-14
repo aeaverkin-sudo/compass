@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { DeclinedRow, InviteRow, type InboxDeclined, type InboxInvite } from "./invited-block";
 import { Zone } from "@/shared/components/zone";
 import { EventForm } from "@/shared/event/event-form";
 import { appendEventFields, type EventFormValues } from "@/shared/event/event-form-fields";
@@ -244,10 +243,6 @@ export function EventEntryScreen() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [events, setEvents] = useState<ListedEvent[]>([]);
   const [toast, setToast] = useState<string | null>(null);
-  const [invited, setInvited] = useState<InboxInvite[]>([]);
-  const [declined, setDeclined] = useState<InboxDeclined[]>([]);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [reload, setReload] = useState(0);
   const logoFile = useRef<File | null>(null);
   const savingLock = useRef(false);
   const draftReady = useRef(false);
@@ -302,34 +297,10 @@ export function EventEntryScreen() {
         /* keep the list already shown */
       }
     })();
-    void (async () => {
-      try {
-        const response = await fetch("/api/events/invited", { cache: "no-store" });
-        if (!response.ok) return;
-        const payload = (await response.json()) as { invited?: InboxInvite[]; declined?: InboxDeclined[] };
-        if (cancelled) return;
-        setInvited(payload.invited ?? []);
-        setDeclined(payload.declined ?? []);
-      } catch {
-        /* keep the invitations already shown */
-      }
-    })();
     return () => {
       cancelled = true;
     };
-  }, [step, reload]);
-
-  const wentGoing = (invite: { token: string; name: string }, next: string | null) => {
-    setInviteError(null);
-    if (next && !next.startsWith("/network/event")) {
-      router.push(next);
-      return;
-    }
-    setInvited((current) => current.filter((entry) => entry.token !== invite.token));
-    setDeclined((current) => current.filter((entry) => entry.token !== invite.token));
-    setToast(goingToast(invite.name));
-    setReload((value) => value + 1);
-  };
+  }, [step]);
 
   const leave = () => {
     setCreateError(null);
@@ -337,11 +308,7 @@ export function EventEntryScreen() {
   };
 
   const pastEvents = events.filter((event) => event.status === "past");
-  const upcoming = [
-    ...events.filter((event) => event.status !== "past").map((event) => ({ kind: "event" as const, startsAt: event.startsAt, event })),
-    ...invited.map((invite) => ({ kind: "invite" as const, startsAt: invite.startsAt, invite })),
-    ...declined.map((entry) => ({ kind: "declined" as const, startsAt: entry.startsAt, entry })),
-  ].sort(byStart);
+  const upcoming = events.filter((event) => event.status !== "past").sort(byStart);
 
   const openEvent = (event: ListedEvent) => {
     const token = encodeURIComponent(event.publicToken);
@@ -394,11 +361,6 @@ export function EventEntryScreen() {
 
           {step === "entry" ? (
             <>
-              {inviteError ? (
-                <p className="my-[14px] t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>
-                  {inviteError}
-                </p>
-              ) : null}
               <Zone label="Create" rule>
                 <ActionLink onClick={openCreate}>Create an event</ActionLink>
                 <p className="mt-1 t-meta text-[var(--grey)]">For organisers: invite, check-in, stats.</p>
@@ -411,15 +373,9 @@ export function EventEntryScreen() {
                 <>
                   {upcoming.length > 0 ? (
                     <EventGroup label="Upcoming">
-                      {upcoming.map((row) =>
-                        row.kind === "event" ? (
-                          <EventRow key={row.event.publicToken} event={row.event} onOpen={openEvent} />
-                        ) : row.kind === "invite" ? (
-                          <InviteRow key={`i:${row.invite.token}`} invite={row.invite} />
-                        ) : (
-                          <DeclinedRow key={`d:${row.entry.token}`} entry={row.entry} onGoing={wentGoing} onError={setInviteError} />
-                        ),
-                      )}
+                      {upcoming.map((event) => (
+                        <EventRow key={event.publicToken} event={event} onOpen={openEvent} />
+                      ))}
                     </EventGroup>
                   ) : null}
                   {pastEvents.length > 0 ? (

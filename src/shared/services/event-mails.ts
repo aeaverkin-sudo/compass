@@ -8,7 +8,7 @@ import { loadEventInvite, type EventInvite } from "@/shared/services/event-invit
 import { loadEventPay } from "@/shared/services/event-payment";
 import { loadShowGoing } from "@/shared/services/event-going";
 import { nanoid } from "nanoid";
-import { inboxMissing, linkGuestAccounts } from "@/shared/services/event-invite-inbox";
+import { inboxMissing } from "@/shared/services/event-invite-inbox";
 import { posterUrl } from "@/shared/services/poster-snapshot";
 import { BATCH_MAX, mailConfigured, sendHtmlBatch, type HtmlMail } from "@/shared/services/mail";
 
@@ -29,7 +29,6 @@ export type Invitee = { id: string; name: string; email: string; token: string; 
 
 const PLACE_SECRET = "Revealed closer to the date";
 const PASS_LINE = "Your pass is your portfolio at this event — show it at the door, share it with people you meet.";
-const MEMBER_LINE = "You have an ADED account — this invitation is also in Network → Events.";
 const INVITE_NOTE = "By tapping you agree to the event rules, Terms and Privacy. This link is your pass — don't forward it.";
 
 function eventKey(event: Pick<EventInvite, "slug" | "code">): string {
@@ -69,6 +68,12 @@ export function goLink(origin: string, event: MailEvent, token: string): string 
   return `${origin}/e/${event.key}/go?g=${encodeURIComponent(token)}`;
 }
 
+/** Sign in, then back on the invitation with I'm going: the answer goes to the account. */
+export function signInLink(origin: string, event: MailEvent, token: string): string {
+  const back = `/e/${event.key}?g=${encodeURIComponent(token)}&go=1`;
+  return `${origin}/register?signin=1&next=${encodeURIComponent(back)}`;
+}
+
 export function unsubscribePage(origin: string, event: MailEvent, token: string): string {
   return `${origin}/e/${event.key}/unsubscribe?g=${encodeURIComponent(token)}`;
 }
@@ -92,7 +97,7 @@ function placeZone(event: MailEvent, withPrice: boolean): MailZone | null {
 export function inviteMail(
   origin: string,
   event: MailEvent,
-  guest: { name: string; token: string; member?: boolean },
+  guest: { name: string; token: string },
   frame?: MailFrame,
 ): RenderedMail {
   const zones: (MailZone | null)[] = [
@@ -108,7 +113,7 @@ export function inviteMail(
     zones: zones.filter((zone): zone is MailZone => zone !== null),
     button: { label: "I'M GOING", href: goLink(origin, event, guest.token) },
     footnote: INVITE_NOTE,
-    closing: guest.member ? MEMBER_LINE : null,
+    closing: { text: "Already have an account?", link: { label: "Sign in", href: signInLink(origin, event, guest.token) } },
     footer: { logoSrc: adedLogo(origin), unsubscribeHref: unsubscribePage(origin, event, guest.token) },
   }, frame);
 }
@@ -438,9 +443,8 @@ export async function sendInvites(eventId: string, event: MailEvent, origin: str
     const claims = await claimMail(eventId, "invite", chunk.map((guest) => guest.id));
     const claimed = chunk.filter((guest) => claims.has(guest.id));
     if (claimed.length === 0) continue;
-    const members = await linkGuestAccounts(claimed);
     const mails: HtmlMail[] = claimed.map((guest) => {
-      const body = inviteMail(origin, event, { ...guest, member: members.has(guest.id) });
+      const body = inviteMail(origin, event, guest);
       return {
         to: guest.email,
         subject: inviteSubject(event),
