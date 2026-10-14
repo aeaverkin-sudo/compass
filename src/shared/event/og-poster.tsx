@@ -4,12 +4,15 @@ import { eventThemeById, type EventLayoutId, type EventThemeId } from "@/shared/
 
 const MODERN_PAPER = "#f6f5f0";
 
+/** The logo at the size it is painted. */
+export type OgPhoto = { src: string; w: number; h: number };
+
 export type OgPoster = {
   name: string;
   meta: string | null;
   themeId: EventThemeId;
   layout: EventLayoutId;
-  photo: string | null;
+  photo: OgPhoto | null;
   team: boolean;
   role: TeamRoleName | null;
 };
@@ -73,7 +76,7 @@ export function ogPosterElement(poster: OgPoster): ReactElement {
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={poster.photo} alt="" width={460} height={photoHeight} style={{ objectFit: "contain" }} />
+            <img src={poster.photo.src} alt="" width={poster.photo.w} height={poster.photo.h} />
           </div>
         ) : modern ? (
           <div style={{ width: 18, background: theme.ground }} />
