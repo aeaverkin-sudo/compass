@@ -16,7 +16,7 @@ export async function GET(_request: Request, context: RouteProps) {
   const { data } = await supabase.auth.getUser();
   if (!data.user || data.user.is_anonymous) return NextResponse.json({ error: "Sign in." }, { status: 401 });
   const { code } = await context.params;
-  const loaded = await loadManageEvent(code, data.user.id, "guests");
+  const loaded = await loadManageEvent(code, data.user.id, "edit");
   if (loaded.kind === "missing") return NextResponse.json({ error: "Event not found" }, { status: 404 });
   if (loaded.kind !== "ok") return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 

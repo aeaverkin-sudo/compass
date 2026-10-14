@@ -4,6 +4,7 @@ import { fieldsFromEvent } from "@/shared/event/event-form-fields";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadManageEvent } from "@/shared/services/event-manage";
+import { loadPosterPath } from "@/shared/services/poster-snapshot";
 import { EditScreen } from "./edit-screen";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export default async function ManageEditPage({ params }: PageProps) {
   if (access.kind !== "ok") notFound();
   const invite = await loadEventInvite(lookup);
   if (!invite) notFound();
+  const posterPath = await loadPosterPath(access.event.id);
 
   return (
     <EditScreen
@@ -37,6 +39,7 @@ export default async function ManageEditPage({ params }: PageProps) {
       initial={fieldsFromEvent(invite)}
       logoUrl={invite.logoAttachmentId ? `/e/${invite.publicToken}/logo` : null}
       isOwner={access.event.role === "owner"}
+      afishaHref={posterPath ? `/api/events/${encodeURIComponent(lookup)}/afisha` : null}
     />
   );
 }

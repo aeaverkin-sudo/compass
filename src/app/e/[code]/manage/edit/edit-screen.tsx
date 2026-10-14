@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Download } from "lucide-react";
 import { Rule } from "@/shared/components/rule";
 import { EventForm } from "@/shared/event/event-form";
 import { appendEventFields, type EventFormValues } from "@/shared/event/event-form-fields";
@@ -17,11 +18,14 @@ export function EditScreen({
   initial,
   logoUrl,
   isOwner,
+  afishaHref,
 }: {
   lookup: string;
   initial: EventFormValues;
   logoUrl: string | null;
   isOwner: boolean;
+  /** The poster snapshot as a PNG; null before the first snapshot. */
+  afishaHref: string | null;
 }) {
   const router = useRouter();
   const back = `/e/${encodeURIComponent(lookup)}/manage`;
@@ -111,18 +115,31 @@ export function EditScreen({
         error={error}
         onSubmit={() => void save()}
       />
-      {isOwner ? (
+      {isOwner || afishaHref ? (
         <div className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
           <Rule />
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="press mt-[18px] border-0 bg-transparent p-0 t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
-            style={{ marginLeft: VALUE_AXIS_PX }}
-          >
-            Delete event
-          </button>
-          {confirmDelete ? (
+          {afishaHref ? (
+            <a
+              href={afishaHref}
+              download
+              className="press mt-[18px] flex items-center gap-2 t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+              style={{ marginLeft: VALUE_AXIS_PX }}
+            >
+              <Download size={16} strokeWidth={1.25} className="shrink-0 text-[var(--ink)]" />
+              Afisha as image
+            </a>
+          ) : null}
+          {isOwner ? (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="press mt-[18px] border-0 bg-transparent p-0 t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+              style={{ marginLeft: VALUE_AXIS_PX }}
+            >
+              Delete event
+            </button>
+          ) : null}
+          {isOwner && confirmDelete ? (
             <div style={{ marginLeft: VALUE_AXIS_PX }}>
               <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
                 This deletes the event and everything in it — guests, co-hosts, invites. This can&apos;t be undone.
