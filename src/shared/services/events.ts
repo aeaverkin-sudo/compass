@@ -56,6 +56,9 @@ export type ListedEvent = {
   when: string | null;
   role: "owner" | "manager" | "guest";
   status: EventListStatus;
+  /** A guest row: where it is and the card worn as the pass. */
+  place?: string | null;
+  pass?: { cardName: string; photoUrl: string | null } | null;
 };
 
 /** Past follows the end. With no end, the start decides. No date is still a draft. */
@@ -182,6 +185,8 @@ type MineRow = {
   endsIso: string | null;
   timeZone?: string;
   role: "owner" | "manager" | "guest";
+  place?: string | null;
+  pass?: { cardName: string; photoUrl: string | null } | null;
 };
 
 function startTime(iso: string | null): number | null {
@@ -217,7 +222,29 @@ function toListed(row: MineRow, now: number): ListedEvent {
     when: formatEventRange(row.dateIso, row.endsIso, row.timeZone),
     role: row.role,
     status: eventListStatus(row.dateIso, now, row.endsIso),
+    ...(row.role === "guest" ? { place: row.place ?? null, pass: row.pass ?? null } : {}),
   };
+}
+
+/** The card each registration wears, by event id. */
+async function passCards(regs: { event_id: string; card_id: string | null }[]): Promise<Map<string, MineRow["pass"]>> {
+  const out = new Map<string, MineRow["pass"]>();
+  const ids = [...new Set(regs.map((row) => row.card_id).filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return out;
+  const admin = createAdminSupabaseClient();
+  const { data, error } = await admin.from("cards").select("id, display_name, photo_attachment_id").in("id", ids);
+  if (error) return out;
+  const cards = new Map(
+    ((data ?? []) as { id: string; display_name: string | null; photo_attachment_id: string | null }[]).map((card) => [
+      card.id,
+      {
+        cardName: (card.display_name ?? "").replace(/\s+/g, " ").trim() || "Untitled",
+        photoUrl: card.photo_attachment_id ? `/f/${card.photo_attachment_id}` : null,
+      },
+    ]),
+  );
+  for (const row of regs) if (row.card_id && cards.has(row.card_id)) out.set(row.event_id, cards.get(row.card_id));
+  return out;
 }
 
 function endsColumnMissing(message: string): boolean {
@@ -233,6 +260,8 @@ type EventListRow = {
   name: string;
   date: string | null;
   ends_at?: string | null;
+  place?: string | null;
+  place_secret?: boolean | null;
   public_token: string;
   owner_id?: string;
 };
@@ -246,8 +275,9 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
     : ownedSelect;
   if (owned.error) throw new Error(owned.error.message);
 
-  const regs = await admin.from("event_registrations").select("event_id").eq("user_id", userId);
+  const regs = await admin.from("event_registrations").select("event_id, card_id").eq("user_id", userId);
   if (regs.error) throw new Error(regs.error.message);
+  const passes = await passCards((regs.data ?? []) as { event_id: string; card_id: string | null }[]);
 
   const team = await admin.from("event_team").select("event_id").eq("user_id", userId);
   if (team.error && !missingTable(team.error.message, "event_team")) throw new Error(team.error.message);
@@ -261,9 +291,12 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
   const extraIds = [...new Set([...teamIds, ...joinedIds])];
   let extraRows: EventListRow[] = [];
   if (extraIds.length > 0) {
-    const extraSelect = await admin.from("events").select("id, name, date, ends_at, public_token, owner_id").in("id", extraIds);
+    const extraSelect = await admin
+      .from("events")
+      .select("id, name, date, ends_at, place, place_secret, public_token, owner_id")
+      .in("id", extraIds);
     const extras = extraSelect.error && endsColumnMissing(extraSelect.error.message)
-      ? await admin.from("events").select("id, name, date, public_token, owner_id").in("id", extraIds)
+      ? await admin.from("events").select("id, name, date, place, place_secret, public_token, owner_id").in("id", extraIds)
       : extraSelect;
     if (extras.error) throw new Error(extras.error.message);
     extraRows = (extras.data ?? []) as EventListRow[];
@@ -277,6 +310,8 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
     endsIso: row.ends_at ?? null,
     timeZone: row.id ? zones.get(row.id) : undefined,
     role,
+    place: row.place_secret ? null : row.place?.trim() || null,
+    pass: row.id ? passes.get(row.id) ?? null : null,
   });
   const rows: MineRow[] = ownedRows.map((row) => asMine(row, "owner"));
   for (const row of extraRows) {

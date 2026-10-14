@@ -7,6 +7,7 @@ import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
 import { CoverButton } from "@/shared/event/cover-button";
 import { eventTitleLine } from "@/shared/event/event-title";
+import { eventDayLong } from "@/shared/event/when";
 import { payLinkWithCode } from "@/shared/event/pay-code";
 import { payButtonLabel, payView, priceLabel, type EventPay } from "@/shared/event/payment-label";
 import { COLUMN_GAP_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
@@ -34,6 +35,25 @@ function PortfolioPhoto({ src }: { src: string | null }) {
   if (!src) return <span aria-hidden className="size-[40px] shrink-0 bg-[#f3f3f3]" />;
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={src} alt="" className="size-[40px] shrink-0 object-cover" />;
+}
+
+/** A card with a name. Untitled and Inactive cards are not offered as a badge. */
+function isActive(portfolio: PortfolioChoice): boolean {
+  return Boolean(portfolio.name.trim());
+}
+
+function PortfolioFace({ portfolio, selected }: { portfolio: PortfolioChoice; selected: boolean }) {
+  return (
+    <>
+      <PortfolioPhoto src={portfolio.photoAttachmentId ? `/f/${portfolio.photoAttachmentId}` : null} />
+      <span className="min-w-0 flex-1">
+        <span className={`block truncate t-body ${selected ? "text-[var(--ink)]" : "text-[var(--grey)]"}`}>
+          {portfolio.name.replace(/\s*\n\s*/g, " ") || "Untitled"}
+        </span>
+        {portfolio.title ? <span className="mt-1 block truncate t-meta text-[var(--grey)]">{portfolio.title}</span> : null}
+      </span>
+    </>
+  );
 }
 
 /** Payment for the guest: price, Pay, the code, I've paid, then the status. */
@@ -156,6 +176,7 @@ export function PaymentBlock({
 export function EventJoin({ lookup, event, portfolios, registration, pay, going }: EventJoinProps) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(registration?.cardId ?? null);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const price = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
@@ -173,8 +194,15 @@ export function EventJoin({ lookup, event, portfolios, registration, pay, going 
     logoLook: event.logoLook,
   };
 
+  const current = portfolios.find((portfolio) => portfolio.id === selectedId) ?? null;
+  const choices = portfolios.filter(isActive);
+  const when = eventDayLong(event.date, event.timeZone);
+  const goingText = ["You're going", when, event.placeSecret ? null : event.place].filter(Boolean).join(" · ");
+
   const choose = async (cardId: string) => {
-    if (busy || cardId === selectedId) return;
+    if (busy) return;
+    setOpen(false);
+    if (cardId === selectedId) return;
     const previous = selectedId;
     setBusy(true);
     setError(null);
@@ -217,6 +245,12 @@ export function EventJoin({ lookup, event, portfolios, registration, pay, going 
         ) : null}
       </div>
       <div className="border-t border-[var(--rule)]">
+        {registration ? (
+          <Zone label="Going" align="start" rule>
+            <p className="m-0 t-body text-[var(--ink)]">{goingText}</p>
+            <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Show your card at the door — the QR on Home.</p>
+          </Zone>
+        ) : null}
         {pay.isPaid ? (
           <Zone label="Payment" align="start" rule>
             <PaymentBlock lookup={lookup} pay={pay} registration={registration} />
@@ -224,30 +258,35 @@ export function EventJoin({ lookup, event, portfolios, registration, pay, going 
         ) : null}
         <Zone label="Badge" align="start">
           <div className="flex flex-col gap-[18px]">
-            {portfolios.map((portfolio) => {
-              const selected = selectedId === portfolio.id;
-              return (
+            {current && !open ? (
+              <div className="flex w-full min-w-0 items-center" style={{ gap: COLUMN_GAP_PX }}>
+                <PortfolioFace portfolio={current} selected />
+                {choices.length > 1 || !isActive(current) ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setOpen(true)}
+                    className="press shrink-0 border-0 bg-transparent p-0 t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+                  >
+                    Change ›
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              choices.map((portfolio) => (
                 <button
                   key={portfolio.id}
                   type="button"
-                  aria-pressed={selected}
+                  aria-pressed={selectedId === portfolio.id}
                   disabled={busy}
                   onClick={() => void choose(portfolio.id)}
                   className="press flex w-full min-w-0 items-center border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
                   style={{ gap: COLUMN_GAP_PX }}
                 >
-                  <PortfolioPhoto src={portfolio.photoAttachmentId ? `/f/${portfolio.photoAttachmentId}` : null} />
-                  <span className="min-w-0 flex-1">
-                    <span className={`block truncate t-body ${selected ? "text-[var(--ink)]" : "text-[var(--grey)]"}`}>
-                      {portfolio.name.replace(/\s*\n\s*/g, " ") || "Untitled"}
-                    </span>
-                    {portfolio.title ? (
-                      <span className="mt-1 block truncate t-meta text-[var(--grey)]">{portfolio.title}</span>
-                    ) : null}
-                  </span>
+                  <PortfolioFace portfolio={portfolio} selected={selectedId === portfolio.id} />
                 </button>
-              );
-            })}
+              ))
+            )}
           </div>
           <p className="mt-4 mb-0 t-meta text-[var(--grey)]">The card you bring — your badge at the door, and what you share.</p>
           {error ? <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{error}</p> : null}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
+import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
 import { EventForm } from "@/shared/event/event-form";
 import { appendEventFields, type EventFormValues } from "@/shared/event/event-form-fields";
@@ -23,7 +24,15 @@ type ListedEvent = {
   when: string | null;
   role: "owner" | "manager" | "guest";
   status?: "draft" | "live" | "past";
+  place?: string | null;
+  pass?: { cardName: string; photoUrl: string | null } | null;
 };
+
+export const GOING_TOAST_MS = 2500;
+
+export function goingToast(eventName: string): string {
+  return `You're going to ${eventTitleLine(eventName)}`;
+}
 
 const LINK = "press text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 
@@ -144,6 +153,34 @@ function roleLine(event: ListedEvent): string {
   return `${role} · ${event.when ?? "No date"}`;
 }
 
+function goingLine(event: ListedEvent): string {
+  return ["Going", event.when, event.place].filter(Boolean).join(" · ");
+}
+
+/** An event I'm going to: the green dot, where and when, and the card I wear. */
+function GoingRow({ event }: { event: ListedEvent }) {
+  return (
+    <>
+      <span className="flex items-center gap-2 t-body text-[var(--ink)]">
+        <span aria-hidden className="inline-block size-1.5 shrink-0 rounded-full bg-[var(--pay-confirmed)]" />
+        <span className="min-w-0 truncate">{`${eventTitleLine(event.name)} ›`}</span>
+      </span>
+      <span className="mt-1 block t-meta text-[var(--grey)]">{goingLine(event)}</span>
+      {event.pass ? (
+        <span className="mt-2 flex items-center gap-2 t-meta text-[var(--grey)]">
+          {event.pass.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={event.pass.photoUrl} alt="" className="size-[22px] shrink-0 object-cover" />
+          ) : (
+            <span aria-hidden className="size-[22px] shrink-0 bg-[#f3f3f3]" />
+          )}
+          <span className="min-w-0 truncate">{`Your pass · ${event.pass.cardName}`}</span>
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 function EventGroup({
   label,
   events,
@@ -170,10 +207,16 @@ function EventGroup({
                 onClick={() => onOpen(event)}
                 className="press block w-full py-[14px] text-left [-webkit-tap-highlight-color:transparent]"
               >
-                <span className={muted ? "block t-body text-[var(--grey)]" : "block t-body text-[var(--ink)]"}>
-                  {eventTitleLine(event.name)}
-                </span>
-                <span className="mt-1 block t-meta text-[var(--grey)]">{roleLine(event)}</span>
+                {!muted && event.role === "guest" ? (
+                  <GoingRow event={event} />
+                ) : (
+                  <>
+                    <span className={muted ? "block t-body text-[var(--grey)]" : "block t-body text-[var(--ink)]"}>
+                      {eventTitleLine(event.name)}
+                    </span>
+                    <span className="mt-1 block t-meta text-[var(--grey)]">{roleLine(event)}</span>
+                  </>
+                )}
               </button>
             </li>
           ))}
@@ -200,6 +243,7 @@ export function EventEntryScreen() {
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [events, setEvents] = useState<ListedEvent[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
   const logoFile = useRef<File | null>(null);
   const savingLock = useRef(false);
   const draftReady = useRef(false);
@@ -231,6 +275,16 @@ export function EventEntryScreen() {
     setStep("create");
   };
 
+  /** `?going=` from I'm going: the toast once, then the address is clean again. */
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const going = url.searchParams.get("going")?.trim();
+    if (!going) return;
+    url.searchParams.delete("going");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    void Promise.resolve().then(() => setToast(goingToast(going)));
+  }, []);
+
   useEffect(() => {
     if (step !== "entry") return;
     let cancelled = false;
@@ -255,7 +309,8 @@ export function EventEntryScreen() {
   };
 
   const pastEvents = events.filter((event) => event.status === "past");
-  const currentEvents = events.filter((event) => event.status !== "past");
+  const upcomingEvents = events.filter((event) => event.status !== "past" && event.role === "guest");
+  const mineEvents = events.filter((event) => event.status !== "past" && event.role !== "guest");
 
   const openEvent = (event: ListedEvent) => {
     const token = encodeURIComponent(event.publicToken);
@@ -318,12 +373,18 @@ export function EventEntryScreen() {
                 </p>
               ) : (
                 <>
-                  {currentEvents.length > 0 ? (
-                    <EventGroup label="Events" events={currentEvents} onOpen={openEvent} />
+                  {upcomingEvents.length > 0 ? (
+                    <EventGroup label="Upcoming" events={upcomingEvents} onOpen={openEvent} />
+                  ) : null}
+                  {mineEvents.length > 0 ? (
+                    <>
+                      {upcomingEvents.length > 0 ? <Rule /> : null}
+                      <EventGroup label="Mine" events={mineEvents} onOpen={openEvent} />
+                    </>
                   ) : null}
                   {pastEvents.length > 0 ? (
                     <>
-                      {currentEvents.length > 0 ? <Rule /> : null}
+                      {upcomingEvents.length + mineEvents.length > 0 ? <Rule /> : null}
                       <EventGroup label="Past" events={pastEvents} muted onOpen={openEvent} />
                     </>
                   ) : null}
@@ -357,6 +418,7 @@ export function EventEntryScreen() {
         </div>
       </div>
       <NetworkBand current="event" />
+      {toast ? <SkyToast key={toast} text={toast} holdMs={GOING_TOAST_MS} onDone={() => setToast(null)} /> : null}
     </main>
   );
 }

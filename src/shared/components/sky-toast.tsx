@@ -5,22 +5,27 @@ import { useEffect, useRef, useState } from "react";
 type SkyToastProps = {
   text: string;
   onDone: () => void;
+  /** How long it stays fully shown before the fade. */
+  holdMs?: number;
 };
 
 /** Centered sky plaque. It fades out over about two seconds. */
-export function SkyToast({ text, onDone }: SkyToastProps) {
+export function SkyToast({ text, onDone, holdMs = 200 }: SkyToastProps) {
   const [shown, setShown] = useState(true);
   const doneRef = useRef(onDone);
-  doneRef.current = onDone;
 
   useEffect(() => {
-    const fade = window.setTimeout(() => setShown(false), 200);
-    const done = window.setTimeout(() => doneRef.current(), 2200);
+    doneRef.current = onDone;
+  });
+
+  useEffect(() => {
+    const fade = window.setTimeout(() => setShown(false), holdMs);
+    const done = window.setTimeout(() => doneRef.current(), holdMs + 2000);
     return () => {
       window.clearTimeout(fade);
       window.clearTimeout(done);
     };
-  }, []);
+  }, [holdMs]);
 
   return (
     <p
