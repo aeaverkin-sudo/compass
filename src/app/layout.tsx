@@ -34,6 +34,14 @@ export const metadata: Metadata = {
   title: "ADED",
   description: "ADED",
   manifest: "/manifest.json",
+  // `?v=` is the icon's version: /icons/* is cached for a year, so a new icon needs a new address.
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/icon-192.png?v=2", type: "image/png", sizes: "192x192" },
+    ],
+    apple: [{ url: "/icons/icon-180.png?v=2", sizes: "180x180" }],
+  },
   appleWebApp: { capable: true, title: "ADED", statusBarStyle: "default" },
 };
 
