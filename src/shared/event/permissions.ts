@@ -63,6 +63,17 @@ export function teamRole(permissions: EventPermissions): { role: TeamRoleName; d
   return { role: "Custom", detail: enabled.map((key) => PERMISSION_LABEL[key]).join(", ") };
 }
 
+export type StaffRole = "Manager" | "Door" | "Guest list" | "Custom";
+
+/** Rooms are the permissions: all of them is a manager, the scanner alone the door, guests alone the guest list. */
+export function staffRole(permissions: EventPermissions): StaffRole {
+  const enabled = EVENT_PERMISSIONS.filter((key) => permissions[key]);
+  if (enabled.length === EVENT_PERMISSIONS.length) return "Manager";
+  if (enabled.length === 1 && enabled[0] === "checkin") return "Door";
+  if (enabled.length === 1 && enabled[0] === "guests") return "Guest list";
+  return "Custom";
+}
+
 /** Owner sees every section. A manager sees the sections their flags allow. */
 export function visibleSections(role: "owner" | "manager", permissions: EventPermissions): ManageSection[] {
   if (role === "owner") return [...MANAGE_SECTIONS];

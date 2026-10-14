@@ -1,62 +1,45 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ScanLine } from "lucide-react";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Rule } from "@/shared/components/rule";
-import { Zone } from "@/shared/components/zone";
 import { CoverButton } from "@/shared/event/cover-button";
-import type { EventPay, PaymentTally } from "@/shared/event/payment-label";
 import type { EventLayoutId, EventThemeId } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
-import type { EventManager, ManageSection } from "@/shared/services/event-manage";
-import type { GuestPass, NamePair } from "@/shared/event/guest-book";
-import type { GuestSource } from "@/shared/event/guest-sources";
-import { ManageFrame } from "./manage-frame";
-import { GuestsZone } from "./guests-zone";
-import { OpenLinkZone } from "./open-link-zone";
-import { AfterZone } from "./after-zone";
-import { EditZone } from "./edit-zone";
-import { PaymentScreen } from "./payment/payment-screen";
-import { TeamZone } from "./team-zone";
 import type { InviteLogoLook, InviteRow } from "@/shared/event/invite-rows";
 import { eventTitleLine } from "@/shared/event/event-title";
+import { ManageFrame } from "./manage-frame";
+import { ENTRY, Room } from "./room";
 
-const ROW =
-  "press inline-flex items-center gap-2 t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]";
+const SCANNER =
+  "press mt-4 block w-full border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]";
 
 type Flash = "created" | "saved" | null;
+
+export type HomeRooms = {
+  /** Event day: `Today · 19:00 · place`. */
+  event: string | null;
+  payment: { isPaid: boolean; price: string | null; confirmed: number; pending: number } | null;
+  guests: { sent: number; confirmed: number } | null;
+  staff: { id: string; name: string; role: string }[] | null;
+  /** Set once the event is over. */
+  stats: { after: { came: number; total: number } | null } | null;
+};
 
 export function ManageHome({
   lookup,
   name,
-  shareUrl,
-  sections,
   canEdit,
-  canDelete,
   flash,
   cover,
-  pay,
-  tally,
-  managers,
-  canRemove,
-  teamFull,
-  endedLabel,
-  doorOpen,
-  showGoing,
-  afishaHref,
-  openLink,
-  guests,
-  after,
+  scanner,
+  rooms,
 }: {
   lookup: string;
   name: string;
-  shareUrl: string;
-  sections: ManageSection[];
   canEdit: boolean;
-  canDelete: boolean;
   flash: Flash;
   cover: {
     description: string | null;
@@ -72,38 +55,15 @@ export function ManageHome({
     logoUrl: string | null;
     price: string | null;
   };
-  pay: EventPay | null;
-  tally: PaymentTally | null;
-  managers: EventManager[];
-  canRemove: boolean;
-  teamFull: boolean;
-  /** Set once the event is over: After goes on top, Open link, Team and Door go. */
-  endedLabel: string | null;
-  /** From two hours before the start to the end, the scanner sits under the poster. */
-  doorOpen: boolean;
-  /** Guests see who's going under the poster. */
-  showGoing: boolean;
-  /** The poster snapshot as a PNG; null before the first snapshot. */
-  afishaHref: string | null;
-  openLink: { open: boolean; capacity: number | null; joined: number };
-  guests: {
-    counter: string;
-    checkedIn: number;
-    sources: GuestSource[];
-    pairs: NamePair[];
-    passes: GuestPass[];
-    sent: { sent: number; opened: number; going: number };
-    mail: { ready: boolean; pending: number; withEmail: number };
-    reminder: { ready: boolean; enabled: boolean; sentLabel: string | null };
-  };
-  after: { came: number; total: number; cards: number; paid: { paid: number; pending: number } | null } | null;
+  /** With check-in, on the event day (always for the door). */
+  scanner: boolean;
+  rooms: HomeRooms;
 }) {
   const router = useRouter();
   const flashed = useRef(false);
   const [notice, setNotice] = useState<string | null>(flash === "saved" ? "Saved" : null);
-  const ended = endedLabel !== null;
-  const shown = (section: ManageSection) => sections.includes(section);
   const href = (path: string) => `/e/${encodeURIComponent(lookup)}${path}`;
+  const door = !canEdit && !rooms.payment && !rooms.guests && !rooms.staff && !rooms.stats;
 
   useEffect(() => {
     if (!flash || flashed.current) return;
@@ -129,92 +89,53 @@ export function ManageHome({
     logoLook: cover.logoLook,
   };
 
-  const zones: { key: string; node: ReactNode }[] = [];
-  if (ended && after && (shown("analytics") || shown("guests"))) {
-    zones.push({
-      key: "after",
-      node: (
-        <AfterZone
-          lookup={lookup}
-          endedLabel={endedLabel}
-          came={after.came}
-          total={after.total}
-          cards={after.cards}
-          paid={after.paid}
-          canExportGuests={shown("guests")}
-          canExportReport={shown("analytics")}
-        />
-      ),
+  const list: { key: string; label: string; entry: string; path: string; state: ReactNode }[] = [];
+  if (rooms.event !== null && canEdit) {
+    list.push({ key: "event", label: "Event", entry: "Edit details", path: "/manage/edit", state: rooms.event });
+  }
+  if (rooms.payment) {
+    const { isPaid, price, confirmed, pending } = rooms.payment;
+    list.push({
+      key: "payment",
+      label: "Payment",
+      entry: "Edit payments",
+      path: "/manage/payment",
+      state: isPaid ? [price, `${confirmed} confirmed`, `${pending} pending`].filter(Boolean).join(" · ") : "Free",
     });
   }
-  if (shown("payment") && pay && tally) {
-    zones.push({ key: "payment", node: <PaymentScreen lookup={lookup} pay={pay} tally={tally} /> });
-  }
-  if (shown("guests") && !ended) {
-    zones.push({
-      key: "open-link",
-      node: (
-        <OpenLinkZone
-          lookup={lookup}
-          open={openLink.open}
-          capacity={openLink.capacity}
-          joined={openLink.joined}
-          shareUrl={shareUrl}
-          onNotice={setNotice}
-        />
-      ),
-    });
-  }
-  if (shown("guests")) {
-    zones.push({
+  if (rooms.guests) {
+    list.push({
       key: "guests",
-      node: (
-        <GuestsZone
-          lookup={lookup}
-          guestsHref={href("/manage/guests")}
-          addHref={href("/manage/guests/add")}
-          sendHref={href("/manage/send")}
-          mail={guests.mail}
-          reminder={guests.reminder}
-          counter={guests.counter}
-          sources={guests.sources}
-          pairs={guests.pairs}
-          passes={guests.passes}
-          inviteUrl={shareUrl}
-          sent={guests.sent}
-          showGoing={showGoing}
-          afishaHref={afishaHref}
-          compact={ended}
-          onNotice={setNotice}
-        />
-      ),
+      label: "Guests",
+      entry: "Edit guests",
+      path: "/manage/guests",
+      state: `${rooms.guests.sent} sent · ${rooms.guests.confirmed} confirmed`,
     });
   }
-  if (shown("managers") && !ended) {
-    zones.push({
-      key: "team",
-      node: (
-        <TeamZone lookup={lookup} eventName={name} managers={managers} canRemove={canRemove} full={teamFull} onNotice={setNotice} />
-      ),
+  if (rooms.staff) {
+    list.push({
+      key: "staff",
+      label: "Staff",
+      entry: "Edit staff",
+      path: "/manage/staff",
+      state:
+        rooms.staff.length > 0 ? (
+          <ul className="flex flex-col gap-1">
+            {rooms.staff.map((person) => (
+              <li key={person.id} className="truncate">{`${person.name} · ${person.role}`}</li>
+            ))}
+          </ul>
+        ) : null,
     });
   }
-  if (shown("checkin") && !ended) {
-    zones.push({
-      key: "door",
-      node: (
-        <Zone label="Door">
-          <Link href={href("/manage/checkin")} className={ROW}>
-            <ScanLine size={16} strokeWidth={1.25} className="shrink-0 text-[var(--ink)]" />
-            Open scanner
-          </Link>
-        </Zone>
-      ),
-    });
-  }
-  if (canEdit) {
-    zones.push({
-      key: "edit",
-      node: <EditZone lookup={lookup} deleteName={eventTitleLine(name)} canDelete={canDelete} />,
+  if (rooms.stats) {
+    const after = rooms.stats.after;
+    list.push({
+      key: "stats",
+      label: "Statistics",
+      entry: "Statistics",
+      path: "/manage/stats",
+      state: after ? `${after.came} came of ${after.total}` : <span className="text-[var(--grey)]">After the event</span>,
     });
   }
 
@@ -223,20 +144,32 @@ export function ManageHome({
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="pt-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
         <CoverButton event={poster} layout={cover.layout} themeId={cover.theme} variant="card" />
-        {doorOpen && shown("checkin") && !ended ? (
-          <Link href={href("/manage/checkin")} className={`mt-4 ${ROW}`}>
-            <ScanLine size={16} strokeWidth={1.25} className="shrink-0 text-[var(--ink)]" />
-            {`Open scanner · ${guests.checkedIn} in`}
+        {scanner ? (
+          <Link href={href("/manage/checkin")} className={SCANNER}>
+            Open scanner
+          </Link>
+        ) : null}
+        {door && scanner ? (
+          <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
+            Scan the pass — green, they&apos;re in. Not on the list — find by name inside, or check manually.
+          </p>
+        ) : null}
+        {canEdit && rooms.event === null ? (
+          <Link href={href("/manage/edit")} className={`mt-3 ${ENTRY}`}>
+            Edit details
           </Link>
         ) : null}
       </div>
-      <Rule className="mt-[18px]" />
-      {zones.map((zone, index) => (
-        <Fragment key={zone.key}>
-          {index > 0 ? <Rule /> : null}
-          {zone.node}
-        </Fragment>
-      ))}
+      {list.length > 0 ? (
+        <>
+          <Rule className="mt-[18px]" />
+          {list.map((room, index) => (
+            <Room key={room.key} index={index} label={room.label} entry={room.entry} href={href(room.path)}>
+              {room.state}
+            </Room>
+          ))}
+        </>
+      ) : null}
     </ManageFrame>
   );
 }
