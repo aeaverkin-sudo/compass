@@ -82,7 +82,7 @@ function poster(origin: string, event: MailEvent, href: string) {
 /** The logo is a file of the site itself, by its public address. */
 function adedLogo(origin: string): string {
   const site = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  return `${site && /^https?:\/\//i.test(site) ? site : origin}/brand/aded-word.png`;
+  return `${site && /^https?:\/\//i.test(site) ? site : origin}/brand/aded-grid-mail.png`;
 }
 
 function placeZone(event: MailEvent, withPrice: boolean): MailZone | null {

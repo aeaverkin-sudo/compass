@@ -16,7 +16,7 @@ const GAP = 14;
 const AXIS = LABEL + GAP;
 const POSTER_W = 300;
 const POSTER_H = Math.round((POSTER_W * 404) / 286);
-const LOGO_H = 20;
+const LOGO_H = 24;
 const LOGO_W = Math.round((LOGO_H * 54) / 17);
 
 export type MailZone = { label: string; value: string; lead?: boolean };

@@ -90,8 +90,8 @@ const MESH_CELLS: [number, number][] = MARK.flatMap(([x, y, w, h]) => {
   return cells;
 });
 
-const MESH_STROKE = 0.12;
-const MESH_OPACITY = 0.55;
+/** The grid mark of `public/brand/aded-grid.svg`: unit cells, a 0.08 line, the box padded by half a line. */
+const MESH_STROKE = 0.08;
 
 /** Pixel wordmark. Orange unless `color` is set. Height follows the 54×17 grid. */
 export function AdedWordmark({
@@ -104,28 +104,19 @@ export function AdedWordmark({
   variant?: "solid" | "mesh";
 }) {
   const s = MESH_STROKE;
+  const mesh = variant === "mesh";
   return (
     <svg
-      viewBox="0 0 54 17"
+      viewBox={mesh ? `${-s / 2} ${-s / 2} ${54 + s} ${17 + s}` : "0 0 54 17"}
       role="img"
       aria-label="ADED"
       shapeRendering="crispEdges"
       className={className ?? "block h-auto w-full"}
       style={{ color: color ?? "#E8640C" }}
     >
-      {variant === "mesh"
+      {mesh
         ? MESH_CELLS.map(([x, y]) => (
-            <rect
-              key={`${x}-${y}`}
-              x={x + s / 2}
-              y={y + s / 2}
-              width={1 - s}
-              height={1 - s}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={s}
-              strokeOpacity={MESH_OPACITY}
-            />
+            <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill="none" stroke="currentColor" strokeWidth={s} />
           ))
         : MARK.map(([x, y, width, height]) => (
             <rect key={`${x}-${y}-${width}`} x={x} y={y} width={width} height={height} fill="currentColor" />
