@@ -2,16 +2,22 @@
 
 import { startTransition, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload } from "lucide-react";
+import { ChevronDown, Upload } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Switch } from "@/shared/components/ui/switch";
 import { Zone } from "@/shared/components/zone";
-import type { EventPay, PaymentTally, StatementReport } from "@/shared/event/payment-label";
+import { Rule } from "@/shared/components/rule";
+import type { BookGuest } from "@/shared/event/guest-book";
+import { isPaidGuest, isPendingGuest } from "@/shared/event/guest-sources";
+import { priceLabel, type EventPay, type PaymentTally, type StatementReport } from "@/shared/event/payment-label";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { ManageFrame } from "../manage-frame";
 
 type PaymentScreenProps = {
   lookup: string;
   pay: EventPay;
   tally: PaymentTally;
+  guests: BookGuest[];
 };
 
 type Draft = {
@@ -22,6 +28,8 @@ type Draft = {
 };
 
 const FIELD = "bg-transparent px-0 t-body text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
+const ACTION =
+  "press shrink-0 border-0 bg-transparent p-0 t-meta text-[var(--ink)] underline decoration-1 underline-offset-[3px] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 
 function draftFrom(pay: EventPay): Draft {
   return {
@@ -32,14 +40,30 @@ function draftFrom(pay: EventPay): Draft {
   };
 }
 
-export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
+function priceOf(draft: Draft): number | null {
+  const value = Number(draft.price.trim().replace(",", "."));
+  return draft.price.trim() !== "" && Number.isFinite(value) ? value : null;
+}
+
+export function PaymentScreen({ lookup, pay, tally, guests }: PaymentScreenProps) {
   const router = useRouter();
+  const back = `/e/${encodeURIComponent(lookup)}/manage`;
   const fileRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<Draft>(draftFrom(pay));
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<StatementReport | null>(null);
+  const [rows, setRows] = useState(guests);
+  const [shownGuests, setShownGuests] = useState(guests);
+  if (shownGuests !== guests) {
+    setShownGuests(guests);
+    setRows(guests);
+  }
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const markLock = useRef(false);
 
   const save = async (next: Draft) => {
     setBusy(true);
@@ -98,9 +122,48 @@ export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
     }
   };
 
+  const mark = async (guest: BookGuest) => {
+    if (markLock.current || !guest.userId) return;
+    markLock.current = true;
+    const confirming = !isPaidGuest(guest);
+    const next = {
+      ...guest,
+      paidStatus: confirming ? "paid" : "unpaid",
+      paidSource: confirming ? "manual" : null,
+    };
+    setRows((current) => current.map((row) => (row.key === guest.key ? next : row)));
+    setBusyId(guest.key);
+    setError(null);
+    try {
+      const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/payments/${guest.userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paid: confirming }),
+      });
+      if (!response.ok) {
+        setRows((current) => current.map((row) => (row.key === guest.key ? guest : row)));
+        setError("Could not update the guest.");
+      }
+    } catch {
+      setRows((current) => current.map((row) => (row.key === guest.key ? guest : row)));
+      setError("Could not update the guest.");
+    } finally {
+      markLock.current = false;
+      setBusyId(null);
+    }
+  };
+
+  const confirmed = rows.filter(isPaidGuest).length;
+  const pending = rows.filter(isPendingGuest).length;
+  const unpaid = rows.length - confirmed - pending;
+  const price = priceOf(draft);
+  const money = (count: number) => (price == null ? null : priceLabel(count * price, draft.currency));
+  const needle = query.trim().toLowerCase();
+  const visible = rows.filter((guest) => !needle || guest.name.toLowerCase().includes(needle));
+
   return (
-    <>
-      <Zone label="Payment" align="start" rule={draft.isPaid}>
+    <ManageFrame title="Payment" fallbackHref={back} onBack={() => router.replace(back)}>
+      <Zone label="Entry" align="start" rule>
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <Switch
@@ -164,8 +227,11 @@ export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
             <p className="mt-1 mb-0 t-meta text-[var(--grey)]">
               A link (Revolut, Stripe, PayPal) or plain text like MB WAY 912 345 678.
             </p>
+            <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
+              ADED is not a payment processor — money goes straight to you. We only mark who&apos;s confirmed.
+            </p>
           </Zone>
-          <Zone label="Statement" align="start">
+          <Zone label="Statement" align="start" rule>
             <input
               ref={fileRef}
               type="file"
@@ -215,10 +281,82 @@ export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
                 ) : null}
               </div>
             ) : null}
-            <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
-              ADED is not a payment processor — money goes straight to you. We only mark who&apos;s confirmed.
+          </Zone>
+          <Zone label="Money" align="start" rule>
+            {money(confirmed) ? <p className="mb-0 t-body text-[var(--ink)]">{money(confirmed)}</p> : null}
+            <p className={cn("mb-0 t-meta text-[var(--grey)]", money(confirmed) && "mt-1")}>
+              {[`${confirmed} of ${confirmed + pending} paid`, money(pending) ? `${money(pending)} pending` : null]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           </Zone>
+          <Zone
+            label={
+              <button
+                type="button"
+                aria-expanded={open}
+                onClick={() => setOpen((value) => !value)}
+                className="press inline-flex items-center gap-1 border-0 bg-transparent p-0 t-label text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+              >
+                Guests
+                <ChevronDown size={14} strokeWidth={1.25} className={cn("shrink-0 transition-transform", open && "rotate-180")} />
+              </button>
+            }
+            align="start"
+            rule
+          >
+            <p className="mb-0 t-body text-[var(--ink)]">{`${confirmed} confirmed · ${pending} pending · ${unpaid} unpaid`}</p>
+            {open ? (
+              <>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Name"
+                  aria-label="Name"
+                  className="mt-3 w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 pb-1 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
+                  style={{ fontSize: 16, fontWeight: 400, letterSpacing: "-0.015em", lineHeight: 1.45 }}
+                />
+                <ul className="max-h-[288px] overflow-y-auto overscroll-contain">
+                  {visible.map((guest, index) => {
+                    const paid = isPaidGuest(guest);
+                    const waiting = isPendingGuest(guest);
+                    return (
+                      <li key={guest.key}>
+                        {index > 0 ? <Rule /> : null}
+                        <div className="flex items-baseline gap-3 py-3">
+                          <span className="min-w-0 flex-1 truncate t-body text-[var(--ink)]">{guest.name}</span>
+                          <span
+                            className={cn("shrink-0 t-meta", paid ? "text-[var(--pay-confirmed)]" : "text-[var(--grey)]")}
+                          >
+                            {paid ? "$" : waiting ? "pending" : "unpaid"}
+                          </span>
+                          {guest.userId ? (
+                            <button type="button" disabled={busyId !== null} onClick={() => void mark(guest)} className={ACTION}>
+                              {busyId === guest.key ? "Saving…" : paid ? "Mark unpaid" : "Mark paid"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            ) : null}
+          </Zone>
+          <div className="flex flex-col gap-1 py-[18px] t-meta text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
+            <span>
+              <span className="text-[var(--ink)]">Confirmed</span> — paid, matched by the statement or marked by you.
+            </span>
+            <span>
+              <span className="text-[var(--ink)]">Pending</span> — registered, the payment is not confirmed yet.
+            </span>
+            <span>
+              <span className="text-[var(--ink)]">Mark paid</span> — confirm by hand, for cash or a transfer you checked.
+            </span>
+            <span>
+              <span className="text-[var(--pay-confirmed)]">$</span> — paid. The same mark stands in Guests.
+            </span>
+          </div>
         </>
       ) : null}
       {error ? (
@@ -226,6 +364,6 @@ export function PaymentScreen({ lookup, pay, tally }: PaymentScreenProps) {
           {error}
         </p>
       ) : null}
-    </>
+    </ManageFrame>
   );
 }

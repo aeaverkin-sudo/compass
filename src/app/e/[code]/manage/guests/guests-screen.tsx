@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
@@ -51,7 +51,6 @@ export function GuestsScreen({
   lists,
   initialList,
   inviteUrl,
-  canMark,
   isPaid,
 }: {
   lookup: string;
@@ -61,7 +60,6 @@ export function GuestsScreen({
   lists: BookList[] | null;
   initialList: string | null;
   inviteUrl: string;
-  canMark: boolean;
   isPaid: boolean;
 }) {
   const router = useRouter();
@@ -80,9 +78,6 @@ export function GuestsScreen({
   );
   const [status, setStatus] = useState<StatusFilter>("any");
   const [picked, setPicked] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const lock = useRef(false);
-  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const inSource = rows.filter((guest) => !source || sourceIds(guest, books).includes(source));
@@ -104,38 +99,6 @@ export function GuestsScreen({
     { id: "in", label: "In" },
     { id: "declined", label: "Not going" },
   ];
-
-  const mark = async (guest: BookGuest) => {
-    if (!canMark || !isPaid || lock.current || !guest.userId) return;
-    lock.current = true;
-    const confirming = !isPaidGuest(guest);
-    const next = {
-      ...guest,
-      paidStatus: confirming ? "paid" : "unpaid",
-      paidSource: confirming ? "manual" : null,
-    };
-    setRows((current) => current.map((row) => (row.key === guest.key ? next : row)));
-    setBusyId(guest.key);
-    setError(null);
-    try {
-      const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/payments/${guest.userId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paid: confirming }),
-      });
-      if (!response.ok) {
-        setRows((current) => current.map((row) => (row.key === guest.key ? guest : row)));
-        setError("Could not update the guest.");
-        return;
-      }
-    } catch {
-      setRows((current) => current.map((row) => (row.key === guest.key ? guest : row)));
-      setError("Could not update the guest.");
-    } finally {
-      lock.current = false;
-      setBusyId(null);
-    }
-  };
 
   const copyLink = async (guest: BookGuest) => {
     if (!guest.token) return;
@@ -201,7 +164,6 @@ export function GuestsScreen({
               const view = statusOf(guest);
               const open = picked === guest.key;
               const pass = guest.token ? guestPassUrl(inviteUrl, guest.token) : null;
-              const canPay = canMark && isPaid && Boolean(guest.userId);
               return (
                 <li key={guest.key}>
                   {index > 0 ? <Rule /> : null}
@@ -219,7 +181,7 @@ export function GuestsScreen({
                       {view.label}
                     </span>
                   </button>
-                  {open && (pass || canPay || guest.cardToken) ? (
+                  {open && (pass || guest.cardToken) ? (
                     <span className="flex flex-wrap gap-x-4 gap-y-1 pb-3">
                       {guest.phone && pass ? (
                         <a
@@ -240,11 +202,6 @@ export function GuestsScreen({
                           Copy link
                         </button>
                       ) : null}
-                      {canPay ? (
-                        <button type="button" disabled={busyId !== null} onClick={() => void mark(guest)} className={ACTION}>
-                          {busyId === guest.key ? "Saving…" : isPaidGuest(guest) ? "Mark unpaid" : "Mark paid"}
-                        </button>
-                      ) : null}
                       {guest.cardToken ? (
                         <Link href={`/c/${guest.cardToken}`} className="t-meta text-[var(--ink)] no-underline">
                           Open card
@@ -256,7 +213,6 @@ export function GuestsScreen({
               );
             })}
           </ul>
-          {error ? <p className="mt-3 mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
           <Rule />
           <a
             href={`/api/events/${encodeURIComponent(lookup)}/guests/export`}

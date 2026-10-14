@@ -48,7 +48,6 @@ export default async function ManageGuestsPage({ params, searchParams }: PagePro
       lists={book ? book.lists : null}
       initialList={typeof query.list === "string" ? query.list : null}
       inviteUrl={`${origin}${eventPublicPath(shareKey)}`}
-      canMark={event.role === "owner" || event.permissions.payments}
       isPaid={event.isPaid}
     />
   );
