@@ -7,7 +7,8 @@ import { formatEventRange } from "@/shared/event/when";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { loadShowGoing } from "@/shared/services/event-going";
-import { linkGuestAccounts } from "@/shared/services/event-invite-inbox";
+import { nanoid } from "nanoid";
+import { inboxMissing, linkGuestAccounts } from "@/shared/services/event-invite-inbox";
 import { posterUrl } from "@/shared/services/poster-snapshot";
 import { BATCH_MAX, mailConfigured, sendHtmlBatch, type HtmlMail } from "@/shared/services/mail";
 
@@ -266,13 +267,41 @@ export function deletionMail(input: { eventName: string; met: number; expires: s
 
 const HOUR_MS = 60 * 60 * 1000;
 
-type Recipient = { email: string; guestId: string | null; token: string | null };
+/** `member`: going without a guest row; the button opens the event page, the token is only for unsubscribe. */
+type Recipient = { email: string; guestId: string | null; token: string | null; member?: boolean };
+
+type MemberGuest = { id: string; token: string; unsubscribed_at: string | null; bounced_at: string | null };
+
+/**
+ * A member going without a guest row gets one, on no list, so the reminder carries the same
+ * unsubscribe link as a guest's. The same email already on the event is that row.
+ */
+async function memberGuest(eventId: string, reg: { id: string; user_id: string; card_id: string | null }, email: string): Promise<MemberGuest | null> {
+  const admin = createAdminSupabaseClient();
+  const columns = "id, token, unsubscribed_at, bounced_at";
+  const same = await admin.from("event_guests").select(columns).eq("event_id", eventId).eq("email", email).maybeSingle();
+  if (same.error) return null;
+  if (same.data) return same.data as MemberGuest;
+  const card = reg.card_id ? await admin.from("cards").select("display_name").eq("id", reg.card_id).maybeSingle() : null;
+  const name = ((card?.data as { display_name?: string | null } | null)?.display_name ?? "").replace(/\s+/g, " ").trim();
+  const row = { event_id: eventId, name, email, token: nanoid(21), registration_id: reg.id };
+  const withUser = await admin.from("event_guests").insert({ ...row, user_id: reg.user_id }).select(columns).maybeSingle();
+  const created =
+    withUser.error && inboxMissing(withUser.error.message)
+      ? await admin.from("event_guests").insert(row).select(columns).maybeSingle()
+      : withUser;
+  if (created.error) {
+    console.error("[mail] member guest", created.error.message);
+    return null;
+  }
+  return created.data as MemberGuest | null;
+}
 
 async function reminderRecipients(eventId: string): Promise<Recipient[]> {
   const admin = createAdminSupabaseClient();
-  const regs = await admin.from("event_registrations").select("id, user_id").eq("event_id", eventId);
+  const regs = await admin.from("event_registrations").select("id, user_id, card_id").eq("event_id", eventId);
   if (regs.error) throw new Error(regs.error.message);
-  const rows = (regs.data ?? []) as { id: string; user_id: string }[];
+  const rows = (regs.data ?? []) as { id: string; user_id: string; card_id: string | null }[];
   if (rows.length === 0) return [];
   const guests = await admin
     .from("event_guests")
@@ -294,7 +323,13 @@ async function reminderRecipients(eventId: string): Promise<Recipient[]> {
     }
     if (!email || seen.has(email)) continue;
     seen.add(email);
-    out.push({ email, guestId: guest?.id ?? null, token: guest?.token ?? null });
+    if (guest) {
+      out.push({ email, guestId: guest.id, token: guest.token });
+      continue;
+    }
+    const member = await memberGuest(eventId, reg, email);
+    if (member && (member.unsubscribed_at || member.bounced_at)) continue;
+    out.push({ email, guestId: member?.id ?? null, token: member?.token ?? null, member: true });
   }
   return out;
 }
@@ -354,7 +389,7 @@ async function remindEvent(eventId: string, lookup: string, origin: string): Pro
     const claimed = chunk.filter((person) => !person.guestId || claims.has(person.guestId));
     if (claimed.length === 0) continue;
     const mails: HtmlMail[] = claimed.map((person) => {
-      const link = person.token ? personalLink(origin, event, person.token) : `${origin}/e/${event.key}/join`;
+      const link = person.token && !person.member ? personalLink(origin, event, person.token) : `${origin}/e/${event.key}/join`;
       const body = reminderMail(origin, event, { link, token: person.token }, going);
       return {
         to: person.email,
