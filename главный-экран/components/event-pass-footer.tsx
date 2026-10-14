@@ -155,10 +155,12 @@ export function EventPassFooter({
               }}
               className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
             >
-              Add to Apple Wallet
+              Add event pass to Apple Wallet
             </button>
           </div>
-          <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">Save this pass to enter the event.</p>
+          <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">
+            This event pass is also your portfolio — share it with people you meet at the event.
+          </p>
         </>
       )}
       {toast ? <SkyToast text={WALLET_SOON} onDone={() => setToast(false)} /> : null}
