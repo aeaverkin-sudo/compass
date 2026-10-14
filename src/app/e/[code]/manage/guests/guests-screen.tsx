@@ -1,7 +1,6 @@
 "use client";
 
 import { Fragment, startTransition, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,7 +40,6 @@ const STAGES: { id: Stage; label: string }[] = [
 ];
 
 const CHIP = "press border-0 bg-transparent p-0 t-meta [-webkit-tap-highlight-color:transparent]";
-const ACTION = "press border-0 bg-transparent p-0 t-meta text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 const ROW =
   "press inline-flex items-center gap-2 border-0 bg-transparent p-0 text-left t-body text-[var(--ink)] no-underline disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
 const SKY =
@@ -242,8 +240,21 @@ export function GuestsScreen({
     [guest.email ?? guest.phone, ...sourceNames(guest, books)].filter(Boolean).join(" · ");
 
   const guestRow = (guest: BookGuest, index: number) => {
-    const expanded = picked === guest.key;
     const pass = guest.token ? guestPassUrl(inviteUrl, guest.token) : null;
+    const whatsapp = guest.phone && pass ? whatsappHref(guest.phone, whatsappInvite(name, pass)) : null;
+    const expanded = whatsapp !== null && picked === guest.key;
+    const body = (
+      <>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate t-body text-[var(--ink)]">{guest.name}</span>
+          <span className="mt-0.5 block truncate t-meta text-[var(--grey)]">{metaLine(guest)}</span>
+        </span>
+        <span className="inline-flex shrink-0 items-baseline gap-1 t-meta text-[var(--ink)]">
+          {isPaid && isPaidGuest(guest) ? <span className="text-[var(--pay-confirmed)]">$</span> : null}
+          {stageOf(guest)}
+        </span>
+      </>
+    );
     return (
       <li key={guest.key}>
         {index > 0 ? <Rule /> : null}
@@ -254,47 +265,28 @@ export function GuestsScreen({
             className={cn(BOX, "mt-[3px]")}
             aria-label={`Mark ${guest.name}`}
           />
-          <button
-            type="button"
-            onClick={() => setPicked(expanded ? null : guest.key)}
-            className="press flex min-w-0 flex-1 items-baseline gap-2 border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block truncate t-body text-[var(--ink)]">{guest.name}</span>
-              <span className="mt-0.5 block truncate t-meta text-[var(--grey)]">{metaLine(guest)}</span>
-            </span>
-            <span className="inline-flex shrink-0 items-baseline gap-1 t-meta text-[var(--ink)]">
-              {isPaid && isPaidGuest(guest) ? <span className="text-[var(--pay-confirmed)]">$</span> : null}
-              {stageOf(guest)}
-            </span>
-          </button>
+          {whatsapp ? (
+            <button
+              type="button"
+              onClick={() => setPicked(expanded ? null : guest.key)}
+              className="press flex min-w-0 flex-1 items-baseline gap-2 border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
+            >
+              {body}
+            </button>
+          ) : (
+            <span className="flex min-w-0 flex-1 items-baseline gap-2">{body}</span>
+          )}
         </div>
-        {expanded && (pass || guest.cardToken) ? (
-          <span className="flex flex-wrap gap-x-4 gap-y-1 pb-3 pl-7">
-            {guest.phone && pass ? (
-              <a
-                href={whatsappHref(guest.phone, whatsappInvite(name, pass))}
-                target="_blank"
-                rel="noreferrer"
-                className="t-meta text-[var(--ink)] underline decoration-1 underline-offset-[3px]"
-              >
-                WhatsApp
-              </a>
-            ) : null}
-            {pass ? (
-              <button
-                type="button"
-                onClick={() => void copy(pass, "Link copied")}
-                className={`${ACTION} underline decoration-1 underline-offset-[3px]`}
-              >
-                Copy link
-              </button>
-            ) : null}
-            {guest.cardToken ? (
-              <Link href={`/c/${guest.cardToken}`} className="t-meta text-[var(--ink)] no-underline">
-                Open card
-              </Link>
-            ) : null}
+        {expanded ? (
+          <span className="flex pb-3 pl-7">
+            <a
+              href={whatsapp}
+              target="_blank"
+              rel="noreferrer"
+              className="t-meta text-[var(--ink)] underline decoration-1 underline-offset-[3px]"
+            >
+              WhatsApp
+            </a>
           </span>
         ) : null}
       </li>
