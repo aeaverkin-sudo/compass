@@ -17,6 +17,9 @@ export function walletConfigured() {
 
 export type PassField = { key: string; label: string; value: string };
 
+/** One Wallet image at 1×, 2× and 3×. */
+export type PassImage = { x1: Buffer; x2: Buffer; x3: Buffer };
+
 export type PassInput = {
   /** `eventTicket` for the event badge, `generic` for the personal pass. */
   style: "eventTicket" | "generic";
@@ -24,9 +27,12 @@ export type PassInput = {
   serialNumber: string;
   organizationName: string;
   description: string;
-  /** The event logo as PNG at 1×, 2× and 3×, whole inside Apple's 160×50 box. Without it, the ADED icon. */
-  logo?: { x1: Buffer; x2: Buffer; x3: Buffer } | null;
-  logoText?: string;
+  /** The card photo, right of the name on the personal pass. */
+  thumbnail?: PassImage | null;
+  /** The event band behind the top of the event pass. */
+  strip?: PassImage | null;
+  /** When Wallet brings the pass to the lock screen. */
+  relevantDate?: string | null;
   header?: PassField | null;
   primary: PassField;
   secondary?: PassField[];
@@ -68,11 +74,29 @@ function loadSigner(): Signer {
   return signer;
 }
 
-let icon: Buffer | null = null;
+let brand: Promise<{ icon: PassImage; logo: PassImage }> | null = null;
 
-async function adedIcon(): Promise<Buffer> {
-  icon ??= await readFile(path.join(process.cwd(), "public", "icons", "icon-192.png"));
-  return icon;
+/** The grid ADED mark: `logo` in Apple's 160×50 box, `icon` on a white square for notifications. */
+function adedBrand() {
+  brand ??= (async () => {
+    const dir = path.join(process.cwd(), "public", "brand", "wallet");
+    const read = async (name: string): Promise<PassImage> => {
+      const [x1, x2, x3] = await Promise.all([1, 2, 3].map((scale) => readFile(path.join(dir, `${name}@${scale}x.png`))));
+      return { x1: x1!, x2: x2!, x3: x3! };
+    };
+    const [icon, logo] = await Promise.all([read("aded-grid-icon"), read("aded-grid-orange")]);
+    return { icon, logo };
+  })().catch((error: unknown) => {
+    brand = null;
+    throw error;
+  });
+  return brand;
+}
+
+function addImage(pass: PKPass, name: string, image: PassImage) {
+  pass.addBuffer(`${name}.png`, image.x1);
+  pass.addBuffer(`${name}@2x.png`, image.x2);
+  pass.addBuffer(`${name}@3x.png`, image.x3);
 }
 
 /** A signed .pkpass. Throws `wallet_not_configured` until the Apple values are in the env. */
@@ -85,20 +109,16 @@ export async function buildPass(input: PassInput): Promise<Buffer> {
     serialNumber: input.serialNumber,
     organizationName: input.organizationName,
     description: input.description,
-    ...(input.logoText ? { logoText: input.logoText } : {}),
-    backgroundColor: "rgb(255, 255, 255)",
+    backgroundColor: "rgb(197, 232, 247)",
     foregroundColor: "rgb(17, 17, 17)",
-    labelColor: "rgb(153, 153, 153)",
+    labelColor: "rgb(90, 111, 120)",
   });
   pass.type = input.style;
-  const fallback = await adedIcon();
-  pass.addBuffer("icon.png", fallback);
-  pass.addBuffer("icon@2x.png", fallback);
-  pass.addBuffer("logo.png", input.logo?.x1 ?? fallback);
-  if (input.logo) {
-    pass.addBuffer("logo@2x.png", input.logo.x2);
-    pass.addBuffer("logo@3x.png", input.logo.x3);
-  }
+  const { icon, logo } = await adedBrand();
+  addImage(pass, "icon", icon);
+  addImage(pass, "logo", logo);
+  if (input.thumbnail) addImage(pass, "thumbnail", input.thumbnail);
+  if (input.strip) addImage(pass, "strip", input.strip);
   if (input.header) pass.headerFields.push(input.header);
   pass.primaryFields.push(input.primary);
   for (const field of input.secondary ?? []) pass.secondaryFields.push(field);
@@ -106,6 +126,13 @@ export async function buildPass(input: PassInput): Promise<Buffer> {
   for (const field of input.backFields ?? []) pass.backFields.push(field);
   pass.setBarcodes({ message: input.barcodeMessage, format: "PKBarcodeFormatQR", messageEncoding: "iso-8859-1" });
   if (input.expiresAt) pass.setExpirationDate(new Date(input.expiresAt));
+  if (input.relevantDate) {
+    const at = new Date(input.relevantDate);
+    if (!Number.isNaN(at.getTime())) {
+      pass.setRelevantDate(at);
+      pass.setRelevantDates([{ relevantDate: at.toISOString() }]);
+    }
+  }
   return pass.getAsBuffer();
 }
 
