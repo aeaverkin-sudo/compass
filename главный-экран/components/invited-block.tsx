@@ -24,13 +24,13 @@ export function InviteRow({ invite }: { invite: InboxInvite }) {
         href={`/e/${invite.key}?g=${encodeURIComponent(invite.token)}`}
         className="press block w-full py-[14px] text-left no-underline [-webkit-tap-highlight-color:transparent]"
       >
-        <span className="flex items-center gap-2 t-body text-[var(--ink)]">
-          <span className="min-w-0 truncate">{invite.name}</span>
-          <span className="shrink-0 bg-sky px-1.5 py-0.5 t-caps text-[var(--ink)]">New</span>
-        </span>
+        <span className="block truncate t-body text-[var(--ink)]">{invite.name}</span>
         {invite.when || invite.place ? (
           <span className="mt-1 block t-meta text-[var(--grey)]">{[invite.when, invite.place].filter(Boolean).join(" · ")}</span>
         ) : null}
+        <span className="mt-1 flex justify-end">
+          <span className="bg-sky px-2.5 py-1 t-label text-[var(--ink)]">New</span>
+        </span>
         {invite.organiser ? <span className="mt-1 block t-meta text-[var(--grey)]">{`Invited by ${invite.organiser}`}</span> : null}
       </Link>
     </li>
