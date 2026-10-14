@@ -184,6 +184,9 @@ body {
   &:active {
     opacity: 0.55;
   }
+  &:disabled {
+    opacity: 0.4;
+  }
 }
 
 /* iOS / Safari autofill — keep transparent field look */

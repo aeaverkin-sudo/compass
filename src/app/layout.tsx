@@ -25,6 +25,9 @@ div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100
 }
 `;
 
+/** iOS Safari draws `:active` only on a page with a touchstart listener; without it a tap shows nothing. */
+const TOUCH_ACTIVE_SCRIPT = `document.addEventListener("touchstart",function(){},{passive:true});`;
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://adedme.com"),
   title: "ADED",
@@ -48,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ru" className="h-full">
       <head>
         <script dangerouslySetInnerHTML={{ __html: screenMeasureScript() }} />
+        <script dangerouslySetInnerHTML={{ __html: TOUCH_ACTIVE_SCRIPT }} />
         <style dangerouslySetInnerHTML={{ __html: MEASURE_CSS }} />
       </head>
       <body className="min-h-full font-sans antialiased">
