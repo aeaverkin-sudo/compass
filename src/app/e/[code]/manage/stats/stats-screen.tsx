@@ -94,6 +94,7 @@ export function StatsScreen({
   timeZone,
   isPaid,
   stats,
+  after,
 }: {
   lookup: string;
   name: string;
@@ -102,6 +103,15 @@ export function StatsScreen({
   timeZone: string;
   isPaid: boolean;
   stats: EventStats;
+  /** Set once the event is over. */
+  after: {
+    endedLabel: string;
+    came: number;
+    total: number;
+    cards: number;
+    /** Paid events only. */
+    paid: { paid: number; pending: number } | null;
+  } | null;
 }) {
   const router = useRouter();
   const sheet = useRef<HTMLDivElement>(null);
@@ -131,6 +141,25 @@ export function StatsScreen({
   return (
     <ManageFrame title="Statistics" fallbackHref={back} onBack={() => router.push(back)} centered>
       <div ref={sheet}>
+        {after ? (
+          <Zone label="After" align="start" rule>
+            <div className="flex flex-col gap-1 t-body text-[var(--ink)]">
+              <span>{`Ended ${after.endedLabel}`}</span>
+              <span>{`${after.came} came of ${after.total}`}</span>
+              <span>{`${after.cards} ${after.cards === 1 ? "card" : "cards"} exchanged`}</span>
+              {after.paid ? <span>{`${after.paid.paid} paid · ${after.paid.pending} pending`}</span> : null}
+            </div>
+            <a
+              href={`/api/events/${encodeURIComponent(lookup)}/report`}
+              download
+              className="press mt-3 inline-flex items-center gap-2 t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
+            >
+              <Download size={16} strokeWidth={1.25} className="shrink-0 text-[var(--ink)]" />
+              Export report
+            </a>
+            <p className="mt-3 mb-0 t-meta text-[var(--grey)]">Names and contacts stay for 90 days, then only the numbers.</p>
+          </Zone>
+        ) : null}
         <Zone label="Event" rule>
           <p className="t-body break-words text-[var(--ink)]">{eventLine}</p>
         </Zone>
@@ -160,10 +189,12 @@ export function StatsScreen({
             <p className="t-meta text-[var(--grey)]">No check-ins yet</p>
           )}
         </Zone>
-        <Zone label="Exchanged" rule>
-          <p className="t-body text-[var(--ink)]">—</p>
-          <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Coming soon</p>
-        </Zone>
+        {after ? null : (
+          <Zone label="Exchanged" rule>
+            <p className="t-body text-[var(--ink)]">—</p>
+            <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Coming soon</p>
+          </Zone>
+        )}
         <Zone label="Summary">
           <p className="t-body text-[var(--ink)]">—</p>
           <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Anonymous segment of guests who opted in. Coming soon.</p>
