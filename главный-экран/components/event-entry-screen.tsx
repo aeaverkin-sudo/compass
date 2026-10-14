@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
+import { InvitedBlock, type InboxInvite } from "./invited-block";
 import { Zone } from "@/shared/components/zone";
 import { EventForm } from "@/shared/event/event-form";
 import { appendEventFields, type EventFormValues } from "@/shared/event/event-form-fields";
@@ -244,6 +245,9 @@ export function EventEntryScreen() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [events, setEvents] = useState<ListedEvent[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const [invited, setInvited] = useState<InboxInvite[]>([]);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
   const logoFile = useRef<File | null>(null);
   const savingLock = useRef(false);
   const draftReady = useRef(false);
@@ -298,10 +302,30 @@ export function EventEntryScreen() {
         /* keep the list already shown */
       }
     })();
+    void (async () => {
+      try {
+        const response = await fetch("/api/events/invited", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { invited?: InboxInvite[] };
+        if (!cancelled) setInvited(payload.invited ?? []);
+      } catch {
+        /* keep the invitations already shown */
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, [step]);
+  }, [step, reload]);
+
+  const wentGoing = (invite: InboxInvite, next: string | null) => {
+    if (next && !next.startsWith("/network/event")) {
+      router.push(next);
+      return;
+    }
+    setInvited((current) => current.filter((entry) => entry.token !== invite.token));
+    setToast(goingToast(invite.name));
+    setReload((value) => value + 1);
+  };
 
   const leave = () => {
     setCreateError(null);
@@ -363,6 +387,24 @@ export function EventEntryScreen() {
 
           {step === "entry" ? (
             <>
+              {invited.length > 0 ? (
+                <>
+                  <InvitedBlock
+                    invites={invited}
+                    onGoing={(invite, next) => {
+                      setInviteError(null);
+                      wentGoing(invite, next);
+                    }}
+                    onError={setInviteError}
+                  />
+                  {inviteError ? (
+                    <p className="mb-[14px] t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>
+                      {inviteError}
+                    </p>
+                  ) : null}
+                  <Rule />
+                </>
+              ) : null}
               <Zone label="Create" rule>
                 <ActionLink onClick={openCreate}>Create an event</ActionLink>
                 <p className="mt-1 t-meta text-[var(--grey)]">For organisers: invite, check-in, stats.</p>
