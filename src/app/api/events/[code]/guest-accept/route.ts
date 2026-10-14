@@ -1,4 +1,6 @@
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { mailOrigin } from "@/shared/lib/public-origin";
+import { requestIp } from "@/shared/services/event-pass-guard";
 import { acceptGuestPass } from "@/shared/services/guest-accept";
 import { acceptReply, noStore } from "@/shared/services/guest-accept-reply";
 
@@ -12,10 +14,12 @@ export async function POST(request: Request, context: RouteProps) {
   const { code } = await context.params;
   let token: unknown = null;
   let timeZone: unknown = null;
+  let source: unknown = null;
   try {
-    const body = (await request.json()) as { token?: unknown; timeZone?: unknown };
+    const body = (await request.json()) as { token?: unknown; timeZone?: unknown; source?: unknown };
     token = body.token;
     timeZone = body.timeZone;
+    source = body.source;
   } catch {
     token = null;
   }
@@ -23,9 +27,13 @@ export async function POST(request: Request, context: RouteProps) {
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   const session = data.user ? { id: data.user.id, anonymous: Boolean(data.user.is_anonymous) } : null;
+  const from =
+    source === "mail"
+      ? { source: "mail" as const, origin: mailOrigin(request), ip: requestIp(request) }
+      : { source: "page" as const };
 
   try {
-    return acceptReply(await acceptGuestPass(code, token, session, timeZone));
+    return acceptReply(await acceptGuestPass(code, token, session, timeZone, from));
   } catch (error) {
     console.error("[events] guest accept", error);
     return noStore({ error: "Could not open your pass." }, 500);

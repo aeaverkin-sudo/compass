@@ -10,6 +10,13 @@ export function publicOrigin(request: Request): string {
   return new URL(request.url).origin;
 }
 
+/** A sign-in link goes out by mail. The site address comes first, never a request header alone. */
+export function mailOrigin(request: Request): string {
+  const canonical = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (canonical && /^https?:\/\//i.test(canonical)) return canonical;
+  return publicOrigin(request);
+}
+
 function first(value: string | null): string | undefined {
   const picked = value?.split(",")[0]?.trim();
   if (!picked || /[\s/\\@]/.test(picked)) return undefined;

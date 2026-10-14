@@ -85,6 +85,10 @@ type InviteActionsProps = {
   closed?: boolean;
   /** Seats left when the event has a limit. */
   placesLeft?: number | null;
+  /** The I'm going button in the mail: no poster, the consent is the mail's. */
+  source?: "page" | "mail";
+  /** Shown while the auto tap runs, until a hint replaces it. */
+  waitText?: string | null;
 };
 
 export function InviteActions({
@@ -100,6 +104,8 @@ export function InviteActions({
   soldOut = false,
   closed = false,
   placesLeft = null,
+  source = "page",
+  waitText = null,
 }: InviteActionsProps) {
   const router = useRouter();
   const sessionReady = useSessionBootstrap();
@@ -181,7 +187,7 @@ export function InviteActions({
         fetch(`${base}/guest-accept`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, timeZone: deviceTimeZone() }),
+          body: JSON.stringify({ token, timeZone: deviceTimeZone(), source }),
         }),
       );
     } catch {
@@ -326,7 +332,11 @@ export function InviteActions({
     return (
       <>
         {poster}
-        {hint ? <p className="mt-8 mb-0 text-center t-meta text-[var(--grey)]">{hint}</p> : null}
+        {hint ? (
+          <p className="mt-8 mb-0 text-center t-meta text-[var(--grey)]">{hint}</p>
+        ) : waitText ? (
+          <p className="m-0 text-center t-meta text-[var(--grey)]">{waitText}</p>
+        ) : null}
         {toast}
       </>
     );

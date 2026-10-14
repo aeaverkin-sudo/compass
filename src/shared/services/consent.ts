@@ -7,4 +7,7 @@ export const CONSENT_VERSION = TERMS_VERSION;
 
 export const CONSENT_ACCEPTED_EVENT = "compass-consent-accepted";
 
-export type ConsentPath = "trial" | "register" | "event";
+/** `mail`: the I'm going button in the invitation mail, which carries the same footnote. */
+export type ConsentPath = "trial" | "register" | "event" | "mail";
+
+export type EventConsentPath = Extract<ConsentPath, "event" | "mail">;

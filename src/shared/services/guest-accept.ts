@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { nanoid } from "nanoid";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { CONSENT_VERSION } from "@/shared/services/consent";
+import { CONSENT_VERSION, type EventConsentPath } from "@/shared/services/consent";
 import { userIdForEmail } from "@/shared/services/email-signup";
 import { findPassGuest, passCardName, type PassGuest } from "@/shared/services/event-guest-pass";
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
@@ -59,6 +59,13 @@ export async function isPermanentAccount(session: SessionUser): Promise<boolean>
   if (!session || session.anonymous) return false;
   const kind = await accountKind(session.id);
   return kind.registered && !kind.eventTrial;
+}
+
+/** This email signs in to an account that is not an event pass. */
+export async function emailHasAccount(email: string | null): Promise<boolean> {
+  if (!email) return false;
+  const owner = await userIdForEmail(email);
+  return Boolean(owner) && !isPassAccount(await accountKind(owner!));
 }
 
 /** The session already holds a pass on this event. */
@@ -305,16 +312,18 @@ async function confirmListPayment(registrationId: string): Promise<void> {
   if (marked.error) console.error("[events] list payment", marked.error.message);
 }
 
-/** The event rules, Terms and Privacy behind the asterisk. */
-export async function recordEventConsent(userId: string, guestId: string | null): Promise<void> {
+/** The event rules, Terms and Privacy behind the asterisk. Before the SQL allows `mail`, it is stored as `event`. */
+export async function recordEventConsent(userId: string, guestId: string | null, path: EventConsentPath = "event"): Promise<void> {
   const admin = createAdminSupabaseClient();
-  const row = { user_id: userId, document_version: CONSENT_VERSION, path: "event" };
+  const row = { user_id: userId, document_version: CONSENT_VERSION, path };
   if (guestId) {
     const full = await admin.from("consents").insert({ ...row, guest_id: guestId });
     if (!full.error) return;
+    if (path === "mail" && /consents_path_check/i.test(full.error.message)) return recordEventConsent(userId, guestId);
     if (!/guest_id/i.test(full.error.message)) throw new Error(full.error.message);
   }
   const kept = await admin.from("consents").insert(row);
+  if (kept.error && path === "mail" && /consents_path_check/i.test(kept.error.message)) return recordEventConsent(userId, guestId);
   if (kept.error) throw new Error(kept.error.message);
 }
 
@@ -327,10 +336,15 @@ async function linkedGuestId(registrationId: string): Promise<string | null> {
 }
 
 /** Payment from a paid list, then the consent. Neither blocks the pass. */
-async function settleRegistration(userId: string, registrationId: string, guestId: string | null): Promise<void> {
+async function settleRegistration(
+  userId: string,
+  registrationId: string,
+  guestId: string | null,
+  consentPath: EventConsentPath = "event",
+): Promise<void> {
   if (guestId && (await onPaidList(guestId))) await confirmListPayment(registrationId);
   try {
-    await recordEventConsent(userId, guestId);
+    await recordEventConsent(userId, guestId, consentPath);
   } catch (error) {
     console.error("[events] guest consent", error);
   }
@@ -352,8 +366,42 @@ async function enterAsPass(userId: string, session: SessionUser, cardId: string 
   return { ok: true, kind: "other-device" };
 }
 
+/** Network › Events, with the You're going toast. */
+export function goingPath(eventName: string): string {
+  return `/network/event?going=${encodeURIComponent(eventName.replace(/\s+/g, " ").trim())}`;
+}
+
+/** I'm going in the mail, a second time on a browser that does not hold the pass: the sign-in goes to the guest's address. */
+async function mailSignIn(
+  ownerId: string,
+  guest: PassGuest,
+  event: EventInvite,
+  guard: { origin: string; ip: string },
+  pay: boolean,
+): Promise<GuestAcceptResult> {
+  const email = guest.email;
+  if (!email || !(await ownsEmail(ownerId, email))) return { ok: true, kind: "other-device" };
+  const tokenHash = await magicHash(ownerId);
+  if (tokenHash === "password") return { ok: true, kind: "go", next: signInPath("/main") };
+  if (!tokenHash) return { ok: true, kind: "other-device" };
+  if (!(await passAllowed(event.id, guard.ip))) return { ok: false, status: 429, error: TRY_LATER };
+  const slug = encodeURIComponent(event.slug ?? event.code);
+  const link = `${guard.origin}/e/${slug}/enter?t=${encodeURIComponent(tokenHash)}${pay ? "&pay=1" : ""}`;
+  await sendPassLink(email, event.name.replace(/\s+/g, " ").trim(), link);
+  await recordPass(event.id, guard.ip);
+  return { ok: true, kind: "notice", text: `We sent a link to ${email} — open it to get your pass.` };
+}
+
+type AcceptFrom = { source: "page" } | { source: "mail"; origin: string; ip: string };
+
 /** A second tap on an accepted link. */
-async function reenter(guest: PassGuest, session: SessionUser, joinPath: string): Promise<GuestAcceptResult | null> {
+async function reenter(
+  guest: PassGuest,
+  session: SessionUser,
+  joinPath: string,
+  event: EventInvite,
+  from: AcceptFrom,
+): Promise<GuestAcceptResult | null> {
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from("event_registrations")
@@ -365,14 +413,28 @@ async function reenter(guest: PassGuest, session: SessionUser, joinPath: string)
   const ownerId = data.user_id as string;
   const cardId = (data.card_id as string | null) ?? null;
   if (!isPassAccount(await accountKind(ownerId))) {
-    if (session?.id === ownerId) return { ok: true, kind: "go", next: joinPath };
-    return { ok: true, kind: "go", next: signInPath(joinPath) };
+    const next = from.source === "mail" ? goingPath(event.name) : joinPath;
+    if (session?.id === ownerId) return { ok: true, kind: "go", next };
+    return { ok: true, kind: "go", next: signInPath(next) };
+  }
+  if (from.source === "mail" && session?.id !== ownerId) {
+    return mailSignIn(ownerId, guest, event, from, await paysFirst(event.id, ownerId));
   }
   return enterAsPass(ownerId, session, cardId);
 }
 
+/** The primary card, else the first card with a name, else the first card. */
+async function badgeCardId(userId: string): Promise<string | undefined> {
+  const admin = createAdminSupabaseClient();
+  const primary = await admin.from("cards").select("id").eq("owner_id", userId).eq("is_primary", true).limit(1);
+  const primaryId = primary.error ? null : ((primary.data ?? []) as { id: string }[])[0]?.id;
+  if (primaryId) return primaryId;
+  const cards = await listOwnPortfolios(userId);
+  return (cards.find((card) => card.name) ?? cards[0])?.id;
+}
+
 /**
- * A permanent account joins with its own card: the one tapped, or the first portfolio, changed later on the event page.
+ * A permanent account joins with its own card: the one tapped, or the primary card, changed later on the event page.
  * Without a portfolio the event page opens as it is. The consent is recorded once, with the new registration.
  */
 export async function joinWithOwnCard(
@@ -381,9 +443,10 @@ export async function joinWithOwnCard(
   lookup: string,
   guestToken: string | null,
   chosenCardId: string | null = null,
+  consentPath: EventConsentPath = "event",
 ): Promise<{ ok: true; registrationId: string | null } | { ok: false; status: number; error: string }> {
   const existing = await loadOwnRegistration(event.id, userId);
-  const cardId = existing?.cardId ?? chosenCardId ?? (await listOwnPortfolios(userId))[0]?.id;
+  const cardId = existing?.cardId ?? chosenCardId ?? (await badgeCardId(userId));
   if (!cardId) return { ok: true, registrationId: null };
   const viaOpenLink = !existing && !guestToken;
   if (viaOpenLink && !(await mayJoinWithoutLink(event.id, userId))) {
@@ -394,7 +457,7 @@ export async function joinWithOwnCard(
   }
   const joined = await registerForEvent(userId, lookup, cardId, undefined, guestToken);
   if (!joined.ok) return joined;
-  if (!existing) await settleRegistration(userId, joined.registration.id, await linkedGuestId(joined.registration.id));
+  if (!existing) await settleRegistration(userId, joined.registration.id, await linkedGuestId(joined.registration.id), consentPath);
   if (viaOpenLink) await ensureOpenLinkGuest(event.id, joined.registration.id, await accountPerson(userId, cardId));
   return { ok: true, registrationId: joined.registration.id };
 }
@@ -407,6 +470,7 @@ async function issuePass(
   lookup: string,
   guest: PassGuest | null,
   timeZone: string | null,
+  consentPath: EventConsentPath = "event",
 ): Promise<{ ok: true; registrationId: string; cardId: string; pay: boolean } | { ok: false; status: number; error: string }> {
   await markPassAccount(userId, timeZone);
   await startEventGuestClock(userId, eventGuestEnd(event));
@@ -423,7 +487,7 @@ async function issuePass(
       console.error("[events] pass event row", error);
     }
   }
-  await settleRegistration(userId, joined.registration.id, guest?.id ?? (await linkedGuestId(joined.registration.id)));
+  await settleRegistration(userId, joined.registration.id, guest?.id ?? (await linkedGuestId(joined.registration.id)), consentPath);
   return { ok: true, registrationId: joined.registration.id, cardId: joined.registration.cardId, pay: await paysFirst(event.id, userId) };
 }
 
@@ -437,15 +501,17 @@ export async function acceptGuestPass(
   token: unknown,
   session: SessionUser,
   timeZone: unknown = null,
+  from: AcceptFrom = { source: "page" },
 ): Promise<GuestAcceptResult> {
   const event = await loadEventInvite(lookup);
   if (!event) return { ok: false, status: 404, error: "Event not found" };
   const guest = await findPassGuest(event.id, token);
   if (!guest) return { ok: false, status: 404, error: "Invitation not found" };
   const joinPath = `/e/${encodeURIComponent(event.slug ?? event.code)}/join`;
+  const consentPath: EventConsentPath = from.source === "mail" ? "mail" : "event";
 
   if (guest.registrationId) {
-    const again = await reenter(guest, session, joinPath);
+    const again = await reenter(guest, session, joinPath, event, from);
     if (again) return again;
   }
   if (eventListStatus(event.date, Date.now(), event.endsAt) === "past") {
@@ -453,8 +519,9 @@ export async function acceptGuestPass(
   }
 
   if (await isPermanentAccount(session)) {
-    await joinWithOwnCard(session!.id, event, lookup, guest.token);
-    return { ok: true, kind: "go", next: joinPath };
+    const joined = await joinWithOwnCard(session!.id, event, lookup, guest.token, null, consentPath);
+    if (!joined.ok) return joined;
+    return { ok: true, kind: "go", next: joined.registrationId ? goingPath(event.name) : joinPath };
   }
 
   const emailOwner = guest.email ? await userIdForEmail(guest.email) : null;
@@ -467,7 +534,7 @@ export async function acceptGuestPass(
   else if (session) userId = session.id;
   else return { ok: false, status: 401, error: "Open the link again." };
 
-  const issued = await issuePass(userId, guest, event, lookup, guest, validTimeZone(timeZone));
+  const issued = await issuePass(userId, guest, event, lookup, guest, validTimeZone(timeZone), consentPath);
   if (!issued.ok) return issued;
   if (guest.email) return enterAsPass(userId, session, issued.cardId, issued.pay);
   return { ok: true, kind: "here", cardId: issued.cardId, pay: issued.pay };

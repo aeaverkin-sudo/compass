@@ -61,11 +61,16 @@ export function personalLink(origin: string, event: MailEvent, token: string): s
   return `${origin}/e/${event.key}?g=${encodeURIComponent(token)}`;
 }
 
+/** I'm going in the mail goes straight in, without the poster again. */
+export function goLink(origin: string, event: MailEvent, token: string): string {
+  return `${origin}/e/${event.key}/go?g=${encodeURIComponent(token)}`;
+}
+
 export function unsubscribePage(origin: string, event: MailEvent, token: string): string {
   return `${origin}/e/${event.key}/unsubscribe?g=${encodeURIComponent(token)}`;
 }
 
-/** The snapshot of the live poster; until there is one, the OG image. The tap opens the same link as the button. */
+/** The snapshot of the live poster; until there is one, the OG image. The tap opens the poster page. */
 function poster(origin: string, event: MailEvent, href: string) {
   return { src: event.posterSrc ?? `${origin}/e/${event.key}/opengraph-image`, alt: event.name, href };
 }
@@ -98,7 +103,7 @@ export function inviteMail(
   return renderEventMail({
     poster: poster(origin, event, link),
     zones: zones.filter((zone): zone is MailZone => zone !== null),
-    button: { label: "I'M GOING", href: link },
+    button: { label: "I'M GOING", href: goLink(origin, event, guest.token) },
     footnote: INVITE_NOTE,
     footer: { logoSrc: adedLogo(origin), unsubscribeHref: unsubscribePage(origin, event, guest.token) },
   }, frame);
