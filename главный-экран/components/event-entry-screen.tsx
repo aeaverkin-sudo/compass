@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { DeclinedRow, InvitedBlock, type InboxDeclined, type InboxInvite } from "./invited-block";
+import { DeclinedRow, InviteRow, type InboxDeclined, type InboxInvite } from "./invited-block";
 import { Zone } from "@/shared/components/zone";
 import { EventForm } from "@/shared/event/event-form";
 import { appendEventFields, type EventFormValues } from "@/shared/event/event-form-fields";
@@ -25,6 +25,7 @@ type ListedEvent = {
   when: string | null;
   role: "owner" | "manager" | "guest";
   status?: "draft" | "live" | "past";
+  startsAt: string | null;
   place?: string | null;
   pass?: { cardName: string; photoUrl: string | null } | null;
 };
@@ -182,20 +183,30 @@ function GoingRow({ event }: { event: ListedEvent }) {
   );
 }
 
-function EventGroup({
-  label,
-  events,
-  muted = false,
-  onOpen,
-  after = null,
-}: {
-  label: string;
-  events: ListedEvent[];
-  muted?: boolean;
-  onOpen: (event: ListedEvent) => void;
-  /** More rows at the end of the list. */
-  after?: ReactNode;
-}) {
+function EventRow({ event, muted = false, onOpen }: { event: ListedEvent; muted?: boolean; onOpen: (event: ListedEvent) => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onOpen(event)}
+        className="press block w-full py-[14px] text-left [-webkit-tap-highlight-color:transparent]"
+      >
+        {!muted && event.role === "guest" ? (
+          <GoingRow event={event} />
+        ) : (
+          <>
+            <span className={muted ? "block t-body text-[var(--grey)]" : "block t-body text-[var(--ink)]"}>
+              {eventTitleLine(event.name)}
+            </span>
+            <span className="mt-1 block t-meta text-[var(--grey)]">{roleLine(event)}</span>
+          </>
+        )}
+      </button>
+    </li>
+  );
+}
+
+function EventGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section>
       <div
@@ -203,32 +214,16 @@ function EventGroup({
         style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
       >
         <span className="t-label pt-[14px]">{label}</span>
-        <ul>
-          {events.map((event) => (
-            <li key={event.publicToken}>
-              <button
-                type="button"
-                onClick={() => onOpen(event)}
-                className="press block w-full py-[14px] text-left [-webkit-tap-highlight-color:transparent]"
-              >
-                {!muted && event.role === "guest" ? (
-                  <GoingRow event={event} />
-                ) : (
-                  <>
-                    <span className={muted ? "block t-body text-[var(--grey)]" : "block t-body text-[var(--ink)]"}>
-                      {eventTitleLine(event.name)}
-                    </span>
-                    <span className="mt-1 block t-meta text-[var(--grey)]">{roleLine(event)}</span>
-                  </>
-                )}
-              </button>
-            </li>
-          ))}
-          {after}
-        </ul>
+        <ul>{children}</ul>
       </div>
     </section>
   );
+}
+
+/** Soonest first; no date at the end. */
+function byStart(left: { startsAt: string | null }, right: { startsAt: string | null }): number {
+  const at = (value: string | null) => (value ? new Date(value).getTime() : Number.MAX_SAFE_INTEGER);
+  return at(left.startsAt) - at(right.startsAt);
 }
 
 function ActionLink({ children, onClick }: { children: string; onClick: () => void }) {
@@ -336,20 +331,17 @@ export function EventEntryScreen() {
     setReload((value) => value + 1);
   };
 
-  const wentNotGoing = (invite: InboxInvite) => {
-    setInviteError(null);
-    setInvited((current) => current.filter((entry) => entry.token !== invite.token));
-    setReload((value) => value + 1);
-  };
-
   const leave = () => {
     setCreateError(null);
     setStep("entry");
   };
 
   const pastEvents = events.filter((event) => event.status === "past");
-  const upcomingEvents = events.filter((event) => event.status !== "past" && event.role === "guest");
-  const mineEvents = events.filter((event) => event.status !== "past" && event.role !== "guest");
+  const upcoming = [
+    ...events.filter((event) => event.status !== "past").map((event) => ({ kind: "event" as const, startsAt: event.startsAt, event })),
+    ...invited.map((invite) => ({ kind: "invite" as const, startsAt: invite.startsAt, invite })),
+    ...declined.map((entry) => ({ kind: "declined" as const, startsAt: entry.startsAt, entry })),
+  ].sort(byStart);
 
   const openEvent = (event: ListedEvent) => {
     const token = encodeURIComponent(event.publicToken);
@@ -402,12 +394,6 @@ export function EventEntryScreen() {
 
           {step === "entry" ? (
             <>
-              {invited.length > 0 ? (
-                <>
-                  <InvitedBlock invites={invited} onGoing={wentGoing} onDeclined={wentNotGoing} onError={setInviteError} />
-                  <Rule />
-                </>
-              ) : null}
               {inviteError ? (
                 <p className="my-[14px] t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>
                   {inviteError}
@@ -417,32 +403,33 @@ export function EventEntryScreen() {
                 <ActionLink onClick={openCreate}>Create an event</ActionLink>
                 <p className="mt-1 t-meta text-[var(--grey)]">For organisers: invite, check-in, stats.</p>
               </Zone>
-              {events.length === 0 && declined.length === 0 ? (
+              {upcoming.length === 0 && pastEvents.length === 0 ? (
                 <p className="py-[18px] t-body text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
                   No events yet.
                 </p>
               ) : (
                 <>
-                  {upcomingEvents.length + declined.length > 0 ? (
-                    <EventGroup
-                      label="Upcoming"
-                      events={upcomingEvents}
-                      onOpen={openEvent}
-                      after={declined.map((entry) => (
-                        <DeclinedRow key={entry.token} entry={entry} onGoing={wentGoing} onError={setInviteError} />
-                      ))}
-                    />
-                  ) : null}
-                  {mineEvents.length > 0 ? (
-                    <>
-                      {upcomingEvents.length + declined.length > 0 ? <Rule /> : null}
-                      <EventGroup label="Mine" events={mineEvents} onOpen={openEvent} />
-                    </>
+                  {upcoming.length > 0 ? (
+                    <EventGroup label="Upcoming">
+                      {upcoming.map((row) =>
+                        row.kind === "event" ? (
+                          <EventRow key={row.event.publicToken} event={row.event} onOpen={openEvent} />
+                        ) : row.kind === "invite" ? (
+                          <InviteRow key={`i:${row.invite.token}`} invite={row.invite} />
+                        ) : (
+                          <DeclinedRow key={`d:${row.entry.token}`} entry={row.entry} onGoing={wentGoing} onError={setInviteError} />
+                        ),
+                      )}
+                    </EventGroup>
                   ) : null}
                   {pastEvents.length > 0 ? (
                     <>
-                      {upcomingEvents.length + declined.length + mineEvents.length > 0 ? <Rule /> : null}
-                      <EventGroup label="Past" events={pastEvents} muted onOpen={openEvent} />
+                      {upcoming.length > 0 ? <Rule /> : null}
+                      <EventGroup label="Past">
+                        {pastEvents.map((event) => (
+                          <EventRow key={event.publicToken} event={event} muted onOpen={openEvent} />
+                        ))}
+                      </EventGroup>
                     </>
                   ) : null}
                 </>

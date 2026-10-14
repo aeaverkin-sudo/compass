@@ -56,6 +56,8 @@ export type ListedEvent = {
   when: string | null;
   role: "owner" | "manager" | "guest";
   status: EventListStatus;
+  /** The start, for one list in time order with the invitations. */
+  startsAt: string | null;
   /** A guest row: where it is and the card worn as the pass. */
   place?: string | null;
   pass?: { cardName: string; photoUrl: string | null } | null;
@@ -222,6 +224,7 @@ function toListed(row: MineRow, now: number): ListedEvent {
     when: formatEventRange(row.dateIso, row.endsIso, row.timeZone),
     role: row.role,
     status: eventListStatus(row.dateIso, now, row.endsIso),
+    startsAt: row.dateIso,
     ...(row.role === "guest" ? { place: row.place ?? null, pass: row.pass ?? null } : {}),
   };
 }

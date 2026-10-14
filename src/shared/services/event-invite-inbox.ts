@@ -17,10 +17,11 @@ export type InboxInvite = {
   place: string | null;
   organiser: string | null;
   posterSrc: string;
+  startsAt: string | null;
 };
 
 /** Not going, until the event ends. Change goes back to going. */
-export type InboxDeclined = { token: string; key: string; name: string; day: string | null };
+export type InboxDeclined = { token: string; key: string; name: string; day: string | null; startsAt: string | null };
 
 /** Before phaseN-event-invite-inbox.sql the columns are not there: no inbox, nothing breaks. */
 export function inboxMissing(message: string): boolean {
@@ -164,6 +165,7 @@ export async function loadInbox(userId: string, origin: string, now = Date.now()
         key,
         name: eventTitleLine(event.name),
         day: eventDayLong(event.date, zones.get(event.id)),
+        startsAt: event.date,
       });
       continue;
     }
@@ -175,6 +177,7 @@ export async function loadInbox(userId: string, origin: string, now = Date.now()
       place: event.place_secret ? null : event.place?.trim() || null,
       organiser: organisers.get(event.owner_id) ?? null,
       posterSrc: posterUrl(event.poster_path, event.poster_updated_at) ?? `${origin}/e/${key}/opengraph-image`,
+      startsAt: event.date,
     });
   }
   return out;

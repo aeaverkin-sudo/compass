@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useBusyAction } from "@/shared/hooks/use-busy-action";
-import { COLUMN_GAP_PX, LABEL_COLUMN_PX } from "@/shared/layout/axes";
 
 export type InboxInvite = {
   token: string;
@@ -12,9 +11,31 @@ export type InboxInvite = {
   place: string | null;
   organiser: string | null;
   posterSrc: string;
+  startsAt: string | null;
 };
 
-export type InboxDeclined = { token: string; key: string; name: string; day: string | null };
+export type InboxDeclined = { token: string; key: string; name: string; day: string | null; startsAt: string | null };
+
+/** An invitation with no answer: a row of Upcoming with the sky New plaque. The tap opens the poster with I'm going. */
+export function InviteRow({ invite }: { invite: InboxInvite }) {
+  return (
+    <li>
+      <Link
+        href={`/e/${invite.key}?g=${encodeURIComponent(invite.token)}`}
+        className="press block w-full py-[14px] text-left no-underline [-webkit-tap-highlight-color:transparent]"
+      >
+        <span className="flex items-center gap-2 t-body text-[var(--ink)]">
+          <span className="min-w-0 truncate">{invite.name}</span>
+          <span className="shrink-0 bg-sky px-1.5 py-0.5 t-caps text-[var(--ink)]">New</span>
+        </span>
+        {invite.when || invite.place ? (
+          <span className="mt-1 block t-meta text-[var(--grey)]">{[invite.when, invite.place].filter(Boolean).join(" · ")}</span>
+        ) : null}
+        {invite.organiser ? <span className="mt-1 block t-meta text-[var(--grey)]">{`Invited by ${invite.organiser}`}</span> : null}
+      </Link>
+    </li>
+  );
+}
 
 /** `{Event} · Not going · {date} · Change`, grey, until the event ends. Change goes back to going. */
 export function DeclinedRow({
@@ -49,32 +70,11 @@ export function DeclinedRow({
   );
 }
 
-const SKY =
-  "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
-
 function deviceTimeZone(): string | null {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
   } catch {
     return null;
-  }
-}
-
-/**
- * Invitations to this account with no answer. I'm going joins with the primary card.
- * The reply's next stop is Events itself: the list reloads and the toast says so.
- */
-/** Not going, by the personal token or, without one, the member's own registration. */
-export async function declineInvite(key: string, token: string | null): Promise<boolean> {
-  try {
-    const response = await fetch(`/api/events/${key}/decline`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    return response.ok;
-  } catch {
-    return false;
   }
 }
 
@@ -92,78 +92,4 @@ export async function acceptInvite(key: string, token: string): Promise<{ ok: tr
   } catch {
     return { ok: false, error: "Could not save that." };
   }
-}
-
-export function InvitedBlock({
-  invites,
-  onGoing,
-  onDeclined,
-  onError,
-}: {
-  invites: InboxInvite[];
-  onGoing: (invite: InboxInvite, next: string | null) => void;
-  onDeclined: (invite: InboxInvite) => void;
-  onError: (text: string) => void;
-}) {
-  const { busy, run } = useBusyAction<string>();
-
-  const going = (invite: InboxInvite) =>
-    run(`go:${invite.token}`, async () => {
-      const reply = await acceptInvite(invite.key, invite.token);
-      if (!reply.ok) return onError(reply.error);
-      onGoing(invite, reply.next);
-    });
-
-  const notGoing = (invite: InboxInvite) =>
-    run(`no:${invite.token}`, async () => {
-      if (!(await declineInvite(invite.key, invite.token))) return onError("Could not save that.");
-      onDeclined(invite);
-    });
-
-  return (
-    <section>
-      <div
-        className="grid items-start"
-        style={{ gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`, columnGap: COLUMN_GAP_PX }}
-      >
-        <span className="t-label pt-[14px]">Invited</span>
-        <ul>
-          {invites.map((invite) => {
-            const poster = `/e/${invite.key}?g=${encodeURIComponent(invite.token)}`;
-            return (
-              <li key={invite.token} className="py-[14px]">
-                <Link href={poster} className="press block no-underline [-webkit-tap-highlight-color:transparent]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={invite.posterSrc} alt="" className="block h-auto w-[96px]" />
-                  <span className="mt-3 block t-body text-[var(--ink)]">{invite.name}</span>
-                </Link>
-                {invite.when || invite.place ? (
-                  <span className="mt-1 block t-meta text-[var(--grey)]">
-                    {[invite.when, invite.place].filter(Boolean).join(" · ")}
-                  </span>
-                ) : null}
-                {invite.organiser ? (
-                  <span className="mt-1 block t-meta text-[var(--grey)]">{`Invited by ${invite.organiser}`}</span>
-                ) : null}
-                <div className="mt-3 flex items-center gap-5">
-                  <button type="button" disabled={busy !== null} onClick={() => void going(invite)} className={SKY}>
-                    I&apos;m going *
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy !== null}
-                    onClick={() => void notGoing(invite)}
-                    className="press border-0 bg-transparent p-0 t-caps text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
-                  >
-                    Not going
-                  </button>
-                </div>
-                <p className="mt-3 mb-0 t-meta text-[var(--grey)]">* I agree to the event rules, Terms and Privacy.</p>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </section>
-  );
 }
