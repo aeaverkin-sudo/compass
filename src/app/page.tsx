@@ -25,6 +25,10 @@ export default function Home() {
   const cards = useAppStore((state) => state.cards);
 
   useEffect(() => {
+    if (hydrated && onboarded && !needsSignIn) {
+      router.replace("/main");
+      return;
+    }
     if (!hydrated || !sessionReady) return;
     if (needsSignIn) {
       router.replace("/register?signin=1&expired=1");

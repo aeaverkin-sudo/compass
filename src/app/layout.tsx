@@ -3,6 +3,7 @@ import { screenMeasureScript } from "@main/layout";
 import { AppResetGate } from "@/shared/components/app-reset-gate";
 import { MonochromeSync } from "@/shared/components/monochrome-sync";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
+import { ServiceWorker } from "@/shared/components/service-worker";
 import { SupabaseSession } from "@/shared/components/supabase-session";
 import { TabPrefetch } from "@/shared/components/tab-prefetch";
 import { TrialLock } from "@/shared/components/trial-lock";
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <VisualBottom />
         <PdfPreviewHost />
         <TabPrefetch />
+        <ServiceWorker />
         {children}
         <TrialLock />
       </body>

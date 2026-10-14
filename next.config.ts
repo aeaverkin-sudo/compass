@@ -37,8 +37,12 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       {
+        source: "/:dir(fonts|icons|brand)/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000" }],
+      },
+      {
         // Stored files (/f/…) and the event preview image set their own caching.
-        source: "/((?!_next/static|f/|e/.+/opengraph-image$).*)",
+        source: "/((?!_next/static|f/|fonts/|icons/|brand/|e/.+/opengraph-image$).*)",
         headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
       },
     ];

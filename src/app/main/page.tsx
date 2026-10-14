@@ -25,6 +25,9 @@ export default function MainPage() {
   const needsSignIn = useRegistrationRequired();
   const cardsReady = useCardsHydrated();
   const onboarded = useAppStore((state) => state.user.onboarded);
+  const hasCards = useAppStore((state) => state.cards.length > 0);
+  // A returning device draws its stored cards at once; the session check and the server pull catch up behind.
+  const cached = hydrated && onboarded && hasCards && !needsSignIn;
 
   useEffect(() => {
     applyMainChrome();
@@ -40,7 +43,7 @@ export default function MainPage() {
     if (!onboarded) router.replace("/");
   }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, router]);
 
-  if (!hydrated || !sessionReady || needsSignIn || !cardsReady || !onboarded) {
+  if (!cached && (!hydrated || !sessionReady || needsSignIn || !cardsReady || !onboarded)) {
     return <div className="compass-main fixed inset-y-0 bg-background" aria-hidden />;
   }
 
