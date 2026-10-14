@@ -1,6 +1,7 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { downloadAttachmentBytes, loadAttachment } from "@/shared/services/attachment-api";
-import { buildPass, type PassImage } from "@/shared/services/wallet-pass";
+import { buildPass } from "@/shared/services/wallet-pass";
+import { walletStrip } from "@/shared/services/wallet-strip";
 import { walletCardQr, type WalletBackField } from "@/shared/services/wallet-pass-content";
 
 export type BuiltPass = { file: Buffer; name: string };
@@ -44,32 +45,32 @@ async function imageBytes(attachmentId: string | null | undefined): Promise<Uint
   return (await downloadAttachmentBytes(row)) ?? null;
 }
 
-const THUMB_BOX = 90;
-const THUMB_PHOTO = 80;
-
-/**
- * The card photo as an 80-point square inside Apple's 90×90 thumbnail box, with its shadow baked in:
- * Wallet draws none on a generic pass. No photo, no thumbnail.
- */
-async function cardThumbnail(card: CardRow): Promise<PassImage | null> {
+/** The card photo as a square PNG for the strip, 72 points at 3×. No photo, null. */
+async function cardPhoto(card: CardRow): Promise<Buffer | null> {
   const bytes = await imageBytes(card.photo_attachment_id);
   if (!bytes) return null;
   try {
     const { default: sharp } = await import("sharp");
-    const fill = async (scale: number) => {
-      const box = THUMB_BOX * scale;
-      const side = THUMB_PHOTO * scale;
-      const left = Math.round((box - side) / 2);
-      const top = 2 * scale;
-      const shadow = `<svg xmlns="http://www.w3.org/2000/svg" width="${box}" height="${box}"><defs><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${2.5 * scale}"/></filter></defs><rect x="${left}" y="${top + 2 * scale}" width="${side}" height="${side}" fill="#000" fill-opacity="0.3" filter="url(#s)"/></svg>`;
-      const photo = await sharp(Buffer.from(bytes), { failOn: "none" }).rotate().resize(side, side, { fit: "cover" }).png().toBuffer();
-      return sharp(Buffer.from(shadow)).composite([{ input: photo, left, top }]).png().toBuffer();
-    };
-    const [x1, x2, x3] = await Promise.all([fill(1), fill(2), fill(3)]);
-    return { x1, x2, x3 };
+    return await sharp(Buffer.from(bytes), { failOn: "none" }).rotate().resize(216, 216, { fit: "cover" }).png().toBuffer();
   } catch {
     return null;
   }
+}
+
+/** The first visible Position on the card. */
+async function cardPosition(cardId: string): Promise<string | null> {
+  const admin = createAdminSupabaseClient();
+  const links = await admin.from("card_items").select("item_id, sort_order").eq("card_id", cardId).eq("visible", true).order("sort_order");
+  if (links.error || !links.data?.length) return null;
+  const ids = (links.data as { item_id: string }[]).map((link) => link.item_id);
+  const items = await admin.from("items").select("id, type, value").in("id", ids).eq("type", "position");
+  if (items.error) return null;
+  const byId = new Map((items.data as { id: string; value: string | null }[]).map((item) => [item.id, item.value?.trim() ?? ""]));
+  for (const id of ids) {
+    const value = byId.get(id);
+    if (value) return value.replace(/\s+/g, " ");
+  }
+  return null;
 }
 
 /** A back-of-pass line: a tappable phrase, no address on show. */
@@ -78,7 +79,7 @@ function backLink(key: string, text: string, url: string): WalletBackField {
   return { key, value: url, attributedValue: `<a href="${href}">${text}</a>` };
 }
 
-const UNDER_QR = "Open my portfolio · Scan a card — tap ··· above";
+const UNDER_QR = "Open my portfolio · Scan a card — tap ···";
 
 const WALLET_SLOTS = 2;
 
@@ -118,12 +119,13 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
   const [card] = await readCards(ownerId, [cardId]);
   if (!card) return null;
   const name = cardName(card);
+  const [photoPng, position, serialNumber] = await Promise.all([cardPhoto(card), cardPosition(card.id), walletSerial(ownerId, card.id)]);
+  const strip = await walletStrip({ name: card.display_name?.trim() || "Guest", position, photoPng });
   const file = await buildPass({
-    serialNumber: await walletSerial(ownerId, card.id),
+    serialNumber,
     organizationName: "ADED",
     description: name,
-    thumbnail: await cardThumbnail(card),
-    primary: { key: "name", label: "NAME", value: name },
+    strip,
     backFields: [
       backLink("portfolio", "Open my portfolio", cardQr(origin, card)),
       backLink("scan", "Scan a card", `${origin}/scan`),

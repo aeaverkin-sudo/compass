@@ -20,15 +20,14 @@ export type PassField = { key: string; label: string; value: string };
 /** One Wallet image at 1×, 2× and 3×. */
 export type PassImage = { x1: Buffer; x2: Buffer; x3: Buffer };
 
-/** One pass per person, `generic`: the card, its photo and its QR. Entry to an event goes by the card's owner. */
+/** One pass per person, a store card: our strip with the card on it, then Wallet's QR. Entry to an event goes by the card's owner. */
 export type PassInput = {
   /** One pass per serial: the same serial replaces the pass already in Wallet. */
   serialNumber: string;
   organizationName: string;
   description: string;
-  /** The card photo, right of the name. */
-  thumbnail?: PassImage | null;
-  primary: PassField;
+  /** The aded mark, the photo, the name and the Position, drawn by us. */
+  strip: PassImage;
   backFields?: WalletBackField[];
   /** The QR. */
   barcodeMessage: string;
@@ -68,9 +67,9 @@ function loadSigner(): Signer {
   return signer;
 }
 
-let brand: Promise<{ icon: PassImage; logo: PassImage }> | null = null;
+let brand: Promise<{ icon: PassImage }> | null = null;
 
-/** The grid ADED mark: `logo` in Apple's 160×50 box, `icon` on a white square for notifications. */
+/** The grid ADED mark on a white square, for notifications. The mark on the pass is in the strip. */
 function adedBrand() {
   brand ??= (async () => {
     const dir = path.join(process.cwd(), "public", "brand", "wallet");
@@ -78,8 +77,7 @@ function adedBrand() {
       const [x1, x2, x3] = await Promise.all([1, 2, 3].map((scale) => readFile(path.join(dir, `${name}@${scale}x.png`))));
       return { x1: x1!, x2: x2!, x3: x3! };
     };
-    const [icon, logo] = await Promise.all([read("aded-grid-icon"), read("aded-grid-orange")]);
-    return { icon, logo };
+    return { icon: await read("aded-grid-icon") };
   })().catch((error: unknown) => {
     brand = null;
     throw error;
@@ -103,16 +101,14 @@ export async function buildPass(input: PassInput): Promise<Buffer> {
     serialNumber: input.serialNumber,
     organizationName: input.organizationName,
     description: input.description,
-    backgroundColor: "rgb(197, 232, 247)",
+    backgroundColor: "rgb(255, 255, 255)",
     foregroundColor: "rgb(17, 17, 17)",
-    labelColor: "rgb(90, 111, 120)",
+    labelColor: "rgb(153, 153, 153)",
   });
-  pass.type = "generic";
-  const { icon, logo } = await adedBrand();
+  pass.type = "storeCard";
+  const { icon } = await adedBrand();
   addImage(pass, "icon", icon);
-  addImage(pass, "logo", logo);
-  if (input.thumbnail) addImage(pass, "thumbnail", input.thumbnail);
-  pass.primaryFields.push(input.primary);
+  addImage(pass, "strip", input.strip);
   for (const field of input.backFields ?? []) pass.backFields.push(field);
   pass.setBarcodes({
     message: input.barcodeMessage,
