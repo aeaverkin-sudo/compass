@@ -222,6 +222,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
               soldOut={soldOut}
               closed={closed}
               placesLeft={seats.capacity != null && !soldOut ? seats.left : null}
+              canDecline={Boolean(guest && !guest.registrationId && !ended)}
             />
           ) : (
             poster

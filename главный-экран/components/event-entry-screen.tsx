@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { InvitedBlock, type InboxInvite } from "./invited-block";
+import { DeclinedRow, InvitedBlock, type InboxDeclined, type InboxInvite } from "./invited-block";
 import { Zone } from "@/shared/components/zone";
 import { EventForm } from "@/shared/event/event-form";
 import { appendEventFields, type EventFormValues } from "@/shared/event/event-form-fields";
@@ -187,11 +187,14 @@ function EventGroup({
   events,
   muted = false,
   onOpen,
+  after = null,
 }: {
   label: string;
   events: ListedEvent[];
   muted?: boolean;
   onOpen: (event: ListedEvent) => void;
+  /** More rows at the end of the list. */
+  after?: ReactNode;
 }) {
   return (
     <section>
@@ -221,6 +224,7 @@ function EventGroup({
               </button>
             </li>
           ))}
+          {after}
         </ul>
       </div>
     </section>
@@ -246,6 +250,7 @@ export function EventEntryScreen() {
   const [events, setEvents] = useState<ListedEvent[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [invited, setInvited] = useState<InboxInvite[]>([]);
+  const [declined, setDeclined] = useState<InboxDeclined[]>([]);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const logoFile = useRef<File | null>(null);
@@ -306,8 +311,10 @@ export function EventEntryScreen() {
       try {
         const response = await fetch("/api/events/invited", { cache: "no-store" });
         if (!response.ok) return;
-        const payload = (await response.json()) as { invited?: InboxInvite[] };
-        if (!cancelled) setInvited(payload.invited ?? []);
+        const payload = (await response.json()) as { invited?: InboxInvite[]; declined?: InboxDeclined[] };
+        if (cancelled) return;
+        setInvited(payload.invited ?? []);
+        setDeclined(payload.declined ?? []);
       } catch {
         /* keep the invitations already shown */
       }
@@ -317,13 +324,21 @@ export function EventEntryScreen() {
     };
   }, [step, reload]);
 
-  const wentGoing = (invite: InboxInvite, next: string | null) => {
+  const wentGoing = (invite: { token: string; name: string }, next: string | null) => {
+    setInviteError(null);
     if (next && !next.startsWith("/network/event")) {
       router.push(next);
       return;
     }
     setInvited((current) => current.filter((entry) => entry.token !== invite.token));
+    setDeclined((current) => current.filter((entry) => entry.token !== invite.token));
     setToast(goingToast(invite.name));
+    setReload((value) => value + 1);
+  };
+
+  const wentNotGoing = (invite: InboxInvite) => {
+    setInviteError(null);
+    setInvited((current) => current.filter((entry) => entry.token !== invite.token));
     setReload((value) => value + 1);
   };
 
@@ -389,44 +404,44 @@ export function EventEntryScreen() {
             <>
               {invited.length > 0 ? (
                 <>
-                  <InvitedBlock
-                    invites={invited}
-                    onGoing={(invite, next) => {
-                      setInviteError(null);
-                      wentGoing(invite, next);
-                    }}
-                    onError={setInviteError}
-                  />
-                  {inviteError ? (
-                    <p className="mb-[14px] t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>
-                      {inviteError}
-                    </p>
-                  ) : null}
+                  <InvitedBlock invites={invited} onGoing={wentGoing} onDeclined={wentNotGoing} onError={setInviteError} />
                   <Rule />
                 </>
+              ) : null}
+              {inviteError ? (
+                <p className="my-[14px] t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>
+                  {inviteError}
+                </p>
               ) : null}
               <Zone label="Create" rule>
                 <ActionLink onClick={openCreate}>Create an event</ActionLink>
                 <p className="mt-1 t-meta text-[var(--grey)]">For organisers: invite, check-in, stats.</p>
               </Zone>
-              {events.length === 0 ? (
+              {events.length === 0 && declined.length === 0 ? (
                 <p className="py-[18px] t-body text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
                   No events yet.
                 </p>
               ) : (
                 <>
-                  {upcomingEvents.length > 0 ? (
-                    <EventGroup label="Upcoming" events={upcomingEvents} onOpen={openEvent} />
+                  {upcomingEvents.length + declined.length > 0 ? (
+                    <EventGroup
+                      label="Upcoming"
+                      events={upcomingEvents}
+                      onOpen={openEvent}
+                      after={declined.map((entry) => (
+                        <DeclinedRow key={entry.token} entry={entry} onGoing={wentGoing} onError={setInviteError} />
+                      ))}
+                    />
                   ) : null}
                   {mineEvents.length > 0 ? (
                     <>
-                      {upcomingEvents.length > 0 ? <Rule /> : null}
+                      {upcomingEvents.length + declined.length > 0 ? <Rule /> : null}
                       <EventGroup label="Mine" events={mineEvents} onOpen={openEvent} />
                     </>
                   ) : null}
                   {pastEvents.length > 0 ? (
                     <>
-                      {upcomingEvents.length + mineEvents.length > 0 ? <Rule /> : null}
+                      {upcomingEvents.length + declined.length + mineEvents.length > 0 ? <Rule /> : null}
                       <EventGroup label="Past" events={pastEvents} muted onOpen={openEvent} />
                     </>
                   ) : null}

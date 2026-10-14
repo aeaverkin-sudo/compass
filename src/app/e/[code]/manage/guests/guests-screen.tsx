@@ -25,7 +25,7 @@ import {
 } from "@/shared/event/guest-sources";
 import { ManageFrame } from "../manage-frame";
 
-type StatusFilter = "any" | "not_sent" | "going" | "paid" | "pending" | "in";
+type StatusFilter = "any" | "not_sent" | "going" | "paid" | "pending" | "in" | "declined";
 
 const CHIP = "press border-0 bg-transparent p-0 t-meta [-webkit-tap-highlight-color:transparent]";
 const ACTION = "press border-0 bg-transparent p-0 t-meta text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
@@ -41,6 +41,7 @@ const MATCH: Record<StatusFilter, (guest: BookGuest) => boolean> = {
   paid: isPaidGuest,
   pending: isPendingGuest,
   in: (guest) => guest.status === "in",
+  declined: (guest) => guest.status === "declined",
 };
 
 export function GuestsScreen({
@@ -101,6 +102,7 @@ export function GuestsScreen({
         ] as const)
       : []),
     { id: "in", label: "In" },
+    { id: "declined", label: "Not going" },
   ];
 
   const mark = async (guest: BookGuest) => {

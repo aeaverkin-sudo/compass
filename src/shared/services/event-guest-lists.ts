@@ -40,6 +40,7 @@ type GuestRow = {
   paid_source?: string | null;
   bounced_at?: string | null;
   unsubscribed_at?: string | null;
+  declined_at?: string | null;
 };
 type ListRow = { id: string; name: string; is_paid: boolean; created_at: string | null; kind?: string | null };
 type MemberRow = { guest_id: string; list_id: string };
@@ -95,6 +96,7 @@ async function guarded<T extends object>(run: () => Promise<Call<T>>): Promise<C
 const GUEST_BASE = "id, name, email, phone, token, sent_at, opened_at, registration_id, created_at";
 const GUEST_KEPT = "checked_in_at, paid_status, paid_source";
 const GUEST_MAIL = "bounced_at, unsubscribed_at";
+const GUEST_DECLINED = "declined_at";
 
 async function readGuests(eventId: string): Promise<GuestRow[]> {
   const admin = createAdminSupabaseClient();
@@ -106,7 +108,7 @@ async function readGuests(eventId: string): Promise<GuestRow[]> {
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
       .range(from, to);
-  const groups = [GUEST_KEPT, GUEST_MAIL];
+  const groups = [GUEST_KEPT, GUEST_MAIL, GUEST_DECLINED];
   for (;;) {
     try {
       return await allRows<GuestRow>(page([GUEST_BASE, ...groups].join(", ")));
@@ -506,6 +508,7 @@ function listStatus(guest: GuestRow, registration: EventGuest | undefined): Gues
   if (registration) return registration.checkedIn ? "in" : "going";
   if (guest.checked_in_at) return "in";
   if (guest.paid_status) return "going";
+  if (guest.declined_at) return "declined";
   if (guest.opened_at) return "opened";
   if (guest.sent_at) return "sent";
   return "not_sent";

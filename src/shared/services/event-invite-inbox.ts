@@ -1,6 +1,6 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { eventTitleLine } from "@/shared/event/event-title";
-import { formatEventRange } from "@/shared/event/when";
+import { eventDayLong, formatEventRange } from "@/shared/event/when";
 import { userIdForEmail } from "@/shared/services/email-signup";
 import { loadEventTimeZones } from "@/shared/services/event-time-zone";
 import { eventListStatus } from "@/shared/services/events";
@@ -18,6 +18,9 @@ export type InboxInvite = {
   organiser: string | null;
   posterSrc: string;
 };
+
+/** Not going, until the event ends. Change goes back to going. */
+export type InboxDeclined = { token: string; key: string; name: string; day: string | null };
 
 /** Before phaseN-event-invite-inbox.sql the columns are not there: no inbox, nothing breaks. */
 export function inboxMissing(message: string): boolean {
@@ -126,15 +129,17 @@ async function joinedEventIds(userId: string): Promise<Set<string>> {
   return new Set(((data ?? []) as { event_id: string }[]).map((row) => row.event_id));
 }
 
+export type Inbox = { invited: InboxInvite[]; declined: InboxDeclined[] };
+
 /**
  * Invitations sent to this account with no answer yet: not going, not declined, the event still ahead.
- * Waiting invitations for its address are picked up first.
+ * Declined ones stay as a grey row until the event ends. Waiting invitations for its address are picked up first.
  */
-export async function loadInvitations(userId: string, origin: string, now = Date.now()): Promise<InboxInvite[]> {
-  if (!(await isPermanentAccount({ id: userId, anonymous: false }))) return [];
+export async function loadInbox(userId: string, origin: string, now = Date.now()): Promise<Inbox> {
+  if (!(await isPermanentAccount({ id: userId, anonymous: false }))) return { invited: [], declined: [] };
   await claimInvitations(userId);
-  const rows = (await inboxRows(userId)).filter((row) => !row.registration_id && !row.declined_at);
-  if (rows.length === 0) return [];
+  const rows = (await inboxRows(userId)).filter((row) => !row.registration_id);
+  if (rows.length === 0) return { invited: [], declined: [] };
   const joined = await joinedEventIds(userId);
   const open = rows.filter((row) => !joined.has(row.event_id));
   const events = await loadEvents([...new Set(open.map((row) => row.event_id))]);
@@ -148,12 +153,21 @@ export async function loadInvitations(userId: string, origin: string, now = Date
     const date = byId.get(row.event_id)?.date;
     return date ? new Date(date).getTime() : Number.MAX_SAFE_INTEGER;
   };
-  const out: InboxInvite[] = [];
+  const out: Inbox = { invited: [], declined: [] };
   for (const row of [...open].sort((left, right) => start(left) - start(right))) {
     const event = byId.get(row.event_id);
     if (!event) continue;
     const key = encodeURIComponent(event.slug?.trim() || event.code);
-    out.push({
+    if (row.declined_at) {
+      out.declined.push({
+        token: row.token,
+        key,
+        name: eventTitleLine(event.name),
+        day: eventDayLong(event.date, zones.get(event.id)),
+      });
+      continue;
+    }
+    out.invited.push({
       token: row.token,
       key,
       name: eventTitleLine(event.name),
@@ -164,4 +178,57 @@ export async function loadInvitations(userId: string, origin: string, now = Date
     });
   }
   return out;
+}
+
+export type DeclineResult = { ok: true } | { ok: false; status: number; error: string };
+
+const NOT_SAVED = "Could not save that.";
+
+/**
+ * Not going, from Invited, the poster or the member page. A going guest gives the seat back:
+ * the answer is stamped on the guest row first, then the registration goes. A checked-in or a paid
+ * registration stays: there is nothing to give back.
+ */
+export async function declineInvitation(eventId: string, userId: string | null, token: string | null): Promise<DeclineResult> {
+  const admin = createAdminSupabaseClient();
+  type Answered = { id: string; registration_id: string | null };
+  let guest: Answered | null = null;
+  if (token) {
+    const found = await admin.from("event_guests").select("id, registration_id").eq("event_id", eventId).eq("token", token).maybeSingle();
+    if (found.error) throw new Error(found.error.message);
+    guest = found.data as Answered | null;
+    if (!guest) return { ok: false, status: 404, error: "Invitation not found" };
+  }
+  let registrationId = guest?.registration_id ?? null;
+  if (!guest && userId) {
+    const own = await admin.from("event_registrations").select("id").eq("event_id", eventId).eq("user_id", userId).maybeSingle();
+    if (own.error) throw new Error(own.error.message);
+    registrationId = (own.data as { id: string } | null)?.id ?? null;
+    if (registrationId) {
+      const linked = await admin.from("event_guests").select("id, registration_id").eq("registration_id", registrationId).maybeSingle();
+      if (linked.error) throw new Error(linked.error.message);
+      guest = linked.data as Answered | null;
+    }
+  }
+  if (!guest && !registrationId) return { ok: false, status: 404, error: "Invitation not found" };
+
+  if (registrationId) {
+    const reg = await admin.from("event_registrations").select("user_id, checked_in_at, paid_status").eq("id", registrationId).maybeSingle();
+    if (reg.error) throw new Error(reg.error.message);
+    const row = reg.data as { user_id: string; checked_in_at: string | null; paid_status: string | null } | null;
+    if (row && row.user_id !== userId) return { ok: false, status: 403, error: "Not allowed" };
+    if (row && (row.checked_in_at || row.paid_status === "paid")) return { ok: false, status: 409, error: NOT_SAVED };
+  }
+  if (guest) {
+    const stamped = await admin.from("event_guests").update({ declined_at: new Date().toISOString() }).eq("id", guest.id);
+    if (stamped.error) {
+      if (inboxMissing(stamped.error.message)) return { ok: false, status: 409, error: NOT_SAVED };
+      throw new Error(stamped.error.message);
+    }
+  }
+  if (registrationId) {
+    const removed = await admin.from("event_registrations").delete().eq("id", registrationId).eq("user_id", userId ?? "");
+    if (removed.error) throw new Error(removed.error.message);
+  }
+  return { ok: true };
 }

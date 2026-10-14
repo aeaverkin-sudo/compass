@@ -89,6 +89,8 @@ type InviteActionsProps = {
   source?: "page" | "mail";
   /** Shown while the auto tap runs, until a hint replaces it. */
   waitText?: string | null;
+  /** A personal link not answered yet: Not going sits under the button. */
+  canDecline?: boolean;
 };
 
 export function InviteActions({
@@ -106,6 +108,7 @@ export function InviteActions({
   placesLeft = null,
   source = "page",
   waitText = null,
+  canDecline = false,
 }: InviteActionsProps) {
   const router = useRouter();
   const sessionReady = useSessionBootstrap();
@@ -113,6 +116,7 @@ export function InviteActions({
   const [hint, setHint] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; next: string } | null>(null);
   const [form, setForm] = useState(false);
+  const [declined, setDeclined] = useState(false);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [website, setWebsite] = useState("");
@@ -234,6 +238,24 @@ export function InviteActions({
     }
   };
 
+  const decline = async () => {
+    if (busy || !token) return;
+    setBusy(true);
+    setHint(null);
+    try {
+      const response = await fetch(`${base}/decline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (!response.ok) return fail("Could not save that.");
+      setDeclined(true);
+      setBusy(false);
+    } catch {
+      fail("Could not save that.");
+    }
+  };
+
   const createPass = () => {
     if (token) return void acceptToken();
     if (holdsPass) return void enterPass(null);
@@ -342,6 +364,27 @@ export function InviteActions({
     );
   }
 
+  if (declined) {
+    return (
+      <>
+        {poster}
+        <p className="mt-8 mb-0 t-caps text-[var(--grey)]">Not going</p>
+      </>
+    );
+  }
+
+  const notGoing =
+    canDecline && token ? (
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void decline()}
+        className="press mt-4 border-0 bg-transparent p-0 t-caps text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
+      >
+        Not going
+      </button>
+    ) : null;
+
   return (
     <>
       {poster}
@@ -371,9 +414,12 @@ export function InviteActions({
             )}
           </>
         ) : permanent ? (
-          <button type="button" disabled={busy || !sessionReady} onClick={() => void primary()} className={SKY}>
-            I&apos;m going *
-          </button>
+          <>
+            <button type="button" disabled={busy || !sessionReady} onClick={() => void primary()} className={SKY}>
+              I&apos;m going *
+            </button>
+            {notGoing}
+          </>
         ) : (
           <>
             <button type="button" disabled={busy || !sessionReady} onClick={createPass} className={SKY}>
@@ -386,6 +432,7 @@ export function InviteActions({
                 This link is your pass — don&apos;t forward it.
               </p>
             ) : null}
+            {notGoing}
             <Link
               href={signInHref}
               className="press mt-4 inline-block t-caps text-[var(--grey)] no-underline [-webkit-tap-highlight-color:transparent]"

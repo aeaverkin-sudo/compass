@@ -327,6 +327,13 @@ export async function recordEventConsent(userId: string, guestId: string | null,
   if (kept.error) throw new Error(kept.error.message);
 }
 
+/** Going after all: the Not going answer is cleared once the registration is in. */
+async function clearDecline(guestId: string): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const { error } = await admin.from("event_guests").update({ declined_at: null }).eq("id", guestId).not("declined_at", "is", null);
+  if (error && !/declined_at/i.test(error.message)) console.error("[events] clear decline", error.message);
+}
+
 /** The list guest now linked to this registration, by token or by contact. */
 async function linkedGuestId(registrationId: string): Promise<string | null> {
   const admin = createAdminSupabaseClient();
@@ -521,6 +528,7 @@ export async function acceptGuestPass(
   if (await isPermanentAccount(session)) {
     const joined = await joinWithOwnCard(session!.id, event, lookup, guest.token, null, consentPath);
     if (!joined.ok) return joined;
+    if (joined.registrationId) await clearDecline(guest.id);
     return { ok: true, kind: "go", next: joined.registrationId ? goingPath(event.name) : joinPath };
   }
 
@@ -536,6 +544,7 @@ export async function acceptGuestPass(
 
   const issued = await issuePass(userId, guest, event, lookup, guest, validTimeZone(timeZone), consentPath);
   if (!issued.ok) return issued;
+  await clearDecline(guest.id);
   if (guest.email) return enterAsPass(userId, session, issued.cardId, issued.pay);
   return { ok: true, kind: "here", cardId: issued.cardId, pay: issued.pay };
 }

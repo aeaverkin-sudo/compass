@@ -199,6 +199,29 @@ export function EventJoin({ lookup, event, portfolios, registration, pay, going 
   const when = eventDayLong(event.date, event.timeZone);
   const goingText = ["You're going", when, event.placeSecret ? null : event.place].filter(Boolean).join(" · ");
 
+  const notGoing = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/events/${encodeURIComponent(lookup)}/decline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? "Could not save that.");
+        setBusy(false);
+        return;
+      }
+      router.replace("/network/event");
+    } catch {
+      setError("Could not save that.");
+      setBusy(false);
+    }
+  };
+
   const choose = async (cardId: string) => {
     if (busy) return;
     setOpen(false);
@@ -249,6 +272,16 @@ export function EventJoin({ lookup, event, portfolios, registration, pay, going 
           <Zone label="Going" align="start" rule>
             <p className="m-0 t-body text-[var(--ink)]">{goingText}</p>
             <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Show your card at the door — the QR on Home.</p>
+            {registration.paidStatus === "paid" ? null : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void notGoing()}
+                className="press mt-3 border-0 bg-transparent p-0 text-left t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
+              >
+                Not going after all
+              </button>
+            )}
           </Zone>
         ) : null}
         {pay.isPaid ? (

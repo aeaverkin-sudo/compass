@@ -1,4 +1,4 @@
-export type GuestStatus = "not_sent" | "sent" | "opened" | "going" | "in";
+export type GuestStatus = "not_sent" | "sent" | "opened" | "going" | "in" | "declined";
 
 /** One person on the guests screen: a list guest, a shared-link registration, or both. */
 export type BookGuest = {
@@ -73,6 +73,7 @@ const STATUS: Record<GuestStatus, { label: string; dot: string | null }> = {
   opened: { label: "Opened", dot: "var(--pay-pending)" },
   going: { label: "Going", dot: "var(--pay-confirmed)" },
   in: { label: "In", dot: "var(--pay-confirmed)" },
+  declined: { label: "Not going", dot: null },
 };
 
 export function guestStatusView(status: GuestStatus): { label: string; dot: string | null } {
