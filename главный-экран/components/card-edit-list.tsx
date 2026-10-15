@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { DELETE_HOLD_MS, ROW_TOGGLE_MS } from "@/shared/lib/reorder-hold";
+import { DELETE_HOLD_MS, ROW_TOGGLE_HOLD_MS, ROW_TOGGLE_MS } from "@/shared/lib/reorder-hold";
 import { tick } from "@/shared/lib/haptic";
 import { flashRow } from "@/shared/lib/row-flash";
 import {
@@ -102,13 +102,19 @@ function buildSections(card: Card, items: ContactItem[]): EditSection[] {
 }
 
 function RowMark({ onCard, active, onToggle }: { onCard: boolean; active: boolean; onToggle: () => void }) {
+  const hold = useLongPress(onToggle, ROW_TOGGLE_HOLD_MS);
   return (
     <button
       type="button"
       data-no-swipe
       aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
-      onClick={onToggle}
-      className="flex size-5 shrink-0 items-center justify-center bg-transparent"
+      {...hold}
+      onClick={(event) => {
+        // Enter or Space has no hold; the keyboard still toggles.
+        if (event.detail === 0) onToggle();
+        else hold.onClick(event);
+      }}
+      className="flex size-5 shrink-0 touch-manipulation select-none items-center justify-center bg-transparent [-webkit-touch-callout:none]"
       style={{ color: active ? "var(--ink)" : OFF_CARD }}
     >
       {onCard ? (
