@@ -15,7 +15,12 @@ export function walletConfigured() {
   );
 }
 
-export type PassField = { key: string; label: string; value: string };
+export type PassField = {
+  key: string;
+  label: string;
+  value: string;
+  textAlignment?: "PKTextAlignmentLeft" | "PKTextAlignmentRight";
+};
 
 /** One Wallet image at 1×, 2× and 3×. */
 export type PassImage = { x1: Buffer; x2: Buffer; x3: Buffer };
@@ -26,13 +31,9 @@ export type PassInput = {
   serialNumber: string;
   organizationName: string;
   description: string;
-  /** The photo, the name, Position · City and the aded mark, drawn by us. */
+  /** The whole top: address, pass number, photo, name and the aded mark, drawn by us. */
   strip: PassImage;
-  /** Top left, next to the icon. */
-  logoText?: string;
-  /** Top right. */
-  headerFields?: PassField[];
-  /** The row under the strip, left to right. */
+  /** The row under the strip. */
   secondaryFields?: PassField[];
   backFields?: WalletBackField[];
   /** The QR. */
@@ -110,14 +111,14 @@ export async function buildPass(input: PassInput): Promise<Buffer> {
     backgroundColor: "rgb(255, 255, 255)",
     foregroundColor: "rgb(17, 17, 17)",
     labelColor: "rgb(232, 100, 12)",
-    ...(input.logoText ? { logoText: input.logoText } : {}),
   });
   pass.type = "storeCard";
   const { icon } = await adedBrand();
   addImage(pass, "icon", icon);
   addImage(pass, "strip", input.strip);
-  for (const field of input.headerFields ?? []) pass.headerFields.push({ ...field, textAlignment: "PKTextAlignmentRight" });
-  for (const field of input.secondaryFields ?? []) pass.secondaryFields.push({ ...field, textAlignment: "PKTextAlignmentLeft" });
+  for (const field of input.secondaryFields ?? []) {
+    pass.secondaryFields.push({ ...field, textAlignment: field.textAlignment ?? "PKTextAlignmentLeft" });
+  }
   for (const field of input.backFields ?? []) pass.backFields.push(field);
   pass.setBarcodes({
     message: input.barcodeMessage,

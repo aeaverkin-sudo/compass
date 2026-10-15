@@ -10,7 +10,7 @@ import {
 } from "@/shared/services/card-zones";
 import { loadVisibleCardItems } from "@/shared/services/public-card";
 import { buildPass, type PassField } from "@/shared/services/wallet-pass";
-import { walletStrip } from "@/shared/services/wallet-strip";
+import { addressFits, walletStrip } from "@/shared/services/wallet-strip";
 import { walletCardQr, type WalletBackField } from "@/shared/services/wallet-pass-content";
 
 export type BuiltPass = { file: Buffer; name: string };
@@ -58,21 +58,16 @@ async function imageBytes(attachmentId: string | null | undefined): Promise<Uint
   return (await downloadAttachmentBytes(row)) ?? null;
 }
 
-/** The card photo as a square PNG for the strip, 72 points at 3×. No photo, null. */
+/** The card photo as a square PNG for the strip, 90 points at 3×. No photo, null. */
 async function cardPhoto(card: CardRow): Promise<Buffer | null> {
   const bytes = await imageBytes(card.photo_attachment_id);
   if (!bytes) return null;
   try {
     const { default: sharp } = await import("sharp");
-    return await sharp(Buffer.from(bytes), { failOn: "none" }).rotate().resize(216, 216, { fit: "cover" }).png().toBuffer();
+    return await sharp(Buffer.from(bytes), { failOn: "none" }).rotate().resize(270, 270, { fit: "cover" }).png().toBuffer();
   } catch {
     return null;
   }
-}
-
-/** The line under the name, as the card header shows it. None there, none on the pass. */
-function cardCaption(card: CardRow): string | null {
-  return card.title?.replace(/\s+/g, " ").trim() || null;
 }
 
 /** A back-of-pass line: a tappable phrase. */
@@ -92,19 +87,15 @@ function oneLine(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-/** 01 · 02 · 03 under the strip: the first row of each of the card's first three sections. */
+/** 01 left and 02 right under the strip: the first row of each of the card's first two sections. */
 function portfolioFields(sections: CardZoneSection[]): PassField[] {
   return sections.slice(0, PORTFOLIO_FIELDS).flatMap((section, index) => {
     const value = oneLine(section.rows[0]?.value ?? "");
     if (!value) return [];
     const number = String(index + 1).padStart(2, "0");
-    return [{ key: `row${number}`, label: `${number} · ${section.title}`.toUpperCase(), value }];
+    const textAlignment = index === 0 ? "PKTextAlignmentLeft" : "PKTextAlignmentRight";
+    return [{ key: `row${number}`, label: `${number} · ${section.title}`.toUpperCase(), value, textAlignment }];
   });
-}
-
-function cardCity(sections: CardZoneSection[]): string | null {
-  const value = sections.find((section) => section.id === "location")?.rows[0]?.value;
-  return value ? oneLine(value) : null;
 }
 
 /** The section headed About, else the first long text the card shows. */
@@ -121,9 +112,8 @@ function shownAddress(url: string): string {
   return url.replace(/^https?:\/\//, "").replace(/^www\./, "");
 }
 
-const PORTFOLIO_FIELDS = 3;
+const PORTFOLIO_FIELDS = 2;
 const ABOUT_MAX = 280;
-const LOGO_TEXT_MAX = 28;
 const SUPPORT_EMAIL = "support@adedme.com";
 const UNDER_QR = "TAP ⋯ TO OPEN SCANNER & PORTFOLIO";
 
@@ -170,18 +160,20 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
     walletSerial(ownerId, card.id),
     cardSections(card),
   ]);
-  const caption = [cardCaption(card), cardCity(sections)].filter(Boolean).join(" · ") || null;
-  const strip = await walletStrip({ name: card.display_name?.trim() || "Guest", position: caption, photoPng });
   const portfolio = cardQr(origin, card);
   const address = shownAddress(portfolio);
+  const strip = await walletStrip({
+    name: card.display_name?.trim() || "Guest",
+    photoPng,
+    address: addressFits(address) ? address : shownAddress(origin),
+    number: String(slot).padStart(4, "0"),
+  });
   const about = cardAbout(sections);
   const file = await buildPass({
     serialNumber: serial,
     organizationName: "ADED",
     description: name,
     strip,
-    logoText: address.length <= LOGO_TEXT_MAX ? address : shownAddress(origin),
-    headerFields: [{ key: "number", label: "No.", value: String(slot).padStart(4, "0") }],
     secondaryFields: portfolioFields(sections),
     backFields: [
       backLink("portfolio", "Portfolio", address, portfolio),
