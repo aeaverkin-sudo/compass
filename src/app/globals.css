@@ -436,3 +436,19 @@ body {
     animation: none;
   }
 }
+
+@keyframes landing-qr-blink {
+  0%,
+  100% {
+    filter: none;
+  }
+  45% {
+    filter: brightness(1.7) drop-shadow(0 0 7px #e8640c);
+  }
+}
+
+@keyframes landing-caret {
+  50% {
+    opacity: 0;
+  }
+}

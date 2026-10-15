@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { LiveCardLanding } from "@landing/components/live-card-landing";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
@@ -23,6 +24,8 @@ export default function Home() {
   const cardsReady = useCardsHydrated();
   const onboarded = useAppStore((state) => state.user.onboarded);
   const cards = useAppStore((state) => state.cards);
+  const landing =
+    hydrated && sessionReady && !needsSignIn && cardsReady && !onboarded && !trialCardStarted(cards);
 
   useEffect(() => {
     if (hydrated && onboarded && !needsSignIn) {
@@ -43,10 +46,9 @@ export default function Home() {
       const user = useAppStore.getState().user;
       useAppStore.setState({ user: { ...user, onboarded: true } });
       router.replace("/main");
-      return;
     }
-    router.replace("/register");
   }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, cards, router]);
 
+  if (landing) return <LiveCardLanding />;
   return <div className="h-svh bg-white" aria-hidden />;
 }
