@@ -60,6 +60,11 @@ export interface ContactItem {
   /** Pool file pointer (`items.attachment_id`). Set only once the upload is ready. */
   attachmentId?: string;
   order: number;
+  /**
+   * Account the row was last saved under or loaded from. Absent: never on the server yet.
+   * Set and missing from that account's rows means it was deleted on another device.
+   */
+  syncedOwner?: string;
 }
 
 export type CardStatus = "draft" | "published" | "archived" | "suspended";

@@ -1,5 +1,7 @@
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import { isContactFilled } from "@/shared/services/contact-item";
+import { isAttachmentType } from "@/shared/services/portfolio-limits";
+import { itemContentKey } from "@/shared/services/item-key";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { upsertCardScalars } from "@/shared/services/card-sync";
 
@@ -52,6 +54,85 @@ function textValue(item: ContactItem) {
   return item.value.startsWith("data:") ? item.label : item.value;
 }
 
+function localKey(item: ContactItem) {
+  return itemContentKey(item.type, textValue(item), item.attachmentId);
+}
+
+/** A file whose upload never finished: no stored file and no local preview. */
+function unfinishedFile(item: ContactItem) {
+  return isAttachmentType(item.type) && !item.attachmentId && !item.url.startsWith("data:");
+}
+
+/** `null` drops the row from the card. */
+function remapCard(card: Card, ids: Map<string, string | null>): Card {
+  const touches = (id: string) => ids.has(id);
+  const zones = card.itemZones ?? {};
+  if (!card.contactItemIds.some(touches) && !Object.keys(zones).some(touches)) return card;
+  const swap = (id: string) => (ids.has(id) ? (ids.get(id) ?? null) : id);
+  const contactItemIds = [...new Set(card.contactItemIds.map(swap).filter((id): id is string => id !== null))];
+  const itemZones: Record<string, string> = {};
+  const entries = Object.entries(zones).sort(([left], [right]) => Number(touches(left)) - Number(touches(right)));
+  for (const [id, zone] of entries) {
+    const next = swap(id);
+    if (next && !(next in itemZones)) itemZones[next] = zone;
+  }
+  return { ...card, contactItemIds, itemZones: card.itemZones ? itemZones : undefined };
+}
+
+async function markSynced(itemId: string, owner: string) {
+  const { useAppStore } = await import("@/shared/store/app-store");
+  const { contactItems } = useAppStore.getState();
+  if (!contactItems.some((item) => item.id === itemId && item.syncedOwner !== owner)) return;
+  useAppStore.setState({
+    contactItems: contactItems.map((item) => (item.id === itemId ? { ...item, syncedOwner: owner } : item)),
+  });
+}
+
+/** The owner already has this line under another id: the device takes that id. */
+async function joinTwin(item: ContactItem, owner: string): Promise<string | null> {
+  const supabase = createBrowserSupabaseClient();
+  const { data, error } = await supabase
+    .from("items")
+    .select("id, type, label, value, url, attachment_id")
+    .eq("owner_id", owner)
+    .eq("type", item.type);
+  if (error) return null;
+  const key = localKey(item);
+  const twin = ((data ?? []) as ItemRow[]).find(
+    (row) => row.id !== item.id && itemContentKey(row.type, row.value ?? "", row.attachment_id) === key,
+  );
+  if (!twin) return null;
+
+  const { useAppStore } = await import("@/shared/store/app-store");
+  const state = useAppStore.getState();
+  const saved = state.contactItems.find((entry) => entry.id === item.id)?.syncedOwner === owner;
+  const known = state.contactItems.some((entry) => entry.id === twin.id);
+  const contactItems = known
+    ? state.contactItems.filter((entry) => entry.id !== item.id)
+    : state.contactItems.map((entry) =>
+        entry.id === item.id ? mergeItem(entry, twin, entry.order, owner) : entry,
+      );
+  const ids = new Map([[item.id, twin.id]]);
+  const cards = state.cards.map((card) => remapCard(card, ids));
+  useAppStore.setState({ cards, contactItems });
+  // An edited row that now reads like another one: the old row would come back on the next load.
+  if (saved) {
+    await supabase.from("card_items").delete().eq("item_id", item.id);
+    await deleteItemRow(item.id);
+  }
+  for (const card of cards) {
+    if (card === state.cards.find((entry) => entry.id === card.id)) continue;
+    await upsertCardScalars(card);
+    await upsertLinks(card);
+  }
+  return twin.id;
+}
+
+async function freshCard(card: Card): Promise<Card> {
+  const { useAppStore } = await import("@/shared/store/app-store");
+  return useAppStore.getState().cards.find((entry) => entry.id === card.id) ?? card;
+}
+
 function textUrl(item: ContactItem) {
   return item.url.startsWith("data:") ? "" : item.url;
 }
@@ -68,10 +149,11 @@ async function ownerId() {
   return data.user.id;
 }
 
-async function upsertItemRow(item: ContactItem) {
-  if (!isUuid(item.id)) return;
+/** The id the row lives under on the server, or null when it was not saved. */
+async function upsertItemRow(item: ContactItem): Promise<string | null> {
+  if (!isUuid(item.id)) return null;
   const userId = await ownerId();
-  if (!userId) return;
+  if (!userId) return null;
 
   const supabase = createBrowserSupabaseClient();
   const { error } = await supabase.from("items").upsert(
@@ -86,7 +168,16 @@ async function upsertItemRow(item: ContactItem) {
     },
     { onConflict: "id", defaultToNull: false },
   );
-  if (error) console.error("[card-items] item upsert failed", error.message);
+  if (!error) {
+    await markSynced(item.id, userId);
+    return item.id;
+  }
+  if (error.code === "23505") {
+    const twin = await joinTwin(item, userId);
+    if (twin) return twin;
+  }
+  console.error("[card-items] item upsert failed", error.message);
+  return null;
 }
 
 /** Link rows conflict on the pair, not on the random row id. */
@@ -138,8 +229,8 @@ export function scheduleItemUpsert(item: ContactItem, options?: { pulse?: boolea
 export async function syncItemOnCard(card: Card, item: ContactItem) {
   try {
     await upsertCardScalars(card);
-    await upsertItemRow(item);
-    await upsertLinks(card);
+    const saved = await upsertItemRow(item);
+    if (saved === item.id || saved === null) await upsertLinks(await freshCard(card));
     const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
     requestLiveQrPulse(card.id);
   } catch (error) {
@@ -152,7 +243,7 @@ export async function syncCardLinkOrder(card: Card, items: ContactItem[]) {
     await upsertCardScalars(card);
     const onCard = new Set(card.contactItemIds);
     await Promise.all(items.filter((item) => onCard.has(item.id)).map((item) => upsertItemRow(item)));
-    await upsertLinks(card);
+    await upsertLinks(await freshCard(card));
     const { requestLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
     requestLiveQrPulse(card.id);
   } catch (error) {
@@ -188,9 +279,10 @@ function asType(value: string): ContactType {
   return value as ContactType;
 }
 
-function mergeItem(local: ContactItem | undefined, row: ItemRow, order: number): ContactItem {
+function mergeItem(local: ContactItem | undefined, row: ItemRow, order: number, owner: string): ContactItem {
   const remoteAttachmentId = row.attachment_id ?? undefined;
   return {
+    syncedOwner: owner,
     id: row.id,
     type: asType(row.type),
     label: row.label ?? "",
@@ -235,12 +327,28 @@ export async function hydrateCardItems() {
 
   const remoteItems = (itemData ?? []) as ItemRow[];
   const remoteById = new Map(remoteItems.map((row) => [row.id, row]));
-  const items: ContactItem[] = rekeyed.items.map((item, index) => {
+  const remoteByKey = new Map<string, ItemRow>();
+  for (const row of remoteItems) {
+    const key = itemContentKey(row.type, row.value ?? "", row.attachment_id);
+    if (key && !remoteByKey.has(key)) remoteByKey.set(key, row);
+  }
+
+  // The server is the record for rows it has seen. A device only adds rows it made itself.
+  const moved = new Map<string, string | null>();
+  const items: ContactItem[] = [];
+  rekeyed.items.forEach((item, index) => {
     const row = remoteById.get(item.id);
-    return row ? mergeItem(item, row, index) : item;
+    if (row) return void items.push(mergeItem(item, row, index, userId));
+    if (item.syncedOwner === userId && remoteItems.length > 0) return void moved.set(item.id, null);
+    if (!item.syncedOwner) {
+      const key = localKey(item);
+      const twin = key ? remoteByKey.get(key) : undefined;
+      if (twin) return void moved.set(item.id, twin.id);
+    }
+    items.push(item);
   });
   remoteItems.forEach((row, index) => {
-    if (!items.some((item) => item.id === row.id)) items.push(mergeItem(undefined, row, index));
+    if (!items.some((item) => item.id === row.id)) items.push(mergeItem(undefined, row, index, userId));
   });
 
   const linksByCard = new Map<string, LinkRow[]>();
@@ -250,26 +358,43 @@ export async function hydrateCardItems() {
     linksByCard.set(link.card_id, list);
   }
 
+  const touched = new Set<string>();
   const cards = rekeyed.cards.map((card) => {
+    const joined = new Set(card.contactItemIds.map((id) => moved.get(id)).filter((id): id is string => Boolean(id)));
+    const mapped = remapCard(card, moved);
+    if (mapped !== card) touched.add(card.id);
     const links = (linksByCard.get(card.id) ?? []).sort((a, b) => a.sort_order - b.sort_order);
-    if (links.length === 0) return card;
+    if (links.length === 0) return mapped;
     const remoteIds = links.map((link) => link.item_id);
     const remoteSet = new Set(remoteIds);
-    const localOnly = card.contactItemIds.filter((id) => !remoteSet.has(id));
-    return { ...card, contactItemIds: [...remoteIds, ...localOnly] };
+    // A server row missing from this card's links was taken off it on another device.
+    const localOnly = mapped.contactItemIds.filter((id) => !remoteSet.has(id) && (!remoteById.has(id) || joined.has(id)));
+    return { ...mapped, contactItemIds: [...remoteIds, ...localOnly] };
   });
 
   useAppStore.setState({ cards, contactItems: items });
 
   const remoteItemIds = new Set(remoteItems.map((row) => row.id));
   const toUpload = items.filter(
-    (item) => !remoteItemIds.has(item.id) && (isContactFilled(item) || cards.some((card) => card.contactItemIds.includes(item.id))),
+    (item) =>
+      !remoteItemIds.has(item.id) &&
+      !item.syncedOwner &&
+      !unfinishedFile(item) &&
+      (isContactFilled(item) || cards.some((card) => card.contactItemIds.includes(item.id))),
   );
+  const dropped = [...moved.values()].filter((id) => id === null).length;
+  if (toUpload.length > 0 || moved.size > 0) {
+    console.info(
+      `[card-items] hydrate: ${toUpload.length} new from this device, ${moved.size - dropped} joined to the same line, ${dropped} deleted elsewhere`,
+    );
+  }
   await Promise.all(toUpload.map((item) => upsertItemRow(item)));
 
+  const own = new Set(useAppStore.getState().contactItems.filter((item) => item.syncedOwner === userId).map((item) => item.id));
   const remoteLinkKeys = new Set(linkData.map((link) => `${link.card_id}:${link.item_id}`));
-  for (const card of cards) {
-    const missing = card.contactItemIds.some((itemId) => !remoteLinkKeys.has(`${card.id}:${itemId}`));
+  for (const card of useAppStore.getState().cards) {
+    if (touched.has(card.id)) await upsertCardScalars(card);
+    const missing = card.contactItemIds.some((itemId) => own.has(itemId) && !remoteLinkKeys.has(`${card.id}:${itemId}`));
     if (missing) await upsertLinks(card);
   }
 }

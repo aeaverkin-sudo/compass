@@ -7,6 +7,7 @@ import { findPassGuest, passCardName, type PassGuest } from "@/shared/services/e
 import { loadEventInvite, type EventInvite } from "@/shared/services/event-invite";
 import { listOwnPortfolios, loadOwnRegistration, registerForEvent, type PortfolioChoice } from "@/shared/services/event-registration";
 import { eventListStatus } from "@/shared/services/events";
+import { itemContentKey } from "@/shared/services/item-key";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { payView } from "@/shared/event/payment-label";
 import { eventGuestEnd, startEventGuestClock } from "@/shared/services/trial";
@@ -206,22 +207,33 @@ async function markPassAccount(userId: string, timeZone: string | null): Promise
   if (updated.error) throw new Error(updated.error.message);
 }
 
+/** The owner's row with this line, or a new one. One line per owner. */
+async function poolItem(userId: string, row: { type: string; value: string; url: string }): Promise<string> {
+  const admin = createAdminSupabaseClient();
+  const found = await admin.from("items").select("id, value").eq("owner_id", userId).eq("type", row.type).is("attachment_id", null);
+  if (found.error) throw new Error(found.error.message);
+  const key = itemContentKey(row.type, row.value, null);
+  const twin = ((found.data ?? []) as { id: string; value: string | null }[]).find(
+    (entry) => key !== null && itemContentKey(row.type, entry.value ?? "", null) === key,
+  );
+  if (twin) return twin.id;
+  const id = randomUUID();
+  const inserted = await admin.from("items").insert({ id, owner_id: userId, label: "", ...row });
+  if (inserted.error) throw new Error(inserted.error.message);
+  return id;
+}
+
 /** First section Event with the event name, then Contact. No photo. */
 async function createPassCard(userId: string, person: PassPerson, event: EventInvite): Promise<string> {
   const admin = createAdminSupabaseClient();
   const cardId = randomUUID();
-  const eventItemId = randomUUID();
-  const contactItemId = randomUUID();
   const now = new Date().toISOString();
   const contact = person.email
     ? { type: "email", value: person.email, url: `mailto:${person.email}` }
     : { type: "phone", value: person.phone ?? "", url: `tel:${(person.phone ?? "").replace(/\s/g, "")}` };
 
-  const items = await admin.from("items").insert([
-    { id: eventItemId, owner_id: userId, type: "text", label: "", value: event.name.replace(/\s+/g, " ").trim(), url: "" },
-    { id: contactItemId, owner_id: userId, ...contact, label: "" },
-  ]);
-  if (items.error) throw new Error(items.error.message);
+  const eventItemId = await poolItem(userId, { type: "text", value: event.name.replace(/\s+/g, " ").trim(), url: "" });
+  const contactItemId = await poolItem(userId, contact);
 
   const card = await admin.from("cards").insert({
     id: cardId,
@@ -290,7 +302,8 @@ async function refreshPassEventRow(userId: string, cardId: string): Promise<void
     .update({ value: pick.name.replace(/\s+/g, " ").trim() })
     .eq("id", eventItemId)
     .eq("owner_id", userId);
-  if (updated.error) throw new Error(updated.error.message);
+  // 23505: the owner already has a line with this name; the row keeps the previous one.
+  if (updated.error && updated.error.code !== "23505") throw new Error(updated.error.message);
 }
 
 async function onPaidList(guestId: string): Promise<boolean> {
