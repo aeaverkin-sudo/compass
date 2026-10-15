@@ -14,16 +14,8 @@ const SKY = "#c5e8f7";
 const GRID_LINE = "rgba(232, 100, 12, 0.16)";
 const GRID_STEP = 17;
 
-/**
- * The tab: one orange piece, 3 cells wide. The top part is the Wallet logo with the number,
- * the bottom part is the 3×3 square in the strip's top left corner.
- * Wallet sets the logo's left margin itself: TAB_LEFT is tuned on the phone so both meet.
- */
-const TAB_LEFT = 16;
-const TAB_W = GRID_STEP * 3;
-
 const PHOTO = 116;
-const PHOTO_LEFT = 79;
+const PHOTO_LEFT = 16;
 const PHOTO_TOP = (H - PHOTO) / 2;
 const GAP = 14;
 const NAME_LEFT = PHOTO_LEFT + PHOTO + GAP;
@@ -33,6 +25,10 @@ const MARK_H = 22;
 const MARK_W = Math.round((MARK_H * 477) / 150);
 const MARK_RIGHT = 6;
 const NAME_RIGHT = W - MARK_RIGHT - MARK_H - 8;
+/** Arimo Bold, about 0.56 em a character; a long name shrinks to fit. */
+const NAME_EM = 0.56;
+const NAME_MAX = 33;
+const NAME_LEADING = 0.95;
 
 let assets: Promise<{ regular: ArrayBuffer; bold: ArrayBuffer; mark: string }> | null = null;
 
@@ -75,16 +71,15 @@ function nameLines(name: string): string[] {
 }
 
 function nameSize(lines: string[], width: number): number {
-  const longest = Math.max(...lines.map((line, index) => line.length + (index === lines.length - 1 ? 1 : 0)), 1);
-  const byWidth = width / (longest * 0.56);
-  const byHeight = PHOTO / (lines.length * 0.96);
-  return Math.max(14, Math.min(26, byWidth, byHeight));
+  const longest = Math.max(...lines.map((line) => line.length), 1);
+  const byWidth = width / (longest * NAME_EM);
+  const byHeight = PHOTO / (lines.length * NAME_LEADING);
+  return Math.min(NAME_MAX, byWidth, byHeight);
 }
 
-/** Columns start at the tab's left edge, so the orange square covers whole cells. */
 function grid() {
   const lines = [];
-  for (let x = TAB_LEFT % GRID_STEP; x < W; x += GRID_STEP) {
+  for (let x = 0; x < W; x += GRID_STEP) {
     lines.push(<div key={`x${x}`} style={{ position: "absolute", left: x * S, top: 0, width: S, height: H * S, background: GRID_LINE }} />);
   }
   for (let y = 0; y < H; y += GRID_STEP) {
@@ -94,9 +89,8 @@ function grid() {
 }
 
 /**
- * The strip of the personal pass: sky with a faint orange grid, the lower part of the orange tab,
- * the photo, the name with its orange dot, and the grid aded turned upright at the right edge.
- * The address and the number sit in Wallet's own header above it.
+ * The strip of the personal pass: sky with a faint orange grid, the photo, the name in two lines,
+ * and the grid aded turned upright at the right edge. The number and the site sit in Wallet's header.
  */
 export async function walletStrip(card: { name: string; photoPng: Buffer | null }): Promise<PassImage> {
   const { regular, bold, mark } = await loadAssets();
@@ -105,14 +99,10 @@ export async function walletStrip(card: { name: string; photoPng: Buffer | null 
   const width = NAME_RIGHT - left;
   const lines = nameLines(card.name);
   const size = nameSize(lines, width);
-  const last = lines.length - 1;
 
   const element = (
     <div style={{ position: "relative", display: "flex", width: W * S, height: H * S, background: SKY, fontFamily: "Arimo" }}>
       {grid()}
-      <div
-        style={{ position: "absolute", left: TAB_LEFT * S, top: 0, width: TAB_W * S, height: TAB_W * S, background: ORANGE }}
-      />
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -147,14 +137,13 @@ export async function walletStrip(card: { name: string; photoPng: Buffer | null 
               display: "flex",
               fontSize: size * S,
               fontWeight: 700,
-              lineHeight: 0.96,
+              lineHeight: NAME_LEADING,
               letterSpacing: -0.03 * size * S,
               color: INK,
               whiteSpace: "nowrap",
             }}
           >
             {line}
-            {index === last ? <span style={{ color: ORANGE }}>.</span> : null}
           </div>
         ))}
       </div>
@@ -193,52 +182,36 @@ async function scaled(x3: Buffer, width: number, height: number): Promise<PassIm
   return { x1, x2, x3 };
 }
 
-/** Apple's logo box: 160 × 50 points at most. */
-const LOGO_MAX_W = 160;
-const LOGO_H = 50;
-const TAB_TOP_H = 46;
-const TAB_NUMBER_SIZE = 24;
-/** Wallet's header: the pass width and the logo text, as measured on the phone. */
-const PASS_W = 343;
-const LOGO_TEXT_SIZE = 17;
-const LOGO_TEXT_GAP = 8;
+/** The header logo: an orange square, the number in white. */
+const LOGO_SIZE = 44;
+const LOGO_NUMBER_SIZE = 20;
 
-/**
- * The top part of the tab, as the Wallet logo: the orange block with the number at the bottom left,
- * then clear space, so Wallet's logo text starts near the middle of the header.
- */
-export async function walletTab(number: string, logoText: string): Promise<PassImage> {
+/** Wallet's header logo: the orange square with the pass number. */
+export async function walletNumber(number: string): Promise<PassImage> {
   const { bold } = await loadAssets();
-  const textW = logoText.length * LOGO_TEXT_SIZE * 0.56;
-  const centred = Math.round(PASS_W / 2 - textW / 2 - TAB_LEFT - LOGO_TEXT_GAP);
-  const width = Math.max(TAB_W + 8, Math.min(LOGO_MAX_W, centred));
   const element = (
-    <div style={{ position: "relative", display: "flex", width: width * S, height: LOGO_H * S, fontFamily: "Arimo" }}>
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          bottom: 0,
-          width: TAB_W * S,
-          height: TAB_TOP_H * S,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: ORANGE,
-          color: "#ffffff",
-          fontSize: TAB_NUMBER_SIZE * S,
-          fontWeight: 700,
-          lineHeight: 1,
-        }}
-      >
-        {number}
-      </div>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: LOGO_SIZE * S,
+        height: LOGO_SIZE * S,
+        background: ORANGE,
+        color: "#ffffff",
+        fontFamily: "Arimo",
+        fontSize: LOGO_NUMBER_SIZE * S,
+        fontWeight: 700,
+        lineHeight: 1,
+      }}
+    >
+      {number}
     </div>
   );
   const response = new ImageResponse(element, {
-    width: width * S,
-    height: LOGO_H * S,
+    width: LOGO_SIZE * S,
+    height: LOGO_SIZE * S,
     fonts: [{ name: "Arimo", data: bold, weight: 700, style: "normal" }],
   });
-  return scaled(Buffer.from(await response.arrayBuffer()), width, LOGO_H);
+  return scaled(Buffer.from(await response.arrayBuffer()), LOGO_SIZE, LOGO_SIZE);
 }

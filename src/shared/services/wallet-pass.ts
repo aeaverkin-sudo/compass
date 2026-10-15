@@ -31,11 +31,11 @@ export type PassInput = {
   serialNumber: string;
   organizationName: string;
   description: string;
-  /** Wallet's header logo: the top of the orange tab with the number. */
+  /** Wallet's header logo: the orange square with the pass number. */
   logo: PassImage;
-  /** Next to the logo: the card's address. */
-  logoText: string;
-  /** Under the header: the bottom of the tab, photo, name and the aded mark, drawn by us. */
+  /** The header's right edge: the site. */
+  headerFields?: PassField[];
+  /** Under the header: photo, name and the aded mark, drawn by us. */
   strip: PassImage;
   /** The row under the strip. */
   secondaryFields?: PassField[];
@@ -115,13 +115,15 @@ export async function buildPass(input: PassInput): Promise<Buffer> {
     backgroundColor: "rgb(255, 255, 255)",
     foregroundColor: "rgb(17, 17, 17)",
     labelColor: "rgb(232, 100, 12)",
-    logoText: input.logoText,
   });
   pass.type = "storeCard";
   const { icon } = await adedBrand();
   addImage(pass, "icon", icon);
   addImage(pass, "logo", input.logo);
   addImage(pass, "strip", input.strip);
+  for (const field of input.headerFields ?? []) {
+    pass.headerFields.push({ ...field, textAlignment: field.textAlignment ?? "PKTextAlignmentRight" });
+  }
   for (const field of input.secondaryFields ?? []) {
     pass.secondaryFields.push({ ...field, textAlignment: field.textAlignment ?? "PKTextAlignmentLeft" });
   }

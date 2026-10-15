@@ -11,7 +11,7 @@ import {
 import { loadVisibleCardItems } from "@/shared/services/public-card";
 import { setPrimaryCard } from "@/shared/services/primary-card";
 import { buildPass, type PassField } from "@/shared/services/wallet-pass";
-import { walletStrip, walletTab } from "@/shared/services/wallet-strip";
+import { walletNumber, walletStrip } from "@/shared/services/wallet-strip";
 import { walletCardQr, type WalletBackField } from "@/shared/services/wallet-pass-content";
 
 export type BuiltPass = { file: Buffer; name: string };
@@ -151,21 +151,34 @@ async function walletSerial(ownerId: string, cardId: string): Promise<{ serial: 
   return { serial: slot === 1 ? `person-${ownerId}` : `person-${ownerId}-${slot}`, slot };
 }
 
+/**
+ * The card's place among the owner's cards, oldest first: 01, 02.
+ * Not the primary flag: putting a card in Wallet makes it primary, and the number would move.
+ */
+async function cardOrdinal(ownerId: string, cardId: string): Promise<number> {
+  const admin = createAdminSupabaseClient();
+  const loaded = await admin.from("cards").select("id").eq("owner_id", ownerId).order("created_at", { ascending: true });
+  if (loaded.error) return 1;
+  const index = ((loaded.data ?? []) as { id: string }[]).findIndex((row) => row.id === cardId);
+  return index >= 0 ? index + 1 : 1;
+}
+
 /** The pass of one of my cards; this card becomes the primary one. Null for someone else's card. */
 export async function buildPersonalPass(cardId: string, ownerId: string, origin: string): Promise<BuiltPass | null> {
   const [card] = await readCards(ownerId, [cardId]);
   if (!card) return null;
   const name = cardName(card);
-  const [photoPng, { serial, slot }, sections] = await Promise.all([
+  const [photoPng, { serial }, sections, ordinal] = await Promise.all([
     cardPhoto(card),
     walletSerial(ownerId, card.id),
     cardSections(card),
+    cardOrdinal(ownerId, card.id),
   ]);
   const portfolio = cardQr(origin, card);
   const address = shownAddress(portfolio);
   const [strip, logo] = await Promise.all([
     walletStrip({ name: card.display_name?.trim() || "Guest", photoPng }),
-    walletTab(String(slot).padStart(2, "0"), address),
+    walletNumber(String(ordinal).padStart(2, "0")),
   ]);
   const about = cardAbout(sections);
   const file = await buildPass({
@@ -173,7 +186,7 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
     organizationName: "ADED",
     description: name,
     logo,
-    logoText: address,
+    headerFields: [{ key: "site", label: "", value: shownAddress(origin) }],
     strip,
     secondaryFields: portfolioFields(sections),
     backFields: [
