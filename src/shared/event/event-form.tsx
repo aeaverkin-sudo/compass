@@ -329,11 +329,12 @@ export function EventForm({
   logoUrl: string | null;
   onLogoFile: (file: File) => void;
   onRemoveLogo?: () => void;
-  submitLabel: string;
-  hint: string;
-  saving: boolean;
-  error: string | null;
-  onSubmit: () => void;
+  /** Without `onSubmit` the form has no button of its own; the screen places one. */
+  submitLabel?: string;
+  hint?: string;
+  saving?: boolean;
+  error?: string | null;
+  onSubmit?: () => void;
 }) {
   const nameRef = useRef<HTMLTextAreaElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
@@ -634,13 +635,15 @@ export function EventForm({
           ))}
         </div>
       </Zone>
-      <div className="pb-4" style={{ marginLeft: VALUE_AXIS_PX }}>
-        <button type="button" disabled={!values.name.trim() || saving} onClick={onSubmit} className={SKY_BUTTON}>
-          {submitLabel}
-        </button>
-        {hint ? <p className="mt-3 t-meta text-[var(--grey)]">{hint}</p> : null}
-        {error ? <p className="mt-2 t-meta text-[var(--ink)]">{error}</p> : null}
-      </div>
+      {onSubmit ? (
+        <div className="pb-4" style={{ marginLeft: VALUE_AXIS_PX }}>
+          <button type="button" disabled={!values.name.trim() || saving} onClick={onSubmit} className={SKY_BUTTON}>
+            {submitLabel}
+          </button>
+          {hint ? <p className="mt-3 t-meta text-[var(--grey)]">{hint}</p> : null}
+          {error ? <p className="mt-2 t-meta text-[var(--ink)]">{error}</p> : null}
+        </div>
+      ) : null}
       <div className="mt-8" style={{ marginLeft: VALUE_AXIS_PX, width: 150, paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}>
         <div className="border border-[#d4d4d4]">
           <CoverButton event={cover} layout={values.layout} themeId={values.theme} variant="card" />

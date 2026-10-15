@@ -32,6 +32,7 @@ export function EditScreen({
   const [values, setValues] = useState(initial);
   const [preview, setPreview] = useState(logoUrl);
   const [removed, setRemoved] = useState(false);
+  const [logoTouched, setLogoTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -66,6 +67,7 @@ export function EditScreen({
   };
 
   const deleteName = eventTitleLine(values.name) || eventTitleLine(initial.name);
+  const dirty = logoTouched || JSON.stringify(values) !== JSON.stringify(initial);
 
   const remove = async () => {
     if (!isOwner || deletingLock.current || savingLock.current) return;
@@ -98,6 +100,7 @@ export function EditScreen({
         onLogoFile={(file) => {
           logoFile.current = file;
           setRemoved(false);
+          setLogoTouched(true);
           const reader = new FileReader();
           reader.onload = () => {
             if (typeof reader.result === "string") setPreview(reader.result);
@@ -108,13 +111,22 @@ export function EditScreen({
           logoFile.current = null;
           setPreview(null);
           setRemoved(true);
+          setLogoTouched(true);
         }}
-        submitLabel="Save"
-        hint=""
-        saving={saving}
-        error={error}
-        onSubmit={() => void save()}
       />
+      {dirty || saving ? (
+        <div className="pointer-events-none sticky bottom-0 z-20 pt-3 pb-3" style={{ marginLeft: VALUE_AXIS_PX }}>
+          {error ? <p className="pointer-events-auto mt-0 mb-2 w-max bg-white t-meta text-[var(--ink)]">{error}</p> : null}
+          <button
+            type="button"
+            disabled={!values.name.trim() || saving}
+            onClick={() => void save()}
+            className="press pointer-events-auto border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+          >
+            Save changes
+          </button>
+        </div>
+      ) : null}
       {isOwner || afishaHref ? (
         <div className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
           <Rule />
