@@ -1,7 +1,6 @@
 import { customAlphabet, nanoid } from "nanoid";
 import { fileTypeFromBuffer } from "file-type/core";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { guestsByJoined } from "@/shared/event/joined-order";
 import {
   deleteAttachment,
   insertAttachment,
@@ -62,8 +61,6 @@ export type ListedEvent = {
   /** A guest row: where it is and the card worn as the pass. */
   place?: string | null;
   pass?: { cardName: string; photoUrl: string | null } | null;
-  /** A guest row: when the guest confirmed going. */
-  joinedAt?: string | null;
 };
 
 /** Past follows the end. With no end, the start decides. No date is still a draft. */
@@ -192,7 +189,6 @@ type MineRow = {
   role: "owner" | "manager" | "guest";
   place?: string | null;
   pass?: { cardName: string; photoUrl: string | null } | null;
-  joinedAt?: string | null;
 };
 
 function startTime(iso: string | null): number | null {
@@ -229,7 +225,7 @@ function toListed(row: MineRow, now: number): ListedEvent {
     role: row.role,
     status: eventListStatus(row.dateIso, now, row.endsIso),
     startsAt: row.dateIso,
-    ...(row.role === "guest" ? { place: row.place ?? null, pass: row.pass ?? null, joinedAt: row.joinedAt ?? null } : {}),
+    ...(row.role === "guest" ? { place: row.place ?? null, pass: row.pass ?? null } : {}),
   };
 }
 
@@ -282,12 +278,9 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
     : ownedSelect;
   if (owned.error) throw new Error(owned.error.message);
 
-  const regs = await admin.from("event_registrations").select("event_id, card_id, created_at").eq("user_id", userId);
+  const regs = await admin.from("event_registrations").select("event_id, card_id").eq("user_id", userId);
   if (regs.error) throw new Error(regs.error.message);
   const passes = await passCards((regs.data ?? []) as { event_id: string; card_id: string | null }[]);
-  const joinedAt = new Map(
-    ((regs.data ?? []) as { event_id: string; created_at: string | null }[]).map((row) => [row.event_id, row.created_at]),
-  );
 
   const team = await admin.from("event_team").select("event_id").eq("user_id", userId);
   if (team.error && !missingTable(team.error.message, "event_team")) throw new Error(team.error.message);
@@ -322,7 +315,6 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
     role,
     place: row.place_secret ? null : row.place?.trim() || null,
     pass: row.id ? passes.get(row.id) ?? null : null,
-    joinedAt: row.id ? joinedAt.get(row.id) ?? null : null,
   });
   const rows: MineRow[] = ownedRows.map((row) => asMine(row, "owner"));
   for (const row of extraRows) {
@@ -337,7 +329,7 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
   const past = kept.filter((row) => eventListStatus(row.dateIso, now, row.endsIso) === "past");
   current.sort(compareMyEvents);
   past.sort(comparePastEvents);
-  return [...guestsByJoined(current), ...past].map((row) => toListed(row, now));
+  return [...current, ...past].map((row) => toListed(row, now));
 }
 
 async function nextEventSlug(
