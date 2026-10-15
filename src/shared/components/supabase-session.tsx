@@ -62,7 +62,7 @@ function acceptUser(user: User) {
 function sendRegisteredDeviceToSignIn() {
   markRegistrationRequired();
   const path = window.location.pathname;
-  if (path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/c/")) return;
+  if (path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/c/") || path === "/welcome") return;
   window.location.replace("/register?signin=1&expired=1");
 }
 

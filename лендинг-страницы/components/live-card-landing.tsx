@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Plus, Scan, Share } from "lucide-react";
@@ -33,6 +33,15 @@ const PLUS_GONE = 5720;
 const CTA = 6300;
 const REPLAY = 13300;
 const TYPE_STEP_MS = 55;
+
+const CARD_W = 390;
+const CARD_H = 827;
+const CTA_OVERHANG = 24;
+const SIDE_ROOM = 28;
+const MAX_STAGE_W = 460;
+const HERO_GAP = 22;
+const MIN_SCALE = 0.34;
+const MAX_SCALE = 1.3;
 
 const STEPS = [
   BAND, PHOTO, TITLE, CTRL, QR, CTRL_UP, ZONE_1, TYPE_1, ZONE_2, TYPE_2,
@@ -96,7 +105,46 @@ function ZoneRule({ on }: { on: boolean }) {
   return <div className={cn("mx-10 h-px bg-[#999] transition-opacity duration-[350ms]", on ? "opacity-100" : "opacity-0")} />;
 }
 
+/** The card is a fixed 390×827 canvas; it scales whole to the room left under the hero, CTA overhang included. */
+function useFitScale(
+  rootRef: RefObject<HTMLDivElement | null>,
+  navRef: RefObject<HTMLElement | null>,
+  wrapRef: RefObject<HTMLDivElement | null>,
+  heroRef: RefObject<HTMLDivElement | null>,
+) {
+  const [scale, setScale] = useState(0);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    const nav = navRef.current;
+    const wrap = wrapRef.current;
+    const hero = heroRef.current;
+    if (!root || !nav || !wrap || !hero) return;
+    const fit = () => {
+      const pad = parseFloat(getComputedStyle(wrap).paddingTop) + parseFloat(getComputedStyle(wrap).paddingBottom);
+      const width = Math.min(root.clientWidth - SIDE_ROOM, MAX_STAGE_W);
+      const height = root.clientHeight - nav.offsetHeight - hero.offsetHeight - HERO_GAP - pad;
+      const next = Math.min(width / (CARD_W + 2 * CTA_OVERHANG), height / CARD_H);
+      setScale(Math.min(MAX_SCALE, Math.max(MIN_SCALE, next)));
+    };
+    const observer = new ResizeObserver(fit);
+    observer.observe(root);
+    observer.observe(hero);
+    window.visualViewport?.addEventListener("resize", fit);
+    return () => {
+      observer.disconnect();
+      window.visualViewport?.removeEventListener("resize", fit);
+    };
+  }, [rootRef, navRef, wrapRef, heroRef]);
+
+  return scale;
+}
+
 export function LiveCardLanding() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
   const [cycle, setCycle] = useState(0);
   const [at, setAt] = useState(-1);
   const [typed1, setTyped1] = useState(0);
@@ -136,24 +184,29 @@ export function LiveCardLanding() {
   }, [cycle]);
 
   const shown = (ms: number) => at >= ms;
+  const scale = useFitScale(rootRef, navRef, wrapRef, heroRef);
 
   return (
     <div
+      ref={rootRef}
       className={cn(
-        "flex min-h-svh flex-col overflow-x-hidden bg-white text-[#111] antialiased",
+        "flex h-dvh flex-col overflow-x-hidden overflow-y-auto overscroll-contain bg-white text-[#111] antialiased",
         "bg-[linear-gradient(rgba(232,100,12,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(232,100,12,.12)_1px,transparent_1px)] bg-[size:44px_44px]",
         "font-['Helvetica_Neue',Helvetica,Arial,sans-serif]",
       )}
     >
-      <nav className="flex items-center justify-between px-[26px] py-[22px]">
+      <nav ref={navRef} className="flex shrink-0 items-center justify-between px-[26px] py-[22px]">
         <Image src={LOGO} alt="aded" width={70} height={22} priority className="h-[22px] w-auto" />
         <span className={cn("text-[12px] tracking-[.14em] uppercase", MONO)} style={{ color: ORANGE }}>
           adedme.com
         </span>
       </nav>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-[22px] px-[18px] pt-1 pb-[54px] text-center">
-        <div>
+      <div
+        ref={wrapRef}
+        className="flex flex-1 flex-col items-center justify-center gap-[22px] px-[18px] pt-1 pb-[max(28px,env(safe-area-inset-bottom))] text-center"
+      >
+        <div ref={heroRef}>
           <div className={cn("mb-3 text-[12px] tracking-[.24em] uppercase", MONO)} style={{ color: ORANGE }}>
             Network solution
           </div>
@@ -167,10 +220,17 @@ export function LiveCardLanding() {
           </p>
         </div>
 
-        <div className="relative w-[390px] max-[430px]:origin-top max-[430px]:scale-[.88]">
+        <div
+          className={cn("relative shrink-0", !scale && "invisible")}
+          style={{ width: CARD_W * scale, height: CARD_H * scale }}
+        >
+        <div
+          className="absolute top-0 left-0 w-[390px]"
+          style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}
+        >
           <div
             className={cn(
-              "relative min-h-[827px] w-[390px] overflow-hidden rounded-[22px] bg-white pb-12 text-left",
+              "relative h-[827px] w-[390px] overflow-hidden rounded-[22px] bg-white pb-12 text-left",
               "shadow-[0_26px_64px_rgba(0,0,0,.13),0_2px_8px_rgba(0,0,0,.05)]",
             )}
           >
@@ -273,7 +333,7 @@ export function LiveCardLanding() {
           <Link
             href="/register"
             className={cn(
-              "absolute top-[312px] right-[-24px] z-[6] block rounded-[7px] px-8 py-6 text-left whitespace-nowrap text-[#111] max-[430px]:right-[-10px]",
+              "absolute top-[312px] right-[-24px] z-[6] block rounded-[7px] px-8 py-6 text-left whitespace-nowrap text-[#111]",
               "shadow-[0_22px_48px_rgba(0,0,0,.26),0_3px_10px_rgba(0,0,0,.12)]",
               "[transition:opacity_.6s,translate_.6s_cubic-bezier(.2,.85,.2,1),scale_.6s_cubic-bezier(.2,.85,.2,1)]",
               SKY,
@@ -285,6 +345,7 @@ export function LiveCardLanding() {
               Join your network →
             </small>
           </Link>
+        </div>
         </div>
       </div>
     </div>
