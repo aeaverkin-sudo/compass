@@ -47,6 +47,11 @@ const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
 const DUPLICATE_NOTICE = "Already in your library";
 
+/** A docked line grows with its text up to the screen above the keyboard; only past that it scrolls. */
+function dockReach(keyboard: number) {
+  return `calc(100dvh - ${keyboard}px - 56px)`;
+}
+
 type EditSection = {
   id: CardZoneId;
   title: string;
@@ -812,7 +817,11 @@ function AddLine({
                 aria-hidden
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
-              <div ref={rowRef} style={{ marginLeft: frame.left, width: frame.width }}>
+              <div
+                ref={rowRef}
+                className="overflow-y-auto overscroll-contain"
+                style={{ marginLeft: frame.left, width: frame.width, maxHeight: dockReach(dockBottom) }}
+              >
                 {error ? <p className="pt-2 t-meta text-destructive">{error}</p> : null}
                 {hint ? <p className="pt-2 t-meta text-[var(--ink)]">{hint}</p> : null}
                 {passCard && !lookingFor && !fileItem && !text ? (
@@ -1026,7 +1035,9 @@ function EditRow({
           className={cn(
             "t-body origin-left select-none transition-transform duration-150 motion-reduce:transform-none motion-reduce:transition-none",
             toggling === "add" && "scale-[1.03]",
-            value.includes("\n") || value.includes("  ") ? "w-full whitespace-pre-wrap" : "w-max whitespace-nowrap",
+            multiline || value.includes("\n") || value.includes("  ")
+              ? "w-full whitespace-pre-wrap"
+              : "w-max whitespace-nowrap",
           )}
         >
           {text}
@@ -1057,7 +1068,10 @@ function EditRow({
                 aria-hidden
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
-              <div style={{ marginLeft: frame.left, width: frame.width }}>
+              <div
+                className="overflow-y-auto overscroll-contain"
+                style={{ marginLeft: frame.left, width: frame.width, maxHeight: dockReach(dockBottom) }}
+              >
                 <div className="flex flex-col justify-end border-b border-[var(--rule)]">
                   <WrapField
                     ref={dockRef}
@@ -1084,7 +1098,7 @@ function EditRow({
             document.body,
           )
         : null}
-      {fades && !editing && !value.includes("\n") ? (
+      {fades && !editing && !multiline && !value.includes("\n") ? (
         <span
           aria-hidden
           className="pointer-events-none absolute inset-y-0 right-[26px] w-4 bg-gradient-to-r from-transparent to-white"

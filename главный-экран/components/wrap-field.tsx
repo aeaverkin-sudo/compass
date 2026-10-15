@@ -178,7 +178,7 @@ export function WrapField({
           onBlur={(event) => onBlur?.(read(), event)}
           className={cn(
             "compass-input min-w-0 break-words text-[#111] caret-[#111] outline-none select-text",
-            multiline ? "max-h-[120px] overflow-y-auto whitespace-pre-wrap" : "whitespace-pre-wrap",
+            "whitespace-pre-wrap",
             className,
           )}
         >
