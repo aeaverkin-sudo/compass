@@ -11,6 +11,8 @@ type QrZoneProps = {
   url: string;
   visible: boolean;
   topOffsetPx: number;
+  /** Compact header: below 1. */
+  scale?: number;
 };
 
 /** Only the QR on the screen carries this. A shared link and a printed sheet do not. */
@@ -19,7 +21,8 @@ function liveQrUrl(url: string) {
   return `${url}${url.includes("?") ? "&" : "?"}src=qr`;
 }
 
-export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
+export function QrZone({ url, visible, topOffsetPx, scale = 1 }: QrZoneProps) {
+  const size = Math.round(BROWSE_QR_SIZE * scale);
   const currentCardId = useAppStore((state) => state.cards[state.currentCardIndex]?.id ?? "");
   const monochrome = useAppStore((state) => state.user.monochrome);
   const [breathe, setBreathe] = useState(false);
@@ -41,7 +44,7 @@ export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
   return (
     <div
       className="pointer-events-none absolute inset-x-0 flex justify-center"
-      style={{ top: layoutTop(topOffsetPx), height: BROWSE_QR_SIZE }}
+      style={{ top: layoutTop(topOffsetPx), height: size }}
       aria-hidden={!visible}
     >
       {visible ? (
@@ -54,7 +57,7 @@ export function QrZone({ url, visible, topOffsetPx }: QrZoneProps) {
         >
           <QRCodeSVG
             value={liveQrUrl(url)}
-            size={BROWSE_QR_SIZE}
+            size={size}
             level="H"
             fgColor={monochrome ? "#000000" : QR_COLOR}
             bgColor="#FFFFFF"

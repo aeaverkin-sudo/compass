@@ -26,6 +26,8 @@ export type MainLayout = {
   browseCardHeight: number;
   libraryCardHeight: number;
   bandHeight: number;
+  /** 1 comfortable, below 1 compact: the QR, photo, name and their gaps. */
+  headerScale: number;
 };
 
 function readSafeAreaInset(edge: "top" | "bottom") {
@@ -45,10 +47,10 @@ function readSafeAreaInset(edge: "top" | "bottom") {
 function computeLayout(): MainLayout | null {
   if (typeof window === "undefined") return null;
 
-  const { visible: visibleH, band: bandH } = writeScreenVars();
+  const { visible: visibleH, band: bandH, scale } = writeScreenVars();
   const safeTop = readSafeAreaInset("top");
-  const qrTop = safeTop + SCREEN_TOP_AXIS_PX;
-  const cardTopBrowse = safeTop + HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
+  const qrTop = safeTop + SCREEN_TOP_AXIS_PX * scale;
+  const cardTopBrowse = safeTop + (HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX) * scale;
   const cardBottomBrowse = visibleH - bandH;
   const browseHeight = cardBottomBrowse - cardTopBrowse;
   const libraryHeight = libraryCardHeightPx(visibleH, safeTop);
@@ -70,6 +72,7 @@ function computeLayout(): MainLayout | null {
     browseCardHeight: browseHeight,
     libraryCardHeight: libraryHeight,
     bandHeight: bandH,
+    headerScale: scale,
   };
 }
 

@@ -23,6 +23,7 @@ import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { UploadNotice } from "@/shared/components/upload-notice";
 import { SkyHint } from "@/shared/components/sky-hint";
+import { InstallHint } from "@/shared/components/install-hint";
 
 const PASS_ADD_HINT = "Complete your pass: add links, your role, socials or a portfolio file.";
 
@@ -190,7 +191,7 @@ export function MainScreen() {
     <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
         {layout ? (
-          <QrZone url={cardUrl} visible={cardReady} topOffsetPx={layout.qrTop} />
+          <QrZone url={cardUrl} visible={cardReady} topOffsetPx={layout.qrTop} scale={layout.headerScale} />
         ) : null}
       </div>
 
@@ -223,6 +224,10 @@ export function MainScreen() {
       ) : null}
 
       {passAddHint ? <SkyHint text={PASS_ADD_HINT} onDone={markPassAddHintSeen} /> : null}
+
+      {cardReady && shownHasBody ? (
+        <InstallHint paused={editing || composing || passAddHint || passwordHint || gateNonce !== null} />
+      ) : null}
 
       {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}
 

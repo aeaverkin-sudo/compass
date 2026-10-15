@@ -37,8 +37,27 @@ export const BROWSE_QR_SIZE = 150;
 /** Hero photo on the browse card. The rail can dock to this height. */
 export const HERO_PHOTO_PX = 128;
 /** Same photo top from the QR top, when the card top is not at hand. */
-export function railPhotoTopFromQrTop(qrTop: number) {
-  return qrTop + BROWSE_QR_SIZE + 2 * RULE_GAP_PX - QR_DROP_PX - CARD_TOP_TRIM_PX;
+export function railPhotoTopFromQrTop(qrTop: number, scale = 1) {
+  return qrTop + (BROWSE_QR_SIZE + 2 * RULE_GAP_PX - QR_DROP_PX - CARD_TOP_TRIM_PX) * scale;
+}
+
+/**
+ * A short screen (Safari with its bars) is compact: the QR, the photo, the name and the gaps
+ * between them shrink by this factor, and the card body takes the freed height.
+ * 150 × 0.88 = 132px, still read by phone scanners.
+ */
+export const COMPACT_HEADER_SCALE = 0.88;
+/** Visible screen height below which the header is compact. */
+export const COMPACT_BELOW_PX = 700;
+
+export function headerScaleFor(visibleH: number) {
+  return visibleH < COMPACT_BELOW_PX ? COMPACT_HEADER_SCALE : 1;
+}
+
+/** The header scale already written on :root. */
+export function readHeaderScale() {
+  if (typeof document === "undefined") return 1;
+  return document.documentElement.dataset.density === "compact" ? COMPACT_HEADER_SCALE : 1;
 }
 /** Slot from the safe area to the rule: 18 + 134 + 18. */
 const HEADER_SLOT_PX = QR_GAP_SYMMETRIC_PX + QR_SIZE + QR_GAP_SYMMETRIC_PX;
@@ -165,8 +184,11 @@ export function writeScreenVars() {
   const vv = window.visualViewport;
   const gap = vv ? visible - vv.height : 0;
   root.style.setProperty("--vv-bottom", `${bandLiftPx(desktop, gap)}px`);
+  const scale = headerScaleFor(visible);
+  root.style.setProperty("--hd", String(scale));
+  root.dataset.density = scale < 1 ? "compact" : "comfortable";
   root.classList.add("compass-sized");
-  return { visible, band, desktop };
+  return { visible, band, desktop, scale };
 }
 
 /** Same height as `browseBandHeightPx`, for the plaque before the layout hook measures the screen. */
@@ -180,7 +202,7 @@ export function browseCardHeight() {
   const fallback = browseBandHeightCss();
   // The band keeps its height. The card ends on the band, so nothing white sits between them.
   // `--app-h` is the measured small viewport, set before the first paint.
-  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px)`;
+  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1))`;
 }
 
 /**
@@ -220,6 +242,9 @@ if(!desktop){
 root.style.setProperty("--app-h",Math.round(visible)+"px");
 root.style.setProperty("--band-h",band+"px");
 root.style.setProperty("--vv-bottom",lift+"px");
+var compact=Math.round(visible)<${COMPACT_BELOW_PX};
+root.style.setProperty("--hd",compact?"${COMPACT_HEADER_SCALE}":"1");
+root.setAttribute("data-density",compact?"compact":"comfortable");
 root.classList.add("compass-sized");
 })();`;
 }

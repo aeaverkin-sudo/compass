@@ -24,7 +24,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
 import { cn } from "@/lib/utils";
 import { MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
-import { BROWSE_QR_SIZE, HERO_PHOTO_PX, layoutTop, railPhotoTopFromQrTop } from "../layout";
+import { BROWSE_QR_SIZE, HERO_PHOTO_PX, layoutTop, railPhotoTopFromQrTop, readHeaderScale } from "../layout";
 import { NextScanMenu } from "./next-scan-menu";
 
 const SHIELD_EVENTS = [
@@ -98,9 +98,11 @@ function RailMark({
 
 function measureAnchors(rail: HTMLElement, fallbackQrTop: number): { qr: Anchor; photo: Anchor } {
   const shell = rail.closest(".compass-main");
+  const scale = readHeaderScale();
+  const photoPx = HERO_PHOTO_PX * scale;
   const fallback = {
-    qr: { top: fallbackQrTop, height: BROWSE_QR_SIZE },
-    photo: { top: railPhotoTopFromQrTop(fallbackQrTop), height: HERO_PHOTO_PX },
+    qr: { top: fallbackQrTop, height: Math.round(BROWSE_QR_SIZE * scale) },
+    photo: { top: railPhotoTopFromQrTop(fallbackQrTop, scale), height: photoPx },
   };
   if (!shell) return fallback;
   const shellRect = shell.getBoundingClientRect();
@@ -128,7 +130,7 @@ function measureAnchors(rail: HTMLElement, fallbackQrTop: number): { qr: Anchor;
     for (const node of shell.querySelectorAll("div")) {
       if (rail.contains(node)) continue;
       const rect = node.getBoundingClientRect();
-      if (Math.abs(rect.width - HERO_PHOTO_PX) < 1.5 && Math.abs(rect.height - HERO_PHOTO_PX) < 1.5) {
+      if (Math.abs(rect.width - photoPx) < 1.5 && Math.abs(rect.height - photoPx) < 1.5) {
         photoEl = node;
         break;
       }
@@ -175,8 +177,8 @@ export function SideRail({
   const rootRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<RailDock>(railDock);
   const anchorsRef = useRef({
-    qr: { top: qrTop, height: BROWSE_QR_SIZE },
-    photo: { top: railPhotoTopFromQrTop(qrTop), height: HERO_PHOTO_PX },
+    qr: { top: qrTop, height: Math.round(BROWSE_QR_SIZE * readHeaderScale()) },
+    photo: { top: railPhotoTopFromQrTop(qrTop, readHeaderScale()), height: HERO_PHOTO_PX * readHeaderScale() },
   });
   const pointerDownRef = useRef(false);
   const holdTimerRef = useRef<number | null>(null);

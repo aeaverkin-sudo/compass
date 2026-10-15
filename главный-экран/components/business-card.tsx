@@ -19,6 +19,7 @@ import { CardEditList } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NotesRubric } from "./notes-rubric";
 import { useOwnerNotesDelivery } from "../hooks/use-owner-notes-delivery";
+import { useHeaderScale } from "../hooks/use-header-scale";
 import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 import { HeroName } from "@/shared/components/hero-name";
 import {
@@ -51,6 +52,7 @@ function EditorialHeader({
   onDisplayNameChange,
   onCardUpdate,
   plate = false,
+  scale = 1,
 }: {
   card: Card;
   positionTitle?: string;
@@ -63,8 +65,11 @@ function EditorialHeader({
   onCardUpdate?: (data: Partial<Card>) => void;
   /** Screen plate is one A under the photo. The PDF keeps the shorter pad. */
   plate?: boolean;
+  /** Compact screen: the photo and the gaps around it, below 1. */
+  scale?: number;
 }) {
   const photoSrc = cardPhotoSrc(card);
+  const photoPx = HERO_PHOTO_PX * scale;
   const setPhotoLook = onCardUpdate
     ? (look: "frame" | "shadow" | null) => onCardUpdate({ photoLook: look ?? undefined })
     : undefined;
@@ -80,16 +85,16 @@ function EditorialHeader({
       <div
         className="relative"
         style={{
-          paddingTop: RULE_GAP_PX - CARD_TOP_TRIM_PX,
-          paddingBottom: plate ? CARD_HEADER_PAD_PX : CARD_HEADER_PAD_PX + HEADER_FADE_PX - SECTION_PAD_PX,
+          paddingTop: (RULE_GAP_PX - CARD_TOP_TRIM_PX) * scale,
+          paddingBottom: plate ? CARD_HEADER_PAD_PX * scale : CARD_HEADER_PAD_PX + HEADER_FADE_PX - SECTION_PAD_PX,
         }}
       >
-        <div className="flex shrink-0 items-stretch gap-3" style={{ height: HERO_PHOTO_PX }}>
+        <div className="flex shrink-0 items-stretch gap-3" style={{ height: photoPx }}>
           {onPhotoChange ? (
             <PhotoSlotPicker
               photo={photoSrc}
               onPhotoChange={onPhotoChange}
-              sizePx={HERO_PHOTO_PX}
+              sizePx={photoPx}
               borderRadiusPx={0}
               photoLook={card.photoLook}
               onPhotoLook={setPhotoLook}
@@ -101,10 +106,11 @@ function EditorialHeader({
               src={photoSrc}
               alt=""
               fetchPriority="high"
-              className={cn("size-[128px] shrink-0 object-cover", photoSlotLookClass(card.photoLook))}
+              className={cn("shrink-0 object-cover", photoSlotLookClass(card.photoLook))}
+              style={{ width: photoPx, height: photoPx }}
             />
           ) : (
-            <span aria-hidden className="size-[128px] shrink-0 bg-[#f3f3f3]" />
+            <span aria-hidden className="shrink-0 bg-[#f3f3f3]" style={{ width: photoPx, height: photoPx }} />
           )}
           <div className="relative flex h-full min-w-0 flex-1 flex-col">
             <HeroName
@@ -344,6 +350,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   },
   ref,
 ) {
+  const headerScale = useHeaderScale();
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const setCardRubricOrder = useAppStore((state) => state.setCardRubricOrder);
   const setItemZone = useAppStore((state) => state.setItemZone);
@@ -521,6 +528,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               onDisplayNameChange={onDisplayNameChange}
               onCardUpdate={onCardUpdate}
               plate
+              scale={readOnly ? 1 : headerScale}
             />
           )}
         </div>
