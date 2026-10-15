@@ -57,6 +57,8 @@ type CardCarouselProps = {
   editing?: boolean;
   fillHint?: boolean;
   onFill?: (cardId: string) => void;
+  /** Guest event pass: the card's empty next section opens the add line. Absent for other cards. */
+  addNextFor?: (card: Card) => (() => void) | undefined;
   composeOnMount?: boolean;
   /** The visible card's add line. The plate's + calls it inside the tap. */
   openAddRef?: RefObject<(() => void) | null>;
@@ -101,6 +103,7 @@ export function CardCarousel({
   editing = false,
   fillHint = false,
   onFill,
+  addNextFor,
   composeOnMount = false,
   openAddRef,
   onComposingChange,
@@ -390,6 +393,7 @@ export function CardCarousel({
       editing={editing && card.id !== ADD_SLIDE_ID}
       fillHint={hint}
       onFill={onFill ? () => onFill(card.id) : undefined}
+      onAddNext={card.id === ADD_SLIDE_ID ? undefined : addNextFor?.(card)}
       composeOnMount={composeOnMount && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id}
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
@@ -453,6 +457,7 @@ export function CardCarousel({
         editing={editing}
         fillHint={fillHint && activeIndex === 0}
         onFill={onFill ? () => onFill(activeCard.id) : undefined}
+        onAddNext={addNextFor?.(activeCard)}
         composeOnMount={composeOnMount}
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}

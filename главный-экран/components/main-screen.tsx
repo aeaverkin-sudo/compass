@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { flushSync } from "react-dom";
 import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -21,6 +22,9 @@ import { SideRail } from "./side-rail";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { UploadNotice } from "@/shared/components/upload-notice";
+import { SkyHint } from "@/shared/components/sky-hint";
+
+const PASS_ADD_HINT = "Complete your pass: add links, your role, socials or a portfolio file.";
 
 export function MainScreen() {
   const router = useRouter();
@@ -34,6 +38,8 @@ export function MainScreen() {
   const passwordHintSeen = useAppStore((state) => state.user.passwordHintSeen);
   const markEmptyFillHintSeen = useAppStore((state) => state.markEmptyFillHintSeen);
   const markPasswordHintSeen = useAppStore((state) => state.markPasswordHintSeen);
+  const passAddHintSeen = useAppStore((state) => state.user.passAddHintSeen);
+  const markPassAddHintSeen = useAppStore((state) => state.markPassAddHintSeen);
   const [editing, setEditing] = useState(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
   const openAddRef = useRef<(() => void) | null>(null);
@@ -75,6 +81,9 @@ export function MainScreen() {
   const shownHasBody = Boolean(browseCard && getCardItems(browseCard, contactItems).length > 0);
   const creatingFirstEmptyCard = !viewingAddSlide && cards.length === 1 && !cardReady;
   const hideNav = (cardReady && !shownHasBody) || creatingFirstEmptyCard;
+  const passAddHint = Boolean(
+    browseCard && passes.has(browseCard.id) && shownHasBody && !passAddHintSeen && !editing && !composing && !passwordHint && !frozen,
+  );
 
   useEffect(() => {
     if (!cardsHydrated || cards.length > 0 || portfolioLimit === null || draftStarted.current) return;
@@ -131,6 +140,19 @@ export function MainScreen() {
       document.removeEventListener("pointerdown", clearOnPress, true);
     };
   }, []);
+
+  /** Opens the add line inside the tap, so the keyboard comes up in Safari and in-app browsers. */
+  const addToPass = (cardId: string) => {
+    markPassAddHintSeen();
+    const index = cards.findIndex((entry) => entry.id === cardId);
+    flushSync(() => {
+      if (index >= 0) setCurrentCardIndex(index);
+      setComposeOnMount(false);
+      setEditing(true);
+    });
+    if (openAddRef.current) openAddRef.current();
+    else setComposeOnMount(true);
+  };
 
   const cardUrl = browseCard?.publicToken ? publicCardUrl(browseCard) : "";
   const layout = useMainLayout();
@@ -199,6 +221,8 @@ export function MainScreen() {
       {passwordHint && !composing ? (
         <InfoNotice text="You can change your password in Profile." onDone={dismissPasswordHint} />
       ) : null}
+
+      {passAddHint ? <SkyHint text={PASS_ADD_HINT} onDone={markPassAddHintSeen} /> : null}
 
       {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}
 
@@ -270,13 +294,6 @@ export function MainScreen() {
                     deleteAt={eventPass.deleteAt}
                     needsEmail={eventPass.needsEmail}
                     pendingEmail={eventPass.pendingEmail}
-                    onAdd={() => {
-                      if (frozen) return;
-                      const index = cards.findIndex((entry) => entry.id === card.id);
-                      if (index >= 0) setCurrentCardIndex(index);
-                      setComposeOnMount(true);
-                      setEditing(true);
-                    }}
                   />
                 );
               }
@@ -289,6 +306,7 @@ export function MainScreen() {
                 </p>
               ) : null;
             }}
+            addNextFor={(card) => (passes.has(card.id) && !frozen ? () => addToPass(card.id) : undefined)}
             needsAccount={needsAccount}
             onTrialSlot={() => showGate()}
             onFill={(cardId) => {

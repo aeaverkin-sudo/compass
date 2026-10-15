@@ -11,7 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { GripHorizontal } from "lucide-react";
+import { GripHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { openHomeScreenAttachmentPdf } from "@/shared/components/pdf-preview-host";
@@ -344,6 +344,7 @@ export function ContactItemChipList({
   pdfZoneIds = null,
   markPdfBlocks = false,
   onRetryFile,
+  onAddNext,
 }: {
   items: ContactItem[];
   size: ContactItemChipSize;
@@ -369,6 +370,8 @@ export function ContactItemChipList({
   markPdfBlocks?: boolean;
   /** Owner card only. File rows show Uploading… and Upload failed. */
   onRetryFile?: (itemId: string) => void;
+  /** Guest event pass: an empty next section and a + under the filled ones. */
+  onAddNext?: () => void;
 }) {
   const compact = size === "compact";
   const listRef = useRef<HTMLDivElement>(null);
@@ -1090,6 +1093,9 @@ export function ContactItemChipList({
             </section>
           );
         })}
+        {onAddNext && !arranging && !hold?.active ? (
+          <NextSection number={sectionNumberLabel(zones.length)} onAdd={onAddNext} />
+        ) : null}
         {arranging && chromeHost
           ? createPortal(
               <div data-arrange-chrome="" className="pointer-events-none absolute inset-x-0 bottom-3 z-30 flex justify-center">
@@ -1169,6 +1175,38 @@ export function ContactItemChipList({
     </div>
   );
 }
+
+/** The next empty section of a guest's pass. A tap opens the add line inside the same gesture. */
+function NextSection({ number, onAdd }: { number: string; onAdd: () => void }) {
+  return (
+    <div data-no-swipe onPointerDown={(event) => event.stopPropagation()}>
+      <button
+        type="button"
+        onClick={onAdd}
+        className="block w-full border-0 border-t border-[var(--rule)] bg-transparent p-0 py-[18px] text-left"
+      >
+        <span className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+          <SectionNumber value={number} />
+          <ValueCap className="min-w-0">
+            <span className="block t-body text-[var(--placeholder)]">{NEXT_SECTION_HINT}</span>
+          </ValueCap>
+        </span>
+      </button>
+      <div className="flex justify-center">
+        <button
+          type="button"
+          aria-label="Add"
+          onClick={onAdd}
+          className="flex size-7 items-center justify-center border-0 bg-transparent p-0"
+        >
+          <Plus className="size-7 text-[var(--ink)]" strokeWidth={1} aria-hidden />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const NEXT_SECTION_HINT = "Links, role, socials, a file…";
 
 function blockTouchMove(event: TouchEvent) {
   event.preventDefault();

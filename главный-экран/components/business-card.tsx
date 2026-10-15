@@ -289,6 +289,8 @@ type BusinessCardProps = {
   editing?: boolean;
   fillHint?: boolean;
   onFill?: () => void;
+  /** Guest event pass: the empty next section under the rows. */
+  onAddNext?: () => void;
   composeOnMount?: boolean;
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
@@ -326,6 +328,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     editing = false,
     fillHint = false,
     onFill,
+    onAddNext,
     composeOnMount = false,
     openAddRef,
     onComposingChange,
@@ -635,6 +638,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         underlineLinks={readOnly}
         publicToken={card.publicToken}
         onRetryFile={!compact && !readOnly && onCardUpdate ? retryFile : undefined}
+        onAddNext={!compact && !readOnly ? onAddNext : undefined}
       />
       </div>
       )}

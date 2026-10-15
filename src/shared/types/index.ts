@@ -131,6 +131,8 @@ export interface User {
   firstRowHintSeen?: boolean;
   /** True once the add-to-library hint has been shown. */
   addLibraryHintSeen?: boolean;
+  /** True once a guest's event pass has shown what to add next. */
+  passAddHintSeen?: boolean;
   /** True once the one-time password reminder has been shown on the portfolio. */
   passwordHintSeen?: boolean;
   /** Where the QR side rail sits: beside the QR or beside the photo. */

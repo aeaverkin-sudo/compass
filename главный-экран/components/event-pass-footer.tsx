@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { deletionLine } from "@/shared/lib/deletion-date";
@@ -85,40 +84,25 @@ function AddEmail({ pendingEmail }: { pendingEmail: string | null }) {
   );
 }
 
-/** Under the rows of a guest's event card: add more, then the scanner and Wallet before the end, or Keep after it. */
+/** Under the rows of a guest's event card: the scanner and Wallet before the end, or Keep after it. */
 export function EventPassFooter({
   ended,
   payPending,
   deleteAt,
   needsEmail,
   pendingEmail,
-  onAdd,
 }: {
   ended: boolean;
   payPending: boolean;
   deleteAt: string | null;
   needsEmail: boolean;
   pendingEmail: string | null;
-  onAdd: () => void;
 }) {
   const [toast, setToast] = useState(false);
   const deletion = deletionLine(deleteAt);
 
   return (
     <div className="flex flex-col items-center">
-      <button
-        type="button"
-        data-card-content
-        data-no-swipe
-        aria-label="Add"
-        onClick={onAdd}
-        className="flex size-7 items-center justify-center bg-transparent"
-      >
-        <Plus className="size-7 text-[var(--ink)]" strokeWidth={1} aria-hidden />
-      </button>
-      <p className="mt-2 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">
-        Add your position — e.g. founder, investor, designer.
-      </p>
       {needsEmail || pendingEmail ? <AddEmail pendingEmail={pendingEmail} /> : null}
       {ended ? (
         <>
