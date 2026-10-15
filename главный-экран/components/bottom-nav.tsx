@@ -1,11 +1,17 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { TabBand } from "./tab-band";
 
+const EDIT_CLICK_GUARD_MS = 400;
+
 type BottomNavProps = {
-  /** Edit mode: + on the left opens the writing line, OK on the right leaves editing. */
+  /** Edit mode: Reset or Delete on the left, + in the centre opens the writing line, OK on the right leaves editing. */
   editing?: boolean;
+  /** The edited portfolio is the first one: the left word reads Reset, else Delete. */
+  resetsCard?: boolean;
+  onRemove?: () => void;
   onEdit: () => void;
   onAdd?: () => void;
   onDone?: () => void;
@@ -15,12 +21,20 @@ type BottomNavProps = {
 
 export function BottomNav({
   editing = false,
+  resetsCard = false,
+  onRemove,
   onEdit,
   onAdd,
   onDone,
   onNetwork,
   onProfile,
 }: BottomNavProps) {
+  // Edit fires on the finger lifting; the click after it lands on the + that takes its place.
+  const editedAt = useRef(0);
+  useEffect(() => {
+    if (editing) editedAt.current = Date.now();
+  }, [editing]);
+
   return (
     <TabBand
       pin
@@ -28,12 +42,10 @@ export function BottomNav({
         editing ? (
           <button
             type="button"
-            aria-label="Add"
-            className="flex h-full min-h-11 w-full items-center"
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={() => onAdd?.()}
+            className="flex h-full min-h-11 w-full items-center uppercase"
+            onClick={() => onRemove?.()}
           >
-            <MarkPlus className="text-[var(--ink)]" strokeWidth={1.5} />
+            {resetsCard ? "Reset" : "Delete"}
           </button>
         ) : (
           <button
@@ -48,7 +60,18 @@ export function BottomNav({
       }
       center={
         editing ? (
-          <span className="h-full min-h-11 w-full" />
+          <button
+            type="button"
+            aria-label="Add"
+            className="flex h-full min-h-11 w-full items-center justify-center"
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={() => {
+              if (Date.now() - editedAt.current < EDIT_CLICK_GUARD_MS) return;
+              onAdd?.();
+            }}
+          >
+            <MarkPlus className="text-[var(--ink)]" strokeWidth={1.5} />
+          </button>
         ) : (
           <button
             type="button"

@@ -18,6 +18,7 @@ import {
 import { CardCarousel } from "./card-carousel";
 import { EventPassFooter } from "./event-pass-footer";
 import { QrZone } from "./qr-zone";
+import { PortfolioDeleteDialog, useIsFirstCard } from "./portfolio-delete";
 import { SideRail } from "./side-rail";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
@@ -43,6 +44,8 @@ export function MainScreen() {
   const markPassAddHintSeen = useAppStore((state) => state.markPassAddHintSeen);
   const [editing, setEditing] = useState(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const editedIsFirst = useIsFirstCard(cards[currentCardIndex]?.id);
   const openAddRef = useRef<(() => void) | null>(null);
   const draftStarted = useRef(false);
   const [composing, setComposing] = useState(false);
@@ -229,6 +232,10 @@ export function MainScreen() {
         <InstallHint paused={editing || composing || passAddHint || passwordHint || gateNonce !== null} />
       ) : null}
 
+      {editing && cards[currentCardIndex] ? (
+        <PortfolioDeleteDialog card={cards[currentCardIndex]} open={removeOpen} onOpenChange={setRemoveOpen} />
+      ) : null}
+
       {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}
 
       <UploadNotice />
@@ -236,6 +243,8 @@ export function MainScreen() {
       {layout && !composing && (editing || !hideNav) ? (
         <BottomNav
           editing={editing}
+          resetsCard={editedIsFirst}
+          onRemove={() => setRemoveOpen(true)}
           onProfile={() => router.push("/profile")}
           onNetwork={() => {
             router.push("/network");
