@@ -30,7 +30,7 @@ export async function POST(request: Request, context: RouteProps) {
   const from =
     source === "mail"
       ? { source: "mail" as const, origin: mailOrigin(request), ip: requestIp(request) }
-      : { source: "page" as const };
+      : { source: "page" as const, origin: mailOrigin(request) };
 
   try {
     return acceptReply(await acceptGuestPass(code, token, session, timeZone, from));

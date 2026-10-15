@@ -26,11 +26,16 @@ export type EventMailInput = {
   poster?: { src: string; alt: string; href: string } | null;
   zones: MailZone[];
   button?: { label: string; href: string } | null;
+  /** A second button under the first one, on the same axis. */
+  secondButton?: { label: string; href: string } | null;
   footnote?: string | null;
   /** The last line above the signature, with an optional link after the text. */
   closing?: { text: string; link?: { label: string; href: string } } | null;
-  /** The ADED logo and `Sent by ADED.` with the unsubscribe link; or the 48h mail's ADED line on top and a plain line. */
-  footer: { logoSrc: string; unsubscribeHref: string | null } | { plain: string };
+  /**
+   * The ADED logo and `Sent by ADED.` with the unsubscribe link; or the 48h mail's ADED line on top and a plain line.
+   * `top`: the logo heads the mail instead of closing it. `sender`: `Sent by {sender} via ADED.`
+   */
+  footer: { logoSrc: string; unsubscribeHref: string | null; top?: boolean; sender?: string | null } | { plain: string };
 };
 
 /** `body` is the inside of `<body>`: the cabinet preview sets it on the screen's own grid. */
@@ -66,31 +71,48 @@ function zoneRow(zone: MailZone, first: boolean): string {
 </tr></table></td></tr>`;
 }
 
-function buttonRow(button: { label: string; href: string }, footnote: string | null | undefined): string {
+function skyButton(button: { label: string; href: string }, top: number): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:${top}px;"><tr><td bgcolor="${SKY}" style="background:${SKY};">
+<a href="${escape(button.href)}" style="display:inline-block;padding:11px 22px;font-family:${FONT};font-size:13px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase;color:${INK};text-decoration:none;">${escape(button.label)}</a>
+</td></tr></table>`;
+}
+
+function buttonRow(buttons: { label: string; href: string }[], footnote: string | null | undefined): string {
   const note = footnote
     ? `<p style="margin:12px 0 0;font-family:${FONT};font-size:12px;line-height:1.45;color:${GREY};">${escape(footnote)}</p>`
     : "";
   return `<tr><td style="padding:0 0 24px ${LABEL + GAP}px;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="${SKY}" style="background:${SKY};">
-<a href="${escape(button.href)}" style="display:inline-block;padding:11px 22px;font-family:${FONT};font-size:13px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase;color:${INK};text-decoration:none;">${escape(button.label)}</a>
-</td></tr></table>${note}</td></tr>`;
+${buttons.map((button, index) => skyButton(button, index === 0 ? 0 : 10)).join("\n")}${note}</td></tr>`;
 }
 
-const SENT = "Sent by ADED.";
 const NOTE = `font-family:${FONT};font-size:12px;line-height:1.45;color:${GREY};`;
+const TOP_LOGO_H = 22;
+const TOP_LOGO_W = Math.round((TOP_LOGO_H * 54) / 17);
+
+function sentLine(sender: string | null | undefined): string {
+  const name = sender?.replace(/\s+/g, " ").trim();
+  return name ? `Sent by ${name} via ADED.` : "Sent by ADED.";
+}
+
+function logoMasthead(logoSrc: string): string {
+  return `<tr><td style="padding:0 0 24px;"><img src="${escape(logoSrc)}" width="${TOP_LOGO_W}" height="${TOP_LOGO_H}" alt="ADED" style="display:block;width:${TOP_LOGO_W}px;height:${TOP_LOGO_H}px;border:0;outline:none;" /></td></tr>`;
+}
 
 function footerRow(footer: EventMailInput["footer"]): string {
   if ("plain" in footer) return `<tr><td style="border-top:1px solid ${RULE};padding:18px 0 0;${NOTE}">${escape(footer.plain)}</td></tr>`;
   const unsubscribe = footer.unsubscribeHref
     ? ` <a href="${escape(footer.unsubscribeHref)}" style="color:${GREY};text-decoration:underline;">Unsubscribe</a> from this event's mail.`
     : "";
-  return `<tr><td style="padding:8px 0 18px ${AXIS}px;"><img src="${escape(footer.logoSrc)}" width="${LOGO_W}" height="${LOGO_H}" alt="ADED" style="display:block;width:${LOGO_W}px;height:${LOGO_H}px;border:0;outline:none;" /></td></tr>
-<tr><td style="border-top:1px solid ${RULE};padding:18px 0 0;${NOTE}">${SENT}${unsubscribe}</td></tr>`;
+  const logo = footer.top
+    ? ""
+    : `<tr><td style="padding:8px 0 18px ${AXIS}px;"><img src="${escape(footer.logoSrc)}" width="${LOGO_W}" height="${LOGO_H}" alt="ADED" style="display:block;width:${LOGO_W}px;height:${LOGO_H}px;border:0;outline:none;" /></td></tr>\n`;
+  return `${logo}<tr><td style="border-top:1px solid ${RULE};padding:18px 0 0;${NOTE}">${escape(sentLine(footer.sender))}${unsubscribe}</td></tr>`;
 }
 
 function footerText(footer: EventMailInput["footer"]): string {
   if ("plain" in footer) return footer.plain;
-  return footer.unsubscribeHref ? `${SENT} Unsubscribe from this event's mail: ${footer.unsubscribeHref}` : SENT;
+  const sent = sentLine(footer.sender);
+  return footer.unsubscribeHref ? `${sent} Unsubscribe from this event's mail: ${footer.unsubscribeHref}` : sent;
 }
 
 function posterRow(poster: NonNullable<EventMailInput["poster"]>, width = POSTER_W): string {
@@ -106,9 +128,11 @@ export function renderEventMail(input: EventMailInput, frame: MailFrame = {}): R
   const widthAttr = width === "100%" ? "100%" : String(width);
   const widthStyle = width === "100%" ? "100%" : `${width}px`;
   const branded = !("plain" in input.footer);
-  const top = input.poster ? posterRow(input.poster, frame.posterWidth) : branded ? "" : MASTHEAD;
+  const logoTop = "logoSrc" in input.footer && input.footer.top ? logoMasthead(input.footer.logoSrc) : "";
+  const top = input.poster ? posterRow(input.poster, frame.posterWidth) : branded ? logoTop : MASTHEAD;
   const zones = input.zones.map((zone, index) => zoneRow(zone, index === 0 && !input.poster)).join("\n");
-  const button = input.button ? buttonRow(input.button, input.footnote) : "";
+  const buttons = [input.button, input.secondButton].filter((entry): entry is { label: string; href: string } => Boolean(entry));
+  const button = buttons.length > 0 ? buttonRow(buttons, input.footnote) : "";
   const closingLink = input.closing?.link
     ? ` <a href="${escape(input.closing.link.href)}" style="color:${GREY};text-decoration:underline;">${escape(input.closing.link.label)}</a>`
     : "";
@@ -132,7 +156,7 @@ ${body}
 
   const lines = branded ? [] : ["ADED", ""];
   for (const zone of input.zones) lines.push(`${zone.label}: ${zone.value}`);
-  if (input.button) lines.push("", `${input.button.label}: ${input.button.href}`);
+  if (buttons.length > 0) lines.push("", ...buttons.map((entry) => `${entry.label}: ${entry.href}`));
   if (input.footnote) lines.push(input.footnote);
   if (input.closing) {
     const link = input.closing.link ? ` ${input.closing.link.label}: ${input.closing.link.href}` : "";

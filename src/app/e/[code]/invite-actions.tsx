@@ -15,6 +15,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import { COLUMN_GAP_PX } from "@/shared/layout/axes";
 import type { PortfolioChoice } from "@/shared/services/event-registration";
 import { PortfolioFace } from "@/shared/components/portfolio-face";
+import { openWalletPass } from "@/shared/lib/wallet-client";
 
 const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
@@ -22,7 +23,8 @@ const FIELD =
   "compass-input block w-full border-0 bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 
 type AcceptReply = {
-  kind?: "go" | "here" | "signin" | "other-device" | "notice" | "going";
+  kind?: "go" | "here" | "signin" | "other-device" | "notice" | "going" | "access";
+  access?: boolean;
   badge?: PortfolioChoice | null;
   change?: string;
   text?: string;
@@ -81,7 +83,7 @@ type InviteActionsProps = {
   /** After the event only the personal link still opens a pass. */
   ended: boolean;
   signInHref: string;
-  /** Where the pass goes once it is open, instead of the card. */
+  /** Where the pass goes once it is open, instead of the card. `wallet`: the Wallet pass of that card. */
   then?: string | null;
   poster: ReactNode;
   /** Every seat is taken. Someone already going still gets in. */
@@ -119,6 +121,8 @@ export function InviteActions({
   const [notice, setNotice] = useState<{ text: string; next: string } | null>(null);
   const [form, setForm] = useState(false);
   const [going, setGoing] = useState<{ badge: PortfolioChoice | null; change: string } | null>(null);
+  const [thanked, setThanked] = useState(false);
+  const [signInOffer, setSignInOffer] = useState(false);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [website, setWebsite] = useState("");
@@ -143,7 +147,13 @@ export function InviteActions({
     const state = useAppStore.getState();
     const index = cardId ? state.cards.findIndex((card) => card.id === cardId) : -1;
     if (index >= 0) state.setCurrentCardIndex(index);
-    router.replace(pay ? `/e/${encodeURIComponent(lookup)}/pay` : (then ?? "/main"));
+    if (then === "wallet" && cardId && (await openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`))) return;
+    router.replace(pay ? `/e/${encodeURIComponent(lookup)}/pay` : then && then !== "wallet" ? then : "/main");
+  };
+
+  const thank = () => {
+    setThanked(true);
+    setBusy(false);
   };
 
   const fail = (text: string) => {
@@ -161,7 +171,11 @@ export function InviteActions({
     }
     const reply = (await response.json()) as AcceptReply;
     if (!response.ok || !reply.kind) return fail(reply.error ?? "Could not open your pass.");
-    if (reply.kind === "other-device") return fail("Open this link on the phone you used first");
+    if (reply.kind === "access") return thank();
+    if (reply.kind === "other-device") {
+      setSignInOffer(true);
+      return fail("This pass was started in another browser. Sign in with your email to open it here.");
+    }
     if (reply.kind === "notice") return fail(reply.text ?? "");
     if (reply.kind === "going") {
       setGoing({ badge: reply.badge ?? null, change: reply.change ?? joinPath });
@@ -181,6 +195,7 @@ export function InviteActions({
       const signed = await supabase.auth.verifyOtp({ token_hash: reply.tokenHash, type: "magiclink" });
       if (signed.error) return fail("Could not open your pass.");
     }
+    if (reply.access) return thank();
     if (reply.confirmEmail) {
       await supabase.auth
         .updateUser({ email: reply.confirmEmail }, { emailRedirectTo: `${window.location.origin}/main` })
@@ -276,6 +291,27 @@ export function InviteActions({
     />
   ) : null;
 
+  const offer = signInOffer ? (
+    <Link
+      href={signInHref}
+      className="press mt-4 inline-block t-caps text-[var(--grey)] no-underline [-webkit-tap-highlight-color:transparent]"
+    >
+      Sign in
+    </Link>
+  ) : null;
+
+  if (thanked) {
+    return (
+      <p className="m-0 w-full max-w-[280px] bg-sky px-[21.6px] py-[21.6px] text-center t-caps text-[var(--ink)]">
+        Thank you.
+        <br />
+        Your registration is confirmed.
+        <br />
+        Your event access will arrive in a separate email.
+      </p>
+    );
+  }
+
   if (going) {
     return (
       <>
@@ -352,6 +388,7 @@ export function InviteActions({
             ) : null}
             <Footnote openLink />
             {hint ? <p className="mt-3 mb-0 text-center t-meta text-[var(--ink)]">{hint}</p> : null}
+            {offer}
           </div>
         </form>
         {toast}
@@ -368,6 +405,7 @@ export function InviteActions({
         ) : waitText ? (
           <p className="m-0 text-center t-meta text-[var(--grey)]">{waitText}</p>
         ) : null}
+        {offer}
         {toast}
       </>
     );
@@ -433,6 +471,7 @@ export function InviteActions({
           </p>
         )}
         {hint ? <p className="mt-3 mb-0 text-center t-meta text-[var(--ink)]">{hint}</p> : null}
+        {offer}
       </div>
       {toast}
     </>

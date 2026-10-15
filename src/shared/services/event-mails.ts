@@ -11,7 +11,7 @@ import { inboxMissing } from "@/shared/services/event-invite-inbox";
 import { posterUrl } from "@/shared/services/poster-snapshot";
 import { BATCH_MAX, mailConfigured, sendHtmlBatch, type HtmlMail } from "@/shared/services/mail";
 
-export type MailKind = "invite" | "reminder" | "deletion";
+export type MailKind = "invite" | "reminder" | "deletion" | "access";
 
 export type MailEvent = {
   id: string;
@@ -119,6 +119,99 @@ export function inviteMail(
 
 export function inviteSubject(event: MailEvent): string {
   return event.name;
+}
+
+const ACCESS_PASS_LINE =
+  "This link is your QR pass for the door — and your card at the event. Show it to enter, share it with people you meet.";
+const ACCESS_PORTFOLIO_LINE =
+  "Add your contacts, links, professional details, social media and files — the portfolio you share at this event. Everyone there is using it. Keep it after.";
+const ACCESS_NOTE = "Your pass and portfolio stay live for 100 hours around the event. Register to keep them for good.";
+
+/** The pass link opens the pass in any browser: the token signs in as the guest. */
+export function accessLink(origin: string, event: MailEvent, token: string): string {
+  return `${origin}/e/${event.key}?g=${encodeURIComponent(token)}&go=1`;
+}
+
+/** After I'm going: no poster, the logo on top, the pass and the Wallet. */
+export function accessMail(
+  origin: string,
+  event: MailEvent,
+  guest: { token: string },
+  sender: string | null,
+  frame?: MailFrame,
+): RenderedMail {
+  const zones: (MailZone | null)[] = [
+    { label: "You're going", value: event.name, lead: true },
+    event.when ? { label: "Date", value: event.when } : null,
+    placeZone(event, false),
+    { label: "Pass", value: ACCESS_PASS_LINE },
+    { label: "Portfolio", value: ACCESS_PORTFOLIO_LINE },
+  ];
+  const link = accessLink(origin, event, guest.token);
+  return renderEventMail({
+    zones: zones.filter((zone): zone is MailZone => zone !== null),
+    button: { label: "MY PASS & PORTFOLIO", href: link },
+    secondButton: { label: "ADD TO APPLE WALLET", href: `${link}&then=wallet` },
+    footnote: ACCESS_NOTE,
+    footer: { logoSrc: adedLogo(origin), unsubscribeHref: unsubscribePage(origin, event, guest.token), top: true, sender },
+  }, frame);
+}
+
+export function accessSubject(event: MailEvent): string {
+  return `Your access to ${event.name}`;
+}
+
+/** The organiser's name from their first named card. Never their email. */
+async function organiserName(eventId: string): Promise<string | null> {
+  const admin = createAdminSupabaseClient();
+  const owner = await admin.from("events").select("owner_id").eq("id", eventId).maybeSingle();
+  const ownerId = (owner.data as { owner_id?: string | null } | null)?.owner_id;
+  if (owner.error || !ownerId) return null;
+  const cards = await admin.from("cards").select("display_name").eq("owner_id", ownerId).order("created_at", { ascending: true });
+  if (cards.error) return null;
+  const named = ((cards.data ?? []) as { display_name: string | null }[]).find((card) => (card.display_name ?? "").trim());
+  return named?.display_name?.replace(/\s+/g, " ").trim() || null;
+}
+
+/**
+ * The access mail, once per registration, to the guest's email. Phone-only guests get nothing.
+ * Until the mail log allows the `access` kind, the claim fails and nothing is sent.
+ */
+export async function sendAccessMail(lookup: string, registrationId: string, origin: string): Promise<boolean> {
+  try {
+    if (!mailConfigured()) return false;
+    const admin = createAdminSupabaseClient();
+    const found = await admin
+      .from("event_guests")
+      .select("id, event_id, email, token, unsubscribed_at, bounced_at")
+      .eq("registration_id", registrationId)
+      .limit(1);
+    if (found.error) return false;
+    type Row = { id: string; event_id: string; email: string | null; token: string; unsubscribed_at: string | null; bounced_at: string | null };
+    const guest = ((found.data ?? []) as Row[])[0];
+    const email = guest?.email?.trim().toLowerCase();
+    if (!guest || !email || guest.unsubscribed_at || guest.bounced_at) return false;
+    const event = await loadMailEvent(lookup);
+    if (!event || event.id !== guest.event_id) return false;
+    const claims = await claimMail(event.id, "access", [guest.id]);
+    const logId = claims.get(guest.id);
+    if (!logId) return false;
+    const body = accessMail(origin, event, guest, await organiserName(event.id));
+    const [outcome] = await sendHtmlBatch(
+      [{ to: email, subject: accessSubject(event), html: body.html, text: body.text }],
+      batchKey("access", [logId]),
+    );
+    if (outcome?.ok) {
+      await admin.from("event_mail_log").update({ provider_id: outcome.id, sent_at: new Date().toISOString() }).eq("id", logId);
+      return true;
+    }
+    await admin.from("event_mail_log").delete().eq("id", logId);
+    if (outcome) await admin.from("event_guests").update({ last_mail_error: outcome.error.slice(0, 500) }).eq("id", guest.id);
+    return false;
+  } catch (error) {
+    console.error("[mail] access", error instanceof Error ? error.message : error);
+    return false;
+  }
 }
 
 /** Bounces and the mail log are in place: the event mails migration ran. */

@@ -133,7 +133,8 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const ended = eventHasEnded(event.date, event.endsAt);
   const guestToken = Array.isArray(query.g) ? query.g[0] : query.g;
   const go = (Array.isArray(query.go) ? query.go[0] : query.go) === "1";
-  const then = (Array.isArray(query.then) ? query.then[0] : query.then) === "scan" ? "/scan" : null;
+  const thenParam = Array.isArray(query.then) ? query.then[0] : query.then;
+  const then = thenParam === "scan" ? "/scan" : thenParam === "wallet" ? "wallet" : null;
   const guest = guestToken ? await findPassGuest(event.id, guestToken) : null;
   const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
   const permanent = await isPermanentAccount(session);
