@@ -23,7 +23,6 @@ type SortMode = "recent" | "alphabet" | "event";
 type Contact = {
   id: string;
   displayName: string;
-  state: "active" | "pending";
   savedCardToken: string;
   sourceEventId: string | null;
   createdAt: string;
@@ -105,16 +104,9 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     window.history.replaceState(null, "", "/network");
   }, [addedName]);
 
-  const pending = useMemo(() => {
-    return (contacts ?? [])
-      .filter((contact) => contact.state === "pending")
-      .slice()
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  }, [contacts]);
-
   const accepted = useMemo(() => {
     const needle = foldSearch(query.trim());
-    return (contacts ?? []).filter((contact) => contact.state === "active" && matchesQuery(contact, needle));
+    return (contacts ?? []).filter((contact) => matchesQuery(contact, needle));
   }, [contacts, query]);
 
   const readyOwnerId = async () => {
@@ -122,32 +114,6 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     const { data } = await createBrowserSupabaseClient().auth.getSession();
     ownerId.current = data.session?.user.id ?? null;
     return ownerId.current;
-  };
-
-  const accept = async (id: string) => {
-    const before = contacts?.find((contact) => contact.id === id);
-    if (!before || inFlight.current.has(id)) return;
-    inFlight.current.add(id);
-    setContacts((current) =>
-      current?.map((contact) => (contact.id === id ? { ...contact, state: "active" } : contact)) ?? current,
-    );
-    setNotice(`${before.displayName.trim() || "Untitled"} — just added to your contacts`);
-    try {
-      const userId = await readyOwnerId();
-      const { error } = userId
-        ? await createBrowserSupabaseClient()
-            .from("connections")
-            .update({ state: "active" })
-            .eq("id", id)
-            .eq("owner_id", userId)
-        : { error: true };
-      if (error) {
-        setNotice(null);
-        setContacts((current) => current?.map((contact) => (contact.id === id ? before : contact)) ?? current);
-      }
-    } finally {
-      inFlight.current.delete(id);
-    }
   };
 
   const remove = async (id: string) => {
@@ -226,20 +192,6 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           </Zone>
         ) : (
           <>
-            {pending.length > 0 ? (
-              <section className="pt-6">
-                <ul>
-                  {pending.map((contact) => (
-                    <WaitingRow
-                      key={contact.id}
-                      contact={contact}
-                      onAccept={() => void accept(contact.id)}
-                      onSkip={() => void remove(contact.id)}
-                    />
-                  ))}
-                </ul>
-              </section>
-            ) : null}
             {sort === "alphabet" ? (
               <AlphabetList
                 contacts={accepted}
@@ -368,32 +320,6 @@ function FlatList({
         </section>
       ))}
     </>
-  );
-}
-
-function WaitingRow({
-  contact,
-  onAccept,
-  onSkip,
-}: {
-  contact: Contact;
-  onAccept: () => void;
-  onSkip: () => void;
-}) {
-  return (
-    <li className="press flex items-center gap-3 border-b border-[var(--rule)] py-3 text-[var(--grey)]">
-      <Face photoUrl={contact.photoUrl} />
-      <div className="min-w-0 flex-1">
-        <p className="m-0 truncate t-body">{contact.displayName.trim() || "Untitled"}</p>
-        <p className="m-0 mt-0.5 truncate t-meta">offered you their card</p>
-      </div>
-      <button type="button" onClick={onAccept} className="border-0 bg-transparent t-meta underline">
-        Accept
-      </button>
-      <button type="button" onClick={onSkip} className="border-0 bg-transparent t-meta underline">
-        Skip
-      </button>
-    </li>
   );
 }
 
