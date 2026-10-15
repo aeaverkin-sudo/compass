@@ -118,31 +118,34 @@ const ABOUT_MAX = 280;
 const SUPPORT_EMAIL = "support@adedme.com";
 const UNDER_QR = "TAP ⋯ TO OPEN SCANNER & PORTFOLIO";
 
-const WALLET_SLOTS = 2;
-
 type WalletSlot = { cardId: string; slot: number };
 
 function readSlots(value: unknown): WalletSlot[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
     (entry): entry is WalletSlot =>
-      Boolean(entry) && typeof entry.cardId === "string" && Number.isInteger(entry.slot) && entry.slot >= 1 && entry.slot <= WALLET_SLOTS,
+      Boolean(entry) && typeof entry.cardId === "string" && Number.isInteger(entry.slot) && entry.slot >= 1,
   );
 }
 
 /**
- * Two passes per person at most. A card keeps its place; a new card takes a free one,
- * else the place of the card put in Wallet longest ago, and that pass is replaced on the phone.
- * The places live in the account's app metadata, newest last.
+ * One pass per card. A card keeps its place, so putting it in again updates its pass;
+ * a new card takes the lowest free place. A deleted card frees its place, and the next new card replaces that pass.
+ * The places live in the account's app metadata.
  */
 async function walletSerial(ownerId: string, cardId: string): Promise<{ serial: string; slot: number }> {
   const admin = createAdminSupabaseClient();
-  const user = (await admin.auth.admin.getUserById(ownerId)).data.user;
-  const slots = readSlots(user?.app_metadata?.wallet_cards);
+  const [user, owned] = await Promise.all([
+    admin.auth.admin.getUserById(ownerId).then((result) => result.data.user),
+    admin.from("cards").select("id").eq("owner_id", ownerId),
+  ]);
+  const live = owned.error ? null : new Set(((owned.data ?? []) as { id: string }[]).map((row) => row.id));
+  const slots = readSlots(user?.app_metadata?.wallet_cards).filter((entry) => !live || live.has(entry.cardId) || entry.cardId === cardId);
   const own = slots.find((entry) => entry.cardId === cardId);
   const taken = new Set(slots.map((entry) => entry.slot));
-  const free = Array.from({ length: WALLET_SLOTS }, (_, index) => index + 1).find((slot) => !taken.has(slot));
-  const slot = own?.slot ?? free ?? slots[0]?.slot ?? 1;
+  let free = 1;
+  while (taken.has(free)) free += 1;
+  const slot = own?.slot ?? free;
   const next = [...slots.filter((entry) => entry.slot !== slot), { cardId, slot }];
   if (user) {
     const saved = await admin.auth.admin.updateUserById(ownerId, { app_metadata: { ...user.app_metadata, wallet_cards: next } });
