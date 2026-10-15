@@ -11,20 +11,20 @@ const S = 3;
 const INK = "#111111";
 const ORANGE = "#E8640C";
 const SKY = "#c5e8f7";
-const ADDRESS_INK = "#2b4a54";
 const GRID_LINE = "rgba(232, 100, 12, 0.16)";
 const GRID_STEP = 17;
 
-const ADDRESS_LEFT = 15;
-const ADDRESS_TOP = 3;
-const ADDRESS_SIZE = 10.5;
-/** Three grid cells, flush to the top right corner. */
-const NUMBER_BOX = GRID_STEP * 3;
-const NUMBER_SIZE = 19.5;
+/**
+ * The tab: one orange piece, 3 cells wide. The top part is the Wallet logo with the number,
+ * the bottom part is the 3×3 square in the strip's top left corner.
+ * Wallet sets the logo's left margin itself: TAB_LEFT is tuned on the phone so both meet.
+ */
+const TAB_LEFT = 16;
+const TAB_W = GRID_STEP * 3;
 
-const PHOTO = 90;
-const PHOTO_LEFT = 14;
-const PHOTO_TOP = 50;
+const PHOTO = 116;
+const PHOTO_LEFT = 79;
+const PHOTO_TOP = (H - PHOTO) / 2;
 const GAP = 14;
 const NAME_LEFT = PHOTO_LEFT + PHOTO + GAP;
 
@@ -34,7 +34,7 @@ const MARK_W = Math.round((MARK_H * 477) / 150);
 const MARK_RIGHT = 6;
 const NAME_RIGHT = W - MARK_RIGHT - MARK_H - 8;
 
-let assets: Promise<{ regular: ArrayBuffer; bold: ArrayBuffer; mono: ArrayBuffer; mark: string }> | null = null;
+let assets: Promise<{ regular: ArrayBuffer; bold: ArrayBuffer; mark: string }> | null = null;
 
 function asArrayBuffer(bytes: Buffer): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -42,10 +42,9 @@ function asArrayBuffer(bytes: Buffer): ArrayBuffer {
 
 function loadAssets() {
   assets ??= (async () => {
-    const [regular, bold, mono, logo] = await Promise.all([
+    const [regular, bold, logo] = await Promise.all([
       readFile(join(process.cwd(), "public/fonts/Arimo-Regular.ttf")),
       readFile(join(process.cwd(), "public/fonts/Arimo-Bold.ttf")),
-      readFile(join(process.cwd(), "public/fonts/Cousine-Regular.ttf")),
       readFile(join(process.cwd(), "public/brand/wallet/aded-grid-orange@3x.png")),
     ]);
     const { default: sharp } = await import("sharp");
@@ -53,7 +52,6 @@ function loadAssets() {
     return {
       regular: asArrayBuffer(regular),
       bold: asArrayBuffer(bold),
-      mono: asArrayBuffer(mono),
       mark: `data:image/png;base64,${turned.toString("base64")}`,
     };
   })().catch((error: unknown) => {
@@ -83,15 +81,10 @@ function nameSize(lines: string[], width: number): number {
   return Math.max(14, Math.min(26, byWidth, byHeight));
 }
 
-/** Cousine runs 0.6 em a character; a longer address gives way to the site's own. */
-export function addressFits(address: string): boolean {
-  return address.length * ADDRESS_SIZE * 0.6 <= W - ADDRESS_LEFT - NUMBER_BOX - 8;
-}
-
-/** Columns run from the right edge, so the number square sits exactly on three cells. */
+/** Columns start at the tab's left edge, so the orange square covers whole cells. */
 function grid() {
   const lines = [];
-  for (let x = W - GRID_STEP; x >= 0; x -= GRID_STEP) {
+  for (let x = TAB_LEFT % GRID_STEP; x < W; x += GRID_STEP) {
     lines.push(<div key={`x${x}`} style={{ position: "absolute", left: x * S, top: 0, width: S, height: H * S, background: GRID_LINE }} />);
   }
   for (let y = 0; y < H; y += GRID_STEP) {
@@ -101,17 +94,12 @@ function grid() {
 }
 
 /**
- * The whole top of the personal pass: sky with a faint orange grid, the address in the top cell,
- * the pass number in an orange square, the photo, the name with its orange dot, and the grid aded
- * turned upright at the right edge. Wallet draws the fields and the QR under it.
+ * The strip of the personal pass: sky with a faint orange grid, the lower part of the orange tab,
+ * the photo, the name with its orange dot, and the grid aded turned upright at the right edge.
+ * The address and the number sit in Wallet's own header above it.
  */
-export async function walletStrip(card: {
-  name: string;
-  photoPng: Buffer | null;
-  address: string;
-  number: string;
-}): Promise<PassImage> {
-  const { regular, bold, mono, mark } = await loadAssets();
+export async function walletStrip(card: { name: string; photoPng: Buffer | null }): Promise<PassImage> {
+  const { regular, bold, mark } = await loadAssets();
   const photo = card.photoPng ? `data:image/png;base64,${card.photoPng.toString("base64")}` : null;
   const left = photo ? NAME_LEFT : PHOTO_LEFT;
   const width = NAME_RIGHT - left;
@@ -123,42 +111,8 @@ export async function walletStrip(card: {
     <div style={{ position: "relative", display: "flex", width: W * S, height: H * S, background: SKY, fontFamily: "Arimo" }}>
       {grid()}
       <div
-        style={{
-          position: "absolute",
-          left: ADDRESS_LEFT * S,
-          top: ADDRESS_TOP * S,
-          height: GRID_STEP * S,
-          display: "flex",
-          alignItems: "center",
-          fontFamily: "Cousine",
-          fontSize: ADDRESS_SIZE * S,
-          letterSpacing: 0.01 * ADDRESS_SIZE * S,
-          color: ADDRESS_INK,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {card.address}
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          right: 0,
-          top: 0,
-          width: NUMBER_BOX * S,
-          height: NUMBER_BOX * S,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: ORANGE,
-          color: "#ffffff",
-          fontSize: NUMBER_SIZE * S,
-          fontWeight: 700,
-          letterSpacing: 0.01 * NUMBER_SIZE * S,
-          lineHeight: 1,
-        }}
-      >
-        {card.number}
-      </div>
+        style={{ position: "absolute", left: TAB_LEFT * S, top: 0, width: TAB_W * S, height: TAB_W * S, background: ORANGE }}
+      />
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -225,14 +179,66 @@ export async function walletStrip(card: {
     fonts: [
       { name: "Arimo", data: regular, weight: 400, style: "normal" },
       { name: "Arimo", data: bold, weight: 700, style: "normal" },
-      { name: "Cousine", data: mono, weight: 400, style: "normal" },
     ],
   });
-  const x3 = Buffer.from(await response.arrayBuffer());
+  return scaled(Buffer.from(await response.arrayBuffer()), W, H);
+}
+
+async function scaled(x3: Buffer, width: number, height: number): Promise<PassImage> {
   const { default: sharp } = await import("sharp");
   const [x2, x1] = await Promise.all([
-    sharp(x3).resize(W * 2, H * 2).png().toBuffer(),
-    sharp(x3).resize(W, H).png().toBuffer(),
+    sharp(x3).resize(width * 2, height * 2).png().toBuffer(),
+    sharp(x3).resize(width, height).png().toBuffer(),
   ]);
   return { x1, x2, x3 };
+}
+
+/** Apple's logo box: 160 × 50 points at most. */
+const LOGO_MAX_W = 160;
+const LOGO_H = 50;
+const TAB_TOP_H = 46;
+const TAB_NUMBER_SIZE = 24;
+/** Wallet's header: the pass width and the logo text, as measured on the phone. */
+const PASS_W = 343;
+const LOGO_TEXT_SIZE = 17;
+const LOGO_TEXT_GAP = 8;
+
+/**
+ * The top part of the tab, as the Wallet logo: the orange block with the number at the bottom left,
+ * then clear space, so Wallet's logo text starts near the middle of the header.
+ */
+export async function walletTab(number: string, logoText: string): Promise<PassImage> {
+  const { bold } = await loadAssets();
+  const textW = logoText.length * LOGO_TEXT_SIZE * 0.56;
+  const centred = Math.round(PASS_W / 2 - textW / 2 - TAB_LEFT - LOGO_TEXT_GAP);
+  const width = Math.max(TAB_W + 8, Math.min(LOGO_MAX_W, centred));
+  const element = (
+    <div style={{ position: "relative", display: "flex", width: width * S, height: LOGO_H * S, fontFamily: "Arimo" }}>
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          bottom: 0,
+          width: TAB_W * S,
+          height: TAB_TOP_H * S,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: ORANGE,
+          color: "#ffffff",
+          fontSize: TAB_NUMBER_SIZE * S,
+          fontWeight: 700,
+          lineHeight: 1,
+        }}
+      >
+        {number}
+      </div>
+    </div>
+  );
+  const response = new ImageResponse(element, {
+    width: width * S,
+    height: LOGO_H * S,
+    fonts: [{ name: "Arimo", data: bold, weight: 700, style: "normal" }],
+  });
+  return scaled(Buffer.from(await response.arrayBuffer()), width, LOGO_H);
 }

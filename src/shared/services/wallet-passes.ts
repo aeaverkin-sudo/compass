@@ -11,7 +11,7 @@ import {
 import { loadVisibleCardItems } from "@/shared/services/public-card";
 import { setPrimaryCard } from "@/shared/services/primary-card";
 import { buildPass, type PassField } from "@/shared/services/wallet-pass";
-import { addressFits, walletStrip } from "@/shared/services/wallet-strip";
+import { walletStrip, walletTab } from "@/shared/services/wallet-strip";
 import { walletCardQr, type WalletBackField } from "@/shared/services/wallet-pass-content";
 
 export type BuiltPass = { file: Buffer; name: string };
@@ -59,13 +59,13 @@ async function imageBytes(attachmentId: string | null | undefined): Promise<Uint
   return (await downloadAttachmentBytes(row)) ?? null;
 }
 
-/** The card photo as a square PNG for the strip, 90 points at 3×. No photo, null. */
+/** The card photo as a square PNG for the strip, 116 points at 3×. No photo, null. */
 async function cardPhoto(card: CardRow): Promise<Buffer | null> {
   const bytes = await imageBytes(card.photo_attachment_id);
   if (!bytes) return null;
   try {
     const { default: sharp } = await import("sharp");
-    return await sharp(Buffer.from(bytes), { failOn: "none" }).rotate().resize(270, 270, { fit: "cover" }).png().toBuffer();
+    return await sharp(Buffer.from(bytes), { failOn: "none" }).rotate().resize(348, 348, { fit: "cover" }).png().toBuffer();
   } catch {
     return null;
   }
@@ -163,17 +163,17 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
   ]);
   const portfolio = cardQr(origin, card);
   const address = shownAddress(portfolio);
-  const strip = await walletStrip({
-    name: card.display_name?.trim() || "Guest",
-    photoPng,
-    address: addressFits(address) ? address : shownAddress(origin),
-    number: String(slot).padStart(2, "0"),
-  });
+  const [strip, logo] = await Promise.all([
+    walletStrip({ name: card.display_name?.trim() || "Guest", photoPng }),
+    walletTab(String(slot).padStart(2, "0"), address),
+  ]);
   const about = cardAbout(sections);
   const file = await buildPass({
     serialNumber: serial,
     organizationName: "ADED",
     description: name,
+    logo,
+    logoText: address,
     strip,
     secondaryFields: portfolioFields(sections),
     backFields: [
