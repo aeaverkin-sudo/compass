@@ -122,12 +122,37 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
   const photoReady = row.photo_attachment_id
     ? (await readyAttachmentIds([row.photo_attachment_id])).has(row.photo_attachment_id)
     : false;
+  const items = await loadVisibleCardItems(row.id);
 
+  const card: Card = {
+    id: row.id,
+    displayName: row.display_name,
+    title: row.title?.trim() ?? "",
+    status: asCardStatus(row.status),
+    publicToken: row.public_token,
+    handle: row.handle?.trim().toLowerCase() || undefined,
+    qrVersion: 1,
+    photoAttachmentId: photoReady ? (row.photo_attachment_id ?? undefined) : undefined,
+    contactItemIds: items.map((item) => item.id),
+    rubricOrder: normalizeRubricOrder(row.rubric_order),
+    rubricLabels: normalizeRubricLabels(row.rubric_labels),
+    itemZones: normalizeItemZones(row.item_zones),
+    photoLook: photoLookValue(row.photo_look),
+    nextScanAddons: [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+
+  return { card, items, ownerId: row.owner_id };
+});
+
+/** The rows a card shows, in its order, with values. Service role only. */
+export async function loadVisibleCardItems(cardId: string): Promise<ContactItem[]> {
   const admin = createAdminSupabaseClient();
   const { data: linkData, error: linkError } = await admin
     .from("card_items")
     .select("item_id, sort_order")
-    .eq("card_id", row.id)
+    .eq("card_id", cardId)
     .eq("visible", true)
     .order("sort_order");
   if (linkError) throw new Error(linkError.message);
@@ -166,28 +191,8 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
       order: link.sort_order,
     });
   }
-
-  const card: Card = {
-    id: row.id,
-    displayName: row.display_name,
-    title: row.title?.trim() ?? "",
-    status: asCardStatus(row.status),
-    publicToken: row.public_token,
-    handle: row.handle?.trim().toLowerCase() || undefined,
-    qrVersion: 1,
-    photoAttachmentId: photoReady ? (row.photo_attachment_id ?? undefined) : undefined,
-    contactItemIds: items.map((item) => item.id),
-    rubricOrder: normalizeRubricOrder(row.rubric_order),
-    rubricLabels: normalizeRubricLabels(row.rubric_labels),
-    itemZones: normalizeItemZones(row.item_zones),
-    photoLook: photoLookValue(row.photo_look),
-    nextScanAddons: [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-
-  return { card, items, ownerId: row.owner_id };
-});
+  return items;
+}
 
 /** True when this file is the photo or a visible item on a public ready card. */
 export async function attachmentIsPublic(attachmentId: string): Promise<boolean> {

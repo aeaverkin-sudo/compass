@@ -9,40 +9,49 @@ const H = 144;
 const S = 3;
 
 const INK = "#111111";
-const GREY = "#999999";
-const RULE = "#999999";
+const ORANGE = "#E8640C";
+const SKY = "#c5e8f7";
+const CAPTION = "#4a6670";
+const GRID_LINE = "rgba(232, 100, 12, 0.16)";
+const GRID_STEP = 17;
 
-const LOGO_H = 22;
-const LOGO_W = Math.round((LOGO_H * 477) / 150);
-const RULE_INSET = 20;
-const RULE_TOP = 40;
-const RULE_BOTTOM = 139;
-const PHOTO = 72;
-const PHOTO_LEFT = 26;
-const NAME_LEFT = PHOTO_LEFT + PHOTO + 16;
-const NAME_WIDTH = W - NAME_LEFT - RULE_INSET;
+const PHOTO = 112;
+const PHOTO_LEFT = 16;
+const PHOTO_TOP = (H - PHOTO) / 2;
+const GAP = 14;
+const MARK_COLUMN = 34;
+const NAME_LEFT = PHOTO_LEFT + PHOTO + GAP;
+const NAME_RIGHT = W - MARK_COLUMN;
 
-let assets: Promise<{ regular: ArrayBuffer; bold: ArrayBuffer; logo: string }> | null = null;
+/** The grid aded, upright before it is turned to read bottom to top. */
+const MARK_H = 22;
+const MARK_W = Math.round((MARK_H * 477) / 150);
+const MARK_RIGHT = 6;
+
+let assets: Promise<{ regular: ArrayBuffer; bold: ArrayBuffer; mark: string }> | null = null;
 
 function asArrayBuffer(bytes: Buffer): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 function loadAssets() {
-  assets ??= Promise.all([
-    readFile(join(process.cwd(), "public/fonts/Arimo-Regular.ttf")),
-    readFile(join(process.cwd(), "public/fonts/Arimo-Bold.ttf")),
-    readFile(join(process.cwd(), "public/brand/wallet/aded-grid-orange@3x.png")),
-  ])
-    .then(([regular, bold, logo]) => ({
+  assets ??= (async () => {
+    const [regular, bold, logo] = await Promise.all([
+      readFile(join(process.cwd(), "public/fonts/Arimo-Regular.ttf")),
+      readFile(join(process.cwd(), "public/fonts/Arimo-Bold.ttf")),
+      readFile(join(process.cwd(), "public/brand/wallet/aded-grid-orange@3x.png")),
+    ]);
+    const { default: sharp } = await import("sharp");
+    const turned = await sharp(logo).rotate(270).resize(MARK_H * S, MARK_W * S).png().toBuffer();
+    return {
       regular: asArrayBuffer(regular),
       bold: asArrayBuffer(bold),
-      logo: `data:image/png;base64,${logo.toString("base64")}`,
-    }))
-    .catch((error: unknown) => {
-      assets = null;
-      throw error;
-    });
+      mark: `data:image/png;base64,${turned.toString("base64")}`,
+    };
+  })().catch((error: unknown) => {
+    assets = null;
+    throw error;
+  });
   return assets;
 }
 
@@ -59,38 +68,40 @@ function nameLines(name: string): string[] {
   return [words.slice(0, half).join(" "), words.slice(half).join(" ")];
 }
 
-function nameSize(lines: string[], hasPosition: boolean): number {
-  const longest = Math.max(...lines.map((line) => line.length), 1);
-  const byWidth = NAME_WIDTH / (longest * 0.56);
-  const byHeight = (PHOTO - (hasPosition ? 18 : 0)) / (lines.length * 1.02);
-  return Math.max(14, Math.min(28, byWidth, byHeight));
+function nameSize(lines: string[], width: number, hasCaption: boolean): number {
+  const longest = Math.max(...lines.map((line, index) => line.length + (index === lines.length - 1 ? 1 : 0)), 1);
+  const byWidth = width / (longest * 0.56);
+  const byHeight = (PHOTO - (hasCaption ? 22 : 0)) / (lines.length * 0.98);
+  return Math.max(14, Math.min(27, byWidth, byHeight));
+}
+
+function grid() {
+  const lines = [];
+  for (let x = 0; x < W; x += GRID_STEP) {
+    lines.push(<div key={`x${x}`} style={{ position: "absolute", left: x * S, top: 0, width: S, height: H * S, background: GRID_LINE }} />);
+  }
+  for (let y = 0; y < H; y += GRID_STEP) {
+    lines.push(<div key={`y${y}`} style={{ position: "absolute", left: 0, top: y * S, width: W * S, height: S, background: GRID_LINE }} />);
+  }
+  return lines;
 }
 
 /**
- * The top of the personal pass: the grid aded, a rule, the photo with its shadow,
- * the name and the Position, a rule. White; Wallet draws the QR under it.
+ * The top of the personal pass: sky with a faint orange grid, the photo, the name with its
+ * orange dot, Position · City, and the grid aded turned upright at the right edge. Wallet draws the rest.
  */
 export async function walletStrip(card: { name: string; position: string | null; photoPng: Buffer | null }): Promise<PassImage> {
-  const { regular, bold, logo } = await loadAssets();
-  const lines = nameLines(card.name);
-  const size = nameSize(lines, Boolean(card.position));
-  const blockTop = (RULE_TOP + RULE_BOTTOM) / 2 - PHOTO / 2;
+  const { regular, bold, mark } = await loadAssets();
   const photo = card.photoPng ? `data:image/png;base64,${card.photoPng.toString("base64")}` : null;
-  const rule = (top: number) => (
-    <div style={{ position: "absolute", left: RULE_INSET * S, top: top * S, width: (W - RULE_INSET * 2) * S, height: S, background: RULE }} />
-  );
+  const left = photo ? NAME_LEFT : PHOTO_LEFT;
+  const width = NAME_RIGHT - left;
+  const lines = nameLines(card.name);
+  const size = nameSize(lines, width, Boolean(card.position));
+  const last = lines.length - 1;
 
   const element = (
-    <div style={{ position: "relative", display: "flex", width: W * S, height: H * S, background: "#ffffff", fontFamily: "Arimo" }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={logo}
-        width={LOGO_W * S}
-        height={LOGO_H * S}
-        alt=""
-        style={{ position: "absolute", left: ((W - LOGO_W) / 2) * S, top: 9 * S }}
-      />
-      {rule(RULE_TOP)}
+    <div style={{ position: "relative", display: "flex", width: W * S, height: H * S, background: SKY, fontFamily: "Arimo" }}>
+      {grid()}
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -101,17 +112,17 @@ export async function walletStrip(card: { name: string; position: string | null;
           style={{
             position: "absolute",
             left: PHOTO_LEFT * S,
-            top: blockTop * S,
-            boxShadow: `0 ${2 * S}px ${7 * S}px rgba(0, 0, 0, 0.28)`,
+            top: PHOTO_TOP * S,
+            boxShadow: `0 ${2 * S}px ${8 * S}px rgba(0, 0, 0, 0.22)`,
           }}
         />
       ) : null}
       <div
         style={{
           position: "absolute",
-          left: (photo ? NAME_LEFT : RULE_INSET + 6) * S,
-          top: blockTop * S,
-          width: (photo ? NAME_WIDTH : W - RULE_INSET * 2 - 12) * S,
+          left: left * S,
+          top: PHOTO_TOP * S,
+          width: width * S,
           height: PHOTO * S,
           display: "flex",
           flexDirection: "column",
@@ -125,25 +136,26 @@ export async function walletStrip(card: { name: string; position: string | null;
               display: "flex",
               fontSize: size * S,
               fontWeight: 700,
-              lineHeight: 1.02,
-              letterSpacing: -0.6 * S,
+              lineHeight: 0.98,
+              letterSpacing: -0.03 * size * S,
               color: INK,
               whiteSpace: "nowrap",
             }}
           >
             {line}
+            {index === last ? <span style={{ color: ORANGE }}>.</span> : null}
           </div>
         ))}
         {card.position ? (
           <div
             style={{
               display: "flex",
-              marginTop: 6 * S,
-              fontSize: 9.5 * S,
+              marginTop: 7 * S,
+              fontSize: 10 * S,
               fontWeight: 400,
-              letterSpacing: 1.1 * S,
+              letterSpacing: 0.16 * 10 * S,
               textTransform: "uppercase",
-              color: GREY,
+              color: CAPTION,
               whiteSpace: "nowrap",
               overflow: "hidden",
             }}
@@ -152,7 +164,14 @@ export async function walletStrip(card: { name: string; position: string | null;
           </div>
         ) : null}
       </div>
-      {rule(RULE_BOTTOM)}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={mark}
+        width={MARK_H * S}
+        height={MARK_W * S}
+        alt=""
+        style={{ position: "absolute", left: (W - MARK_RIGHT - MARK_H) * S, top: ((H - MARK_W) / 2) * S }}
+      />
     </div>
   );
 
