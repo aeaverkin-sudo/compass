@@ -166,7 +166,7 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
     name: card.display_name?.trim() || "Guest",
     photoPng,
     address: addressFits(address) ? address : shownAddress(origin),
-    number: String(slot).padStart(4, "0"),
+    number: String(slot).padStart(2, "0"),
   });
   const about = cardAbout(sections);
   const file = await buildPass({

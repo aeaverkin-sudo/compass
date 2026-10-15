@@ -20,6 +20,7 @@ const ADDRESS_TOP = 3;
 const ADDRESS_SIZE = 10.5;
 /** Three grid cells, flush to the top right corner. */
 const NUMBER_BOX = GRID_STEP * 3;
+const NUMBER_SIZE = 19.5;
 
 const PHOTO = 90;
 const PHOTO_LEFT = 14;
@@ -150,9 +151,9 @@ export async function walletStrip(card: {
           justifyContent: "center",
           background: ORANGE,
           color: "#ffffff",
-          fontSize: 15 * S,
+          fontSize: NUMBER_SIZE * S,
           fontWeight: 700,
-          letterSpacing: 0.01 * 15 * S,
+          letterSpacing: 0.01 * NUMBER_SIZE * S,
           lineHeight: 1,
         }}
       >
