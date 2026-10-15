@@ -120,6 +120,11 @@ export function MainScreen() {
   }, [cards, contactItems, emptyFillHintSeen, markEmptyFillHintSeen]);
 
   useEffect(() => {
+    router.prefetch("/profile");
+    router.prefetch("/network");
+  }, [router]);
+
+  useEffect(() => {
     const blockSelection = (event: Event) => {
       const node = event.target;
       const el = node instanceof Element ? node : node instanceof Node ? node.parentElement : null;

@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
 import { useLongPress } from "@/shared/hooks/use-long-press";
+import { recallAnswer, rememberAnswer } from "@/shared/lib/last-answer";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { foldSearch } from "@/shared/lib/search-fold";
 import { NetworkBand } from "./network-band";
@@ -33,6 +34,7 @@ type Contact = {
 };
 
 const HOLD_MS = 500;
+const CONTACTS_KEY = "connections";
 /** Same token as the profile zone label. */
 const ZONE_LABEL = "t-label whitespace-nowrap";
 
@@ -73,7 +75,7 @@ export function NetworkScreen({
   addedToken?: string | null;
 }) {
   const router = useRouter();
-  const [contacts, setContacts] = useState<Contact[] | null>(null);
+  const [contacts, setContacts] = useState<Contact[] | null>(() => recallAnswer<Contact[]>(CONTACTS_KEY));
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [armedId, setArmedId] = useState<string | null>(null);
@@ -105,6 +107,10 @@ export function NetworkScreen({
       ownerId.current = data.session?.user.id ?? null;
     });
   }, []);
+
+  useEffect(() => {
+    if (contacts) rememberAnswer(CONTACTS_KEY, contacts);
+  }, [contacts]);
 
   useEffect(() => {
     if (!addedName) return;

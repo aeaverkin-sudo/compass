@@ -3,9 +3,16 @@
 import { useEffect, useState } from "react";
 import { CONSENT_ACCEPTED_EVENT } from "@/shared/services/consent";
 import type { AccountStatus } from "@/shared/services/trial";
+import { recallAnswer, rememberAnswer } from "@/shared/lib/last-answer";
+
+const STATUS_KEY = "account-status";
 
 export function useAccountStatus() {
-  const [status, setStatus] = useState<AccountStatus | null>(null);
+  const [status, setStatus] = useState<AccountStatus | null>(() => recallAnswer<AccountStatus>(STATUS_KEY));
+
+  useEffect(() => {
+    if (status) rememberAnswer(STATUS_KEY, status);
+  }, [status]);
 
   useEffect(() => {
     let cancelled = false;
