@@ -31,9 +31,14 @@ type ListedEvent = {
 const LINK = "press text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 
 const DRAFT_KEY = "aded:event-draft";
-const DRAFT_TTL_MS = 60 * 60 * 1000;
+/** The form was open when the screen was left: coming back opens it again. */
+const DRAFT_OPEN_KEY = "aded:event-draft-open";
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+/** A bigger picture is not kept: the browser store holds a few megabytes for the whole site. */
+const DRAFT_LOGO_MAX = 2_000_000;
 
-type EventDraft = EventFormValues & { savedAt: number };
+type DraftLogo = { dataUrl: string; name: string };
+type EventDraft = EventFormValues & { savedAt: number; logo?: DraftLogo | null };
 
 const EMPTY_FORM: EventFormValues = {
   name: "",
@@ -100,26 +105,62 @@ function readEventDraft(): EventDraft | null {
       timeText: isDraftString(data.timeText) ? data.timeText : inviteTimeText(data.time, data.endTime),
       timeZone: isTimeZone(data.timeZone) ? data.timeZone : browserTimeZone(),
       savedAt: data.savedAt,
+      logo:
+        data.logo && isDraftString(data.logo.dataUrl) && data.logo.dataUrl.startsWith("data:image/") && isDraftString(data.logo.name)
+          ? data.logo
+          : null,
     };
   } catch {
     return null;
   }
 }
 
-function writeEventDraft(fields: EventFormValues) {
+function writeEventDraft(fields: EventFormValues, logo: DraftLogo | null) {
+  const kept = logo && logo.dataUrl.length <= DRAFT_LOGO_MAX ? logo : null;
   try {
-    const draft: EventDraft = { ...fields, savedAt: Date.now() };
+    const draft: EventDraft = { ...fields, savedAt: Date.now(), logo: kept };
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
   } catch {
-    /* private mode or a blocked store: the form still works */
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...fields, savedAt: Date.now(), logo: null }));
+    } catch {
+      /* private mode or a blocked store: the form still works */
+    }
   }
 }
 
 function clearEventDraft() {
   try {
     localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(DRAFT_OPEN_KEY);
   } catch {
     /* private mode or a blocked store */
+  }
+}
+
+function markDraftOpen(open: boolean) {
+  try {
+    if (open) localStorage.setItem(DRAFT_OPEN_KEY, "1");
+    else localStorage.removeItem(DRAFT_OPEN_KEY);
+  } catch {
+    /* private mode or a blocked store */
+  }
+}
+
+function draftWasOpen(): boolean {
+  try {
+    return localStorage.getItem(DRAFT_OPEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+async function fileFromDataUrl(logo: DraftLogo): Promise<File | null> {
+  try {
+    const blob = await (await fetch(logo.dataUrl)).blob();
+    return new File([blob], logo.name, { type: blob.type });
+  } catch {
+    return null;
   }
 }
 
@@ -238,33 +279,49 @@ export function EventEntryScreen() {
   const logoFile = useRef<File | null>(null);
   const savingLock = useRef(false);
   const draftReady = useRef(false);
-  /** Restored fields. Don't write them back and refresh the hour. */
-  const draftEcho = useRef<EventFormValues | null>(null);
+  /** Restored fields. Don't write them back and refresh the clock. */
+  const draftEcho = useRef<{ values: EventFormValues; logo: string | null } | null>(null);
+  const logoShown = useRef<string | null>(null);
 
   useEffect(() => {
+    logoShown.current = logo;
     if (!draftReady.current || step !== "create") return;
-    if (draftEcho.current && sameDraft(draftEcho.current, values)) return;
+    if (draftEcho.current && sameDraft(draftEcho.current.values, values) && draftEcho.current.logo === logo) return;
     draftEcho.current = null;
-    writeEventDraft(values);
-  }, [step, values]);
+    writeEventDraft(values, logo ? { dataUrl: logo, name: logoFile.current?.name || "logo" } : null);
+  }, [step, values, logo]);
 
   /** The draft comes back the first time the form opens. */
   const openCreate = () => {
     if (!draftReady.current) {
       const draft = readEventDraft();
       if (draft) {
-        const { savedAt, ...fields } = draft;
+        const { savedAt, logo: savedLogo, ...fields } = draft;
         void savedAt;
         setValues(fields);
-        draftEcho.current = fields;
+        if (savedLogo) {
+          setLogo(savedLogo.dataUrl);
+          void fileFromDataUrl(savedLogo).then((file) => {
+            if (file && !logoFile.current && logoShown.current === savedLogo.dataUrl) logoFile.current = file;
+          });
+        }
+        draftEcho.current = { values: fields, logo: savedLogo?.dataUrl ?? null };
       } else {
         clearEventDraft();
         setValues((current) => ({ ...current, timeZone: browserTimeZone() }));
       }
       draftReady.current = true;
     }
+    markDraftOpen(true);
     setStep("create");
   };
+
+  // Left for the card, Network or another app with the form open: it opens again with what was typed.
+  useEffect(() => {
+    if (!draftWasOpen() || !readEventDraft()) return;
+    const frame = requestAnimationFrame(openCreate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (step !== "entry") return;
@@ -286,6 +343,7 @@ export function EventEntryScreen() {
 
   const leave = () => {
     setCreateError(null);
+    markDraftOpen(false);
     setStep("entry");
   };
 
@@ -317,7 +375,7 @@ export function EventEntryScreen() {
         setSaving(false);
         return;
       }
-      draftEcho.current = values;
+      draftEcho.current = { values, logo };
       clearEventDraft();
       router.replace(`/e/${encodeURIComponent(payload.publicToken)}/manage?created=1`);
     } catch {
