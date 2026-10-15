@@ -568,71 +568,70 @@ function ModernFull({ event }: { event: InviteCoverEvent }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
           {event.logoUrl ? (
             <div style={{ position: "relative", width: 92, height: 98, flex: "0 0 auto" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={event.logoUrl}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover", ...mask("linear-gradient(130deg, #000 50%, transparent 94%)") }}
-              />
+              <ModernPic url={event.logoUrl} top={0} left={0} />
             </div>
           ) : (
             <span />
           )}
           <div style={{ textAlign: "right", fontSize: 7.5, letterSpacing: "0.14em", textTransform: "uppercase", ...MONO }}>ADED</div>
         </div>
-        {day ? (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Date</div>
-            <div style={{ fontSize: 22, ...MONO }}>{day}</div>
+        {/* Positioned after the halftone, so the dots stay under the text as on the preview. */}
+        <div style={{ position: "relative" }}>
+          {day ? (
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Date</div>
+              <div style={{ fontSize: 22, ...MONO }}>{day}</div>
+            </div>
+          ) : null}
+          {time ? (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Time</div>
+              <div style={{ fontSize: 11, ...MONO }}>{time}</div>
+            </div>
+          ) : null}
+          {about ? (
+            <p style={{ margin: "16px 0 0", fontSize: 8, lineHeight: 1.7, overflowWrap: "break-word", whiteSpace: "pre-wrap", ...MONO }}>{about}</p>
+          ) : null}
+          <div
+            style={{
+              marginTop: 18,
+              fontWeight: 700,
+              fontSize: modernTitleSize(event.name),
+              lineHeight: 0.9,
+              letterSpacing: "-0.055em",
+              textTransform: "uppercase",
+              textAlign: "center",
+              overflowWrap: "break-word",
+            }}
+          >
+            {event.name.toUpperCase()}
           </div>
-        ) : null}
-        {time ? (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Time</div>
-            <div style={{ fontSize: 11, ...MONO }}>{time}</div>
-          </div>
-        ) : null}
-        {about ? (
-          <p style={{ margin: "16px 0 0", fontSize: 8, lineHeight: 1.7, overflowWrap: "break-word", whiteSpace: "pre-wrap", ...MONO }}>{about}</p>
-        ) : null}
-        <div
-          style={{
-            marginTop: 18,
-            fontWeight: 700,
-            fontSize: modernTitleSize(event.name),
-            lineHeight: 0.9,
-            letterSpacing: "-0.055em",
-            textTransform: "uppercase",
-            textAlign: "center",
-            overflowWrap: "break-word",
-          }}
-        >
-          {event.name.toUpperCase()}
+          {place || event.price ? (
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 16 }}>
+              {place ? (
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Place</div>
+                  <div style={{ fontSize: 9, overflowWrap: "break-word", ...MONO }}>{place}</div>
+                </div>
+              ) : (
+                <span />
+              )}
+              {event.price ? (
+                <div style={{ textAlign: "right", flex: "0 0 auto" }}>
+                  <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Price</div>
+                  <div style={{ fontSize: 9, ...MONO }}>{event.price}</div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-        {place || event.price ? (
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 16 }}>
-            {place ? (
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Place</div>
-                <div style={{ fontSize: 9, overflowWrap: "break-word", ...MONO }}>{place}</div>
-              </div>
-            ) : (
-              <span />
-            )}
-            {event.price ? (
-              <div style={{ textAlign: "right", flex: "0 0 auto" }}>
-                <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Price</div>
-                <div style={{ fontSize: 9, ...MONO }}>{event.price}</div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
       </div>
     </div>
   );
 }
 
-function ModernPic({ url }: { url: string }) {
+/** The logo and its halftone. One piece for the preview and the full poster, so they match. */
+function ModernPic({ url, top = 8, left = 6 }: { url: string; top?: number; left?: number }) {
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -641,8 +640,8 @@ function ModernPic({ url }: { url: string }) {
         alt=""
         style={{
           position: "absolute",
-          top: 8,
-          left: 6,
+          top,
+          left,
           width: 92,
           height: 98,
           objectFit: "cover",
@@ -653,8 +652,8 @@ function ModernPic({ url }: { url: string }) {
         aria-hidden
         style={{
           position: "absolute",
-          top: 8,
-          left: 6,
+          top,
+          left,
           width: 124,
           height: 130,
           opacity: 0.6,
