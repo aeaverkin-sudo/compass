@@ -154,7 +154,13 @@ function shellFromRow(row: CardRow): Card {
   };
 }
 
-/** Keep local order. Server scalars win on the same id, except a blank server name. Local-only cards get a UUID. */
+/** A card without a valid date stays after the dated ones, in its local order. */
+function createdTime(card: Card) {
+  const time = Date.parse(card.createdAt);
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+}
+
+/** Order is fixed by creation date; is_primary never moves a card. Server scalars win on the same id, except a blank server name. Local-only cards get a UUID. */
 export function mergeCardScalars(local: Card[], remote: CardRow[]): Card[] {
   const remoteById = new Map(remote.map((row) => [row.id, row]));
   const seen = new Set<string>();
@@ -175,10 +181,7 @@ export function mergeCardScalars(local: Card[], remote: CardRow[]): Card[] {
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   for (const row of extras) next.push(shellFromRow(row));
-  const primary = remote.find((row) => row.is_primary === true);
-  const at = primary ? next.findIndex((card) => card.id === primary.id) : -1;
-  if (at > 0) next.unshift(...next.splice(at, 1));
-  return next;
+  return next.sort((a, b) => createdTime(a) - createdTime(b));
 }
 
 function sameRubricOrder(a?: string[], b?: string[]) {

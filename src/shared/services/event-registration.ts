@@ -110,21 +110,13 @@ export async function ensurePayCode(eventId: string, userId: string, registratio
 
 export async function listOwnPortfolios(userId: string): Promise<PortfolioChoice[]> {
   const admin = createAdminSupabaseClient();
-  const columns = "id, display_name, title, photo_attachment_id";
-  const withPrimary = await admin
+  const { data, error } = await admin
     .from("cards")
-    .select(`${columns}, is_primary`)
+    .select("id, display_name, title, photo_attachment_id")
     .eq("owner_id", userId)
     .order("created_at", { ascending: true });
-  const loaded =
-    withPrimary.error && /is_primary/i.test(withPrimary.error.message)
-      ? await admin.from("cards").select(columns).eq("owner_id", userId).order("created_at", { ascending: true })
-      : withPrimary;
-  const { data, error } = loaded;
   if (error) throw new Error(error.message);
-  const rows = (data ?? []) as Record<string, unknown>[];
-  const primaryFirst = [...rows.filter((row) => row.is_primary === true), ...rows.filter((row) => row.is_primary !== true)];
-  return primaryFirst.map((row) => ({
+  return (data ?? []).map((row) => ({
     id: row.id as string,
     name: ((row.display_name as string | null) ?? "").trim(),
     title: ((row.title as string | null) ?? "").trim(),
