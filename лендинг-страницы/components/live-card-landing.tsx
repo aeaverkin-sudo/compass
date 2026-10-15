@@ -196,10 +196,16 @@ export function LiveCardLanding() {
       )}
     >
       <nav ref={navRef} className="flex shrink-0 items-center justify-between px-[26px] py-[22px]">
-        <Image src={LOGO} alt="aded" width={70} height={22} priority className="h-[22px] w-auto" />
-        <span className={cn("text-[12px] tracking-[.14em] uppercase", MONO)} style={{ color: ORANGE }}>
+        <Link href="/register" aria-label="Sign up" className="press -m-3 flex p-3">
+          <Image src={LOGO} alt="aded" width={70} height={22} priority className="h-[22px] w-auto" />
+        </Link>
+        <Link
+          href="/register"
+          className={cn("press -m-3 p-3 text-[12px] tracking-[.14em] uppercase no-underline", MONO)}
+          style={{ color: ORANGE }}
+        >
           adedme.com
-        </span>
+        </Link>
       </nav>
 
       <div
