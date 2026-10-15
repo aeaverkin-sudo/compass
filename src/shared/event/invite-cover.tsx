@@ -99,30 +99,63 @@ function fitFloor(root: HTMLElement): number {
   return topIn(mark, root) - (Number(mark.dataset.fitFloor) || 6);
 }
 
+const FIT_MIN = 0.6;
+const FIT_STEP = 0.04;
+
+/** About shrinks with the cover's `--fit-about`, own field values with `--fit-field`, down to their floor size. */
+function fitSize(px: number, floor: number, part: "about" | "field" = "field"): string {
+  return `max(${floor}px, calc(${px}px * var(--fit-${part}, 1)))`;
+}
+
+function setLines(node: HTMLElement, lines: number | null) {
+  node.style.display = lines ? "-webkit-box" : "";
+  node.style.webkitLineClamp = lines ? String(lines) : "";
+  node.style.webkitBoxOrient = lines ? "vertical" : "";
+  node.style.overflow = lines ? "hidden" : "";
+}
+
 /**
- * The small cover shows the own fields `[data-fit]` that fit above its floor and hides the rest.
- * The full poster shows them all.
+ * The small cover keeps its text above the floor. About `[data-fit-about]` gets smaller until it fits,
+ * then loses a line at a time. Own fields `[data-fit]` get smaller until they fit, then the last ones hide.
+ * The title, date, place and price never shrink. The full poster shows everything as it is.
  */
-function useFitFields(full: boolean, count: number) {
-  const box = useRef<HTMLDivElement>(null);
+function useFitCover(full: boolean, key: string) {
+  const ref = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    const node = box.current;
-    const root = node?.closest<HTMLElement>("[data-cover-root]");
-    if (full || !node || !root || count === 0) return;
+    const root = ref.current;
+    if (full || !root) return;
     const fit = () => {
-      const items = [...node.querySelectorAll<HTMLElement>("[data-fit]")];
-      for (const item of items) item.style.display = "";
+      const fields = [...root.querySelectorAll<HTMLElement>("[data-fit]")];
+      const about = root.querySelector<HTMLElement>("[data-fit-about]");
+      for (const field of fields) field.style.display = "";
+      if (about) setLines(about, null);
+      root.style.setProperty("--fit-about", "1");
+      root.style.setProperty("--fit-field", "1");
       const floor = fitFloor(root);
-      for (let index = items.length - 1; index >= 0; index -= 1) {
-        const item = items[index]!;
-        if (topIn(item, root) + item.offsetHeight <= floor) break;
-        item.style.display = "none";
+      const above = (node: HTMLElement) => node.offsetParent === null || topIn(node, root) + node.offsetHeight <= floor;
+      const aboutFits = () => !about || above(about);
+      const fieldsFit = () => fields.every(above);
+      const shrink = (part: "about" | "field", fits: () => boolean) => {
+        for (let scale = 1; !fits() && scale > FIT_MIN; ) {
+          scale = Math.max(FIT_MIN, scale - FIT_STEP);
+          root.style.setProperty(`--fit-${part}`, String(scale));
+        }
+      };
+      shrink("about", aboutFits);
+      if (about && !aboutFits()) {
+        const line = parseFloat(getComputedStyle(about).lineHeight) || 10;
+        for (let lines = Math.round(about.offsetHeight / line); !aboutFits() && lines > 2; ) {
+          lines -= 1;
+          setLines(about, lines);
+        }
       }
+      shrink("field", fieldsFit);
+      for (let index = fields.length - 1; index >= 0 && !fieldsFit(); index -= 1) fields[index]!.style.display = "none";
     };
     fit();
     void document.fonts?.ready.then(fit);
-  }, [full, count]);
-  return box;
+  }, [full, key]);
+  return ref;
 }
 
 export function InviteCover({ event, layout, themeId, variant }: InviteCoverProps) {
@@ -219,8 +252,13 @@ function Cover({
 }) {
   const paint = coverPaint(layout, themeId);
   const poster = layout === "card" ? event : { ...event, name: eventTitleLine(event.name) };
+  const fitRef = useFitCover(
+    full || layout === "card",
+    JSON.stringify([layout, poster.name, poster.description, poster.date, poster.place, poster.price, poster.logoUrl, poster.inviteRows]),
+  );
   return (
     <div
+      ref={fitRef}
       data-cover-root
       style={{
         width: DESIGN_W,
@@ -253,7 +291,7 @@ function Field({ label, value, fit = false }: { label: string; value: string; fi
       <div style={{ fontFamily: MONO_FACE, fontSize: 7, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.55, marginBottom: 2 }}>
         {label}
       </div>
-      <div style={{ fontSize: 10.5, lineHeight: 1.35, overflowWrap: "break-word" }}>{value}</div>
+      <div style={{ fontSize: fit ? fitSize(10.5, 7) : 10.5, lineHeight: 1.35, overflowWrap: "break-word" }}>{value}</div>
     </div>
   );
 }
@@ -264,7 +302,6 @@ function EditorialCover({ event, full }: { event: InviteCoverEvent; full: boolea
   const place = placeLine(event);
   const about = event.description?.trim() || null;
   const extras = posterFields(event.inviteRows);
-  const box = useFitFields(full, extras.length);
   const fields = (
     <>
       {date ? <Field label="Date" value={date} /> : null}
@@ -313,7 +350,6 @@ function EditorialCover({ event, full }: { event: InviteCoverEvent; full: boolea
         </h1>
         <div style={{ height: 1.4, background: "currentColor", marginTop: 13 }} />
         <div
-          ref={box}
           style={{
             display: "grid",
             gridTemplateColumns: about ? "96px 1fr" : "1fr",
@@ -340,8 +376,14 @@ function EditorialCover({ event, full }: { event: InviteCoverEvent; full: boolea
                 About
               </div>
               <div
-                className={full ? undefined : "line-clamp-[10]"}
-                style={{ fontSize: 9.5, lineHeight: 1.6, textAlign: "justify", overflowWrap: "break-word", whiteSpace: "pre-wrap" }}
+                data-fit-about={full ? undefined : true}
+                style={{
+                  fontSize: full ? 9.5 : fitSize(9.5, 6, "about"),
+                  lineHeight: 1.6,
+                  textAlign: "justify",
+                  overflowWrap: "break-word",
+                  whiteSpace: "pre-wrap",
+                }}
               >
                 {about}
               </div>
@@ -385,7 +427,6 @@ function FashionCover({ event, full }: { event: InviteCoverEvent; full: boolean 
   const footBits = [place, time, event.price?.trim() || null].filter((bit): bit is string => Boolean(bit));
   const foot = footBits.length > 0 ? footBits.join(" · ") : null;
   const extras = posterFields(event.inviteRows);
-  const box = useFitFields(full, extras.length);
   const hair: CSSProperties = { width: 34, height: 1, background: "currentColor", opacity: 0.5, margin: "16px 0" };
 
   return (
@@ -466,29 +507,31 @@ function FashionCover({ event, full }: { event: InviteCoverEvent; full: boolean 
       {date ? <div style={{ fontSize: 10, letterSpacing: "0.3em", ...MONO }}>{date}</div> : null}
       {about ? (
         <div
+          data-fit-about={full ? undefined : true}
           style={{
             maxWidth: "78%",
             marginTop: 18,
-            fontSize: 8.5,
+            fontSize: full ? 8.5 : fitSize(8.5, 6, "about"),
             lineHeight: 1.9,
             opacity: 0.82,
             overflowWrap: "break-word",
             whiteSpace: "pre-wrap",
             flexShrink: 0,
-            ...(full ? {} : clamp(4)),
           }}
         >
           {about}
         </div>
       ) : null}
       {extras.length > 0 ? (
-        <div ref={box} style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: "78%", marginTop: 16, flexShrink: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: "78%", marginTop: 16, flexShrink: 0 }}>
           {extras.map((field) => (
             <div key={field.id} data-fit style={{ overflowWrap: "break-word", ...MONO }}>
               {field.label ? (
                 <div style={{ fontSize: 6.5, letterSpacing: "0.3em", textTransform: "uppercase", opacity: 0.6 }}>{field.label}</div>
               ) : null}
-              <div style={{ fontSize: 8.5, letterSpacing: "0.08em", ...(full ? { whiteSpace: "pre-wrap" } : clamp(2)) }}>{field.value}</div>
+              <div style={{ fontSize: full ? 8.5 : fitSize(8.5, 7), letterSpacing: "0.08em", ...(full ? { whiteSpace: "pre-wrap" } : clamp(4)) }}>
+                {field.value}
+              </div>
             </div>
           ))}
         </div>
@@ -543,7 +586,9 @@ function ModernFields({
       {extras.map((field, index) => (
         <div key={field.id} data-fit style={{ marginTop: day || time || index > 0 ? 10 : 0 }}>
           {field.label ? <div style={caption}>{field.label}</div> : null}
-          <div style={{ fontSize: 9, overflowWrap: "break-word", ...MONO, ...(full ? { whiteSpace: "pre-wrap" } : clamp(2)) }}>
+          <div
+            style={{ fontSize: full ? 9 : fitSize(9, 7), overflowWrap: "break-word", ...MONO, ...(full ? { whiteSpace: "pre-wrap" } : clamp(4)) }}
+          >
             {field.value}
           </div>
         </div>
@@ -562,7 +607,6 @@ function ModernSmall({ event }: { event: InviteCoverEvent }) {
   const place = placeLine(event);
   const about = aboutLine(event);
   const extras = posterFields(event.inviteRows);
-  const box = useFitFields(false, extras.length);
 
   return (
     <>
@@ -591,7 +635,7 @@ function ModernSmall({ event }: { event: InviteCoverEvent }) {
         ADED
       </div>
       {day || time || extras.length > 0 ? (
-        <div ref={box} style={{ position: "absolute", top: 128, left: 18, maxWidth: about ? 114 : 250 }}>
+        <div style={{ position: "absolute", top: 128, left: 18, maxWidth: about ? 114 : 250 }}>
           <ModernFields day={day} time={time} extras={extras} full={false} />
         </div>
       ) : null}
@@ -621,7 +665,9 @@ function ModernSmall({ event }: { event: InviteCoverEvent }) {
               borderBottom: "1px solid currentColor",
             }}
           />
-          <p style={{ margin: 0, fontSize: 8, lineHeight: 1.7, ...MONO, ...clamp(5) }}>{about}</p>
+          <p data-fit-about style={{ margin: 0, fontSize: fitSize(8, 6, "about"), lineHeight: 1.7, ...MONO }}>
+            {about}
+          </p>
         </div>
       ) : null}
       {/* Line height 0.8: the letters rise above the box. */}
