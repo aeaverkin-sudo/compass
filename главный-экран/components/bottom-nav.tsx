@@ -1,10 +1,27 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ComponentProps } from "react";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { TabBand } from "./tab-band";
 
 const EDIT_CLICK_GUARD_MS = 400;
+
+/** Fires on the finger lifting; the click Safari sends after it is dropped, keyboard clicks still work. */
+function TapButton({ onTap, ...props }: Omit<ComponentProps<"button">, "onClick" | "onPointerUp"> & { onTap: () => void }) {
+  return (
+    <button
+      type="button"
+      {...props}
+      onPointerUp={(event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        onTap();
+      }}
+      onClick={(event) => {
+        if (event.detail === 0) onTap();
+      }}
+    />
+  );
+}
 
 type BottomNavProps = {
   /** Edit mode: Reset or Delete on the left, + in the centre opens the writing line, OK on the right leaves editing. */
@@ -40,38 +57,33 @@ export function BottomNav({
       pin
       left={
         editing ? (
-          <button
-            type="button"
+          <TapButton
             className="flex h-full min-h-11 w-full items-center uppercase"
-            onClick={() => onRemove?.()}
+            onTap={() => onRemove?.()}
           >
             {resetsCard ? "Reset" : "Delete"}
-          </button>
+          </TapButton>
         ) : (
-          <button
-            type="button"
+          <TapButton
             className="flex h-full min-h-11 w-full items-center uppercase"
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={() => onProfile?.()}
+            onTap={() => onProfile?.()}
           >
             Profile
-          </button>
+          </TapButton>
         )
       }
       center={
         editing ? (
-          <button
-            type="button"
+          <TapButton
             aria-label="Add"
             className="flex h-full min-h-11 w-full items-center justify-center"
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={() => {
+            onTap={() => {
               if (Date.now() - editedAt.current < EDIT_CLICK_GUARD_MS) return;
               onAdd?.();
             }}
           >
             <MarkPlus className="text-[var(--ink)]" strokeWidth={1.5} />
-          </button>
+          </TapButton>
         ) : (
           <button
             type="button"
@@ -92,22 +104,19 @@ export function BottomNav({
       }
       right={
         editing ? (
-          <button
-            type="button"
+          <TapButton
             className="flex h-full min-h-11 w-full items-center justify-end"
-            onClick={() => onDone?.()}
+            onTap={() => onDone?.()}
           >
             OK
-          </button>
+          </TapButton>
         ) : (
-          <button
-            type="button"
+          <TapButton
             className="flex h-full min-h-11 w-full items-center justify-end uppercase"
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={() => onNetwork?.()}
+            onTap={() => onNetwork?.()}
           >
             Network
-          </button>
+          </TapButton>
         )
       }
     />
