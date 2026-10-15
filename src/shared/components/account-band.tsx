@@ -37,7 +37,7 @@ export function AccountBand({
   onPreparePdf,
 }: {
   token: string;
-  /** Painted PDF carries the ADED mark. The web plaque keeps Get PDF file. */
+  /** Painted PDF carries the ADED mark. The web plaque keeps Save PDF file. */
   pdf?: boolean;
   /** PDF row pad. */
   inset?: number;
@@ -65,7 +65,7 @@ export function AccountBand({
             onClick={onPdf}
             className={cn(DOOR, "justify-end border-0 bg-transparent")}
           >
-            <span data-pdf-link="">Get PDF file</span>
+            <span data-pdf-link="">Save PDF file</span>
           </button>
         }
       />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import {
@@ -66,16 +66,12 @@ export function PublicCardClient({
   const router = useRouter();
   const [notes, setNotes] = useState<DeliveredNote[]>([]);
   const [notesReady, setNotesReady] = useState(false);
-  const [offerOpen, setOfferOpen] = useState(true);
-  const [held, setHeld] = useState(inside);
-  const [plaqueHeight, setPlaqueHeight] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>(save ? "loading" : "ready");
   const [notice, setNotice] = useState<string | null>(null);
   const [paintPdf, setPaintPdf] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [savePdfDoor, setSavePdfDoor] = useState(false);
   const [shareBack, setShareBack] = useState<{ cards: PortfolioFaceData[]; busy: boolean } | null>(null);
-  const plaqueRef = useRef<HTMLDivElement>(null);
   const waitingRef = useRef(false);
 
   useEffect(() => {
@@ -83,7 +79,7 @@ export function PublicCardClient({
     let cancelled = false;
     void Promise.all([
       fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, { method: "POST" }),
-      inside && !save ? Promise.resolve(null) : fetch("/api/connections", { cache: "no-store" }),
+      save ? fetch("/api/connections", { cache: "no-store" }) : Promise.resolve(null),
     ])
       .then(async ([notesResponse, bookResponse]) => {
         if (cancelled) return;
@@ -99,7 +95,6 @@ export function PublicCardClient({
           const rows = Array.isArray(book.connections) ? book.connections : [];
           saved = rows.some((row) => row.savedCardToken === publicToken || row.savedCardToken === card.publicToken);
         }
-        if (!inside) setHeld(owner || saved);
         if (save) setSaveState(owner ? "own" : saved ? "saved" : "ready");
       })
       .catch(() => {
@@ -119,21 +114,6 @@ export function PublicCardClient({
     displayName: card.displayName,
     notes,
   });
-
-  const offer = !inside && notesReady && !held && offerOpen;
-
-  useLayoutEffect(() => {
-    const node = plaqueRef.current;
-    if (!offer || !node) {
-      setPlaqueHeight(0);
-      return;
-    }
-    const apply = () => setPlaqueHeight(node.offsetHeight);
-    apply();
-    const observer = new ResizeObserver(apply);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [offer]);
 
   /** After first paint / idle: build the PDF so the first Get PDF tap can share sync. */
   useEffect(() => {
@@ -196,11 +176,6 @@ export function PublicCardClient({
     if (shareCardPdfIfReady(input, { onShareFailed: openSavePdfDoor })) {
       setSavePdfDoor(false);
     }
-  };
-
-  const savePdf = () => {
-    setOfferOpen(false);
-    onPdfTap();
   };
 
   const keep = async () => {
@@ -312,7 +287,7 @@ export function PublicCardClient({
   return (
     <div
       className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-white"
-      style={{ "--card-frame-top": `${plaqueHeight}px` } as CSSProperties}
+      style={{ "--card-frame-top": "0px" } as CSSProperties}
     >
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       {preparing ? (
@@ -332,30 +307,6 @@ export function PublicCardClient({
         </div>
       ) : null}
       {pdfSheets}
-      {offer ? (
-        <div
-          ref={plaqueRef}
-          className="t-band shrink-0 bg-sky px-5 py-4 text-center text-[var(--ink)]"
-          style={{
-            paddingTop: "calc(env(safe-area-inset-top) + 16px)",
-          }}
-        >
-          <p>Save this portfolio as a PDF</p>
-          <div className="mt-3 flex items-baseline justify-center gap-6">
-            <button
-              type="button"
-              className="t-band px-2 py-2"
-              onPointerDown={preparePdf}
-              onClick={savePdf}
-            >
-              Save
-            </button>
-            <button type="button" className="t-band px-2 py-2" onClick={() => setOfferOpen(false)}>
-              Not now
-            </button>
-          </div>
-        </div>
-      ) : null}
       <div
         className="min-h-0 flex-1 overflow-hidden"
         style={{ paddingBottom: `calc(var(--band-h, ${browseBandHeightCss()}) + var(--vv-bottom, 0px))` }}
