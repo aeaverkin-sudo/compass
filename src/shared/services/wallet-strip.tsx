@@ -23,7 +23,8 @@ const NAME_LEFT = PHOTO_LEFT + PHOTO + GAP;
 /** The grid aded, upright before it is turned to read bottom to top. */
 const MARK_H = 22;
 const MARK_W = Math.round((MARK_H * 477) / 150);
-const MARK_RIGHT = 6;
+/** The right axis: the mark ends where the 02 field under the strip ends. */
+const MARK_RIGHT = 16;
 const NAME_RIGHT = W - MARK_RIGHT - MARK_H - 8;
 /** Arimo Bold, about 0.56 em a character; a long name shrinks to fit. */
 const NAME_EM = 0.56;
@@ -90,7 +91,7 @@ function grid() {
 
 /**
  * The strip of the personal pass: sky with a faint orange grid, the photo, the name in two lines,
- * and the grid aded turned upright at the right edge. The number and the site sit in Wallet's header.
+ * and the grid aded turned upright at the right edge. The number and the handle sit in Wallet's header.
  */
 export async function walletStrip(card: { name: string; photoPng: Buffer | null }): Promise<PassImage> {
   const { regular, bold, mark } = await loadAssets();

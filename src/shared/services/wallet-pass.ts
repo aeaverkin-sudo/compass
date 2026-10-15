@@ -33,7 +33,7 @@ export type PassInput = {
   description: string;
   /** Wallet's header logo: the orange square with the pass number. */
   logo: PassImage;
-  /** The header's right edge: the site. */
+  /** The header's right edge: the profile handle. */
   headerFields?: PassField[];
   /** Under the header: photo, name and the aded mark, drawn by us. */
   strip: PassImage;

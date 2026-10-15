@@ -181,12 +181,13 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
     walletNumber(String(ordinal).padStart(2, "0")),
   ]);
   const about = cardAbout(sections);
+  const handle = card.handle?.trim().replace(/^@/, "");
   const file = await buildPass({
     serialNumber: serial,
     organizationName: "ADED",
     description: name,
     logo,
-    headerFields: [{ key: "site", label: "", value: shownAddress(origin) }],
+    headerFields: handle ? [{ key: "handle", label: "", value: `@${handle}` }] : [],
     strip,
     secondaryFields: portfolioFields(sections),
     backFields: [
