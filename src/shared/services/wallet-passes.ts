@@ -9,6 +9,7 @@ export type BuiltPass = { file: Buffer; name: string };
 type CardRow = {
   id: string;
   display_name: string | null;
+  title?: string | null;
   public_token: string;
   handle?: string | null;
   photo_attachment_id?: string | null;
@@ -19,7 +20,7 @@ async function readCards(ownerId: string, ids: string[]): Promise<(CardRow & { i
   const admin = createAdminSupabaseClient();
   const extras = ["handle", "is_primary", "photo_attachment_id"];
   for (;;) {
-    const query = admin.from("cards").select(["id", "display_name", "public_token", ...extras].join(", ")).eq("owner_id", ownerId).in("id", ids);
+    const query = admin.from("cards").select(["id", "display_name", "title", "public_token", ...extras].join(", ")).eq("owner_id", ownerId).in("id", ids);
     const loaded = await query;
     if (!loaded.error) return (loaded.data ?? []) as unknown as (CardRow & { is_primary?: boolean | null })[];
     const missing = extras.find((column) => new RegExp(column, "i").test(loaded.error.message));
@@ -55,6 +56,12 @@ async function cardPhoto(card: CardRow): Promise<Buffer | null> {
   } catch {
     return null;
   }
+}
+
+/** The line under the name, as the card shows it. A card saved before that line existed falls back to its first visible Position. */
+async function cardCaption(card: CardRow): Promise<string | null> {
+  const title = card.title?.replace(/\s+/g, " ").trim();
+  return title || cardPosition(card.id);
 }
 
 /** The first visible Position on the card. */
@@ -119,7 +126,7 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
   const [card] = await readCards(ownerId, [cardId]);
   if (!card) return null;
   const name = cardName(card);
-  const [photoPng, position, serialNumber] = await Promise.all([cardPhoto(card), cardPosition(card.id), walletSerial(ownerId, card.id)]);
+  const [photoPng, position, serialNumber] = await Promise.all([cardPhoto(card), cardCaption(card), walletSerial(ownerId, card.id)]);
   const strip = await walletStrip({ name: card.display_name?.trim() || "Guest", position, photoPng });
   const file = await buildPass({
     serialNumber,

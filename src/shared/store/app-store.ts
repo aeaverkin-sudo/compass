@@ -96,7 +96,7 @@ interface AppState {
 
 export type ContactItemSnapshot = {
   item: ContactItem;
-  placements: { cardId: string; index: number; zoneId?: string }[];
+  placements: { cardId: string; index: number; zoneId?: string; header?: boolean }[];
 };
 
 function createInitialUser(): User {
@@ -415,6 +415,7 @@ export const useAppStore = create<AppState>()(
           return {
             ...card,
             contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
+            headerItemId: card.headerItemId === itemId ? undefined : card.headerItemId,
             updatedAt: now,
           };
         });
@@ -510,7 +511,7 @@ export const useAppStore = create<AppState>()(
           const index = card.contactItemIds.indexOf(itemId);
           if (index < 0) return [];
           const zoneId = card.itemZones?.[itemId];
-          return [{ cardId: card.id, index, zoneId }];
+          return [{ cardId: card.id, index, zoneId, header: card.headerItemId === itemId }];
         });
         const snapshot: ContactItemSnapshot = { item: { ...item }, placements };
         const now = new Date().toISOString();
@@ -526,6 +527,7 @@ export const useAppStore = create<AppState>()(
               ...card,
               contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
               itemZones: zones && Object.keys(zones).length > 0 ? zones : undefined,
+              headerItemId: card.headerItemId === itemId ? undefined : card.headerItemId,
               updatedAt: now,
             };
           }),
@@ -563,6 +565,7 @@ export const useAppStore = create<AppState>()(
               ...card,
               contactItemIds: ids,
               itemZones: Object.keys(zones).length > 0 ? zones : undefined,
+              headerItemId: spot.header ? item.id : card.headerItemId,
               updatedAt: now,
             };
           }),

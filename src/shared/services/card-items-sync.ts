@@ -67,7 +67,8 @@ function unfinishedFile(item: ContactItem) {
 function remapCard(card: Card, ids: Map<string, string | null>): Card {
   const touches = (id: string) => ids.has(id);
   const zones = card.itemZones ?? {};
-  if (!card.contactItemIds.some(touches) && !Object.keys(zones).some(touches)) return card;
+  const header = card.headerItemId && touches(card.headerItemId);
+  if (!card.contactItemIds.some(touches) && !Object.keys(zones).some(touches) && !header) return card;
   const swap = (id: string) => (ids.has(id) ? (ids.get(id) ?? null) : id);
   const contactItemIds = [...new Set(card.contactItemIds.map(swap).filter((id): id is string => id !== null))];
   const itemZones: Record<string, string> = {};
@@ -76,7 +77,8 @@ function remapCard(card: Card, ids: Map<string, string | null>): Card {
     const next = swap(id);
     if (next && !(next in itemZones)) itemZones[next] = zone;
   }
-  return { ...card, contactItemIds, itemZones: card.itemZones ? itemZones : undefined };
+  const headerItemId = card.headerItemId ? (swap(card.headerItemId) ?? undefined) : undefined;
+  return { ...card, contactItemIds, itemZones: card.itemZones ? itemZones : undefined, headerItemId };
 }
 
 async function markSynced(itemId: string, owner: string) {
