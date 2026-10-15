@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
+import { ShareBackOffer } from "@/shared/components/share-back";
 import { SkyToast } from "@/shared/components/sky-toast";
 import {
   DropdownMenu,
@@ -64,7 +65,13 @@ function matchesQuery(contact: Contact, query: string) {
   return contact.searchText.includes(query);
 }
 
-export function NetworkScreen({ addedName = null }: { addedName?: string | null }) {
+export function NetworkScreen({
+  addedName = null,
+  addedToken = null,
+}: {
+  addedName?: string | null;
+  addedToken?: string | null;
+}) {
   const router = useRouter();
   const [contacts, setContacts] = useState<Contact[] | null>(null);
   const [query, setQuery] = useState("");
@@ -212,6 +219,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       </div>
 
       <NetworkBand current="network" />
+      {addedToken ? <ShareBackOffer token={addedToken} /> : null}
     </main>
   );
 }
@@ -336,28 +344,28 @@ function ContactRow({
 }) {
   const longPress = useLongPress(onArm, HOLD_MS);
   return (
-    <li
-      className="press flex items-center gap-3 border-b border-[var(--rule)] py-3"
-      {...longPress}
-    >
-      <Face photoUrl={contact.photoUrl} />
-      <div className="min-w-0 flex-1">
-        <p className="m-0 truncate t-body text-[var(--ink)]">
-          {contact.displayName.trim() || "Untitled"}
-        </p>
-        {metaLine(contact) ? (
-          <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{metaLine(contact)}</p>
-        ) : null}
-      </div>
+    <li className="flex items-center gap-3 border-b border-[var(--rule)]">
+      <Link
+        href={`/network/c/${contact.savedCardToken}`}
+        className="press flex min-w-0 flex-1 items-center gap-3 py-3 text-inherit no-underline select-none [-webkit-touch-callout:none]"
+        draggable={false}
+        {...longPress}
+      >
+        <Face photoUrl={contact.photoUrl} />
+        <div className="min-w-0 flex-1">
+          <p className="m-0 truncate t-body text-[var(--ink)]">
+            {contact.displayName.trim() || "Untitled"}
+          </p>
+          {metaLine(contact) ? (
+            <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{metaLine(contact)}</p>
+          ) : null}
+        </div>
+      </Link>
       {armed ? (
         <button type="button" aria-label="Delete" onClick={onRemove} className="inline-flex size-8 items-center justify-center border-0 bg-transparent text-[#111]">
           <X className="size-4" strokeWidth={1.5} />
         </button>
-      ) : (
-        <Link href={`/network/c/${contact.savedCardToken}`} className="t-meta text-[var(--ink)] underline">
-          View
-        </Link>
-      )}
+      ) : null}
     </li>
   );
 }
