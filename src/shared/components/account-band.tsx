@@ -55,7 +55,7 @@ export function AccountBand({
         label="Account"
         left={
           <a href={saveHref} className={DOOR}>
-            <span data-pdf-link="">Save to network</span>
+            <span data-pdf-link="">Add to My Network</span>
           </a>
         }
         right={
@@ -85,9 +85,9 @@ export function AccountBand({
       <div className="flex min-h-11 items-stretch">
         <a href={saveHref} className={cn(pdfDoor, "text-left")}>
           <span data-pdf-link="" className="inline-block w-fit">
-            Save to
+            Add to My
             <br />
-            network
+            Network
           </span>
         </a>
         <span className="flex flex-1 items-center justify-end">
