@@ -28,6 +28,7 @@ type CardRow = {
   item_zones?: unknown;
   photo_look?: string | null;
   photo_attachment_id: string | null;
+  is_primary?: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -174,6 +175,9 @@ export function mergeCardScalars(local: Card[], remote: CardRow[]): Card[] {
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   for (const row of extras) next.push(shellFromRow(row));
+  const primary = remote.find((row) => row.is_primary === true);
+  const at = primary ? next.findIndex((card) => card.id === primary.id) : -1;
+  if (at > 0) next.unshift(...next.splice(at, 1));
   return next;
 }
 
@@ -450,7 +454,7 @@ async function selectCardRows(
   columns: string,
   ownerId: string,
 ) {
-  const optional = ["item_zones", "rubric_labels", "rubric_order", "searchable", "handle", "photo_look"];
+  const optional = ["is_primary", "item_zones", "rubric_labels", "rubric_order", "searchable", "handle", "photo_look"];
   let selected = columns;
   let loaded = await supabase.from("cards").select(selected).eq("owner_id", ownerId);
   for (let attempt = 0; attempt < optional.length && loaded.error; attempt += 1) {
@@ -476,7 +480,7 @@ async function runHydrate() {
   const supabase = createBrowserSupabaseClient();
   const loaded = await selectCardRows(
     supabase,
-    `${CARD_COLUMNS}, handle, searchable, rubric_order, rubric_labels, item_zones`,
+    `${CARD_COLUMNS}, handle, searchable, rubric_order, rubric_labels, item_zones, is_primary`,
     ownerId,
   );
   if (loaded.error) {
@@ -497,7 +501,12 @@ async function runHydrate() {
   const unchanged =
     merged.length === local.length && merged.every((card, index) => scalarsEqual(card, local[index]!));
 
-  if (!unchanged) useAppStore.setState({ cards: merged });
+  if (!unchanged) {
+    const { currentCardIndex } = useAppStore.getState();
+    const currentId = local[currentCardIndex]?.id;
+    const kept = currentId ? merged.findIndex((card) => card.id === currentId) : -1;
+    useAppStore.setState(kept >= 0 ? { cards: merged, currentCardIndex: kept } : { cards: merged });
+  }
 
   const hasPortfolio = merged.some(
     (card) => card.displayName.trim().length > 0 || Boolean(card.photoAttachmentId),

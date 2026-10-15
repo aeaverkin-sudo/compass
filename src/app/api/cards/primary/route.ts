@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
-import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { primaryCardId, setPrimaryCard } from "@/shared/services/primary-card";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,10 +15,11 @@ function noStore(body: unknown, status = 200) {
 export async function GET() {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ error: owner.error }, owner.status);
-  const admin = createAdminSupabaseClient();
-  const loaded = await admin.from("cards").select("id").eq("owner_id", owner.id).eq("is_primary", true).limit(1).maybeSingle();
-  if (loaded.error) return noStore({ cardId: null });
-  return noStore({ cardId: (loaded.data as { id: string } | null)?.id ?? null });
+  try {
+    return noStore({ cardId: await primaryCardId(owner.id) });
+  } catch {
+    return noStore({ cardId: null });
+  }
 }
 
 /** Put in Wallet: this card becomes the primary one, and the personal pass carries its QR. */
@@ -34,17 +35,11 @@ export async function POST(request: Request) {
   }
   if (!UUID.test(cardId)) return noStore({ error: "Portfolio not found." }, 404);
 
-  const admin = createAdminSupabaseClient();
-  const updated = await admin
-    .from("cards")
-    .update({ is_primary: true })
-    .eq("id", cardId)
-    .eq("owner_id", owner.id)
-    .select("id");
-  if (updated.error) {
-    console.error("[cards] primary", updated.error.message);
+  try {
+    if (!(await setPrimaryCard(owner.id, cardId))) return noStore({ error: "Portfolio not found." }, 404);
+  } catch (error) {
+    console.error("[cards] primary", error instanceof Error ? error.message : error);
     return noStore({ error: "Could not put it in Wallet." }, 500);
   }
-  if ((updated.data ?? []).length === 0) return noStore({ error: "Portfolio not found." }, 404);
   return noStore({ cardId });
 }

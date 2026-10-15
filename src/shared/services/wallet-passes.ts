@@ -9,6 +9,7 @@ import {
   type CardZoneSection,
 } from "@/shared/services/card-zones";
 import { loadVisibleCardItems } from "@/shared/services/public-card";
+import { setPrimaryCard } from "@/shared/services/primary-card";
 import { buildPass, type PassField } from "@/shared/services/wallet-pass";
 import { addressFits, walletStrip } from "@/shared/services/wallet-strip";
 import { walletCardQr, type WalletBackField } from "@/shared/services/wallet-pass-content";
@@ -185,10 +186,10 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
     barcodeMessage: portfolio,
     barcodeAltText: UNDER_QR,
   });
-  if (card.is_primary !== true) {
-    const admin = createAdminSupabaseClient();
-    const updated = await admin.from("cards").update({ is_primary: true }).eq("id", card.id).eq("owner_id", ownerId);
-    if (updated.error) console.error("[wallet] primary", updated.error.message);
+  try {
+    await setPrimaryCard(ownerId, card.id);
+  } catch (error) {
+    console.error("[wallet] primary", error instanceof Error ? error.message : error);
   }
   return { file, name };
 }
