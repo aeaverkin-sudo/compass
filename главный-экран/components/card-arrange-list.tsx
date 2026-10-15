@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
   type ComponentProps,
   type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -16,7 +16,8 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   defaultDropAnimationSideEffects,
   useDraggable,
   useSensor,
@@ -25,7 +26,8 @@ import {
   type DragStartEvent,
   type DropAnimation,
   type KeyboardSensorOptions,
-  type PointerSensorOptions,
+  type MouseSensorOptions,
+  type TouchSensorOptions,
 } from "@dnd-kit/core";
 import { MotionConfig, motion } from "motion/react";
 import { GripHorizontal } from "lucide-react";
@@ -92,13 +94,17 @@ function onGrip(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest("[data-row-handle], [data-rubric-handle]"));
 }
 
+function holdable(target: EventTarget | null) {
+  return !(target instanceof Element && target.closest("input, textarea, [data-arrange-done]"));
+}
+
 /** In arrange mode a grip lifts at once. */
-class GripSensor extends PointerSensor {
+class GripMouse extends MouseSensor {
   static activators = [
     {
-      eventName: "onPointerDown" as const,
-      handler: ({ nativeEvent }: { nativeEvent: PointerEvent }, { onActivation }: PointerSensorOptions) => {
-        if (!nativeEvent.isPrimary || nativeEvent.button !== 0 || !onGrip(nativeEvent.target)) return false;
+      eventName: "onMouseDown" as const,
+      handler: ({ nativeEvent }: { nativeEvent: MouseEvent }, { onActivation }: MouseSensorOptions) => {
+        if (nativeEvent.button !== 0 || !onGrip(nativeEvent.target)) return false;
         onActivation?.({ event: nativeEvent });
         return true;
       },
@@ -106,15 +112,40 @@ class GripSensor extends PointerSensor {
   ];
 }
 
-/** Anywhere else a hold lifts the row or the section under the finger. */
-class HoldSensor extends PointerSensor {
+/** Anywhere else a hold lifts the row or the section under the pointer. */
+class HoldMouse extends MouseSensor {
   static activators = [
     {
-      eventName: "onPointerDown" as const,
-      handler: ({ nativeEvent }: { nativeEvent: PointerEvent }, { onActivation }: PointerSensorOptions) => {
-        if (!nativeEvent.isPrimary || nativeEvent.button !== 0 || onGrip(nativeEvent.target)) return false;
-        const target = nativeEvent.target;
-        if (target instanceof Element && target.closest("input, textarea, [data-arrange-done]")) return false;
+      eventName: "onMouseDown" as const,
+      handler: ({ nativeEvent }: { nativeEvent: MouseEvent }, { onActivation }: MouseSensorOptions) => {
+        if (nativeEvent.button !== 0 || onGrip(nativeEvent.target) || !holdable(nativeEvent.target)) return false;
+        onActivation?.({ event: nativeEvent });
+        return true;
+      },
+    },
+  ];
+}
+
+/** Touch keeps its own sensor: it holds the page still once the row is up, so the browser never takes the finger for a scroll. */
+class GripTouch extends TouchSensor {
+  static activators = [
+    {
+      eventName: "onTouchStart" as const,
+      handler: ({ nativeEvent }: { nativeEvent: TouchEvent }, { onActivation }: TouchSensorOptions) => {
+        if (nativeEvent.touches.length > 1 || !onGrip(nativeEvent.target)) return false;
+        onActivation?.({ event: nativeEvent });
+        return true;
+      },
+    },
+  ];
+}
+
+class HoldTouch extends TouchSensor {
+  static activators = [
+    {
+      eventName: "onTouchStart" as const,
+      handler: ({ nativeEvent }: { nativeEvent: TouchEvent }, { onActivation }: TouchSensorOptions) => {
+        if (nativeEvent.touches.length > 1 || onGrip(nativeEvent.target) || !holdable(nativeEvent.target)) return false;
         onActivation?.({ event: nativeEvent });
         return true;
       },
@@ -140,8 +171,13 @@ function prefersMotion() {
   return typeof window !== "undefined" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function blockTouchMove(event: TouchEvent) {
-  event.preventDefault();
+function pointOf(event: Event | null) {
+  if (typeof TouchEvent !== "undefined" && event instanceof TouchEvent) {
+    const touch = event.touches[0] ?? event.changedTouches[0];
+    return touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+  if (event instanceof MouseEvent) return { x: event.clientX, y: event.clientY };
+  return null;
 }
 
 const noSubscribe = () => () => {};
@@ -447,7 +483,7 @@ function ArrangeRow({
           {...attributes}
           label="Reorder row"
           data-row-handle=""
-          className="absolute top-0 right-0"
+          className={cn("absolute top-0 right-0", placeholder && "opacity-0")}
         />
       ) : null}
     </motion.div>
@@ -629,9 +665,12 @@ function ArrangeList({
   const motionOk = prefersMotion();
   const onClient = useOnClient();
 
+  const hold = { delay: ARRANGE_HOLD_MS, tolerance: REORDER_SLOP_PX };
   const sensors = useSensors(
-    useSensor(GripSensor, { activationConstraint: { distance: 3 } }),
-    useSensor(HoldSensor, { activationConstraint: { delay: ARRANGE_HOLD_MS, tolerance: REORDER_SLOP_PX } }),
+    useSensor(GripMouse, { activationConstraint: { distance: 3 } }),
+    useSensor(HoldMouse, { activationConstraint: hold }),
+    useSensor(GripTouch, { activationConstraint: { distance: 3 } }),
+    useSensor(HoldTouch, { activationConstraint: hold }),
     useSensor(GripKeys),
   );
 
@@ -726,9 +765,8 @@ function ArrangeList({
     const id = raw.slice(raw.indexOf(":") + 1);
     const data = event.active.data.current as { kind: "item" | "rubric"; zoneId?: string } | undefined;
     const next: Held = data?.kind === "rubric" ? { kind: "rubric", id } : { kind: "item", id, zoneId: data?.zoneId ?? "" };
-    if (event.activatorEvent instanceof PointerEvent) {
-      point.current = { x: event.activatorEvent.clientX, y: event.activatorEvent.clientY };
-    }
+    const first = pointOf(event.activatorEvent);
+    if (first) point.current = first;
     if (settleTimer.current) window.clearTimeout(settleTimer.current);
     heldRef.current = next;
     aimRef.current = null;
@@ -739,17 +777,19 @@ function ArrangeList({
     enterArrange();
     tick();
 
-    const track = (native: PointerEvent) => {
-      point.current = { x: native.clientX, y: native.clientY };
+    const track = (native: Event) => {
+      const next = pointOf(native);
+      if (!next) return;
+      point.current = next;
       reaimSoon();
     };
     const scroller = listRef.current?.closest(".compass-card-scroll");
-    document.addEventListener("touchmove", blockTouchMove, { passive: false, capture: true });
     document.addEventListener("pointermove", track, true);
+    document.addEventListener("touchmove", track, { capture: true, passive: true });
     scroller?.addEventListener("scroll", reaimSoon, { passive: true });
     release.current = () => {
-      document.removeEventListener("touchmove", blockTouchMove, true);
       document.removeEventListener("pointermove", track, true);
+      document.removeEventListener("touchmove", track, true);
       scroller?.removeEventListener("scroll", reaimSoon);
     };
   };
@@ -854,7 +894,7 @@ function ArrangeList({
     };
   }, [arranging]);
 
-  const swallowClick = (event: MouseEvent<HTMLDivElement>) => {
+  const swallowClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     // While arranging, an accidental tap on a link or value must not open it. Done lives outside this list.
     if (!suppressClick.current && !arrangingRef.current) return;
     suppressClick.current = false;

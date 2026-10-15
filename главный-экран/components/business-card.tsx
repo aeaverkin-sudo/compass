@@ -344,6 +344,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const setCardRubricOrder = useAppStore((state) => state.setCardRubricOrder);
   const setItemZone = useAppStore((state) => state.setItemZone);
+  const setRubricLabel = useAppStore((state) => state.setRubricLabel);
   const items = getCardItems(card, library);
   const chosen = items.find((item) => item.id === card.headerItemId);
   const positionTitle = chosen?.value.trim() || card.title.trim() || undefined;
@@ -613,9 +614,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         }
         onMoveItem={
           !compact && !readOnly && onCardUpdate
-            ? (itemId, zoneId, orderedIds) => {
+            ? (itemId, zoneId, orderedIds, section) => {
                 setItemZone(card.id, itemId, zoneId);
                 setCardItemOrder(card.id, orderedIds);
+                if (section) {
+                  setRubricLabel(card.id, zoneId, section.title);
+                  setCardRubricOrder(card.id, section.order);
+                }
               }
             : undefined
         }
