@@ -58,26 +58,9 @@ async function cardPhoto(card: CardRow): Promise<Buffer | null> {
   }
 }
 
-/** The line under the name, as the card shows it. A card saved before that line existed falls back to its first visible Position. */
-async function cardCaption(card: CardRow): Promise<string | null> {
-  const title = card.title?.replace(/\s+/g, " ").trim();
-  return title || cardPosition(card.id);
-}
-
-/** The first visible Position on the card. */
-async function cardPosition(cardId: string): Promise<string | null> {
-  const admin = createAdminSupabaseClient();
-  const links = await admin.from("card_items").select("item_id, sort_order").eq("card_id", cardId).eq("visible", true).order("sort_order");
-  if (links.error || !links.data?.length) return null;
-  const ids = (links.data as { item_id: string }[]).map((link) => link.item_id);
-  const items = await admin.from("items").select("id, type, value").in("id", ids).eq("type", "position");
-  if (items.error) return null;
-  const byId = new Map((items.data as { id: string; value: string | null }[]).map((item) => [item.id, item.value?.trim() ?? ""]));
-  for (const id of ids) {
-    const value = byId.get(id);
-    if (value) return value.replace(/\s+/g, " ");
-  }
-  return null;
+/** The line under the name, as the card header shows it. None there, none on the pass. */
+function cardCaption(card: CardRow): string | null {
+  return card.title?.replace(/\s+/g, " ").trim() || null;
 }
 
 /** A back-of-pass line: a tappable phrase, no address on show. */
@@ -126,7 +109,8 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
   const [card] = await readCards(ownerId, [cardId]);
   if (!card) return null;
   const name = cardName(card);
-  const [photoPng, position, serialNumber] = await Promise.all([cardPhoto(card), cardCaption(card), walletSerial(ownerId, card.id)]);
+  const position = cardCaption(card);
+  const [photoPng, serialNumber] = await Promise.all([cardPhoto(card), walletSerial(ownerId, card.id)]);
   const strip = await walletStrip({ name: card.display_name?.trim() || "Guest", position, photoPng });
   const file = await buildPass({
     serialNumber,
