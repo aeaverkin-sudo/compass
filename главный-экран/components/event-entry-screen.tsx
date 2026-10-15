@@ -13,6 +13,7 @@ import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
 import { COLUMN_GAP_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 import { eventTitleLine } from "@/shared/event/event-title";
+import { guestsByJoined } from "@/shared/event/joined-order";
 import { DEFAULT_EVENT_TIME_ZONE, browserTimeZone, isTimeZone } from "@/shared/event/time-zone";
 
 type Step = "entry" | "create";
@@ -26,6 +27,7 @@ type ListedEvent = {
   startsAt: string | null;
   place?: string | null;
   pass?: { cardName: string; photoUrl: string | null } | null;
+  joinedAt?: string | null;
 };
 
 const LINK = "press text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
@@ -348,7 +350,7 @@ export function EventEntryScreen() {
   };
 
   const pastEvents = events.filter((event) => event.status === "past");
-  const upcoming = events.filter((event) => event.status !== "past").sort(byStart);
+  const upcoming = guestsByJoined(events.filter((event) => event.status !== "past").sort(byStart));
 
   const openEvent = (event: ListedEvent) => {
     const token = encodeURIComponent(event.publicToken);
