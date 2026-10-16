@@ -64,6 +64,7 @@ export function WrapField({
   multiline = false,
   onTextChange,
   onDone,
+  onEmptyDelete,
   onFocus,
   onBlur,
   onPointerDown,
@@ -81,6 +82,8 @@ export function WrapField({
   placeholderClassName?: string;
   onTextChange?: (text: string) => void;
   onDone: (text: string) => void;
+  /** Backspace on an empty field. New-zone Title… and an empty add line use this. */
+  onEmptyDelete?: () => void;
   onFocus?: () => void;
   onBlur?: (text: string, event: FocusEvent<HTMLDivElement>) => void;
   onPointerDown?: () => void;
@@ -172,9 +175,22 @@ export function WrapField({
           onKeyUp={rememberCaret}
           onMouseUp={rememberCaret}
           onKeyDown={(event) => {
+            if (onEmptyDelete && (event.key === "Backspace" || event.key === "Delete") && !read()) {
+              event.preventDefault();
+              onEmptyDelete();
+              return;
+            }
             if (event.key !== "Enter" || multiline) return;
             event.preventDefault();
             onDone(read());
+          }}
+          onBeforeInput={(event) => {
+            if (!onEmptyDelete) return;
+            const inputType = "inputType" in event.nativeEvent ? event.nativeEvent.inputType : "";
+            if (inputType !== "deleteContentBackward" && inputType !== "deleteContentForward") return;
+            if (read()) return;
+            event.preventDefault();
+            onEmptyDelete();
           }}
           onFocus={onFocus}
           onPointerDown={onPointerDown}

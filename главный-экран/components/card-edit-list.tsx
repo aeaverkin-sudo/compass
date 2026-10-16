@@ -142,7 +142,6 @@ function SectionLabel({
   pill,
   onEdit,
   onCommit,
-  onKeep,
   onArmHide,
   onHide,
 }: {
@@ -154,13 +153,12 @@ function SectionLabel({
   pill?: boolean;
   onEdit: () => void;
   onCommit: (next: string) => void;
-  onKeep: () => void;
   onArmHide: () => void;
   onHide: () => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<WrapFieldHandle>(null);
-  const dockBottom = useKeyboardDock(editing && !pill, true);
+  const dockBottom = useKeyboardDock(editing, true);
   const openedAt = useRef(0);
   const pressedLong = useRef(false);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
@@ -183,23 +181,17 @@ function SectionLabel({
       dockRef.current?.focusEnd();
       return;
     }
-    if (pill && !next.trim()) {
-      onKeep();
-      return;
-    }
     onCommit(next);
   };
 
   useLayoutEffect(() => {
     if (!editing) return;
     openedAt.current = Date.now();
-    if (!pill) {
-      const list = wrapRef.current?.closest("[data-card-chip-list]");
-      const rect = list?.getBoundingClientRect();
-      if (rect) setFrame({ left: rect.left, width: rect.width });
-    }
+    const list = wrapRef.current?.closest("[data-card-chip-list]");
+    const rect = list?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
     dockRef.current?.focusEnd();
-  }, [editing, pill]);
+  }, [editing]);
 
   const field = (
     <WrapField
@@ -210,6 +202,7 @@ function SectionLabel({
       placeholderClassName="t-label text-[var(--placeholder)]"
       grow={!pill}
       autoFocus={pill}
+      onEmptyDelete={pill ? () => onCommit("") : undefined}
       onDone={onCommit}
       onBlur={(next) => finish(next)}
       className={
@@ -223,43 +216,31 @@ function SectionLabel({
   return (
     <>
       <div ref={wrapRef} className="relative min-w-0">
-        {pill && editing ? (
-          <div className="inline-flex max-w-full items-center gap-[4px] rounded-full bg-sky px-[8px] py-[3px]">
-            <Pencil
-              className="size-3 shrink-0"
-              strokeWidth={1.5}
-              style={{ color: "var(--placeholder)" }}
-              aria-hidden
-            />
-            {field}
-          </div>
-        ) : (
-          <button
-            type="button"
-            data-no-swipe
-            className={cn(
-              "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
-              editing && "invisible pointer-events-none",
-              hideReady && "opacity-40",
-            )}
-            style={{ color: included && title.trim() ? "var(--grey)" : OFF_CARD }}
-            onPointerDown={(event) => {
-              if (editing || hideReady) return;
-              pressedLong.current = false;
-              longPress.onPointerDown(event);
-            }}
-            onPointerMove={longPress.onPointerMove}
-            onPointerUp={() => {
-              longPress.onPointerUp();
-              if (editing || pressedLong.current || hideReady) return;
-              begin();
-            }}
-            onPointerCancel={longPress.onPointerUp}
-            onContextMenu={longPress.onContextMenu}
-          >
-            {shown}
-          </button>
-        )}
+        <button
+          type="button"
+          data-no-swipe
+          className={cn(
+            "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
+            editing && "invisible pointer-events-none",
+            hideReady && "opacity-40",
+          )}
+          style={{ color: included && title.trim() ? "var(--grey)" : OFF_CARD }}
+          onPointerDown={(event) => {
+            if (editing || hideReady) return;
+            pressedLong.current = false;
+            longPress.onPointerDown(event);
+          }}
+          onPointerMove={longPress.onPointerMove}
+          onPointerUp={() => {
+            longPress.onPointerUp();
+            if (editing || pressedLong.current || hideReady) return;
+            begin();
+          }}
+          onPointerCancel={longPress.onPointerUp}
+          onContextMenu={longPress.onContextMenu}
+        >
+          {shown}
+        </button>
         {hideReady ? (
           <button
             type="button"
@@ -273,7 +254,7 @@ function SectionLabel({
           </button>
         ) : null}
       </div>
-      {editing && !pill
+      {editing
         ? createPortal(
             <div
               data-no-swipe
@@ -285,7 +266,36 @@ function SectionLabel({
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                <div className="flex flex-col justify-end border-b border-[var(--rule)]">{field}</div>
+                {pill ? (
+                  <div className="relative inline-flex max-w-full items-center gap-[4px] rounded-full bg-sky px-[8px] py-[3px]">
+                    <Pencil
+                      className="size-3 shrink-0"
+                      strokeWidth={1.5}
+                      style={{ color: "var(--placeholder)" }}
+                      aria-hidden
+                    />
+                    {field}
+                    {hideReady ? (
+                      <button
+                        type="button"
+                        data-delete-marker
+                        aria-label="Hide section"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={onHide}
+                        className="flex size-6 shrink-0 items-center justify-center"
+                      >
+                        <X
+                          className="pointer-events-none size-4"
+                          strokeWidth={1.5}
+                          style={{ color: DELETE_RED }}
+                          aria-hidden
+                        />
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="flex flex-col justify-end border-b border-[var(--rule)]">{field}</div>
+                )}
               </div>
             </div>,
             document.body,
@@ -328,6 +338,7 @@ export function CardEditList({
   const [libraryHint, setLibraryHint] = useState<"add" | "first" | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const keepExtraRef = useRef(false);
 
   const refuseDuplicate = (twinId: string) => {
     tick();
@@ -364,7 +375,7 @@ export function CardEditList({
         setSectionEditId(id);
       });
       const section = listRef.current?.querySelector(`[data-zone="${CSS.escape(id)}"]`);
-      section?.scrollIntoView({ block: "nearest" });
+      section?.scrollIntoView({ block: "end", inline: "nearest" });
       section?.querySelector<HTMLElement>("[contenteditable]")?.focus();
     };
     return () => {
@@ -374,12 +385,13 @@ export function CardEditList({
 
   const sections = useMemo(() => buildSections(card, items, cards), [card, items, cards]);
   const namingExtra = Boolean(sectionEditId && isExtraZoneId(sectionEditId));
-  const extraDock = useKeyboardDock(namingExtra, true);
+  const extraDock = useKeyboardDock(namingExtra, false);
 
   useLayoutEffect(() => {
     if (!sectionEditId || !isExtraZoneId(sectionEditId)) return;
     listRef.current?.querySelector(`[data-zone="${CSS.escape(sectionEditId)}"]`)?.scrollIntoView({
-      block: "nearest",
+      block: "end",
+      inline: "nearest",
     });
   }, [sectionEditId, extraDock]);
 
@@ -491,13 +503,17 @@ export function CardEditList({
                     const name = next.trim();
                     if (isExtraZoneId(section.id) && !name) {
                       setSectionEditId(null);
+                      if (keepExtraRef.current) {
+                        keepExtraRef.current = false;
+                        return;
+                      }
                       if (section.rows.length === 0) hideZone(card.id, section.id);
                       return;
                     }
+                    keepExtraRef.current = false;
                     setRubricLabel(card.id, section.id, next);
                     setSectionEditId(null);
                   }}
-                  onKeep={() => setSectionEditId(null)}
                   onArmHide={() => {
                     setTextEditId(null);
                     setSectionEditId(null);
@@ -550,6 +566,9 @@ export function CardEditList({
                   data-zone-add=""
                   className="t-body w-full bg-transparent text-left"
                   style={{ color: OFF_CARD }}
+                  onPointerDown={() => {
+                    keepExtraRef.current = isExtraZoneId(section.id);
+                  }}
                   onPointerUp={() => openZoneRef.current?.(section.id)}
                 >
                   {ZONE_HINTS[section.id] ?? NEW_ZONE_HINT}
@@ -562,6 +581,9 @@ export function CardEditList({
                 aria-label="Add to section"
                 className="t-body w-full bg-transparent text-left"
                 style={{ color: OFF_CARD }}
+                onPointerDown={() => {
+                  keepExtraRef.current = isExtraZoneId(section.id);
+                }}
                 onPointerUp={() => openZoneRef.current?.(section.id)}
               >
                 +
@@ -974,6 +996,16 @@ function AddLine({
                     }}
                     onDone={(next) => {
                       if (!commit(next)) return;
+                      dismissLine();
+                    }}
+                    onEmptyDelete={() => {
+                      const zone = pinZoneRef.current;
+                      if (!zone || !isExtraZoneId(zone) || fileItemId) return;
+                      const live = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+                      if (!live || live.rubricLabels?.[zone]?.trim()) return;
+                      const used = Object.values(live.itemZones ?? {}).some((id) => id === zone);
+                      if (used) return;
+                      useAppStore.getState().hideZone(cardId, zone);
                       dismissLine();
                     }}
                     onFocus={onFocus}
