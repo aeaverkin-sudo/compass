@@ -16,17 +16,12 @@ import { canonicalTimeZone, isTimeZone } from "@/shared/event/time-zone";
 import {
   INVITE_BASE_LABELS,
   INVITE_CUSTOM_MAX,
-  INVITE_EXTRA_KINDS,
-  INVITE_EXTRA_LABELS,
   INVITE_TITLE_MAX,
   INVITE_VALUE_MAX,
   customInviteRows,
-  inviteExtraRow,
   newInviteRow,
-  withInviteExtra,
   withInviteLabel,
   type InviteBaseKind,
-  type InviteExtraKind,
   type InviteRow,
 } from "@/shared/event/invite-rows";
 import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
@@ -219,42 +214,6 @@ function CustomZone({
         maxLength={INVITE_VALUE_MAX}
         onKeyDown={removeIfEmpty}
         fieldId={row.id}
-      />
-    </Zone>
-  );
-}
-
-/** Made by, Special guests, Secret present: a fixed label that can be renamed, and a value. */
-function ExtraZone({
-  kind,
-  rows,
-  onChange,
-}: {
-  kind: InviteExtraKind;
-  rows: InviteRow[];
-  onChange: (rows: InviteRow[]) => void;
-}) {
-  const valueRef = useRef<HTMLTextAreaElement>(null);
-  const row = inviteExtraRow(rows, kind);
-  return (
-    <Zone
-      label={
-        <LabelField
-          value={row?.title ?? ""}
-          placeholder={INVITE_EXTRA_LABELS[kind]}
-          onChange={(title) => onChange(withInviteExtra(rows, kind, { title }))}
-        />
-      }
-      rule
-      onClick={(event) => focusField(event, valueRef.current)}
-    >
-      <GrowField
-        inputRef={valueRef}
-        value={row?.value ?? ""}
-        onChange={(value) => onChange(withInviteExtra(rows, kind, { value }))}
-        placeholder="description"
-        ariaLabel={row?.title || INVITE_EXTRA_LABELS[kind]}
-        maxLength={INVITE_VALUE_MAX}
       />
     </Zone>
   );
@@ -567,9 +526,6 @@ export function EventForm({
           ariaLabel="About"
         />
       </Zone>
-      {INVITE_EXTRA_KINDS.map((kind) => (
-        <ExtraZone key={kind} kind={kind} rows={rows} onChange={(inviteRows) => onChange({ inviteRows })} />
-      ))}
       {customs.map((row) => (
         <CustomZone
           key={row.id}

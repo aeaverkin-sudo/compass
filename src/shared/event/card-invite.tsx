@@ -6,10 +6,7 @@ import { HeroName } from "@/shared/components/hero-name";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import {
-  INVITE_EXTRA_KINDS,
-  INVITE_EXTRA_LABELS,
   customInviteRows,
-  inviteExtraRow,
   inviteLabel,
   type InviteLogoLook,
   type InviteRow,
@@ -69,11 +66,6 @@ function inviteLines(event: CardInviteEvent): Line[] {
   const lines = base.flatMap((line) =>
     line.value ? [line] : event.hints ? [{ ...line, value: hints[line.id]!, hint: true }] : [],
   );
-  for (const kind of INVITE_EXTRA_KINDS) {
-    const row = inviteExtraRow(rows, kind);
-    const value = row?.value?.trim();
-    if (row && value) lines.push({ id: row.id, label: row.title.trim() || INVITE_EXTRA_LABELS[kind], value, hint: false });
-  }
   for (const row of customInviteRows(rows)) {
     const value = row.value?.trim() ?? "";
     if (value) lines.push({ id: row.id, label: row.title.trim(), value, hint: false });
