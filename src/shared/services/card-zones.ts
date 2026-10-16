@@ -29,6 +29,12 @@ export type CardZoneScope = {
   itemZones?: Record<string, string>;
 };
 
+/** A portfolio that can already hold this library row. */
+export type CardZonePlacement = CardZoneScope & {
+  id: string;
+  contactItemIds: string[];
+};
+
 export function isCardZoneId(value: string): value is CardZoneId {
   return ZONE_IDS.has(value);
 }
@@ -44,6 +50,39 @@ export function effectiveZone(card: CardZoneScope | null | undefined, item: Cont
   const override = card?.itemZones?.[item.id];
   if (override && isCardZoneId(override)) return override;
   return zoneForItem(item);
+}
+
+/**
+ * The section this library row already occupies on another card.
+ * An explicit move (About vs Title) wins over a content guess, so sharing
+ * does not turn a long About into TITLE.
+ */
+export function zoneFromPlacements(
+  item: ContactItem,
+  cards: CardZonePlacement[],
+  exceptCardId?: string,
+): CardZoneId | undefined {
+  let inferred: CardZoneId | undefined;
+  for (const card of cards) {
+    if (exceptCardId && card.id === exceptCardId) continue;
+    if (!card.contactItemIds.includes(item.id)) continue;
+    const override = card.itemZones?.[item.id];
+    if (override && isCardZoneId(override)) return override;
+    inferred ??= effectiveZone(card, item);
+  }
+  return inferred;
+}
+
+/** Store a per-card section only when it differs from the row's natural type. */
+export function withItemZone(
+  card: CardZoneScope,
+  item: ContactItem,
+  zoneId: CardZoneId,
+): Record<string, string> | undefined {
+  const zones = { ...(card.itemZones ?? {}) };
+  if (zoneId === zoneForItem(item)) delete zones[item.id];
+  else zones[item.id] = zoneId;
+  return Object.keys(zones).length > 0 ? zones : undefined;
 }
 
 export type PositionLine = {
@@ -313,6 +352,7 @@ function between(value: number, min: number, max: number) {
 
 /** Position, name, or company row. A tap places that one line under the portfolio title. */
 export function isChoosableHeader(item: ContactItem) {
+  if (isProseValue(item.value)) return false;
   const zone = zoneForItem(item);
   return zone === "position" || zone === "name" || zone === "company";
 }
@@ -476,7 +516,7 @@ function isAllCapsNameWord(word: string) {
 
 export function parseDescription(text: string): { position: PositionLine | null; remainders: string[] } {
   const source = text.trim();
-  if (!source) return { position: null, remainders: [] };
+  if (!source || isProseValue(source)) return { position: null, remainders: [] };
 
   const hits = collectRoles(source);
   if (hits.length === 0) return { position: null, remainders: [] };
@@ -513,9 +553,20 @@ export function composeCard(
   return { position: null, zones: sectionsFrom(buckets, scope) };
 }
 
-export function groupLibrary(items: ContactItem[], scope?: CardZoneScope): CardZoneSection[] {
+export function groupLibrary(
+  items: ContactItem[],
+  scope?: CardZoneScope & Partial<CardZonePlacement>,
+  placements: CardZonePlacement[] = [],
+): CardZoneSection[] {
   const buckets = new Map<CardZoneId, CardDisplayRow[]>();
-  for (const item of items) pushDisplayed(buckets, item, undefined, scope);
+  const onThis = scope?.contactItemIds ? new Set(scope.contactItemIds) : null;
+  for (const item of items) {
+    const zone =
+      onThis?.has(item.id) || !onThis
+        ? effectiveZone(scope, item)
+        : (zoneFromPlacements(item, placements, scope?.id) ?? zoneForItem(item));
+    pushDisplayed(buckets, item, undefined, scope, zone);
+  }
   return sectionsFrom(buckets, scope);
 }
 
@@ -524,10 +575,11 @@ function pushDisplayed(
   item: ContactItem,
   publicToken?: string,
   scope?: CardZoneScope,
+  forcedZone?: CardZoneId,
 ) {
   const split = splitPresentation(item);
   if (!split) return;
-  const zone = effectiveZone(scope, item);
+  const zone = forcedZone ?? effectiveZone(scope, item);
   const rows = buckets.get(zone) ?? [];
   const direct = item.attachmentId ? `/f/${item.attachmentId}` : item.url;
   rows.push({

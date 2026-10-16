@@ -231,6 +231,7 @@ function EditorialValue({
   onChooseHeader,
   underlineLink = false,
   onRetryFile,
+  canvas = false,
 }: {
   row: CardDisplayRow;
   onChooseHeader?: (itemId: string) => void;
@@ -238,6 +239,8 @@ function EditorialValue({
   underlineLink?: boolean;
   /** Owner card: file rows show their upload state, and a failed one asks for the file again. */
   onRetryFile?: (itemId: string) => void;
+  /** About / additional: the value is a paragraph, not one clipped line. */
+  canvas?: boolean;
 }) {
   const itemId = row.item?.id;
   const fileStatus = useUploadStatus((state) => (itemId ? state.byItem[itemId] : undefined));
@@ -257,7 +260,8 @@ function EditorialValue({
     <span
       className={cn(
         "block min-w-0 break-words t-body text-[var(--ink)] no-underline",
-        (isProseValue(row.value) || row.value.includes("\n") || row.value.includes("  ")) && "whitespace-pre-wrap",
+        (canvas || isProseValue(row.value) || row.value.includes("\n") || row.value.includes("  ")) &&
+          "whitespace-pre-wrap",
       )}
     >
       {row.axis ? (
@@ -1074,6 +1078,7 @@ export function ContactItemChipList({
                             onChooseHeader={onChooseHeader}
                             underlineLink={underlineLinks}
                             onRetryFile={onRetryFile}
+                            canvas={zone.id === "additional"}
                           />
                         </div>
                         {arranging ? (

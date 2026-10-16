@@ -19,7 +19,13 @@ import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-u
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
 import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
-import { isCardZoneId, normalizeRubricOrder, zoneForItem } from "@/shared/services/card-zones";
+import {
+  isCardZoneId,
+  normalizeRubricOrder,
+  withItemZone,
+  zoneForItem,
+  zoneFromPlacements,
+} from "@/shared/services/card-zones";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
   deleteItemRow,
@@ -401,17 +407,20 @@ export const useAppStore = create<AppState>()(
         const now = new Date().toISOString();
         const item = get().contactItems.find((entry) => entry.id === itemId);
         if (!item) return;
-        const cards = get().cards.map((card) => {
-          if (card.id !== cardId || card.contactItemIds.includes(itemId)) return card;
-          return {
-            ...card,
-            contactItemIds: [itemId, ...card.contactItemIds],
-            updatedAt: now,
-          };
+        const current = get().cards.find((card) => card.id === cardId);
+        if (!current || current.contactItemIds.includes(itemId)) return;
+        const zone = zoneFromPlacements(item, get().cards, cardId) ?? zoneForItem(item);
+        const itemZones = withItemZone(current, item, zone);
+        const next = {
+          ...current,
+          contactItemIds: [itemId, ...current.contactItemIds],
+          itemZones,
+          updatedAt: now,
+        };
+        set({
+          cards: get().cards.map((card) => (card.id === cardId ? next : card)),
         });
-        set({ cards });
-        const card = cards.find((entry) => entry.id === cardId);
-        if (card) void syncItemOnCard(card, item);
+        void syncItemOnCard(next, item);
       },
 
       removeItemFromCard: (cardId, itemId) => {

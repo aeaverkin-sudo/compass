@@ -12,7 +12,6 @@ import { DELETE_HOLD_MS, ROW_TOGGLE_HOLD_MS, ROW_TOGGLE_MS } from "@/shared/lib/
 import { tick } from "@/shared/lib/haptic";
 import { flashRow } from "@/shared/lib/row-flash";
 import {
-  effectiveZone,
   groupLibrary,
   isProseValue,
   orderCardZones,
@@ -81,10 +80,10 @@ function enterFinishes(value: string) {
   );
 }
 
-function buildSections(card: Card, items: ContactItem[]): EditSection[] {
+function buildSections(card: Card, items: ContactItem[], cards: Card[]): EditSection[] {
   const onCard = new Set(card.contactItemIds);
   const order = new Map(card.contactItemIds.map((id, index) => [id, index]));
-  const grouped = groupLibrary(items.filter(isContactFilled), card);
+  const grouped = groupLibrary(items.filter(isContactFilled), card, cards);
 
   const sections = grouped.map((zone) => {
     const chosen = zone.rows
@@ -241,6 +240,7 @@ export function CardEditList({
   const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const setRubricLabel = useAppStore((state) => state.setRubricLabel);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
+  const cards = useAppStore((state) => state.cards);
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
@@ -260,8 +260,8 @@ export function CardEditList({
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
   const sections = useMemo(
-    () => orderCardZones(buildSections(card, items), card.rubricOrder),
-    [card, items],
+    () => orderCardZones(buildSections(card, items, cards), card.rubricOrder),
+    [card, items, cards],
   );
 
   useEffect(() => {
@@ -364,8 +364,9 @@ export function CardEditList({
                     text={lineOf(row)}
                     value={row.value}
                     multiline={
-                      item.type === "text" &&
-                      (item.value.includes("\n") || effectiveZone(card, item) === "additional")
+                      section.id === "additional" ||
+                      item.value.includes("\n") ||
+                      isProseValue(item.value)
                     }
                     onCard={onCard}
                     editing={textEditId === item.id}
