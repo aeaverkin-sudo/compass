@@ -1,6 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { customAlphabet, nanoid } from "nanoid";
@@ -27,13 +37,13 @@ import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
+import { INVITE_TITLE_MAX, INVITE_VALUE_MAX } from "@/shared/event/invite-rows";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { syncCardLinkOrder } from "@/shared/services/card-items-sync";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
-import { CARD_ZONES, zoneForItem } from "@/shared/services/card-zones";
 import { recordConsent } from "@/shared/services/consent-client";
-import { createEmptyContactItem, findIdenticalItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { findIdenticalItem } from "@/shared/services/contact-item";
 import { PORTFOLIO_LIMITS } from "@/shared/services/portfolio-limits";
 import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
@@ -44,6 +54,8 @@ const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 const FIELD =
   "compass-input block w-full border-0 bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
+const TITLE_FIELD =
+  "t-label mt-[6px] block w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent p-0 outline-none placeholder:text-[var(--placeholder)]";
 const CARD_PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EXPIRED = "This link has expired. Enter your email again.";
@@ -68,10 +80,10 @@ function onePassword() {
   return `${raw.slice(0, 4)}-${raw.slice(4)}`;
 }
 
-type Row = { id: string; value: string };
+type Row = { id: string; title: string; value: string };
 type Draft = { name: string; photo: string | null; email: string; rows: Row[] };
 
-const EMPTY_DRAFT: Draft = { name: "", photo: null, email: "", rows: [{ id: "first", value: "" }] };
+const EMPTY_DRAFT: Draft = { name: "", photo: null, email: "", rows: [{ id: "first", title: "", value: "" }] };
 
 function draftKey(lookup: string, guestToken: string | null) {
   return `aded:create-portfolio:${lookup}:${guestToken ?? "open"}`;
@@ -83,7 +95,10 @@ function readDraft(lookup: string, guestToken: string | null): Draft | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<Draft>;
     const rows = Array.isArray(parsed.rows)
-      ? parsed.rows.filter((row): row is Row => typeof row?.id === "string" && typeof row?.value === "string")
+      ? parsed.rows.flatMap((row) => {
+          if (!row || typeof row.id !== "string" || typeof row.value !== "string") return [];
+          return [{ id: row.id, title: typeof row.title === "string" ? row.title : "", value: row.value } satisfies Row];
+        })
       : [];
     return {
       name: typeof parsed.name === "string" ? parsed.name : "",
@@ -114,14 +129,6 @@ function dropDraft(lookup: string, guestToken: string | null) {
   } catch {
     /* storage unavailable */
   }
-}
-
-/** The section the card would put this row in. Empty, the row asks for a title. */
-function rowLabel(value: string) {
-  const text = value.trim();
-  if (!text) return "Title";
-  const zone = zoneForItem(normalizeContactItem(createEmptyContactItem(0), text));
-  return CARD_ZONES.find((entry) => entry.id === zone)?.title ?? "Additional";
 }
 
 /** The rail draws from a card. Before Create there is none, so the rail gets this blank one, inert. */
@@ -166,7 +173,12 @@ async function buildPortfolio(draft: Draft): Promise<string | null> {
   }
 
   const ids: string[] = [];
-  for (const value of [draft.email, ...draft.rows.map((row) => row.value)].map((entry) => entry.trim())) {
+  const lines: { title: string; value: string }[] = [
+    { title: "", value: draft.email },
+    ...draft.rows.map((row) => ({ title: row.title, value: row.value })),
+  ];
+  for (const line of lines) {
+    const value = line.value.trim();
     if (!value) continue;
     const state = useAppStore.getState();
     let id = findIdenticalItem(state.contactItems, value)?.id ?? null;
@@ -174,6 +186,8 @@ async function buildPortfolio(draft: Draft): Promise<string | null> {
       id = state.addContactItem();
       if (!id) continue;
       useAppStore.getState().updateContactItem(id, { value });
+      const title = line.title.trim();
+      if (title) useAppStore.getState().updateContactItem(id, { label: title });
     }
     if (!ids.includes(id)) ids.push(id);
   }
@@ -218,6 +232,74 @@ function NumberedRow({
   );
 }
 
+/** Extra card rows: the same title + description fields as the event-form custom row, with a stable key. */
+const DraftRow = memo(function DraftRow({
+  index,
+  row,
+  focusTurn,
+  onPatch,
+  onRemove,
+}: {
+  index: number;
+  row: Row;
+  focusTurn: number;
+  onPatch: (id: string, patch: Partial<Pick<Row, "title" | "value">>) => void;
+  onRemove: (id: string) => void;
+}) {
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const valueRef = useRef<HTMLTextAreaElement>(null);
+  const empty = !row.title.trim() && !row.value.trim();
+  const removeIfEmpty = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter") event.preventDefault();
+    if (event.key !== "Backspace" || row.title || row.value) return;
+    event.preventDefault();
+    onRemove(row.id);
+  };
+  useLayoutEffect(() => {
+    for (const node of [titleRef.current, valueRef.current]) {
+      if (!node) continue;
+      node.style.height = "auto";
+      node.style.height = `${node.scrollHeight}px`;
+    }
+  }, [row.title, row.value]);
+  useEffect(() => {
+    if (focusTurn > 0) titleRef.current?.focus();
+  }, [focusTurn]);
+  return (
+    <section className="min-w-0 border-b border-[var(--rule)] py-[18px]">
+      <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+        <div className={cn("min-w-0", empty && "[&_[data-section-number]]:text-[var(--placeholder)]")}>
+          <SectionNumber value={sectionNumberLabel(index)} />
+          <textarea
+            ref={titleRef}
+            rows={1}
+            value={row.title}
+            maxLength={INVITE_TITLE_MAX}
+            aria-label="Title"
+            placeholder="title"
+            onChange={(event) => onPatch(row.id, { title: event.target.value.replace(/\n/g, " ") })}
+            onKeyDown={removeIfEmpty}
+            className={TITLE_FIELD}
+          />
+        </div>
+        <ValueCap className="min-w-0">
+          <textarea
+            ref={valueRef}
+            rows={1}
+            value={row.value}
+            maxLength={INVITE_VALUE_MAX}
+            aria-label={row.title.trim() || "Description"}
+            placeholder="description"
+            onChange={(event) => onPatch(row.id, { value: event.target.value })}
+            onKeyDown={removeIfEmpty}
+            className={cn(FIELD, "resize-none overflow-hidden")}
+          />
+        </ValueCap>
+      </div>
+    </section>
+  );
+});
+
 export function CreatePortfolio({
   lookup,
   hash,
@@ -243,6 +325,8 @@ export function CreatePortfolio({
   const loaded = useRef(false);
   const ran = useRef(false);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const draftRef = useRef(draft);
+  const [focusRow, setFocusRow] = useState({ id: "", turn: 0 });
   const guestToken = guest?.token ?? null;
   const eventPath = `/e/${encodeURIComponent(lookup)}`;
   const api = `/api/events/${encodeURIComponent(lookup)}/portfolio`;
@@ -260,9 +344,20 @@ export function CreatePortfolio({
   }, [guest, guestToken, lookup]);
 
   useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
+  useEffect(() => {
     if (!loaded.current || hash) return;
-    writeDraft(lookup, guestToken, draft);
+    const timer = window.setTimeout(() => writeDraft(lookup, guestToken, draft), 400);
+    return () => window.clearTimeout(timer);
   }, [draft, guestToken, hash, lookup]);
+
+  useEffect(() => {
+    return () => {
+      if (loaded.current && !hash) writeDraft(lookup, guestToken, draftRef.current);
+    };
+  }, [guestToken, hash, lookup]);
 
   /** Signed in: the fields become a portfolio, the account goes to the event, then its own page. */
   const finish = async (welcomePassword: string | null) => {
@@ -319,13 +414,27 @@ export function CreatePortfolio({
   }, [hash, sessionReady]);
 
   const update = (data: Partial<Draft>) => setDraft((current) => ({ ...current, ...data }));
-  const setRow = (id: string, value: string) =>
-    setDraft((current) => ({ ...current, rows: current.rows.map((row) => (row.id === id ? { ...row, value } : row)) }));
-  const addRow = () =>
+  const patchRow = useCallback((id: string, patch: Partial<Pick<Row, "title" | "value">>) => {
+    setDraft((current) => ({
+      ...current,
+      rows: current.rows.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+    }));
+  }, []);
+  const removeRow = useCallback((id: string) => {
+    setDraft((current) => {
+      if (current.rows.length <= 1) return current;
+      return { ...current, rows: current.rows.filter((row) => row.id !== id) };
+    });
+  }, []);
+  const addRow = () => {
+    if (draft.rows.length >= PORTFOLIO_LIMITS.maxItemsOnCard) return;
+    const id = nanoid(8);
+    setFocusRow((focus) => ({ id, turn: focus.turn + 1 }));
     setDraft((current) => {
       if (current.rows.length >= PORTFOLIO_LIMITS.maxItemsOnCard) return current;
-      return { ...current, rows: [...current.rows, { id: nanoid(8), value: "" }] };
+      return { ...current, rows: [...current.rows, { id, title: "", value: "" }] };
     });
+  };
 
   const email = draft.email.trim().toLowerCase();
   const ready = EMAIL.test(email) && agreed && password.trim().length >= 8;
@@ -519,16 +628,14 @@ export function CreatePortfolio({
               </NumberedRow>
 
               {draft.rows.map((row, index) => (
-                <NumberedRow key={row.id} index={index + 2} label={rowLabel(row.value)} muted={!row.value.trim()}>
-                  <input
-                    type="text"
-                    aria-label={rowLabel(row.value)}
-                    placeholder="description"
-                    value={row.value}
-                    onChange={(event) => setRow(row.id, event.target.value)}
-                    className={FIELD}
-                  />
-                </NumberedRow>
+                <DraftRow
+                  key={row.id}
+                  index={index + 2}
+                  row={row}
+                  focusTurn={focusRow.id === row.id ? focusRow.turn : 0}
+                  onPatch={patchRow}
+                  onRemove={removeRow}
+                />
               ))}
 
               <div className="flex flex-col items-center border-b border-[var(--rule)] py-[18px]">
