@@ -423,6 +423,18 @@ export function EventForm({
               width="5ch"
             />
           </div>
+          {values.date || values.time || values.endTime ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setWhen({ date: "", time: "", endTime: "" });
+              }}
+              className="press relative ml-auto border-0 bg-transparent p-0 t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
+            >
+              Reset
+            </button>
+          ) : null}
         </div>
       </Zone>
       <Zone label="Time zone" rule onClick={(event) => focusField(event, zoneRef.current)}>
