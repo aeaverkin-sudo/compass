@@ -18,8 +18,7 @@ import { openWalletPass } from "@/shared/lib/wallet-client";
 const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 type AcceptReply = {
-  kind?: "go" | "here" | "signin" | "other-device" | "notice" | "going" | "access";
-  access?: boolean;
+  kind?: "go" | "here" | "signin" | "other-device" | "notice" | "going";
   badge?: PortfolioChoice | null;
   change?: string;
   text?: string;
@@ -27,7 +26,6 @@ type AcceptReply = {
   notice?: string | null;
   tokenHash?: string;
   cardId?: string | null;
-  confirmEmail?: string | null;
   pay?: boolean;
   error?: string;
 };
@@ -115,7 +113,6 @@ export function InviteActions({
   const [hint, setHint] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; next: string } | null>(null);
   const [going, setGoing] = useState<{ badge: PortfolioChoice | null; change: string } | null>(null);
-  const [thanked, setThanked] = useState(false);
   const [signInOffer, setSignInOffer] = useState(false);
   const opened = useRef(false);
   const autoRan = useRef(false);
@@ -141,11 +138,6 @@ export function InviteActions({
     router.replace(pay ? `/e/${encodeURIComponent(lookup)}/pay` : then && then !== "wallet" ? then : "/main");
   };
 
-  const thank = () => {
-    setThanked(true);
-    setBusy(false);
-  };
-
   const fail = (text: string) => {
     setHint(text);
     setBusy(false);
@@ -161,7 +153,6 @@ export function InviteActions({
     }
     const reply = (await response.json()) as AcceptReply;
     if (!response.ok || !reply.kind) return fail(reply.error ?? "Could not open your pass.");
-    if (reply.kind === "access") return thank();
     if (reply.kind === "other-device") {
       setSignInOffer(true);
       return fail("This pass was started in another browser. Sign in with your email to open it here.");
@@ -184,12 +175,6 @@ export function InviteActions({
       clearLocal();
       const signed = await supabase.auth.verifyOtp({ token_hash: reply.tokenHash, type: "magiclink" });
       if (signed.error) return fail("Could not open your pass.");
-    }
-    if (reply.access) return thank();
-    if (reply.confirmEmail) {
-      await supabase.auth
-        .updateUser({ email: reply.confirmEmail }, { emailRedirectTo: `${window.location.origin}/main` })
-        .catch(() => undefined);
     }
     await enterPass(reply.cardId, reply.pay === true);
   };
@@ -267,18 +252,6 @@ export function InviteActions({
       Sign in
     </Link>
   ) : null;
-
-  if (thanked) {
-    return (
-      <p className="m-0 w-full max-w-[280px] bg-sky px-[21.6px] py-[21.6px] text-center t-caps text-[var(--ink)]">
-        Thank you.
-        <br />
-        Your registration is confirmed.
-        <br />
-        Your event access will arrive in a separate email.
-      </p>
-    );
-  }
 
   if (going) {
     return (

@@ -95,13 +95,6 @@ export async function markGuestOpened(eventId: string, token: unknown): Promise<
   return (data ?? []).length > 0;
 }
 
-/** Name and surname on two lines, split at the first space. */
-export function passCardName(name: string): string {
-  const line = name.replace(/\s+/g, " ").trim();
-  const space = line.indexOf(" ");
-  return space > 0 ? `${line.slice(0, space)}\n${line.slice(space + 1)}` : line;
-}
-
 async function linkByToken(eventId: string, registrationId: string, token: string): Promise<void> {
   const admin = createAdminSupabaseClient();
   const now = new Date().toISOString();
