@@ -29,6 +29,7 @@ export type ContactType =
   | "behance"
   | "dribbble"
   | "spotify"
+  | "applemusic"
   | "calendly"
   | "appstore"
   | "playstore"

@@ -168,6 +168,7 @@ const URL_HOST_TYPES = new Set<ContactType>([
   "behance",
   "dribbble",
   "spotify",
+  "applemusic",
   "calendly",
   "appstore",
   "playstore",

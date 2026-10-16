@@ -13,16 +13,18 @@ export type PortfolioCategory =
   | "identity"
   | "contact"
   | "social"
+  | "lifestyle"
   | "product"
   | "files"
   | "media";
 
-/** Card stack: who → contact → product → social → lifestyle text → files → media. */
+/** Card stack: who → contact → product → social → lifestyle → files → media. */
 const CARD_SHELF_RANK: Record<PortfolioCategory, number> = {
   identity: 0,
   contact: 10,
   product: 20,
   social: 30,
+  lifestyle: 35,
   files: 40,
   media: 50,
 };
@@ -128,7 +130,7 @@ export const PORTFOLIO_ITEM_CATALOG: CatalogEntry[] = [
     examples: ["threads.net/@name"],
   },
   {
-    category: "social",
+    category: "lifestyle",
     type: "pinterest",
     label: "Pinterest",
     examples: ["pinterest.com/name"],
@@ -170,10 +172,16 @@ export const PORTFOLIO_ITEM_CATALOG: CatalogEntry[] = [
     examples: ["dribbble.com/designer"],
   },
   {
-    category: "social",
+    category: "lifestyle",
     type: "spotify",
     label: "Spotify",
     examples: ["open.spotify.com/show/…", "Podcast / audio show"],
+  },
+  {
+    category: "lifestyle",
+    type: "applemusic",
+    label: "Apple Music",
+    examples: ["music.apple.com/…"],
   },
   {
     category: "product",
@@ -255,6 +263,7 @@ export const SERVICE_PREFIX_ALIASES: Readonly<Record<string, ContactType>> = {
   yt: "youtube",
   tiktok: "tiktok",
   spotify: "spotify",
+  applemusic: "applemusic",
   linkedin: "linkedin",
   github: "github",
   x: "x",
@@ -347,6 +356,8 @@ export function profileUrlForType(type: ContactType, handle: string): string | n
       return `https://tiktok.com/@${id}`;
     case "spotify":
       return `https://open.spotify.com/search/${encodeURIComponent(id)}`;
+    case "applemusic":
+      return `https://music.apple.com/search?term=${encodeURIComponent(id)}`;
     case "linkedin":
       return `https://linkedin.com/in/${id}`;
     case "github":
@@ -435,6 +446,7 @@ export const SOCIAL_DOMAIN_MAP: ReadonlyArray<[string, ContactType]> = [
   ["dribbble.com", "dribbble"],
   ["open.spotify.com", "spotify"],
   ["spotify.com", "spotify"],
+  ["music.apple.com", "applemusic"],
   ["t.me", "telegram"],
   ["telegram.me", "telegram"],
   ["wa.me", "whatsapp"],
@@ -626,6 +638,7 @@ export function typeLabel(type: ContactType): string {
     behance: "Behance",
     dribbble: "Dribbble",
     spotify: "Spotify",
+    applemusic: "Apple Music",
     calendly: "Calendly",
     appstore: "App Store",
     playstore: "Google Play",

@@ -1,5 +1,6 @@
 import type { ContactItem, ContactType } from "@/shared/types";
 import { itemDisplayValue } from "./contact-item";
+import { isPlaceLine } from "./places";
 import { isAttachmentType } from "./portfolio-limits";
 import { typeLabel } from "./portfolio-catalog";
 
@@ -121,7 +122,6 @@ const SOCIAL_TYPES = new Set<ContactType>([
   "youtube",
   "tiktok",
   "threads",
-  "pinterest",
   "snapchat",
   "reddit",
   "twitch",
@@ -129,6 +129,8 @@ const SOCIAL_TYPES = new Set<ContactType>([
   "behance",
   "dribbble",
 ]);
+
+const LIFESTYLE_TYPES = new Set<ContactType>(["pinterest", "spotify", "applemusic"]);
 
 const CONTACT_TYPES = new Set<ContactType>(["email", "phone", "whatsapp", "telegram", "viber", "signal"]);
 
@@ -235,7 +237,7 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   if (WEB_TYPES.has(item.type)) return "web";
   if (SOCIAL_TYPES.has(item.type)) return "social";
   if (isAttachmentType(item.type)) return "files";
-  if (item.type === "spotify") return "lifestyle";
+  if (LIFESTYLE_TYPES.has(item.type)) return "lifestyle";
   if (CONTACT_TYPES.has(item.type)) return "contact";
   if (item.type === "text" && isProseValue(item.value)) return "additional";
   if (isExplicitPosition(item) || (item.type === "text" && parseDescription(item.value).position)) return "position";
@@ -295,7 +297,8 @@ function isBackgroundLine(text: string) {
 
 function isLocationLine(text: string) {
   if (/^(?:based|living|lives|located)\s+in\s+\p{L}/iu.test(text)) return true;
-  return /^location\s*[:\-–]\s*\p{L}/iu.test(text);
+  if (/^location\s*[:\-–]\s*\p{L}/iu.test(text)) return true;
+  return isPlaceLine(text);
 }
 
 const SPOKEN = new Set([
