@@ -27,8 +27,6 @@ export type InviteCoverEvent = {
   price?: string | null;
   inviteRows?: InviteRow[] | null;
   logoLook?: InviteLogoLook | null;
-  /** Form preview only: style 1 shows placeholders for what is still empty. */
-  hints?: boolean;
 };
 
 type InviteCoverProps = {

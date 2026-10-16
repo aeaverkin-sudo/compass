@@ -377,7 +377,6 @@ export function EventForm({
     logoUrl,
     inviteRows: rows,
     logoLook: values.logoLook,
-    hints: true,
   };
 
   return (

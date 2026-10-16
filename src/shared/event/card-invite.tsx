@@ -45,11 +45,9 @@ export type CardInviteEvent = {
   timeZone?: string | null;
   /** A paid event's price label. It closes the rows. */
   price?: string | null;
-  /** The form preview: empty When, Place and About show their placeholders. */
-  hints?: boolean;
 };
 
-type Line = { id: string; label: string; value: string; hint: boolean };
+type Line = { id: string; label: string; value: string };
 
 function inviteLines(event: CardInviteEvent): Line[] {
   const rows = event.inviteRows;
@@ -57,22 +55,17 @@ function inviteLines(event: CardInviteEvent): Line[] {
     .filter(Boolean)
     .join(" · ");
   const place = event.placeSecret ? "Revealed closer to the date" : (event.place?.trim() ?? "");
-  const base: Line[] = [
-    { id: "when", label: inviteLabel(rows, "when"), value: when, hint: false },
-    { id: "place", label: inviteLabel(rows, "place"), value: place, hint: false },
-    { id: "about", label: inviteLabel(rows, "about"), value: event.description?.trim() ?? "", hint: false },
-  ];
-  const hints: Record<string, string> = { when: "12.10.26 · 15:30–20:30", place: "Venue, address", about: "About the event" };
-  const lines = base.flatMap((line) =>
-    line.value ? [line] : event.hints ? [{ ...line, value: hints[line.id]!, hint: true }] : [],
-  );
+  const lines: Line[] = [
+    { id: "when", label: inviteLabel(rows, "when"), value: when },
+    { id: "place", label: inviteLabel(rows, "place"), value: place },
+    { id: "about", label: inviteLabel(rows, "about"), value: event.description?.trim() ?? "" },
+  ].filter((line) => line.value);
   for (const row of customInviteRows(rows)) {
     const value = row.value?.trim() ?? "";
-    if (value) lines.push({ id: row.id, label: row.title.trim(), value, hint: false });
-    else if (event.hints && row.title.trim()) lines.push({ id: row.id, label: row.title.trim(), value: "description", hint: true });
+    if (value) lines.push({ id: row.id, label: row.title.trim(), value });
   }
   const price = event.price?.trim();
-  if (price) lines.push({ id: "price", label: "Price", value: price, hint: false });
+  if (price) lines.push({ id: "price", label: "Price", value: price });
   return lines;
 }
 
@@ -177,7 +170,7 @@ export function CardInvite({ event, themeId }: { event: CardInviteEvent; themeId
             />
           ) : null}
           <div className="relative flex h-full min-w-0 flex-1 flex-col">
-            {named || event.hints ? <HeroName value={event.name} placeholder="Event title" maxLines={EVENT_TITLE_LINES} align="center" /> : null}
+            {named ? <HeroName value={event.name} placeholder="Event title" maxLines={EVENT_TITLE_LINES} align="center" /> : null}
           </div>
         </div>
         {lines.length > 0 ? (
@@ -188,14 +181,14 @@ export function CardInvite({ event, themeId }: { event: CardInviteEvent; themeId
                 className={cn("min-w-0 py-[18px]", index < lines.length - 1 && "border-b border-[var(--rule)]")}
               >
                 <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
-                  <div className={cn("min-w-0", line.hint && "[&_[data-section-number]]:!text-[var(--placeholder)]")}>
+                  <div className="min-w-0">
                     <SectionNumber value={sectionNumberLabel(index)} />
                     <span className="t-label mt-[6px] block min-w-0 whitespace-normal line-clamp-3">{line.label}</span>
                   </div>
                   <ValueCap className="min-w-0">
                     <p
                       data-invite-value=""
-                      className={cn("m-0 t-body whitespace-pre-line break-words", line.hint && "text-[var(--placeholder)]")}
+                      className="m-0 t-body whitespace-pre-line break-words"
                     >
                       {line.value}
                     </p>
