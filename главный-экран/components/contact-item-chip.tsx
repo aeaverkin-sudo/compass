@@ -21,6 +21,7 @@ import {
   applyRubricMove,
   composeCard,
   isChoosableHeader,
+  isProseValue,
   orderCardZones,
   reorderIdsInGroup,
   zoneForItem,
@@ -256,7 +257,7 @@ function EditorialValue({
     <span
       className={cn(
         "block min-w-0 break-words t-body text-[var(--ink)] no-underline",
-        (row.value.includes("\n") || row.value.includes("  ")) && "whitespace-pre-wrap",
+        (isProseValue(row.value) || row.value.includes("\n") || row.value.includes("  ")) && "whitespace-pre-wrap",
       )}
     >
       {row.axis ? (

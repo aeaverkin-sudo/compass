@@ -14,6 +14,7 @@ import { flashRow } from "@/shared/lib/row-flash";
 import {
   effectiveZone,
   groupLibrary,
+  isProseValue,
   orderCardZones,
   zoneForItem,
   type CardDisplayRow,
@@ -66,7 +67,7 @@ function lineOf(row: CardDisplayRow) {
 /** A finished link, name, or role. Enter closes it. Prose keeps the line break. */
 function enterFinishes(value: string) {
   const line = value.trim();
-  if (!line || line.includes("\n")) return false;
+  if (!line || isProseValue(line)) return false;
   if (detectContactType(line) !== "text") return true;
   return (
     zoneForItem({
@@ -948,8 +949,8 @@ function EditRow({
           className={cn(
             "t-body origin-left select-none transition-transform duration-150 motion-reduce:transform-none motion-reduce:transition-none",
             toggling === "add" && "scale-[1.03]",
-            multiline || value.includes("\n") || value.includes("  ")
-              ? "w-full whitespace-pre-wrap"
+            multiline || isProseValue(value) || value.includes("\n") || value.includes("  ")
+              ? "w-full whitespace-pre-wrap break-words"
               : "w-max whitespace-nowrap",
           )}
         >
@@ -1011,7 +1012,7 @@ function EditRow({
             document.body,
           )
         : null}
-      {fades && !editing && !multiline && !value.includes("\n") ? (
+      {fades && !editing && !multiline && !isProseValue(value) && !value.includes("\n") ? (
         <span
           aria-hidden
           className="pointer-events-none absolute inset-y-0 right-[26px] w-4 bg-gradient-to-r from-transparent to-white"

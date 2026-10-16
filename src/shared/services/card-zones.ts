@@ -181,13 +181,24 @@ const FACT_LABELS: Record<string, CardZoneId> = {
   language: "languages",
 };
 
+/** A paragraph, not a name, role, or one-line fact. */
+export function isProseValue(text: string) {
+  const line = text.trim();
+  if (!line) return false;
+  if (line.includes("\n")) return true;
+  const words = line.split(/\s+/).filter(Boolean);
+  if (words.length >= 9) return true;
+  if (line.length >= 72) return true;
+  return false;
+}
+
 export function zoneForItem(item: ContactItem): CardZoneId {
   if (WEB_TYPES.has(item.type)) return "web";
   if (SOCIAL_TYPES.has(item.type)) return "social";
   if (isAttachmentType(item.type)) return "files";
   if (item.type === "spotify") return "lifestyle";
   if (CONTACT_TYPES.has(item.type)) return "contact";
-  if (item.type === "text" && item.value.includes("\n")) return "additional";
+  if (item.type === "text" && isProseValue(item.value)) return "additional";
   if (isExplicitPosition(item) || (item.type === "text" && parseDescription(item.value).position)) return "position";
   if (item.type === "text" && isCompanyLine(item.value)) return "company";
   if (item.type === "text") {
