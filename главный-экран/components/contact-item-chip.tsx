@@ -26,6 +26,7 @@ import {
   reorderIdsInGroup,
   zoneForItem,
   type CardDisplayRow,
+  type CardZoneId,
   type CardZoneSection,
 } from "@/shared/services/card-zones";
 import { isAttachmentType } from "@/shared/services/portfolio-limits";
@@ -222,8 +223,8 @@ function ContactItemChipRow({
   );
 }
 
-function isHeaderRole(row: CardDisplayRow) {
-  return Boolean(row.item && isChoosableHeader(row.item));
+function isHeaderRole(row: CardDisplayRow, zoneId?: CardZoneId) {
+  return Boolean(row.item && isChoosableHeader(row.item, zoneId));
 }
 
 function EditorialValue({
@@ -232,6 +233,7 @@ function EditorialValue({
   underlineLink = false,
   onRetryFile,
   canvas = false,
+  zoneId,
 }: {
   row: CardDisplayRow;
   onChooseHeader?: (itemId: string) => void;
@@ -239,8 +241,9 @@ function EditorialValue({
   underlineLink?: boolean;
   /** Owner card: file rows show their upload state, and a failed one asks for the file again. */
   onRetryFile?: (itemId: string) => void;
-  /** About / additional: the value is a paragraph, not one clipped line. */
+  /** About: the value is a paragraph, not one clipped line. */
   canvas?: boolean;
+  zoneId?: CardZoneId;
 }) {
   const itemId = row.item?.id;
   const fileStatus = useUploadStatus((state) => (itemId ? state.byItem[itemId] : undefined));
@@ -255,7 +258,7 @@ function EditorialValue({
   ) : (
     row.value
   );
-  const choose = onChooseHeader && isHeaderRole(row);
+  const choose = onChooseHeader && isHeaderRole(row, zoneId);
   const body = (
     <span
       className={cn(
@@ -1078,7 +1081,8 @@ export function ContactItemChipList({
                             onChooseHeader={onChooseHeader}
                             underlineLink={underlineLinks}
                             onRetryFile={onRetryFile}
-                            canvas={zone.id === "additional"}
+                            zoneId={zone.id}
+                            canvas={zone.id === "about"}
                           />
                         </div>
                         {arranging ? (

@@ -104,6 +104,8 @@ export interface Card {
   rubricLabels?: Record<string, string>;
   /** Пер-карточный перенос строки в другой раздел: itemId → zoneId. Сам айтем не меняется. */
   itemZones?: Record<string, string>;
+  /** Base edit shelves hidden on this card. Empty placeholders stay gone; a shelf with rows still shows. */
+  hiddenZones?: string[];
   /** Row from the position zone shown under the portfolio title. Absent until the user picks one. */
   headerItemId?: string;
   nextScanAddons: NextScanAddon[];

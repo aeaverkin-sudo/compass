@@ -102,7 +102,7 @@ function portfolioFields(sections: CardZoneSection[]): PassField[] {
 /** The section headed About, else the first long text the card shows. */
 function cardAbout(sections: CardZoneSection[]): string | null {
   const titled = sections.find((section) => section.title.trim().toLowerCase() === "about");
-  const text = titled?.rows[0]?.value ?? sections.find((section) => section.id === "additional")?.rows[0]?.value;
+  const text = titled?.rows[0]?.value ?? sections.find((section) => section.id === "about")?.rows[0]?.value;
   if (!text?.trim()) return null;
   const flat = oneLine(text);
   return flat.length > ABOUT_MAX ? `${flat.slice(0, ABOUT_MAX - 1).trimEnd()}…` : flat;

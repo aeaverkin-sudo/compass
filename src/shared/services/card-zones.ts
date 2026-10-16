@@ -1,6 +1,5 @@
 import type { ContactItem, ContactType } from "@/shared/types";
 import { itemDisplayValue } from "./contact-item";
-import { isPlaceLine } from "./places";
 import { isAttachmentType } from "./portfolio-limits";
 import { typeLabel } from "./portfolio-catalog";
 
@@ -15,19 +14,42 @@ export const CARD_ZONES = [
   { id: "languages", title: "Languages" },
   { id: "web", title: "Web" },
   { id: "social", title: "Social" },
+  { id: "contact", title: "Contact" },
   { id: "files", title: "Files" },
   { id: "lifestyle", title: "Lifestyle" },
-  { id: "contact", title: "Contact" },
-  { id: "additional", title: "Additional" },
+  { id: "about", title: "About" },
 ] as const;
 
 export type CardZoneId = (typeof CARD_ZONES)[number]["id"];
+
+/** Edit always shows these, empty or filled. Extra zones appear only when they have rows. */
+export const BASE_EDIT_ZONES: readonly CardZoneId[] = [
+  "position",
+  "location",
+  "web",
+  "social",
+  "contact",
+  "files",
+  "about",
+];
+
+export const ZONE_HINTS: Partial<Record<CardZoneId, string>> = {
+  position: "Role",
+  location: "City, country",
+  web: "Website",
+  social: "Instagram, etc.",
+  contact: "Email, phone, messenger",
+  files: "PDF, JPG, …",
+  about: "Write about yourself",
+};
 
 const ZONE_IDS = new Set<string>(CARD_ZONES.map((zone) => zone.id));
 
 export type CardZoneScope = {
   rubricLabels?: Record<string, string>;
   itemZones?: Record<string, string>;
+  hiddenZones?: string[];
+  rubricOrder?: string[];
 };
 
 /** A portfolio that can already hold this library row. */
@@ -36,42 +58,47 @@ export type CardZonePlacement = CardZoneScope & {
   contactItemIds: string[];
 };
 
+/** Stored `additional` is the old About id. */
+export function canonZoneId(value: string | undefined): CardZoneId | undefined {
+  if (!value) return undefined;
+  if (value === "additional") return "about";
+  if (ZONE_IDS.has(value)) return value as CardZoneId;
+  return undefined;
+}
+
 export function isCardZoneId(value: string): value is CardZoneId {
   return ZONE_IDS.has(value);
 }
 
 /** Shown heading. An empty override falls back to the built-in title. */
 export function zoneTitle(card: CardZoneScope | null | undefined, zoneId: string, defaultTitle: string) {
-  const custom = card?.rubricLabels?.[zoneId]?.trim();
+  const id = canonZoneId(zoneId) ?? zoneId;
+  const custom = card?.rubricLabels?.[id]?.trim() || (id === "about" ? card?.rubricLabels?.additional?.trim() : undefined);
   return custom || defaultTitle;
 }
 
 /** This card's section for the row. The item's own type stays where it is. */
 export function effectiveZone(card: CardZoneScope | null | undefined, item: ContactItem): CardZoneId {
-  const override = card?.itemZones?.[item.id];
-  if (override && isCardZoneId(override)) return override;
+  const override = canonZoneId(card?.itemZones?.[item.id]);
+  if (override) return override;
   return zoneForItem(item);
 }
 
 /**
- * The section this library row already occupies on another card.
- * An explicit move (About vs Title) wins over a content guess, so sharing
- * does not turn a long About into TITLE.
+ * Another card's explicit pin for this row. Guesses from old heuristics do not count.
  */
 export function zoneFromPlacements(
   item: ContactItem,
   cards: CardZonePlacement[],
   exceptCardId?: string,
 ): CardZoneId | undefined {
-  let inferred: CardZoneId | undefined;
   for (const card of cards) {
     if (exceptCardId && card.id === exceptCardId) continue;
     if (!card.contactItemIds.includes(item.id)) continue;
-    const override = card.itemZones?.[item.id];
-    if (override && isCardZoneId(override)) return override;
-    inferred ??= effectiveZone(card, item);
+    const override = canonZoneId(card.itemZones?.[item.id]);
+    if (override) return override;
   }
-  return inferred;
+  return undefined;
 }
 
 /** Store a per-card section only when it differs from the row's natural type. */
@@ -209,19 +236,6 @@ export function isExplicitPosition(item: ContactItem) {
   return item.type === "position" || item.label.trim().toLowerCase() === "position";
 }
 
-const LEGAL_SUFFIX =
-  /^(?:l\.?l\.?c\.?|inc\.?|incorporated|ltd\.?|limited|gmbh|corp\.?|corporation|llp|plc|ag|s\.?a\.?|sas|oy|ab|bv|nv|pty|lp|pllc|ug|kg|co\.?|company)$/i;
-
-const FACT_LABELS: Record<string, CardZoneId> = {
-  age: "age",
-  education: "education",
-  background: "background",
-  experience: "background",
-  location: "location",
-  languages: "languages",
-  language: "languages",
-};
-
 /** A paragraph, not a name, role, or one-line fact. */
 export function isProseValue(text: string) {
   const line = text.trim();
@@ -233,288 +247,25 @@ export function isProseValue(text: string) {
   return false;
 }
 
+/**
+ * Honest shelf: a machine type goes to its zone. Free text stays About.
+ * Role words, cities, and names are not silent moves.
+ */
 export function zoneForItem(item: ContactItem): CardZoneId {
   if (WEB_TYPES.has(item.type)) return "web";
   if (SOCIAL_TYPES.has(item.type)) return "social";
   if (isAttachmentType(item.type)) return "files";
   if (LIFESTYLE_TYPES.has(item.type)) return "lifestyle";
   if (CONTACT_TYPES.has(item.type)) return "contact";
-  if (item.type === "text" && isProseValue(item.value)) return "additional";
-  if (isExplicitPosition(item) || (item.type === "text" && parseDescription(item.value).position)) return "position";
-  if (item.type === "text" && isCompanyLine(item.value)) return "company";
-  if (item.type === "text") {
-    const labeled = FACT_LABELS[item.label.trim().toLowerCase()];
-    if (labeled) return labeled;
-    const fact = factZone(item.value);
-    if (fact) return fact;
-  }
-  if (item.type === "text" && isPersonName(item.value)) return "name";
-  return "additional";
-}
-
-/**
- * A single portfolio line that is a fact, not a name or a role.
- * Age, study, work history, where they are, and which languages they speak.
- */
-function factZone(text: string): CardZoneId | null {
-  const line = text.trim();
-  if (!line) return null;
-  if (isAgeLine(line)) return "age";
-  if (isEducationLine(line)) return "education";
-  if (isBackgroundLine(line)) return "background";
-  if (isLocationLine(line)) return "location";
-  if (isLanguagesLine(line)) return "languages";
-  return null;
-}
-
-function isAgeLine(text: string) {
-  const aged = text.match(/^(?:age[d]?)\s*[:\-–]?\s*(\d{1,3})$/i);
-  if (aged) return between(Number(aged[1]), 1, 120);
-  const old = text.match(/^(\d{1,3})\s*(?:years?\s+old|y\.?o\.?)$/i);
-  if (old) return between(Number(old[1]), 1, 120);
-  const bare = text.match(/^(\d{2})$/);
-  if (bare) return between(Number(bare[1]), 14, 99);
-  return /^(?:born|b\.)\s+(?:in\s+)?(?:19|20)\d{2}$/i.test(text);
-}
-
-function isEducationLine(text: string) {
-  if (
-    /\b(?:education|university|college|bachelor(?:'s)?|master(?:'s)?|doctorate|phd|graduated|alumn(?:us|a|i)?|studied|degree|academy|conservatoire|conservatory|polytechnic|high\s+school|art\s+school)\b/i.test(
-      text,
-    )
-  ) {
-    return true;
-  }
-  return /\b(?:BA|BS|BSc|BFA|MA|MS|MSc|MFA|MBA|PhD|DPhil)\b/.test(text);
-}
-
-function isBackgroundLine(text: string) {
-  if (/\b(?:background|experience|career|r[eé]sum[eé]|worked|formerly)\b/i.test(text)) return true;
-  if (/\b\d{1,2}\s+years?\s+(?:in|at|with|of)\b/i.test(text)) return true;
-  if (/\b(?:since|from)\s+(?:19|20)\d{2}\b/i.test(text)) return true;
-  return /^ex[-–]\p{L}/iu.test(text);
-}
-
-function isLocationLine(text: string) {
-  if (/^(?:based|living|lives|located)\s+in\s+\p{L}/iu.test(text)) return true;
-  if (/^location\s*[:\-–]\s*\p{L}/iu.test(text)) return true;
-  return isPlaceLine(text);
-}
-
-const SPOKEN = new Set([
-  "english",
-  "russian",
-  "portuguese",
-  "spanish",
-  "french",
-  "german",
-  "italian",
-  "chinese",
-  "mandarin",
-  "cantonese",
-  "japanese",
-  "korean",
-  "arabic",
-  "hindi",
-  "dutch",
-  "swedish",
-  "norwegian",
-  "danish",
-  "finnish",
-  "polish",
-  "ukrainian",
-  "turkish",
-  "greek",
-  "hebrew",
-  "czech",
-  "hungarian",
-  "romanian",
-  "catalan",
-  "indonesian",
-  "thai",
-  "vietnamese",
-  "persian",
-  "farsi",
-  "urdu",
-  "bengali",
-  "swahili",
-]);
-
-function isLanguagesLine(text: string) {
-  if (/^(?:languages?|speaks?)\b/i.test(text)) return true;
-  const parts = text
-    .split(/,|\/|&|\band\b/i)
-    .map((part) => part.trim().toLowerCase())
-    .filter(Boolean);
-  return parts.length >= 2 && parts.every((part) => SPOKEN.has(part));
-}
-
-function between(value: number, min: number, max: number) {
-  return value >= min && value <= max;
+  if (isExplicitPosition(item)) return "position";
+  return "about";
 }
 
 /** Position, name, or company row. A tap places that one line under the portfolio title. */
-export function isChoosableHeader(item: ContactItem) {
+export function isChoosableHeader(item: ContactItem, zoneId?: CardZoneId) {
   if (isProseValue(item.value)) return false;
-  const zone = zoneForItem(item);
+  const zone = zoneId ?? zoneForItem(item);
   return zone === "position" || zone === "name" || zone === "company";
-}
-
-function lineWords(text: string) {
-  return text.trim().split(/\s+/).filter(Boolean);
-}
-
-/** A whole line that is a company, the way a role word marks a position. */
-function isCompanyLine(text: string) {
-  const words = lineWords(text);
-  if (words.length === 0 || words.length > 6) return false;
-  const last = words[words.length - 1]?.replace(/\.+$/, "") ?? "";
-  return LEGAL_SUFFIX.test(last);
-}
-
-const NAME_PARTICLES = new Set([
-  "van",
-  "von",
-  "de",
-  "da",
-  "di",
-  "del",
-  "della",
-  "dei",
-  "der",
-  "den",
-  "ten",
-  "ter",
-  "la",
-  "le",
-  "du",
-  "dos",
-  "das",
-  "do",
-  "bin",
-  "ibn",
-  "al",
-  "el",
-  "st",
-  "saint",
-  "оглы",
-  "кызы",
-  "заде",
-]);
-
-const NAME_HONORIFICS = new Set(["mr", "mrs", "ms", "miss", "dr", "prof", "sir", "dame"]);
-
-const NAME_SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv"]);
-
-/** Words that make a line a note, not a given name plus a surname. */
-const NOT_A_PERSON_NAME = new Set([
-  "the",
-  "and",
-  "or",
-  "for",
-  "with",
-  "from",
-  "this",
-  "that",
-  "these",
-  "those",
-  "our",
-  "your",
-  "their",
-  "is",
-  "are",
-  "was",
-  "were",
-  "be",
-  "been",
-  "a",
-  "an",
-  "of",
-  "to",
-  "in",
-  "on",
-  "at",
-  "by",
-  "as",
-  "new",
-  "app",
-  "we",
-  "you",
-  "it",
-  "my",
-  "his",
-  "her",
-  "its",
-]);
-
-type NameTokenKind = "honorific" | "suffix" | "particle" | "initial" | "name" | "junk";
-
-/**
- * A whole line that is a person's name.
- * Needs a given name and a surname: two to four name words, an initial may stand in
- * for one of them. Particles (van, de, and the Turkic particles in the set), a leading title, and a trailing Jr/III
- * may sit around that pair. "Averkin, Anton" counts. A sentence does not.
- */
-function isPersonName(text: string) {
-  const trimmed = text.trim();
-  if (!trimmed || /[\d@/\\()[\]{}!?;&:#]/.test(trimmed)) return false;
-  if ((trimmed.match(/,/g) ?? []).length > 1) return false;
-
-  const words = lineWords(trimmed.replace(/,/g, " "));
-  if (words.length < 2 || words.length > 7) return false;
-
-  const allCapsLine = !/[\p{Ll}]/u.test(trimmed) && /[\p{Lu}]/u.test(trimmed);
-  const kinds = words.map((word) => classifyNameToken(word, allCapsLine));
-
-  let start = 0;
-  let end = kinds.length;
-  if (kinds[0] === "honorific") start = 1;
-  if (end - start >= 2 && kinds[end - 1] === "suffix") end -= 1;
-
-  const body = kinds.slice(start, end);
-  if (body.length === 0) return false;
-
-  let names = 0;
-  let initials = 0;
-  let particles = 0;
-  for (const kind of body) {
-    if (kind === "name") names += 1;
-    else if (kind === "initial") initials += 1;
-    else if (kind === "particle") particles += 1;
-    else return false;
-  }
-
-  const parts = names + initials;
-  return names >= 1 && parts >= 2 && parts <= 4 && particles <= 2;
-}
-
-function classifyNameToken(word: string, allCapsLine: boolean): NameTokenKind {
-  const bare = word.replace(/\.+$/u, "");
-  const lower = bare.toLocaleLowerCase();
-  if (/^[\p{Lu}]\.?$/u.test(word)) return "initial";
-  if (!lower || NOT_A_PERSON_NAME.has(lower)) return "junk";
-  if (NAME_HONORIFICS.has(lower) && /^[\p{L}]+\.?$/u.test(word)) return "honorific";
-  if (NAME_SUFFIXES.has(lower) && /^(?:jr|sr|ii|iii|iv)\.?$/iu.test(word)) return "suffix";
-  if (isNameParticle(word, lower, allCapsLine)) return "particle";
-  if (isTitleNameWord(bare) || isAllCapsNameWord(bare)) return "name";
-  return "junk";
-}
-
-function isNameParticle(word: string, lower: string, allCapsLine: boolean) {
-  if (!NAME_PARTICLES.has(lower)) return false;
-  if (/^[\p{Ll}]+$/u.test(word)) return true;
-  if (allCapsLine && /^[\p{Lu}]+\.?$/u.test(word)) return true;
-  return (lower === "st" || lower === "saint") && /^[\p{Lu}][\p{Ll}]*\.?$/u.test(word);
-}
-
-/** Anton, McDonald, Anne-Marie, O'Brien, or a Cyrillic given name. */
-function isTitleNameWord(word: string) {
-  return /^(?:[\p{Lu}][\p{Ll}]*)(?:[\p{Lu}][\p{Ll}]*|['’-][\p{Lu}][\p{Ll}]*)*$/u.test(word) && word.length >= 2;
-}
-
-/** ANTON, AVERKIN, ANNE-MARIE. */
-function isAllCapsNameWord(word: string) {
-  return /^[\p{Lu}]{2,}(?:['’-][\p{Lu}]{2,})*$/u.test(word);
 }
 
 export function parseDescription(text: string): { position: PositionLine | null; remainders: string[] } {
@@ -561,15 +312,56 @@ export function groupLibrary(
   scope?: CardZoneScope & Partial<CardZonePlacement>,
   placements: CardZonePlacement[] = [],
 ): CardZoneSection[] {
-  void placements;
   const buckets = new Map<CardZoneId, CardDisplayRow[]>();
   const onThis = scope?.contactItemIds ? new Set(scope.contactItemIds) : null;
+  const exceptId = scope && "id" in scope ? scope.id : undefined;
   for (const item of items) {
     const onCard = onThis?.has(item.id) ?? true;
-    const zone = onCard ? effectiveZone(scope, item) : zoneForItem(item);
+    const zone = onCard
+      ? effectiveZone(scope, item)
+      : (zoneFromPlacements(item, placements, exceptId) ?? zoneForItem(item));
     pushDisplayed(buckets, item, undefined, scope, zone);
   }
   return sectionsFrom(buckets, scope);
+}
+
+/** Edit scaffold: the seven base zones, plus any extra shelf that already has rows. */
+export function groupEditSections(
+  items: ContactItem[],
+  scope: CardZoneScope & Partial<CardZonePlacement>,
+  placements: CardZonePlacement[] = [],
+): CardZoneSection[] {
+  const filled = groupLibrary(items, scope, placements);
+  const byId = new Map(filled.map((section) => [section.id, section]));
+  const hidden = new Set(
+    (scope.hiddenZones ?? []).flatMap((id) => {
+      const zone = canonZoneId(id);
+      return zone ? [zone] : [];
+    }),
+  );
+  const ids: CardZoneId[] = [];
+  for (const id of BASE_EDIT_ZONES) {
+    const rows = byId.get(id)?.rows.length ?? 0;
+    if (hidden.has(id) && rows === 0) continue;
+    ids.push(id);
+  }
+  for (const zone of CARD_ZONES) {
+    if (ids.includes(zone.id)) continue;
+    if ((byId.get(zone.id)?.rows.length ?? 0) > 0) ids.push(zone.id);
+  }
+  const ordered = orderCardZones(
+    ids.map((id) => ({ id })),
+    scope.rubricOrder,
+  ).map((zone) => zone.id as CardZoneId);
+  return ordered.map((id) => {
+    const meta = CARD_ZONES.find((zone) => zone.id === id);
+    const found = byId.get(id);
+    return {
+      id,
+      title: zoneTitle(scope, id, meta?.title ?? id),
+      rows: found?.rows ?? [],
+    };
+  });
 }
 
 function pushDisplayed(
@@ -634,8 +426,10 @@ export function normalizeRubricOrder(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const keys: string[] = [];
   for (const entry of value) {
-    if (typeof entry !== "string" || !ZONE_IDS.has(entry) || keys.includes(entry)) continue;
-    keys.push(entry);
+    if (typeof entry !== "string") continue;
+    const id = canonZoneId(entry);
+    if (!id || keys.includes(id)) continue;
+    keys.push(id);
   }
   return keys.length > 0 ? keys : undefined;
 }
@@ -645,10 +439,11 @@ export function normalizeRubricLabels(value: unknown): Record<string, string> | 
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const labels: Record<string, string> = {};
   for (const [zoneId, title] of Object.entries(value)) {
-    if (!isCardZoneId(zoneId) || typeof title !== "string") continue;
+    const id = canonZoneId(zoneId);
+    if (!id || typeof title !== "string") continue;
     const trimmed = title.trim();
     if (!trimmed) continue;
-    labels[zoneId] = trimmed;
+    labels[id] = trimmed;
   }
   return Object.keys(labels).length > 0 ? labels : undefined;
 }
@@ -658,10 +453,23 @@ export function normalizeItemZones(value: unknown): Record<string, string> | und
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const zones: Record<string, string> = {};
   for (const [itemId, zoneId] of Object.entries(value)) {
-    if (!itemId || typeof zoneId !== "string" || !isCardZoneId(zoneId)) continue;
-    zones[itemId] = zoneId;
+    const id = typeof zoneId === "string" ? canonZoneId(zoneId) : undefined;
+    if (!itemId || !id) continue;
+    zones[itemId] = id;
   }
   return Object.keys(zones).length > 0 ? zones : undefined;
+}
+
+export function normalizeHiddenZones(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const keys: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") continue;
+    const id = canonZoneId(entry);
+    if (!id || keys.includes(id)) continue;
+    keys.push(id);
+  }
+  return keys.length > 0 ? keys : undefined;
 }
 
 /** Stored rubric order first. Rubrics the card has not ordered yet keep the default sequence. */

@@ -1,0 +1,1045 @@
+"use client";
+
+import { File as FileIcon, Plus, X } from "lucide-react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { createPortal, flushSync } from "react-dom";
+import * as Dialog from "@radix-ui/react-dialog";
+import { cn } from "@/lib/utils";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
+import { useLongPress } from "@/shared/hooks/use-long-press";
+import { DELETE_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
+import { tick } from "@/shared/lib/haptic";
+import { flashRow } from "@/shared/lib/row-flash";
+import {
+  groupLibrary,
+  isProseValue,
+  orderCardZones,
+  zoneForItem,
+  type CardDisplayRow,
+  type CardZoneId,
+} from "@/shared/services/card-zones";
+import {
+  detectContactType,
+  findIdenticalItem,
+  isContactFilled,
+  messengerCountryHint,
+} from "@/shared/services/contact-item";
+import { WrapField, type WrapFieldHandle } from "./wrap-field";
+import { customDisplayName } from "@/shared/services/link-display";
+import { SkyHint } from "@/shared/components/sky-hint";
+import { SkyToast } from "@/shared/components/sky-toast";
+import { useAppStore } from "@/shared/store/app-store";
+import { fileStatusLine, useUploadStatus } from "@/shared/store/upload-status";
+import { isAttachmentType } from "@/shared/services/portfolio-limits";
+import type { Card, ContactItem } from "@/shared/types";
+import { itemPhotoSrc } from "@/shared/services/card-photo";
+import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
+import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
+
+const OFF_CARD = "var(--placeholder)";
+const DELETE_RED = "#E23B2F";
+const ADD_PLACEHOLDER = "Add link, file, text, contact…";
+const LOOKING_FOR = "Looking for";
+/** An event pass keeps Event in Additional, so Looking for takes a section the pass never fills. */
+const LOOKING_FOR_ZONE = "background";
+const BLUR_GUARD_MS = 300;
+const OPEN_GUARD_MS = 450;
+const DUPLICATE_NOTICE = "Already in your library";
+
+/** A docked line grows with its text up to the screen above the keyboard; only past that it scrolls. */
+function dockReach(keyboard: number) {
+  return `calc(100dvh - ${keyboard}px - 56px)`;
+}
+
+type EditSection = {
+  id: CardZoneId;
+  title: string;
+  included: boolean;
+  rows: { row: CardDisplayRow; onCard: boolean }[];
+};
+
+function lineOf(row: CardDisplayRow) {
+  return row.axis ? `${row.axis} / ${row.value}` : row.value;
+}
+
+/** A finished link, name, or role. Enter closes it. Prose keeps the line break. */
+function enterFinishes(value: string) {
+  const line = value.trim();
+  if (!line || isProseValue(line)) return false;
+  if (detectContactType(line) !== "text") return true;
+  return (
+    zoneForItem({
+      id: "draft",
+      type: "text",
+      label: "",
+      value: line,
+      url: "",
+      order: 0,
+    }) !== "additional"
+  );
+}
+
+function buildSections(card: Card, items: ContactItem[], cards: Card[]): EditSection[] {
+  const onCard = new Set(card.contactItemIds);
+  const order = new Map(card.contactItemIds.map((id, index) => [id, index]));
+  const grouped = groupLibrary(items.filter(isContactFilled), card, cards);
+
+  const sections = grouped.map((zone) => {
+    const chosen = zone.rows
+      .filter((row) => row.item && onCard.has(row.item.id))
+      .sort((a, b) => (order.get(a.item!.id) ?? 0) - (order.get(b.item!.id) ?? 0));
+    const spare = zone.rows
+      .filter((row) => row.item && !onCard.has(row.item.id))
+      .sort((a, b) => (a.item!.order ?? 0) - (b.item!.order ?? 0));
+    return {
+      id: zone.id,
+      title: zone.title,
+      included: chosen.length > 0,
+      rows: [
+        ...chosen.map((row) => ({ row, onCard: true })),
+        ...spare.map((row) => ({ row, onCard: false })),
+      ],
+    };
+  });
+
+  return sections.filter((section) => section.rows.length > 0);
+}
+
+function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => void }) {
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  return (
+    <Checkbox
+      variant="library"
+      checked={onCard}
+      data-no-swipe
+      aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
+      className="relative z-10 -mr-[11px] -mt-[11px]"
+      onPointerDown={(event) => {
+        origin.current = { x: event.clientX, y: event.clientY };
+      }}
+      onPointerUp={(event) => {
+        event.stopPropagation();
+        const start = origin.current;
+        origin.current = null;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        if (start) {
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (dx * dx + dy * dy > REORDER_SLOP_PX * REORDER_SLOP_PX) return;
+        }
+        onToggle();
+      }}
+      onPointerCancel={() => {
+        origin.current = null;
+      }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.detail === 0) onToggle();
+      }}
+      onCheckedChange={() => undefined}
+    />
+  );
+}
+
+function SectionLabel({
+  title,
+  included,
+  editing,
+  onEdit,
+  onCommit,
+}: {
+  title: string;
+  included: boolean;
+  editing: boolean;
+  onEdit: () => void;
+  onCommit: (next: string) => void;
+}) {
+  const labelRef = useRef<HTMLButtonElement>(null);
+  const dockRef = useRef<WrapFieldHandle>(null);
+  const dockBottom = useKeyboardDock(editing, true);
+  const openedAt = useRef(0);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
+
+  const begin = () => {
+    openedAt.current = Date.now();
+    flushSync(() => {
+      onEdit();
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!editing) return;
+    const list = labelRef.current?.closest("[data-card-chip-list]");
+    const rect = list?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
+    dockRef.current?.focusEnd();
+  }, [editing]);
+
+  return (
+    <>
+      <button
+        ref={labelRef}
+        type="button"
+        className={cn(
+          "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
+          editing && "invisible pointer-events-none",
+        )}
+        style={{ color: included ? "var(--grey)" : OFF_CARD }}
+        onPointerUp={() => {
+          if (editing) return;
+          begin();
+        }}
+      >
+        {title}
+      </button>
+      {editing
+        ? createPortal(
+            <div
+              data-no-swipe
+              className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
+              style={{ paddingBottom: dockBottom }}
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
+              />
+              <div style={{ marginLeft: frame.left, width: frame.width }}>
+                <div className="flex flex-col justify-end border-b border-[var(--rule)]">
+                  <WrapField
+                    ref={dockRef}
+                    initial={title}
+                    label="Section name"
+                    onDone={onCommit}
+                    onBlur={(next) => {
+                      if (Date.now() - openedAt.current < 700) {
+                        dockRef.current?.focusEnd();
+                        return;
+                      }
+                      onCommit(next);
+                    }}
+                    className="bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
+export function CardEditList({
+  card,
+  items,
+  composeOnMount = false,
+  openAddRef,
+  onComposingChange,
+}: {
+  card: Card;
+  items: ContactItem[];
+  composeOnMount?: boolean;
+  openAddRef?: RefObject<(() => void) | null>;
+  onComposingChange?: (open: boolean) => void;
+}) {
+  const updateCard = useAppStore((state) => state.updateCard);
+  const updateContactItem = useAppStore((state) => state.updateContactItem);
+  const addItemToCard = useAppStore((state) => state.addItemToCard);
+  const removeItemFromCard = useAppStore((state) => state.removeItemFromCard);
+  const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
+  const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
+  const setRubricLabel = useAppStore((state) => state.setRubricLabel);
+  const deleteContactItem = useAppStore((state) => state.deleteContactItem);
+  const cards = useAppStore((state) => state.cards);
+
+  const [textEditId, setTextEditId] = useState<string | null>(null);
+  const [sectionEditId, setSectionEditId] = useState<string | null>(null);
+  const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [composing, setComposing] = useState(false);
+  const [libraryHint, setLibraryHint] = useState<"add" | "first" | null>(null);
+  const [duplicateNotice, setDuplicateNotice] = useState(0);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const refuseDuplicate = (twinId: string) => {
+    tick();
+    flashRow(listRef.current?.querySelector<HTMLElement>(`[data-item-row="${CSS.escape(twinId)}"]`));
+    setDuplicateNotice((count) => count + 1);
+  };
+
+  useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
+
+  const sections = useMemo(
+    () => orderCardZones(buildSections(card, items, cards), card.rubricOrder),
+    [card, items, cards],
+  );
+
+  useEffect(() => {
+    if (!deleteReadyId) return;
+    const dismiss = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-delete-marker], [data-delete-confirm]")) return;
+      setDeleteReadyId(null);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [deleteReadyId]);
+
+  const include = useCallback(
+    (itemId: string) => {
+      addItemToCard(card.id, itemId);
+      const next = useAppStore.getState().cards.find((entry) => entry.id === card.id);
+      if (!next) return;
+      const rest = next.contactItemIds.filter((id) => id !== itemId);
+      setCardItemOrder(card.id, [...rest, itemId]);
+    },
+    [addItemToCard, card.id, setCardItemOrder],
+  );
+
+  const toggleOnCard = useCallback(
+    (itemId: string) => {
+      tick();
+      const on = useAppStore.getState().cards.find((entry) => entry.id === card.id)?.contactItemIds.includes(itemId);
+      if (on) removeItemFromCard(card.id, itemId);
+      else include(itemId);
+    },
+    [card.id, include, removeItemFromCard],
+  );
+
+  const startRowEdit = useCallback((itemId: string) => {
+    setDeleteReadyId(null);
+    setSectionEditId(null);
+    setTextEditId(itemId);
+  }, []);
+
+  const saveRowText = (item: ContactItem, shown: string, next: string) => {
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === shown) return;
+    const stored =
+      customDisplayName(item) ||
+      (shown !== item.value.trim() &&
+        item.type !== "text" &&
+        item.type !== "position" &&
+        item.type !== "email" &&
+        item.type !== "phone");
+    if (!stored) {
+      const twin = findIdenticalItem(useAppStore.getState().contactItems, trimmed, item.id);
+      if (twin) {
+        refuseDuplicate(twin.id);
+        return;
+      }
+    }
+    updateContactItem(item.id, stored ? { label: trimmed } : { value: trimmed });
+    if (card.headerItemId === item.id) updateCard(card.id, { title: trimmed });
+  };
+
+  const eraseRow = (itemId: string) => {
+    if (card.headerItemId === itemId) updateCard(card.id, { headerItemId: undefined, title: "" });
+    setTextEditId(null);
+    setDeleteReadyId(null);
+    deleteContactItem(itemId);
+  };
+
+  const askDelete = (itemId: string) => {
+    setConfirmDelete(itemId);
+  };
+
+  const retryFile = (itemId: string) => {
+    openContactAttachmentPicker((dataUrl, file) => {
+      const result = updateContactItemAttachment(card.id, itemId, file, dataUrl);
+      if (!result.ok) useUploadStatus.getState().fail(itemId, result.message);
+    });
+  };
+
+  return (
+    <div ref={listRef} data-card-chip-list={card.id} data-card-content>
+      {sections.map((section, index) => (
+        <section
+          key={section.id}
+          hidden={composing}
+          className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b border-[var(--rule)]")}
+        >
+          <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+            <div className="min-w-0">
+              <SectionNumber value={sectionNumberLabel(index)} />
+              <div className="mt-[6px]">
+                <SectionLabel
+                  title={section.title}
+                  included={section.included}
+                  editing={sectionEditId === section.id}
+                  onEdit={() => {
+                    setTextEditId(null);
+                    setDeleteReadyId(null);
+                    setSectionEditId(section.id);
+                  }}
+                  onCommit={(next) => {
+                    setRubricLabel(card.id, section.id, next);
+                    setSectionEditId(null);
+                  }}
+                />
+              </div>
+            </div>
+            <ValueCap className="flex min-w-0 flex-col gap-[6px]">
+              {section.rows.map(({ row, onCard }) => {
+                const item = row.item;
+                if (!item) return null;
+                return (
+                  <EditRow
+                    key={item.id}
+                    itemId={item.id}
+                    text={lineOf(row)}
+                    value={row.value}
+                    multiline={
+                      section.id === "additional" ||
+                      item.value.includes("\n") ||
+                      isProseValue(item.value)
+                    }
+                    onCard={onCard}
+                    editing={textEditId === item.id}
+                    deleteReady={deleteReadyId === item.id}
+                    onArmDelete={setDeleteReadyId}
+                    onDelete={askDelete}
+                    onToggle={toggleOnCard}
+                    onEdit={startRowEdit}
+                    onConfirm={(next) => {
+                      saveRowText(item, row.value, next);
+                      setTextEditId(null);
+                    }}
+                    onErase={() => eraseRow(item.id)}
+                    fileUrl={isAttachmentType(item.type) ? row.url : undefined}
+                    onRetryFile={() => retryFile(item.id)}
+                  />
+                );
+              })}
+            </ValueCap>
+          </div>
+        </section>
+      ))}
+      <AddLine
+        cardId={card.id}
+        openOnMount={composeOnMount}
+        openAddRef={openAddRef}
+        onFocus={() => setTextEditId(null)}
+        onDuplicate={refuseDuplicate}
+        onOpenChange={(open) => {
+          setComposing(open);
+          onComposingChange?.(open);
+          if (open && !useAppStore.getState().user.addLibraryHintSeen) setLibraryHint("add");
+        }}
+        onAdded={() => {
+          const user = useAppStore.getState().user;
+          if (user.firstRowHintSeen) return;
+          if (!user.addLibraryHintSeen) useAppStore.getState().markAddLibraryHintSeen();
+          setLibraryHint("first");
+        }}
+      />
+      {duplicateNotice > 0 ? (
+        <SkyToast key={duplicateNotice} text={DUPLICATE_NOTICE} onDone={() => setDuplicateNotice(0)} />
+      ) : null}
+      {libraryHint === "add" ? (
+        <SkyHint
+          text="Add anything to the library and use it in different portfolios"
+          onDone={() => {
+            useAppStore.getState().markAddLibraryHintSeen();
+            setLibraryHint(null);
+          }}
+        />
+      ) : null}
+      {libraryHint === "first" ? (
+        <SkyHint
+          text="Tap + to use in the portfolio"
+          onDone={() => {
+            useAppStore.getState().markFirstRowHintSeen();
+            setLibraryHint(null);
+          }}
+        />
+      ) : null}
+      <Dialog.Root
+        open={confirmDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmDelete(null);
+            setDeleteReadyId(null);
+          }
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-transparent" />
+          <Dialog.Content
+            data-delete-confirm=""
+            className="fixed top-1/2 left-1/2 z-50 w-max max-w-[min(100%-48px,280px)] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center outline-none"
+          >
+            <Dialog.Title className="t-body text-[var(--ink)]">
+              Delete from library
+            </Dialog.Title>
+            <Dialog.Description className="sr-only">This removes the row from the library.</Dialog.Description>
+            <div className="mt-3 flex justify-center gap-6">
+              <button
+                type="button"
+                className="t-body text-[var(--ink)]"
+                onClick={() => {
+                  const id = confirmDelete;
+                  setConfirmDelete(null);
+                  setDeleteReadyId(null);
+                  if (id) deleteContactItem(id);
+                }}
+              >
+                Yes
+              </button>
+              <button type="button" className="t-body text-[var(--grey)]" onClick={() => {
+                setConfirmDelete(null);
+                setDeleteReadyId(null);
+              }}>
+                No
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </div>
+  );
+}
+
+/** Sky plaque at the very bottom. The first portfolio resets to photo and name; any other is deleted. */
+/**
+ * The only way to create a new row. At rest it is a single centred +.
+ * Tapping it docks one writing line above the keyboard. Text stays here until Done,
+ * so nothing half-typed reaches the card. A picked file joins the same line.
+ */
+function AddLine({
+  cardId,
+  openOnMount,
+  openAddRef,
+  onFocus,
+  onDuplicate,
+  onOpenChange,
+  onAdded,
+}: {
+  cardId: string;
+  openOnMount: boolean;
+  /** The plate's +. Called inside the tap, so the focus still raises the keyboard. */
+  openAddRef?: RefObject<(() => void) | null>;
+  onFocus: () => void;
+  /** The typed line is already a library row. The line stays open with its text. */
+  onDuplicate: (twinId: string) => void;
+  /** While open, the card shows only the QR, the photo and the name above the line. */
+  onOpenChange: (open: boolean) => void;
+  onAdded: (itemId: string) => void;
+}) {
+  const addContactItem = useAppStore((state) => state.addContactItem);
+  const updateContactItem = useAppStore((state) => state.updateContactItem);
+  const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
+  const deleteContactItem = useAppStore((state) => state.deleteContactItem);
+
+  const [open, setOpen] = useState(false);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
+  const [text, setText] = useState("");
+  const [fileItemId, setFileItemId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const [lookingFor, setLookingFor] = useState(false);
+  const passCard = useAppStore(
+    (state) => state.cards.find((card) => card.id === cardId)?.rubricLabels?.additional === "Event",
+  );
+  const fileItem = useAppStore((state) =>
+    fileItemId ? state.contactItems.find((item) => item.id === fileItemId) : undefined,
+  );
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<WrapFieldHandle>(null);
+  const picking = useRef(false);
+  const openedAt = useRef(0);
+  const closedRef = useRef(false);
+  const dockBottom = useKeyboardDock(open, true);
+  const filePhoto = fileItem ? itemPhotoSrc(fileItem) : null;
+
+  /** The docked line spans exactly the card column. */
+  const startDocking = () => {
+    const rect = anchorRef.current?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
+    openedAt.current = Date.now();
+    closedRef.current = false;
+    setError(null);
+    setHint(null);
+    setOpen(true);
+    onOpenChange(true);
+  };
+
+  useEffect(() => {
+    if (!openAddRef) return;
+    openAddRef.current = () => {
+      flushSync(startDocking);
+      fieldRef.current?.focusEnd();
+    };
+    return () => {
+      openAddRef.current = null;
+    };
+  });
+
+  // The empty card asks for the line once, as it opens.
+  useLayoutEffect(() => {
+    if (openOnMount) startDocking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openOnMount]);
+
+  // Layout phase: mounted from a tap, the focus still counts as the user's and raises the keyboard.
+  useLayoutEffect(() => {
+    if (open) fieldRef.current?.focusEnd();
+  }, [open]);
+
+  const dismissLine = () => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    setLookingFor(false);
+    setText("");
+    setFileItemId(null);
+    setOpen(false);
+    onOpenChange(false);
+  };
+
+  /** A chosen file leaves the writing line. The card body shows it, and OK confirms the edit. */
+  const placeFile = (itemId: string) => {
+    const value = text.replace(/\s*\n\s*/g, " ").trim();
+    if (value) updateContactItem(itemId, { label: value });
+    onAdded(itemId);
+    picking.current = false;
+    dismissLine();
+  };
+
+  const commit = (raw?: string) => {
+    const source = raw ?? text;
+    const value = fileItemId ? source.replace(/\s*\n\s*/g, " ").trim() : source.trim();
+    if (fileItemId) {
+      if (value) updateContactItem(fileItemId, { label: value });
+      onAdded(fileItemId);
+      return true;
+    }
+    if (!value) return true;
+    const twin = findIdenticalItem(useAppStore.getState().contactItems, value);
+    if (twin) {
+      onDuplicate(twin.id);
+      return false;
+    }
+    const countryHint = messengerCountryHint(value);
+    if (countryHint) {
+      setHint(countryHint);
+      return false;
+    }
+    const id = addContactItem();
+    if (!id) return true;
+    updateContactItem(id, { value });
+    const item = useAppStore.getState().contactItems.find((row) => row.id === id);
+    if (!item || !isContactFilled(item)) {
+      deleteContactItem(id);
+      return true;
+    }
+    onAdded(id);
+    if (lookingFor) placeLookingFor(id);
+    return true;
+  };
+
+  /** The pass's Looking for row is its own section, after the ones the card already has. */
+  const placeLookingFor = (itemId: string) => {
+    const state = useAppStore.getState();
+    const card = state.cards.find((entry) => entry.id === cardId);
+    state.setItemZone(cardId, itemId, LOOKING_FOR_ZONE);
+    state.setRubricLabel(cardId, LOOKING_FOR_ZONE, LOOKING_FOR);
+    const order = card?.rubricOrder ?? [];
+    if (order.length > 0 && !order.includes(LOOKING_FOR_ZONE)) state.setCardRubricOrder(cardId, [...order, LOOKING_FOR_ZONE]);
+  };
+
+  const close = (raw?: string) => {
+    if (closedRef.current) return;
+    if (!commit(raw)) return;
+    dismissLine();
+  };
+
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  });
+
+  // A tap anywhere but the writing row leaves the line. The blue plate stays up
+  // until the finger lifts, so the tap cannot fall through onto a row underneath.
+  useEffect(() => {
+    if (!open) return;
+    const inside = (target: EventTarget | null) => target instanceof Node && !!rowRef.current?.contains(target);
+    const onPointerDown = (event: PointerEvent) => {
+      if (inside(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      if (inside(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const swallow = (click: Event) => {
+        click.preventDefault();
+        click.stopPropagation();
+      };
+      document.addEventListener("click", swallow, true);
+      window.setTimeout(() => document.removeEventListener("click", swallow, true), 500);
+      closeRef.current(fieldRef.current?.text());
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerup", onPointerUp, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerup", onPointerUp, true);
+    };
+  }, [open]);
+
+  // iOS may hand focus around while the keyboard settles or a full-screen picker is up;
+  // the line closes only once focus has really left it.
+  const handleBlur = (raw: string) => {
+    window.setTimeout(() => {
+      if (picking.current) return;
+      if (Date.now() - openedAt.current < OPEN_GUARD_MS) return;
+      if (lineRef.current?.contains(document.activeElement)) return;
+      close(raw);
+    }, BLUR_GUARD_MS);
+  };
+
+  const raiseKeyboard = () => {
+    const field = fieldRef.current?.element();
+    if (!field) return;
+    field.blur();
+    field.focus({ preventScroll: true });
+  };
+
+  const refocus = () => {
+    // Same turn as the sheet's cancel, same move as a tap on the line.
+    raiseKeyboard();
+    window.setTimeout(() => {
+      picking.current = false;
+    }, BLUR_GUARD_MS);
+  };
+
+  const takeAttachment = () => {
+    picking.current = true;
+    openContactAttachmentPicker((dataUrl, file) => {
+      const id = addContactItem();
+      if (!id) return;
+      const result = updateContactItemAttachment(cardId, id, file, dataUrl);
+      if (result.ok) {
+        setError(null);
+        placeFile(id);
+      } else {
+        deleteContactItem(id);
+        setError(result.message);
+      }
+    }, () => {
+      if (closedRef.current) return;
+      refocus();
+    });
+    const field = fieldRef.current?.element();
+    if (field && document.activeElement !== field) fieldRef.current?.focusEnd();
+  };
+
+  return (
+    <>
+      <div ref={anchorRef} className="h-0" aria-hidden />
+      {open
+        ? createPortal(
+            // White from the line to the screen bottom. A short fade above the text dissolves the header.
+            <div
+              ref={lineRef}
+              data-no-swipe
+              className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
+              style={{ paddingBottom: dockBottom }}
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
+              />
+              <div
+                ref={rowRef}
+                className="overflow-y-auto overscroll-contain"
+                style={{ marginLeft: frame.left, width: frame.width, maxHeight: dockReach(dockBottom) }}
+              >
+                {error ? <p className="pt-2 t-meta text-destructive">{error}</p> : null}
+                {hint ? <p className="pt-2 t-meta text-[var(--ink)]">{hint}</p> : null}
+                {passCard && !lookingFor && !fileItem && !text ? (
+                  <button
+                    type="button"
+                    data-no-swipe
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setLookingFor(true);
+                      fieldRef.current?.focusEnd();
+                    }}
+                    className="block border-0 bg-transparent p-0 pt-2 text-left t-meta text-[var(--grey)]"
+                  >
+                    {LOOKING_FOR}
+                  </button>
+                ) : null}
+                <div className="flex items-start gap-[11px] border-b border-[var(--rule)] py-2">
+                  {lookingFor ? (
+                    <span className="shrink-0 pt-[3px] t-label">{LOOKING_FOR}</span>
+                  ) : filePhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={filePhoto} alt="" className="size-10 shrink-0 object-cover" />
+                  ) : fileItem ? (
+                    <FileIcon className="size-7 shrink-0 text-[#111]" strokeWidth={1} aria-hidden />
+                  ) : (
+                    <button
+                      type="button"
+                      data-no-swipe
+                      aria-label="Add photo or file"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={takeAttachment}
+                      className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
+                    >
+                      <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
+                    </button>
+                  )}
+                  <WrapField
+                    ref={fieldRef}
+                    label={ADD_PLACEHOLDER}
+                    placeholder={fileItem ? fileItem.value : ADD_PLACEHOLDER}
+                    placeholderClassName="text-[16px] text-[var(--grey)]"
+                    multiline={!fileItemId && !enterFinishes(text)}
+                    onTextChange={(next) => {
+                      setText(next);
+                      setError(null);
+                      setHint(null);
+                    }}
+                    onDone={(next) => {
+                      if (!commit(next)) return;
+                      dismissLine();
+                    }}
+                    onFocus={onFocus}
+                    onBlur={handleBlur}
+                    onPointerDown={() => {
+                      const vv = window.visualViewport;
+                      if (!vv) return;
+                      const overlap = window.innerHeight - vv.offsetTop - vv.height;
+                      if (overlap > 120) return;
+                      raiseKeyboard();
+                    }}
+                    className="bg-transparent p-0 text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
+const EditRow = memo(function EditRow({
+  itemId,
+  text,
+  value,
+  multiline,
+  onCard,
+  editing,
+  deleteReady,
+  onArmDelete,
+  onDelete,
+  onToggle,
+  onEdit,
+  onConfirm,
+  onErase,
+  fileUrl,
+  onRetryFile,
+}: {
+  itemId: string;
+  text: string;
+  value: string;
+  /** Additional text. Enter stays inside this one block. */
+  multiline: boolean;
+  onCard: boolean;
+  editing: boolean;
+  deleteReady: boolean;
+  onArmDelete: (itemId: string) => void;
+  onDelete: (itemId: string) => void;
+  onToggle: (itemId: string) => void;
+  onEdit: (itemId: string) => void;
+  onConfirm: (next: string) => void;
+  onErase: () => void;
+  /** Set on file rows: the row shows its upload state under the name. */
+  fileUrl?: string;
+  onRetryFile: () => void;
+}) {
+  const fileStatus = useUploadStatus((state) => state.byItem[itemId]);
+  const statusLine = fileUrl === undefined ? null : fileStatusLine(fileStatus, fileUrl);
+  const uploadFailed = statusLine !== null && fileStatus?.state !== "uploading";
+  const rowRef = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<WrapFieldHandle>(null);
+  const dockBottom = useKeyboardDock(editing, true);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
+  const pressedLong = useRef(false);
+  const openedAt = useRef(0);
+  const [holding, setHolding] = useState(false);
+  const [fades, setFades] = useState(false);
+  const longPress = useLongPress(() => {
+    pressedLong.current = true;
+    setHolding(false);
+    window.getSelection()?.removeAllRanges();
+    tick();
+    onArmDelete(itemId);
+  }, DELETE_HOLD_MS);
+  const release = () => {
+    setHolding(false);
+    longPress.onPointerUp();
+  };
+
+  useLayoutEffect(() => {
+    const field = fieldRef.current;
+    const line = lineRef.current;
+    if (!field || !line) return;
+    const measure = () => {
+      const next = line.scrollWidth > field.clientWidth + 1;
+      setFades((current) => (current === next ? current : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(field);
+    return () => observer.disconnect();
+  }, [editing, text, value]);
+
+  const beginEdit = () => {
+    openedAt.current = Date.now();
+    flushSync(() => {
+      onEdit(itemId);
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!editing) return;
+    const list = rowRef.current?.closest("[data-card-chip-list]");
+    const rect = list?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
+    dockRef.current?.focusEnd();
+  }, [editing]);
+
+  return (
+    <div ref={rowRef} data-item-row={itemId} className="relative min-w-0">
+      <div
+        ref={fieldRef}
+        aria-label={text}
+        data-no-swipe
+        className={cn(
+          "mr-[26px] min-w-0 overflow-clip",
+          editing && "invisible pointer-events-none",
+          (holding || deleteReady) && "opacity-40",
+        )}
+        style={{
+          color: onCard ? "var(--ink)" : OFF_CARD,
+        }}
+        onPointerDown={(event) => {
+          if (editing || deleteReady) return;
+          pressedLong.current = false;
+          setHolding(true);
+          longPress.onPointerDown(event);
+        }}
+        onPointerMove={longPress.onPointerMove}
+        onPointerUp={(event) => {
+          release();
+          if (editing || pressedLong.current || deleteReady) return;
+          if (!(event.target instanceof Node) || !fieldRef.current?.contains(event.target)) return;
+          beginEdit();
+        }}
+        onPointerCancel={release}
+        onContextMenu={longPress.onContextMenu}
+      >
+        <div
+          ref={lineRef}
+          className={cn(
+            "t-body origin-left select-none",
+            multiline || isProseValue(value) || value.includes("\n") || value.includes("  ")
+              ? "w-full whitespace-pre-wrap break-words"
+              : "w-max whitespace-nowrap",
+          )}
+        >
+          {text}
+        </div>
+      </div>
+      {statusLine ? (
+        uploadFailed ? (
+          <button
+            type="button"
+            data-no-swipe
+            onClick={onRetryFile}
+            className="mr-[26px] block text-left t-meta text-[var(--grey)]"
+          >
+            {statusLine}
+          </button>
+        ) : (
+          <span className="mr-[26px] block t-meta text-[var(--grey)]">{statusLine}</span>
+        )
+      ) : null}
+      {editing
+        ? createPortal(
+            <div
+              data-no-swipe
+              className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
+              style={{ paddingBottom: dockBottom }}
+            >
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
+              />
+              <div
+                className="overflow-y-auto overscroll-contain"
+                style={{ marginLeft: frame.left, width: frame.width, maxHeight: dockReach(dockBottom) }}
+              >
+                <div className="flex flex-col justify-end border-b border-[var(--rule)]">
+                  <WrapField
+                    ref={dockRef}
+                    initial={value}
+                    label="Edit row"
+                    multiline={multiline}
+                    onTextChange={(next) => {
+                      if (!next.trim()) onErase();
+                    }}
+                    onDone={onConfirm}
+                    onBlur={(next) => {
+                      if (!next.trim()) return;
+                      if (Date.now() - openedAt.current < 700) {
+                        dockRef.current?.focusEnd();
+                        return;
+                      }
+                      onConfirm(next);
+                    }}
+                    className="bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+      {fades && !editing && !multiline && !isProseValue(value) && !value.includes("\n") ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-[26px] w-4 bg-gradient-to-r from-transparent to-white"
+        />
+      ) : null}
+      <div className="absolute top-0 right-0 flex items-start">
+        {deleteReady ? (
+          <button
+            type="button"
+            data-delete-marker
+            aria-label="Delete"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => onDelete(itemId)}
+            className="relative z-10 -m-2.5 flex size-10 items-center justify-center"
+          >
+            <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
+          </button>
+        ) : (
+          <LibraryCheck onCard={onCard} onToggle={() => onToggle(itemId)} />
+        )}
+      </div>
+    </div>
+  );
+});

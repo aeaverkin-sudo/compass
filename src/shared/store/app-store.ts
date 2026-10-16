@@ -19,7 +19,7 @@ import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-u
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
 import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
-import { isCardZoneId, normalizeRubricOrder, withItemZone, zoneForItem } from "@/shared/services/card-zones";
+import { canonZoneId, normalizeRubricOrder, withItemZone, zoneForItem } from "@/shared/services/card-zones";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
   deleteItemRow,
@@ -79,12 +79,14 @@ interface AppState {
   ) => PortfolioValidationResult;
   /** File rows with neither a file nor a link: link a complete upload, or mark the row failed. */
   recoverFileRows: () => void;
-  addItemToCard: (cardId: string, itemId: string) => void;
+  addItemToCard: (cardId: string, itemId: string, zoneId?: string) => void;
   removeItemFromCard: (cardId: string, itemId: string) => void;
   setCardItemOrder: (cardId: string, orderedIds: string[]) => void;
   setCardRubricOrder: (cardId: string, orderedRubricKeys: string[]) => void;
   /** Rename one section on this card. An empty title restores the built-in heading. */
   setRubricLabel: (cardId: string, zoneId: string, title?: string) => void;
+  /** Hide an empty scaffold shelf on this card. A shelf with rows still shows. */
+  hideZone: (cardId: string, zoneId: string) => void;
   /** Show one row in another section on this card. The item itself stays unchanged. */
   setItemZone: (cardId: string, itemId: string, zoneId?: string) => void;
   /** Remove a library row. `keepRemote` leaves the server row until undo expires. */
@@ -249,6 +251,7 @@ export const useAppStore = create<AppState>()(
           rubricOrder: undefined,
           rubricLabels: undefined,
           itemZones: undefined,
+          hiddenZones: undefined,
           nextScanAddons: [],
         });
         for (const itemId of current.contactItemIds) void unlinkItem(id, itemId);
@@ -397,18 +400,20 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      addItemToCard: (cardId, itemId) => {
+      addItemToCard: (cardId, itemId, zoneId) => {
         const now = new Date().toISOString();
         const item = get().contactItems.find((entry) => entry.id === itemId);
         if (!item) return;
         const current = get().cards.find((card) => card.id === cardId);
         if (!current || current.contactItemIds.includes(itemId)) return;
-        const zone = zoneForItem(item);
+        const zone = canonZoneId(zoneId) ?? zoneForItem(item);
         const itemZones = withItemZone(current, item, zone);
+        const hiddenZones = (current.hiddenZones ?? []).filter((id) => canonZoneId(id) !== zone);
         const next = {
           ...current,
-          contactItemIds: [itemId, ...current.contactItemIds],
+          contactItemIds: [...current.contactItemIds, itemId],
           itemZones,
+          hiddenZones: hiddenZones.length > 0 ? hiddenZones : undefined,
           updatedAt: now,
         };
         set({
@@ -479,13 +484,15 @@ export const useAppStore = create<AppState>()(
       },
 
       setRubricLabel: (cardId, zoneId, title) => {
-        if (!isCardZoneId(zoneId)) return;
+        const id = canonZoneId(zoneId);
+        if (!id) return;
         const current = get().cards.find((card) => card.id === cardId);
         if (!current) return;
         const labels = { ...(current.rubricLabels ?? {}) };
+        delete labels.additional;
         const trimmed = title?.trim().slice(0, 80) ?? "";
-        if (trimmed) labels[zoneId] = trimmed;
-        else delete labels[zoneId];
+        if (trimmed) labels[id] = trimmed;
+        else delete labels[id];
         const rubricLabels = Object.keys(labels).length > 0 ? labels : undefined;
         const same = JSON.stringify(rubricLabels ?? null) === JSON.stringify(current.rubricLabels ?? null);
         if (same) return;
@@ -495,15 +502,27 @@ export const useAppStore = create<AppState>()(
         scheduleCardUpsert(next, { pulse: false });
       },
 
+      hideZone: (cardId, zoneId) => {
+        const id = canonZoneId(zoneId);
+        if (!id) return;
+        const current = get().cards.find((card) => card.id === cardId);
+        if (!current) return;
+        if ((current.hiddenZones ?? []).includes(id)) return;
+        const hiddenZones = [...(current.hiddenZones ?? []), id];
+        const next = { ...current, hiddenZones, updatedAt: new Date().toISOString() };
+        set({ cards: get().cards.map((card) => (card.id === cardId ? next : card)) });
+      },
+
       setItemZone: (cardId, itemId, zoneId) => {
         const current = get().cards.find((card) => card.id === cardId);
         const item = get().contactItems.find((entry) => entry.id === itemId);
         if (!current || !item) return;
-        if (zoneId && !isCardZoneId(zoneId)) return;
+        const pinned = zoneId ? canonZoneId(zoneId) : undefined;
+        if (zoneId && !pinned) return;
         const zones = { ...(current.itemZones ?? {}) };
         const natural = zoneForItem(item);
-        if (!zoneId || zoneId === natural) delete zones[itemId];
-        else zones[itemId] = zoneId;
+        if (!pinned || pinned === natural) delete zones[itemId];
+        else zones[itemId] = pinned;
         const itemZones = Object.keys(zones).length > 0 ? zones : undefined;
         const same = JSON.stringify(itemZones ?? null) === JSON.stringify(current.itemZones ?? null);
         if (same) return;
@@ -568,7 +587,8 @@ export const useAppStore = create<AppState>()(
             const ids = card.contactItemIds.filter((id) => id !== item.id);
             ids.splice(Math.max(0, Math.min(spot.index, ids.length)), 0, item.id);
             const zones = { ...(card.itemZones ?? {}) };
-            if (spot.zoneId && isCardZoneId(spot.zoneId)) zones[item.id] = spot.zoneId;
+            const restored = canonZoneId(spot.zoneId);
+            if (restored) zones[item.id] = restored;
             else delete zones[item.id];
             return {
               ...card,

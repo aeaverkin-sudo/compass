@@ -120,6 +120,7 @@ function overlayScalars(local: Card, row: CardRow): Card {
       local.updatedAt > row.updated_at
         ? local.itemZones
         : (normalizeItemZones(row.item_zones) ?? local.itemZones),
+    hiddenZones: local.hiddenZones,
     photoLook:
       local.updatedAt > row.updated_at
         ? local.photoLook
