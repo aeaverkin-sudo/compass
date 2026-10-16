@@ -246,7 +246,7 @@ const DraftRow = memo(function DraftRow({
   const empty = !row.title.trim() && !row.value.trim();
   const removeIfEmpty = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter") event.preventDefault();
-    if (event.key !== "Backspace" || row.title || row.value) return;
+    if ((event.key !== "Backspace" && event.key !== "Delete") || !empty) return;
     event.preventDefault();
     onRemove(row.id);
   };
@@ -418,11 +418,17 @@ export function CreatePortfolio({
     setDraft((current) => ({ ...current, rows: current.rows.filter((row) => row.id !== id) }));
   }, []);
   const addRow = () => {
+    const blank = draft.rows.find((row) => !row.title.trim() && !row.value.trim());
+    if (blank) {
+      setFocusRow((focus) => ({ id: blank.id, turn: focus.turn + 1 }));
+      return;
+    }
     if (draft.rows.length >= PORTFOLIO_LIMITS.maxItemsOnCard) return;
     const id = nanoid(8);
     setFocusRow((focus) => ({ id, turn: focus.turn + 1 }));
     setDraft((current) => {
       if (current.rows.length >= PORTFOLIO_LIMITS.maxItemsOnCard) return current;
+      if (current.rows.some((row) => !row.title.trim() && !row.value.trim())) return current;
       return { ...current, rows: [...current.rows, { id, title: "", value: "" }] };
     });
   };
@@ -605,7 +611,7 @@ export function CreatePortfolio({
                   <p className="m-0 t-body" style={{ color: HINT }}>
                     Instagram, LinkedIn, Facebook
                   </p>
-                  <AddPlus onTap={addRow} disabled={atRowLimit} />
+                  {draft.rows.length === 0 ? <AddPlus onTap={addRow} disabled={atRowLimit} /> : null}
                 </div>
               </NumberedRow>
 
