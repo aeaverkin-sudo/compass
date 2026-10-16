@@ -11,8 +11,6 @@ const S = 3;
 const INK = "#111111";
 const ORANGE = "#E8640C";
 const SKY = "#c5e8f7";
-const GRID_LINE = "rgba(232, 100, 12, 0.16)";
-const GRID_STEP = 17;
 
 const PHOTO = 116;
 const PHOTO_LEFT = 16;
@@ -78,19 +76,8 @@ function nameSize(lines: string[], width: number): number {
   return Math.min(NAME_MAX, byWidth, byHeight);
 }
 
-function grid() {
-  const lines = [];
-  for (let x = 0; x < W; x += GRID_STEP) {
-    lines.push(<div key={`x${x}`} style={{ position: "absolute", left: x * S, top: 0, width: S, height: H * S, background: GRID_LINE }} />);
-  }
-  for (let y = 0; y < H; y += GRID_STEP) {
-    lines.push(<div key={`y${y}`} style={{ position: "absolute", left: 0, top: y * S, width: W * S, height: S, background: GRID_LINE }} />);
-  }
-  return lines;
-}
-
 /**
- * The strip of the personal pass: sky with a faint orange grid, the photo, the name in two lines,
+ * The strip of the personal pass: sky, the photo, the name in two lines,
  * and the grid aded turned upright at the right edge. The number and the handle sit in Wallet's header.
  */
 export async function walletStrip(card: { name: string; photoPng: Buffer | null }): Promise<PassImage> {
@@ -103,7 +90,6 @@ export async function walletStrip(card: { name: string; photoPng: Buffer | null 
 
   const element = (
     <div style={{ position: "relative", display: "flex", width: W * S, height: H * S, background: SKY, fontFamily: "Arimo" }}>
-      {grid()}
       {photo ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

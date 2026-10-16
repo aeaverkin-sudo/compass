@@ -116,7 +116,7 @@ function shownAddress(url: string): string {
 const PORTFOLIO_FIELDS = 2;
 const ABOUT_MAX = 280;
 const SUPPORT_EMAIL = "support@adedme.com";
-const UNDER_QR = "TAP ⋯ TO OPEN SCANNER & PORTFOLIO";
+const UNDER_QR = "TAP ⋯ TO OPEN MENU";
 
 type WalletSlot = { cardId: string; slot: number };
 
