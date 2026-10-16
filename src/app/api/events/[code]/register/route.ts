@@ -56,7 +56,7 @@ export async function POST(request: Request, context: RouteProps) {
     const joined = await joinWithOwnCard(userId, event, code, guestToken, join.cardId || null);
     if (!joined.ok) return noStore({ error: joined.error }, joined.status);
     if (guestToken) jar.delete(GUEST_COOKIE);
-    return noStore({ joined: Boolean(joined.registrationId) });
+    return noStore({ joined: Boolean(joined.registrationId), pay: joined.pay });
   } catch (error) {
     console.error("[events] register", error);
     return noStore({ error: "Could not join." }, 500);

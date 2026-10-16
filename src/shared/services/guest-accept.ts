@@ -208,15 +208,6 @@ async function mailPassLink(
   return { ok: true, kind: "notice", text: `We sent a link to ${person.email} — open it to get your pass.` };
 }
 
-async function createEmailGuest(email: string): Promise<string> {
-  const admin = createAdminSupabaseClient();
-  const created = await admin.auth.admin.createUser({ email, email_confirm: true, app_metadata: { event_trial: true } });
-  if (created.data.user) return created.data.user.id;
-  const raced = await userIdForEmail(email);
-  if (raced) return raced;
-  throw new Error(created.error?.message ?? "Could not create the guest.");
-}
-
 function validTimeZone(value: unknown): string | null {
   if (typeof value !== "string" || value.length < 1 || value.length > 64) return null;
   try {
@@ -504,10 +495,10 @@ export async function joinWithOwnCard(
   guestToken: string | null,
   chosenCardId: string | null = null,
   consentPath: EventConsentPath = "event",
-): Promise<{ ok: true; registrationId: string | null } | { ok: false; status: number; error: string }> {
+): Promise<{ ok: true; registrationId: string | null; pay: boolean } | { ok: false; status: number; error: string }> {
   const existing = await loadOwnRegistration(event.id, userId);
   const cardId = existing?.cardId ?? chosenCardId ?? (await badgeCardId(userId));
-  if (!cardId) return { ok: true, registrationId: null };
+  if (!cardId) return { ok: true, registrationId: null, pay: false };
   const viaOpenLink = !existing && !guestToken;
   if (viaOpenLink && !(await mayJoinWithoutLink(event.id, userId))) {
     return { ok: false, status: 403, error: BY_INVITATION };
@@ -519,7 +510,7 @@ export async function joinWithOwnCard(
   if (!joined.ok) return joined;
   if (!existing) await settleRegistration(userId, joined.registration.id, await linkedGuestId(joined.registration.id), consentPath);
   if (viaOpenLink) await ensureOpenLinkGuest(event.id, joined.registration.id, await accountPerson(userId, cardId));
-  return { ok: true, registrationId: joined.registration.id };
+  return { ok: true, registrationId: joined.registration.id, pay: await paysFirst(event.id, userId) };
 }
 
 /** The pass account gets its clock, a card (the first pass card when it has one) and a registration. */
@@ -552,9 +543,9 @@ async function issuePass(
 }
 
 /**
- * Create my pass, or I'm going, on a personal link.
+ * I'm going on a personal link.
  * A permanent account joins with its own card. An email that already has a profile signs in.
- * Anyone else gets a pass account, a card with the event and the contact, and a registration.
+ * Anyone else goes to Create a portfolio — no temporary pass.
  */
 export async function acceptGuestPass(
   lookup: string,
@@ -563,11 +554,13 @@ export async function acceptGuestPass(
   timeZone: unknown,
   from: AcceptFrom,
 ): Promise<GuestAcceptResult> {
+  void timeZone;
   const event = await loadEventInvite(lookup);
   if (!event) return { ok: false, status: 404, error: "Event not found" };
   const guest = await findPassGuest(event.id, token);
   if (!guest) return { ok: false, status: 404, error: "Invitation not found" };
   const joinPath = `/e/${encodeURIComponent(event.slug ?? event.code)}/join`;
+  const createPath = `/e/${encodeURIComponent(event.slug ?? event.code)}/create?g=${encodeURIComponent(guest.token)}`;
   const consentPath: EventConsentPath = from.source === "mail" ? "mail" : "event";
 
   if (guest.registrationId) {
@@ -592,21 +585,7 @@ export async function acceptGuestPass(
     return { ok: true, kind: "go", next: signInPath(invitePath(event, guest.token)), notice: TAKEN_EMAIL };
   }
 
-  let userId: string;
-  if (guest.email) userId = emailOwner ?? (await createEmailGuest(guest.email));
-  else if (session) userId = session.id;
-  else return { ok: false, status: 401, error: "Open the link again." };
-
-  const fresh = !(await loadOwnRegistration(event.id, userId));
-  const issued = await issuePass(userId, guest, event, lookup, guest, validTimeZone(timeZone), consentPath);
-  if (!issued.ok) return issued;
-  await clearDecline(guest.id);
-  const access = fresh && (await sendAccessMail(lookup, issued.registrationId, from.origin));
-  if (guest.email) {
-    const entered = await enterAsPass(userId, session, issued.cardId, issued.pay);
-    return entered.ok && (entered.kind === "here" || entered.kind === "signin") ? { ...entered, access } : entered;
-  }
-  return { ok: true, kind: "here", cardId: issued.cardId, pay: issued.pay, access };
+  return { ok: true, kind: "go", next: createPath };
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

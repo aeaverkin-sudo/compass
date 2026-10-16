@@ -270,11 +270,18 @@ export function CreatePortfolio({
     await hydrateCardsFromServer();
     const cardId = await buildPortfolio(kept);
     if (!cardId) useUploadStatus.getState().notify("You're at 3 portfolios — this one wasn't added");
-    await fetch(`/api/events/${encodeURIComponent(lookup)}/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...(cardId ? { cardId } : {}), ...(guestToken ? { token: guestToken } : {}) }),
-    }).catch(() => undefined);
+    let pay = false;
+    try {
+      const joined = await fetch(`/api/events/${encodeURIComponent(lookup)}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...(cardId ? { cardId } : {}), ...(guestToken ? { token: guestToken } : {}) }),
+      });
+      const body = (await joined.json().catch(() => ({}))) as { pay?: boolean };
+      pay = body.pay === true;
+    } catch {
+      /* the event page still registers later */
+    }
     if (welcomePassword && cardId) {
       await fetch(`${api}/welcome`, {
         method: "POST",
@@ -283,7 +290,7 @@ export function CreatePortfolio({
       }).catch(() => undefined);
     }
     dropDraft(lookup, guestToken);
-    router.replace("/main");
+    router.replace(pay ? `${eventPath}/join` : "/main");
   };
   const finishRef = useRef(finish);
   useEffect(() => {
