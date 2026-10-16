@@ -184,14 +184,6 @@ export function WrapField({
             event.preventDefault();
             onDone(read());
           }}
-          onBeforeInput={(event) => {
-            if (!onEmptyDelete) return;
-            const inputType = "inputType" in event.nativeEvent ? event.nativeEvent.inputType : "";
-            if (inputType !== "deleteContentBackward" && inputType !== "deleteContentForward") return;
-            if (read()) return;
-            event.preventDefault();
-            onEmptyDelete();
-          }}
           onFocus={onFocus}
           onPointerDown={onPointerDown}
           onBlur={(event) => onBlur?.(read(), event)}
