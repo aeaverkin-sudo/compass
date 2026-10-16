@@ -7,7 +7,6 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  useSyncExternalStore,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
@@ -16,26 +15,15 @@ import { useRouter } from "next/navigation";
 import { customAlphabet, nanoid } from "nanoid";
 import { cn } from "@/lib/utils";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
-import { QrZone } from "@main/components/qr-zone";
-import { SideRail } from "@main/components/side-rail";
 import { useMainLayout } from "@main/hooks/use-main-layout";
-import {
-  BROWSE_QR_SIZE,
-  CARD_HEADER_PAD_PX,
-  CARD_TOP_TRIM_PX,
-  HERO_PHOTO_PX,
-  RULE_GAP_PX,
-  SHEET_INSET,
-  layoutTop,
-} from "@main/layout";
+import { CARD_HEADER_PAD_PX, CARD_TOP_TRIM_PX, HERO_PHOTO_PX, RULE_GAP_PX, SCREEN_TOP_AXIS_PX, SHEET_INSET } from "@main/layout";
 import { HeroName } from "@/shared/components/hero-name";
-import { MarkPlus } from "@/shared/components/mark-plus";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { TapButton } from "@/shared/components/tap-button";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
-import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { INVITE_TITLE_MAX, INVITE_VALUE_MAX } from "@/shared/event/invite-rows";
@@ -49,11 +37,11 @@ import { findIdenticalItem } from "@/shared/services/contact-item";
 import { PORTFOLIO_LIMITS } from "@/shared/services/portfolio-limits";
 import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
-import type { Card } from "@/shared/types";
 import { clearLocal } from "../invite-actions";
 
-const SKY =
-  "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
+const CREATE_BTN =
+  "press w-full rounded-full border-0 bg-[var(--ink)] py-[14px] text-center t-caps text-[var(--background)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
+const HINT = "var(--placeholder)";
 const FIELD =
   "compass-input block w-full border-0 bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 const TITLE_FIELD =
@@ -61,18 +49,6 @@ const TITLE_FIELD =
 const CARD_PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EXPIRED = "This link has expired. Enter your email again.";
-
-function subscribeOrigin() {
-  return () => {};
-}
-
-function originNow() {
-  return window.location.origin;
-}
-
-function originOnServer() {
-  return "";
-}
 
 const passwordChars = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 8);
 
@@ -85,7 +61,7 @@ function onePassword() {
 type Row = { id: string; title: string; value: string };
 type Draft = { name: string; photo: string | null; email: string; rows: Row[] };
 
-const EMPTY_DRAFT: Draft = { name: "", photo: null, email: "", rows: [{ id: "first", title: "", value: "" }] };
+const EMPTY_DRAFT: Draft = { name: "", photo: null, email: "", rows: [] };
 
 function draftKey(lookup: string, guestToken: string | null) {
   return `aded:create-portfolio:${lookup}:${guestToken ?? "open"}`;
@@ -132,20 +108,6 @@ function dropDraft(lookup: string, guestToken: string | null) {
     /* storage unavailable */
   }
 }
-
-/** The rail draws from a card. Before Create there is none, so the rail gets this blank one, inert. */
-const RAIL_CARD: Card = {
-  id: "create-portfolio",
-  displayName: "",
-  title: "",
-  status: "draft",
-  publicToken: "",
-  qrVersion: 1,
-  contactItemIds: [],
-  nextScanAddons: [],
-  createdAt: new Date(0).toISOString(),
-  updatedAt: new Date(0).toISOString(),
-};
 
 async function portfolioLimit(): Promise<number | null> {
   const response = await fetch("/api/account/status", { cache: "no-store" });
@@ -243,18 +205,41 @@ function NumberedRow({
 }
 
 /** Extra card rows: the same title + description fields as the event-form custom row, with a stable key. */
+function AddPlus({ onTap, disabled }: { onTap: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      data-no-swipe
+      aria-label="Add"
+      disabled={disabled}
+      className="t-body w-full bg-transparent text-left disabled:opacity-40"
+      style={{ color: HINT }}
+      onPointerUp={() => {
+        if (disabled) return;
+        onTap();
+      }}
+    >
+      +
+    </button>
+  );
+}
+
 const DraftRow = memo(function DraftRow({
   index,
   row,
   focusTurn,
   onPatch,
   onRemove,
+  onAdd,
+  atLimit,
 }: {
   index: number;
   row: Row;
   focusTurn: number;
   onPatch: (id: string, patch: Partial<Pick<Row, "title" | "value">>) => void;
   onRemove: (id: string) => void;
+  onAdd?: () => void;
+  atLimit?: boolean;
 }) {
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef<HTMLTextAreaElement>(null);
@@ -286,24 +271,25 @@ const DraftRow = memo(function DraftRow({
             value={row.title}
             maxLength={INVITE_TITLE_MAX}
             aria-label="Title"
-            placeholder="title"
+            placeholder="Title…"
             onChange={(event) => onPatch(row.id, { title: event.target.value.replace(/\n/g, " ") })}
             onKeyDown={removeIfEmpty}
             className={TITLE_FIELD}
           />
         </div>
-        <ValueCap className="min-w-0">
+        <ValueCap className="flex min-w-0 flex-col gap-[6px]">
           <textarea
             ref={valueRef}
             rows={1}
             value={row.value}
             maxLength={INVITE_VALUE_MAX}
-            aria-label={row.title.trim() || "Description"}
-            placeholder="description"
+            aria-label={row.title.trim() || "Add"}
+            placeholder="add…"
             onChange={(event) => onPatch(row.id, { value: event.target.value })}
             onKeyDown={removeIfEmpty}
             className={cn(FIELD, "resize-none overflow-hidden")}
           />
+          {onAdd ? <AddPlus onTap={onAdd} disabled={atLimit} /> : null}
         </ValueCap>
       </div>
     </section>
@@ -327,7 +313,6 @@ export function CreatePortfolio({
   const [changing, setChanging] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [website, setWebsite] = useState("");
-  const origin = useSyncExternalStore(subscribeOrigin, originNow, originOnServer);
   const [busy, setBusy] = useState(false);
   const [opening, setOpening] = useState(Boolean(hash));
   const [message, setMessage] = useState<string | null>(null);
@@ -340,7 +325,6 @@ export function CreatePortfolio({
   const guestToken = guest?.token ?? null;
   const eventPath = `/e/${encodeURIComponent(lookup)}`;
   const api = `/api/events/${encodeURIComponent(lookup)}/portfolio`;
-  const qrUrl = guestToken && origin ? `${origin}${eventPath}?g=${encodeURIComponent(guestToken)}` : "";
 
   useEffect(() => {
     if (loaded.current) return;
@@ -431,10 +415,7 @@ export function CreatePortfolio({
     }));
   }, []);
   const removeRow = useCallback((id: string) => {
-    setDraft((current) => {
-      if (current.rows.length <= 1) return current;
-      return { ...current, rows: current.rows.filter((row) => row.id !== id) };
-    });
+    setDraft((current) => ({ ...current, rows: current.rows.filter((row) => row.id !== id) }));
   }, []);
   const addRow = () => {
     if (draft.rows.length >= PORTFOLIO_LIMITS.maxItemsOnCard) return;
@@ -515,75 +496,58 @@ export function CreatePortfolio({
   const scale = layout?.headerScale ?? 1;
   const photoPx = HERO_PHOTO_PX * scale;
   const inset = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
-  const counterRightCss = `calc(${inset}px + clamp(24px, 6.1vw, 28px) - 3mm)`;
   const atRowLimit = draft.rows.length >= PORTFOLIO_LIMITS.maxItemsOnCard;
+  const headerPad = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px)`;
 
   return (
-    <main className="compass-main relative min-h-dvh w-full overflow-x-hidden bg-background pb-16 text-[var(--ink)]">
+    <main className="compass-main fixed inset-0 flex flex-col overflow-hidden bg-background text-[var(--ink)]">
       <ScreenHeader title="Create a portfolio" fallbackHref={eventPath} spacer={false} />
 
-      {layout ? (
-        <>
-          {qrUrl ? (
-            <QrZone url={qrUrl} visible topOffsetPx={layout.qrTop} scale={scale} />
-          ) : (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 flex flex-col items-center justify-center t-caps text-[var(--placeholder)]"
-              style={{ top: layoutTop(layout.qrTop), height: Math.round(BROWSE_QR_SIZE * scale) }}
-            >
-              <span>QR</span>
-              <span>NEXT STEP</span>
-            </div>
-          )}
-          <div inert className="[&_*]:!pointer-events-none [&_*]:!text-[var(--placeholder)]">
-            <SideRail
-              qrTop={layout.qrTop}
-              counterRightCss={counterRightCss}
-              card={RAIL_CARD}
-              index={1}
-              total={1}
-              showPlus
-              frozen
-            />
-          </div>
-        </>
-      ) : null}
-
-      <div style={{ paddingTop: layout?.cardTopBrowse ?? 0, paddingLeft: inset, paddingRight: inset }}>
-        <div className={CARD_PAD}>
+      {sentTo ? (
+        <p className="mt-6 mb-0 max-w-xs t-meta" style={{ marginLeft: inset + VALUE_AXIS_PX, paddingTop: headerPad }}>
+          {`Check ${sentTo}. Open the link in the email to sign in and join.`}
+        </p>
+      ) : (
+        <form
+          className="flex min-h-0 flex-1 flex-col"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void create();
+          }}
+        >
           <div
-            className="border-b border-[var(--rule)]"
-            style={{
-              paddingTop: (RULE_GAP_PX - CARD_TOP_TRIM_PX) * scale,
-              paddingBottom: CARD_HEADER_PAD_PX * scale,
-            }}
+            className="shrink-0 bg-background"
+            style={{ paddingTop: headerPad, paddingLeft: inset, paddingRight: inset }}
           >
-            <div className="flex shrink-0 items-stretch gap-3" style={{ height: photoPx }}>
-              <PhotoSlotPicker
-                photo={draft.photo}
-                onPhotoChange={(photo) => update({ photo })}
-                sizePx={photoPx}
-                borderRadiusPx={0}
-                surfaceClassName="bg-transparent"
-              />
-              <div className="relative flex h-full min-w-0 flex-1 flex-col">
-                <HeroName value={draft.name} onChange={(name) => update({ name })} />
+            <div className={CARD_PAD}>
+              <div
+                className="border-b border-[var(--rule)]"
+                style={{
+                  paddingTop: (RULE_GAP_PX - CARD_TOP_TRIM_PX) * scale,
+                  paddingBottom: CARD_HEADER_PAD_PX * scale,
+                }}
+              >
+                <div className="flex shrink-0 items-stretch gap-3" style={{ height: photoPx }}>
+                  <PhotoSlotPicker
+                    photo={draft.photo}
+                    onPhotoChange={(photo) => update({ photo })}
+                    sizePx={photoPx}
+                    borderRadiusPx={0}
+                    surfaceClassName="bg-transparent"
+                  />
+                  <div className="relative flex h-full min-w-0 flex-1 flex-col">
+                    <HeroName value={draft.name} onChange={(name) => update({ name })} />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {sentTo ? (
-            <p className="mt-6 mb-0 max-w-xs t-meta" style={{ marginLeft: VALUE_AXIS_PX }}>
-              {`Check ${sentTo}. Open the link in the email to sign in and join.`}
-            </p>
-          ) : (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void create();
-              }}
-            >
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            style={{ paddingLeft: inset, paddingRight: inset }}
+          >
+            <div className={CARD_PAD}>
               <NumberedRow index={0} label="Email*">
                 <input
                   type="email"
@@ -636,30 +600,29 @@ export function CreatePortfolio({
                 ) : null}
               </NumberedRow>
 
+              <NumberedRow index={2} label="Social">
+                <div className="flex flex-col gap-[6px]">
+                  <p className="m-0 t-body" style={{ color: HINT }}>
+                    Instagram, LinkedIn, Facebook
+                  </p>
+                  <AddPlus onTap={addRow} disabled={atRowLimit} />
+                </div>
+              </NumberedRow>
+
               {draft.rows.map((row, index) => (
                 <DraftRow
                   key={row.id}
-                  index={index + 2}
+                  index={index + 3}
                   row={row}
                   focusTurn={focusRow.id === row.id ? focusRow.turn : 0}
                   onPatch={patchRow}
                   onRemove={removeRow}
+                  onAdd={index === draft.rows.length - 1 ? addRow : undefined}
+                  atLimit={atRowLimit}
                 />
               ))}
 
-              <div className="flex flex-col items-center border-b border-[var(--rule)] py-[18px]">
-                <TapButton
-                  aria-label="Add"
-                  disabled={atRowLimit}
-                  onTap={addRow}
-                  className="press flex size-7 items-center justify-center border-0 bg-transparent text-[var(--ink)] disabled:text-[var(--placeholder)] [-webkit-tap-highlight-color:transparent]"
-                >
-                  <MarkPlus />
-                </TapButton>
-                <p className="mt-2 mb-0 t-meta text-[var(--grey)]">Add links, files, socials, text</p>
-              </div>
-
-              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] pt-[18px]">
+              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] py-[18px]">
                 <Checkbox
                   id="create-consent"
                   checked={agreed}
@@ -689,17 +652,32 @@ export function CreatePortfolio({
                 onChange={(event) => setWebsite(event.target.value)}
                 className="pointer-events-none absolute -left-[9999px] h-px w-px opacity-0"
               />
+            </div>
+          </div>
 
-              <div className="mt-6" style={{ paddingLeft: VALUE_AXIS_PX }}>
-                <TapButton type="submit" disabled={busy || !ready || !sessionReady} onTap={() => void create()} className={SKY}>
-                  Create my profile
-                </TapButton>
-                {message ? <p className="mt-3 mb-0 t-meta text-[var(--ink)]">{message}</p> : null}
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
+          <div
+            className="shrink-0 bg-background"
+            style={{
+              paddingLeft: inset,
+              paddingRight: inset,
+              paddingTop: 12,
+              paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+            }}
+          >
+            <div className={CARD_PAD}>
+              <TapButton
+                type="submit"
+                disabled={busy || !ready || !sessionReady}
+                onTap={() => void create()}
+                className={CREATE_BTN}
+              >
+                Create portfolio
+              </TapButton>
+              {message ? <p className="mt-3 mb-0 t-meta text-[var(--ink)]">{message}</p> : null}
+            </div>
+          </div>
+        </form>
+      )}
     </main>
   );
 }
