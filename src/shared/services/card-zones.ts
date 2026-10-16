@@ -558,13 +558,12 @@ export function groupLibrary(
   scope?: CardZoneScope & Partial<CardZonePlacement>,
   placements: CardZonePlacement[] = [],
 ): CardZoneSection[] {
+  void placements;
   const buckets = new Map<CardZoneId, CardDisplayRow[]>();
   const onThis = scope?.contactItemIds ? new Set(scope.contactItemIds) : null;
   for (const item of items) {
-    const zone =
-      onThis?.has(item.id) || !onThis
-        ? effectiveZone(scope, item)
-        : (zoneFromPlacements(item, placements, scope?.id) ?? zoneForItem(item));
+    const onCard = onThis?.has(item.id) ?? true;
+    const zone = onCard ? effectiveZone(scope, item) : zoneForItem(item);
     pushDisplayed(buckets, item, undefined, scope, zone);
   }
   return sectionsFrom(buckets, scope);

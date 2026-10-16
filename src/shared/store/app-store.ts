@@ -19,13 +19,7 @@ import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-u
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
 import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
-import {
-  isCardZoneId,
-  normalizeRubricOrder,
-  withItemZone,
-  zoneForItem,
-  zoneFromPlacements,
-} from "@/shared/services/card-zones";
+import { isCardZoneId, normalizeRubricOrder, withItemZone, zoneForItem } from "@/shared/services/card-zones";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
   deleteItemRow,
@@ -409,7 +403,7 @@ export const useAppStore = create<AppState>()(
         if (!item) return;
         const current = get().cards.find((card) => card.id === cardId);
         if (!current || current.contactItemIds.includes(itemId)) return;
-        const zone = zoneFromPlacements(item, get().cards, cardId) ?? zoneForItem(item);
+        const zone = zoneForItem(item);
         const itemZones = withItemZone(current, item, zone);
         const next = {
           ...current,

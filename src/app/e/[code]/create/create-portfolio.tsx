@@ -44,11 +44,7 @@ import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { syncCardLinkOrder } from "@/shared/services/card-items-sync";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
-import {
-  withItemZone,
-  zoneForItem,
-  zoneFromPlacements,
-} from "@/shared/services/card-zones";
+import { withItemZone, zoneForItem } from "@/shared/services/card-zones";
 import { findIdenticalItem } from "@/shared/services/contact-item";
 import { PORTFOLIO_LIMITS } from "@/shared/services/portfolio-limits";
 import { useAppStore } from "@/shared/store/app-store";
@@ -203,7 +199,7 @@ async function buildPortfolio(draft: Draft): Promise<string | null> {
   for (const id of ids) {
     const item = after.contactItems.find((entry) => entry.id === id);
     if (!item) continue;
-    const zone = zoneFromPlacements(item, after.cards, created.id) ?? zoneForItem(item);
+    const zone = zoneForItem(item);
     itemZones = withItemZone({ itemZones }, item, zone);
   }
   useAppStore.setState({
