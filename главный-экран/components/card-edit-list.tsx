@@ -1,6 +1,6 @@
 "use client";
 
-import { File as FileIcon, Plus, X } from "lucide-react";
+import { File as FileIcon, Pencil, Plus, X } from "lucide-react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -13,6 +13,7 @@ import { tick } from "@/shared/lib/haptic";
 import { flashRow } from "@/shared/lib/row-flash";
 import {
   groupEditSections,
+  isExtraZoneId,
   isProseValue,
   ZONE_HINTS,
   type CardDisplayRow,
@@ -39,6 +40,8 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
+const NEW_ZONE_TITLE = "Title…";
+const NEW_ZONE_HINT = "Add items";
 const LOOKING_FOR = "Looking for";
 /** An event pass keeps Event on About, so Looking for takes a section the pass never fills. */
 const LOOKING_FOR_ZONE = "background";
@@ -136,8 +139,10 @@ function SectionLabel({
   included,
   editing,
   hideReady,
+  pill,
   onEdit,
   onCommit,
+  onKeep,
   onArmHide,
   onHide,
 }: {
@@ -145,14 +150,17 @@ function SectionLabel({
   included: boolean;
   editing: boolean;
   hideReady: boolean;
+  /** New extra shelf: sky chip with pencil + Title…, keyboard in the heading. */
+  pill?: boolean;
   onEdit: () => void;
   onCommit: (next: string) => void;
+  onKeep: () => void;
   onArmHide: () => void;
   onHide: () => void;
 }) {
-  const labelRef = useRef<HTMLButtonElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<WrapFieldHandle>(null);
-  const dockBottom = useKeyboardDock(editing, true);
+  const dockBottom = useKeyboardDock(editing && !pill, true);
   const openedAt = useRef(0);
   const pressedLong = useRef(false);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
@@ -161,6 +169,7 @@ function SectionLabel({
     tick();
     onArmHide();
   }, DELETE_HOLD_MS);
+  const shown = title.trim() || (pill ? NEW_ZONE_TITLE : title);
 
   const begin = () => {
     openedAt.current = Date.now();
@@ -169,43 +178,88 @@ function SectionLabel({
     });
   };
 
+  const finish = (next: string) => {
+    if (Date.now() - openedAt.current < 700) {
+      dockRef.current?.focusEnd();
+      return;
+    }
+    if (pill && !next.trim()) {
+      onKeep();
+      return;
+    }
+    onCommit(next);
+  };
+
   useLayoutEffect(() => {
     if (!editing) return;
-    const list = labelRef.current?.closest("[data-card-chip-list]");
-    const rect = list?.getBoundingClientRect();
-    if (rect) setFrame({ left: rect.left, width: rect.width });
+    openedAt.current = Date.now();
+    if (!pill) {
+      const list = wrapRef.current?.closest("[data-card-chip-list]");
+      const rect = list?.getBoundingClientRect();
+      if (rect) setFrame({ left: rect.left, width: rect.width });
+    }
     dockRef.current?.focusEnd();
-  }, [editing]);
+  }, [editing, pill]);
+
+  const field = (
+    <WrapField
+      ref={dockRef}
+      initial={title}
+      label="Section name"
+      placeholder={pill ? NEW_ZONE_TITLE : undefined}
+      placeholderClassName="t-label text-[var(--placeholder)]"
+      grow={!pill}
+      autoFocus={pill}
+      onDone={onCommit}
+      onBlur={(next) => finish(next)}
+      className={
+        pill
+          ? "min-w-[4.5em] bg-transparent t-label text-[var(--ink)] caret-[var(--ink)]"
+          : "bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
+      }
+    />
+  );
 
   return (
     <>
-      <div className="relative min-w-0">
-        <button
-          ref={labelRef}
-          type="button"
-          data-no-swipe
-          className={cn(
-            "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
-            editing && "invisible pointer-events-none",
-            hideReady && "opacity-40",
-          )}
-          style={{ color: included ? "var(--grey)" : OFF_CARD }}
-          onPointerDown={(event) => {
-            if (editing || hideReady) return;
-            pressedLong.current = false;
-            longPress.onPointerDown(event);
-          }}
-          onPointerMove={longPress.onPointerMove}
-          onPointerUp={() => {
-            longPress.onPointerUp();
-            if (editing || pressedLong.current || hideReady) return;
-            begin();
-          }}
-          onPointerCancel={longPress.onPointerUp}
-          onContextMenu={longPress.onContextMenu}
-        >
-          {title}
-        </button>
+      <div ref={wrapRef} className="relative min-w-0">
+        {pill && editing ? (
+          <div className="inline-flex max-w-full items-center gap-[4px] rounded-full bg-sky px-[8px] py-[3px]">
+            <Pencil
+              className="size-3 shrink-0"
+              strokeWidth={1.5}
+              style={{ color: "var(--placeholder)" }}
+              aria-hidden
+            />
+            {field}
+          </div>
+        ) : (
+          <button
+            type="button"
+            data-no-swipe
+            className={cn(
+              "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
+              editing && "invisible pointer-events-none",
+              hideReady && "opacity-40",
+            )}
+            style={{ color: included && title.trim() ? "var(--grey)" : OFF_CARD }}
+            onPointerDown={(event) => {
+              if (editing || hideReady) return;
+              pressedLong.current = false;
+              longPress.onPointerDown(event);
+            }}
+            onPointerMove={longPress.onPointerMove}
+            onPointerUp={() => {
+              longPress.onPointerUp();
+              if (editing || pressedLong.current || hideReady) return;
+              begin();
+            }}
+            onPointerCancel={longPress.onPointerUp}
+            onContextMenu={longPress.onContextMenu}
+          >
+            {shown}
+          </button>
+        )}
         {hideReady ? (
           <button
             type="button"
@@ -219,7 +273,7 @@ function SectionLabel({
           </button>
         ) : null}
       </div>
-      {editing
+      {editing && !pill
         ? createPortal(
             <div
               data-no-swipe
@@ -231,22 +285,7 @@ function SectionLabel({
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                <div className="flex flex-col justify-end border-b border-[var(--rule)]">
-                  <WrapField
-                    ref={dockRef}
-                    initial={title}
-                    label="Section name"
-                    onDone={onCommit}
-                    onBlur={(next) => {
-                      if (Date.now() - openedAt.current < 700) {
-                        dockRef.current?.focusEnd();
-                        return;
-                      }
-                      onCommit(next);
-                    }}
-                    className="bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
-                  />
-                </div>
+                <div className="flex flex-col justify-end border-b border-[var(--rule)]">{field}</div>
               </div>
             </div>,
             document.body,
@@ -275,6 +314,7 @@ export function CardEditList({
   const removeItemFromCard = useAppStore((state) => state.removeItemFromCard);
   const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
   const setRubricLabel = useAppStore((state) => state.setRubricLabel);
+  const addCustomZone = useAppStore((state) => state.addCustomZone);
   const hideZone = useAppStore((state) => state.hideZone);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
   const cards = useAppStore((state) => state.cards);
@@ -297,7 +337,51 @@ export function CardEditList({
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
+  useEffect(() => {
+    const cardId = card.id;
+    return () => {
+      const live = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+      if (!live) return;
+      const hide = useAppStore.getState().hideZone;
+      for (const id of live.rubricOrder ?? []) {
+        if (!isExtraZoneId(id)) continue;
+        if (live.rubricLabels?.[id]?.trim()) continue;
+        const used = Object.values(live.itemZones ?? {}).some((zone) => zone === id);
+        if (!used) hide(cardId, id);
+      }
+    };
+  }, [card.id]);
+
+  useEffect(() => {
+    if (!openAddRef) return;
+    openAddRef.current = () => {
+      const id = addCustomZone(card.id);
+      if (!id) return;
+      flushSync(() => {
+        setTextEditId(null);
+        setDeleteReadyId(null);
+        setHideReadyId(null);
+        setSectionEditId(id);
+      });
+      const section = listRef.current?.querySelector(`[data-zone="${CSS.escape(id)}"]`);
+      section?.scrollIntoView({ block: "nearest" });
+      section?.querySelector<HTMLElement>("[contenteditable]")?.focus();
+    };
+    return () => {
+      openAddRef.current = null;
+    };
+  });
+
   const sections = useMemo(() => buildSections(card, items, cards), [card, items, cards]);
+  const namingExtra = Boolean(sectionEditId && isExtraZoneId(sectionEditId));
+  const extraDock = useKeyboardDock(namingExtra, true);
+
+  useLayoutEffect(() => {
+    if (!sectionEditId || !isExtraZoneId(sectionEditId)) return;
+    listRef.current?.querySelector(`[data-zone="${CSS.escape(sectionEditId)}"]`)?.scrollIntoView({
+      block: "nearest",
+    });
+  }, [sectionEditId, extraDock]);
 
   useEffect(() => {
     if (!deleteReadyId && !hideReadyId) return;
@@ -375,10 +459,16 @@ export function CardEditList({
   };
 
   return (
-    <div ref={listRef} data-card-chip-list={card.id} data-card-content>
+    <div
+      ref={listRef}
+      data-card-chip-list={card.id}
+      data-card-content
+      style={namingExtra && extraDock ? { paddingBottom: extraDock } : undefined}
+    >
       {sections.map((section, index) => (
         <section
           key={section.id}
+          data-zone={section.id}
           className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b border-[var(--rule)]")}
         >
           <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
@@ -390,6 +480,7 @@ export function CardEditList({
                   included={section.included}
                   editing={sectionEditId === section.id}
                   hideReady={hideReadyId === section.id}
+                  pill={isExtraZoneId(section.id)}
                   onEdit={() => {
                     setTextEditId(null);
                     setDeleteReadyId(null);
@@ -397,9 +488,16 @@ export function CardEditList({
                     setSectionEditId(section.id);
                   }}
                   onCommit={(next) => {
+                    const name = next.trim();
+                    if (isExtraZoneId(section.id) && !name) {
+                      setSectionEditId(null);
+                      if (section.rows.length === 0) hideZone(card.id, section.id);
+                      return;
+                    }
                     setRubricLabel(card.id, section.id, next);
                     setSectionEditId(null);
                   }}
+                  onKeep={() => setSectionEditId(null)}
                   onArmHide={() => {
                     setTextEditId(null);
                     setSectionEditId(null);
@@ -445,20 +543,22 @@ export function CardEditList({
                   />
                 );
               })}
-              {section.rows.length === 0 && ZONE_HINTS[section.id] ? (
+              {section.rows.length === 0 && (ZONE_HINTS[section.id] || isExtraZoneId(section.id)) ? (
                 <button
                   type="button"
                   data-no-swipe
+                  data-zone-add=""
                   className="t-body w-full bg-transparent text-left"
                   style={{ color: OFF_CARD }}
                   onPointerUp={() => openZoneRef.current?.(section.id)}
                 >
-                  {ZONE_HINTS[section.id]}
+                  {ZONE_HINTS[section.id] ?? NEW_ZONE_HINT}
                 </button>
               ) : null}
               <button
                 type="button"
                 data-no-swipe
+                data-zone-add=""
                 aria-label="Add to section"
                 className="t-body w-full bg-transparent text-left"
                 style={{ color: OFF_CARD }}
@@ -473,7 +573,6 @@ export function CardEditList({
       <AddLine
         cardId={card.id}
         openOnMount={composeOnMount}
-        openAddRef={openAddRef}
         openZoneRef={openZoneRef}
         onFocus={() => setTextEditId(null)}
         onDuplicate={refuseDuplicate}
@@ -557,14 +656,12 @@ export function CardEditList({
 
 /** Sky plaque at the very bottom. The first portfolio resets to photo and name; any other is deleted. */
 /**
- * The only way to create a new row. At rest it is a single centred +.
- * Tapping it docks one writing line above the keyboard. Text stays here until Done,
+ * A zone's + docks one writing line above the keyboard. Text stays here until Done,
  * so nothing half-typed reaches the card. A picked file joins the same line.
  */
 function AddLine({
   cardId,
   openOnMount,
-  openAddRef,
   openZoneRef,
   onFocus,
   onDuplicate,
@@ -573,8 +670,6 @@ function AddLine({
 }: {
   cardId: string;
   openOnMount: boolean;
-  /** The plate's +. Called inside the tap, so the focus still raises the keyboard. */
-  openAddRef?: RefObject<(() => void) | null>;
   /** A zone's +. The new row is pinned to that shelf. */
   openZoneRef?: RefObject<((zone: CardZoneId) => void) | null>;
   onFocus: () => void;
@@ -633,14 +728,6 @@ function AddLine({
     flushSync(startDocking);
     fieldRef.current?.focusEnd();
   };
-
-  useEffect(() => {
-    if (!openAddRef) return;
-    openAddRef.current = () => beginCompose();
-    return () => {
-      openAddRef.current = null;
-    };
-  });
 
   useEffect(() => {
     if (!openZoneRef) return;

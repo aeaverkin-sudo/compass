@@ -159,8 +159,7 @@ export function MainScreen() {
       setComposeOnMount(false);
       setEditing(true);
     });
-    if (openAddRef.current) openAddRef.current();
-    else setComposeOnMount(true);
+    setComposeOnMount(true);
   };
 
   const cardUrl = browseCard?.publicToken ? publicCardUrl(browseCard) : "";

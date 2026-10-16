@@ -19,7 +19,15 @@ import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-u
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
 import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
-import { canonZoneId, normalizeRubricOrder, withItemZone, zoneForItem } from "@/shared/services/card-zones";
+import {
+  BASE_EDIT_ZONES,
+  canonZoneId,
+  isExtraZoneId,
+  nextExtraZoneId,
+  normalizeRubricOrder,
+  withItemZone,
+  zoneForItem,
+} from "@/shared/services/card-zones";
 import { scheduleNotesSync } from "@/shared/services/notes-sync";
 import {
   deleteItemRow,
@@ -83,6 +91,8 @@ interface AppState {
   removeItemFromCard: (cardId: string, itemId: string) => void;
   setCardItemOrder: (cardId: string, orderedIds: string[]) => void;
   setCardRubricOrder: (cardId: string, orderedRubricKeys: string[]) => void;
+  /** Append a named extra shelf. Returns its id. */
+  addCustomZone: (cardId: string) => string | null;
   /** Rename one section on this card. An empty title restores the built-in heading. */
   setRubricLabel: (cardId: string, zoneId: string, title?: string) => void;
   /** Hide an empty scaffold shelf on this card. A shelf with rows still shows. */
@@ -483,6 +493,28 @@ export const useAppStore = create<AppState>()(
         scheduleCardUpsert(next, { pulse: false });
       },
 
+      addCustomZone: (cardId) => {
+        const current = get().cards.find((card) => card.id === cardId);
+        if (!current) return null;
+        const hidden = new Set((current.hiddenZones ?? []).map((id) => canonZoneId(id)).filter(Boolean));
+        const order =
+          current.rubricOrder && current.rubricOrder.length > 0
+            ? [...current.rubricOrder]
+            : BASE_EDIT_ZONES.filter((id) => !hidden.has(id));
+        const id = nextExtraZoneId([
+          ...order,
+          ...Object.keys(current.rubricLabels ?? {}),
+          ...Object.values(current.itemZones ?? {}),
+        ]);
+        const keys = normalizeRubricOrder([...order, id]);
+        if (!keys) return null;
+        const next = { ...current, rubricOrder: keys, updatedAt: new Date().toISOString() };
+        set({ cards: get().cards.map((card) => (card.id === cardId ? next : card)) });
+        writeCardRubricOrder(cardId, keys);
+        scheduleCardUpsert(next, { pulse: false });
+        return id;
+      },
+
       setRubricLabel: (cardId, zoneId, title) => {
         const id = canonZoneId(zoneId);
         if (!id) return;
@@ -507,6 +539,22 @@ export const useAppStore = create<AppState>()(
         if (!id) return;
         const current = get().cards.find((card) => card.id === cardId);
         if (!current) return;
+        if (isExtraZoneId(id)) {
+          const rubricOrder = (current.rubricOrder ?? []).filter((entry) => entry !== id);
+          const labels = { ...(current.rubricLabels ?? {}) };
+          delete labels[id];
+          const next = {
+            ...current,
+            rubricOrder: rubricOrder.length > 0 ? rubricOrder : undefined,
+            rubricLabels: Object.keys(labels).length > 0 ? labels : undefined,
+            updatedAt: new Date().toISOString(),
+          };
+          set({ cards: get().cards.map((card) => (card.id === cardId ? next : card)) });
+          writeCardRubricOrder(cardId, next.rubricOrder ?? null);
+          writeCardRubricLabels(cardId, next.rubricLabels ?? null);
+          scheduleCardUpsert(next, { pulse: false });
+          return;
+        }
         if ((current.hiddenZones ?? []).includes(id)) return;
         const hiddenZones = [...(current.hiddenZones ?? []), id];
         const next = { ...current, hiddenZones, updatedAt: new Date().toISOString() };

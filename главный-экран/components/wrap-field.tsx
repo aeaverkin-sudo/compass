@@ -58,6 +58,7 @@ export function WrapField({
   label,
   placeholder,
   autoFocus = false,
+  grow = true,
   className,
   placeholderClassName,
   multiline = false,
@@ -72,6 +73,8 @@ export function WrapField({
   label: string;
   placeholder?: string;
   autoFocus?: boolean;
+  /** Stretch to the row. The heading pill turns this off so the sky chip hugs Title…. */
+  grow?: boolean;
   /** Additional / about text. Enter inserts a line. Other rows stay one paragraph. */
   multiline?: boolean;
   className?: string;
@@ -141,8 +144,8 @@ export function WrapField({
   };
 
   return (
-    <div className="flex min-w-0 flex-1 items-end gap-2">
-      <div className="relative min-w-0 flex-1">
+    <div className={cn("flex min-w-0 items-end gap-2", grow ? "flex-1" : "w-auto")}>
+      <div className={cn("relative min-w-0", grow && "flex-1")}>
         {empty && placeholder ? (
           <span aria-hidden className={cn("pointer-events-none absolute inset-x-0 top-0 truncate", placeholderClassName)}>
             {placeholder}

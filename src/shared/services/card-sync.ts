@@ -378,9 +378,9 @@ export function writeCardItemZones(cardId: string, itemZones: Record<string, str
 }
 
 /** Writes rubric order. A missing column must not block the rest of the card save. */
-export function writeCardRubricOrder(cardId: string, rubricOrder: string[]) {
+export function writeCardRubricOrder(cardId: string, rubricOrder: string[] | null) {
   const pending = pendingUpserts.get(cardId);
-  if (pending) pending.card = { ...pending.card, rubricOrder };
+  if (pending) pending.card = { ...pending.card, rubricOrder: rubricOrder ?? undefined };
   const supabase = createBrowserSupabaseClient();
   void supabase
     .from("cards")

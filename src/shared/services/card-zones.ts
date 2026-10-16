@@ -20,9 +20,24 @@ export const CARD_ZONES = [
   { id: "about", title: "About" },
 ] as const;
 
-export type CardZoneId = (typeof CARD_ZONES)[number]["id"];
+export type CardZoneId = (typeof CARD_ZONES)[number]["id"] | `extra-${number}`;
 
-/** Edit always shows these, empty or filled. Extra zones appear only when they have rows. */
+const EXTRA_ZONE = /^extra-(\d+)$/;
+
+export function isExtraZoneId(value: string): value is `extra-${number}` {
+  return EXTRA_ZONE.test(value);
+}
+
+export function nextExtraZoneId(order: string[]): `extra-${number}` {
+  let max = 0;
+  for (const id of order) {
+    const match = EXTRA_ZONE.exec(id);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+  return `extra-${max + 1}`;
+}
+
+/** Edit always shows these, empty or filled. Extra shelves from the bar + follow them. */
 export const BASE_EDIT_ZONES: readonly CardZoneId[] = [
   "position",
   "location",
@@ -63,11 +78,12 @@ export function canonZoneId(value: string | undefined): CardZoneId | undefined {
   if (!value) return undefined;
   if (value === "additional") return "about";
   if (ZONE_IDS.has(value)) return value as CardZoneId;
+  if (isExtraZoneId(value)) return value;
   return undefined;
 }
 
 export function isCardZoneId(value: string): value is CardZoneId {
-  return ZONE_IDS.has(value);
+  return ZONE_IDS.has(value) || isExtraZoneId(value);
 }
 
 /** Shown heading. An empty override falls back to the built-in title. */
@@ -325,7 +341,7 @@ export function groupLibrary(
   return sectionsFrom(buckets, scope);
 }
 
-/** Edit scaffold: the seven base zones, plus any extra shelf that already has rows. */
+/** Edit scaffold: the seven base zones, plus extra shelves from this card's order. */
 export function groupEditSections(
   items: ContactItem[],
   scope: CardZoneScope & Partial<CardZonePlacement>,
@@ -349,6 +365,17 @@ export function groupEditSections(
     if (ids.includes(zone.id)) continue;
     if ((byId.get(zone.id)?.rows.length ?? 0) > 0) ids.push(zone.id);
   }
+  for (const raw of scope.rubricOrder ?? []) {
+    const id = canonZoneId(raw);
+    if (!id || !isExtraZoneId(id) || ids.includes(id)) continue;
+    const rows = byId.get(id)?.rows.length ?? 0;
+    if (hidden.has(id) && rows === 0) continue;
+    ids.push(id);
+  }
+  for (const id of byId.keys()) {
+    if (!isExtraZoneId(id) || ids.includes(id)) continue;
+    ids.push(id);
+  }
   const ordered = orderCardZones(
     ids.map((id) => ({ id })),
     scope.rubricOrder,
@@ -358,7 +385,7 @@ export function groupEditSections(
     const found = byId.get(id);
     return {
       id,
-      title: zoneTitle(scope, id, meta?.title ?? id),
+      title: zoneTitle(scope, id, meta?.title ?? ""),
       rows: found?.rows ?? [],
     };
   });
@@ -398,10 +425,18 @@ function splitPresentation(item: ContactItem): { axis: string; value: string } |
 }
 
 function sectionsFrom(buckets: Map<CardZoneId, CardDisplayRow[]>, scope?: CardZoneScope) {
-  return CARD_ZONES.flatMap((zone) => {
-    const rows = buckets.get(zone.id) ?? [];
+  const extras = [...buckets.keys()].filter(isExtraZoneId);
+  const ids = [...CARD_ZONES.map((zone) => zone.id), ...extras];
+  const unique = ids.filter((id, index) => ids.indexOf(id) === index);
+  const ordered = orderCardZones(
+    unique.map((id) => ({ id })),
+    scope?.rubricOrder,
+  ).map((zone) => zone.id as CardZoneId);
+  return ordered.flatMap((id) => {
+    const rows = buckets.get(id) ?? [];
     if (rows.length === 0) return [];
-    return [{ id: zone.id, title: zoneTitle(scope, zone.id, zone.title), rows }];
+    const meta = CARD_ZONES.find((zone) => zone.id === id);
+    return [{ id, title: zoneTitle(scope, id, meta?.title ?? ""), rows }];
   });
 }
 
