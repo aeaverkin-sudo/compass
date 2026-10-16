@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
 import { PortfolioFace } from "@/shared/components/portfolio-face";
+import { TapButton } from "@/shared/components/tap-button";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
 import { CoverButton } from "@/shared/event/cover-button";
@@ -123,14 +124,13 @@ export function PaymentBlock({
                 >
                   {registration.payCode}
                 </span>
-                <button
-                  type="button"
+                <TapButton
                   aria-label="Copy code"
-                  onClick={() => void copyCode(registration.payCode!)}
+                  onTap={() => void copyCode(registration.payCode!)}
                   className="press border-0 bg-transparent p-0 text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
                 >
                   <Copy size={16} strokeWidth={1.5} />
-                </button>
+                </TapButton>
               </div>
               <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
                 Add it to the payment comment, so the organiser can confirm your payment.
@@ -138,9 +138,9 @@ export function PaymentBlock({
             </>
           ) : null}
           <div>
-            <button type="button" disabled={busy} onClick={() => void sayPaid()} className={`mt-4 ${SKY}`}>
+            <TapButton disabled={busy} onTap={() => void sayPaid()} className={`mt-4 ${SKY}`}>
               I&apos;ve paid
-            </button>
+            </TapButton>
           </div>
         </>
       ) : null}
@@ -241,14 +241,13 @@ export function EventJoin({ lookup, event, portfolios, registration, pay }: Even
             <p className="m-0 t-body text-[var(--ink)]">{goingText}</p>
             <p className="mt-1 mb-0 t-meta text-[var(--grey)]">Show your card at the door — the QR on Home.</p>
             {registration.paidStatus === "paid" ? null : (
-              <button
-                type="button"
+              <TapButton
                 disabled={busy}
-                onClick={() => void notGoing()}
+                onTap={() => void notGoing()}
                 className="press mt-3 border-0 bg-transparent p-0 text-left t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
               >
                 Not going after all
-              </button>
+              </TapButton>
             )}
           </Zone>
         ) : null}
@@ -263,29 +262,27 @@ export function EventJoin({ lookup, event, portfolios, registration, pay }: Even
               <div className="flex w-full min-w-0 items-center" style={{ gap: COLUMN_GAP_PX }}>
                 <PortfolioFace portfolio={current} selected />
                 {choices.length > 1 || !isActive(current) ? (
-                  <button
-                    type="button"
+                  <TapButton
                     disabled={busy}
-                    onClick={() => setOpen(true)}
+                    onTap={() => setOpen(true)}
                     className="press shrink-0 border-0 bg-transparent p-0 t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
                   >
                     Change ›
-                  </button>
+                  </TapButton>
                 ) : null}
               </div>
             ) : (
               choices.map((portfolio) => (
-                <button
+                <TapButton
                   key={portfolio.id}
-                  type="button"
                   aria-pressed={selectedId === portfolio.id}
                   disabled={busy}
-                  onClick={() => void choose(portfolio.id)}
+                  onTap={() => void choose(portfolio.id)}
                   className="press flex w-full min-w-0 items-center border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
                   style={{ gap: COLUMN_GAP_PX }}
                 >
                   <PortfolioFace portfolio={portfolio} selected={selectedId === portfolio.id} />
-                </button>
+                </TapButton>
               ))
             )}
           </div>

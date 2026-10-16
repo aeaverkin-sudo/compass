@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Zone } from "@/shared/components/zone";
 import { MarkPlus } from "@/shared/components/mark-plus";
+import { TapButton } from "@/shared/components/tap-button";
 import { CoverButton } from "@/shared/event/cover-button";
 import { EVENT_LAYOUTS, EVENT_THEMES, layoutDefaultTheme } from "@/shared/event/themes";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
@@ -424,16 +425,12 @@ export function EventForm({
             />
           </div>
           {values.date || values.time || values.endTime ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setWhen({ date: "", time: "", endTime: "" });
-              }}
+            <TapButton
+              onTap={() => setWhen({ date: "", time: "", endTime: "" })}
               className="press relative ml-auto border-0 bg-transparent p-0 t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
             >
               Reset
-            </button>
+            </TapButton>
           ) : null}
         </div>
       </Zone>
@@ -517,13 +514,12 @@ export function EventForm({
           <span className="min-w-0">
             <p className="t-meta text-[var(--grey)]">{logoUrl ? "Tap to replace." : "PNG, JPG or SVG."}</p>
             {logoUrl && onRemoveLogo ? (
-              <button
-                type="button"
-                onClick={removeLogo}
+              <TapButton
+                onTap={removeLogo}
                 className="press mt-1 border-0 bg-transparent p-0 t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
               >
                 Remove
-              </button>
+              </TapButton>
             ) : null}
           </span>
         </div>
@@ -548,31 +544,29 @@ export function EventForm({
       ))}
       {customs.length < INVITE_CUSTOM_MAX ? (
         <Zone label={null} rule>
-          <button
-            type="button"
+          <TapButton
             aria-label="Add a row"
-            onClick={addCustom}
+            onTap={addCustom}
             className="press flex border-0 bg-transparent p-0 text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
           >
             <MarkPlus />
-          </button>
+          </TapButton>
         </Zone>
       ) : null}
       <Zone label="Style" rule>
         <div className="flex flex-wrap gap-4">
           {EVENT_LAYOUTS.map((item) => (
-            <button
+            <TapButton
               key={item.id}
-              type="button"
               aria-pressed={values.layout === item.id}
-              onClick={() =>
+              onTap={() =>
                 onChange({ layout: item.id, ...(values.themeTouched ? {} : { theme: layoutDefaultTheme(item.id) }) })
               }
               className="press border-0 bg-transparent p-0 t-caps [-webkit-tap-highlight-color:transparent]"
               style={{ color: values.layout === item.id ? "var(--ink)" : "var(--grey)" }}
             >
               {item.label}
-            </button>
+            </TapButton>
           ))}
         </div>
       </Zone>
@@ -582,12 +576,11 @@ export function EventForm({
           style={{ gridTemplateColumns: `repeat(${EVENT_THEMES.length}, minmax(0, 1fr))`, maxWidth: EVENT_THEMES.length * 36 - 8 }}
         >
           {EVENT_THEMES.map((item) => (
-            <button
+            <TapButton
               key={item.id}
-              type="button"
               aria-label={item.label}
               aria-pressed={values.theme === item.id}
-              onClick={() => onChange({ theme: item.id, themeTouched: true })}
+              onTap={() => onChange({ theme: item.id, themeTouched: true })}
               className="press block w-full border-0 bg-transparent p-0 [-webkit-tap-highlight-color:transparent]"
             >
               <span
@@ -598,15 +591,15 @@ export function EventForm({
                 }}
               />
               <span className="mt-1 block h-px" style={{ background: values.theme === item.id ? "var(--ink)" : "transparent" }} />
-            </button>
+            </TapButton>
           ))}
         </div>
       </Zone>
       {onSubmit ? (
         <div className="pb-4" style={{ marginLeft: VALUE_AXIS_PX }}>
-          <button type="button" disabled={!values.name.trim() || saving} onClick={onSubmit} className={SKY_BUTTON}>
+          <TapButton disabled={!values.name.trim() || saving} onTap={() => onSubmit?.()} className={SKY_BUTTON}>
             {submitLabel}
-          </button>
+          </TapButton>
           {hint ? <p className="mt-3 t-meta text-[var(--grey)]">{hint}</p> : null}
           {error ? <p className="mt-2 t-meta text-[var(--ink)]">{error}</p> : null}
         </div>

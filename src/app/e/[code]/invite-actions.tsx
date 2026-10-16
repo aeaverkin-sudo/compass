@@ -13,6 +13,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import { COLUMN_GAP_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { PortfolioChoice } from "@/shared/services/event-registration";
 import { PortfolioFace } from "@/shared/components/portfolio-face";
+import { TapButton } from "@/shared/components/tap-button";
 import { openWalletPass } from "@/shared/lib/wallet-client";
 
 const SKY =
@@ -322,9 +323,9 @@ export function InviteActions({
           </>
         ) : permanent ? (
           <>
-            <button type="button" disabled={busy || !sessionReady} onClick={() => void primary()} className={SKY}>
+            <TapButton disabled={busy || !sessionReady} onTap={() => void primary()} className={SKY}>
               I&apos;m going *
-            </button>
+            </TapButton>
           </>
         ) : createFlow ? (
           <div className="self-stretch" style={{ paddingLeft: VALUE_AXIS_PX }}>
@@ -342,9 +343,9 @@ export function InviteActions({
             </p>
           </div>
         ) : (
-          <button type="button" disabled={busy || !sessionReady} onClick={createPass} className={SKY}>
+          <TapButton disabled={busy || !sessionReady} onTap={createPass} className={SKY}>
             Open my pass
-          </button>
+          </TapButton>
         )}
         {(closed && !token) || createFlow ? null : <Footnote openLink={!token} />}
         {permanent || shut || createFlow ? null : (

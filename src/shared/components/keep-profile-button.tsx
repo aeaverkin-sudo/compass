@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { TapButton } from "@/shared/components/tap-button";
 import { cn } from "@/lib/utils";
 
 export function KeepProfileButton({ className }: { className?: string }) {
@@ -33,15 +34,14 @@ export function KeepProfileButton({ className }: { className?: string }) {
   };
 
   return (
-    <button
-      type="button"
+    <TapButton
       data-card-content
       data-no-swipe
       disabled={busy}
-      onClick={() => void keep()}
+      onTap={() => void keep()}
       className={cn("press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:text-[var(--grey)]", className)}
     >
       Keep my profile
-    </button>
+    </TapButton>
   );
 }

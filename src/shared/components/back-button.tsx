@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { TapButton } from "@/shared/components/tap-button";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
@@ -111,11 +112,10 @@ export function BackButton({ fallbackHref, onBack, className }: BackButtonProps)
   }, [reduce]);
 
   return (
-    <button
+    <TapButton
       ref={buttonRef}
-      type="button"
       aria-label="Back"
-      onClick={go}
+      onTap={go}
       className={cn("touch-manipulation fixed z-30 flex w-11 items-center justify-start text-[#111]", className)}
       style={{
         top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
@@ -134,6 +134,6 @@ export function BackButton({ fallbackHref, onBack, className }: BackButtonProps)
           strokeLinejoin="round"
         />
       </svg>
-    </button>
+    </TapButton>
   );
 }

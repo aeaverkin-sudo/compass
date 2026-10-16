@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { TabBand } from "@main/components/tab-band";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
+import { TapButton } from "@/shared/components/tap-button";
 import { cn } from "@/lib/utils";
 
 const DOOR =
@@ -59,14 +60,13 @@ export function AccountBand({
           </a>
         }
         right={
-          <button
-            type="button"
-            onPointerDown={onPreparePdf}
-            onClick={onPdf}
+          <TapButton
+            onPrepare={onPreparePdf}
+            onTap={() => onPdf?.()}
             className={cn(DOOR, "justify-end border-0 bg-transparent")}
           >
             <span data-pdf-link="">Save PDF file</span>
-          </button>
+          </TapButton>
         }
       />
     );

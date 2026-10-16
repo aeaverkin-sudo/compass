@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
+import { TapButton } from "@/shared/components/tap-button";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { deletionLine } from "@/shared/lib/deletion-date";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -131,11 +132,10 @@ export function EventPassFooter({
           </div>
           <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">Scan a guest&apos;s QR to keep their card.</p>
           <div className="mt-6">
-            <button
-              type="button"
+            <TapButton
               data-card-content
               data-no-swipe
-              onClick={() => {
+              onTap={() => {
                 const { cards, currentCardIndex } = useAppStore.getState();
                 const card = cards[currentCardIndex] ?? cards[0];
                 if (!card) return setToast(true);
@@ -144,7 +144,7 @@ export function EventPassFooter({
               className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
             >
               Add to Apple Wallet
-            </button>
+            </TapButton>
           </div>
           <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">
             This event pass is also your portfolio — share it with people you meet at the event.

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, type PointerEvent } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TabBand } from "@main/components/tab-band";
+import { TapButton } from "@/shared/components/tap-button";
 
 const ITEM =
   "press touch-manipulation flex h-full min-h-11 w-full items-center border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
@@ -38,33 +39,27 @@ export function NetworkBand({ current }: { current: NetworkSection }) {
   }, [router, left, right]);
 
   const go = (href: string) => ({
-    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      router.prefetch(href);
-    },
-    onPointerUp: (event: PointerEvent<HTMLButtonElement>) => {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      router.push(href);
-    },
+    onPrepare: () => router.prefetch(href),
+    onTap: () => router.push(href),
   });
 
   return (
     <TabBand
       label="Network"
       left={
-        <button type="button" className={ITEM} {...go(ROUTE[left])}>
+        <TapButton className={ITEM} {...go(ROUTE[left])}>
           {LABEL[left]}
-        </button>
+        </TapButton>
       }
       center={
-        <button type="button" className={`${ITEM} justify-center`} {...go("/main")}>
+        <TapButton className={`${ITEM} justify-center`} {...go("/main")}>
           Home
-        </button>
+        </TapButton>
       }
       right={
-        <button type="button" className={`${ITEM} justify-end`} {...go(ROUTE[right])}>
+        <TapButton className={`${ITEM} justify-end`} {...go(ROUTE[right])}>
           {LABEL[right]}
-        </button>
+        </TapButton>
       }
     />
   );

@@ -31,6 +31,7 @@ import {
 import { HeroName } from "@/shared/components/hero-name";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { ScreenHeader } from "@/shared/components/screen-header";
+import { TapButton } from "@/shared/components/tap-button";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
@@ -607,16 +608,15 @@ export function CreatePortfolio({
                     <span className="min-w-0 flex-1 t-body">{password}</span>
                   )}
                   {changing ? null : (
-                    <button
-                      type="button"
-                      onClick={() => {
+                    <TapButton
+                      onTap={() => {
                         setChanging(true);
                         window.setTimeout(() => passwordRef.current?.select(), 0);
                       }}
                       className="press shrink-0 border-0 bg-transparent p-0 t-caps text-[var(--grey)] underline [-webkit-tap-highlight-color:transparent]"
                     >
                       Change
-                    </button>
+                    </TapButton>
                   )}
                 </div>
                 <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
@@ -639,15 +639,14 @@ export function CreatePortfolio({
               ))}
 
               <div className="flex flex-col items-center border-b border-[var(--rule)] py-[18px]">
-                <button
-                  type="button"
+                <TapButton
                   aria-label="Add"
                   disabled={atRowLimit}
-                  onClick={addRow}
+                  onTap={addRow}
                   className="press flex size-7 items-center justify-center border-0 bg-transparent text-[var(--ink)] disabled:text-[var(--placeholder)] [-webkit-tap-highlight-color:transparent]"
                 >
                   <MarkPlus />
-                </button>
+                </TapButton>
                 <p className="mt-2 mb-0 t-meta text-[var(--grey)]">Add links, files, socials, text</p>
               </div>
 
@@ -683,9 +682,9 @@ export function CreatePortfolio({
               />
 
               <div className="mt-6" style={{ paddingLeft: VALUE_AXIS_PX }}>
-                <button type="submit" disabled={busy || !ready || !sessionReady} className={SKY}>
+                <TapButton type="submit" disabled={busy || !ready || !sessionReady} onTap={() => void create()} className={SKY}>
                   Create my profile
-                </button>
+                </TapButton>
                 {message ? <p className="mt-3 mb-0 t-meta text-[var(--ink)]">{message}</p> : null}
               </div>
             </form>
