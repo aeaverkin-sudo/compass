@@ -34,6 +34,7 @@ import { hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { CARD_ZONES, zoneForItem } from "@/shared/services/card-zones";
 import { recordConsent } from "@/shared/services/consent-client";
 import { createEmptyContactItem, findIdenticalItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { PORTFOLIO_LIMITS } from "@/shared/services/portfolio-limits";
 import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
 import type { Card } from "@/shared/types";
@@ -322,8 +323,7 @@ export function CreatePortfolio({
     setDraft((current) => ({ ...current, rows: current.rows.map((row) => (row.id === id ? { ...row, value } : row)) }));
   const addRow = () =>
     setDraft((current) => {
-      const last = current.rows[current.rows.length - 1];
-      if (last && !last.value.trim()) return current;
+      if (current.rows.length >= PORTFOLIO_LIMITS.maxItemsOnCard) return current;
       return { ...current, rows: [...current.rows, { id: nanoid(8), value: "" }] };
     });
 
@@ -397,7 +397,7 @@ export function CreatePortfolio({
   const photoPx = HERO_PHOTO_PX * scale;
   const inset = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
   const counterRightCss = `calc(${inset}px + clamp(24px, 6.1vw, 28px) - 3mm)`;
-  const lastRow = draft.rows[draft.rows.length - 1];
+  const atRowLimit = draft.rows.length >= PORTFOLIO_LIMITS.maxItemsOnCard;
 
   return (
     <main className="compass-main relative min-h-dvh w-full overflow-x-hidden bg-background pb-16 text-[var(--ink)]">
@@ -410,10 +410,11 @@ export function CreatePortfolio({
           ) : (
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 flex items-center justify-center t-caps text-[var(--placeholder)]"
+              className="pointer-events-none absolute inset-x-0 flex flex-col items-center justify-center t-caps text-[var(--placeholder)]"
               style={{ top: layoutTop(layout.qrTop), height: Math.round(BROWSE_QR_SIZE * scale) }}
             >
-              QR
+              <span>QR</span>
+              <span>NEXT STEP</span>
             </div>
           )}
           <div inert className="[&_*]:!pointer-events-none [&_*]:!text-[var(--placeholder)]">
@@ -464,7 +465,7 @@ export function CreatePortfolio({
                 void create();
               }}
             >
-              <NumberedRow index={0} label="Email *">
+              <NumberedRow index={0} label="Email*">
                 <input
                   type="email"
                   inputMode="email"
@@ -534,7 +535,7 @@ export function CreatePortfolio({
                 <button
                   type="button"
                   aria-label="Add"
-                  disabled={!lastRow?.value.trim()}
+                  disabled={atRowLimit}
                   onClick={addRow}
                   className="press flex size-7 items-center justify-center border-0 bg-transparent text-[var(--ink)] disabled:text-[var(--placeholder)] [-webkit-tap-highlight-color:transparent]"
                 >
