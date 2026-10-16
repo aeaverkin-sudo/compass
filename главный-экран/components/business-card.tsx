@@ -32,6 +32,7 @@ import {
   CARD_HEADER_PAD_PX,
   CARD_TOP_TRIM_PX,
   HEADER_FADE_PX,
+  QR_COLOR,
   RULE_GAP_PX,
   SECTION_PAD_PX,
   type MainScreenMode,
@@ -53,6 +54,7 @@ function EditorialHeader({
   onCardUpdate,
   plate = false,
   scale = 1,
+  portfolioMark = false,
 }: {
   card: Card;
   positionTitle?: string;
@@ -67,6 +69,8 @@ function EditorialHeader({
   plate?: boolean;
   /** Compact screen: the photo and the gaps around it, below 1. */
   scale?: number;
+  /** Public / PDF: orange PORTFOLIO at the top-right of the header, on the zone axis. */
+  portfolioMark?: boolean;
 }) {
   const photoSrc = cardPhotoSrc(card);
   const photoPx = HERO_PHOTO_PX * scale;
@@ -89,7 +93,12 @@ function EditorialHeader({
           paddingBottom: plate ? CARD_HEADER_PAD_PX * scale : CARD_HEADER_PAD_PX + HEADER_FADE_PX - SECTION_PAD_PX,
         }}
       >
-        <div className="flex shrink-0 items-stretch gap-3" style={{ height: photoPx }}>
+        <div className="relative flex shrink-0 items-stretch gap-3" style={{ height: photoPx }}>
+          {portfolioMark ? (
+            <p className="pointer-events-none absolute top-0 right-0 m-0 t-caps" style={{ color: QR_COLOR }}>
+              PORTFOLIO
+            </p>
+          ) : null}
           {onPhotoChange ? (
             <PhotoSlotPicker
               photo={photoSrc}
@@ -112,7 +121,7 @@ function EditorialHeader({
           ) : (
             <span aria-hidden className="shrink-0 bg-[#f3f3f3]" style={{ width: photoPx, height: photoPx }} />
           )}
-          <div className="relative flex h-full min-w-0 flex-1 flex-col">
+          <div className={cn("relative flex h-full min-w-0 flex-1 flex-col", portfolioMark && "pr-[5.75rem]")}>
             <HeroName
               value={card.displayName}
               onChange={onDisplayNameChange}
@@ -248,7 +257,7 @@ function PdfCard({
       <div style={{ paddingLeft: PDF_PAD, paddingRight: PDF_PAD }}>
         {shown.some((block) => block.kind === "header") ? (
           <div data-pdf-block="">
-            <EditorialHeader card={card} positionTitle={positionTitle} />
+            <EditorialHeader card={card} positionTitle={positionTitle} portfolioMark />
           </div>
         ) : null}
         {zoneFilter.length > 0 ? (
@@ -529,6 +538,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               onCardUpdate={onCardUpdate}
               plate
               scale={readOnly ? 1 : headerScale}
+              portfolioMark={readOnly}
             />
           )}
         </div>
