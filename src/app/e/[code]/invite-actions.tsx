@@ -3,25 +3,20 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Rule } from "@/shared/components/rule";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { Zone } from "@/shared/components/zone";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
-import { COLUMN_GAP_PX } from "@/shared/layout/axes";
+import { COLUMN_GAP_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import type { PortfolioChoice } from "@/shared/services/event-registration";
 import { PortfolioFace } from "@/shared/components/portfolio-face";
 import { openWalletPass } from "@/shared/lib/wallet-client";
 
 const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
-const FIELD =
-  "compass-input block w-full border-0 bg-transparent p-0 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
-
 type AcceptReply = {
   kind?: "go" | "here" | "signin" | "other-device" | "notice" | "going" | "access";
   access?: boolean;
@@ -119,16 +114,11 @@ export function InviteActions({
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; next: string } | null>(null);
-  const [form, setForm] = useState(false);
   const [going, setGoing] = useState<{ badge: PortfolioChoice | null; change: string } | null>(null);
   const [thanked, setThanked] = useState(false);
   const [signInOffer, setSignInOffer] = useState(false);
-  const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
-  const [website, setWebsite] = useState("");
   const opened = useRef(false);
   const autoRan = useRef(false);
-  const nameRef = useRef<HTMLInputElement>(null);
   const base = `/api/events/${encodeURIComponent(lookup)}`;
   const joinPath = `/e/${encodeURIComponent(lookup)}/join`;
 
@@ -241,31 +231,9 @@ export function InviteActions({
     }
   };
 
-  const submitOpen = async () => {
-    if (busy) return;
-    if (!name.trim()) return fail("Add your name.");
-    if (!contact.trim()) return fail("Add your email or phone.");
-    setBusy(true);
-    setHint(null);
-    try {
-      await follow(() =>
-        fetch(`${base}/pass`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, contact, website, timeZone: deviceTimeZone() }),
-        }),
-      );
-    } catch {
-      fail("Could not open your pass.");
-    }
-  };
-
   const createPass = () => {
     if (token) return void acceptToken();
     if (holdsPass) return void enterPass(null);
-    setHint(null);
-    setForm(true);
-    window.setTimeout(() => nameRef.current?.focus(), 0);
   };
 
   const primary = permanent ? (token ? acceptToken : joinOwn) : acceptToken;
@@ -332,70 +300,6 @@ export function InviteActions({
     );
   }
 
-  if (form) {
-    return (
-      <>
-        <div className="mx-auto w-[62%]">{poster}</div>
-        <form
-          className="mt-6 w-full"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submitOpen();
-          }}
-        >
-          <Rule />
-          <Zone label="Name" rule>
-            <input
-              ref={nameRef}
-              type="text"
-              autoComplete="name"
-              aria-label="Name"
-              placeholder="Name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className={FIELD}
-            />
-          </Zone>
-          <Zone label="Email or phone" rule>
-            <input
-              type="text"
-              inputMode="email"
-              autoCapitalize="none"
-              autoComplete="email"
-              aria-label="Email or phone"
-              placeholder="name@mail.com"
-              value={contact}
-              onChange={(event) => setContact(event.target.value)}
-              className={FIELD}
-            />
-          </Zone>
-          <input
-            type="text"
-            name="website"
-            tabIndex={-1}
-            autoComplete="off"
-            aria-hidden
-            value={website}
-            onChange={(event) => setWebsite(event.target.value)}
-            className="pointer-events-none absolute -left-[9999px] h-px w-px opacity-0"
-          />
-          <div className="mt-6 flex flex-col items-center">
-            <button type="submit" disabled={busy || !sessionReady} className={SKY}>
-              Continue
-            </button>
-            {placesLeft != null ? (
-              <p className="mt-3 mb-0 text-center t-meta text-[var(--grey)]">{`${placesLeft} ${placesLeft === 1 ? "place" : "places"} left`}</p>
-            ) : null}
-            <Footnote openLink />
-            {hint ? <p className="mt-3 mb-0 text-center t-meta text-[var(--ink)]">{hint}</p> : null}
-            {offer}
-          </div>
-        </form>
-        {toast}
-      </>
-    );
-  }
-
   if (ended || (auto && token)) {
     return (
       <>
@@ -412,6 +316,8 @@ export function InviteActions({
   }
 
   const shut = (closed && !token) || (soldOut && !token && !holdsPass);
+  const createHref = `/e/${encodeURIComponent(lookup)}/create${token ? `?g=${encodeURIComponent(token)}` : ""}`;
+  const createFlow = !shut && !permanent && !holdsPass;
 
   return (
     <>
@@ -447,22 +353,28 @@ export function InviteActions({
               I&apos;m going *
             </button>
           </>
-        ) : (
-          <>
-            <button type="button" disabled={busy || !sessionReady} onClick={createPass} className={SKY}>
-              I&apos;m going
-              <br />
-              Create my pass *
-            </button>
-            {token ? (
-              <p className="mt-3 mb-0 text-center t-meta text-[var(--grey)]">
-                This link is your pass — don&apos;t forward it.
-              </p>
+        ) : createFlow ? (
+          <div className="self-stretch" style={{ paddingLeft: VALUE_AXIS_PX }}>
+            <Link href={createHref} className={SKY}>
+              Create
+            </Link>
+            {placesLeft != null ? (
+              <p className="mt-3 mb-0 t-meta text-[var(--grey)]">{`${placesLeft} ${placesLeft === 1 ? "place" : "places"} left`}</p>
             ) : null}
-          </>
+            <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
+              Already have an account?{" "}
+              <Link href={signInHref} className="text-[var(--grey)] underline">
+                Sign in
+              </Link>
+            </p>
+          </div>
+        ) : (
+          <button type="button" disabled={busy || !sessionReady} onClick={createPass} className={SKY}>
+            Open my pass
+          </button>
         )}
-        {closed && !token ? null : <Footnote openLink={!token} />}
-        {permanent || shut ? null : (
+        {(closed && !token) || createFlow ? null : <Footnote openLink={!token} />}
+        {permanent || shut || createFlow ? null : (
           <p className="mt-3 mb-0 text-center t-meta text-[var(--grey)]">
             Already have an account?{" "}
             <Link href={signInHref} className="text-[var(--grey)] underline">

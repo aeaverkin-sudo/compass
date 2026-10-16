@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { eventHasEnded } from "@/shared/services/events";
-import { emailHasAccount, isPermanentAccount } from "@/shared/services/guest-accept";
+import { isPermanentAccount } from "@/shared/services/guest-accept";
 import { InviteActions } from "../invite-actions";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +17,8 @@ type PageProps = {
 };
 
 /**
- * I'm going in the invitation mail. The mail already showed the poster and the consent, so the tap goes straight in.
+ * I'm going in the invitation mail. A signed-in account joins here. Anyone else goes to Create a portfolio.
  * The page script sends the tap: a mail scanner opening the link accepts nothing.
- * Without a session, an email that has its own account gets the poster: no pass account for a real profile.
  */
 export default async function GoFromMailPage({ params, searchParams }: PageProps) {
   const { code } = await params;
@@ -44,14 +43,14 @@ export default async function GoFromMailPage({ params, searchParams }: PageProps
   const user = data.user ?? null;
   const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
   const permanent = await isPermanentAccount(session);
-  if (!permanent && (!session || session.anonymous) && (await emailHasAccount(guest.email))) redirect(poster);
+  if (!permanent) redirect(`${base}/create?g=${encodeURIComponent(guest.token)}`);
 
   return (
     <main className="compass-main flex h-dvh w-full items-center justify-center bg-white px-[var(--gutter)] text-[var(--ink)]">
       <InviteActions
         lookup={lookup}
         token={guest.token}
-        permanent={permanent}
+        permanent
         holdsPass={false}
         auto
         ended={false}
