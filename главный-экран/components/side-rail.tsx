@@ -157,6 +157,7 @@ export function SideRail({
   total,
   showPlus,
   frozen,
+  editing = false,
 }: {
   qrTop: number;
   counterRightCss: string;
@@ -165,6 +166,7 @@ export function SideRail({
   total: number;
   showPlus: boolean;
   frozen: boolean;
+  editing?: boolean;
 }) {
   const updateCard = useAppStore((state) => state.updateCard);
   const setRailDock = useAppStore((state) => state.setRailDock);
@@ -345,9 +347,28 @@ export function SideRail({
   };
 
   useEffect(() => {
+    const node = rootRef.current;
+    if (editing) {
+      dockRef.current = "photo";
+      if (node) {
+        node.style.transition = "top 460ms ease-out, height 460ms ease-out";
+        node.style.top = layoutTop(qrTop);
+        node.style.height = `${HERO_PHOTO_PX * readHeaderScale()}px`;
+      }
+      const timer = window.setTimeout(() => {
+        if (node) node.style.transition = "none";
+        syncAnchors();
+      }, 480);
+      return () => window.clearTimeout(timer);
+    }
     dockRef.current = railDock;
+    if (node) node.style.transition = "top 460ms ease-out, height 460ms ease-out";
     syncAnchors();
-  }, [railDock, qrTop, card.id]);
+    const timer = window.setTimeout(() => {
+      if (node) node.style.transition = "none";
+    }, 480);
+    return () => window.clearTimeout(timer);
+  }, [railDock, qrTop, card.id, editing]);
 
   useEffect(() => {
     const onResize = () => syncAnchors();

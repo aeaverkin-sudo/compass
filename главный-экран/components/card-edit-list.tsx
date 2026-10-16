@@ -1,14 +1,14 @@
 "use client";
 
-import { File as FileIcon, Minus, Plus, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { File as FileIcon, Plus, X } from "lucide-react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
-import { MarkPlus } from "@/shared/components/mark-plus";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { DELETE_HOLD_MS, ROW_TOGGLE_HOLD_MS, ROW_TOGGLE_MS } from "@/shared/lib/reorder-hold";
+import { DELETE_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import { tick } from "@/shared/lib/haptic";
 import { flashRow } from "@/shared/lib/row-flash";
 import {
@@ -106,28 +106,40 @@ function buildSections(card: Card, items: ContactItem[], cards: Card[]): EditSec
   return sections.filter((section) => section.rows.length > 0);
 }
 
-function RowMark({ onCard, active, onToggle }: { onCard: boolean; active: boolean; onToggle: () => void }) {
-  const hold = useLongPress(onToggle, ROW_TOGGLE_HOLD_MS);
+function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => void }) {
+  const origin = useRef<{ x: number; y: number } | null>(null);
   return (
-    <button
-      type="button"
+    <Checkbox
+      variant="library"
+      checked={onCard}
       data-no-swipe
       aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
-      {...hold}
-      onClick={(event) => {
-        // Enter or Space has no hold; the keyboard still toggles.
-        if (event.detail === 0) onToggle();
-        else hold.onClick(event);
+      className="relative z-10 -mr-[11px] -mt-[11px]"
+      onPointerDown={(event) => {
+        origin.current = { x: event.clientX, y: event.clientY };
       }}
-      className="flex size-5 shrink-0 touch-manipulation select-none items-center justify-center bg-transparent [-webkit-touch-callout:none]"
-      style={{ color: active ? "var(--ink)" : OFF_CARD }}
-    >
-      {onCard ? (
-        <Minus className="size-5" strokeWidth={1} aria-hidden />
-      ) : (
-        <MarkPlus />
-      )}
-    </button>
+      onPointerUp={(event) => {
+        event.stopPropagation();
+        const start = origin.current;
+        origin.current = null;
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        if (start) {
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (dx * dx + dy * dy > REORDER_SLOP_PX * REORDER_SLOP_PX) return;
+        }
+        onToggle();
+      }}
+      onPointerCancel={() => {
+        origin.current = null;
+      }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.detail === 0) onToggle();
+      }}
+      onCheckedChange={() => undefined}
+    />
   );
 }
 
@@ -286,6 +298,22 @@ export function CardEditList({
     [addItemToCard, card.id, setCardItemOrder],
   );
 
+  const toggleOnCard = useCallback(
+    (itemId: string) => {
+      tick();
+      const on = useAppStore.getState().cards.find((entry) => entry.id === card.id)?.contactItemIds.includes(itemId);
+      if (on) removeItemFromCard(card.id, itemId);
+      else include(itemId);
+    },
+    [card.id, include, removeItemFromCard],
+  );
+
+  const startRowEdit = useCallback((itemId: string) => {
+    setDeleteReadyId(null);
+    setSectionEditId(null);
+    setTextEditId(itemId);
+  }, []);
+
   const saveRowText = (item: ContactItem, shown: string, next: string) => {
     const trimmed = next.trim();
     if (!trimmed || trimmed === shown) return;
@@ -371,15 +399,10 @@ export function CardEditList({
                     onCard={onCard}
                     editing={textEditId === item.id}
                     deleteReady={deleteReadyId === item.id}
-                    onArmDelete={() => setDeleteReadyId(item.id)}
-                    onDelete={() => askDelete(item.id)}
-                    onAdd={() => include(item.id)}
-                    onRemove={() => removeItemFromCard(card.id, item.id)}
-                    onEdit={() => {
-                      setDeleteReadyId(null);
-                      setSectionEditId(null);
-                      setTextEditId(item.id);
-                    }}
+                    onArmDelete={setDeleteReadyId}
+                    onDelete={askDelete}
+                    onToggle={toggleOnCard}
+                    onEdit={startRowEdit}
                     onConfirm={(next) => {
                       saveRowText(item, row.value, next);
                       setTextEditId(null);
@@ -809,7 +832,7 @@ function AddLine({
   );
 }
 
-function EditRow({
+const EditRow = memo(function EditRow({
   itemId,
   text,
   value,
@@ -819,8 +842,7 @@ function EditRow({
   deleteReady,
   onArmDelete,
   onDelete,
-  onAdd,
-  onRemove,
+  onToggle,
   onEdit,
   onConfirm,
   onErase,
@@ -835,11 +857,10 @@ function EditRow({
   onCard: boolean;
   editing: boolean;
   deleteReady: boolean;
-  onArmDelete: () => void;
-  onDelete: () => void;
-  onAdd: () => void;
-  onRemove: () => void;
-  onEdit: () => void;
+  onArmDelete: (itemId: string) => void;
+  onDelete: (itemId: string) => void;
+  onToggle: (itemId: string) => void;
+  onEdit: (itemId: string) => void;
   onConfirm: (next: string) => void;
   onErase: () => void;
   /** Set on file rows: the row shows its upload state under the name. */
@@ -859,13 +880,12 @@ function EditRow({
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
   const [fades, setFades] = useState(false);
-  const [toggling, setToggling] = useState<"add" | "remove" | null>(null);
   const longPress = useLongPress(() => {
     pressedLong.current = true;
     setHolding(false);
     window.getSelection()?.removeAllRanges();
     tick();
-    onArmDelete();
+    onArmDelete(itemId);
   }, DELETE_HOLD_MS);
   const release = () => {
     setHolding(false);
@@ -886,23 +906,10 @@ function EditRow({
     return () => observer.disconnect();
   }, [editing, text, value]);
 
-  /** The tap is felt and shown at once; the row moves a moment later. */
-  const toggle = () => {
-    if (toggling) return;
-    tick();
-    const kind = onCard ? "remove" : "add";
-    setToggling(kind);
-    window.setTimeout(() => {
-      if (kind === "add") onAdd();
-      else onRemove();
-      setToggling(null);
-    }, ROW_TOGGLE_MS);
-  };
-
   const beginEdit = () => {
     openedAt.current = Date.now();
     flushSync(() => {
-      onEdit();
+      onEdit(itemId);
     });
   };
 
@@ -926,8 +933,7 @@ function EditRow({
           (holding || deleteReady) && "opacity-40",
         )}
         style={{
-          color: toggling === "add" ? "var(--ink)" : toggling === "remove" ? OFF_CARD : onCard ? "#111" : OFF_CARD,
-          transition: toggling ? `color ${ROW_TOGGLE_MS}ms ease` : undefined,
+          color: onCard ? "var(--ink)" : OFF_CARD,
         }}
         onPointerDown={(event) => {
           if (editing || deleteReady) return;
@@ -948,8 +954,7 @@ function EditRow({
         <div
           ref={lineRef}
           className={cn(
-            "t-body origin-left select-none transition-transform duration-150 motion-reduce:transform-none motion-reduce:transition-none",
-            toggling === "add" && "scale-[1.03]",
+            "t-body origin-left select-none",
             multiline || isProseValue(value) || value.includes("\n") || value.includes("  ")
               ? "w-full whitespace-pre-wrap break-words"
               : "w-max whitespace-nowrap",
@@ -1019,22 +1024,22 @@ function EditRow({
           className="pointer-events-none absolute inset-y-0 right-[26px] w-4 bg-gradient-to-r from-transparent to-white"
         />
       ) : null}
-      <div className="absolute inset-y-0 right-0 flex items-center">
+      <div className="absolute top-0 right-0 flex items-start">
         {deleteReady ? (
           <button
             type="button"
             data-delete-marker
             aria-label="Delete"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={onDelete}
+            onClick={() => onDelete(itemId)}
             className="relative z-10 -m-2.5 flex size-10 items-center justify-center"
           >
             <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
           </button>
         ) : (
-          <RowMark onCard={onCard} active={toggling === "add"} onToggle={toggle} />
+          <LibraryCheck onCard={onCard} onToggle={() => onToggle(itemId)} />
         )}
       </div>
     </div>
   );
-}
+});

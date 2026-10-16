@@ -205,6 +205,12 @@ export function browseCardHeight() {
   return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1))`;
 }
 
+/** Edit: the header sits on the QR slot, so the card is taller by that gap. */
+export function editCardHeight() {
+  const fallback = browseBandHeightCss();
+  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${SCREEN_TOP_AXIS_PX}px * var(--hd, 1))`;
+}
+
 /**
  * Blocking head script. Same probes and the same band formula as the layout hook,
  * so the first paint is already the measured size.

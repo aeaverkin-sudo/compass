@@ -24,6 +24,7 @@ import { NameOrTitleField } from "@/shared/components/name-or-title-field";
 import { HeroName } from "@/shared/components/hero-name";
 import {
   browseCardHeight,
+  editCardHeight,
   CARD_HEADER_NAME_SIZE_PX,
   CARD_PHOTO_SIZE_PX,
   CARD_PHOTO_TOP_PX,
@@ -504,7 +505,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         "compass-layer flex w-full cursor-default flex-col",
         compact
           ? "compass-card compass-card-library relative min-h-0 w-full min-w-0 justify-start overflow-hidden pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
-          : "relative min-h-0 overflow-hidden bg-white text-[#111]",
+          : "relative min-h-0 overflow-hidden bg-white text-[#111] transition-[height] duration-[460ms] ease-out motion-reduce:transition-none",
       )}
       style={
         compact
@@ -513,7 +514,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               paddingTop: LIBRARY_NAME_FADE_PX,
             }
           : {
-              height: readOnly ? "100%" : browseCardHeight(),
+              height: readOnly ? "100%" : editing ? editCardHeight() : browseCardHeight(),
             }
       }
     >

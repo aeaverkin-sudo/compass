@@ -199,7 +199,7 @@ export function MainScreen() {
     <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
         {layout ? (
-          <QrZone url={cardUrl} visible={cardReady} topOffsetPx={layout.qrTop} scale={layout.headerScale} />
+            <QrZone url={cardUrl} visible={cardReady && !editing} topOffsetPx={layout.qrTop} scale={layout.headerScale} />
         ) : null}
       </div>
 
@@ -212,6 +212,7 @@ export function MainScreen() {
           total={sheetTotal}
           showPlus={shownHasBody}
           frozen={frozen}
+          editing={editing}
         />
       ) : null}
 
@@ -282,11 +283,11 @@ export function MainScreen() {
 
       {layout && cardTopBrowse !== undefined ? (
         <div
-          className="absolute overflow-hidden"
+          className="absolute overflow-hidden transition-[top] duration-[460ms] ease-out motion-reduce:transition-none"
           style={{
             left: browseCarousel ? 0 : edgeInsetBrowse,
             right: browseCarousel ? 0 : edgeInsetBrowse,
-            top: layoutTop(cardTopBrowse),
+            top: layoutTop(editing && layout ? layout.qrTop : cardTopBrowse),
             zIndex: 20,
           }}
         >

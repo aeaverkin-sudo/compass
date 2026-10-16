@@ -7,8 +7,32 @@ import { cn } from "@/lib/utils";
 
 function Checkbox({
   className,
+  variant = "default",
   ...props
-}: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+}: React.ComponentProps<typeof CheckboxPrimitive.Root> & {
+  /** Library row: sky fill, no tick. */
+  variant?: "default" | "library";
+}) {
+  if (variant === "library") {
+    return (
+      <CheckboxPrimitive.Root
+        data-slot="checkbox"
+        className={cn(
+          "flex size-11 shrink-0 items-center justify-center bg-transparent",
+          "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[#111]",
+          "disabled:opacity-40",
+          className,
+        )}
+        {...props}
+      >
+        <span className="flex size-[22px] items-center justify-center rounded-[5px] border-[1.6px] border-[var(--placeholder)] bg-white">
+          <CheckboxPrimitive.Indicator className="flex items-center justify-center">
+            <span className="block size-[16px] rounded-[3px] bg-sky" />
+          </CheckboxPrimitive.Indicator>
+        </span>
+      </CheckboxPrimitive.Root>
+    );
+  }
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"
