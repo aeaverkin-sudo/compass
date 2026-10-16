@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
-import { GUEST_COOKIE } from "@/shared/services/event-guest-pass";
+import { GUEST_COOKIE, isGuestToken } from "@/shared/services/event-guest-pass";
 import { moveRegistrationCard } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { eventListStatus } from "@/shared/services/events";
@@ -25,12 +25,15 @@ async function permanentId(): Promise<string | null> {
   return (await isPermanentAccount(session)) ? session.id : null;
 }
 
-async function readCardId(request: Request): Promise<string> {
+async function readJoin(request: Request): Promise<{ cardId: string; token: string | null }> {
   try {
-    const body = (await request.json()) as { cardId?: unknown };
-    return typeof body.cardId === "string" ? body.cardId : "";
+    const body = (await request.json()) as { cardId?: unknown; token?: unknown };
+    return {
+      cardId: typeof body.cardId === "string" ? body.cardId : "",
+      token: isGuestToken(body.token) ? body.token : null,
+    };
   } catch {
-    return "";
+    return { cardId: "", token: null };
   }
 }
 
@@ -45,15 +48,15 @@ export async function POST(request: Request, context: RouteProps) {
   if (eventListStatus(event.date, Date.now(), event.endsAt) === "past") {
     return noStore({ error: "This event has ended" }, 410);
   }
-  const cardId = await readCardId(request);
+  const join = await readJoin(request);
 
   try {
     const jar = await cookies();
-    const guestToken = jar.get(GUEST_COOKIE)?.value ?? null;
-    const joined = await joinWithOwnCard(userId, event, code, guestToken, cardId || null);
+    const guestToken = join.token ?? jar.get(GUEST_COOKIE)?.value ?? null;
+    const joined = await joinWithOwnCard(userId, event, code, guestToken, join.cardId || null);
     if (!joined.ok) return noStore({ error: joined.error }, joined.status);
     if (guestToken) jar.delete(GUEST_COOKIE);
-    return noStore({ joined: Boolean(joined.registrationId) });
+    return noStore({ joined: Boolean(joined.registrationId), pay: joined.pay });
   } catch (error) {
     console.error("[events] register", error);
     return noStore({ error: "Could not join." }, 500);
@@ -66,7 +69,7 @@ export async function PATCH(request: Request, context: RouteProps) {
   if (!userId) return noStore({ error: "Sign in to join." }, 401);
 
   const { code } = await context.params;
-  const cardId = await readCardId(request);
+  const { cardId } = await readJoin(request);
   if (!cardId) return noStore({ error: "Choose a portfolio." }, 400);
 
   try {

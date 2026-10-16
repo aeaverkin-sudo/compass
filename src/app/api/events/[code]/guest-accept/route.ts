@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 type RouteProps = { params: Promise<{ code: string }> };
 
-/** Create my pass, or I'm going, on a personal link. POST only, so a link preview never accepts. */
+/** I'm going on a personal link. POST only, so a link preview never accepts. */
 export async function POST(request: Request, context: RouteProps) {
   const { code } = await context.params;
   let token: unknown = null;

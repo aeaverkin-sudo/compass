@@ -10,18 +10,15 @@ export function acceptReply(result: GuestAcceptResult) {
   if (!result.ok) return noStore({ error: result.error }, result.status);
   if (result.kind === "go") return noStore({ kind: "go", next: result.next, notice: result.notice ?? null });
   if (result.kind === "signin") {
-    return noStore({ kind: "signin", tokenHash: result.tokenHash, cardId: result.cardId, pay: result.pay ?? false, access: result.access ?? false });
+    return noStore({ kind: "signin", tokenHash: result.tokenHash, cardId: result.cardId, pay: result.pay ?? false });
   }
   if (result.kind === "here") {
     return noStore({
       kind: "here",
       cardId: result.cardId,
-      confirmEmail: result.confirmEmail ?? null,
       pay: result.pay ?? false,
-      access: result.access ?? false,
     });
   }
-  if (result.kind === "access") return noStore({ kind: "access" });
   if (result.kind === "notice") return noStore({ kind: "notice", text: result.text });
   if (result.kind === "going") return noStore({ kind: "going", badge: result.badge, change: result.change });
   return noStore({ kind: "other-device" });

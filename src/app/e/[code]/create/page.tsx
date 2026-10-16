@@ -1,0 +1,39 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { findPassGuest } from "@/shared/services/event-guest-pass";
+import { loadEventInvite } from "@/shared/services/event-invite";
+import { CreatePortfolio } from "./create-portfolio";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Create a portfolio", robots: { index: false } };
+
+type PageProps = {
+  params: Promise<{ code: string }>;
+  searchParams: Promise<{ t?: string | string[]; g?: string | string[] }>;
+};
+
+/** Create a portfolio on the open link or a personal invite. `t` is the sign-in link from the mail. */
+export default async function CreatePortfolioPage({ params, searchParams }: PageProps) {
+  const { code } = await params;
+  const query = await searchParams;
+  let lookup = code.trim();
+  try {
+    lookup = decodeURIComponent(lookup);
+  } catch {
+    // A broken escape stays as written.
+  }
+  const event = await loadEventInvite(lookup);
+  if (!event) notFound();
+  const key = event.slug?.trim() || event.code;
+  const hash = Array.isArray(query.t) ? query.t[0] : query.t;
+  const guestToken = Array.isArray(query.g) ? query.g[0] : query.g;
+  const guest = await findPassGuest(event.id, guestToken);
+  return (
+    <CreatePortfolio
+      lookup={key}
+      hash={hash ?? ""}
+      guest={guest ? { token: guest.token, name: guest.name, email: guest.email ?? "" } : null}
+    />
+  );
+}

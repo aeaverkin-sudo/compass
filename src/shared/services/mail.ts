@@ -105,6 +105,15 @@ export async function sendSaveLink(to: string, cardName: string, link: string) {
   );
 }
 
+/** Create on the open link with an email that already has an account. The link signs in once and joins. */
+export async function sendEventSignIn(to: string, eventName: string, link: string) {
+  await send(
+    to,
+    `Sign in to join ${eventName}`,
+    `Open this link to sign in and join ${eventName}:\n${link}\n\nNo password needed. If you didn't ask for this, ignore this message.\n\nCheers,\nADED team`,
+  );
+}
+
 export async function sendPasswordReset(to: string, link: string) {
   await send(
     to,

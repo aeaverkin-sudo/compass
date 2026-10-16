@@ -154,6 +154,7 @@ export function ProfileScreen() {
   };
 
   useEffect(() => {
+    if (window.location.hash === "#portfolios") return;
     if (window.localStorage.getItem(PORTFOLIOS_OPEN_KEY) !== "0") return;
     void Promise.resolve().then(() => setPortfoliosOpen(false));
   }, []);
@@ -183,6 +184,17 @@ export function ProfileScreen() {
   useEffect(() => {
     if (window.location.hash !== "#subscription") return;
     document.getElementById("subscription")?.scrollIntoView();
+  }, [account]);
+
+  useEffect(() => {
+    if (window.location.hash !== "#portfolios") return;
+    setPortfoliosOpen(true);
+    try {
+      window.localStorage.setItem(PORTFOLIOS_OPEN_KEY, "1");
+    } catch {
+      /* private mode: keep the section open this visit */
+    }
+    document.getElementById("portfolios")?.scrollIntoView();
   }, [account]);
 
   const eventPass = !signedIn ? (account?.eventPass ?? null) : null;
@@ -279,6 +291,7 @@ export function ProfileScreen() {
       </Zone>
 
       <Zone
+        id="portfolios"
         label={
           <button
             type="button"

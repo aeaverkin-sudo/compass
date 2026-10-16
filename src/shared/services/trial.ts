@@ -164,30 +164,6 @@ export function eventGuestEnd(event: { date: string | null; endsAt: string | nul
   return acceptedAt;
 }
 
-/** An event guest's card lives this long after the event ends. No freeze in between. */
-export const EVENT_GUEST_MS = 100 * HOUR_MS;
-
-/**
- * One stage: deletion at the event end + 100h, and the draft clock ends at the same moment.
- * A guest of two events keeps the later clock. A registered account has no clock.
- */
-export async function startEventGuestClock(userId: string, eventEnd: number): Promise<void> {
-  const current = await readClock(userId);
-  if (current?.registered_at) return;
-  let purge = eventEnd + EVENT_GUEST_MS;
-  const keptPurge = current?.purge_at ? new Date(current.purge_at).getTime() : Number.NaN;
-  if (Number.isFinite(keptPurge)) purge = Math.max(purge, keptPurge);
-
-  const admin = createAdminSupabaseClient();
-  const at = new Date(purge).toISOString();
-  const clock = { draft_expires_at: at, purge_at: at };
-  const marked = await admin.from("profiles").update({ ...clock, event_trial: true }).eq("id", userId).is("registered_at", null);
-  if (!marked.error) return;
-  if (!/event_trial/i.test(marked.error.message)) throw new Error(marked.error.message);
-  const kept = await admin.from("profiles").update(clock).eq("id", userId).is("registered_at", null);
-  if (kept.error) throw new Error(kept.error.message);
-}
-
 export async function clearTrialClock(userId: string): Promise<void> {
   const admin = createAdminSupabaseClient();
   const now = new Date().toISOString();
