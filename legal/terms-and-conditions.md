@@ -1,8 +1,8 @@
 # ADED ME — Terms of Service
 
-_Launch-ready draft (v1.0). Plain, GDPR/DSA-aware. Qualified lawyer to sign off before public launch. Only placeholder: operator's full legal name / registration — disclosed on request (sole proprietor)._
+_Launch-ready draft (v1.1). Plain, GDPR/DSA-aware. Qualified lawyer to sign off before public launch. Only placeholder: operator's full legal name / registration — disclosed on request (sole proprietor)._
 
-**Last updated: 30 September 2026 · Version 1.0**
+**Last updated: 16 October 2026 · Version 1.1**
 
 ## 1. About ADED ME
 ADED ME ("ADED", "the Service", "we", "us") is a tool for building and sharing a **living digital portfolio** — a personal card. You add contacts, links, social profiles, files (portfolios, decks, CVs) and other content to one library, and share the version of yourself you choose — via QR code, link, or generated PDF — with the people you decide to show it to. ADED lets you keep more than one portfolio from the same library, save the people you connect with, and, where offered, take part in events. Accessible at www.adedme.com. ADED does not create your content and is not a party to any relationship, transaction or meeting arising from sharing your card. We provide the interface; you decide what to publish and with whom.
@@ -11,7 +11,7 @@ ADED ME ("ADED", "the Service", "we", "us") is a tool for building and sharing a
 By creating a card or otherwise using the Service, you accept these Terms and our Privacy Policy. If you do not agree, do not use the Service. We record which version you accepted and when.
 
 ## 3. Your account, sign-in and security
-You can start without registration, via an anonymous session tied to your device. You may later secure access by linking an email (you receive a starter code that acts as your password and remains yours — changeable in your profile) or by signing in with Google. You accept this sign-in system and are responsible for the security of your account, device and credentials. Notify support@adedme.com of any unauthorised access.
+You create an account with your email. At creation we show a one-time code that acts as your password; you can change it then or later in your profile. You sign in with that code or with a link we send to your email. Google sign-in is optional. There are no temporary accounts: joining an event creates the same permanent ADED account. One email is one account; we do not create a second account for the same address. You are responsible for the security of your account, device and credentials. Notify support@adedme.com of any unauthorised access.
 
 ## 4. Your content and ownership
 You keep ownership of everything you add (text, links, images, files, audio — "Your Content"). You are solely responsible for Your Content and for sharing it. You confirm that: you have the right to upload and share it; it does not infringe anyone's rights and is not illegal; you decide voluntarily what to include and with whom. You grant us a limited, non-exclusive licence to store, process, display, transmit and format Your Content solely to operate the Service for you (render your card, generate a PDF, deliver a one-time share, show your public portfolio). The licence ends when you delete the content or account, subject to limited legal retention.
@@ -34,11 +34,19 @@ At a basic level we do not scan content — actions are voluntary and public car
 ## 10. Verification and cooperation with authorities
 We operate as a fully legal and ethical service. Where required by law (e.g. the EU Digital Services Act), we may request legal identification or registration details, which may be shared with authorities on lawful request. We comply with applicable laws and cooperate with authorities, and may disclose user data when required by court order or law enforcement.
 
-## 11. Plans, subscriptions and payments
+## 11. Plans, subscriptions and event payments
 The Service offers a free tier and paid plans with additional features and higher limits (portfolios, storage). Plan features/limits are described in the app and may change. Billing for paid plans is handled by a third-party payment provider; we do not store full card or bank details. Paid plans renew for the period selected until cancelled. Nothing here affects mandatory consumer rights, including statutory withdrawal/refund rights.
 
+Event tickets and fees are paid to the organiser outside ADED — a payment link or a transfer that includes your pay code. ADED does not take or store payment cards for events. We only record the organiser's confirmation of payment.
+
 ## 12. Connections and events
-The Service may let you save Connections and, where offered, take part in events. When you join an event, the organizer may act as a separate data controller and receive specific data (attendance, chosen card fields), scoped to that event; shown at join time, requires consent, withdrawable. See the Privacy Policy.
+The Service may let you save Connections and, where offered, take part in events. You join through an open link or a personal invitation: you create a portfolio or sign in to an existing account. When you join, the organiser may act as a separate data controller and receive your name, contact, attendance, payment status, and the card fields you chose to share, scoped to that event; shown at join time, requires consent, withdrawable. See the Privacy Policy.
+
+Some events are run with a partner: the partner handles registration; ADED is used only for networking. We do not pass your ADED data to the partner's platform.
+
+We send transactional mail: the invitation, a welcome message with your code, a reminder before the event, and a way to unsubscribe.
+
+An Apple Wallet pass may be offered. A Wallet link in the welcome mail works for 30 days without signing in. Once added, the pass then lives in Wallet on its own.
 
 ## 13. Intellectual property
 The name ADED, with its logo, interface logic, card/portfolio system, design identity and communication style, is the intellectual property of the founder(s), protected under applicable law. A trademark application has been submitted. Use grants you no right to copy, reproduce or exploit any part of the concept or branding without written permission. Third-party trademarks are used for identification only and belong to their owners.
