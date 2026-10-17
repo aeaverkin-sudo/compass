@@ -41,7 +41,6 @@ const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 const NEW_ZONE_TITLE = "Title…";
-const NEW_ZONE_HINT = "Add items";
 const LOOKING_FOR = "Looking for";
 /** An event pass keeps Event on About, so Looking for takes a section the pass never fills. */
 const LOOKING_FOR_ZONE = "background";
@@ -688,22 +687,6 @@ export function CardEditList({
                     className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
                   />
                 ) : (
-                  <>
-                    {section.rows.length === 0 && (ZONE_HINTS[section.id] || isExtraZoneId(section.id)) ? (
-                      <button
-                        type="button"
-                        data-no-swipe
-                        data-zone-add=""
-                        className="t-body w-full bg-transparent text-left"
-                        style={{ color: OFF_CARD }}
-                        onPointerDown={() => {
-                          keepExtraRef.current = isExtraZoneId(section.id);
-                        }}
-                        onPointerUp={() => openZoneRef.current?.(section.id)}
-                      >
-                        {ZONE_HINTS[section.id] ?? NEW_ZONE_HINT}
-                      </button>
-                    ) : null}
                     <button
                       type="button"
                       data-no-swipe
@@ -718,7 +701,6 @@ export function CardEditList({
                     >
                       +
                     </button>
-                  </>
                 )}
               </ValueCap>
             </div>
@@ -1139,7 +1121,7 @@ function AddLine({
                   <WrapField
                     ref={fieldRef}
                     label={ADD_PLACEHOLDER}
-                    placeholder={fileItem ? fileItem.value : ADD_PLACEHOLDER}
+                    placeholder={fileItem ? fileItem.value : (pinZone && ZONE_HINTS[pinZone]) || ADD_PLACEHOLDER}
                     placeholderClassName="text-[16px] text-[var(--grey)]"
                     multiline={!fileItemId && !enterFinishes(text, pinZone)}
                     onTextChange={(next) => {

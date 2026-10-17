@@ -37,7 +37,7 @@ export function nextExtraZoneId(order: string[]): `extra-${number}` {
   return `extra-${max + 1}`;
 }
 
-/** Edit always shows these, empty or filled. Extra shelves from the bar + follow them. */
+/** The seven library shelves. Empty ones stay off the edit list until they have a row. */
 export const BASE_EDIT_ZONES: readonly CardZoneId[] = [
   "position",
   "location",
@@ -341,7 +341,7 @@ export function groupLibrary(
   return sectionsFrom(buckets, scope);
 }
 
-/** Edit scaffold: the seven base zones, plus extra shelves from this card's order. */
+/** Edit list: filled shelves only, plus extra shelves from this card's order. */
 export function groupEditSections(
   items: ContactItem[],
   scope: CardZoneScope & Partial<CardZonePlacement>,
@@ -358,7 +358,7 @@ export function groupEditSections(
   const ids: CardZoneId[] = [];
   for (const id of BASE_EDIT_ZONES) {
     const rows = byId.get(id)?.rows.length ?? 0;
-    if (hidden.has(id) && rows === 0) continue;
+    if (rows === 0) continue;
     ids.push(id);
   }
   for (const zone of CARD_ZONES) {
