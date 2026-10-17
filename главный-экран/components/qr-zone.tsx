@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import { subscribeLiveQrPulse } from "@/shared/lib/live-qr-pulse";
@@ -21,7 +21,7 @@ function liveQrUrl(url: string) {
   return `${url}${url.includes("?") ? "&" : "?"}src=qr`;
 }
 
-export function QrZone({ url, visible, topOffsetPx, scale = 1 }: QrZoneProps) {
+export const QrZone = memo(function QrZone({ url, visible, topOffsetPx, scale = 1 }: QrZoneProps) {
   const size = Math.round(BROWSE_QR_SIZE * scale);
   const currentCardId = useAppStore((state) => state.cards[state.currentCardIndex]?.id ?? "");
   const monochrome = useAppStore((state) => state.user.monochrome);
@@ -66,4 +66,4 @@ export function QrZone({ url, visible, topOffsetPx, scale = 1 }: QrZoneProps) {
       ) : null}
     </div>
   );
-}
+});

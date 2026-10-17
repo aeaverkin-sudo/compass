@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
@@ -8,7 +8,6 @@ import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
-import { getCardItems } from "@/shared/services/card-snapshot";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import {
   canAddMoreCards,
@@ -25,14 +24,86 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { UploadNotice } from "@/shared/components/upload-notice";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { InstallHint } from "@/shared/components/install-hint";
+import type { Card } from "@/shared/types";
 
 const PASS_ADD_HINT = "Complete your pass: add links, your role, socials or a portfolio file.";
 
+/** The rail only needs a card to mount. Row edits keep this same object so the screen around it stays still. */
+const railCardCache = new Map<string, Card>();
+
+function railCardOf(cards: Card[], index: number, currentIndex: number) {
+  const card = cards[index] ?? cards[currentIndex] ?? null;
+  if (!card) return null;
+  const cached = railCardCache.get(card.id);
+  if (cached) return cached;
+  railCardCache.set(card.id, card);
+  return card;
+}
+
+function CardDeck({
+  browseIndex,
+  editing,
+  showAddSlide,
+  fillHint,
+  composeOnMount,
+  openAddRef,
+  onComposingChange,
+  frozen,
+  needsAccount,
+  shareFootnote,
+  addNextFor,
+  onTrialSlot,
+  onFill,
+  onActiveIndexChange,
+  onUpdateCard,
+}: {
+  browseIndex: number;
+  editing: boolean;
+  showAddSlide: boolean;
+  fillHint: boolean;
+  composeOnMount: boolean;
+  openAddRef: RefObject<(() => void) | null>;
+  onComposingChange: (open: boolean) => void;
+  frozen: boolean;
+  needsAccount: boolean;
+  shareFootnote: (card: Card) => ReactNode;
+  addNextFor: (card: Card) => (() => void) | undefined;
+  onTrialSlot: () => void;
+  onFill: (cardId: string) => void;
+  onActiveIndexChange: (index: number) => void;
+  onUpdateCard: (id: string, data: Partial<Card>) => void;
+}) {
+  const cards = useAppStore((state) => state.cards);
+  const contactItems = useAppStore((state) => state.contactItems);
+  return (
+    <CardCarousel
+      cards={cards}
+      activeIndex={browseIndex}
+      contactItems={contactItems}
+      mode="browse"
+      canAddCard={showAddSlide}
+      editing={editing}
+      fillHint={fillHint}
+      composeOnMount={composeOnMount}
+      openAddRef={openAddRef}
+      onComposingChange={onComposingChange}
+      frozen={frozen}
+      shareFootnote={shareFootnote}
+      addNextFor={addNextFor}
+      needsAccount={needsAccount}
+      onTrialSlot={onTrialSlot}
+      onFill={onFill}
+      onActiveIndexChange={onActiveIndexChange}
+      onUpdateCard={onUpdateCard}
+      onEmptyAreaTap={() => undefined}
+    />
+  );
+}
+
 export function MainScreen() {
   const router = useRouter();
-  const cards = useAppStore((state) => state.cards);
+  const cardCount = useAppStore((state) => state.cards.length);
   const currentCardIndex = useAppStore((state) => state.currentCardIndex);
-  const contactItems = useAppStore((state) => state.contactItems);
   const setCurrentCardIndex = useAppStore((state) => state.setCurrentCardIndex);
   const updateCard = useAppStore((state) => state.updateCard);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
@@ -45,7 +116,6 @@ export function MainScreen() {
   const [editing, setEditing] = useState(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
-  const editedIsFirst = useIsFirstCard(cards[currentCardIndex]?.id);
   const openAddRef = useRef<(() => void) | null>(null);
   const draftStarted = useRef(false);
   const [composing, setComposing] = useState(false);
@@ -63,44 +133,77 @@ export function MainScreen() {
   const frameRef = useRef<HTMLElement>(null);
   const [frameWidth, setFrameWidth] = useState(0);
   const portfolioLimit = account?.portfolioLimit ?? null;
-  const showAddSlide = canAddMoreCards(cards, portfolioLimit);
+  const showAddSlide = useAppStore((state) => canAddMoreCards(state.cards, portfolioLimit));
   const [browseIndex, setBrowseIndex] = useState(currentCardIndex);
+  const viewingAddSlide = showAddSlide && browseIndex >= cardCount;
+  const activeId = useAppStore((state) => state.cards[state.currentCardIndex]?.id ?? "");
+  const editedIsFirst = useIsFirstCard(activeId || undefined);
+  const browseId = useAppStore((state) => {
+    if (viewingAddSlide) return "";
+    return (state.cards[browseIndex] ?? state.cards[state.currentCardIndex])?.id ?? "";
+  });
+  const nameReady = useAppStore((state) => {
+    if (viewingAddSlide) return false;
+    const card = state.cards[browseIndex] ?? state.cards[state.currentCardIndex];
+    return Boolean(card && isCardReady(card));
+  });
+  const shownHasBody = useAppStore((state) => {
+    if (viewingAddSlide) return false;
+    const card = state.cards[browseIndex] ?? state.cards[state.currentCardIndex];
+    if (!card) return false;
+    return card.contactItemIds.some((id) => {
+      const item = state.contactItems.find((entry) => entry.id === id);
+      return Boolean(item?.value.trim());
+    });
+  });
+  const cardUrl = useAppStore((state) => {
+    if (viewingAddSlide) return "";
+    const card = state.cards[browseIndex] ?? state.cards[state.currentCardIndex];
+    if (!card?.publicToken) return "";
+    return publicCardUrl(card);
+  });
+  const railCard = useAppStore((state) => (viewingAddSlide ? null : railCardOf(state.cards, browseIndex, state.currentCardIndex)));
+  const firstFilled = useAppStore((state) => {
+    const first = state.cards[0];
+    if (!first) return false;
+    return first.contactItemIds.some((id) => {
+      const item = state.contactItems.find((entry) => entry.id === id);
+      return Boolean(item && isContactFilled(item));
+    });
+  });
 
   useEffect(() => {
     setBrowseIndex((index) => {
-      const maxIndex = showAddSlide ? cards.length : Math.max(cards.length - 1, 0);
+      const maxIndex = showAddSlide ? cardCount : Math.max(cardCount - 1, 0);
       return Math.min(index, maxIndex);
     });
-  }, [cards.length, showAddSlide]);
+  }, [cardCount, showAddSlide]);
 
   useEffect(() => {
-    setBrowseIndex((index) => (index >= cards.length ? index : currentCardIndex));
-  }, [currentCardIndex, cards.length]);
+    setBrowseIndex((index) => (index >= cardCount ? index : currentCardIndex));
+  }, [currentCardIndex, cardCount]);
 
-  const viewingAddSlide = showAddSlide && browseIndex >= cards.length;
-  const browseCard = viewingAddSlide ? null : (cards[browseIndex] ?? cards[currentCardIndex] ?? null);
   const eventPass = account?.eventPass ?? null;
   const passes = new Map((eventPass?.passes ?? []).map((pass) => [pass.cardId, pass]));
-  const cardReady = Boolean(browseCard && (passes.has(browseCard.id) || isCardReady(browseCard)));
-  const shownHasBody = Boolean(browseCard && getCardItems(browseCard, contactItems).length > 0);
-  const creatingFirstEmptyCard = !viewingAddSlide && cards.length === 1 && !cardReady;
+  const cardReady = Boolean(browseId && (passes.has(browseId) || nameReady));
+  const creatingFirstEmptyCard = !viewingAddSlide && cardCount === 1 && !cardReady;
   const hideNav = (cardReady && !shownHasBody) || creatingFirstEmptyCard;
   const passAddHint = Boolean(
-    browseCard && passes.has(browseCard.id) && shownHasBody && !passAddHintSeen && !editing && !composing && !passwordHint && !frozen,
+    browseId && passes.has(browseId) && shownHasBody && !passAddHintSeen && !editing && !composing && !passwordHint && !frozen,
   );
 
   useEffect(() => {
-    if (!cardsHydrated || cards.length > 0 || portfolioLimit === null || draftStarted.current) return;
+    if (!cardsHydrated || cardCount > 0 || portfolioLimit === null || draftStarted.current) return;
     draftStarted.current = true;
     updateSecondCardDraft({ displayName: "" }, portfolioLimit);
-  }, [cardsHydrated, cards.length, portfolioLimit, updateSecondCardDraft]);
+  }, [cardsHydrated, cardCount, portfolioLimit, updateSecondCardDraft]);
 
   useEffect(() => {
-    if (!cards[currentCardIndex] || frozen) {
+    if (!activeId || frozen) {
       setEditing(false);
       setComposeOnMount(false);
     }
-  }, [cards, currentCardIndex, frozen]);
+  }, [activeId, frozen]);
 
   useEffect(() => {
     if (composing || passwordHintSeen || passwordHint) return;
@@ -110,14 +213,9 @@ export function MainScreen() {
   }, [account, composing, markPasswordHintSeen, passwordHint, passwordHintSeen]);
 
   useEffect(() => {
-    const first = cards[0];
-    if (!first || emptyFillHintSeen) return;
-    const filled = first.contactItemIds.some((id) => {
-      const item = contactItems.find((entry) => entry.id === id);
-      return Boolean(item && isContactFilled(item));
-    });
-    if (filled) markEmptyFillHintSeen();
-  }, [cards, contactItems, emptyFillHintSeen, markEmptyFillHintSeen]);
+    if (!firstFilled || emptyFillHintSeen) return;
+    markEmptyFillHintSeen();
+  }, [firstFilled, emptyFillHintSeen, markEmptyFillHintSeen]);
 
   useEffect(() => {
     router.prefetch("/profile");
@@ -138,7 +236,8 @@ export function MainScreen() {
       const el = node instanceof Element ? node : node instanceof Node ? node.parentElement : null;
       if (!el?.closest("button, a")) return;
       if (el.closest("input, textarea")) return;
-      window.getSelection()?.removeAllRanges();
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) selection.removeAllRanges();
     };
     document.addEventListener("selectstart", blockSelection, true);
     document.addEventListener("contextmenu", blockSelection, true);
@@ -151,18 +250,59 @@ export function MainScreen() {
   }, []);
 
   /** Opens the add line inside the tap, so the keyboard comes up in Safari and in-app browsers. */
-  const addToPass = (cardId: string) => {
+  const addToPass = useCallback((cardId: string) => {
     markPassAddHintSeen();
-    const index = cards.findIndex((entry) => entry.id === cardId);
+    const index = useAppStore.getState().cards.findIndex((entry) => entry.id === cardId);
     flushSync(() => {
       if (index >= 0) setCurrentCardIndex(index);
       setComposeOnMount(false);
       setEditing(true);
     });
     setComposeOnMount(true);
-  };
+  }, [markPassAddHintSeen, setCurrentCardIndex]);
 
-  const cardUrl = browseCard?.publicToken ? publicCardUrl(browseCard) : "";
+  const onProfile = useCallback(() => router.push("/profile"), [router]);
+  const onNetwork = useCallback(() => router.push("/network"), [router]);
+  const onRemove = useCallback(() => setRemoveOpen(true), []);
+  const onDone = useCallback(() => {
+    setComposeOnMount(false);
+    setEditing(false);
+  }, []);
+  const onEdit = useCallback(() => {
+    if (frozen) return;
+    const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
+    if (needsAccount && !liveCards[index]) {
+      showGate();
+      return;
+    }
+    if (!liveCards[index] && portfolioLimit !== null) {
+      updateSecondCardDraft({ displayName: "" }, portfolioLimit);
+    }
+    setComposeOnMount(false);
+    setEditing(true);
+  }, [frozen, needsAccount, portfolioLimit, showGate, updateSecondCardDraft]);
+  const onAdd = useCallback(() => {
+    const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
+    if (needsAccount && !liveCards[index]) {
+      showGate();
+      return;
+    }
+    openAddRef.current?.();
+  }, [needsAccount, showGate]);
+  const onFill = useCallback((cardId: string) => {
+    if (frozen) return;
+    const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
+    const index = liveCards.findIndex((card) => card.id === cardId);
+    if (index === 0) markEmptyFillHintSeen();
+    if (index > 0) setCurrentCardIndex(index);
+    setComposeOnMount(!liveItems.some(isContactFilled));
+    setEditing(true);
+  }, [frozen, markEmptyFillHintSeen, setCurrentCardIndex]);
+  const onActiveIndexChange = useCallback((index: number) => {
+    setBrowseIndex(index);
+    if (index < useAppStore.getState().cards.length) setCurrentCardIndex(index);
+  }, [setCurrentCardIndex]);
+
   const layout = useMainLayout();
 
   useLayoutEffect(() => {
@@ -173,9 +313,9 @@ export function MainScreen() {
     const observer = new ResizeObserver(sync);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [cards.length]);
+  }, [cardCount]);
 
-  if (cards.length === 0) {
+  if (cardCount === 0) {
     return (
       <main
         className="compass-main fixed inset-0 flex items-center justify-center bg-background"
@@ -187,10 +327,10 @@ export function MainScreen() {
   }
 
   const cardTopBrowse = layout?.cardTopBrowse;
-  const browseCarousel = cards.length > 1 || showAddSlide;
+  const browseCarousel = cardCount > 1 || showAddSlide;
   const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
-  const sheetTotal = portfolioLimit !== null && portfolioLimit >= cards.length ? portfolioLimit : cards.length;
-  const sheetIndex = Math.min(browseIndex, Math.max(cards.length - 1, 0)) + 1;
+  const sheetTotal = portfolioLimit !== null && portfolioLimit >= cardCount ? portfolioLimit : cardCount;
+  const sheetIndex = Math.min(browseIndex, Math.max(cardCount - 1, 0)) + 1;
   const sideInset = browseCarousel ? carouselSidePaddingPx(frameWidth, true) : edgeInsetBrowse;
   const counterRightCss = `calc(${sideInset}px + clamp(24px, 6.1vw, 28px) - 3mm)`;
 
@@ -202,11 +342,11 @@ export function MainScreen() {
         ) : null}
       </div>
 
-      {layout && cardReady && browseCard ? (
+      {layout && cardReady && railCard ? (
         <SideRail
           qrTop={layout.qrTop}
           counterRightCss={counterRightCss}
-          card={browseCard}
+          card={railCard}
           index={sheetIndex}
           total={sheetTotal}
           showPlus={shownHasBody}
@@ -237,8 +377,8 @@ export function MainScreen() {
         <InstallHint paused={editing || composing || passAddHint || passwordHint || gateNonce !== null} />
       ) : null}
 
-      {editing && cards[currentCardIndex] ? (
-        <PortfolioDeleteDialog card={cards[currentCardIndex]} open={removeOpen} onOpenChange={setRemoveOpen} />
+      {editing && activeId ? (
+        <DeleteSlot cardId={activeId} open={removeOpen} onOpenChange={setRemoveOpen} />
       ) : null}
 
       {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}
@@ -249,34 +389,12 @@ export function MainScreen() {
         <BottomNav
           editing={editing}
           resetsCard={editedIsFirst}
-          onRemove={() => setRemoveOpen(true)}
-          onProfile={() => router.push("/profile")}
-          onNetwork={() => {
-            router.push("/network");
-          }}
-          onEdit={() => {
-            if (frozen) return;
-            if (needsAccount && !cards[currentCardIndex]) {
-              showGate();
-              return;
-            }
-            if (!cards[currentCardIndex] && portfolioLimit !== null) {
-              updateSecondCardDraft({ displayName: "" }, portfolioLimit);
-            }
-            setComposeOnMount(false);
-            setEditing(true);
-          }}
-          onAdd={() => {
-            if (needsAccount && !cards[currentCardIndex]) {
-              showGate();
-              return;
-            }
-            openAddRef.current?.();
-          }}
-          onDone={() => {
-            setComposeOnMount(false);
-            setEditing(false);
-          }}
+          onRemove={onRemove}
+          onProfile={onProfile}
+          onNetwork={onNetwork}
+          onEdit={onEdit}
+          onAdd={onAdd}
+          onDone={onDone}
         />
       ) : null}
 
@@ -290,18 +408,16 @@ export function MainScreen() {
             zIndex: 20,
           }}
         >
-          <CardCarousel
-            cards={cards}
-            activeIndex={browseIndex}
-            contactItems={contactItems}
-            mode="browse"
-            canAddCard={showAddSlide}
+          <CardDeck
+            browseIndex={browseIndex}
             editing={editing}
+            showAddSlide={showAddSlide}
             fillHint={!emptyFillHintSeen}
             composeOnMount={composeOnMount}
             openAddRef={openAddRef}
             onComposingChange={onComposingChange}
             frozen={frozen}
+            needsAccount={needsAccount}
             shareFootnote={(card) => {
               if (composing) return null;
               const pass = passes.get(card.id);
@@ -326,27 +442,36 @@ export function MainScreen() {
               ) : null;
             }}
             addNextFor={(card) => (passes.has(card.id) && !frozen ? () => addToPass(card.id) : undefined)}
-            needsAccount={needsAccount}
-            onTrialSlot={() => showGate()}
-            onFill={(cardId) => {
-              if (frozen) return;
-              const index = cards.findIndex((card) => card.id === cardId);
-              if (index === 0) markEmptyFillHintSeen();
-              if (index > 0) setCurrentCardIndex(index);
-              setComposeOnMount(!contactItems.some(isContactFilled));
-              setEditing(true);
-            }}
-            onActiveIndexChange={(index) => {
-              setBrowseIndex(index);
-              if (index < cards.length) setCurrentCardIndex(index);
-            }}
+            onTrialSlot={showGate}
+            onFill={onFill}
+            onActiveIndexChange={onActiveIndexChange}
             onUpdateCard={updateCard}
-            onEmptyAreaTap={() => undefined}
           />
         </div>
       ) : null}
     </main>
   );
+}
+
+function DeleteSlot({
+  cardId,
+  open,
+  onOpenChange,
+}: {
+  cardId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const card = useAppStore((state) => {
+    const found = state.cards.find((entry) => entry.id === cardId) ?? null;
+    if (!found) return null;
+    const cached = railCardCache.get(cardId);
+    if (cached) return cached;
+    railCardCache.set(cardId, found);
+    return found;
+  });
+  if (!card) return null;
+  return <PortfolioDeleteDialog card={card} open={open} onOpenChange={onOpenChange} />;
 }
 
 function InfoNotice({ text, onDone }: { text: string; onDone: () => void }) {

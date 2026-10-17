@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ComponentProps } from "react";
+import { memo, useEffect, useRef, type ComponentProps } from "react";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { TabBand } from "./tab-band";
 
@@ -36,7 +36,7 @@ type BottomNavProps = {
   onProfile?: () => void;
 };
 
-export function BottomNav({
+export const BottomNav = memo(function BottomNav({
   editing = false,
   resetsCard = false,
   onRemove,
@@ -121,4 +121,4 @@ export function BottomNav({
       }
     />
   );
-}
+});
