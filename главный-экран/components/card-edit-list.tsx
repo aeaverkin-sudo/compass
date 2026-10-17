@@ -1,6 +1,6 @@
 "use client";
 
-import { File as FileIcon, Pencil, Plus, X } from "lucide-react";
+import { File as FileIcon, Plus, X } from "lucide-react";
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -40,7 +40,7 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-const NEW_ZONE_TITLE = "Title…";
+const NEW_ZONE_TITLE = "TITLE";
 const LOOKING_FOR = "Looking for";
 /** An event pass keeps Event on About, so Looking for takes a section the pass never fills. */
 const LOOKING_FOR_ZONE = "background";
@@ -152,39 +152,14 @@ function unusedExtraId(card: Card, keepId?: string) {
 }
 
 function HeadingCompose({
-  pill,
-  hideReady,
-  onHide,
   field,
   lined = false,
 }: {
-  pill?: boolean;
-  hideReady: boolean;
-  onHide: () => void;
   field: ReactNode;
   lined?: boolean;
 }) {
-  if (!pill) {
-    return lined ? <div className="flex flex-col justify-end border-b border-[var(--rule)]">{field}</div> : field;
-  }
-  return (
-    <div className="relative inline-flex max-w-full items-center gap-[4px] rounded-full bg-sky px-[8px] py-[3px]">
-      <Pencil className="size-3 shrink-0" strokeWidth={1.5} style={{ color: "var(--placeholder)" }} aria-hidden />
-      {field}
-      {hideReady ? (
-        <button
-          type="button"
-          data-delete-marker
-          aria-label="Hide section"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={onHide}
-          className="flex size-6 shrink-0 items-center justify-center"
-        >
-          <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
-        </button>
-      ) : null}
-    </div>
-  );
+  if (!lined) return field;
+  return <div className="flex flex-col justify-end border-b border-[var(--rule)]">{field}</div>;
 }
 
 function SectionLabel({
@@ -196,7 +171,9 @@ function SectionLabel({
   seed,
   onEdit,
   onCommit,
+  onAdvance,
   onStay,
+  advancing,
   onArmHide,
   onHide,
 }: {
@@ -204,13 +181,17 @@ function SectionLabel({
   included: boolean;
   editing: boolean;
   hideReady: boolean;
-  /** New extra shelf: sky chip with pencil + Title…, keyboard in the heading. */
+  /** New extra shelf: the label slot shows TITLE until a name is typed. */
   pill?: boolean;
   /** Parent docks the whole new zone; this heading stays in that block. */
   seed?: boolean;
   onEdit: () => void;
   onCommit: (next: string) => void;
+  /** Enter on a new zone title moves the caret to the value line. */
+  onAdvance?: (next: string) => void;
   onStay?: (event: FocusEvent<HTMLDivElement>) => boolean;
+  /** Set when Enter or the value row asked to leave the title, so a fast blur still commits. */
+  advancing?: RefObject<boolean>;
   onArmHide: () => void;
   onHide: () => void;
 }) {
@@ -260,12 +241,17 @@ function SectionLabel({
       label="Section name"
       placeholder={pill ? NEW_ZONE_TITLE : undefined}
       placeholderClassName="t-label text-[var(--placeholder)]"
-      grow={!pill}
       autoFocus={pill}
       onEmptyDelete={pill ? () => onCommit("") : undefined}
-      onDone={onCommit}
+      onDone={(next) => {
+        if (seed && onAdvance) {
+          onAdvance(next);
+          return;
+        }
+        onCommit(next);
+      }}
       onBlur={(next, event) => {
-        if (onStay?.(event)) {
+        if (onStay?.(event) || advancing?.current) {
           onCommit(next);
           return;
         }
@@ -273,7 +259,7 @@ function SectionLabel({
       }}
       className={
         pill
-          ? "min-w-[4.5em] bg-transparent t-label text-[var(--ink)] caret-[var(--ink)]"
+          ? "bg-transparent t-label text-[var(--grey)] caret-[var(--ink)]"
           : "bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
       }
     />
@@ -283,7 +269,7 @@ function SectionLabel({
     <>
       <div ref={wrapRef} className="relative min-w-0">
         {editing && !docked ? (
-          <HeadingCompose pill={pill} hideReady={hideReady} onHide={onHide} field={field} />
+          <HeadingCompose field={field} />
         ) : (
           <button
             type="button"
@@ -336,7 +322,7 @@ function SectionLabel({
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                <HeadingCompose pill={pill} hideReady={hideReady} onHide={onHide} field={field} lined />
+                <HeadingCompose field={field} lined />
               </div>
             </div>,
             document.body,
@@ -374,6 +360,8 @@ export const CardEditList = memo(function CardEditList({
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
   const [seedZoneId, setSeedZoneId] = useState<string | null>(null);
+  const [seedValueOpen, setSeedValueOpen] = useState(false);
+  const advanceSeedRef = useRef(false);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [hideReadyId, setHideReadyId] = useState<string | null>(null);
   const openZoneRef = useRef<((zone: CardZoneId) => void) | null>(null);
@@ -429,6 +417,7 @@ export const CardEditList = memo(function CardEditList({
         setDeleteReadyId(null);
         setHideReadyId(null);
         setSeedZoneId(id);
+        setSeedValueOpen(false);
         setSectionEditId(id);
       });
       const section = listRef.current?.querySelector(`[data-zone="${CSS.escape(id)}"]`);
@@ -455,9 +444,14 @@ export const CardEditList = memo(function CardEditList({
   }, [seeding, extraDocked]);
 
   useLayoutEffect(() => {
-    if (!seeding) return;
+    if (!seeding || seedValueOpen) return;
     extraBlockRef.current?.querySelector<HTMLElement>("[contenteditable]")?.focus();
-  }, [seeding]);
+  }, [seeding, seedValueOpen]);
+
+  useLayoutEffect(() => {
+    if (!seedValueOpen) return;
+    extraValueRef.current?.focusEnd();
+  }, [seedValueOpen]);
 
   useEffect(() => {
     if (!deleteReadyId && !hideReadyId) return;
@@ -553,6 +547,7 @@ export const CardEditList = memo(function CardEditList({
   const endSeed = (zoneId?: string) => {
     setSeedZoneId((current) => (zoneId && current !== zoneId ? current : null));
     setSectionEditId((current) => (zoneId && current !== zoneId ? current : null));
+    if (!zoneId || zoneId === seedZoneId) setSeedValueOpen(false);
   };
 
   const seedItem = (zoneId: string, raw: string) => {
@@ -614,6 +609,14 @@ export const CardEditList = memo(function CardEditList({
                     pill={isExtraZoneId(section.id)}
                     seed={seedingThis}
                     onStay={seedingThis ? stayInSeed : undefined}
+                    advancing={seedingThis ? advanceSeedRef : undefined}
+                    onAdvance={(next) => {
+                      advanceSeedRef.current = true;
+                      const name = next.trim();
+                      if (name) setRubricLabel(card.id, section.id, name);
+                      setSectionEditId(null);
+                      setSeedValueOpen(true);
+                    }}
                     onEdit={() => {
                       setTextEditId(null);
                       setDeleteReadyId(null);
@@ -625,6 +628,13 @@ export const CardEditList = memo(function CardEditList({
                     }}
                     onCommit={(next) => {
                       const name = next.trim();
+                      if (advanceSeedRef.current) {
+                        advanceSeedRef.current = false;
+                        keepExtraRef.current = false;
+                        if (name) setRubricLabel(card.id, section.id, next);
+                        setSectionEditId(null);
+                        return;
+                      }
                       if (isExtraZoneId(section.id) && !name) {
                         if (keepExtraRef.current) {
                           keepExtraRef.current = false;
@@ -638,7 +648,8 @@ export const CardEditList = memo(function CardEditList({
                       keepExtraRef.current = false;
                       setRubricLabel(card.id, section.id, next);
                       if (seedZoneId === section.id) {
-                        extraValueRef.current?.focusEnd();
+                        setSectionEditId(null);
+                        setSeedValueOpen(true);
                         return;
                       }
                       setSectionEditId(null);
@@ -646,6 +657,7 @@ export const CardEditList = memo(function CardEditList({
                     onArmHide={() => {
                       setTextEditId(null);
                       setSeedZoneId(null);
+                      setSeedValueOpen(false);
                       setSectionEditId(null);
                       setDeleteReadyId(null);
                       setHideReadyId(section.id);
@@ -688,7 +700,7 @@ export const CardEditList = memo(function CardEditList({
                     />
                   );
                 })}
-                {seedingThis ? (
+                {seedingThis && seedValueOpen ? (
                   <WrapField
                     ref={extraValueRef}
                     label={ADD_PLACEHOLDER}
@@ -703,6 +715,7 @@ export const CardEditList = memo(function CardEditList({
                     onBlur={(next, event) => {
                       if (stayInSeed(event)) return;
                       if (!next.trim()) {
+                        if (!section.title.trim()) hideZone(card.id, section.id);
                         endSeed(section.id);
                         return;
                       }
@@ -719,9 +732,18 @@ export const CardEditList = memo(function CardEditList({
                       className="t-body w-full bg-transparent text-left"
                       style={{ color: OFF_CARD }}
                       onPointerDown={() => {
+                        if (seedingThis) {
+                          advanceSeedRef.current = true;
+                          keepExtraRef.current = true;
+                          setSeedValueOpen(true);
+                          return;
+                        }
                         keepExtraRef.current = isExtraZoneId(section.id);
                       }}
-                      onPointerUp={() => openZoneRef.current?.(section.id)}
+                      onPointerUp={() => {
+                        if (seedingThis) return;
+                        openZoneRef.current?.(section.id);
+                      }}
                     >
                       +
                     </button>
@@ -1122,7 +1144,7 @@ function AddLine({
                     {LOOKING_FOR}
                   </button>
                 ) : null}
-                <div className="flex items-start gap-[11px] rounded-[5px] bg-sky px-3 py-2">
+                <div className="flex items-start gap-[11px]">
                   {lookingFor ? (
                     <span className="shrink-0 pt-[3px] t-label">{LOOKING_FOR}</span>
                   ) : filePhoto ? (
