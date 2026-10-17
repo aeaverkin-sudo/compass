@@ -1,7 +1,7 @@
 "use client";
 
 import { File as FileIcon, Pencil, Plus, X } from "lucide-react";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
@@ -186,8 +186,10 @@ function SectionLabel({
   editing,
   hideReady,
   pill,
+  seed,
   onEdit,
   onCommit,
+  onStay,
   onArmHide,
   onHide,
 }: {
@@ -197,16 +199,19 @@ function SectionLabel({
   hideReady: boolean;
   /** New extra shelf: sky chip with pencil + Title…, keyboard in the heading. */
   pill?: boolean;
+  /** Parent docks the whole new zone; this heading stays in that block. */
+  seed?: boolean;
   onEdit: () => void;
   onCommit: (next: string) => void;
+  onStay?: (event: FocusEvent<HTMLDivElement>) => boolean;
   onArmHide: () => void;
   onHide: () => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<WrapFieldHandle>(null);
   const desktop = useFinePointer();
-  const dockBottom = useKeyboardDock(editing && !desktop, true);
-  const docked = editing && (!desktop || dockBottom > 0);
+  const dockBottom = useKeyboardDock(editing && !desktop && !seed, true);
+  const docked = editing && !seed && (!desktop || dockBottom > 0);
   const openedAt = useRef(0);
   const pressedLong = useRef(false);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
@@ -252,7 +257,13 @@ function SectionLabel({
       autoFocus={pill}
       onEmptyDelete={pill ? () => onCommit("") : undefined}
       onDone={onCommit}
-      onBlur={(next) => finish(next)}
+      onBlur={(next, event) => {
+        if (onStay?.(event)) {
+          onCommit(next);
+          return;
+        }
+        finish(next);
+      }}
       className={
         pill
           ? "min-w-[4.5em] bg-transparent t-label text-[var(--ink)] caret-[var(--ink)]"
@@ -349,11 +360,14 @@ export function CardEditList({
   const setRubricLabel = useAppStore((state) => state.setRubricLabel);
   const addCustomZone = useAppStore((state) => state.addCustomZone);
   const hideZone = useAppStore((state) => state.hideZone);
+  const addContactItem = useAppStore((state) => state.addContactItem);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
   const cards = useAppStore((state) => state.cards);
+  const desktop = useFinePointer();
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
+  const [seedZoneId, setSeedZoneId] = useState<string | null>(null);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [hideReadyId, setHideReadyId] = useState<string | null>(null);
   const openZoneRef = useRef<((zone: CardZoneId) => void) | null>(null);
@@ -361,6 +375,9 @@ export function CardEditList({
   const [libraryHint, setLibraryHint] = useState<"add" | "first" | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const extraBlockRef = useRef<HTMLDivElement>(null);
+  const extraValueRef = useRef<WrapFieldHandle>(null);
+  const [extraFrame, setExtraFrame] = useState({ left: 0, width: 0 });
   const keepExtraRef = useRef(false);
 
   const refuseDuplicate = (twinId: string) => {
@@ -405,6 +422,7 @@ export function CardEditList({
         setTextEditId(null);
         setDeleteReadyId(null);
         setHideReadyId(null);
+        setSeedZoneId(id);
         setSectionEditId(id);
       });
       const section = listRef.current?.querySelector(`[data-zone="${CSS.escape(id)}"]`);
@@ -417,16 +435,20 @@ export function CardEditList({
   });
 
   const sections = useMemo(() => buildSections(card, items, cards), [card, items, cards]);
-  const namingExtra = Boolean(sectionEditId && isExtraZoneId(sectionEditId));
-  const extraDock = useKeyboardDock(namingExtra, false);
+  const seeding = Boolean(seedZoneId && isExtraZoneId(seedZoneId));
+  const extraDockBottom = useKeyboardDock(seeding && !desktop, true);
+  const extraDocked = seeding && (!desktop || extraDockBottom > 0);
 
   useLayoutEffect(() => {
-    if (!sectionEditId || !isExtraZoneId(sectionEditId)) return;
-    listRef.current?.querySelector(`[data-zone="${CSS.escape(sectionEditId)}"]`)?.scrollIntoView({
-      block: "end",
-      inline: "nearest",
-    });
-  }, [sectionEditId, extraDock]);
+    if (!seeding) return;
+    const rect = listRef.current?.getBoundingClientRect();
+    if (rect) setExtraFrame({ left: rect.left, width: rect.width });
+  }, [seeding, extraDocked]);
+
+  useLayoutEffect(() => {
+    if (!seeding) return;
+    extraBlockRef.current?.querySelector<HTMLElement>("[contenteditable]")?.focus();
+  }, [seeding]);
 
   useEffect(() => {
     if (!deleteReadyId && !hideReadyId) return;
@@ -503,128 +525,226 @@ export function CardEditList({
     });
   };
 
+  const endSeed = (zoneId?: string) => {
+    setSeedZoneId((current) => (zoneId && current !== zoneId ? current : null));
+    setSectionEditId((current) => (zoneId && current !== zoneId ? current : null));
+  };
+
+  const seedItem = (zoneId: string, raw: string) => {
+    const value = raw.trim();
+    if (!value) {
+      endSeed(zoneId);
+      return;
+    }
+    const twin = findIdenticalItem(useAppStore.getState().contactItems, value);
+    if (twin) {
+      refuseDuplicate(twin.id);
+      return;
+    }
+    const id = addContactItem();
+    if (!id) {
+      endSeed(zoneId);
+      return;
+    }
+    updateContactItem(id, { value });
+    const item = useAppStore.getState().contactItems.find((row) => row.id === id);
+    if (!item || !isContactFilled(item)) {
+      deleteContactItem(id);
+      endSeed(zoneId);
+      return;
+    }
+    addItemToCard(card.id, id, zoneId);
+    endSeed(zoneId);
+  };
+
+  const stayInSeed = (event: FocusEvent<HTMLDivElement>) =>
+    Boolean(extraBlockRef.current?.contains(event.relatedTarget as Node | null));
+
   return (
     <div
       ref={listRef}
       data-card-chip-list={card.id}
       data-card-content
-      style={namingExtra && extraDock ? { paddingBottom: extraDock } : undefined}
+      style={extraDocked ? { paddingBottom: extraDockBottom } : undefined}
     >
-      {sections.map((section, index) => (
-        <section
-          key={section.id}
-          data-zone={section.id}
-          className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b border-[var(--rule)]")}
-        >
-          <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
-            <div className="min-w-0">
-              <SectionNumber value={sectionNumberLabel(index)} />
-              <div className="mt-[6px]">
-                <SectionLabel
-                  title={section.title}
-                  included={section.included}
-                  editing={sectionEditId === section.id}
-                  hideReady={hideReadyId === section.id}
-                  pill={isExtraZoneId(section.id)}
-                  onEdit={() => {
-                    setTextEditId(null);
-                    setDeleteReadyId(null);
-                    setHideReadyId(null);
-                    setSectionEditId(section.id);
-                  }}
-                  onCommit={(next) => {
-                    const name = next.trim();
-                    if (isExtraZoneId(section.id) && !name) {
-                      setSectionEditId(null);
-                      if (keepExtraRef.current) {
-                        keepExtraRef.current = false;
+      {sections.map((section, index) => {
+        const seedingThis = seedZoneId === section.id;
+        const zone = (
+          <section
+            data-zone={section.id}
+            className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b border-[var(--rule)]")}
+          >
+            <div
+              ref={seedingThis ? extraBlockRef : undefined}
+              className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]"
+            >
+              <div className="min-w-0">
+                <SectionNumber value={sectionNumberLabel(index)} />
+                <div className="mt-[6px]">
+                  <SectionLabel
+                    title={section.title}
+                    included={section.included}
+                    editing={sectionEditId === section.id}
+                    hideReady={hideReadyId === section.id}
+                    pill={isExtraZoneId(section.id)}
+                    seed={seedingThis}
+                    onStay={seedingThis ? stayInSeed : undefined}
+                    onEdit={() => {
+                      setTextEditId(null);
+                      setDeleteReadyId(null);
+                      setHideReadyId(null);
+                      setSectionEditId(section.id);
+                      if (isExtraZoneId(section.id) && !section.title.trim() && section.rows.length === 0) {
+                        setSeedZoneId(section.id);
+                      }
+                    }}
+                    onCommit={(next) => {
+                      const name = next.trim();
+                      if (isExtraZoneId(section.id) && !name) {
+                        if (keepExtraRef.current) {
+                          keepExtraRef.current = false;
+                          return;
+                        }
+                        if (extraValueRef.current?.text().trim()) return;
+                        endSeed(section.id);
+                        if (section.rows.length === 0) hideZone(card.id, section.id);
                         return;
                       }
-                      if (section.rows.length === 0) hideZone(card.id, section.id);
-                      return;
-                    }
-                    keepExtraRef.current = false;
-                    setRubricLabel(card.id, section.id, next);
-                    setSectionEditId(null);
-                  }}
-                  onArmHide={() => {
-                    setTextEditId(null);
-                    setSectionEditId(null);
-                    setDeleteReadyId(null);
-                    setHideReadyId(section.id);
-                  }}
-                  onHide={() => {
-                    hideZone(card.id, section.id);
-                    setHideReadyId(null);
-                  }}
-                />
-              </div>
-            </div>
-            <ValueCap className="flex min-w-0 flex-col gap-[6px]">
-              {section.rows.map(({ row, onCard }) => {
-                const item = row.item;
-                if (!item) return null;
-                return (
-                  <EditRow
-                    key={item.id}
-                    itemId={item.id}
-                    text={lineOf(row)}
-                    value={row.value}
-                    multiline={
-                      section.id === "about" ||
-                      item.value.includes("\n") ||
-                      isProseValue(item.value)
-                    }
-                    onCard={onCard}
-                    editing={textEditId === item.id}
-                    deleteReady={deleteReadyId === item.id}
-                    onArmDelete={setDeleteReadyId}
-                    onDelete={askDelete}
-                    onToggle={() => toggleOnCard(item.id, section.id)}
-                    onEdit={startRowEdit}
-                    onConfirm={(next) => {
-                      saveRowText(item, row.value, next);
-                      setTextEditId(null);
+                      keepExtraRef.current = false;
+                      setRubricLabel(card.id, section.id, next);
+                      if (seedZoneId === section.id) {
+                        extraValueRef.current?.focusEnd();
+                        return;
+                      }
+                      setSectionEditId(null);
                     }}
-                    onErase={() => eraseRow(item.id)}
-                    fileUrl={isAttachmentType(item.type) ? row.url : undefined}
-                    onRetryFile={() => retryFile(item.id)}
+                    onArmHide={() => {
+                      setTextEditId(null);
+                      setSeedZoneId(null);
+                      setSectionEditId(null);
+                      setDeleteReadyId(null);
+                      setHideReadyId(section.id);
+                    }}
+                    onHide={() => {
+                      hideZone(card.id, section.id);
+                      endSeed(section.id);
+                      setHideReadyId(null);
+                    }}
                   />
-                );
-              })}
-              {section.rows.length === 0 && (ZONE_HINTS[section.id] || isExtraZoneId(section.id)) ? (
-                <button
-                  type="button"
-                  data-no-swipe
-                  data-zone-add=""
-                  className="t-body w-full bg-transparent text-left"
-                  style={{ color: OFF_CARD }}
-                  onPointerDown={() => {
-                    keepExtraRef.current = isExtraZoneId(section.id);
-                  }}
-                  onPointerUp={() => openZoneRef.current?.(section.id)}
-                >
-                  {ZONE_HINTS[section.id] ?? NEW_ZONE_HINT}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                data-no-swipe
-                data-zone-add=""
-                aria-label="Add to section"
-                className="t-body w-full bg-transparent text-left"
-                style={{ color: OFF_CARD }}
-                onPointerDown={() => {
-                  keepExtraRef.current = isExtraZoneId(section.id);
-                }}
-                onPointerUp={() => openZoneRef.current?.(section.id)}
-              >
-                +
-              </button>
-            </ValueCap>
-          </div>
-        </section>
-      ))}
+                </div>
+              </div>
+              <ValueCap className="flex min-w-0 flex-col gap-[6px]">
+                {section.rows.map(({ row, onCard }) => {
+                  const item = row.item;
+                  if (!item) return null;
+                  return (
+                    <EditRow
+                      key={item.id}
+                      itemId={item.id}
+                      text={lineOf(row)}
+                      value={row.value}
+                      multiline={
+                        section.id === "about" ||
+                        item.value.includes("\n") ||
+                        isProseValue(item.value)
+                      }
+                      onCard={onCard}
+                      editing={textEditId === item.id}
+                      deleteReady={deleteReadyId === item.id}
+                      onArmDelete={setDeleteReadyId}
+                      onDelete={askDelete}
+                      onToggle={() => toggleOnCard(item.id, section.id)}
+                      onEdit={startRowEdit}
+                      onConfirm={(next) => {
+                        saveRowText(item, row.value, next);
+                        setTextEditId(null);
+                      }}
+                      onErase={() => eraseRow(item.id)}
+                      fileUrl={isAttachmentType(item.type) ? row.url : undefined}
+                      onRetryFile={() => retryFile(item.id)}
+                    />
+                  );
+                })}
+                {seedingThis ? (
+                  <WrapField
+                    ref={extraValueRef}
+                    label={ADD_PLACEHOLDER}
+                    placeholder={ADD_PLACEHOLDER}
+                    placeholderClassName="t-body text-[var(--placeholder)]"
+                    onDone={(next) => seedItem(section.id, next)}
+                    onEmptyDelete={() => {
+                      if (section.title.trim() || extraValueRef.current?.text().trim()) return;
+                      hideZone(card.id, section.id);
+                      endSeed(section.id);
+                    }}
+                    onBlur={(next, event) => {
+                      if (stayInSeed(event)) return;
+                      if (!next.trim()) {
+                        endSeed(section.id);
+                        return;
+                      }
+                      seedItem(section.id, next);
+                    }}
+                    className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
+                  />
+                ) : (
+                  <>
+                    {section.rows.length === 0 && (ZONE_HINTS[section.id] || isExtraZoneId(section.id)) ? (
+                      <button
+                        type="button"
+                        data-no-swipe
+                        data-zone-add=""
+                        className="t-body w-full bg-transparent text-left"
+                        style={{ color: OFF_CARD }}
+                        onPointerDown={() => {
+                          keepExtraRef.current = isExtraZoneId(section.id);
+                        }}
+                        onPointerUp={() => openZoneRef.current?.(section.id)}
+                      >
+                        {ZONE_HINTS[section.id] ?? NEW_ZONE_HINT}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      data-no-swipe
+                      data-zone-add=""
+                      aria-label="Add to section"
+                      className="t-body w-full bg-transparent text-left"
+                      style={{ color: OFF_CARD }}
+                      onPointerDown={() => {
+                        keepExtraRef.current = isExtraZoneId(section.id);
+                      }}
+                      onPointerUp={() => openZoneRef.current?.(section.id)}
+                    >
+                      +
+                    </button>
+                  </>
+                )}
+              </ValueCap>
+            </div>
+          </section>
+        );
+        return (
+          <Fragment key={section.id}>
+            {seedingThis && extraDocked
+              ? createPortal(
+                  <div
+                    data-no-swipe
+                    className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
+                    style={{ paddingBottom: extraDockBottom }}
+                  >
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
+                    />
+                    <div style={{ marginLeft: extraFrame.left, width: extraFrame.width }}>{zone}</div>
+                  </div>,
+                  document.body,
+                )
+              : zone}
+          </Fragment>
+        );
+      })}
       <AddLine
         cardId={card.id}
         openOnMount={composeOnMount}
