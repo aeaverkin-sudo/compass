@@ -360,7 +360,6 @@ export const CardEditList = memo(function CardEditList({
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
   const [seedZoneId, setSeedZoneId] = useState<string | null>(null);
-  const [seedValueOpen, setSeedValueOpen] = useState(false);
   const advanceSeedRef = useRef(false);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [hideReadyId, setHideReadyId] = useState<string | null>(null);
@@ -417,7 +416,6 @@ export const CardEditList = memo(function CardEditList({
         setDeleteReadyId(null);
         setHideReadyId(null);
         setSeedZoneId(id);
-        setSeedValueOpen(false);
         setSectionEditId(id);
       });
       const section = listRef.current?.querySelector(`[data-zone="${CSS.escape(id)}"]`);
@@ -444,14 +442,9 @@ export const CardEditList = memo(function CardEditList({
   }, [seeding, extraDocked]);
 
   useLayoutEffect(() => {
-    if (!seeding || seedValueOpen) return;
+    if (!seeding) return;
     extraBlockRef.current?.querySelector<HTMLElement>("[contenteditable]")?.focus();
-  }, [seeding, seedValueOpen]);
-
-  useLayoutEffect(() => {
-    if (!seedValueOpen) return;
-    extraValueRef.current?.focusEnd();
-  }, [seedValueOpen]);
+  }, [seeding]);
 
   useEffect(() => {
     if (!deleteReadyId && !hideReadyId) return;
@@ -547,7 +540,6 @@ export const CardEditList = memo(function CardEditList({
   const endSeed = (zoneId?: string) => {
     setSeedZoneId((current) => (zoneId && current !== zoneId ? current : null));
     setSectionEditId((current) => (zoneId && current !== zoneId ? current : null));
-    if (!zoneId || zoneId === seedZoneId) setSeedValueOpen(false);
   };
 
   const seedItem = (zoneId: string, raw: string) => {
@@ -614,8 +606,8 @@ export const CardEditList = memo(function CardEditList({
                       advanceSeedRef.current = true;
                       const name = next.trim();
                       if (name) setRubricLabel(card.id, section.id, name);
+                      extraValueRef.current?.focusEnd();
                       setSectionEditId(null);
-                      setSeedValueOpen(true);
                     }}
                     onEdit={() => {
                       setTextEditId(null);
@@ -632,6 +624,7 @@ export const CardEditList = memo(function CardEditList({
                         advanceSeedRef.current = false;
                         keepExtraRef.current = false;
                         if (name) setRubricLabel(card.id, section.id, next);
+                        extraValueRef.current?.focusEnd();
                         setSectionEditId(null);
                         return;
                       }
@@ -641,6 +634,11 @@ export const CardEditList = memo(function CardEditList({
                           return;
                         }
                         if (extraValueRef.current?.text().trim()) return;
+                        const valueEl = extraValueRef.current?.element();
+                        if (seedZoneId === section.id && valueEl?.contains(document.activeElement)) {
+                          setSectionEditId(null);
+                          return;
+                        }
                         endSeed(section.id);
                         if (section.rows.length === 0) hideZone(card.id, section.id);
                         return;
@@ -648,8 +646,8 @@ export const CardEditList = memo(function CardEditList({
                       keepExtraRef.current = false;
                       setRubricLabel(card.id, section.id, next);
                       if (seedZoneId === section.id) {
+                        extraValueRef.current?.focusEnd();
                         setSectionEditId(null);
-                        setSeedValueOpen(true);
                         return;
                       }
                       setSectionEditId(null);
@@ -657,7 +655,6 @@ export const CardEditList = memo(function CardEditList({
                     onArmHide={() => {
                       setTextEditId(null);
                       setSeedZoneId(null);
-                      setSeedValueOpen(false);
                       setSectionEditId(null);
                       setDeleteReadyId(null);
                       setHideReadyId(section.id);
@@ -700,12 +697,15 @@ export const CardEditList = memo(function CardEditList({
                     />
                   );
                 })}
-                {seedingThis && seedValueOpen ? (
+                {seedingThis ? (
                   <WrapField
                     ref={extraValueRef}
                     label={ADD_PLACEHOLDER}
                     placeholder={ADD_PLACEHOLDER}
                     placeholderClassName="t-body text-[var(--placeholder)]"
+                    onPointerDown={() => {
+                      advanceSeedRef.current = true;
+                    }}
                     onDone={(next) => seedItem(section.id, next)}
                     onEmptyDelete={() => {
                       if (section.title.trim() || extraValueRef.current?.text().trim()) return;
@@ -732,18 +732,9 @@ export const CardEditList = memo(function CardEditList({
                       className="t-body w-full bg-transparent text-left"
                       style={{ color: OFF_CARD }}
                       onPointerDown={() => {
-                        if (seedingThis) {
-                          advanceSeedRef.current = true;
-                          keepExtraRef.current = true;
-                          setSeedValueOpen(true);
-                          return;
-                        }
                         keepExtraRef.current = isExtraZoneId(section.id);
                       }}
-                      onPointerUp={() => {
-                        if (seedingThis) return;
-                        openZoneRef.current?.(section.id);
-                      }}
+                      onPointerUp={() => openZoneRef.current?.(section.id)}
                     >
                       +
                     </button>
