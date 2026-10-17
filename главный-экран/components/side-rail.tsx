@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  memo,
   useEffect,
   useRef,
   useState,
@@ -149,7 +150,29 @@ function measureAnchors(rail: HTMLElement, fallbackQrTop: number): { qr: Anchor;
   };
 }
 
-export function SideRail({
+function sameRailCard(a: Card, b: Card) {
+  return (
+    a.id === b.id &&
+    a.publicToken === b.publicToken &&
+    a.handle === b.handle &&
+    a.displayName === b.displayName &&
+    a.photoAttachmentId === b.photoAttachmentId &&
+    a.nextScanAddons === b.nextScanAddons
+  );
+}
+
+/** One rail is on screen. Keep the last card object when a tap only changes rows, so the rail does not redraw. */
+const railCardCache = new Map<string, Card>();
+
+function selectRailCard(cards: Card[], cardId: string, fallback: Card) {
+  const found = cards.find((entry) => entry.id === cardId) ?? fallback;
+  const cached = railCardCache.get(cardId);
+  if (cached && sameRailCard(cached, found)) return cached;
+  railCardCache.set(cardId, found);
+  return found;
+}
+
+export const SideRail = memo(function SideRail({
   qrTop,
   counterRightCss,
   card,
@@ -168,13 +191,15 @@ export function SideRail({
   frozen: boolean;
   editing?: boolean;
 }) {
+  const cardId = card.id;
+  const liveCard = useAppStore((state) => selectRailCard(state.cards, cardId, card));
   const updateCard = useAppStore((state) => state.updateCard);
   const setRailDock = useAppStore((state) => state.setRailDock);
   const railDock = useAppStore((state) => (state.user.railDock === "photo" ? "photo" : "qr"));
   const railLook = useAppStore((state) => (state.user.railLook === "shadow" ? "shadow" : undefined));
   const setRailLook = useAppStore((state) => state.setRailLook);
-  const share = useCardShare(card);
-  const canShare = Boolean(card.publicToken) && !frozen;
+  const share = useCardShare(liveCard);
+  const canShare = Boolean(liveCard.publicToken) && !frozen;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<RailDock>(railDock);
@@ -215,7 +240,7 @@ export function SideRail({
       node.draggable = false;
       node.setAttribute("draggable", "false");
     }
-  }, [card.id, showPlus, dragging]);
+  }, [liveCard.id, showPlus, dragging]);
 
   const mountShield = () => {
     if (shieldRef.current || typeof document === "undefined") return;
@@ -368,7 +393,7 @@ export function SideRail({
       if (node) node.style.transition = "none";
     }, 480);
     return () => window.clearTimeout(timer);
-  }, [railDock, qrTop, card.id, editing]);
+  }, [railDock, qrTop, liveCard.id, editing]);
 
   useEffect(() => {
     const onResize = () => syncAnchors();
@@ -380,7 +405,7 @@ export function SideRail({
       window.removeEventListener("resize", onResize);
       window.visualViewport?.removeEventListener("resize", onResize);
     };
-  }, [qrTop, card.id]);
+  }, [qrTop, liveCard.id]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -630,7 +655,7 @@ export function SideRail({
       ) : null}
       <RailMark height={SHARE_SLOT_PX} inert={dragging}>
         <CardShareControl
-          card={card}
+          card={liveCard}
           onShare={canShare ? share.handleShare : undefined}
           onPrepareShare={canShare ? share.primeShare : undefined}
           size={MARK_PX}
@@ -649,8 +674,8 @@ export function SideRail({
         {showPlus ? (
           <NextScanMenu
             bare
-            addons={getNextScanAddons(card)}
-            onSetAddons={(addons) => updateCard(card.id, { nextScanAddons: addons })}
+            addons={getNextScanAddons(liveCard)}
+            onSetAddons={(addons) => updateCard(liveCard.id, { nextScanAddons: addons })}
           />
         ) : null}
       </RailMark>
@@ -661,4 +686,13 @@ export function SideRail({
       </RailMark>
     </div>
   );
-}
+}, (prev, next) =>
+  prev.qrTop === next.qrTop &&
+  prev.counterRightCss === next.counterRightCss &&
+  prev.index === next.index &&
+  prev.total === next.total &&
+  prev.showPlus === next.showPlus &&
+  prev.frozen === next.frozen &&
+  prev.editing === next.editing &&
+  prev.card.id === next.card.id,
+);

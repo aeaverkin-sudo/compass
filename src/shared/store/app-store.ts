@@ -2,7 +2,7 @@
 
 import { nanoid } from "nanoid";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
 import {
   contactItemFromAttachment,
   createEmptyContactItem,
@@ -138,6 +138,72 @@ function itemForDisk(item: ContactItem): ContactItem {
 
 /** Latest upload per row. A replaced upload that finishes late is ignored. */
 const uploadRuns = new Map<string, number>();
+
+/**
+ * Paint the tap first. Stringify and localStorage run after the frame, and the latest
+ * snapshot wins. Leaving the page writes immediately so a closed tab does not drop it.
+ */
+function idlePersistStorage<S>(): PersistStorage<S> {
+  let pending: { name: string; value: StorageValue<S> } | null = null;
+  let timer = 0;
+
+  const writeNow = () => {
+    const next = pending;
+    pending = null;
+    if (!next || typeof localStorage === "undefined") return;
+    try {
+      localStorage.setItem(next.name, JSON.stringify(next.value));
+    } catch {
+      // Private mode or a full disk. The live store stays in memory.
+    }
+  };
+
+  const flush = () => {
+    if (typeof window !== "undefined" && timer) window.clearTimeout(timer);
+    timer = 0;
+    writeNow();
+  };
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("pagehide", flush);
+    window.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flush();
+    });
+  }
+
+  return {
+    getItem: (name) => {
+      if (pending?.name === name) return pending.value;
+      if (typeof localStorage === "undefined") return null;
+      const raw = localStorage.getItem(name);
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw) as StorageValue<S>;
+      } catch {
+        return null;
+      }
+    },
+    setItem: (name, value) => {
+      pending = { name, value };
+      if (typeof window === "undefined") {
+        writeNow();
+        return;
+      }
+      if (timer) return;
+      timer = window.setTimeout(() => {
+        timer = 0;
+        writeNow();
+      }, 48);
+    },
+    removeItem: (name) => {
+      pending = null;
+      if (typeof window !== "undefined" && timer) window.clearTimeout(timer);
+      timer = 0;
+      if (typeof localStorage === "undefined") return;
+      localStorage.removeItem(name);
+    },
+  };
+}
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -694,6 +760,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "compass-storage-v4",
+      storage: idlePersistStorage(),
       version: 10,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
