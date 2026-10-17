@@ -151,6 +151,28 @@ function unusedExtraId(card: Card, keepId?: string) {
   return null;
 }
 
+function FileAddButton({
+  onClick,
+  onPointerDown,
+}: {
+  onClick: () => void;
+  onPointerDown?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-no-swipe
+      aria-label="Add photo or file"
+      onMouseDown={(event) => event.preventDefault()}
+      onPointerDown={onPointerDown}
+      onClick={onClick}
+      className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
+    >
+      <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
+    </button>
+  );
+}
+
 function HeadingCompose({
   field,
   lined = false,
@@ -314,13 +336,9 @@ function SectionLabel({
         ? createPortal(
             <div
               data-no-swipe
-              className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
+              className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
               style={{ paddingBottom: dockBottom }}
             >
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
-              />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
                 <HeadingCompose field={field} lined />
               </div>
@@ -569,6 +587,21 @@ export const CardEditList = memo(function CardEditList({
     endSeed(zoneId);
   };
 
+  const addSeedFile = (zoneId: string) => {
+    openContactAttachmentPicker((dataUrl, file) => {
+      const id = addContactItem();
+      if (!id) return;
+      const result = updateContactItemAttachment(card.id, id, file, dataUrl);
+      if (!result.ok) {
+        deleteContactItem(id);
+        useUploadStatus.getState().fail(id, result.message);
+        return;
+      }
+      addItemToCard(card.id, id, zoneId);
+      endSeed(zoneId);
+    });
+  };
+
   const stayInSeed = (event: FocusEvent<HTMLDivElement>) =>
     Boolean(extraBlockRef.current?.contains(event.relatedTarget as Node | null));
 
@@ -584,13 +617,21 @@ export const CardEditList = memo(function CardEditList({
         const zone = (
           <section
             data-zone={section.id}
-            className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b border-[var(--rule)]")}
+            className={cn(
+              "min-w-0",
+              seedingThis && extraDocked ? "pb-3" : "py-[18px]",
+              !(seedingThis && extraDocked) && index < sections.length - 1 && "border-b border-[var(--rule)]",
+            )}
           >
             <div
               ref={seedingThis ? extraBlockRef : undefined}
-              className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]"
+              className={cn(
+                seedingThis
+                  ? "flex min-w-0 items-stretch"
+                  : "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]",
+              )}
             >
-              <div className="min-w-0">
+              <div className={cn("min-w-0", seedingThis && "w-[86px] shrink-0")}>
                 <SectionNumber value={sectionNumberLabel(index)} />
                 <div className="mt-[6px]">
                   <SectionLabel
@@ -667,7 +708,10 @@ export const CardEditList = memo(function CardEditList({
                   />
                 </div>
               </div>
-              <ValueCap className="flex min-w-0 flex-col gap-[6px]">
+              {seedingThis ? (
+                <div aria-hidden className="mx-[14px] w-px self-stretch bg-[var(--rule)]" />
+              ) : null}
+              <ValueCap className={cn("flex min-w-0 flex-col gap-[6px]", seedingThis && "flex-1")}>
                 {section.rows.map(({ row, onCard }) => {
                   const item = row.item;
                   if (!item) return null;
@@ -698,31 +742,42 @@ export const CardEditList = memo(function CardEditList({
                   );
                 })}
                 {seedingThis ? (
-                  <WrapField
-                    ref={extraValueRef}
-                    label={ADD_PLACEHOLDER}
-                    placeholder={ADD_PLACEHOLDER}
-                    placeholderClassName="t-body text-[var(--placeholder)]"
-                    onPointerDown={() => {
-                      advanceSeedRef.current = true;
-                    }}
-                    onDone={(next) => seedItem(section.id, next)}
-                    onEmptyDelete={() => {
-                      if (section.title.trim() || extraValueRef.current?.text().trim()) return;
-                      hideZone(card.id, section.id);
-                      endSeed(section.id);
-                    }}
-                    onBlur={(next, event) => {
-                      if (stayInSeed(event)) return;
-                      if (!next.trim()) {
-                        if (!section.title.trim()) hideZone(card.id, section.id);
+                  <div className="flex min-w-0 items-start gap-[11px]">
+                    <FileAddButton
+                      onPointerDown={() => {
+                        advanceSeedRef.current = true;
+                      }}
+                      onClick={() => addSeedFile(section.id)}
+                    />
+                    <WrapField
+                      ref={extraValueRef}
+                      label={ADD_PLACEHOLDER}
+                      placeholder={ADD_PLACEHOLDER}
+                      placeholderClassName="t-body text-[var(--placeholder)]"
+                      onPointerDown={() => {
+                        advanceSeedRef.current = true;
+                      }}
+                      onDone={(next) => seedItem(section.id, next)}
+                      onEmptyDelete={() => {
+                        if (section.title.trim() || extraValueRef.current?.text().trim()) return;
+                        hideZone(card.id, section.id);
                         endSeed(section.id);
-                        return;
-                      }
-                      seedItem(section.id, next);
-                    }}
-                    className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
-                  />
+                      }}
+                      onBlur={(next, event) => {
+                        if (stayInSeed(event)) return;
+                        if (!next.trim()) {
+                          if (!section.title.trim()) hideZone(card.id, section.id);
+                          endSeed(section.id);
+                          return;
+                        }
+                        seedItem(section.id, next);
+                      }}
+                      className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
+                    />
+                    <div className="pointer-events-none">
+                      <LibraryCheck onCard={false} onToggle={() => undefined} />
+                    </div>
+                  </div>
                 ) : (
                     <button
                       type="button"
@@ -749,13 +804,9 @@ export const CardEditList = memo(function CardEditList({
               ? createPortal(
                   <div
                     data-no-swipe
-                    className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
+                    className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
                     style={{ paddingBottom: extraDockBottom }}
                   >
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
-                    />
                     <div style={{ marginLeft: extraFrame.left, width: extraFrame.width }}>{zone}</div>
                   </div>,
                   document.body,
@@ -1103,17 +1154,12 @@ function AddLine({
       <div ref={anchorRef} className="h-0" aria-hidden />
       {open
         ? createPortal(
-            // White from the line to the screen bottom. A short fade above the text dissolves the header.
             <div
               ref={lineRef}
               data-no-swipe
-              className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
+              className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
               style={{ paddingBottom: dockBottom }}
             >
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
-              />
               <div
                 ref={rowRef}
                 className="overflow-y-auto overscroll-contain"
@@ -1144,16 +1190,7 @@ function AddLine({
                   ) : fileItem ? (
                     <FileIcon className="size-7 shrink-0 text-[#111]" strokeWidth={1} aria-hidden />
                   ) : (
-                    <button
-                      type="button"
-                      data-no-swipe
-                      aria-label="Add photo or file"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={takeAttachment}
-                      className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
-                    >
-                      <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
-                    </button>
+                    <FileAddButton onClick={takeAttachment} />
                   )}
                   <WrapField
                     ref={fieldRef}
@@ -1161,6 +1198,7 @@ function AddLine({
                     placeholder={fileItem ? fileItem.value : (pinZone && ZONE_HINTS[pinZone]) || ADD_PLACEHOLDER}
                     placeholderClassName="text-[16px] text-[var(--grey)]"
                     multiline={!fileItemId && !enterFinishes(text, pinZone)}
+                    breakButton={false}
                     onTextChange={(next) => {
                       setText(next);
                       setError(null);
@@ -1192,7 +1230,7 @@ function AddLine({
                     className="min-w-0 flex-1 bg-transparent p-0 text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
                   />
                   <div className="pointer-events-none">
-                    <LibraryCheck onCard onToggle={() => undefined} />
+                    <LibraryCheck onCard={false} onToggle={() => undefined} />
                   </div>
                 </div>
               </div>
@@ -1355,13 +1393,9 @@ const EditRow = memo(function EditRow({
         ? createPortal(
             <div
               data-no-swipe
-              className="fixed inset-x-0 bottom-0 z-50 bg-[#fff]"
+              className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
               style={{ paddingBottom: dockBottom }}
             >
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
-              />
               <div
                 className="overflow-y-auto overscroll-contain"
                 style={{ marginLeft: frame.left, width: frame.width, maxHeight: dockReach(dockBottom) }}
@@ -1375,6 +1409,7 @@ const EditRow = memo(function EditRow({
                     onTextChange={(next) => {
                       if (!next.trim()) onErase(itemId);
                     }}
+                    breakButton={false}
                     onDone={(next) => onConfirm(itemId, value, next)}
                     onBlur={(next) => {
                       if (!next.trim()) return;

@@ -62,6 +62,7 @@ export function WrapField({
   className,
   placeholderClassName,
   multiline = false,
+  breakButton = true,
   onTextChange,
   onDone,
   onEmptyDelete,
@@ -78,6 +79,8 @@ export function WrapField({
   grow?: boolean;
   /** Additional / about text. Enter inserts a line. Other rows stay one paragraph. */
   multiline?: boolean;
+  /** The composer sends from the keyboard check, so it hides the in-row return glyph. */
+  breakButton?: boolean;
   className?: string;
   placeholderClassName?: string;
   onTextChange?: (text: string) => void;
@@ -196,7 +199,7 @@ export function WrapField({
           {initial}
         </div>
       </div>
-      {multiline ? (
+      {multiline && breakButton ? (
         <button
           type="button"
           aria-label="New line"
