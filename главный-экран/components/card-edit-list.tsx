@@ -98,6 +98,7 @@ function buildSections(card: Card, items: ContactItem[], cards: Card[]): EditSec
 
 function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => void }) {
   const origin = useRef<{ x: number; y: number } | null>(null);
+  const viaPointer = useRef(false);
   return (
     <Checkbox
       variant="library"
@@ -106,6 +107,7 @@ function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => v
       aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
       className="relative z-10 -mr-[11px] -mt-[11px]"
       onPointerDown={(event) => {
+        viaPointer.current = false;
         origin.current = { x: event.clientX, y: event.clientY };
       }}
       onPointerUp={(event) => {
@@ -118,14 +120,20 @@ function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => v
           const dy = event.clientY - start.y;
           if (dx * dx + dy * dy > REORDER_SLOP_PX * REORDER_SLOP_PX) return;
         }
+        viaPointer.current = true;
         onToggle();
       }}
       onPointerCancel={() => {
         origin.current = null;
+        viaPointer.current = false;
       }}
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
+        if (viaPointer.current) {
+          viaPointer.current = false;
+          return;
+        }
         if (event.detail === 0) onToggle();
       }}
       onCheckedChange={() => undefined}
@@ -338,7 +346,7 @@ function SectionLabel({
   );
 }
 
-export function CardEditList({
+export const CardEditList = memo(function CardEditList({
   card,
   items,
   composeOnMount = false,
@@ -361,7 +369,6 @@ export function CardEditList({
   const hideZone = useAppStore((state) => state.hideZone);
   const addContactItem = useAppStore((state) => state.addContactItem);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
-  const cards = useAppStore((state) => state.cards);
   const desktop = useFinePointer();
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
@@ -379,11 +386,11 @@ export function CardEditList({
   const [extraFrame, setExtraFrame] = useState({ left: 0, width: 0 });
   const keepExtraRef = useRef(false);
 
-  const refuseDuplicate = (twinId: string) => {
+  const refuseDuplicate = useCallback((twinId: string) => {
     tick();
     flashRow(listRef.current?.querySelector<HTMLElement>(`[data-item-row="${CSS.escape(twinId)}"]`));
     setDuplicateNotice((count) => count + 1);
-  };
+  }, []);
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
@@ -433,7 +440,10 @@ export function CardEditList({
     };
   });
 
-  const sections = useMemo(() => buildSections(card, items, cards), [card, items, cards]);
+  const sections = useMemo(
+    () => buildSections(card, items, useAppStore.getState().cards),
+    [card, items],
+  );
   const seeding = Boolean(seedZoneId && isExtraZoneId(seedZoneId));
   const extraDockBottom = useKeyboardDock(seeding && !desktop, true);
   const extraDocked = seeding && (!desktop || extraDockBottom > 0);
@@ -485,7 +495,7 @@ export function CardEditList({
     setTextEditId(itemId);
   }, []);
 
-  const saveRowText = (item: ContactItem, shown: string, next: string) => {
+  const saveRowText = useCallback((item: ContactItem, shown: string, next: string) => {
     const trimmed = next.trim();
     if (!trimmed || trimmed === shown) return;
     const stored =
@@ -504,25 +514,41 @@ export function CardEditList({
     }
     updateContactItem(item.id, stored ? { label: trimmed } : { value: trimmed });
     if (card.headerItemId === item.id) updateCard(card.id, { title: trimmed });
-  };
+  }, [card.headerItemId, card.id, refuseDuplicate, updateCard, updateContactItem]);
 
-  const eraseRow = (itemId: string) => {
-    if (card.headerItemId === itemId) updateCard(card.id, { headerItemId: undefined, title: "" });
-    setTextEditId(null);
-    setDeleteReadyId(null);
-    deleteContactItem(itemId);
-  };
+  const confirmRow = useCallback(
+    (itemId: string, shown: string, next: string) => {
+      const item = useAppStore.getState().contactItems.find((row) => row.id === itemId);
+      if (!item) return;
+      saveRowText(item, shown, next);
+      setTextEditId(null);
+    },
+    [saveRowText],
+  );
 
-  const askDelete = (itemId: string) => {
+  const eraseRow = useCallback(
+    (itemId: string) => {
+      if (card.headerItemId === itemId) updateCard(card.id, { headerItemId: undefined, title: "" });
+      setTextEditId(null);
+      setDeleteReadyId(null);
+      deleteContactItem(itemId);
+    },
+    [card.headerItemId, card.id, deleteContactItem, updateCard],
+  );
+
+  const askDelete = useCallback((itemId: string) => {
     setConfirmDelete(itemId);
-  };
+  }, []);
 
-  const retryFile = (itemId: string) => {
-    openContactAttachmentPicker((dataUrl, file) => {
-      const result = updateContactItemAttachment(card.id, itemId, file, dataUrl);
-      if (!result.ok) useUploadStatus.getState().fail(itemId, result.message);
-    });
-  };
+  const retryFile = useCallback(
+    (itemId: string) => {
+      openContactAttachmentPicker((dataUrl, file) => {
+        const result = updateContactItemAttachment(card.id, itemId, file, dataUrl);
+        if (!result.ok) useUploadStatus.getState().fail(itemId, result.message);
+      });
+    },
+    [card.id, updateContactItemAttachment],
+  );
 
   const endSeed = (zoneId?: string) => {
     setSeedZoneId((current) => (zoneId && current !== zoneId ? current : null));
@@ -640,6 +666,7 @@ export function CardEditList({
                     <EditRow
                       key={item.id}
                       itemId={item.id}
+                      zoneId={section.id}
                       text={lineOf(row)}
                       value={row.value}
                       multiline={
@@ -652,15 +679,12 @@ export function CardEditList({
                       deleteReady={deleteReadyId === item.id}
                       onArmDelete={setDeleteReadyId}
                       onDelete={askDelete}
-                      onToggle={() => toggleOnCard(item.id, section.id)}
+                      onToggle={toggleOnCard}
                       onEdit={startRowEdit}
-                      onConfirm={(next) => {
-                        saveRowText(item, row.value, next);
-                        setTextEditId(null);
-                      }}
-                      onErase={() => eraseRow(item.id)}
+                      onConfirm={confirmRow}
+                      onErase={eraseRow}
                       fileUrl={isAttachmentType(item.type) ? row.url : undefined}
-                      onRetryFile={() => retryFile(item.id)}
+                      onRetryFile={retryFile}
                     />
                   );
                 })}
@@ -809,7 +833,7 @@ export function CardEditList({
       </Dialog.Root>
     </div>
   );
-}
+});
 
 /** Sky plaque at the very bottom. The first portfolio resets to photo and name; any other is deleted. */
 /**
@@ -1169,6 +1193,7 @@ function AddLine({
 
 const EditRow = memo(function EditRow({
   itemId,
+  zoneId,
   text,
   value,
   multiline,
@@ -1185,6 +1210,7 @@ const EditRow = memo(function EditRow({
   onRetryFile,
 }: {
   itemId: string;
+  zoneId: CardZoneId;
   text: string;
   value: string;
   /** Additional text. Enter stays inside this one block. */
@@ -1194,13 +1220,13 @@ const EditRow = memo(function EditRow({
   deleteReady: boolean;
   onArmDelete: (itemId: string) => void;
   onDelete: (itemId: string) => void;
-  onToggle: (itemId: string) => void;
+  onToggle: (itemId: string, zoneId: CardZoneId) => void;
   onEdit: (itemId: string) => void;
-  onConfirm: (next: string) => void;
-  onErase: () => void;
+  onConfirm: (itemId: string, shown: string, next: string) => void;
+  onErase: (itemId: string) => void;
   /** Set on file rows: the row shows its upload state under the name. */
   fileUrl?: string;
-  onRetryFile: () => void;
+  onRetryFile: (itemId: string) => void;
 }) {
   const fileStatus = useUploadStatus((state) => state.byItem[itemId]);
   const statusLine = fileUrl === undefined ? null : fileStatusLine(fileStatus, fileUrl);
@@ -1303,7 +1329,7 @@ const EditRow = memo(function EditRow({
           <button
             type="button"
             data-no-swipe
-            onClick={onRetryFile}
+            onClick={() => onRetryFile(itemId)}
             className="mr-[26px] block text-left t-meta text-[var(--grey)]"
           >
             {statusLine}
@@ -1334,16 +1360,16 @@ const EditRow = memo(function EditRow({
                     label="Edit row"
                     multiline={multiline}
                     onTextChange={(next) => {
-                      if (!next.trim()) onErase();
+                      if (!next.trim()) onErase(itemId);
                     }}
-                    onDone={onConfirm}
+                    onDone={(next) => onConfirm(itemId, value, next)}
                     onBlur={(next) => {
                       if (!next.trim()) return;
                       if (Date.now() - openedAt.current < 700) {
                         dockRef.current?.focusEnd();
                         return;
                       }
-                      onConfirm(next);
+                      onConfirm(itemId, value, next);
                     }}
                     className="bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
                   />
@@ -1372,7 +1398,7 @@ const EditRow = memo(function EditRow({
             <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
           </button>
         ) : (
-          <LibraryCheck onCard={onCard} onToggle={() => onToggle(itemId)} />
+          <LibraryCheck onCard={onCard} onToggle={() => onToggle(itemId, zoneId)} />
         )}
       </div>
     </div>

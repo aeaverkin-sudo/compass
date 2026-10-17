@@ -108,47 +108,68 @@ function cardHeader(list: HTMLElement) {
   return header instanceof HTMLElement ? header : null;
 }
 
-/** Where a held row would land. Only slots inside its own section count. */
-function itemDropAt(list: HTMLElement, clientY: number, draggedId: string, zoneId: string) {
-  const section = [...list.querySelectorAll<HTMLElement>("[data-rubric]")].find(
-    (node) => node.dataset.rubric === zoneId,
-  );
-  if (!section) return null;
-  const rows = [...section.querySelectorAll<HTMLElement>("[data-reorder-row]")].filter(
-    (row) => row.dataset.reorderRow && row.dataset.reorderRow !== draggedId,
-  );
-  let index = rows.length;
-  for (let slot = 0; slot < rows.length; slot += 1) {
-    const rect = rows[slot]?.getBoundingClientRect();
-    if (!rect) continue;
-    // A long block counts as one stop: crossing its lower edge lands above the whole block.
-    const boundary = rect.height > 96 ? rect.bottom : rect.top + rect.height / 2;
-    if (clientY < boundary) {
-      index = slot;
-      break;
-    }
-  }
-  return { zoneId, index, home: false, reject: false };
-}
-
 function readTranslateY(node: HTMLElement) {
   const match = /translateY\(([-\d.]+)px\)/.exec(node.style.transform);
   return match ? Number(match[1]) : 0;
 }
 
-/** One stop per section. The pointer hits the section box, never a row inside it. */
-function sectionDropIndex(list: HTMLElement, clientY: number, from: number) {
-  const sections = [...list.querySelectorAll<HTMLElement>("[data-rubric]")];
-  if (sections.length === 0) return from;
-  const boxes = sections.map((node) => {
+type Box = { top: number; bottom: number; height: number };
+
+function measureScroller(scroller: HTMLElement | null) {
+  if (!scroller) return { top: 0, bottom: 0 };
+  const rect = scroller.getBoundingClientRect();
+  return { top: rect.top, bottom: rect.bottom };
+}
+
+function measureItemBoxes(list: HTMLElement, zoneId: string, draggedId: string): Box[] {
+  const section = [...list.querySelectorAll<HTMLElement>("[data-rubric]")].find(
+    (node) => node.dataset.rubric === zoneId,
+  );
+  if (!section) return [];
+  return [...section.querySelectorAll<HTMLElement>("[data-reorder-row]")]
+    .filter((row) => row.dataset.reorderRow && row.dataset.reorderRow !== draggedId)
+    .map((row) => {
+      const rect = row.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: rect.height };
+    });
+}
+
+function measureSectionBoxes(list: HTMLElement): Box[] {
+  return [...list.querySelectorAll<HTMLElement>("[data-rubric]")].map((node) => {
     const top = node.getBoundingClientRect().top - readTranslateY(node);
-    return { top, bottom: top + node.offsetHeight };
+    return { top, bottom: top + node.offsetHeight, height: node.offsetHeight };
   });
+}
+
+function itemIndexFromBoxes(boxes: Box[], clientY: number) {
+  let index = boxes.length;
+  for (let slot = 0; slot < boxes.length; slot += 1) {
+    const box = boxes[slot];
+    const boundary = box.height > 96 ? box.bottom : box.top + box.height / 2;
+    if (clientY < boundary) {
+      index = slot;
+      break;
+    }
+  }
+  return index;
+}
+
+function sectionIndexFromBoxes(boxes: Box[], clientY: number, from: number) {
+  if (boxes.length === 0) return from;
   if (clientY <= boxes[0].top) return 0;
   for (let index = 0; index < boxes.length; index += 1) {
     if (clientY < boxes[index].bottom) return index;
   }
-  return sections.length - 1;
+  return boxes.length - 1;
+}
+
+function liftNode(list: HTMLElement, current: ArrangeDrag) {
+  if (current.kind === "item") {
+    return list.querySelector<HTMLElement>(`[data-reorder-row="${CSS.escape(current.id)}"]`);
+  }
+  return [...list.querySelectorAll<HTMLElement>("[data-rubric]")].find(
+    (node) => node.dataset.rubric === current.id,
+  );
 }
 
 function ContactItemChipRow({
@@ -406,6 +427,14 @@ export function ContactItemChipList({
   const suppressClick = useRef(false);
   const detachGesture = useRef<(() => void) | null>(null);
   const cancelGrabRef = useRef<() => void>(() => {});
+  const dragBlockEl = useRef<HTMLElement | null>(null);
+  const liftEl = useRef<HTMLElement | null>(null);
+  const dragLayout = useRef<{
+    scrollerTop: number;
+    scrollerBottom: number;
+    sections: Box[];
+    rows: Box[];
+  } | null>(null);
   const [fade, setFade] = useState({ top: false, bottom: false });
   const composed = composeCard(items, publicToken, { rubricLabels, itemZones });
   const orderedZones = orderCardZones(composed.zones, rubricOrder);
@@ -446,6 +475,8 @@ export function ContactItemChipList({
       if (settleTimer.current) window.clearTimeout(settleTimer.current);
       if (edgeLoop.current) cancelAnimationFrame(edgeLoop.current);
       detachGesture.current?.();
+      const block = dragBlockEl.current;
+      if (block) block.removeEventListener("touchmove", blockTouchMove, true);
       document.removeEventListener("touchmove", blockTouchMove, true);
     };
   }, []);
@@ -483,29 +514,65 @@ export function ContactItemChipList({
     edgeLoop.current = 0;
   };
 
+  const stopDragBlock = () => {
+    const el = dragBlockEl.current;
+    if (el) el.removeEventListener("touchmove", blockTouchMove, true);
+    dragBlockEl.current = null;
+    document.removeEventListener("touchmove", blockTouchMove, true);
+  };
+
+  const captureLayout = (current: ArrangeDrag) => {
+    const list = listRef.current;
+    const scroller = list?.closest(".compass-card-scroll");
+    const port = scroller instanceof HTMLElement ? scroller : null;
+    const view = measureScroller(port);
+    dragLayout.current = {
+      scrollerTop: view.top,
+      scrollerBottom: view.bottom,
+      sections: current.kind === "rubric" && list ? measureSectionBoxes(list) : [],
+      rows: current.kind === "item" && list ? measureItemBoxes(list, current.zoneId, current.id) : [],
+    };
+    liftEl.current = list ? liftNode(list, current) ?? null : null;
+  };
+
+  const paintLift = (current: ArrangeDrag) => {
+    const node = liftEl.current;
+    if (!node) return;
+    node.style.transform = `translateY(${current.dy}px) scale(1.03)`;
+    node.style.transition = "none";
+  };
+
+  const dropFromCache = (current: ArrangeDrag, clientY: number) => {
+    const layout = dragLayout.current;
+    if (!layout) return false;
+    if (current.kind === "rubric") {
+      const to = sectionIndexFromBoxes(layout.sections, clientY, current.index);
+      return noteDrop(current, { zoneId: current.zoneId, index: to, home: false, reject: false });
+    }
+    const index = itemIndexFromBoxes(layout.rows, clientY);
+    return noteDrop(current, { zoneId: current.zoneId, index, home: false, reject: false });
+  };
+
   const pumpEdgeScroll = () => {
     const scroller = listRef.current?.closest(".compass-card-scroll");
+    const layout = dragLayout.current;
     if (scroller instanceof HTMLElement) {
-      const rect = scroller.getBoundingClientRect();
+      const top = layout?.scrollerTop ?? scroller.getBoundingClientRect().top;
+      const bottom = layout?.scrollerBottom ?? scroller.getBoundingClientRect().bottom;
       const y = edgeY.current;
       const band = 56;
-      const next = y < rect.top + band ? scroller.scrollTop - 12 : y > rect.bottom - band ? scroller.scrollTop + 12 : scroller.scrollTop;
+      const next = y < top + band ? scroller.scrollTop - 12 : y > bottom - band ? scroller.scrollTop + 12 : scroller.scrollTop;
       if (next !== scroller.scrollTop) {
         edgeScrolling.current = true;
         scroller.scrollTop = next;
         edgeScrolling.current = false;
+        const current = holdRef.current;
+        if (current?.active) captureLayout(current);
       }
     }
     const current = holdRef.current;
-    const list = listRef.current;
-    if (current?.active && !current.settling && list) {
-      if (current.kind === "rubric") {
-        const to = sectionDropIndex(list, edgeY.current, current.index);
-        if (noteDrop(current, { zoneId: current.zoneId, index: to, home: false, reject: false })) publishHold(current);
-      } else if (current.kind === "item") {
-        const drop = itemDropAt(list, edgeY.current, current.id, current.zoneId);
-        if (drop && noteDrop(current, drop)) publishHold(current);
-      }
+    if (current?.active && !current.settling) {
+      if (dropFromCache(current, edgeY.current)) publishHold(current);
     }
     edgeLoop.current = requestAnimationFrame(pumpEdgeScroll);
   };
@@ -607,7 +674,9 @@ export function ContactItemChipList({
     clearEntry();
     stopIdle();
     stopEdgeScroll();
-    document.removeEventListener("touchmove", blockTouchMove, true);
+    stopDragBlock();
+    dragLayout.current = null;
+    liftEl.current = null;
     const current = holdRef.current;
     if (!current) return;
     const list = listRef.current;
@@ -718,9 +787,13 @@ export function ContactItemChipList({
         }
         if (kind === "item" ? index >= 0 : zones.length >= 2) {
           suppressClick.current = true;
-          document.addEventListener("touchmove", blockTouchMove, { passive: false, capture: true });
+          const scroller = listRef.current.closest(".compass-card-scroll");
+          const blockOn = scroller instanceof HTMLElement ? scroller : listRef.current;
+          stopDragBlock();
+          blockOn.addEventListener("touchmove", blockTouchMove, { passive: false });
+          dragBlockEl.current = blockOn;
           reorderHaptic();
-          publishHold({
+          const nextHold: ArrangeDrag = {
             kind,
             zoneId,
             id,
@@ -737,7 +810,9 @@ export function ContactItemChipList({
             home: false,
             reject: false,
             settling: false,
-          });
+          };
+          publishHold(nextHold);
+          captureLayout(nextHold);
           stopEdgeScroll();
           edgeX.current = startX;
           edgeY.current = startY;
@@ -757,6 +832,8 @@ export function ContactItemChipList({
 
     let ended = false;
 
+    const dragging = () => Boolean(holdRef.current?.active && holdRef.current.pointerId === pointerId);
+
     const move = (native: PointerEvent) => {
       if (native.pointerId !== pointerId) return;
       lastMoveRef.current = Date.now();
@@ -768,26 +845,18 @@ export function ContactItemChipList({
         return;
       }
       if (current.settling) return;
-      native.preventDefault();
+      if (native.cancelable) native.preventDefault();
       current.dy = dy;
       edgeX.current = native.clientX;
       edgeY.current = native.clientY;
-      if (listRef.current) {
-        if (current.kind === "rubric") {
-          const to = sectionDropIndex(listRef.current, native.clientY, current.index);
-          noteDrop(current, { zoneId: current.zoneId, index: to, home: false, reject: false });
-        } else if (current.kind === "item") {
-          const drop = itemDropAt(listRef.current, native.clientY, current.id, current.zoneId);
-          if (drop) noteDrop(current, drop);
-        }
-      }
-      publishHold(current);
+      paintLift(current);
+      if (dropFromCache(current, native.clientY)) publishHold(current);
     };
 
     function detach() {
-      document.removeEventListener("pointermove", move, true);
-      document.removeEventListener("pointerup", up, true);
-      document.removeEventListener("pointercancel", cancel, true);
+      host.removeEventListener("pointermove", move);
+      host.removeEventListener("pointerup", up);
+      host.removeEventListener("pointercancel", cancel);
       window.removeEventListener("keydown", onKey);
       host.removeEventListener("lostpointercapture", lost);
       if (detachGesture.current === detach) detachGesture.current = null;
@@ -835,9 +904,9 @@ export function ContactItemChipList({
     };
 
     detachGesture.current = detach;
-    document.addEventListener("pointermove", move, { passive: false, capture: true });
-    document.addEventListener("pointerup", up, true);
-    document.addEventListener("pointercancel", cancel, true);
+    host.addEventListener("pointermove", move, dragging() ? { passive: false } : { passive: true });
+    host.addEventListener("pointerup", up);
+    host.addEventListener("pointercancel", cancel);
     window.addEventListener("keydown", onKey);
     host.addEventListener("lostpointercapture", lost);
   };
@@ -862,13 +931,16 @@ export function ContactItemChipList({
       if (document.visibilityState === "hidden") cancelGrabRef.current();
     };
     const onBlur = () => cancelGrabRef.current();
+    const onPageHide = () => cancelGrabRef.current();
     scroller?.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("blur", onBlur);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       scroller?.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("blur", onBlur);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, [canReorder, compact, orderKey]);
 
@@ -878,6 +950,7 @@ export function ContactItemChipList({
       arrangeMarker.current = false;
       arrangingRef.current = false;
       setArranging(false);
+      cancelGrabRef.current();
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);

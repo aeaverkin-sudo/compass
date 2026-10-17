@@ -390,16 +390,19 @@ export function SideRail({
       if (document.visibilityState === "hidden") cancelGesture();
     };
     const onBlur = () => cancelGesture();
+    const onPageHide = () => cancelGesture();
     const scroller = document.querySelector(".compass-card-scroll");
     scroller?.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("blur", onBlur);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       scroller?.removeEventListener("scroll", onScroll);
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("blur", onBlur);
+      window.removeEventListener("pagehide", onPageHide);
       cancelGesture();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount/unmount only
@@ -457,10 +460,16 @@ export function SideRail({
     startRef.current = { x: startX, y: startY, pointerId };
     clearHoldTimer();
     syncAnchors();
+    let ended = false;
+    try {
+      host.setPointerCapture(pointerId);
+    } catch {
+      // Capture fails if the pointer is already up.
+    }
 
     holdTimerRef.current = window.setTimeout(() => {
       holdTimerRef.current = null;
-      if (!pointerDownRef.current) return;
+      if (!pointerDownRef.current || ended) return;
       draggingRef.current = true;
       setDragging(true);
       setStyling(true);
@@ -479,6 +488,8 @@ export function SideRail({
         touchBlockRef.current = blockTouchMove;
         document.addEventListener("touchmove", blockTouchMove, { passive: false });
       }
+      host.removeEventListener("pointermove", move);
+      host.addEventListener("pointermove", move, { passive: false });
       host.style.transition = "transform 120ms ease-out, box-shadow 120ms ease-out";
       host.style.willChange = "transform";
       host.style.boxShadow = "0 6px 18px rgba(0,0,0,.14)";
@@ -488,8 +499,6 @@ export function SideRail({
         rootRef.current.style.transition = "none";
       });
     }, RAIL_HOLD_MS);
-
-    let ended = false;
 
     const move = (native: PointerEvent) => {
       if (native.pointerId !== pointerId) return;
@@ -510,9 +519,9 @@ export function SideRail({
     };
 
     const detach = () => {
-      document.removeEventListener("pointermove", move, true);
-      document.removeEventListener("pointerup", up, true);
-      document.removeEventListener("pointercancel", cancel, true);
+      host.removeEventListener("pointermove", move);
+      host.removeEventListener("pointerup", up);
+      host.removeEventListener("pointercancel", cancel);
       if (detachRef.current === detach) detachRef.current = null;
     };
 
@@ -557,9 +566,9 @@ export function SideRail({
     };
 
     detachRef.current = detach;
-    document.addEventListener("pointermove", move, { passive: false, capture: true });
-    document.addEventListener("pointerup", up, true);
-    document.addEventListener("pointercancel", cancel, true);
+    host.addEventListener("pointermove", move, { passive: true });
+    host.addEventListener("pointerup", up);
+    host.addEventListener("pointercancel", cancel);
   };
 
   const initial = anchorsRef.current[dockRef.current];
