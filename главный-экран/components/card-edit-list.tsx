@@ -1,7 +1,7 @@
 "use client";
 
 import { File as FileIcon, Pencil, Plus, X } from "lucide-react";
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ import { fileStatusLine, useUploadStatus } from "@/shared/store/upload-status";
 import { isAttachmentType } from "@/shared/services/portfolio-limits";
 import type { Card, ContactItem } from "@/shared/types";
 import { itemPhotoSrc } from "@/shared/services/card-photo";
-import { useKeyboardDock } from "@main/hooks/use-keyboard-dock";
+import { useFinePointer, useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
 const OFF_CARD = "var(--placeholder)";
@@ -134,6 +134,52 @@ function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => v
   );
 }
 
+function unusedExtraId(card: Card, keepId?: string) {
+  for (const id of card.rubricOrder ?? []) {
+    if (!isExtraZoneId(id) || id === keepId) continue;
+    if (card.rubricLabels?.[id]?.trim()) continue;
+    if (Object.values(card.itemZones ?? {}).some((zone) => zone === id)) continue;
+    return id;
+  }
+  return null;
+}
+
+function HeadingCompose({
+  pill,
+  hideReady,
+  onHide,
+  field,
+  lined = false,
+}: {
+  pill?: boolean;
+  hideReady: boolean;
+  onHide: () => void;
+  field: ReactNode;
+  lined?: boolean;
+}) {
+  if (!pill) {
+    return lined ? <div className="flex flex-col justify-end border-b border-[var(--rule)]">{field}</div> : field;
+  }
+  return (
+    <div className="relative inline-flex max-w-full items-center gap-[4px] rounded-full bg-sky px-[8px] py-[3px]">
+      <Pencil className="size-3 shrink-0" strokeWidth={1.5} style={{ color: "var(--placeholder)" }} aria-hidden />
+      {field}
+      {hideReady ? (
+        <button
+          type="button"
+          data-delete-marker
+          aria-label="Hide section"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={onHide}
+          className="flex size-6 shrink-0 items-center justify-center"
+        >
+          <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function SectionLabel({
   title,
   included,
@@ -158,7 +204,9 @@ function SectionLabel({
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<WrapFieldHandle>(null);
-  const dockBottom = useKeyboardDock(editing, true);
+  const desktop = useFinePointer();
+  const dockBottom = useKeyboardDock(editing && !desktop, true);
+  const docked = editing && (!desktop || dockBottom > 0);
   const openedAt = useRef(0);
   const pressedLong = useRef(false);
   const [frame, setFrame] = useState({ left: 0, width: 0 });
@@ -177,7 +225,7 @@ function SectionLabel({
   };
 
   const finish = (next: string) => {
-    if (Date.now() - openedAt.current < 700) {
+    if (!desktop && Date.now() - openedAt.current < 700) {
       dockRef.current?.focusEnd();
       return;
     }
@@ -191,7 +239,7 @@ function SectionLabel({
     const rect = list?.getBoundingClientRect();
     if (rect) setFrame({ left: rect.left, width: rect.width });
     dockRef.current?.focusEnd();
-  }, [editing]);
+  }, [editing, docked]);
 
   const field = (
     <WrapField
@@ -216,32 +264,36 @@ function SectionLabel({
   return (
     <>
       <div ref={wrapRef} className="relative min-w-0">
-        <button
-          type="button"
-          data-no-swipe
-          className={cn(
-            "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
-            editing && "invisible pointer-events-none",
-            hideReady && "opacity-40",
-          )}
-          style={{ color: included && title.trim() ? "var(--grey)" : OFF_CARD }}
-          onPointerDown={(event) => {
-            if (editing || hideReady) return;
-            pressedLong.current = false;
-            longPress.onPointerDown(event);
-          }}
-          onPointerMove={longPress.onPointerMove}
-          onPointerUp={() => {
-            longPress.onPointerUp();
-            if (editing || pressedLong.current || hideReady) return;
-            begin();
-          }}
-          onPointerCancel={longPress.onPointerUp}
-          onContextMenu={longPress.onContextMenu}
-        >
-          {shown}
-        </button>
-        {hideReady ? (
+        {editing && !docked ? (
+          <HeadingCompose pill={pill} hideReady={hideReady} onHide={onHide} field={field} />
+        ) : (
+          <button
+            type="button"
+            data-no-swipe
+            className={cn(
+              "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
+              editing && "invisible pointer-events-none",
+              hideReady && "opacity-40",
+            )}
+            style={{ color: included && title.trim() ? "var(--grey)" : OFF_CARD }}
+            onPointerDown={(event) => {
+              if (editing || hideReady) return;
+              pressedLong.current = false;
+              longPress.onPointerDown(event);
+            }}
+            onPointerMove={longPress.onPointerMove}
+            onPointerUp={() => {
+              longPress.onPointerUp();
+              if (editing || pressedLong.current || hideReady) return;
+              begin();
+            }}
+            onPointerCancel={longPress.onPointerUp}
+            onContextMenu={longPress.onContextMenu}
+          >
+            {shown}
+          </button>
+        )}
+        {hideReady && !(editing && !docked && pill) ? (
           <button
             type="button"
             data-delete-marker
@@ -254,7 +306,7 @@ function SectionLabel({
           </button>
         ) : null}
       </div>
-      {editing
+      {docked
         ? createPortal(
             <div
               data-no-swipe
@@ -266,36 +318,7 @@ function SectionLabel({
                 className="pointer-events-none absolute inset-x-0 bottom-full h-11 bg-gradient-to-t from-[#fff] to-transparent"
               />
               <div style={{ marginLeft: frame.left, width: frame.width }}>
-                {pill ? (
-                  <div className="relative inline-flex max-w-full items-center gap-[4px] rounded-full bg-sky px-[8px] py-[3px]">
-                    <Pencil
-                      className="size-3 shrink-0"
-                      strokeWidth={1.5}
-                      style={{ color: "var(--placeholder)" }}
-                      aria-hidden
-                    />
-                    {field}
-                    {hideReady ? (
-                      <button
-                        type="button"
-                        data-delete-marker
-                        aria-label="Hide section"
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={onHide}
-                        className="flex size-6 shrink-0 items-center justify-center"
-                      >
-                        <X
-                          className="pointer-events-none size-4"
-                          strokeWidth={1.5}
-                          style={{ color: DELETE_RED }}
-                          aria-hidden
-                        />
-                      </button>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="flex flex-col justify-end border-b border-[var(--rule)]">{field}</div>
-                )}
+                <HeadingCompose pill={pill} hideReady={hideReady} onHide={onHide} field={field} lined />
               </div>
             </div>,
             document.body,
@@ -354,11 +377,11 @@ export function CardEditList({
       const live = useAppStore.getState().cards.find((entry) => entry.id === cardId);
       if (!live) return;
       const hide = useAppStore.getState().hideZone;
-      for (const id of live.rubricOrder ?? []) {
-        if (!isExtraZoneId(id)) continue;
-        if (live.rubricLabels?.[id]?.trim()) continue;
-        const used = Object.values(live.itemZones ?? {}).some((zone) => zone === id);
-        if (!used) hide(cardId, id);
+      let leftover = unusedExtraId(live);
+      while (leftover) {
+        hide(cardId, leftover);
+        const next = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+        leftover = next ? unusedExtraId(next) : null;
       }
     };
   }, [card.id]);
@@ -366,7 +389,17 @@ export function CardEditList({
   useEffect(() => {
     if (!openAddRef) return;
     openAddRef.current = () => {
-      const id = addCustomZone(card.id);
+      const live = useAppStore.getState().cards.find((entry) => entry.id === card.id);
+      const existing = live ? unusedExtraId(live) : null;
+      if (existing && live) {
+        let leftover = unusedExtraId(live, existing);
+        while (leftover) {
+          hideZone(card.id, leftover);
+          const next = useAppStore.getState().cards.find((entry) => entry.id === card.id);
+          leftover = next ? unusedExtraId(next, existing) : null;
+        }
+      }
+      const id = existing ?? addCustomZone(card.id);
       if (!id) return;
       flushSync(() => {
         setTextEditId(null);

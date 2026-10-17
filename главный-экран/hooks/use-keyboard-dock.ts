@@ -2,6 +2,23 @@
 
 import { useEffect, useState } from "react";
 
+const FINE_POINTER = "(hover: hover) and (pointer: fine)";
+
+/** Mouse and trackpad: no software keyboard, so a heading stays in its row. */
+export function useFinePointer() {
+  const [fine, setFine] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(FINE_POINTER).matches,
+  );
+  useEffect(() => {
+    const media = window.matchMedia(FINE_POINTER);
+    const sync = () => setFine(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+  return fine;
+}
+
 /** A keyboard is at least this tall; smaller viewport changes are the browser chrome. */
 const KEYBOARD_MIN_PX = 120;
 
