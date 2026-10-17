@@ -25,9 +25,9 @@ function Checkbox({
         )}
         {...props}
       >
-        <span className="flex size-[22px] items-center justify-center rounded-[5px] border-[1.6px] border-[var(--placeholder)] bg-white">
+        <span className="flex size-[22px] items-center justify-center rounded-none border-[1.6px] border-[var(--placeholder)] bg-white">
           <CheckboxPrimitive.Indicator className="flex items-center justify-center">
-            <span className="block size-[16px] rounded-[3px] bg-sky" />
+            <span className="block size-[16px] rounded-none bg-sky" />
           </CheckboxPrimitive.Indicator>
         </span>
       </CheckboxPrimitive.Root>
