@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
@@ -90,7 +90,7 @@ const EMPTY_DRAFT: Card = {
   updatedAt: "",
 };
 
-export function CardCarousel({
+export const CardCarousel = memo(function CardCarousel({
   cards,
   activeIndex,
   contactItems,
@@ -528,4 +528,4 @@ export function CardCarousel({
       ) : null}
     </div>
   );
-}
+});

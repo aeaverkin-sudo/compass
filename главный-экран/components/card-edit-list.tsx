@@ -351,8 +351,8 @@ function SectionLabel({
 }
 
 export const CardEditList = memo(function CardEditList({
-  card,
-  items,
+  card: cardProp,
+  items: _items,
   composeOnMount = false,
   openAddRef,
   onComposingChange,
@@ -363,6 +363,9 @@ export const CardEditList = memo(function CardEditList({
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
 }) {
+  const card = useAppStore((state) => state.cards.find((entry) => entry.id === cardProp.id) ?? cardProp);
+  const items = useAppStore((state) => state.contactItems);
+  void _items;
   const updateCard = useAppStore((state) => state.updateCard);
   const updateContactItem = useAppStore((state) => state.updateContactItem);
   const addItemToCard = useAppStore((state) => state.addItemToCard);

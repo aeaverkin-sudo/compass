@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
@@ -40,6 +40,8 @@ function railCardOf(cards: Card[], index: number, currentIndex: number) {
   return card;
 }
 
+function ignoreEmptyTap() {}
+
 function CardDeck({
   browseIndex,
   editing,
@@ -75,11 +77,13 @@ function CardDeck({
 }) {
   const cards = useAppStore((state) => state.cards);
   const contactItems = useAppStore((state) => state.contactItems);
+  const faceCards = useDeferredValue(cards);
+  const faceItems = useDeferredValue(contactItems);
   return (
     <CardCarousel
-      cards={cards}
+      cards={faceCards}
       activeIndex={browseIndex}
-      contactItems={contactItems}
+      contactItems={faceItems}
       mode="browse"
       canAddCard={showAddSlide}
       editing={editing}
@@ -95,7 +99,7 @@ function CardDeck({
       onFill={onFill}
       onActiveIndexChange={onActiveIndexChange}
       onUpdateCard={onUpdateCard}
-      onEmptyAreaTap={() => undefined}
+      onEmptyAreaTap={ignoreEmptyTap}
     />
   );
 }
@@ -261,8 +265,12 @@ export function MainScreen() {
     setComposeOnMount(true);
   }, [markPassAddHintSeen, setCurrentCardIndex]);
 
-  const onProfile = useCallback(() => router.push("/profile"), [router]);
-  const onNetwork = useCallback(() => router.push("/network"), [router]);
+  const onProfile = useCallback(() => {
+    startTransition(() => router.push("/profile"));
+  }, [router]);
+  const onNetwork = useCallback(() => {
+    startTransition(() => router.push("/network"));
+  }, [router]);
   const onRemove = useCallback(() => setRemoveOpen(true), []);
   const onDone = useCallback(() => {
     setComposeOnMount(false);

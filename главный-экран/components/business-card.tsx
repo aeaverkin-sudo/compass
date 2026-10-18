@@ -41,6 +41,16 @@ import {
 
 const HERO_PHOTO_PX = 128;
 
+/** Name and photo stay on the live card. The rest of the sheet can paint a frame later. */
+function useLiveFace(card: Card) {
+  const displayName = useAppStore(
+    (state) => (state.cards.find((entry) => entry.id === card.id) ?? card).displayName,
+  );
+  const photoSrc = useAppStore((state) => cardPhotoSrc(state.cards.find((entry) => entry.id === card.id) ?? card));
+  const photoLook = useAppStore((state) => (state.cards.find((entry) => entry.id === card.id) ?? card).photoLook);
+  return { displayName, photoSrc, photoLook };
+}
+
 function cardIsReady(card: Card) {
   return Boolean(card.displayName.trim());
 }
@@ -73,7 +83,8 @@ function EditorialHeader({
   /** Public / PDF: orange PORTFOLIO at the top-right of the header, on the zone axis. */
   portfolioMark?: boolean;
 }) {
-  const photoSrc = cardPhotoSrc(card);
+  const face = useLiveFace(card);
+  const photoSrc = face.photoSrc;
   const photoPx = HERO_PHOTO_PX * scale;
   const setPhotoLook = onCardUpdate
     ? (look: "frame" | "shadow" | null) => onCardUpdate({ photoLook: look ?? undefined })
@@ -106,7 +117,7 @@ function EditorialHeader({
               onPhotoChange={onPhotoChange}
               sizePx={photoPx}
               borderRadiusPx={0}
-              photoLook={card.photoLook}
+              photoLook={face.photoLook}
               onPhotoLook={setPhotoLook}
             />
           ) : photoSrc ? (
@@ -116,7 +127,7 @@ function EditorialHeader({
               src={photoSrc}
               alt=""
               fetchPriority="high"
-              className={cn("shrink-0 object-cover", photoSlotLookClass(card.photoLook))}
+              className={cn("shrink-0 object-cover", photoSlotLookClass(face.photoLook))}
               style={{ width: photoPx, height: photoPx }}
             />
           ) : (
@@ -124,7 +135,7 @@ function EditorialHeader({
           )}
           <div className={cn("relative flex h-full min-w-0 flex-1 flex-col", portfolioMark && "pr-[5.75rem]")}>
             <HeroName
-              value={card.displayName}
+              value={face.displayName}
               onChange={onDisplayNameChange}
               roleBelow={Boolean(positionTitle)}
             />
@@ -156,6 +167,7 @@ function EmptyPortfolioStart({
   onStartBlocked?: () => void;
   onCardUpdate?: (data: Partial<Card>) => void;
 }) {
+  const face = useLiveFace(card);
   const setPhotoLook = onCardUpdate
     ? (look: "frame" | "shadow" | null) => onCardUpdate({ photoLook: look ?? undefined })
     : undefined;
@@ -163,12 +175,12 @@ function EmptyPortfolioStart({
     <div className="flex w-full flex-col items-center" style={{ paddingTop: CARD_PHOTO_TOP_PX }}>
       {onPhotoChange ? (
         <PhotoSlotPicker
-          photo={cardPhotoSrc(card)}
+          photo={face.photoSrc}
           onPhotoChange={onPhotoChange}
           sizePx={CARD_PHOTO_SIZE_PX}
           borderRadiusPx={0}
           onPickBlocked={onStartBlocked}
-          photoLook={card.photoLook}
+          photoLook={face.photoLook}
           onPhotoLook={setPhotoLook}
         />
       ) : null}
@@ -179,7 +191,7 @@ function EmptyPortfolioStart({
           data-card-content
         >
           <NameOrTitleField
-            value={card.displayName}
+            value={face.displayName}
             onChange={onDisplayNameChange}
             fontSizePx={CARD_HEADER_NAME_SIZE_PX}
             className="px-0 py-0 text-center"
@@ -202,12 +214,13 @@ function CompactHeader({
   positionCompany?: string;
   onDisplayNameChange?: (displayName: string) => void;
 }) {
+  const face = useLiveFace(card);
   return (
     <div className="flex w-full shrink-0 flex-col items-center">
       <div className="w-full text-center">
         {onDisplayNameChange ? (
           <CardNameField
-            value={card.displayName}
+            value={face.displayName}
             onChange={onDisplayNameChange}
             fontSizePx={CARD_HEADER_NAME_SIZE_PX}
             className="text-center font-semibold tracking-[-1px] text-[var(--ink)]"
@@ -218,7 +231,7 @@ function CompactHeader({
             className="text-center font-semibold tracking-[-1px] text-[var(--ink)]"
             style={{ fontSize: CARD_HEADER_NAME_SIZE_PX }}
           >
-            {card.displayName}
+            {face.displayName}
           </p>
         )}
         {positionTitle ? (
