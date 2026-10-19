@@ -159,6 +159,7 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
       if (!(node instanceof Node)) return;
       const row = document.querySelector(`[data-item-row="${CSS.escape(greyId)}"]`);
       if (!row?.contains(node)) return;
+      if (node instanceof Element && node.closest("button, [role='checkbox']")) return;
       setGreyId(null);
     };
     document.addEventListener("pointerdown", wake, true);
@@ -223,7 +224,7 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
   return (
     <main className="compass-main fixed inset-0 flex flex-col overflow-hidden bg-background text-[var(--ink)]">
       {greyId && /^[0-9a-zA-Z-]+$/.test(greyId) ? (
-        <style>{`[data-item-row="${greyId}"]{color:var(--placeholder)!important}`}</style>
+        <style>{`[data-item-row="${greyId}"] .t-body{color:var(--placeholder)!important}`}</style>
       ) : null}
       <ScreenHeader title="Create a portfolio" fallbackHref={eventPath} spacer={false} />
       <div className="shrink-0 bg-background" style={{ paddingTop: headerPad, paddingLeft: inset, paddingRight: inset }}>
