@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CardEditList, type ScaffoldZone } from "@main/components/card-edit-list";
 import { useMainLayout } from "@main/hooks/use-main-layout";
@@ -29,7 +29,7 @@ const EXPIRED = "This link has expired. Enter your email again.";
 
 /** The seven shelves of an empty portfolio. Hints only, until a line is written. */
 const STARTERS: ScaffoldZone[] = [
-  { id: "company", title: "Company", hint: "Company or business" },
+  { id: "company", title: "Company", hint: "Company or business name" },
   { id: "position", title: "Position", hint: "Your role" },
   { id: "web", title: "Web", hint: "Website" },
   { id: "social", title: "Social", hint: "Instagram, LinkedIn, Facebook…" },
@@ -54,25 +54,26 @@ function rememberLabels(cardId: string) {
   }
 }
 
-/** The account email starts in Contacts, on the card. The checkbox can take it off. */
-function prefillContact(cardId: string, email: string) {
+/** Puts the account email on Contacts. Returns the library row. */
+function placeContact(cardId: string, email: string): string | null {
   const value = email.trim().toLowerCase();
-  if (!value) return;
+  if (!value) return null;
   const state = useAppStore.getState();
   const card = state.cards.find((entry) => entry.id === cardId);
-  if (!card) return;
-  const present = card.contactItemIds.some((id) => {
+  if (!card) return null;
+  const present = card.contactItemIds.find((id) => {
     const item = state.contactItems.find((entry) => entry.id === id);
     return item?.value.trim().toLowerCase() === value;
   });
-  if (present) return;
+  if (present) return present;
   let id = findIdenticalItem(state.contactItems, value)?.id ?? null;
   if (!id) {
     id = state.addContactItem();
-    if (!id) return;
+    if (!id) return null;
     useAppStore.getState().updateContactItem(id, { value });
   }
   useAppStore.getState().addItemToCard(cardId, id, "contact");
+  return id;
 }
 
 export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }) {
@@ -83,6 +84,8 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
   const [opening, setOpening] = useState(Boolean(hash));
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Shown grey in Contacts. Create portfolio writes it if the row was never opened. */
+  const [offerEmail, setOfferEmail] = useState<string | null>(null);
   const openAddRef = useRef<(() => void) | null>(null);
   const ran = useRef(false);
   const seeded = useRef(false);
@@ -135,7 +138,8 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
       if (!seeded.current) {
         seeded.current = true;
         rememberLabels(id);
-        prefillContact(id, user.email ?? "");
+        const accountEmail = user.email?.trim().toLowerCase() ?? "";
+        if (accountEmail) setOfferEmail(accountEmail);
       }
       setCardId(id);
       setOpening(false);
@@ -145,10 +149,19 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
     });
   }, [eventPath, hash, router, sessionReady]);
 
+  const scaffold = useMemo(
+    () =>
+      offerEmail
+        ? STARTERS.map((zone) => (zone.id === "contact" ? { ...zone, hint: offerEmail } : zone))
+        : STARTERS,
+    [offerEmail],
+  );
+
   const finish = async () => {
     if (busy || !cardId) return;
     setBusy(true);
     setMessage(null);
+    if (offerEmail) placeContact(cardId, offerEmail);
     let pay = false;
     try {
       const joined = await fetch(`/api/events/${encodeURIComponent(lookup)}/register`, {
@@ -240,7 +253,9 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" style={{ paddingLeft: inset, paddingRight: inset }}>
         <div className={CARD_PAD}>
-          {card ? <CardEditList card={card} items={[]} scaffold={STARTERS} openAddRef={openAddRef} /> : null}
+          {card ? (
+            <CardEditList card={card} items={[]} scaffold={scaffold} openAddRef={openAddRef} />
+          ) : null}
           {card ? (
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] py-[18px]">
               <span />
