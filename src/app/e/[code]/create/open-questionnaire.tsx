@@ -29,13 +29,13 @@ const EXPIRED = "This link has expired. Enter your email again.";
 
 /** The seven shelves of an empty portfolio. Hints only, until a line is written. */
 const STARTERS: ScaffoldZone[] = [
-  { id: "company", title: "Company", hint: "Company name" },
+  { id: "company", title: "Company", hint: "Company or business" },
   { id: "position", title: "Position", hint: "Your role" },
   { id: "web", title: "Web", hint: "Website" },
-  { id: "social", title: "Social", hint: "@handle or link" },
-  { id: "contact", title: "Contacts", hint: "email / phone" },
-  { id: "files", title: "Files", hint: "Attach a file" },
-  { id: "about", title: "About", hint: "A line about you" },
+  { id: "social", title: "Social", hint: "Instagram, LinkedIn, Facebook…" },
+  { id: "contact", title: "Contacts", hint: "Email, messenger, phone" },
+  { id: "files", title: "Files", hint: "PDF, JPG, …" },
+  { id: "about", title: "About", hint: "About you or your projects" },
 ];
 
 async function portfolioLimit(): Promise<number | null> {
