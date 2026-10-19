@@ -84,7 +84,8 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
   const [opening, setOpening] = useState(Boolean(hash));
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /** Shown grey in Contacts. Create portfolio writes it if the row was never opened. */
+  /** The account email, still grey, until the cursor lands in the row. */
+  const [greyId, setGreyId] = useState<string | null>(null);
   const [offerEmail, setOfferEmail] = useState<string | null>(null);
   const openAddRef = useRef<(() => void) | null>(null);
   const ran = useRef(false);
@@ -139,7 +140,9 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
         seeded.current = true;
         rememberLabels(id);
         const accountEmail = user.email?.trim().toLowerCase() ?? "";
-        if (accountEmail) setOfferEmail(accountEmail);
+        const placed = accountEmail ? placeContact(id, accountEmail) : null;
+        if (placed) setGreyId(placed);
+        else if (accountEmail) setOfferEmail(accountEmail);
       }
       setCardId(id);
       setOpening(false);
@@ -148,6 +151,19 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
       setMessage("Could not open your portfolio.");
     });
   }, [eventPath, hash, router, sessionReady]);
+
+  useEffect(() => {
+    if (!greyId) return;
+    const wake = (event: Event) => {
+      const node = event.target;
+      if (!(node instanceof Node)) return;
+      const row = document.querySelector(`[data-item-row="${CSS.escape(greyId)}"]`);
+      if (!row?.contains(node)) return;
+      setGreyId(null);
+    };
+    document.addEventListener("pointerdown", wake, true);
+    return () => document.removeEventListener("pointerdown", wake, true);
+  }, [greyId]);
 
   const scaffold = useMemo(
     () =>
@@ -206,6 +222,9 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
 
   return (
     <main className="compass-main fixed inset-0 flex flex-col overflow-hidden bg-background text-[var(--ink)]">
+      {greyId && /^[0-9a-zA-Z-]+$/.test(greyId) ? (
+        <style>{`[data-item-row="${greyId}"]{color:var(--placeholder)!important}`}</style>
+      ) : null}
       <ScreenHeader title="Create a portfolio" fallbackHref={eventPath} spacer={false} />
       <div className="shrink-0 bg-background" style={{ paddingTop: headerPad, paddingLeft: inset, paddingRight: inset }}>
         <div className={CARD_PAD}>
