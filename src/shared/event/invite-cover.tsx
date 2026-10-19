@@ -5,7 +5,7 @@ import { modernAccent, type EventLayoutId, type EventThemeId } from "@/shared/ev
 import { dottedDate, eventClock, eventDayLong, eventDaySlash, eventTimeRange } from "@/shared/event/when";
 import { CardInvite } from "@/shared/event/card-invite";
 import { eventTitleLine } from "@/shared/event/event-title";
-import { posterFields, type InviteLogoLook, type InviteRow, type PosterField } from "@/shared/event/invite-rows";
+import { inviteLabel, posterFields, type InviteLogoLook, type InviteRow, type PosterField } from "@/shared/event/invite-rows";
 
 const DESIGN_W = 286;
 const DESIGN_H = 404;
@@ -304,7 +304,7 @@ function EditorialCover({ event, full }: { event: InviteCoverEvent; full: boolea
     <>
       {date ? <Field label="Date" value={date} /> : null}
       {time ? <Field label="Time" value={time} /> : null}
-      {place ? <Field label="Place" value={place} /> : null}
+      {place ? <Field label={inviteLabel(event.inviteRows, "place")} value={place} /> : null}
       {event.price ? <Field label="Price" value={event.price} /> : null}
       {extras.map((field) => (
         <Field key={field.id} label={field.label} value={field.value} fit />
@@ -371,7 +371,7 @@ function EditorialCover({ event, full }: { event: InviteCoverEvent; full: boolea
           {about ? (
             <div style={{ borderLeft: `0.6px solid ${HAIR}`, paddingLeft: 14 }}>
               <div style={{ fontFamily: MONO_FACE, fontSize: 7, letterSpacing: "0.16em", textTransform: "uppercase", opacity: 0.55, marginBottom: 6 }}>
-                About
+                {inviteLabel(event.inviteRows, "about")}
               </div>
               <div
                 data-fit-about={full ? undefined : true}
@@ -688,7 +688,7 @@ function ModernSmall({ event }: { event: InviteCoverEvent }) {
       </div>
       {place ? (
         <div style={{ position: "absolute", bottom: 16, left: 18 }}>
-          <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Place</div>
+          <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>{inviteLabel(event.inviteRows, "place")}</div>
           <div style={{ fontSize: 9, ...MONO }}>{place}</div>
         </div>
       ) : null}
@@ -759,7 +759,7 @@ function ModernFull({ event }: { event: InviteCoverEvent }) {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 16 }}>
               {place ? (
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>Place</div>
+                  <div style={{ fontSize: 7, letterSpacing: "0.18em", textTransform: "uppercase", opacity: 0.7, ...MONO }}>{inviteLabel(event.inviteRows, "place")}</div>
                   <div style={{ fontSize: 9, overflowWrap: "break-word", ...MONO }}>{place}</div>
                 </div>
               ) : (
