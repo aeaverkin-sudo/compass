@@ -183,7 +183,9 @@ export function CardInvite({ event, themeId }: { event: CardInviteEvent; themeId
                 <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
                   <div className="min-w-0">
                     <SectionNumber value={sectionNumberLabel(index)} />
-                    <span className="t-label mt-[6px] block min-w-0 whitespace-normal line-clamp-3">{line.label}</span>
+                    {line.label ? (
+                      <span className="t-label mt-[6px] block min-w-0 whitespace-normal line-clamp-3">{line.label}</span>
+                    ) : null}
                   </div>
                   <ValueCap className="min-w-0">
                     <p

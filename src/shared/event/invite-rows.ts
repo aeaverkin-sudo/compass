@@ -54,7 +54,8 @@ function baseKind(value: unknown): InviteBaseKind | null {
 /**
  * Rows from stored or posted JSON. Broken rows are dropped, a base kind counts once, numbers are ignored.
  * Old Date and Time rows become one When; their default titles become the new default.
- * `dropEmpty` also drops custom rows with nothing typed, for saving.
+ * `dropEmpty` drops a custom row only when both fields are empty.
+ * A base label the organiser cleared is kept, so the poster can show the text with no caption.
  */
 export function readInviteRows(input: unknown, dropEmpty = false): InviteRow[] {
   if (!Array.isArray(input)) return [];
@@ -66,7 +67,7 @@ export function readInviteRows(input: unknown, dropEmpty = false): InviteRow[] {
     if (!raw || typeof raw !== "object") continue;
     const entry = raw as Record<string, unknown>;
     const id = typeof entry.id === "string" && entry.id.trim() ? entry.id.slice(0, 40) : nanoid(8);
-    let title = text(entry.title, INVITE_TITLE_MAX);
+    const title = text(entry.title, INVITE_TITLE_MAX);
     if (entry.kind === "custom") {
       if (custom >= INVITE_CUSTOM_MAX) continue;
       const value = text(entry.value, INVITE_VALUE_MAX);
@@ -79,9 +80,8 @@ export function readInviteRows(input: unknown, dropEmpty = false): InviteRow[] {
     const kind = legacy?.kind ?? baseKind(entry.kind);
     if (!kind || seen.has(kind)) continue;
     const oldDefault = legacy?.title ?? (kind === "place" ? LEGACY_KINDS.place!.title : null);
-    if (oldDefault && title.trim() === oldDefault) title = "";
+    if (oldDefault && title.trim() === oldDefault) continue;
     seen.add(kind);
-    if (dropEmpty && !title.trim()) continue;
     rows.push({ id, kind, title });
   }
   return rows;
@@ -91,10 +91,11 @@ export function isInviteLogoLook(value: unknown): value is InviteLogoLook {
   return value === "frame" || value === "shadow";
 }
 
-/** The label a zone shows: the organiser's title, or the default one. */
+/** The label a zone shows. A stored empty title stays empty. No row means the default. */
 export function inviteLabel(rows: InviteRow[] | null | undefined, kind: InviteBaseKind): string {
-  const title = rows?.find((row) => row.kind === kind)?.title.trim();
-  return title || INVITE_BASE_LABELS[kind];
+  const row = rows?.find((entry) => entry.kind === kind);
+  if (!row) return INVITE_BASE_LABELS[kind];
+  return row.title.trim();
 }
 
 /** Rename a base zone. An empty title brings the default back. */
