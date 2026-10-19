@@ -1,11 +1,15 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { AccountBand } from "@/shared/components/account-band";
+import { SkyToast } from "@/shared/components/sky-toast";
+import { TapButton } from "@/shared/components/tap-button";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
@@ -40,6 +44,29 @@ import {
 } from "../layout";
 
 const HERO_PHOTO_PX = 128;
+
+/** Under the last line, on the value column. The tab bar stays below the card. */
+function AddToWallet({ cardId }: { cardId: string }) {
+  const [toast, setToast] = useState(false);
+  return (
+    <>
+      <div className="pt-[18px]" style={{ paddingLeft: VALUE_AXIS_PX }}>
+        <TapButton
+          data-card-content
+          data-no-swipe
+          onTap={() => {
+            void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => setToast(!opened));
+          }}
+          className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
+        >
+          <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
+          Add to Wallet
+        </TapButton>
+      </div>
+      {toast ? <SkyToast text={WALLET_SOON} onDone={() => setToast(false)} /> : null}
+    </>
+  );
+}
 
 /** Name and photo stay on the live card. The rest of the sheet can paint a frame later. */
 function useLiveFace(card: Card) {
@@ -681,6 +708,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           deliveredNotes={readOnly ? deliveredNotes : undefined}
         />
       ) : null}
+      {!compact && !editing && !readOnly && items.length > 0 ? <AddToWallet cardId={card.id} /> : null}
       {!compact && !editing && (showShareFooter || shareFootnote) ? (
         <div
           className="mt-auto shrink-0 t-meta"

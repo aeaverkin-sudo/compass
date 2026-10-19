@@ -15,6 +15,8 @@ import {
   groupEditSections,
   isExtraZoneId,
   isProseValue,
+  labelForNewZone,
+  zoneTitle,
   ZONE_HINTS,
   type CardDisplayRow,
   type CardZoneId,
@@ -58,7 +60,11 @@ type EditSection = {
   title: string;
   included: boolean;
   rows: { row: CardDisplayRow; onCard: boolean }[];
+  /** Empty starter row. The hint stands in for the plus until the zone has a line. */
+  hint?: string;
 };
+
+export type ScaffoldZone = { id: CardZoneId; title: string; hint: string };
 
 function lineOf(row: CardDisplayRow) {
   return row.axis ? `${row.axis} / ${row.value}` : row.value;
@@ -72,28 +78,54 @@ function enterFinishes(value: string, zoneId?: CardZoneId | null) {
   return Boolean(zoneId);
 }
 
-function buildSections(card: Card, items: ContactItem[], cards: Card[]): EditSection[] {
+function sectionOf(
+  zone: { id: CardZoneId; title: string; rows: CardDisplayRow[] },
+  onCard: Set<string>,
+  order: Map<string, number>,
+  hint?: string,
+): EditSection {
+  const chosen = zone.rows
+    .filter((row) => row.item && onCard.has(row.item.id))
+    .sort((a, b) => (order.get(a.item!.id) ?? 0) - (order.get(b.item!.id) ?? 0));
+  const spare = zone.rows
+    .filter((row) => row.item && !onCard.has(row.item.id))
+    .sort((a, b) => (a.item!.order ?? 0) - (b.item!.order ?? 0));
+  return {
+    id: zone.id,
+    title: zone.title,
+    included: chosen.length > 0,
+    hint: chosen.length + spare.length > 0 ? undefined : hint,
+    rows: [
+      ...chosen.map((row) => ({ row, onCard: true })),
+      ...spare.map((row) => ({ row, onCard: false })),
+    ],
+  };
+}
+
+function buildSections(card: Card, items: ContactItem[], cards: Card[], scaffold?: ScaffoldZone[]): EditSection[] {
   const onCard = new Set(card.contactItemIds);
   const order = new Map(card.contactItemIds.map((id, index) => [id, index]));
   const grouped = groupEditSections(items.filter(isContactFilled), card, cards);
+  const built = grouped.map((zone) => sectionOf(zone, onCard, order));
+  if (!scaffold?.length) return built;
 
-  return grouped.map((zone) => {
-    const chosen = zone.rows
-      .filter((row) => row.item && onCard.has(row.item.id))
-      .sort((a, b) => (order.get(a.item!.id) ?? 0) - (order.get(b.item!.id) ?? 0));
-    const spare = zone.rows
-      .filter((row) => row.item && !onCard.has(row.item.id))
-      .sort((a, b) => (a.item!.order ?? 0) - (b.item!.order ?? 0));
-    return {
-      id: zone.id,
-      title: zone.title,
-      included: chosen.length > 0,
-      rows: [
-        ...chosen.map((row) => ({ row, onCard: true })),
-        ...spare.map((row) => ({ row, onCard: false })),
-      ],
-    };
+  const hidden = new Set((card.hiddenZones ?? []).flatMap((id) => (id ? [id] : [])));
+  const byId = new Map(built.map((section) => [section.id, section]));
+  const seeded = scaffold.flatMap((zone) => {
+    if (hidden.has(zone.id)) return [];
+    const found = byId.get(zone.id);
+    if (found) return [{ ...found, hint: found.rows.length > 0 ? undefined : zone.hint }];
+    return [
+      sectionOf(
+        { id: zone.id, title: zoneTitle(card, zone.id, zone.title), rows: [] },
+        onCard,
+        order,
+        zone.hint,
+      ),
+    ];
   });
+  const rest = built.filter((section) => !scaffold.some((zone) => zone.id === section.id));
+  return [...seeded, ...rest];
 }
 
 function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => void }) {
@@ -356,12 +388,15 @@ export const CardEditList = memo(function CardEditList({
   composeOnMount = false,
   openAddRef,
   onComposingChange,
+  scaffold,
 }: {
   card: Card;
   items: ContactItem[];
   composeOnMount?: boolean;
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
+  /** Empty named zones for the cold-entry form. Omitted on the card itself. */
+  scaffold?: ScaffoldZone[];
 }) {
   const card = useAppStore((state) => state.cards.find((entry) => entry.id === cardProp.id) ?? cardProp);
   const items = useAppStore((state) => state.contactItems);
@@ -449,8 +484,8 @@ export const CardEditList = memo(function CardEditList({
   });
 
   const sections = useMemo(
-    () => buildSections(card, items, useAppStore.getState().cards),
-    [card, items],
+    () => buildSections(card, items, useAppStore.getState().cards, scaffold),
+    [card, items, scaffold],
   );
   const seeding = Boolean(seedZoneId && isExtraZoneId(seedZoneId));
   const extraDockBottom = useKeyboardDock(seeding && !desktop, true);
@@ -587,6 +622,11 @@ export const CardEditList = memo(function CardEditList({
       return;
     }
     addItemToCard(card.id, id, zoneId);
+    const named = useAppStore.getState().cards.find((entry) => entry.id === card.id)?.rubricLabels?.[zoneId]?.trim() ?? "";
+    if (!named && isExtraZoneId(zoneId)) {
+      const label = labelForNewZone("", value);
+      if (label) useAppStore.getState().setRubricLabel(card.id, zoneId, label);
+    }
     endSeed(zoneId);
   };
 
@@ -601,6 +641,11 @@ export const CardEditList = memo(function CardEditList({
         return;
       }
       addItemToCard(card.id, id, zoneId);
+      const named = useAppStore.getState().cards.find((entry) => entry.id === card.id)?.rubricLabels?.[zoneId]?.trim() ?? "";
+      if (!named && isExtraZoneId(zoneId)) {
+        const label = labelForNewZone("", file.name);
+        if (label) useAppStore.getState().setRubricLabel(card.id, zoneId, label);
+      }
       endSeed(zoneId);
     });
   };
@@ -617,6 +662,7 @@ export const CardEditList = memo(function CardEditList({
     >
       {sections.map((section, index) => {
         const seedingThis = seedZoneId === section.id;
+        const bare = Boolean(section.hint) && !seedingThis;
         const zone = (
           <section
             data-zone={section.id}
@@ -634,7 +680,7 @@ export const CardEditList = memo(function CardEditList({
                   : "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]",
               )}
             >
-              <div className={cn("min-w-0", seedingThis && "w-[86px] shrink-0")}>
+              <div className={cn("min-w-0", seedingThis && "w-[86px] shrink-0", bare && "text-[var(--placeholder)] [&_[data-section-number]]:text-[var(--placeholder)]")}>
                 <SectionNumber value={sectionNumberLabel(index)} />
                 <div className="mt-[6px]">
                   <SectionLabel
@@ -781,6 +827,16 @@ export const CardEditList = memo(function CardEditList({
                       <LibraryCheck onCard={false} onToggle={() => undefined} />
                     </div>
                   </div>
+                ) : bare ? (
+                  <button
+                    type="button"
+                    data-no-swipe
+                    aria-label={section.title}
+                    className="t-body w-full bg-transparent text-left text-[var(--placeholder)]"
+                    onPointerUp={() => openZoneRef.current?.(section.id)}
+                  >
+                    {section.hint}
+                  </button>
                 ) : (
                     <button
                       type="button"

@@ -1,7 +1,7 @@
 "use client";
 
 import { Ellipsis, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { hasLightEdges, photoSlotLookClass, type PhotoLook } from "@/shared/lib/photo-look";
 import {
@@ -41,6 +41,8 @@ type PhotoSlotPickerProps = {
   lookOptions?: readonly LookOption[];
   /** Picks the file itself instead of the photo picker. A short tap on the photo then replaces it. */
   onPick?: () => void;
+  /** Replaces the plus on an empty slot. The card keeps the plus. */
+  emptyMark?: ReactNode;
 };
 
 type LookOption = "plain" | PhotoLook;
@@ -57,6 +59,7 @@ export function PhotoSlotPicker({
   onPhotoLook,
   lookOptions,
   onPick,
+  emptyMark,
 }: PhotoSlotPickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const pointersDown = useRef(0);
@@ -173,7 +176,7 @@ export function PhotoSlotPicker({
             }}
             className="flex size-full items-center justify-center transition-opacity active:opacity-80"
           >
-            <Plus className="size-7 text-hint" strokeWidth={1.5} aria-hidden />
+            {emptyMark ?? <Plus className="size-7 text-hint" strokeWidth={1.5} aria-hidden />}
           </button>
         ) : (
           <div

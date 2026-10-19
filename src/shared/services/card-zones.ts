@@ -1,5 +1,5 @@
 import type { ContactItem, ContactType } from "@/shared/types";
-import { itemDisplayValue } from "./contact-item";
+import { detectContactType, itemDisplayValue } from "./contact-item";
 import { isAttachmentType } from "./portfolio-limits";
 import { typeLabel } from "./portfolio-catalog";
 
@@ -261,6 +261,23 @@ export function isProseValue(text: string) {
   if (words.length >= 9) return true;
   if (line.length >= 72) return true;
   return false;
+}
+
+/**
+ * A new zone whose title was left empty. A machine type names the shelf.
+ * A role line, from the role list already in this file, names Position.
+ * Anything else is About. A title the person typed is left as it is.
+ * Saved rows are not renamed.
+ */
+export function labelForNewZone(title: string, value: string): string | null {
+  if (title.trim()) return null;
+  const type = detectContactType(value);
+  if (type !== "text") {
+    const zone = zoneForItem({ id: "", type, label: "", value, url: "", order: 0 });
+    return CARD_ZONES.find((entry) => entry.id === zone)?.title ?? "About";
+  }
+  if (parseDescription(value).position) return "Position";
+  return "About";
 }
 
 /**

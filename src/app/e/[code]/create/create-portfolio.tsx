@@ -38,6 +38,7 @@ import { PORTFOLIO_LIMITS } from "@/shared/services/portfolio-limits";
 import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { clearLocal } from "../invite-actions";
+import { OpenPortfolio } from "./open-questionnaire";
 
 const CREATE_BTN =
   "press w-full rounded-full border-0 bg-[var(--ink)] py-[14px] text-center t-caps text-[var(--background)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]";
@@ -296,7 +297,7 @@ const DraftRow = memo(function DraftRow({
   );
 });
 
-export function CreatePortfolio({
+function GuestCreate({
   lookup,
   hash,
   guest,
@@ -686,4 +687,17 @@ export function CreatePortfolio({
       )}
     </main>
   );
+}
+
+export function CreatePortfolio({
+  lookup,
+  hash,
+  guest,
+}: {
+  lookup: string;
+  hash: string;
+  guest: { token: string; name: string; email: string } | null;
+}) {
+  if (!guest) return <OpenPortfolio lookup={lookup} hash={hash} />;
+  return <GuestCreate lookup={lookup} hash={hash} guest={guest} />;
 }
