@@ -45,20 +45,59 @@ import {
 
 const HERO_PHOTO_PX = 128;
 
+/** Apple's registration arrives after the file opens. A few reads, then stop. */
+const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
+
 /** Under the last line, on the value column. The tab bar stays below the card. */
 function AddToWallet({ cardId }: { cardId: string }) {
   const [toast, setToast] = useState(false);
   const [markedId, setMarkedId] = useState<string | null>(null);
   const inWallet = markedId === cardId;
-  useEffect(() => {
-    let gone = false;
-    void cardInWallet(cardId).then((added) => {
-      if (!gone && added) setMarkedId(cardId);
-    });
-    return () => {
-      gone = true;
-    };
+  const read = useRef(0);
+  const pollGen = useRef(0);
+  const polls = useRef<number[]>([]);
+  const apply = useCallback((added: boolean | null) => {
+    if (added === true) setMarkedId(cardId);
+    else if (added === false) setMarkedId((current) => (current === cardId ? null : current));
   }, [cardId]);
+  const refresh = useCallback(() => {
+    const ticket = ++read.current;
+    void cardInWallet(cardId).then((added) => {
+      if (ticket === read.current) apply(added);
+    });
+  }, [apply, cardId]);
+  const watchRegistration = useCallback(() => {
+    polls.current.forEach((id) => window.clearTimeout(id));
+    const generation = ++pollGen.current;
+    polls.current = WALLET_RECHECK_MS.map((delay) =>
+      window.setTimeout(() => {
+        if (generation !== pollGen.current) return;
+        void cardInWallet(cardId).then((added) => {
+          if (generation === pollGen.current && added === true) apply(true);
+        });
+      }, delay),
+    );
+  }, [apply, cardId]);
+  useEffect(() => {
+    let returnTimer = 0;
+    refresh();
+    const onReturn = () => {
+      if (document.visibilityState === "hidden") return;
+      window.clearTimeout(returnTimer);
+      returnTimer = window.setTimeout(refresh, 300);
+    };
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
+    return () => {
+      read.current += 1;
+      pollGen.current += 1;
+      window.clearTimeout(returnTimer);
+      polls.current.forEach((id) => window.clearTimeout(id));
+      polls.current = [];
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
+    };
+  }, [refresh]);
   return (
     <>
       <div className="pt-[18px]" style={{ paddingLeft: VALUE_AXIS_PX }}>
@@ -76,6 +115,7 @@ function AddToWallet({ cardId }: { cardId: string }) {
                 }
                 hintWalletAdded(cardId);
                 setMarkedId(cardId);
+                watchRegistration();
               });
             }}
             className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
