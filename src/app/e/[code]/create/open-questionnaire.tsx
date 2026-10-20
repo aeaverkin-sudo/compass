@@ -31,7 +31,7 @@ const EXPIRED = "This link has expired. Enter your email again.";
 /** The seven shelves of an empty portfolio. Hints only, until a line is written. */
 const STARTERS: ScaffoldZone[] = [
   { id: "company", title: "Company", hint: "Company or business name" },
-  { id: "position", title: "Position", hint: "Your role" },
+  { id: "position", title: "Position", hint: "Your role", required: true },
   { id: "web", title: "Web", hint: "Website" },
   { id: "social", title: "Social", hint: "Instagram, LinkedIn, Facebook…" },
   { id: "contact", title: "Contacts", hint: "Email, messenger, phone" },
@@ -53,6 +53,23 @@ function rememberLabels(cardId: string) {
     if (card.rubricLabels?.[zone.id]?.trim()) continue;
     useAppStore.getState().setRubricLabel(cardId, zone.id, zone.title);
   }
+}
+
+function offeredPersonName(meta: unknown): string {
+  if (!meta || typeof meta !== "object") return "";
+  const row = meta as Record<string, unknown>;
+  const direct = row.full_name ?? row.name;
+  if (typeof direct === "string" && direct.trim()) return direct.trim();
+  const given = typeof row.given_name === "string" ? row.given_name.trim() : "";
+  const family = typeof row.family_name === "string" ? row.family_name.trim() : "";
+  return [given, family].filter(Boolean).join(" ");
+}
+
+function hasPosition(card: { contactItemIds: string[]; itemZones?: Record<string, string> }, items: { id: string; value: string }[]) {
+  return card.contactItemIds.some((id) => {
+    const item = items.find((entry) => entry.id === id);
+    return Boolean(item?.value.trim()) && card.itemZones?.[id] === "position";
+  });
 }
 
 /** Puts the account email on Contacts. Returns the library row. */
@@ -78,37 +95,89 @@ function placeContact(cardId: string, email: string): string | null {
 }
 
 export function OpenPortfolio({
-  lookup,
-  hash,
-  guest,
+  lookup = "",
+  hash = "",
+  guest = null,
+  account = false,
 }: {
-  lookup: string;
-  hash: string;
-  guest: { token: string; name: string; email: string } | null;
+  lookup?: string;
+  hash?: string;
+  guest?: { token: string; name: string; email: string } | null;
+  /** A signed-in site account that does not have a portfolio yet. */
+  account?: boolean;
 }) {
   const router = useRouter();
   const layout = useMainLayout();
   const sessionReady = useSessionBootstrap();
   const [cardId, setCardId] = useState<string | null>(null);
-  const [opening, setOpening] = useState(Boolean(hash));
+  const [opening, setOpening] = useState(Boolean(hash) || account);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   /** Grey Contacts hint. A real row is written only on Create portfolio. */
   const [offerEmail, setOfferEmail] = useState<string | null>(null);
+  /** Grey header name. It is written onto the card when the caret lands, or on Create portfolio. */
+  const [offerName, setOfferName] = useState("");
+  const [nameLive, setNameLive] = useState(false);
   const openAddRef = useRef<(() => void) | null>(null);
   const ran = useRef(false);
   const seeded = useRef(false);
-  const eventPath = `/e/${encodeURIComponent(lookup)}`;
+  const eventPath = account || !lookup ? "/" : `/e/${encodeURIComponent(lookup)}`;
   const guestToken = guest?.token ?? null;
   const card = useAppStore((state) => (cardId ? state.cards.find((entry) => entry.id === cardId) ?? null : null));
+  const contactItems = useAppStore((state) => state.contactItems);
   const updateCard = useAppStore((state) => state.updateCard);
+  const nameValue = card?.displayName || (nameLive ? "" : offerName);
+  const nameReady = Boolean(nameValue.trim());
+  const positionReady = Boolean(card && hasPosition(card, contactItems));
+  const ready = nameReady && positionReady;
+  const namePending = Boolean(offerName && !nameLive && !card?.displayName.trim());
 
   useEffect(() => {
     if (!sessionReady || ran.current) return;
     ran.current = true;
     void (async () => {
       const supabase = createBrowserSupabaseClient();
+      if (account) {
+        const { data } = await supabase.auth.getUser();
+        const user = data.user;
+        if (!user || user.is_anonymous) {
+          router.replace("/register");
+          return;
+        }
+        await hydrateCardsFromServer();
+        const owned = useAppStore.getState().cards;
+        if (owned.some((entry) => entry.displayName.trim() || entry.photoAttachmentId || entry.photo)) {
+          router.replace("/main");
+          return;
+        }
+        const email = (user.email ?? "").trim().toLowerCase();
+        if (email) setOfferEmail(email);
+        const given = offeredPersonName(user.user_metadata);
+        if (given) setOfferName(given);
+        let id: string | null = owned.find((entry) => !entry.displayName.trim() && !entry.photoAttachmentId && !entry.photo)?.id ?? null;
+        if (!id) {
+          const limit = await portfolioLimit();
+          const state = useAppStore.getState();
+          const room = limit ?? 1;
+          if (state.cards.length < room) {
+            state.updateSecondCardDraft({ displayName: "" }, room);
+            id = useAppStore.getState().cards[useAppStore.getState().cards.length - 1]?.id ?? null;
+          }
+        }
+        if (!id) {
+          setOpening(false);
+          setMessage("You're at 3 portfolios — this one wasn't added");
+          return;
+        }
+        if (!seeded.current) {
+          seeded.current = true;
+          rememberLabels(id);
+        }
+        setCardId(id);
+        setOpening(false);
+        return;
+      }
       if (hash) {
         const signed = await supabase.auth.verifyOtp({ token_hash: hash, type: "magiclink" });
         if (signed.error) {
@@ -151,9 +220,11 @@ export function OpenPortfolio({
       }
       const draft = readDraft(lookup, guestToken);
       const email = (guest?.email || draft?.email || (!user.is_anonymous ? user.email : "") || "").trim().toLowerCase();
+      const offered = (guest?.name?.trim() || draft?.name || (!user.is_anonymous ? offeredPersonName(user.user_metadata) : "")).trim();
+      if (offered) setOfferName(offered);
       if (email) {
         setOfferEmail(email);
-        writeDraft(lookup, guestToken, { email, website: draft?.website ?? "", name: guest?.name || draft?.name || "" });
+        writeDraft(lookup, guestToken, { email, website: draft?.website ?? "", name: offered });
       }
       let id: string | null = useAppStore.getState().cards[0]?.id ?? null;
       if (!id) {
@@ -161,14 +232,9 @@ export function OpenPortfolio({
         const state = useAppStore.getState();
         const room = limit ?? 1;
         if (state.cards.length < room) {
-          const name = guest?.name?.trim() || draft?.name || "";
-          state.updateSecondCardDraft({ displayName: name }, room);
+          state.updateSecondCardDraft({ displayName: "" }, room);
           id = useAppStore.getState().cards[useAppStore.getState().cards.length - 1]?.id ?? null;
         }
-      } else if (guest?.name?.trim()) {
-        const name = guest.name.trim();
-        const card = useAppStore.getState().cards.find((entry) => entry.id === id);
-        if (card && !card.displayName.trim()) useAppStore.getState().updateCard(card.id, { displayName: name });
       }
       if (!id) {
         setOpening(false);
@@ -185,7 +251,7 @@ export function OpenPortfolio({
       setOpening(false);
       setMessage("Could not open your portfolio.");
     });
-  }, [eventPath, guest, guestToken, hash, lookup, router, sessionReady]);
+  }, [account, eventPath, guest, guestToken, hash, lookup, router, sessionReady]);
 
   const scaffold = useMemo(
     () =>
@@ -196,7 +262,27 @@ export function OpenPortfolio({
   );
 
   const finish = async () => {
-    if (busy || !cardId) return;
+    if (busy || !cardId || !ready) return;
+    const offered = offerName.trim();
+    const named = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+    if (named && !named.displayName.trim() && offered) {
+      useAppStore.getState().updateCard(cardId, { displayName: offered });
+    }
+    if (account) {
+      setBusy(true);
+      setMessage(null);
+      const email = (offerEmail ?? "").trim().toLowerCase();
+      if (email) placeContact(cardId, email);
+      const state = useAppStore.getState();
+      const saved = state.cards.find((entry) => entry.id === cardId);
+      if (saved) {
+        scheduleCardUpsert(saved);
+        const items = state.contactItems.filter((item) => saved.contactItemIds.includes(item.id));
+        await syncCardLinkOrder(saved, items).catch(() => undefined);
+      }
+      router.replace("/main");
+      return;
+    }
     const email = (offerEmail ?? "").trim().toLowerCase();
     if (!email) {
       setMessage("Add your email.");
@@ -345,11 +431,26 @@ export function OpenPortfolio({
               ) : null}
               <div className="relative flex h-full min-w-0 flex-1 flex-col">
                 {card ? (
-                  <HeroName
-                    value={card.displayName}
-                    placeholder="NAME OR PORTFOLIO TITLE"
-                    onChange={(displayName) => updateCard(card.id, { displayName })}
-                  />
+                  <>
+                    <span aria-hidden className="pointer-events-none absolute top-0 right-0 t-meta text-[var(--grey)]">
+                      *
+                    </span>
+                    <HeroName
+                      value={nameValue}
+                      placeholder="NAME OR PORTFOLIO TITLE"
+                      pending={namePending}
+                      onFocus={() => {
+                        setNameLive(true);
+                        if (!card.displayName.trim() && offerName.trim()) {
+                          updateCard(card.id, { displayName: offerName.trim() });
+                        }
+                      }}
+                      onChange={(displayName) => {
+                        setNameLive(true);
+                        updateCard(card.id, { displayName });
+                      }}
+                    />
+                  </>
                 ) : null}
               </div>
             </div>
@@ -393,9 +494,12 @@ export function OpenPortfolio({
       >
         <div className={CARD_PAD}>
           <div style={{ paddingLeft: VALUE_AXIS_PX }}>
-            <TapButton disabled={busy || !card || !sessionReady || Boolean(sentTo)} onTap={() => void finish()} className={SKY}>
+            <TapButton disabled={busy || !card || !ready || !sessionReady || Boolean(sentTo)} onTap={() => void finish()} className={SKY}>
               Create portfolio
             </TapButton>
+            {!ready && card && !sentTo ? (
+              <p className="mt-2 mb-0 t-meta text-[var(--grey)]">Fill in your name and position.</p>
+            ) : null}
           </div>
         </div>
       </div>

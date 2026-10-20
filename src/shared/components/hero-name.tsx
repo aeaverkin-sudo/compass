@@ -56,6 +56,8 @@ export function HeroName({
   placeholder = "Name or portfolio title",
   maxLines = 2,
   align = "bottom",
+  pending = false,
+  onFocus,
 }: {
   value: string;
   onChange?: (displayName: string) => void;
@@ -63,6 +65,9 @@ export function HeroName({
   roleBelow?: boolean;
   placeholder?: string;
   maxLines?: number;
+  /** Offered text stays grey until the caret is placed. */
+  pending?: boolean;
+  onFocus?: () => void;
   /** Center puts the lines themselves, without the descender pad, on the middle of the photo. */
   align?: "bottom" | "center";
 }) {
@@ -191,7 +196,10 @@ export function HeroName({
             event.currentTarget.scrollLeft = 0;
             onChange(clamp(event.target.value));
           }}
-          onFocus={(event) => holdScroll(event.currentTarget)}
+          onFocus={(event) => {
+            onFocus?.();
+            holdScroll(event.currentTarget);
+          }}
           onPointerDown={(event) => event.stopPropagation()}
           onBeforeInput={(event) => {
             const native = event.nativeEvent;
@@ -214,7 +222,10 @@ export function HeroName({
             onChange(clamp(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre text-[var(--ink)] outline-none"
+          className={cn(
+            "compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre outline-none",
+            pending ? "text-[var(--placeholder)] caret-[var(--ink)]" : "text-[var(--ink)]",
+          )}
           style={empty ? { ...lineStyle, color: "transparent", caretColor: "var(--ink)" } : lineStyle}
         />
         </>

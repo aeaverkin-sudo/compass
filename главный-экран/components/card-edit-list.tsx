@@ -52,9 +52,11 @@ type EditSection = {
   rows: { row: CardDisplayRow; onCard: boolean }[];
   /** Empty starter row. The hint stands in for the plus until the zone has a line. */
   hint?: string;
+  /** Questionnaire floor. A grey asterisk sits on the label. */
+  required?: boolean;
 };
 
-export type ScaffoldZone = { id: CardZoneId; title: string; hint: string };
+export type ScaffoldZone = { id: CardZoneId; title: string; hint: string; required?: boolean };
 
 function lineOf(row: CardDisplayRow) {
   return row.axis ? `${row.axis} / ${row.value}` : row.value;
@@ -96,14 +98,17 @@ function buildSections(card: Card, items: ContactItem[], cards: Card[], scaffold
   const seeded = scaffold.flatMap((zone) => {
     if (hidden.has(zone.id)) return [];
     const found = byId.get(zone.id);
-    if (found) return [{ ...found, hint: found.rows.length > 0 ? undefined : zone.hint }];
+    if (found) return [{ ...found, hint: found.rows.length > 0 ? undefined : zone.hint, required: zone.required }];
     return [
-      sectionOf(
-        { id: zone.id, title: zoneTitle(card, zone.id, zone.title), rows: [] },
-        onCard,
-        order,
-        zone.hint,
-      ),
+      {
+        ...sectionOf(
+          { id: zone.id, title: zoneTitle(card, zone.id, zone.title), rows: [] },
+          onCard,
+          order,
+          zone.hint,
+        ),
+        required: zone.required,
+      },
     ];
   });
   const rest = built.filter((section) => !scaffold.some((zone) => zone.id === section.id));
@@ -212,6 +217,7 @@ function SectionLabel({
   advancing,
   onArmHide,
   onHide,
+  required = false,
 }: {
   title: string;
   included: boolean;
@@ -230,6 +236,7 @@ function SectionLabel({
   advancing?: RefObject<boolean>;
   onArmHide: () => void;
   onHide: () => void;
+  required?: boolean;
 }) {
   const dockRef = useRef<WrapFieldHandle>(null);
   const desktop = useFinePointer();
@@ -323,6 +330,7 @@ function SectionLabel({
             onContextMenu={longPress.onContextMenu}
           >
             {shown}
+            {required ? <span className="text-[var(--grey)]"> *</span> : null}
           </button>
         )}
         {hideReady && !(editing && pill) ? (
@@ -689,6 +697,7 @@ export const CardEditList = memo(function CardEditList({
                     hideReady={hideReadyId === section.id}
                     pill={isExtraZoneId(section.id)}
                     seed={seedingThis}
+                    required={section.required}
                     onStay={seedingThis ? stayInSeed : undefined}
                     advancing={seedingThis ? advanceSeedRef : undefined}
                     onAdvance={(next) => {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isEventInvitePath, isEventJoinPath, isEventTeamPath } from "@/shared/event/lookup";
 import { publicOrigin } from "@/shared/lib/public-origin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { listOwnPortfolios } from "@/shared/services/event-registration";
 import { clearTrialClock } from "@/shared/services/trial";
 
 export const runtime = "nodejs";
@@ -60,13 +61,25 @@ export async function GET(request: Request) {
   }
 
   const { data } = await supabase.auth.getUser();
+  const keeps =
+    next.startsWith("/save/") || isEventJoinPath(next) || isEventTeamPath(next) || isEventInvitePath(next);
+  let destination = next;
   if (data.user && !data.user.is_anonymous) {
     try {
       await clearTrialClock(data.user.id);
     } catch (clockError) {
       console.error("[auth] clear trial", clockError);
     }
+    if (!keeps) {
+      try {
+        const cards = await listOwnPortfolios(data.user.id);
+        const ready = cards.some((card) => card.name.trim() || card.photoAttachmentId);
+        if (!ready) destination = "/create";
+      } catch (portfolioError) {
+        console.error("[auth] portfolio", portfolioError);
+      }
+    }
   }
 
-  return NextResponse.redirect(new URL(next, origin));
+  return NextResponse.redirect(new URL(destination, origin));
 }

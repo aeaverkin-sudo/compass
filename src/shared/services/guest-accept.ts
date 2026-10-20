@@ -208,6 +208,17 @@ async function settleRegistration(
   }
 }
 
+function namedPortfolio(cards: PortfolioChoice[]): boolean {
+  return cards.some((card) => card.name.trim() || Boolean(card.photoAttachmentId));
+}
+
+/** Payment first when the event is still unpaid, then the empty-portfolio questionnaire. */
+async function afterEmptyPortfolio(event: EventInvite, userId: string | null, createPath: string): Promise<string> {
+  const paid = userId ? await paysFirst(event.id, userId) : (await loadEventPay(event.id)).isPaid;
+  if (!paid) return createPath;
+  return `/e/${encodeURIComponent(event.slug ?? event.code)}/pay?next=${encodeURIComponent(createPath)}`;
+}
+
 /** A paid event shows the payment screen first, unless a paid list has already confirmed it. */
 async function paysFirst(eventId: string, userId: string): Promise<boolean> {
   const pay = await loadEventPay(eventId);
@@ -352,6 +363,10 @@ export async function acceptGuestPass(
   }
 
   if (await isPermanentAccount(session)) {
+    const owned = await listOwnPortfolios(session!.id);
+    if (!namedPortfolio(owned)) {
+      return { ok: true, kind: "go", next: await afterEmptyPortfolio(event, session!.id, createPath) };
+    }
     const joined = await joinWithOwnCard(session!.id, event, lookup, guest.token, null, consentPath);
     if (!joined.ok) return joined;
     if (!joined.registrationId) return { ok: true, kind: "go", next: joinPath };
@@ -365,5 +380,5 @@ export async function acceptGuestPass(
     return { ok: true, kind: "go", next: signInPath(invitePath(event, guest.token)), notice: TAKEN_EMAIL };
   }
 
-  return { ok: true, kind: "go", next: createPath };
+  return { ok: true, kind: "go", next: await afterEmptyPortfolio(event, session?.id ?? null, createPath) };
 }
