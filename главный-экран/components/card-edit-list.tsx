@@ -596,9 +596,8 @@ export const CardEditList = memo(function CardEditList({
 
   const noteAdded = () => {
     const user = useAppStore.getState().user;
-    if (user.firstRowHintSeen) return;
     if (!user.addLibraryHintSeen) useAppStore.getState().markAddLibraryHintSeen();
-    setLibraryHint("first");
+    if (!user.firstRowHintSeen) useAppStore.getState().markFirstRowHintSeen();
   };
 
   const seedItem = (zoneId: string, raw: string) => {
@@ -671,6 +670,7 @@ export const CardEditList = memo(function CardEditList({
   const stayInSeed = (event: FocusEvent<HTMLDivElement>) =>
     Boolean(extraBlockRef.current?.contains(event.relatedTarget as Node | null));
   const blankCard = sections.every((entry) => entry.rows.length === 0);
+  const showChecks = !scaffold;
 
   return (
     <div
@@ -699,7 +699,7 @@ export const CardEditList = memo(function CardEditList({
                   : "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]",
               )}
             >
-              <div className={cn("min-w-0", fresh && "w-[86px] shrink-0", bare && "text-[var(--placeholder)] [&_[data-section-number]]:text-[var(--placeholder)]")}>
+              <div className={cn("min-w-0", fresh && "w-[86px] shrink-0", bare && "text-[var(--placeholder)]", bare && showChecks && "[&_[data-section-number]]:text-[var(--placeholder)]")}>
                 <SectionNumber value={sectionNumberLabel(index)} />
                 <div className="mt-[6px]">
                   <SectionLabel
@@ -807,6 +807,7 @@ export const CardEditList = memo(function CardEditList({
                       onErase={eraseRow}
                       fileUrl={isAttachmentType(item.type) ? row.url : undefined}
                       onRetryFile={retryFile}
+                      checks={showChecks}
                     />
                   );
                 })}
@@ -879,9 +880,11 @@ export const CardEditList = memo(function CardEditList({
                           className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
                         />
                       </div>
-                      <div className="pointer-events-none">
-                        <LibraryCheck onCard={false} onToggle={() => undefined} />
-                      </div>
+                      {showChecks ? (
+                        <div className="pointer-events-none">
+                          <LibraryCheck onCard={false} onToggle={() => undefined} />
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ) : bare ? (
@@ -924,15 +927,6 @@ export const CardEditList = memo(function CardEditList({
           text="Add anything to the library and use it in different portfolios"
           onDone={() => {
             useAppStore.getState().markAddLibraryHintSeen();
-            setLibraryHint(null);
-          }}
-        />
-      ) : null}
-      {libraryHint === "first" ? (
-        <SkyHint
-          text="Tap + to use in the portfolio"
-          onDone={() => {
-            useAppStore.getState().markFirstRowHintSeen();
             setLibraryHint(null);
           }}
         />
@@ -1000,6 +994,7 @@ const EditRow = memo(function EditRow({
   onErase,
   fileUrl,
   onRetryFile,
+  checks = true,
 }: {
   itemId: string;
   zoneId: CardZoneId;
@@ -1019,6 +1014,8 @@ const EditRow = memo(function EditRow({
   /** Set on file rows: the row shows its upload state under the name. */
   fileUrl?: string;
   onRetryFile: (itemId: string) => void;
+  /** Library tick. The registration form leaves it off. */
+  checks?: boolean;
 }) {
   const fileStatus = useUploadStatus((state) => state.byItem[itemId]);
   const statusLine = fileUrl === undefined ? null : fileStatusLine(fileStatus, fileUrl);
@@ -1069,10 +1066,11 @@ const EditRow = memo(function EditRow({
     dockRef.current?.focusEnd();
   }, [editing]);
 
+  const side = checks || deleteReady ? "mr-[26px]" : "";
   return (
     <div ref={rowRef} data-item-row={itemId} className="relative min-w-0">
       {editing ? (
-        <div className="mr-[26px] min-w-0">
+        <div className={cn(side, "min-w-0")}>
           <WrapField
             ref={dockRef}
             initial={value}
@@ -1100,7 +1098,8 @@ const EditRow = memo(function EditRow({
         aria-label={text}
         data-no-swipe
         className={cn(
-          "mr-[26px] min-w-0 overflow-clip",
+          side,
+          "min-w-0 overflow-clip",
           (holding || deleteReady) && "opacity-40",
         )}
         style={{
@@ -1141,20 +1140,24 @@ const EditRow = memo(function EditRow({
             type="button"
             data-no-swipe
             onClick={() => onRetryFile(itemId)}
-            className="mr-[26px] block text-left t-meta text-[var(--grey)]"
+            className={cn(side, "block text-left t-meta text-[var(--grey)]")}
           >
             {statusLine}
           </button>
         ) : (
-          <span className="mr-[26px] block t-meta text-[var(--grey)]">{statusLine}</span>
+          <span className={cn(side, "block t-meta text-[var(--grey)]")}>{statusLine}</span>
         )
       ) : null}
       {fades && !editing && !multiline && !isProseValue(value) && !value.includes("\n") ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 right-[26px] w-4 bg-gradient-to-r from-transparent to-white"
+          className={cn(
+            "pointer-events-none absolute inset-y-0 w-4 bg-gradient-to-r from-transparent to-white",
+            checks ? "right-[26px]" : "right-0",
+          )}
         />
       ) : null}
+      {checks || deleteReady ? (
       <div className="absolute top-0 right-0 flex items-start">
         {deleteReady ? (
           <button
@@ -1171,6 +1174,7 @@ const EditRow = memo(function EditRow({
           <LibraryCheck onCard={onCard} onToggle={() => onToggle(itemId, zoneId)} />
         )}
       </div>
+      ) : null}
     </div>
   );
 });

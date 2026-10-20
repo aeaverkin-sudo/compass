@@ -14,7 +14,7 @@ import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
-import { cardPhotoSrc } from "@/shared/services/card-photo";
+import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { scheduleCardUpsert, hydrateCardsFromServer, upsertCardScalars } from "@/shared/services/card-sync";
 import { syncCardLinkOrder } from "@/shared/services/card-items-sync";
@@ -25,7 +25,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import { dropDraft, readDraft, writeDraft } from "./draft";
 
 const SKY =
-  "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
+  "inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] disabled:text-[var(--grey)] disabled:opacity-100 [-webkit-tap-highlight-color:transparent]";
 const CARD_PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const EXPIRED = "This link has expired. Enter your email again.";
 
@@ -36,6 +36,7 @@ const STARTERS: ScaffoldZone[] = [
   { id: "web", title: "Web", hint: "Website" },
   { id: "social", title: "Social", hint: "Instagram, LinkedIn…" },
   { id: "files", title: "Files", hint: "PDF, JPG…" },
+  { id: "contact", title: "Contacts", hint: "Email, phone…" },
 ];
 
 const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -558,9 +559,15 @@ export function OpenPortfolio({
             <div className="flex shrink-0 items-stretch gap-3" style={{ height: photoPx }}>
               {card ? (
                 <PhotoSlotPicker
-                  photo={cardPhotoSrc(card)}
-                  photoLook={card.photo ? card.photoLook : "shadow"}
-                  emptyMark={<span className="t-caps px-1 text-center text-[var(--grey)]">Add photo</span>}
+                  photo={cardHasPhoto(card) ? cardPhotoSrc(card) : null}
+                  photoLook={cardHasPhoto(card) ? card.photoLook : "shadow"}
+                  emptyMark={
+                    <span className="t-caps px-1 text-center leading-[1.15] text-[var(--grey)]">
+                      Add
+                      <br />
+                      photo
+                    </span>
+                  }
                   onPhotoChange={(photo, file) => {
                     if (!photo || !file) {
                       updateCard(card.id, { photo: undefined, photoAttachmentId: undefined });
@@ -579,12 +586,9 @@ export function OpenPortfolio({
               <div className="relative flex h-full min-w-0 flex-1 flex-col">
                 {card ? (
                   <>
-                    <span aria-hidden className="pointer-events-none absolute top-0 right-0 t-meta text-[var(--grey)]">
-                      *
-                    </span>
                     <HeroName
                       value={nameValue}
-                      placeholder="NAME OR PORTFOLIO TITLE"
+                      placeholder="NAME OR PORTFOLIO TITLE *"
                       pending={namePending}
                       onFocus={() => {
                         setNameLive(true);
@@ -631,7 +635,7 @@ export function OpenPortfolio({
           ) : null}
           {card ? (
             <div className="bg-sky py-[18px]">
-              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px]">
                 <span className="t-label">Email *</span>
                 <input
                   type="email"
@@ -649,14 +653,14 @@ export function OpenPortfolio({
                     setEmailLive(true);
                     setEmailDraft(event.target.value);
                   }}
-                  className={`compass-input block w-full border-0 bg-transparent p-0 t-body caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)] ${emailPending ? "text-[var(--placeholder)]" : "text-[var(--ink)]"}`}
+                  className={`compass-input block w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 py-1 t-body caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)] ${emailPending ? "text-[var(--placeholder)]" : "text-[var(--ink)]"}`}
                 />
               </div>
               {account ? null : (
-                <div className="mt-4 grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
-                  <span className="t-label">Password</span>
+                <div className="mt-[18px] grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+                  <span className="t-label pt-1">Password</span>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 border-b border-[var(--rule)]">
                       <input
                         type={passwordVisible ? "text" : "password"}
                         autoCapitalize="none"
@@ -669,7 +673,7 @@ export function OpenPortfolio({
                       <button
                         type="button"
                         aria-label={passwordVisible ? "Hide password" : "Show password"}
-                        className="press border-0 bg-transparent p-1 text-[var(--ink)]"
+                        className="border-0 bg-transparent p-1 text-[var(--ink)]"
                         onClick={() => setPasswordVisible((shown) => !shown)}
                       >
                         {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
