@@ -19,44 +19,130 @@ function scrollParent(node: HTMLElement): HTMLElement | null {
   return null;
 }
 
+const KEYBOARD_MIN_PX = 80;
+const GAP_PX = 8;
+
+type Held = { scroller: HTMLElement | null; row: HTMLElement | null };
+
+function clearHeld(held: Held) {
+  if (held.scroller) {
+    held.scroller.style.paddingTop = "";
+    held.scroller.style.paddingBottom = "";
+    held.scroller.style.scrollPaddingTop = "";
+    held.scroller.style.scrollPaddingBottom = "";
+  }
+  if (held.row) {
+    held.row.style.scrollMarginTop = "";
+    held.row.style.scrollMarginBottom = "";
+  }
+  held.scroller = null;
+  held.row = null;
+}
+
+function rowOf(el: HTMLElement) {
+  return el.closest<HTMLElement>("[data-item-row], [data-seed-value]") ?? el;
+}
+
+/** How much a sticky or fixed bar covers the top of the scrolling list. */
+function stickyCover(scroller: HTMLElement) {
+  const box = scroller.getBoundingClientRect();
+  if (box.width < 8 || box.height < 8) return 0;
+  const x = Math.min(window.innerWidth - 2, Math.max(2, box.left + 12));
+  let y = Math.max(0, box.top + 1);
+  let cover = 0;
+  for (let step = 0; step < 5; step += 1) {
+    const hit = document.elementFromPoint(x, y);
+    if (!hit) break;
+    let sticky = false;
+    let node: Element | null = hit;
+    while (node && node !== scroller) {
+      const position = getComputedStyle(node).position;
+      if (position === "sticky" || position === "fixed") sticky = true;
+      node = node.parentElement;
+    }
+    if (!sticky) break;
+    const bottom = hit.getBoundingClientRect().bottom;
+    if (bottom <= y + 1) break;
+    cover = Math.max(cover, bottom - box.top);
+    y = bottom + 1;
+    if (y >= box.bottom) break;
+  }
+  return cover;
+}
+
 /**
- * Keeps the focused field in the visible band above the keyboard.
- * The inset is the part of the layout the visual viewport no longer shows.
+ * Puts the focused row on the keyboard.
+ * The keyboard is the part of the layout the visual viewport no longer shows.
+ * A row already on screen is not pulled up under the name: it stays at the bottom of the open area.
  */
-function place(el: HTMLElement, padded: { current: HTMLElement | null }) {
+function place(el: HTMLElement, held: Held) {
   const viewport = window.visualViewport;
   if (!viewport) return;
-  const visibleBottom = viewport.offsetTop + viewport.height;
+  const keyboard = Math.max(0, window.innerHeight - viewport.offsetTop - viewport.height);
+  const open = keyboard > KEYBOARD_MIN_PX;
   const scroller = scrollParent(el);
-  const covered = scroller
-    ? scroller.getBoundingClientRect().bottom - visibleBottom
-    : window.innerHeight - visibleBottom;
-  const inset = Math.max(0, covered);
-  const open = inset > 80;
-  if (padded.current && padded.current !== scroller) padded.current.style.paddingBottom = "";
-  padded.current = scroller;
-  if (scroller) scroller.style.paddingBottom = open ? `${Math.round(inset + 16)}px` : "";
-  if (!open) return;
-  const rect = el.getBoundingClientRect();
-  const topLimit = viewport.offsetTop + 12;
-  const bottomLimit = visibleBottom - 12;
-  if (rect.bottom <= bottomLimit && rect.top >= topLimit) return;
-  const mid = (topLimit + bottomLimit) / 2;
-  const delta = rect.top + rect.height / 2 - mid;
-  if (Math.abs(delta) < 8) return;
-  if (scroller) scroller.scrollTop += delta;
-  else window.scrollBy(0, delta);
+  const row = rowOf(el);
+  const cover = scroller ? stickyCover(scroller) : 0;
+  if (held.scroller && held.scroller !== scroller) {
+    held.scroller.style.paddingTop = "";
+    held.scroller.style.paddingBottom = "";
+    held.scroller.style.scrollPaddingTop = "";
+    held.scroller.style.scrollPaddingBottom = "";
+  }
+  if (held.row && held.row !== row) {
+    held.row.style.scrollMarginTop = "";
+    held.row.style.scrollMarginBottom = "";
+  }
+  held.scroller = scroller;
+  held.row = row;
+  const keyboardPx = `${Math.round(keyboard)}px`;
+  const coverPx = cover > 0 ? `${Math.round(cover)}px` : "";
+  if (scroller) {
+    scroller.style.paddingBottom = open ? keyboardPx : "";
+    scroller.style.scrollPaddingBottom = open ? keyboardPx : "";
+    scroller.style.scrollPaddingTop = coverPx;
+  }
+  row.style.scrollMarginTop = coverPx;
+  row.style.scrollMarginBottom = open ? `${GAP_PX}px` : "";
+  if (!open) {
+    if (scroller) scroller.style.paddingTop = "";
+    return;
+  }
+  if (scroller) scroller.style.paddingTop = "";
+  row.scrollIntoView({ block: "nearest", inline: "nearest" });
+  const visibleBottom = viewport.offsetTop + viewport.height;
+  const scrollerBottom = scroller ? scroller.getBoundingClientRect().bottom : visibleBottom;
+  const bottomLimit = Math.min(visibleBottom, scrollerBottom) - GAP_PX;
+  const topLimit = (scroller ? scroller.getBoundingClientRect().top : viewport.offsetTop) + cover + GAP_PX;
+  const rect = row.getBoundingClientRect();
+  let delta = bottomLimit - rect.bottom;
+  const fits = rect.height <= bottomLimit - topLimit;
+  if (fits && rect.top + delta < topLimit) delta = topLimit - rect.top;
+  if (Math.abs(delta) < 2) return;
+  if (!scroller) {
+    window.scrollBy(0, -delta);
+    return;
+  }
+  if (delta > 0) {
+    const byScroll = Math.min(scroller.scrollTop, delta);
+    scroller.scrollTop -= byScroll;
+    const next = delta - byScroll;
+    scroller.style.paddingTop = next > 2 ? `${Math.round(next)}px` : "";
+    return;
+  }
+  scroller.scrollTop += -delta;
 }
 
 export function KeyboardAvoidance() {
   useEffect(() => {
     let active: HTMLElement | null = null;
-    const padded = { current: null as HTMLElement | null };
+    const held: Held = { scroller: null, row: null };
     let followUp = 0;
+    let later = 0;
 
     const run = () => {
       if (!active || !document.contains(active)) return;
-      place(active, padded);
+      place(active, held);
     };
 
     const onFocusIn = (event: FocusEvent) => {
@@ -65,7 +151,8 @@ export function KeyboardAvoidance() {
       run();
       window.cancelAnimationFrame(followUp);
       followUp = requestAnimationFrame(run);
-      window.setTimeout(run, 320);
+      window.clearTimeout(later);
+      later = window.setTimeout(run, 320);
     };
 
     const onFocusOut = () => {
@@ -76,8 +163,7 @@ export function KeyboardAvoidance() {
           return;
         }
         active = null;
-        if (padded.current) padded.current.style.paddingBottom = "";
-        padded.current = null;
+        clearHeld(held);
       }, 60);
     };
 
@@ -95,7 +181,8 @@ export function KeyboardAvoidance() {
       window.visualViewport?.removeEventListener("resize", onViewport);
       window.visualViewport?.removeEventListener("scroll", onViewport);
       window.cancelAnimationFrame(followUp);
-      if (padded.current) padded.current.style.paddingBottom = "";
+      window.clearTimeout(later);
+      clearHeld(held);
     };
   }, []);
 

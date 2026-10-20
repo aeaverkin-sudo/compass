@@ -669,6 +669,7 @@ export const CardEditList = memo(function CardEditList({
     >
       {sections.map((section, index) => {
         const seedingThis = seedZoneId === section.id;
+        const fileHere = section.id === "files" || sections.every((entry) => entry.rows.length === 0);
         const fresh = seedingThis && isExtraZoneId(section.id) && section.rows.length === 0;
         const bare = Boolean(section.hint) && !seedingThis;
         const zone = (
@@ -818,14 +819,14 @@ export const CardEditList = memo(function CardEditList({
                     <div className="flex min-w-0 items-start gap-[11px]">
                       {lookingFor ? (
                         <span className="shrink-0 pt-[3px] t-label">{LOOKING_FOR}</span>
-                      ) : (
+                      ) : fileHere ? (
                         <FileAddButton
                           onPointerDown={() => {
                             advanceSeedRef.current = true;
                           }}
                           onClick={() => addSeedFile(section.id)}
                         />
-                      )}
+                      ) : null}
                       <div data-seed-value="" className="min-w-0 flex-1">
                         <WrapField
                           ref={extraValueRef}
