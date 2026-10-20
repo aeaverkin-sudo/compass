@@ -5,7 +5,17 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { CardEditList, type ScaffoldZone } from "@main/components/card-edit-list";
 import { useMainLayout } from "@main/hooks/use-main-layout";
-import { CARD_HEADER_PAD_PX, CARD_TOP_TRIM_PX, HERO_PHOTO_PX, RULE_GAP_PX, SCREEN_TOP_AXIS_PX, SHEET_INSET } from "@main/layout";
+import {
+  CARD_HEADER_PAD_PX,
+  CARD_TOP_TRIM_PX,
+  HEADER_FADE_PX,
+  HERO_PHOTO_PX,
+  RULE_GAP_PX,
+  SCREEN_TOP_AXIS_PX,
+  SECTION_PAD_PX,
+  SHEET_INSET,
+} from "@main/layout";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { HeroName } from "@/shared/components/hero-name";
 import { ScreenHeader } from "@/shared/components/screen-header";
@@ -550,7 +560,7 @@ export function OpenPortfolio({
       <div className="shrink-0 bg-background" style={{ paddingTop: headerPad, paddingLeft: inset, paddingRight: inset }}>
         <div className={CARD_PAD}>
           <div
-            className="border-b border-[var(--rule)]"
+            className="relative"
             style={{
               paddingTop: (RULE_GAP_PX - CARD_TOP_TRIM_PX) * scale,
               paddingBottom: CARD_HEADER_PAD_PX * scale,
@@ -610,31 +620,40 @@ export function OpenPortfolio({
       </div>
 
       <div
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-        style={{ paddingLeft: inset, paddingRight: inset, paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+        className="compass-card-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
+        style={{
+          paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+          WebkitMaskImage: `linear-gradient(to bottom, transparent 0, #000 ${HEADER_FADE_PX}px)`,
+          maskImage: `linear-gradient(to bottom, transparent 0, #000 ${HEADER_FADE_PX}px)`,
+        }}
       >
-        <div className={CARD_PAD}>
+        <div style={{ marginTop: -(SECTION_PAD_PX - HEADER_FADE_PX), paddingLeft: inset, paddingRight: inset }}>
+          <div className={CARD_PAD}>
           {card ? (
             <CardEditList card={card} items={[]} scaffold={scaffold} openAddRef={openAddRef} />
           ) : null}
           {card ? (
-            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] py-[18px]">
+            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-t border-[var(--rule)] py-[18px]">
               <span />
-              <div className="flex items-baseline gap-3">
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
                   aria-label="Add"
-                  className="t-body bg-transparent text-left text-[var(--ink)]"
+                  className="flex border-0 bg-transparent p-0 text-[var(--ink)]"
                   onPointerUp={() => openAddRef.current?.()}
                 >
-                  +
+                  <MarkPlus />
                 </button>
                 <p className="m-0 t-meta text-[var(--grey)]">No rush — add the rest anytime later.</p>
               </div>
             </div>
           ) : null}
-          {card ? (
-            <div className="bg-sky py-[18px]">
+          </div>
+        </div>
+        {card ? (
+          <div className="bg-sky py-[18px]">
+            <div style={{ paddingLeft: inset, paddingRight: inset }}>
+            <div className={CARD_PAD}>
               <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px]">
                 <span className="t-label">Email *</span>
                 <input
@@ -684,7 +703,11 @@ export function OpenPortfolio({
                 </div>
               )}
             </div>
-          ) : null}
+            </div>
+          </div>
+        ) : null}
+        <div style={{ paddingLeft: inset, paddingRight: inset }}>
+        <div className={CARD_PAD}>
           {sentTo ? (
             <p className="mt-4 mb-0 t-meta text-[var(--grey)]">{`Check ${sentTo}. Open the link in the email to sign in and join.`}</p>
           ) : null}
@@ -708,6 +731,7 @@ export function OpenPortfolio({
             )}
           </div>
           <div className="h-8" />
+        </div>
         </div>
       </div>
     </main>
