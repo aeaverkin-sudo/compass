@@ -9,6 +9,14 @@ const DEBOUNCE_MS = 300;
 
 const waiting = new Map<string, { timer: ReturnType<typeof setTimeout>; card: Card }>();
 const inFlight = new Set<string>();
+/** An owner delete is in flight. Hydrate must not put the server copy back on the card. */
+const clearing = new Set<string>();
+/** Bumped on every local notes change. A load that started earlier must not overwrite it. */
+const noteEpoch = new Map<string, number>();
+
+function bumpNotes(cardId: string) {
+  noteEpoch.set(cardId, (noteEpoch.get(cardId) ?? 0) + 1);
+}
 
 type NoteHandoff = { via: "link" | "pdf"; token: string };
 
@@ -111,6 +119,8 @@ const rerun = new Set<string>();
 
 async function pushNotes(snapshot: Card) {
   if (!isCardUuid(snapshot.id)) return;
+  if (snapshot.nextScanAddons.length === 0) clearing.add(snapshot.id);
+  else clearing.delete(snapshot.id);
   if (inFlight.has(snapshot.id)) {
     rerun.add(snapshot.id);
     return;
@@ -121,18 +131,25 @@ async function pushNotes(snapshot: Card) {
     const live = () => useAppStore.getState().cards.find((card) => card.id === snapshot.id);
     const hold = handoffFor(snapshot.id);
     const liveCard = live();
+    // An empty snapshot is a delete. A later hydrate must not put the note back into this upload.
     const card =
-      hold && snapshot.nextScanAddons.length > 0 ? snapshot : (liveCard ?? snapshot);
+      snapshot.nextScanAddons.length === 0
+        ? snapshot
+        : hold && snapshot.nextScanAddons.length > 0
+          ? snapshot
+          : (liveCard ?? snapshot);
     const before = signature(card.nextScanAddons);
     const ordered = orderNextScanAddons(card.nextScanAddons);
 
     if (ordered.length === 0) {
-      if (hold?.via === "link") return;
-      if (hold?.via === "pdf") {
-        await consumeSharedNotes(hold.token);
-        return;
-      }
+      clearHandoff(card.id);
       await putNotes(card.id, []);
+      if (hold?.via === "pdf") await consumeSharedNotes(hold.token);
+      const pending = waiting.get(card.id);
+      if (!pending || pending.card.nextScanAddons.length === 0) {
+        const current = live();
+        if (current && current.nextScanAddons.length > 0) await writeLocal(card.id, []);
+      }
       return;
     }
 
@@ -182,14 +199,18 @@ async function pushNotes(snapshot: Card) {
       );
     }
     const after = live();
-    if (after && signature(after.nextScanAddons) !== before && uploaded.size === 0) {
+    // Do not schedule an empty list from here. That empty list is the rail clearing after a share,
+    // and the server copy still belongs to whoever opens the link.
+    if (after && after.nextScanAddons.length > 0 && signature(after.nextScanAddons) !== before && uploaded.size === 0) {
       scheduleNotesSync(after);
     }
   } catch (error) {
     console.error("[notes] sync failed", error);
   } finally {
     inFlight.delete(snapshot.id);
-    if (rerun.delete(snapshot.id)) {
+    const again = rerun.delete(snapshot.id);
+    if (snapshot.nextScanAddons.length === 0 && !again) clearing.delete(snapshot.id);
+    if (again) {
       const { useAppStore } = await import("@/shared/store/app-store");
       const latest = useAppStore.getState().cards.find((card) => card.id === snapshot.id);
       if (latest) void pushNotes(latest);
@@ -200,7 +221,12 @@ async function pushNotes(snapshot: Card) {
 /** Push the latest notes for this card. File bytes upload before the row is saved. */
 export function scheduleNotesSync(card: Card) {
   if (!isCardUuid(card.id)) return;
-  if (card.nextScanAddons.length > 0) clearHandoff(card.id);
+  bumpNotes(card.id);
+  if (card.nextScanAddons.length === 0) clearing.add(card.id);
+  else {
+    clearing.delete(card.id);
+    clearHandoff(card.id);
+  }
   const previous = waiting.get(card.id);
   if (previous) clearTimeout(previous.timer);
   const timer = setTimeout(() => {
@@ -239,6 +265,7 @@ export function releaseOwnerNotes(cardId: string, via: "link" | "pdf", token: st
 export function dropPendingNotes() {
   for (const pending of waiting.values()) clearTimeout(pending.timer);
   waiting.clear();
+  clearing.clear();
 }
 
 function flushWaiting() {
@@ -262,10 +289,13 @@ export async function hydrateNotes(): Promise<void> {
   await Promise.all(
     cards.map(async (card) => {
       try {
+        const seen = noteEpoch.get(card.id) ?? 0;
         const response = await fetch(`/api/notes?cardId=${card.id}`);
         if (response.status === 404) return;
+        if ((noteEpoch.get(card.id) ?? 0) !== seen) return;
         const body = await readJson<{ notes?: NextScanAddon[] }>(response);
         const notes = body.notes ?? [];
+        if (clearing.has(card.id)) return;
         if (handoffFor(card.id)) {
           if (notes.length === 0) clearHandoff(card.id);
           return;
