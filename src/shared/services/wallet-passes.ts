@@ -11,6 +11,7 @@ import {
 import { loadVisibleCardItems } from "@/shared/services/public-card";
 import { setPrimaryCard } from "@/shared/services/primary-card";
 import { buildPass, type PassField } from "@/shared/services/wallet-pass";
+import { passAuthenticationToken, walletSerialFor } from "@/shared/services/wallet-registration";
 import { walletNumber, walletStrip } from "@/shared/services/wallet-strip";
 import { walletCardQr, type WalletBackField } from "@/shared/services/wallet-pass-content";
 
@@ -151,7 +152,7 @@ async function walletSerial(ownerId: string, cardId: string): Promise<{ serial: 
     const saved = await admin.auth.admin.updateUserById(ownerId, { app_metadata: { ...user.app_metadata, wallet_cards: next } });
     if (saved.error) console.error("[wallet] slots", saved.error.message);
   }
-  return { serial: slot === 1 ? `person-${ownerId}` : `person-${ownerId}-${slot}`, slot };
+  return { serial: walletSerialFor(ownerId, slot), slot };
 }
 
 /**
@@ -185,10 +186,14 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
   ]);
   const about = cardAbout(sections);
   const handle = card.handle?.trim().replace(/^@/, "");
+  const service = origin.startsWith("https://")
+    ? { webServiceURL: `${origin.replace(/\/$/, "")}/api/wallet/`, authenticationToken: passAuthenticationToken(serial) }
+    : {};
   const file = await buildPass({
     serialNumber: serial,
     organizationName: "ADED",
     description: name,
+    ...service,
     logo,
     headerFields: handle ? [{ key: "handle", label: "", value: `@${handle}` }] : [],
     strip,

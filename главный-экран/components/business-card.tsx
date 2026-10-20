@@ -9,7 +9,7 @@ import { AccountBand } from "@/shared/components/account-band";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { TapButton } from "@/shared/components/tap-button";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { cardInWallet, hintWalletAdded, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
@@ -48,20 +48,42 @@ const HERO_PHOTO_PX = 128;
 /** Under the last line, on the value column. The tab bar stays below the card. */
 function AddToWallet({ cardId }: { cardId: string }) {
   const [toast, setToast] = useState(false);
+  const [markedId, setMarkedId] = useState<string | null>(null);
+  const inWallet = markedId === cardId;
+  useEffect(() => {
+    let gone = false;
+    void cardInWallet(cardId).then((added) => {
+      if (!gone && added) setMarkedId(cardId);
+    });
+    return () => {
+      gone = true;
+    };
+  }, [cardId]);
   return (
     <>
       <div className="pt-[18px]" style={{ paddingLeft: VALUE_AXIS_PX }}>
-        <TapButton
-          data-card-content
-          data-no-swipe
-          onTap={() => {
-            void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => setToast(!opened));
-          }}
-          className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
-        >
-          <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
-          Add to Wallet
-        </TapButton>
+        {inWallet ? (
+          <p className="inline-flex items-center py-[10.8px] t-caps text-[var(--grey)]">IN WALLET</p>
+        ) : (
+          <TapButton
+            data-card-content
+            data-no-swipe
+            onTap={() => {
+              void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
+                if (!opened) {
+                  setToast(true);
+                  return;
+                }
+                hintWalletAdded(cardId);
+                setMarkedId(cardId);
+              });
+            }}
+            className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
+          >
+            <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
+            Add to Wallet
+          </TapButton>
+        )}
       </div>
       {toast ? <SkyToast text={WALLET_SOON} onDone={() => setToast(false)} /> : null}
     </>
