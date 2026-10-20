@@ -109,6 +109,8 @@ function place(el: HTMLElement, held: Held) {
     return;
   }
   if (scroller) scroller.style.paddingTop = "";
+  // The name sits in the header. Scrolling the window to it is what drops the caret into the zones.
+  if (el.hasAttribute("data-keep-window")) return;
   row.scrollIntoView({ block: "nearest", inline: "nearest" });
   const visibleBottom = viewport.offsetTop + viewport.height;
   const scrollerBottom = scroller ? scroller.getBoundingClientRect().bottom : visibleBottom;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
 
@@ -85,6 +85,7 @@ export function HeroName({
 }) {
   const centered = align === "center";
   const boxRef = useRef<HTMLDivElement>(null);
+  const releasePin = useRef<(() => void) | null>(null);
   const [size, setSize] = useState(16);
   const [wrapWord, setWrapWord] = useState(false);
   const lines = splitHeroLines(value, maxLines);
@@ -134,6 +135,28 @@ export function HeroName({
     };
   }, [maxLines, placeholder, roleBelow, value]);
 
+  useEffect(() => () => releasePin.current?.(), []);
+
+  /** iOS moves a focused field inside a fixed page. Hold the window, not the zone list. */
+  const pinWindow = () => {
+    releasePin.current?.();
+    const pin = () => {
+      window.scrollTo(0, 0);
+    };
+    const stop = () => {
+      window.removeEventListener("scroll", pin);
+      window.visualViewport?.removeEventListener("scroll", pin);
+      window.visualViewport?.removeEventListener("resize", pin);
+      if (releasePin.current === stop) releasePin.current = null;
+    };
+    window.addEventListener("scroll", pin, { passive: true });
+    window.visualViewport?.addEventListener("scroll", pin);
+    window.visualViewport?.addEventListener("resize", pin);
+    pin();
+    requestAnimationFrame(pin);
+    releasePin.current = stop;
+  };
+
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
   const placeholderLines = placeholder.split("\n");
@@ -181,13 +204,15 @@ export function HeroName({
           autoCorrect="off"
           spellCheck={false}
           data-no-swipe
+          data-keep-window=""
           onChange={(event) => {
             onChange(clamp(event.target.value));
           }}
-          onFocus={(event) => {
+          onFocus={() => {
             onFocus?.();
-            event.currentTarget.scrollIntoView({ block: "nearest" });
+            pinWindow();
           }}
+          onBlur={() => releasePin.current?.()}
           onPointerDown={(event) => event.stopPropagation()}
           onBeforeInput={(event) => {
             const native = event.nativeEvent;
