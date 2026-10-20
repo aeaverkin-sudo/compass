@@ -170,6 +170,16 @@ function unusedExtraId(card: Card, keepId?: string) {
   return null;
 }
 
+/** Files, a new open section, or a section that already holds a file. Social, Contact and Web stay text. */
+function offersFileAdd(
+  zoneId: CardZoneId,
+  rows: { row: { item: ContactItem | null } }[],
+  blank: boolean,
+) {
+  if (blank || zoneId === "files" || isExtraZoneId(zoneId)) return true;
+  return rows.some(({ row }) => row.item != null && isAttachmentType(row.item.type));
+}
+
 function FileAddButton({
   onClick,
   onPointerDown,
@@ -660,6 +670,7 @@ export const CardEditList = memo(function CardEditList({
 
   const stayInSeed = (event: FocusEvent<HTMLDivElement>) =>
     Boolean(extraBlockRef.current?.contains(event.relatedTarget as Node | null));
+  const blankCard = sections.every((entry) => entry.rows.length === 0);
 
   return (
     <div
@@ -669,7 +680,7 @@ export const CardEditList = memo(function CardEditList({
     >
       {sections.map((section, index) => {
         const seedingThis = seedZoneId === section.id;
-        const fileHere = section.id === "files" || sections.every((entry) => entry.rows.length === 0);
+        const fileHere = offersFileAdd(section.id, section.rows, blankCard);
         const fresh = seedingThis && isExtraZoneId(section.id) && section.rows.length === 0;
         const bare = Boolean(section.hint) && !seedingThis;
         const zone = (
