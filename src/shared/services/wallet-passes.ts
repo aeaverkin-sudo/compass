@@ -120,6 +120,28 @@ const SUPPORT_EMAIL = "support@adedme.com";
 const UNDER_QR = "TAP ⋯ TO OPEN MENU";
 
 type WalletSlot = { cardId: string; slot: number };
+type DeviceRow = { serial?: string; device?: string; pushToken?: string };
+
+/** A slot write must not drop a registration that landed while the slot was being saved. */
+async function restoreDevices(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  ownerId: string,
+  previous: unknown,
+  cards: WalletSlot[],
+) {
+  const before = Array.isArray(previous) ? (previous as DeviceRow[]) : [];
+  if (before.length === 0) return;
+  const fresh = await admin.auth.admin.getUserById(ownerId);
+  const meta = fresh.data.user?.app_metadata ?? {};
+  const now = Array.isArray(meta.wallet_devices) ? (meta.wallet_devices as DeviceRow[]) : [];
+  const seen = new Set(now.map((row) => `${row.serial}\0${row.device}`));
+  const missing = before.filter((row) => row.serial && row.device && !seen.has(`${row.serial}\0${row.device}`));
+  if (missing.length === 0) return;
+  const saved = await admin.auth.admin.updateUserById(ownerId, {
+    app_metadata: { ...meta, wallet_cards: cards, wallet_devices: [...now, ...missing].slice(0, 16) },
+  });
+  if (saved.error) console.error("[wallet] slots", saved.error.message);
+}
 
 function readSlots(value: unknown): WalletSlot[] {
   if (!Array.isArray(value)) return [];
@@ -149,8 +171,10 @@ async function walletSerial(ownerId: string, cardId: string): Promise<{ serial: 
   const slot = own?.slot ?? free;
   const next = [...slots.filter((entry) => entry.slot !== slot), { cardId, slot }];
   if (user) {
+    const devicesBefore = user.app_metadata?.wallet_devices;
     const saved = await admin.auth.admin.updateUserById(ownerId, { app_metadata: { ...user.app_metadata, wallet_cards: next } });
     if (saved.error) console.error("[wallet] slots", saved.error.message);
+    else await restoreDevices(admin, ownerId, devicesBefore, next);
   }
   return { serial: walletSerialFor(ownerId, slot), slot };
 }

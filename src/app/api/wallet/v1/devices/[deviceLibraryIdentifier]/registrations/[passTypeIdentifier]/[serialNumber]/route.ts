@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { passTokenMatches, registerPassDevice, unregisterPassDevice } from "@/shared/services/wallet-registration";
+import { passTokenMatches, registerPassDevice, serialFromWalletPath, unregisterPassDevice } from "@/shared/services/wallet-registration";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,7 +29,7 @@ async function knownPass(request: Request, context: RouteProps) {
   const { deviceLibraryIdentifier, passTypeIdentifier, serialNumber } = await context.params;
   const device = decoded(deviceLibraryIdentifier);
   const passType = decoded(passTypeIdentifier);
-  const serial = decoded(serialNumber);
+  const serial = serialFromWalletPath(new URL(request.url).pathname) ?? decoded(serialNumber);
   if (!DEVICE.test(device) || !process.env.APPLE_PASS_TYPE_ID || passType !== process.env.APPLE_PASS_TYPE_ID) return null;
   if (!passTokenMatches(serial, appleToken(request))) return null;
   return { device, serial };
