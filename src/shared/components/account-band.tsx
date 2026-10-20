@@ -73,9 +73,8 @@ export function AccountBand({
   const origin = useOrigin();
   const hasSession = useHasSession();
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
-  const cardHref = `${origin}/c/${encodeURIComponent(token)}`;
   const signUpHref = `/register?card=${encodeURIComponent(token)}`;
-  const signInHref = `/register?signin=1&card=${encodeURIComponent(token)}`;
+  const pdfSignUpHref = `${origin}/register?card=${encodeURIComponent(token)}`;
   if (!pdf) {
     return (
       <TabBand
@@ -90,17 +89,9 @@ export function AccountBand({
               <span>Add to My Network</span>
             </a>
           ) : (
-            <span className="flex h-full w-full flex-col justify-center">
-              <a href={signUpHref} className="press touch-manipulation leading-none t-band [-webkit-tap-highlight-color:transparent]">
-                Sign up
-              </a>
-              <a
-                href={signInHref}
-                className="press mt-1 w-fit touch-manipulation leading-none t-meta normal-case underline decoration-[0.5px] underline-offset-[3px] [-webkit-tap-highlight-color:transparent]"
-              >
-                Sign in
-              </a>
-            </span>
+            <a href={signUpHref} className={DOOR}>
+              <span>Add to My Network</span>
+            </a>
           )
         }
         right={
@@ -127,7 +118,7 @@ export function AccountBand({
       }}
     >
       <div className="flex min-h-11 items-stretch">
-        <a href={cardHref} className={cn(pdfDoor, "text-left")}>
+        <a href={pdfSignUpHref} className={cn(pdfDoor, "text-left")}>
           <span data-pdf-link="" className="inline-block w-fit">
             Add to My
             <br />

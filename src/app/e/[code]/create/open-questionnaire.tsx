@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { CardEditList, type ScaffoldZone } from "@main/components/card-edit-list";
 import { useMainLayout } from "@main/hooks/use-main-layout";
 import { CARD_HEADER_PAD_PX, CARD_TOP_TRIM_PX, HERO_PHOTO_PX, RULE_GAP_PX, SCREEN_TOP_AXIS_PX, SHEET_INSET } from "@main/layout";
@@ -15,7 +16,7 @@ import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
-import { scheduleCardUpsert, hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { scheduleCardUpsert, hydrateCardsFromServer, upsertCardScalars } from "@/shared/services/card-sync";
 import { syncCardLinkOrder } from "@/shared/services/card-items-sync";
 import { findIdenticalItem } from "@/shared/services/contact-item";
 import { recordConsent } from "@/shared/services/consent-client";
@@ -28,16 +29,37 @@ const SKY =
 const CARD_PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const EXPIRED = "This link has expired. Enter your email again.";
 
-/** The seven shelves of an empty portfolio. Hints only, until a line is written. */
+/** The shelves of an empty portfolio. Hints only, until a line is written. */
 const STARTERS: ScaffoldZone[] = [
-  { id: "company", title: "Company", hint: "Company or business name" },
-  { id: "position", title: "Position", hint: "Your role", required: true },
+  { id: "position", title: "Position", hint: "What you do", required: true },
+  { id: "company", title: "Company", hint: "Company or business", required: true },
   { id: "web", title: "Web", hint: "Website" },
-  { id: "social", title: "Social", hint: "Instagram, LinkedIn, Facebook…" },
-  { id: "contact", title: "Contacts", hint: "Email, messenger, phone" },
-  { id: "files", title: "Files", hint: "PDF, JPG, …" },
-  { id: "about", title: "About", hint: "About you or your projects" },
+  { id: "social", title: "Social", hint: "Instagram, LinkedIn…" },
+  { id: "files", title: "Files", hint: "PDF, JPG…" },
 ];
+
+const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+let issuedFormPassword = "";
+const passwordListeners = new Set<() => void>();
+
+function formPassword() {
+  return issuedFormPassword;
+}
+
+function subscribeFormPassword(listener: () => void) {
+  passwordListeners.add(listener);
+  return () => passwordListeners.delete(listener);
+}
+
+function issueFormPassword() {
+  if (issuedFormPassword) return;
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  let raw = "";
+  for (const byte of bytes) raw += PASSWORD_ALPHABET[byte % PASSWORD_ALPHABET.length] ?? "A";
+  issuedFormPassword = `${raw.slice(0, 4)}-${raw.slice(4)}`;
+  passwordListeners.forEach((listener) => listener());
+}
 
 async function portfolioLimit(): Promise<number | null> {
   const response = await fetch("/api/account/status", { cache: "no-store" });
@@ -65,10 +87,14 @@ function offeredPersonName(meta: unknown): string {
   return [given, family].filter(Boolean).join(" ");
 }
 
-function hasPosition(card: { contactItemIds: string[]; itemZones?: Record<string, string> }, items: { id: string; value: string }[]) {
+function hasZone(
+  card: { contactItemIds: string[]; itemZones?: Record<string, string> },
+  items: { id: string; value: string }[],
+  zoneId: string,
+) {
   return card.contactItemIds.some((id) => {
     const item = items.find((entry) => entry.id === id);
-    return Boolean(item?.value.trim()) && card.itemZones?.[id] === "position";
+    return Boolean(item?.value.trim()) && card.itemZones?.[id] === zoneId;
   });
 }
 
@@ -122,18 +148,39 @@ export function OpenPortfolio({
   /** Grey header name. It is written onto the card when the caret lands, or on Create portfolio. */
   const [offerName, setOfferName] = useState("");
   const [nameLive, setNameLive] = useState(false);
+  const [emailDraft, setEmailDraft] = useState("");
+  const [emailLive, setEmailLive] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(true);
+  const password = useSyncExternalStore(subscribeFormPassword, formPassword, () => "");
   const openAddRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    issueFormPassword();
+  }, []);
   const ran = useRef(false);
   const seeded = useRef(false);
   const eventPath = account || !lookup ? "/" : `/e/${encodeURIComponent(lookup)}`;
   const guestToken = guest?.token ?? null;
+  const signInTo = sourceToken
+    ? `/register?signin=1&card=${encodeURIComponent(sourceToken)}`
+    : lookup
+      ? `/register?signin=1&next=${encodeURIComponent(
+          guestToken
+            ? `/e/${encodeURIComponent(lookup)}?g=${encodeURIComponent(guestToken)}&go=1`
+            : `/e/${encodeURIComponent(lookup)}/join`,
+        )}`
+      : "/register?signin=1";
   const card = useAppStore((state) => (cardId ? state.cards.find((entry) => entry.id === cardId) ?? null : null));
   const contactItems = useAppStore((state) => state.contactItems);
   const updateCard = useAppStore((state) => state.updateCard);
   const nameValue = card?.displayName || (nameLive ? "" : offerName);
   const nameReady = Boolean(nameValue.trim());
-  const positionReady = Boolean(card && hasPosition(card, contactItems));
-  const ready = nameReady && positionReady;
+  const positionReady = Boolean(card && hasZone(card, contactItems, "position"));
+  const companyReady = Boolean(card && hasZone(card, contactItems, "company"));
+  const emailShown = emailLive ? emailDraft : (offerEmail ?? "");
+  const emailPending = Boolean(offerEmail) && !emailLive;
+  const emailReady = Boolean(emailShown.trim());
+  const passwordReady = account || password.length >= 8;
+  const ready = nameReady && positionReady && companyReady && emailReady && passwordReady;
   const namePending = Boolean(offerName && !nameLive && !card?.displayName.trim());
 
   useEffect(() => {
@@ -256,13 +303,7 @@ export function OpenPortfolio({
     });
   }, [account, eventPath, guest, guestToken, hash, lookup, router, sessionReady]);
 
-  const scaffold = useMemo(
-    () =>
-      offerEmail
-        ? STARTERS.map((zone) => (zone.id === "contact" ? { ...zone, hint: offerEmail } : zone))
-        : STARTERS,
-    [offerEmail],
-  );
+  const scaffold = STARTERS;
 
   const finish = async () => {
     if (busy || !cardId || !ready) return;
@@ -270,6 +311,94 @@ export function OpenPortfolio({
     const named = useAppStore.getState().cards.find((entry) => entry.id === cardId);
     if (named && !named.displayName.trim() && offered) {
       useAppStore.getState().updateCard(cardId, { displayName: offered });
+    }
+    const email = emailShown.trim().toLowerCase();
+    if (!lookup && !account) {
+      if (!email) {
+        setMessage("Add your email.");
+        return;
+      }
+      setBusy(true);
+      setMessage(null);
+      placeContact(cardId, email);
+      const supabase = createBrowserSupabaseClient();
+      const send = () =>
+        fetch("/api/account/portfolio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+      try {
+        let response = await send();
+        if (response.status === 401) {
+          await supabase.auth.signInAnonymously();
+          response = await send();
+        }
+        const reply = (await response.json().catch(() => ({}))) as {
+          kind?: "created" | "login" | "go";
+          next?: string;
+          error?: string;
+        };
+        if (!response.ok || !reply.kind) {
+          setMessage(reply.error ?? "Could not create your profile.");
+          setBusy(false);
+          return;
+        }
+        if (reply.kind === "login") {
+          setMessage("This email already has an account.");
+          setBusy(false);
+          return;
+        }
+        if (reply.kind === "go" && reply.next) {
+          if (sourceToken) {
+            await fetch("/api/network/save", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: sourceToken }),
+            }).catch(() => undefined);
+          }
+          window.location.assign(reply.next);
+          return;
+        }
+        ignoreNextSignedOut();
+        await supabase.auth.signOut({ scope: "local" });
+        const signed = await supabase.auth.signInWithPassword({ email, password });
+        if (signed.error || !signed.data.session) {
+          setMessage("Could not open your profile.");
+          setBusy(false);
+          return;
+        }
+        markRegisteredDevice();
+        clearRegistrationRequired();
+        await recordConsent("register").catch(() => undefined);
+        const state = useAppStore.getState();
+        const saved = state.cards.find((entry) => entry.id === cardId);
+        if (saved) {
+          await upsertCardScalars(saved);
+          scheduleCardUpsert(saved);
+          const items = state.contactItems.filter((item) => saved.contactItemIds.includes(item.id));
+          await syncCardLinkOrder(saved, items).catch(() => undefined);
+        }
+        await fetch("/api/account/welcome", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cardId, password }),
+        }).catch(() => undefined);
+        if (sourceToken) {
+          await fetch("/api/network/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: sourceToken }),
+          }).catch(() => undefined);
+        }
+        const user = useAppStore.getState().user;
+        if (!user.onboarded) useAppStore.setState({ user: { ...user, onboarded: true } });
+        router.replace("/main");
+      } catch {
+        setMessage("Could not create your profile.");
+        setBusy(false);
+      }
+      return;
     }
     if (account) {
       setBusy(true);
@@ -295,7 +424,6 @@ export function OpenPortfolio({
       router.replace("/main");
       return;
     }
-    const email = (offerEmail ?? "").trim().toLowerCase();
     if (!email) {
       setMessage("Add your email.");
       return;
@@ -309,7 +437,12 @@ export function OpenPortfolio({
       fetch(`/api/events/${encodeURIComponent(lookup)}/portfolio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, website: draft?.website ?? "", ...(guestToken ? { guestToken } : {}) }),
+        body: JSON.stringify({
+          email,
+          password,
+          website: draft?.website ?? "",
+          ...(guestToken ? { guestToken } : {}),
+        }),
       });
     try {
       const { data: current } = await supabase.auth.getUser();
@@ -343,7 +476,7 @@ export function OpenPortfolio({
         }
         ignoreNextSignedOut();
         await supabase.auth.signOut({ scope: "local" });
-        const signed = await supabase.auth.signInWithPassword({ email, password: reply.password ?? "" });
+        const signed = await supabase.auth.signInWithPassword({ email, password: reply.password || password });
         if (signed.error || !signed.data.session) {
           setMessage("Could not open your profile.");
           setBusy(false);
@@ -355,15 +488,17 @@ export function OpenPortfolio({
         const state = useAppStore.getState();
         const card = state.cards.find((entry) => entry.id === cardId);
         if (card) {
+          await upsertCardScalars(card);
           scheduleCardUpsert(card);
           const items = state.contactItems.filter((item) => card.contactItemIds.includes(item.id));
           await syncCardLinkOrder(card, items).catch(() => undefined);
         }
-        if (reply.password) {
+        const mailedPassword = reply.password || password;
+        if (mailedPassword) {
           await fetch(`/api/events/${encodeURIComponent(lookup)}/portfolio/welcome`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cardId, password: reply.password }),
+            body: JSON.stringify({ cardId, password: mailedPassword }),
           }).catch(() => undefined);
         }
       } else {
@@ -470,7 +605,10 @@ export function OpenPortfolio({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" style={{ paddingLeft: inset, paddingRight: inset }}>
+      <div
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        style={{ paddingLeft: inset, paddingRight: inset, paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+      >
         <div className={CARD_PAD}>
           {card ? (
             <CardEditList card={card} items={[]} scaffold={scaffold} openAddRef={openAddRef} />
@@ -478,41 +616,94 @@ export function OpenPortfolio({
           {card ? (
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] py-[18px]">
               <span />
-              <button
-                type="button"
-                aria-label="Add"
-                className="t-body w-full bg-transparent text-left text-[var(--ink)]"
-                onPointerUp={() => openAddRef.current?.()}
-              >
-                +
-              </button>
+              <div className="flex items-baseline gap-3">
+                <button
+                  type="button"
+                  aria-label="Add"
+                  className="t-body bg-transparent text-left text-[var(--ink)]"
+                  onPointerUp={() => openAddRef.current?.()}
+                >
+                  +
+                </button>
+                <p className="m-0 t-meta text-[var(--grey)]">No rush — add the rest anytime later.</p>
+              </div>
+            </div>
+          ) : null}
+          {card ? (
+            <div className="bg-sky py-[18px]">
+              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+                <span className="t-label">Email *</span>
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  aria-label="Email"
+                  placeholder="name@mail.com"
+                  value={emailShown}
+                  onFocus={() => {
+                    setEmailLive(true);
+                    setEmailDraft((current) => current || offerEmail || "");
+                  }}
+                  onChange={(event) => {
+                    setEmailLive(true);
+                    setEmailDraft(event.target.value);
+                  }}
+                  className={`compass-input block w-full border-0 bg-transparent p-0 t-body caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)] ${emailPending ? "text-[var(--placeholder)]" : "text-[var(--ink)]"}`}
+                />
+              </div>
+              {account ? null : (
+                <div className="mt-4 grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+                  <span className="t-label">Password</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type={passwordVisible ? "text" : "password"}
+                        autoCapitalize="none"
+                        autoComplete="new-password"
+                        aria-label="Password"
+                        readOnly
+                        value={password}
+                        className="compass-input block min-w-0 flex-1 border-0 bg-transparent p-0 py-1 t-body text-[var(--ink)] outline-none"
+                      />
+                      <button
+                        type="button"
+                        aria-label={passwordVisible ? "Hide password" : "Show password"}
+                        className="press border-0 bg-transparent p-1 text-[var(--ink)]"
+                        onClick={() => setPasswordVisible((shown) => !shown)}
+                      >
+                        {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
+                      </button>
+                    </div>
+                    <p className="mt-2 mb-0 t-meta text-[var(--grey)]">You can change it anytime in Profile.</p>
+                  </div>
+                </div>
+              )}
             </div>
           ) : null}
           {sentTo ? (
-            <p className="mb-4 t-meta text-[var(--grey)]">{`Check ${sentTo}. Open the link in the email to sign in and join.`}</p>
+            <p className="mt-4 mb-0 t-meta text-[var(--grey)]">{`Check ${sentTo}. Open the link in the email to sign in and join.`}</p>
           ) : null}
-          {message ? <p className="mb-4 t-meta text-[var(--ink)]">{message}</p> : null}
-        </div>
-      </div>
-
-      <div
-        className="shrink-0 bg-background"
-        style={{
-          paddingLeft: inset,
-          paddingRight: inset,
-          paddingTop: 12,
-          paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-        }}
-      >
-        <div className={CARD_PAD}>
-          <div style={{ paddingLeft: VALUE_AXIS_PX }}>
+          {message ? <p className="mt-4 mb-0 t-meta text-[var(--ink)]">{message}</p> : null}
+          <div className="py-[18px]" style={{ paddingLeft: VALUE_AXIS_PX }}>
             <TapButton disabled={busy || !card || !ready || !sessionReady || Boolean(sentTo)} onTap={() => void finish()} className={SKY}>
               Create portfolio
             </TapButton>
-            {!ready && card && !sentTo ? (
-              <p className="mt-2 mb-0 t-meta text-[var(--grey)]">Fill in your name and position.</p>
+            {!ready && card && !sentTo && !(nameReady && positionReady && companyReady && emailReady) ? (
+              <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
+                {nameReady && positionReady && companyReady ? "Add your email." : "Fill name, position and company to continue."}
+              </p>
             ) : null}
+            {account ? null : (
+              <p className="mt-4 mb-0 t-meta text-[var(--grey)]">
+                Already have an account?{" "}
+                <a href={signInTo} className="text-[var(--grey)] underline">
+                  Sign in
+                </a>
+              </p>
+            )}
           </div>
+          <div className="h-8" />
         </div>
       </div>
     </main>

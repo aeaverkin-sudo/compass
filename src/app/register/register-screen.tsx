@@ -7,7 +7,6 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { Rule } from "@/shared/components/rule";
 import { Zone } from "@/shared/components/zone";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { Checkbox } from "@/shared/components/ui/checkbox";
 import { isInAppBrowser } from "@/shared/lib/in-app-browser";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
@@ -19,9 +18,9 @@ import {
 } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
-import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isEventInvitePath, isEventJoinPath, isEventTeamPath } from "@/shared/event/lookup";
+import { OpenPortfolio } from "../e/[code]/create/open-questionnaire";
 import { sourceCardToken } from "@/shared/services/source-card";
 import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { useAppStore } from "@/shared/store/app-store";
@@ -35,10 +34,6 @@ function afterAuthPath(next: string | null) {
 
 function keepsNext(path: string) {
   return path.startsWith("/save/") || isEventJoinPath(path) || isEventTeamPath(path) || isEventInvitePath(path);
-}
-
-function deviceHasCard(cards: { displayName: string; photoAttachmentId?: string; photo?: string }[]) {
-  return cards.some((card) => card.displayName.trim() || card.photoAttachmentId || card.photo);
 }
 
 function rememberLocal() {
@@ -89,12 +84,6 @@ async function enterExistingAccount(signIn: () => Promise<string | null>, redire
 }
 
 const FORGOT_EMAIL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Can't find my ADED email")}`;
-const LINK_LINE = {
-  textDecoration: "underline",
-  textDecorationColor: "rgba(17,17,17,0.45)",
-  textDecorationThickness: "0.5px",
-  textUnderlineOffset: "3px",
-} as const;
 /** One action in a zone: text on A1, left aligned, 44px tap row, no rule of its own. */
 const CHOICE =
   "press flex min-h-11 w-full items-center text-left t-caps transition-colors duration-200 [-webkit-tap-highlight-color:transparent]";
@@ -115,42 +104,48 @@ function Message({ text }: { text: string | null }) {
   );
 }
 
-function accountAlreadyExists(code: string | undefined, message: string | undefined) {
-  if (code === "identity_already_exists" || code === "email_exists") return true;
-  return /identity_already_exists|email_exists/i.test(message ?? "");
-}
-
-function signInHref(nextPath: string, card: string | null, error?: string) {
-  const query = new URLSearchParams();
-  query.set("signin", "1");
-  if (keepsNext(nextPath)) query.set("next", nextPath);
-  if (card) query.set("card", card);
-  if (error) query.set("error", error);
-  return `/register?${query.toString()}`;
+/** Sign up from an event sign-in link stays on that event's one screen. */
+function signupEvent(next: string | null): {
+  lookup: string;
+  guest: { token: string; name: string; email: string } | null;
+} | null {
+  if (!next) return null;
+  if (isEventJoinPath(next)) {
+    let lookup = next.split("/").filter(Boolean)[1] ?? "";
+    try {
+      lookup = decodeURIComponent(lookup);
+    } catch {
+      return null;
+    }
+    return lookup ? { lookup, guest: null } : null;
+  }
+  if (!isEventInvitePath(next)) return null;
+  const cut = next.indexOf("?");
+  const pathname = cut === -1 ? next : next.slice(0, cut);
+  let lookup = pathname.split("/").filter(Boolean)[1] ?? "";
+  try {
+    lookup = decodeURIComponent(lookup);
+  } catch {
+    return null;
+  }
+  const token = cut === -1 ? null : new URLSearchParams(next.slice(cut + 1)).get("g");
+  if (!lookup) return null;
+  return { lookup, guest: token ? { token, name: "", email: "" } : null };
 }
 
 export function RegisterScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const signinOnly = params.get("signin") === "1";
-  const taken = params.get("taken") === "1";
   const [inApp, setInApp] = useState(false);
-  const [accepted, setAccepted] = useState(false);
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(
     params.get("expired") === "1" ? "Session expired. Sign in." : params.get("error"),
   );
-  const [emailStep, setEmailStep] = useState<"hidden" | "email" | "code">("hidden");
   const [signInMail, setSignInMail] = useState(false);
-  const [dimConsent, setDimConsent] = useState(false);
-  const cards = useAppStore((state) => state.cards);
   const emailRef = useRef<HTMLInputElement>(null);
-  const codeRef = useRef<HTMLInputElement>(null);
-  const consentSaved = useRef(false);
-  const blinkTimers = useRef<number[]>([]);
   const googleStarted = useRef(false);
   const googlePending = useRef(false);
 
@@ -186,7 +181,6 @@ export function RegisterScreen() {
     };
   }, []);
 
-  const hasCard = deviceHasCard(cards);
   const nextPath = afterAuthPath(params.get("next"));
   const card = sourceCardToken(params.get("card"));
   const go = (path: string) => {
@@ -198,42 +192,6 @@ export function RegisterScreen() {
     if (card) query.set("card", card);
     return `${window.location.origin}/auth/callback?${query.toString()}`;
   };
-  const mergeWarning = hasCard
-    ? "This device already has a portfolio. Signing in will not merge it into the existing account."
-    : null;
-
-  const blinkConsent = () => {
-    blinkTimers.current.forEach((id) => window.clearTimeout(id));
-    const frames = [true, false, true, false];
-    blinkTimers.current = frames.map((dim, index) =>
-      window.setTimeout(() => setDimConsent(dim), index * 150),
-    );
-  };
-
-  useEffect(() => {
-    return () => blinkTimers.current.forEach((id) => window.clearTimeout(id));
-  }, []);
-
-  const ensureConsent = async () => {
-    if (consentSaved.current) return;
-    await recordConsent("register");
-    consentSaved.current = true;
-  };
-
-  const agree = (on: boolean) => {
-    setAccepted(on);
-    if (!on) return;
-    void ensureConsent().catch((error) => {
-      setMessage(error instanceof Error ? error.message : "Could not save agreement");
-    });
-  };
-
-  const gate = () => {
-    if (accepted) return true;
-    blinkConsent();
-    return false;
-  };
-
   const startGoogleSignIn = () =>
     enterExistingAccount(async () => {
       const supabase = createBrowserSupabaseClient();
@@ -257,46 +215,8 @@ export function RegisterScreen() {
     });
   }, [params]);
 
-  const continueWithGoogle = async () => {
-    if (!gate() || busy) return;
-    googlePending.current = true;
-    setBusy(true);
-    setMessage(null);
-    let leaving = false;
-    try {
-      await ensureConsent();
-      const supabase = createBrowserSupabaseClient();
-      const { error } = await supabase.auth.linkIdentity({
-        provider: "google",
-        options: { redirectTo: googleRedirect() },
-      });
-      if (!error) {
-        leaving = true;
-        return;
-      }
-      if (accountAlreadyExists(error.code, error.message)) {
-        const signInError = await startGoogleSignIn();
-        if (!signInError) {
-          leaving = true;
-          return;
-        }
-        setMessage(signInError);
-        return;
-      }
-      setMessage(error.message);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not start Google");
-    } finally {
-      if (!leaving) {
-        googlePending.current = false;
-        setBusy(false);
-      }
-    }
-  };
-
   const signInExistingGoogle = async () => {
     if (busy) return;
-    if (!signinOnly && !gate()) return;
     googlePending.current = true;
     setBusy(true);
     setMessage(null);
@@ -304,83 +224,6 @@ export function RegisterScreen() {
     if (error) {
       googlePending.current = false;
       setMessage(error);
-      setBusy(false);
-    }
-  };
-
-  const submitEmail = async () => {
-    if (!gate() || busy) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      await ensureConsent();
-      const response = await fetch("/api/auth/email/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const body = (await response.json()) as { mode?: string; hasCard?: boolean; error?: string };
-      if (!response.ok) {
-        setMessage(body.error ?? "Could not continue");
-        return;
-      }
-      if (body.mode === "done") {
-        go(nextPath);
-        return;
-      }
-      if (body.mode === "login") {
-        router.push(signInHref(nextPath, card, "This email already has an account."));
-        return;
-      }
-      setEmailStep("code");
-      window.setTimeout(() => codeRef.current?.focus(), 0);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not continue");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submitCode = async () => {
-    if (busy) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      const response = await fetch("/api/auth/email/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
-      });
-      const body = (await response.json()) as { mode?: string; hasCard?: boolean; error?: string };
-      if (!response.ok) {
-        setMessage(body.error ?? "Could not check the code");
-        return;
-      }
-      if (body.mode === "login") {
-        router.push(signInHref(nextPath, card, "This email already has an account."));
-        return;
-      }
-      const supabase = createBrowserSupabaseClient();
-      ignoreNextSignedOut();
-      await supabase.auth.signOut({ scope: "local" });
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: code.trim(),
-      });
-      if (error || !data.session) {
-        router.push(signInHref(nextPath, card, "The code is your password. Sign in with it."));
-        return;
-      }
-      markRegisteredDevice();
-      clearRegistrationRequired();
-      if (card) {
-        router.push(`/create?card=${encodeURIComponent(card)}`);
-        return;
-      }
-      go(nextPath);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not check the code");
-    } finally {
       setBusy(false);
     }
   };
@@ -438,6 +281,7 @@ export function RegisterScreen() {
     const signUpHref = (() => {
       const query = new URLSearchParams();
       if (keepsNext(nextPath)) query.set("next", nextPath);
+      if (card) query.set("card", card);
       const text = query.toString();
       return text ? `/register?${text}` : "/register";
     })();
@@ -558,173 +402,7 @@ export function RegisterScreen() {
     );
   }
 
-  const openEmail = () => {
-    if (!gate()) return;
-    setMessage(null);
-    setEmailStep("email");
-    window.setTimeout(() => emailRef.current?.focus(), 0);
-  };
-
-  const leaveEmailStep = () => {
-    setMessage(null);
-    if (emailStep === "code") {
-      setEmailStep("email");
-      window.setTimeout(() => emailRef.current?.focus(), 0);
-      return;
-    }
-    setEmailStep("hidden");
-  };
-
-  if (emailStep !== "hidden") {
-    const onCode = emailStep === "code";
-    return (
-      <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-        <ScreenHeader title="Sign up" fallbackHref="/" onBack={leaveEmailStep} />
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (onCode) void submitCode();
-            else void submitEmail();
-          }}
-        >
-          <Zone label={onCode ? "Code" : "Email"}>
-            {onCode ? (
-              <input
-                id="register-email-field"
-                ref={codeRef}
-                inputMode="text"
-                autoCapitalize="characters"
-                autoComplete="one-time-code"
-                aria-label="Code"
-                placeholder="Code"
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                className={FIELD}
-              />
-            ) : (
-              <input
-                id="register-email-field"
-                ref={emailRef}
-                type="email"
-                autoCapitalize="none"
-                autoComplete="email"
-                aria-label="Email"
-                placeholder="name@mail.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={FIELD}
-              />
-            )}
-            <p className="mt-2 t-meta text-[var(--grey)]">
-              {onCode
-                ? `Sent to ${email.trim()}. This code is your password. You can change it in your profile.`
-                : "We will send you a code. This code is your password. You can change it in your profile."}
-            </p>
-          </Zone>
-          <Rule />
-          <Zone label="">
-            <button
-              type="submit"
-              disabled={busy || (onCode ? code.trim() === "" : email.trim() === "")}
-              className={PRIMARY}
-            >
-              Continue
-            </button>
-            {onCode ? (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void submitEmail()}
-                className={`press mt-6 block t-meta text-[var(--ink)] ${UNDERLINE} disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]`}
-                style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
-              >
-                Resend code
-              </button>
-            ) : null}
-          </Zone>
-        </form>
-        <Message text={message} />
-      </main>
-    );
-  }
-
-  const ink = accepted ? "var(--ink)" : "var(--grey)";
-
-  return (
-    <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-      <ScreenHeader title="Sign up" fallbackHref="/" />
-      <Zone label="Sign up">
-        <div className="-my-3">
-        {inApp ? null : (
-          <>
-            <button
-              type="button"
-              onClick={() => void (taken ? signInExistingGoogle() : continueWithGoogle())}
-              className={CHOICE}
-              style={{ color: ink }}
-              aria-label="Sign up with Google"
-            >
-              With Google
-            </button>
-            {taken ? (
-              <p className="pb-2 t-meta text-[var(--ink)]">
-                This Google account already has a profile.
-                {mergeWarning ? ` ${mergeWarning}` : ""}
-              </p>
-            ) : null}
-          </>
-        )}
-        <button type="button" onClick={openEmail} className={CHOICE} style={{ color: ink }} aria-label="Sign up with email">
-          With email
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (!gate()) return;
-            router.push("/try");
-          }}
-          className={CHOICE}
-          style={{ color: ink }}
-          aria-label="Try without sign up"
-        >
-          Try without account
-        </button>
-        </div>
-      </Zone>
-      <Rule />
-      <Zone
-        align="start"
-        label={
-          <span className={dimConsent ? "opacity-20" : "opacity-100"} style={{ transition: "opacity 150ms linear" }}>
-            <Checkbox
-              id="register-consent"
-              checked={accepted}
-              onCheckedChange={(value) => agree(value === true)}
-              aria-label="I agree to the Terms & Conditions and Privacy Policy."
-              className="mt-px block size-5 shrink-0 rounded-none border-0 p-0 leading-none focus-visible:outline-none"
-              style={{ backgroundColor: "var(--sky)" }}
-            />
-          </span>
-        }
-      >
-        <p
-          className="t-meta text-[#555]"
-          onClick={(event) => {
-            if ((event.target as HTMLElement).closest("a")) return;
-            agree(!accepted);
-          }}
-        >
-          I agree to the <Link href="/terms" style={LINK_LINE}>Terms & Conditions</Link> and{" "}
-          <Link href="/privacy" style={LINK_LINE}>Privacy Policy</Link>.
-        </p>
-      </Zone>
-      <Rule />
-      <Zone label="Account">
-        <Link href={signInHref(nextPath, card)} className="t-caps text-[var(--ink)]">
-          Sign in
-        </Link>
-      </Zone>
-      <Message text={message} />
-    </main>
-  );
+  const fromEvent = signupEvent(params.get("next"));
+  return <OpenPortfolio sourceToken={card} lookup={fromEvent?.lookup} guest={fromEvent?.guest ?? null} />;
 }
+

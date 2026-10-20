@@ -15,13 +15,8 @@ import type { PortfolioChoice } from "@/shared/services/event-registration";
 import { PortfolioFace } from "@/shared/components/portfolio-face";
 import { TapButton } from "@/shared/components/tap-button";
 import { openWalletPass } from "@/shared/lib/wallet-client";
-import { readDraft, writeDraft } from "./create/draft";
-
 const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const EMAIL_FIELD =
-  "compass-input block w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 py-1 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 type AcceptReply = {
   kind?: "go" | "here" | "signin" | "other-device" | "notice" | "going";
   badge?: PortfolioChoice | null;
@@ -119,8 +114,6 @@ export function InviteActions({
   const [notice, setNotice] = useState<{ text: string; next: string } | null>(null);
   const [going, setGoing] = useState<{ badge: PortfolioChoice | null; change: string } | null>(null);
   const [signInOffer, setSignInOffer] = useState(false);
-  const [email, setEmail] = useState("");
-  const [website, setWebsite] = useState("");
   const opened = useRef(false);
   const autoRan = useRef(false);
   const base = `/api/events/${encodeURIComponent(lookup)}`;
@@ -228,15 +221,6 @@ export function InviteActions({
     if (holdsPass) return void enterPass(null);
   };
 
-  const createAccount = () => {
-    const value = email.trim().toLowerCase();
-    if (busy || !EMAIL.test(value)) return;
-    setBusy(true);
-    const kept = readDraft(lookup, null);
-    writeDraft(lookup, null, { email: value, website, name: kept?.name ?? "" });
-    router.push(`/e/${encodeURIComponent(lookup)}/create`);
-  };
-
   const primary = permanent ? (token ? acceptToken : joinOwn) : acceptToken;
   const primaryRef = useRef(primary);
   useEffect(() => {
@@ -342,51 +326,6 @@ export function InviteActions({
               I&apos;m going *
             </TapButton>
           </>
-        ) : createFlow && !token ? (
-            <form
-              className="self-stretch"
-              style={{ paddingLeft: VALUE_AXIS_PX }}
-              onSubmit={(event) => {
-                event.preventDefault();
-                void createAccount();
-              }}
-            >
-              <input
-                type="email"
-                inputMode="email"
-                autoCapitalize="none"
-                autoComplete="email"
-                aria-label="Email"
-                placeholder="Your email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={EMAIL_FIELD}
-              />
-              <p className="mt-3 mb-0 t-meta text-[var(--grey)]">
-                We&apos;ll send your profile password to this email. No registration — you just sign in with it.
-              </p>
-              <TapButton
-                type="submit"
-                disabled={busy || !sessionReady || !EMAIL.test(email.trim().toLowerCase())}
-                onTap={() => void createAccount()}
-                className={`${SKY} mt-4`}
-              >
-                Create
-              </TapButton>
-              {placesLeft != null ? (
-                <p className="mt-3 mb-0 t-meta text-[var(--grey)]">{`${placesLeft} ${placesLeft === 1 ? "place" : "places"} left`}</p>
-              ) : null}
-              <input
-                type="text"
-                name="website"
-                tabIndex={-1}
-                autoComplete="off"
-                aria-hidden
-                value={website}
-                onChange={(event) => setWebsite(event.target.value)}
-                className="pointer-events-none absolute -left-[9999px] h-px w-px opacity-0"
-              />
-            </form>
         ) : createFlow ? (
           <div className="self-stretch" style={{ paddingLeft: VALUE_AXIS_PX }}>
             <Link href={createHref} className={SKY}>
