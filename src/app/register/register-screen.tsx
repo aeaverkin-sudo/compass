@@ -22,6 +22,7 @@ import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/service
 import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isEventInvitePath, isEventJoinPath, isEventTeamPath } from "@/shared/event/lookup";
+import { sourceCardToken } from "@/shared/services/source-card";
 import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -119,10 +120,11 @@ function accountAlreadyExists(code: string | undefined, message: string | undefi
   return /identity_already_exists|email_exists/i.test(message ?? "");
 }
 
-function signInHref(nextPath: string, error?: string) {
+function signInHref(nextPath: string, card: string | null, error?: string) {
   const query = new URLSearchParams();
   query.set("signin", "1");
   if (keepsNext(nextPath)) query.set("next", nextPath);
+  if (card) query.set("card", card);
   if (error) query.set("error", error);
   return `/register?${query.toString()}`;
 }
@@ -153,6 +155,7 @@ export function RegisterScreen() {
   const googlePending = useRef(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInApp(isInAppBrowser());
   }, []);
 
@@ -185,7 +188,16 @@ export function RegisterScreen() {
 
   const hasCard = deviceHasCard(cards);
   const nextPath = afterAuthPath(params.get("next"));
-  const googleRedirect = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+  const card = sourceCardToken(params.get("card"));
+  const go = (path: string) => {
+    router.push(path === "/main" && card ? `/main?card=${encodeURIComponent(card)}` : path);
+  };
+  const googleRedirect = () => {
+    const query = new URLSearchParams();
+    query.set("next", nextPath);
+    if (card) query.set("card", card);
+    return `${window.location.origin}/auth/callback?${query.toString()}`;
+  };
   const mergeWarning = hasCard
     ? "This device already has a portfolio. Signing in will not merge it into the existing account."
     : null;
@@ -313,11 +325,11 @@ export function RegisterScreen() {
         return;
       }
       if (body.mode === "done") {
-        router.push(nextPath);
+        go(nextPath);
         return;
       }
       if (body.mode === "login") {
-        router.push(signInHref(nextPath, "This email already has an account."));
+        router.push(signInHref(nextPath, card, "This email already has an account."));
         return;
       }
       setEmailStep("code");
@@ -345,7 +357,7 @@ export function RegisterScreen() {
         return;
       }
       if (body.mode === "login") {
-        router.push(signInHref(nextPath, "This email already has an account."));
+        router.push(signInHref(nextPath, card, "This email already has an account."));
         return;
       }
       const supabase = createBrowserSupabaseClient();
@@ -356,12 +368,16 @@ export function RegisterScreen() {
         password: code.trim(),
       });
       if (error || !data.session) {
-        router.push(signInHref(nextPath, "The code is your password. Sign in with it."));
+        router.push(signInHref(nextPath, card, "The code is your password. Sign in with it."));
         return;
       }
       markRegisteredDevice();
       clearRegistrationRequired();
-      router.push(nextPath);
+      if (card) {
+        router.push(`/create?card=${encodeURIComponent(card)}`);
+        return;
+      }
+      go(nextPath);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not check the code");
     } finally {
@@ -388,7 +404,7 @@ export function RegisterScreen() {
       setMessage(error);
       return;
     }
-    router.push(nextPath);
+    go(nextPath);
   };
 
   const forgotPassword = async () => {
@@ -704,7 +720,7 @@ export function RegisterScreen() {
       </Zone>
       <Rule />
       <Zone label="Account">
-        <Link href={signInHref(nextPath)} className="t-caps text-[var(--ink)]">
+        <Link href={signInHref(nextPath, card)} className="t-caps text-[var(--ink)]">
           Sign in
         </Link>
       </Zone>

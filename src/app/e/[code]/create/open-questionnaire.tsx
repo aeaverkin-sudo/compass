@@ -99,12 +99,15 @@ export function OpenPortfolio({
   hash = "",
   guest = null,
   account = false,
+  sourceToken = null,
 }: {
   lookup?: string;
   hash?: string;
   guest?: { token: string; name: string; email: string } | null;
   /** A signed-in site account that does not have a portfolio yet. */
   account?: boolean;
+  /** Public card this person was viewing. Saved into their network once the portfolio exists. */
+  sourceToken?: string | null;
 }) {
   const router = useRouter();
   const layout = useMainLayout();
@@ -280,6 +283,15 @@ export function OpenPortfolio({
         const items = state.contactItems.filter((item) => saved.contactItemIds.includes(item.id));
         await syncCardLinkOrder(saved, items).catch(() => undefined);
       }
+      if (sourceToken) {
+        await fetch("/api/network/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: sourceToken }),
+        }).catch(() => undefined);
+      }
+      const user = useAppStore.getState().user;
+      if (!user.onboarded) useAppStore.setState({ user: { ...user, onboarded: true } });
       router.replace("/main");
       return;
     }

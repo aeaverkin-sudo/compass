@@ -8,6 +8,7 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
+import { sourceCardToken } from "@/shared/services/source-card";
 import { useAppStore } from "@/shared/store/app-store";
 
 function applyMainChrome() {
@@ -21,6 +22,7 @@ function applyMainChrome() {
 
 export default function MainPage() {
   const router = useRouter();
+  const source = typeof window === "undefined" ? null : sourceCardToken(new URLSearchParams(window.location.search).get("card"));
   const hydrated = useStoreHydrated();
   const sessionReady = useSessionBootstrap();
   const needsSignIn = useRegistrationRequired();
@@ -41,11 +43,15 @@ export default function MainPage() {
   useEffect(() => {
     if (!hydrated || !sessionReady) return;
     if (needsSignIn) {
-      router.replace("/register?signin=1&expired=1");
+      router.replace(source ? `/register?signin=1&expired=1&card=${encodeURIComponent(source)}` : "/register?signin=1&expired=1");
       return;
     }
     if (!cardsReady) return;
-    if (!onboarded) {
+    if (source && portfolio) {
+      router.replace(`/save/${encodeURIComponent(source)}`);
+      return;
+    }
+    if (!onboarded && !source) {
       router.replace("/");
       return;
     }
@@ -57,10 +63,11 @@ export default function MainPage() {
         if (cancel) return;
         const user = data.user;
         if (!user || user.is_anonymous) {
-          setOpenEmpty(true);
+          if (source) router.replace(`/register?card=${encodeURIComponent(source)}`);
+          else setOpenEmpty(true);
           return;
         }
-        router.replace("/create");
+        router.replace(source ? `/create?card=${encodeURIComponent(source)}` : "/create");
       })
       .catch(() => {
         if (!cancel) setOpenEmpty(true);
@@ -68,11 +75,12 @@ export default function MainPage() {
     return () => {
       cancel = true;
     };
-  }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, portfolio, router]);
+  }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, portfolio, source, router]);
 
-  const holdEmpty = !portfolio && cardsReady && onboarded && !needsSignIn && !openEmpty;
+  const holdEmpty = !portfolio && cardsReady && (onboarded || Boolean(source)) && !needsSignIn && !openEmpty;
+  const pendingSave = Boolean(source && portfolio);
 
-  if (!cached && (!hydrated || !sessionReady || needsSignIn || !cardsReady || !onboarded || holdEmpty)) {
+  if (pendingSave || (!cached && (!hydrated || !sessionReady || needsSignIn || !cardsReady || (!onboarded && !source) || holdEmpty))) {
     return <div className="compass-main fixed inset-y-0 bg-background" aria-hidden />;
   }
 

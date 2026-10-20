@@ -3,8 +3,6 @@ import { BackButton } from "@/shared/components/back-button";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { saveConnection } from "@/shared/services/save-connection";
-import { SAVE_SIGNUP } from "@/shared/services/save-link";
-import { clearTrialClock } from "@/shared/services/trial";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +21,7 @@ function ownCard(token: string) {
 
 /**
  * Saves someone else's public card into the book of whoever holds a session, then opens Network.
- * A trial or event pass account saves too, anonymous included. No session gets an email link, not a password wall.
+ * A trial or event pass account saves too, anonymous included. No session goes to Sign up, carrying this card.
  */
 export default async function SaveCardPage({ params }: PageProps) {
   const { token } = await params;
@@ -33,14 +31,10 @@ export default async function SaveCardPage({ params }: PageProps) {
   const { data } = await supabase.auth.getUser();
   const user = data.user;
   if (!user) {
-    redirect(`/c/${encodeURIComponent(token)}/add`);
+    redirect(`/register?card=${encodeURIComponent(token)}`);
   }
 
   const admin = createAdminSupabaseClient();
-  if (user.app_metadata?.[SAVE_SIGNUP] && user.email_confirmed_at) {
-    await clearTrialClock(user.id);
-    await admin.auth.admin.updateUserById(user.id, { app_metadata: { ...user.app_metadata, [SAVE_SIGNUP]: null } });
-  }
   const card = await admin
     .from("cards")
     .select("id, owner_id, display_name")
