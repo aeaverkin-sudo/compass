@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { clearRegisteredDevice, deviceWasRegistered, markRegisteredDevice } from "@/shared/lib/registered-device";
@@ -10,10 +11,11 @@ import {
   consumeSignedOutIgnore,
   ignoreNextSignedOut,
   isDeadAuthSession,
+  markLiveSession,
   markRegistrationRequired,
   markSessionBootstrapComplete,
 } from "@/shared/lib/session-bootstrap";
-import { isOwnerAppRoute } from "@/shared/lib/owner-app-route";
+import { isCardHydrateRoute, isOwnerAppRoute, skipsClientAuthProbe } from "@/shared/lib/owner-app-route";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
@@ -22,6 +24,7 @@ import { useAppStore } from "@/shared/store/app-store";
 function acceptUser(user: User) {
   if (user.is_anonymous) {
     console.info("[supabase] anonymous session dropped");
+    markLiveSession(false);
     ignoreNextSignedOut();
     void createBrowserSupabaseClient().auth.signOut({ scope: "local" });
     clearStoredAuthTokens();
@@ -39,8 +42,8 @@ function acceptUser(user: User) {
     useAppStore.getState().resetApp();
   }
   useAppStore.setState({ ownerId: user.id });
+  markLiveSession(true);
   console.info("[supabase] session", user.id);
-  void hydrateCardsFromServer();
 }
 
 function sendRegisteredDeviceToSignIn() {
@@ -57,18 +60,17 @@ async function dropDeadSession(supabase: SupabaseClient) {
   await supabase.auth.signOut({ scope: "local" });
   clearStoredAuthTokens();
   useAppStore.getState().resetApp();
+  markLiveSession(false);
 }
 
-/** Opens an anonymous Supabase session on a new device. Renders nothing. */
-export function SupabaseSession() {
-  useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+function startAuthProbe(): () => void {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !anonKey) {
       console.error("[supabase] missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+      markLiveSession(false);
       markSessionBootstrapComplete();
-      void hydrateCardsFromServer();
-      return;
+      return () => undefined;
     }
 
     const supabase = createBrowserSupabaseClient();
@@ -115,6 +117,7 @@ export function SupabaseSession() {
           console.info("[supabase] registered device, session missing");
           sendRegisteredDeviceToSignIn();
         }
+        markLiveSession(false);
       } finally {
         markSessionBootstrapComplete();
       }
@@ -123,6 +126,31 @@ export function SupabaseSession() {
     return () => {
       authListener.subscription.unsubscribe();
     };
+}
+
+/** Opens an anonymous Supabase session on a new device. Renders nothing. */
+export function SupabaseSession() {
+  const pathname = usePathname();
+  const ownerId = useAppStore((state) => state.ownerId);
+  const probeStarted = useRef(false);
+  const stopProbe = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!ownerId || !isCardHydrateRoute(pathname)) return;
+    void hydrateCardsFromServer();
+  }, [pathname, ownerId]);
+
+  useEffect(() => {
+    if (skipsClientAuthProbe(pathname)) {
+      markSessionBootstrapComplete();
+      return;
+    }
+    if (probeStarted.current) return;
+    probeStarted.current = true;
+    stopProbe.current = startAuthProbe();
+  }, [pathname]);
+
+  useEffect(() => {
+    return () => stopProbe.current?.();
   }, []);
 
   return null;

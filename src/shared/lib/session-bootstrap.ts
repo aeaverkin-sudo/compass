@@ -2,7 +2,19 @@ type Listener = () => void;
 
 let ready = false;
 let registrationRequired = false;
+let liveSession = false;
 const listeners = new Set<Listener>();
+
+/** A non-anonymous session survived the auth check. */
+export function markLiveSession(live: boolean) {
+  if (liveSession === live) return;
+  liveSession = live;
+  for (const listener of listeners) listener();
+}
+
+export function getLiveSession() {
+  return liveSession;
+}
 
 /** Called once SupabaseSession finishes its first auth check. */
 export function markSessionBootstrapComplete() {

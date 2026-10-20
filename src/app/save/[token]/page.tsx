@@ -21,7 +21,7 @@ function ownCard(token: string) {
 
 /**
  * Saves someone else's public card into the book of whoever holds a session, then opens Network.
- * A trial or event pass account saves too, anonymous included. No session goes to Sign up, carrying this card.
+ * No session, or an anonymous one, goes to sign-up with this card. The owner's own card stays on this page.
  */
 export default async function SaveCardPage({ params }: PageProps) {
   const { token } = await params;

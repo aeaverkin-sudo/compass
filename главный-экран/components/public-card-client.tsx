@@ -275,11 +275,7 @@ export function PublicCardClient({
       >
         {sheet}
       </div>
-      <AccountBand
-        token={card.publicToken}
-        onPreparePdf={preparePdf}
-        onPdf={onPdfTap}
-      />
+      <AccountBand token={card.publicToken} onPdf={onPdfTap} />
     </div>
   );
 }

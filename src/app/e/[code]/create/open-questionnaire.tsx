@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { CardEditList, type ScaffoldZone } from "@main/components/card-edit-list";
@@ -26,7 +26,6 @@ import { clearRegisteredDevice, markRegisteredDevice } from "@/shared/lib/regist
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
-import { hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
 import { setSignupDrafting } from "@/shared/services/signup-gate";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -115,11 +114,13 @@ export function OpenPortfolio({
   const layout = useMainLayout();
   const sessionReady = useSessionBootstrap();
   const [cardId, setCardId] = useState<string | null>(null);
-  const [opening, setOpening] = useState(account);
+  const [opening, setOpening] = useState(Boolean(hash) || account);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [offerEmail, setOfferEmail] = useState<string | null>(null);
-  const [offerName, setOfferName] = useState("");
+  const [offerEmail, setOfferEmail] = useState<string | null>(() =>
+    !account && guest?.email?.trim() ? guest.email.trim().toLowerCase() : null,
+  );
+  const [offerName, setOfferName] = useState(() => (!account && guest?.name?.trim() ? guest.name.trim() : ""));
   const [nameLive, setNameLive] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [emailDraft, setEmailDraft] = useState("");
@@ -176,11 +177,39 @@ export function OpenPortfolio({
         cards: id ? state.cards.filter((entry) => entry.id !== id) : state.cards,
         contactItems: state.contactItems.filter((item) => keep.has(item.id) || item.syncedOwner),
       });
-      void hydrateCardsFromServer();
     };
   }, []);
 
+  const placeDraft = useCallback(() => {
+    setSignupDrafting(true);
+    useAppStore.setState({ signupDraft: true });
+    const state = useAppStore.getState();
+    state.updateSecondCardDraft({ displayName: "" }, state.cards.length + 1);
+    const id = useAppStore.getState().cards.at(-1)?.id ?? null;
+    if (!id) {
+      setOpening(false);
+      setMessage("Could not open your portfolio.");
+      return;
+    }
+    tempId.current = id;
+    if (!seeded.current) {
+      seeded.current = true;
+      rememberLabels(id);
+    }
+    setCardId(id);
+    setOpening(false);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (account || hash || ran.current) return;
+    ran.current = true;
+    hadSession.current = false;
+    useAppStore.getState().resetApp();
+    placeDraft();
+  }, [account, hash, placeDraft]);
+
   useEffect(() => {
+    if (!account && !hash) return;
     if (!sessionReady || ran.current) return;
     ran.current = true;
     void (async () => {
@@ -194,9 +223,14 @@ export function OpenPortfolio({
         return;
       }
       if (account && user) {
-        await hydrateCardsFromServer();
-        const owned = useAppStore.getState().cards;
-        if (owned.some((entry) => entry.displayName.trim() || entry.photoAttachmentId || entry.photo)) {
+        const found = await supabase
+          .from("cards")
+          .select("display_name, photo_attachment_id")
+          .eq("owner_id", user.id);
+        const hasPortfolio = (found.data ?? []).some(
+          (row) => (row.display_name ?? "").trim() || row.photo_attachment_id,
+        );
+        if (hasPortfolio) {
           finished.current = true;
           router.replace("/main");
           return;
@@ -208,28 +242,12 @@ export function OpenPortfolio({
       }
       if (!account && guest?.name?.trim()) setOfferName(guest.name.trim());
       if (!account && guest?.email?.trim()) setOfferEmail(guest.email.trim().toLowerCase());
-      setSignupDrafting(true);
-      useAppStore.setState({ signupDraft: true });
-      const state = useAppStore.getState();
-      state.updateSecondCardDraft({ displayName: "" }, state.cards.length + 1);
-      const id = useAppStore.getState().cards.at(-1)?.id ?? null;
-      if (!id) {
-        setOpening(false);
-        setMessage("Could not open your portfolio.");
-        return;
-      }
-      tempId.current = id;
-      if (!seeded.current) {
-        seeded.current = true;
-        rememberLabels(id);
-      }
-      setCardId(id);
-      setOpening(false);
+      placeDraft();
     })().catch(() => {
       setOpening(false);
       setMessage("Could not open your portfolio.");
     });
-  }, [account, guest, router, sessionReady]);
+  }, [account, guest, hash, placeDraft, router, sessionReady]);
 
   const scaffold = STARTERS;
 
@@ -295,7 +313,6 @@ export function OpenPortfolio({
           cards: live.cards.filter((entry) => entry.id !== cardId),
           contactItems: live.contactItems.filter((item) => keep.has(item.id) || item.syncedOwner),
         });
-        await hydrateCardsFromServer();
       } else {
         const supabase = createBrowserSupabaseClient();
         useAppStore.getState().resetApp();
@@ -312,7 +329,6 @@ export function OpenPortfolio({
         clearRegistrationRequired();
         await recordConsent("register").catch(() => undefined);
         useAppStore.setState({ ownerId: signed.data.user?.id ?? null });
-        await hydrateCardsFromServer();
         await fetch("/api/account/welcome", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -505,7 +521,7 @@ export function OpenPortfolio({
         <div className={CARD_PAD}>
           {message ? <p className="mt-4 mb-0 t-meta text-[var(--ink)]">{message}</p> : null}
           <div className="py-[18px]" style={{ paddingLeft: VALUE_AXIS_PX }}>
-            <TapButton disabled={busy || !card || !ready || !sessionReady} onTap={() => void finish()} className={SKY}>
+            <TapButton disabled={busy || !card || !ready} onTap={() => void finish()} className={SKY}>
               Create portfolio
             </TapButton>
             {!ready && card ? (

@@ -4,6 +4,7 @@ import { photoLookValue } from "@/shared/lib/photo-look";
 import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from "@/shared/services/card-zones";
 import type { Card, CardStatus } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
+import { isCardHydrateRoute } from "@/shared/lib/owner-app-route";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { signupDrafting } from "@/shared/services/signup-gate";
 
@@ -570,6 +571,7 @@ async function runHydrate() {
  */
 export function hydrateCardsFromServer(): Promise<void> {
   if (signupDrafting()) return Promise.resolve();
+  if (typeof window !== "undefined" && !isCardHydrateRoute(window.location.pathname)) return Promise.resolve();
   hydratesLeft += 1;
   const run = hydrateChain.then(() => runHydrate()).catch((error) => {
     console.error("[card-sync] hydrate failed", error);

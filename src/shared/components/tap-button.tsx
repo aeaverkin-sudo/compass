@@ -14,7 +14,10 @@ export function TapButton({
   ...props
 }: Omit<ComponentProps<"button">, "onClick" | "onPointerDown" | "onPointerUp" | "onPointerCancel"> & {
   onTap: () => void;
-  /** Runs on the finger landing. Do not preventDefault here — that swallows the tap. */
+  /**
+   * Finger landing. May only clear `disabled` when the session check has already finished.
+   * The action stays on the finger lifting, so a scroll is not a tap.
+   */
   onPrepare?: () => void;
 }) {
   const origin = useRef<{ x: number; y: number } | null>(null);

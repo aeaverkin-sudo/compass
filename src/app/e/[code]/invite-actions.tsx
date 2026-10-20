@@ -206,7 +206,7 @@ export function InviteActions({
           </>
         ) : permanent ? (
           <>
-            <TapButton disabled={busy || !sessionReady} onTap={() => void primary()} className={SKY}>
+            <TapButton disabled={busy} onTap={() => void primary()} className={SKY}>
               I&apos;m going *
             </TapButton>
           </>

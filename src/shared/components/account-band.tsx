@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { TabBand } from "@main/components/tab-band";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { TapButton } from "@/shared/components/tap-button";
-import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
-import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
 const DOOR =
@@ -28,38 +26,16 @@ function useOrigin() {
   return useSyncExternalStore(subscribe, originNow, originOnServer);
 }
 
-/** A session, including a trial. Null until the first auth check finishes. */
-function useHasSession() {
-  const ready = useSessionBootstrap();
-  const [has, setHas] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (!ready) return;
-    const supabase = createBrowserSupabaseClient();
-    let cancel = false;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (!cancel) setHas(Boolean(data.user && !data.user.is_anonymous));
-    });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setHas(Boolean(session?.user && !session.user.is_anonymous));
-    });
-    return () => {
-      cancel = true;
-      data.subscription.unsubscribe();
-    };
-  }, [ready]);
-  return ready ? has : null;
-}
-
 /**
  * Two doors under the portfolio name. The web plaque is the main TabBand.
  * The painted PDF keeps its own row.
+ * Add to My Network always opens /save. That page sends a stranger to sign-up.
  */
 export function AccountBand({
   token,
   pdf = false,
   inset,
   onPdf,
-  onPreparePdf,
 }: {
   token: string;
   /** Painted PDF carries the ADED mark. The web plaque keeps Save PDF file. */
@@ -68,13 +44,10 @@ export function AccountBand({
   inset?: number;
   /** Web door. The painted PDF keeps its own right-hand link. */
   onPdf?: () => void;
-  onPreparePdf?: () => void;
 }) {
   const origin = useOrigin();
-  const hasSession = useHasSession();
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
-  const signUpHref = `/register?card=${encodeURIComponent(token)}`;
-  const pdfSaveHref = `${origin}/save/${encodeURIComponent(token)}`;
+  const pdfSaveHref = saveHref;
   if (!pdf) {
     return (
       <TabBand
@@ -82,21 +55,12 @@ export function AccountBand({
         inset="calc(clamp(24px, 6.1vw, 28px) - 3mm)"
         label="Account"
         left={
-          hasSession === null ? (
-            <span className="flex-1" />
-          ) : hasSession ? (
-            <a href={saveHref} className={DOOR}>
-              <span>Add to My Network</span>
-            </a>
-          ) : (
-            <a href={signUpHref} className={DOOR}>
-              <span>Add to My Network</span>
-            </a>
-          )
+          <a href={saveHref} className={DOOR}>
+            <span>Add to My Network</span>
+          </a>
         }
         right={
           <TapButton
-            onPrepare={onPreparePdf}
             onTap={() => onPdf?.()}
             className={cn(DOOR, "justify-end border-0 bg-transparent")}
           >

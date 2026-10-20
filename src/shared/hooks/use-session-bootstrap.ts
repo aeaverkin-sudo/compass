@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import {
+  getLiveSession,
   getRegistrationRequired,
   getSessionBootstrapReady,
   subscribeSessionBootstrap,
@@ -14,6 +15,11 @@ export function useSessionBootstrap() {
     getSessionBootstrapReady,
     () => false,
   );
+}
+
+/** True when the auth check found a non-anonymous session. */
+export function useLiveSession() {
+  return useSyncExternalStore(subscribeSessionBootstrap, getLiveSession, () => false);
 }
 
 /** True when this device had a registered account and the session is gone. */
