@@ -8,7 +8,6 @@ import type { DeliveredNote } from "@/shared/services/notes-types";
 import { AccountBand } from "@/shared/components/account-band";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { TapButton } from "@/shared/components/tap-button";
-import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { cardInWallet, hintWalletAdded, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
@@ -100,31 +99,34 @@ function AddToWallet({ cardId }: { cardId: string }) {
   }, [refresh]);
   return (
     <>
-      <div className="pt-[18px]" style={{ paddingLeft: VALUE_AXIS_PX }}>
-        {inWallet ? (
-          <p className="inline-flex items-center py-[10.8px] t-caps text-[var(--grey)]">IN WALLET</p>
-        ) : (
-          <TapButton
-            data-card-content
-            data-no-swipe
-            onTap={() => {
-              void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
-                if (!opened) {
-                  setToast(true);
-                  return;
-                }
-                hintWalletAdded(cardId);
-                setMarkedId(cardId);
-                watchRegistration();
-              });
-            }}
-            className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
-          >
-            <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
-            Add to Wallet
-          </TapButton>
-        )}
-      </div>
+      <section className="border-t border-[var(--rule)] py-[18px]">
+        <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
+          <span />
+          {inWallet ? (
+            <p className="inline-flex items-center py-[10.8px] t-caps text-[var(--grey)]">IN WALLET</p>
+          ) : (
+            <TapButton
+              data-card-content
+              data-no-swipe
+              onTap={() => {
+                void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
+                  if (!opened) {
+                    setToast(true);
+                    return;
+                  }
+                  hintWalletAdded(cardId);
+                  setMarkedId(cardId);
+                  watchRegistration();
+                });
+              }}
+              className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
+            >
+              <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
+              Add to Wallet
+            </TapButton>
+          )}
+        </div>
+      </section>
       {toast ? <SkyToast text={WALLET_SOON} onDone={() => setToast(false)} /> : null}
     </>
   );
@@ -764,13 +766,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       </div>
       )}
 
+      {!compact && !editing && !readOnly && items.length > 0 ? <AddToWallet cardId={card.id} /> : null}
       {!compact && !editing ? (
         <NotesRubric
           ownerNotes={readOnly ? undefined : nextScanAddons}
           deliveredNotes={readOnly ? deliveredNotes : undefined}
         />
       ) : null}
-      {!compact && !editing && !readOnly && items.length > 0 ? <AddToWallet cardId={card.id} /> : null}
       {!compact && !editing && (showShareFooter || shareFootnote) ? (
         <div
           className="mt-auto shrink-0 t-meta"
