@@ -36,6 +36,7 @@ import { isAttachmentType } from "@/shared/services/portfolio-limits";
 import type { Card, ContactItem } from "@/shared/types";
 import { useFinePointer } from "@main/hooks/use-keyboard-dock";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
+import { DELETE_RED } from "@/shared/layout/delete-red";
 
 const OFF_CARD = "var(--placeholder)";
 
@@ -44,7 +45,6 @@ function typedMark(value: string) {
   if (!value.trim() || kind === "text") return "";
   return `${typeLabel(kind)} / `;
 }
-const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 const NEW_ZONE_TITLE = "TITLE";
 const LOOKING_FOR = "Looking for";

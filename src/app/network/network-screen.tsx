@@ -18,9 +18,10 @@ import { useLongPress } from "@/shared/hooks/use-long-press";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { useAppStore } from "@/shared/store/app-store";
 import { foldSearch } from "@/shared/lib/search-fold";
+import { DELETE_RED } from "@/shared/layout/delete-red";
 import { NetworkBand } from "./network-band";
 
-type SortMode = "recent" | "alphabet" | "event";
+type SortMode = "recent" | "alphabet";
 
 type Contact = {
   id: string;
@@ -40,7 +41,6 @@ const ZONE_LABEL = "t-label whitespace-nowrap";
 const SORTS: { id: SortMode; label: string }[] = [
   { id: "recent", label: "Recently added" },
   { id: "alphabet", label: "Alphabet" },
-  { id: "event", label: "by Event" },
 ];
 
 function letterOf(name: string) {
@@ -232,7 +232,7 @@ export function NetworkScreen({
               />
             ) : (
               <FlatList
-                contacts={groupAccepted(accepted, sort)}
+                contacts={groupAccepted(accepted)}
                 armedId={armedId}
                 onArm={setArmedId}
                 onRemove={(id) => void remove(id)}
@@ -248,21 +248,7 @@ export function NetworkScreen({
   );
 }
 
-function groupAccepted(contacts: Contact[], sort: SortMode) {
-  if (sort === "event") {
-    const groups = new Map<string, Contact[]>();
-    for (const contact of contacts) {
-      const key = contact.sourceEventId ?? "";
-      const list = groups.get(key) ?? [];
-      list.push(contact);
-      groups.set(key, list);
-    }
-    return [...groups.entries()].map(([key, list]) => ({
-      key,
-      label: key ? "Event" : "",
-      contacts: list.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    }));
-  }
+function groupAccepted(contacts: Contact[]) {
   return [
     {
       key: "recent",
@@ -386,8 +372,8 @@ function ContactRow({
         </div>
       </Link>
       {armed ? (
-        <button type="button" aria-label="Delete" onClick={onRemove} className="inline-flex size-8 items-center justify-center border-0 bg-transparent text-[#111]">
-          <X className="size-4" strokeWidth={1.5} />
+        <button type="button" aria-label="Delete" onClick={onRemove} className="inline-flex size-8 items-center justify-center border-0 bg-transparent">
+          <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} />
         </button>
       ) : null}
     </li>

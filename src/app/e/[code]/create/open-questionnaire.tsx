@@ -463,9 +463,9 @@ export function OpenPortfolio({
             <CardEditList card={card} items={[]} scaffold={scaffold} openAddRef={openAddRef} />
           ) : null}
           {card ? (
-            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-t border-[var(--rule)] py-[18px]">
-              <span />
-              <div className="flex flex-col items-start">
+            <>
+              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-t border-[var(--rule)] py-[18px]">
+                <span />
                 <button
                   type="button"
                   aria-label="Add"
@@ -474,9 +474,12 @@ export function OpenPortfolio({
                 >
                   <MarkPlus />
                 </button>
-                <p className="m-0 whitespace-nowrap t-meta text-[var(--grey)]">Add now or later</p>
               </div>
-            </div>
+              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-t border-[var(--rule)] py-[18px]">
+                <span />
+                <p className="m-0 t-body text-[var(--placeholder)]">Add now or later</p>
+              </div>
+            </>
           ) : null}
           </div>
         </div>
