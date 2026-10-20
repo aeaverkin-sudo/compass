@@ -446,7 +446,7 @@ export function OpenPortfolio({
           {card ? (
             <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-t border-[var(--rule)] py-[18px]">
               <span />
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col items-start">
                 <button
                   type="button"
                   aria-label="Add"
@@ -455,7 +455,7 @@ export function OpenPortfolio({
                 >
                   <MarkPlus />
                 </button>
-                <p className="m-0 t-meta text-[var(--grey)]">No rush — add the rest anytime later.</p>
+                <p className="m-0 whitespace-nowrap t-meta text-[var(--grey)]">Add now or later</p>
               </div>
             </div>
           ) : null}
@@ -466,7 +466,10 @@ export function OpenPortfolio({
             <div style={{ paddingLeft: inset, paddingRight: inset }}>
             <div className={CARD_PAD}>
               <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px]">
-                <span className="t-label">Email *</span>
+                <span className="t-label">
+                  Email
+                  <span className="relative -top-[0.45em] ml-[2px] text-[0.7em] leading-none">*</span>
+                </span>
                 <input
                   type="email"
                   inputMode="email"
@@ -524,11 +527,6 @@ export function OpenPortfolio({
             <TapButton disabled={busy || !card || !ready} onTap={() => void finish()} className={SKY}>
               Create portfolio
             </TapButton>
-            {!ready && card ? (
-              <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
-                {nameReady ? "Add your email to continue." : "Add a title and your email to continue."}
-              </p>
-            ) : null}
             {account ? null : (
               <p className="mt-4 mb-0 t-meta text-[var(--grey)]">
                 Already have an account?{" "}

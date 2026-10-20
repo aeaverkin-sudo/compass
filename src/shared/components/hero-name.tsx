@@ -27,6 +27,18 @@ export function clampHeroLines(value: string, maxLines: number) {
   return [...parts.slice(0, maxLines - 1), parts.slice(maxLines - 1).join(" ")].join("\n");
 }
 
+/** A trailing * sits up and to the right of the last letter, in the same color and weight. */
+function heroPlaceholder(text: string) {
+  if (!text.endsWith("*")) return text;
+  const body = text.slice(0, -1).replace(/ $/, "");
+  return (
+    <>
+      {body}
+      <span className="relative -top-[0.45em] ml-[2px] text-[0.7em] leading-none">*</span>
+    </>
+  );
+}
+
 function textWidth(text: string, size: number, weight: number) {
   const probe = document.createElement("span");
   probe.textContent = text;
@@ -156,7 +168,7 @@ export function HeroName({
             )}
             style={{ fontSize: size, fontWeight: 400, lineHeight: 1, bottom: centered ? undefined : descender }}
           >
-            {placeholder}
+            {heroPlaceholder(placeholder)}
           </span>
         ) : null}
         <textarea
@@ -214,7 +226,7 @@ export function HeroName({
           style={lineStyle}
         >
           {empty ? (
-            <div className="whitespace-pre border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]">{placeholder}</div>
+            <div className="whitespace-pre border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]">{heroPlaceholder(placeholder)}</div>
           ) : twoLines ? (
             lines.map((line, index) => (
               <div key={index} className="whitespace-nowrap">
