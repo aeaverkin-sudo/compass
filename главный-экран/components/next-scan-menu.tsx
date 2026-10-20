@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
 import { MAX_NEXT_SCAN_NOTES, type NextScanAddon } from "@/shared/types";
 import { openSelfiePicker } from "@landing/components/photo-input-utils";
@@ -132,11 +133,6 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
     if (!textMode) return;
     textRef.current?.focus({ preventScroll: true });
   }, [textMode]);
-
-  useEffect(() => {
-    if (!bare || notes.length > 0 || !open) return;
-    closeRef.current();
-  }, [bare, notes.length, open]);
 
   const commitNotes = (next: NextScanAddon[]) => {
     onSetAddons(visibleNotes(next));
@@ -321,8 +317,6 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
           )
         : null;
 
-  if (bare && notes.length === 0) return null;
-
   return (
     <div ref={rootRef} className={cn("relative shrink-0", bare ? "z-10" : compact ? "" : "absolute right-3 top-3 z-10")}>
       <button
@@ -344,9 +338,13 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
         )}
       >
         {bare ? (
-          <span className="text-center text-[16px] font-semibold leading-none" style={{ color: QR_COLOR }}>
-            {notes.length}
-          </span>
+          notes.length > 0 ? (
+            <span className="text-center text-[16px] font-semibold leading-none" style={{ color: QR_COLOR }}>
+              {notes.length}
+            </span>
+          ) : (
+            <MarkPlus />
+          )
         ) : (
           <>
             <Plus className="size-4 text-[var(--grey)]" strokeWidth={1} aria-hidden />
