@@ -56,6 +56,9 @@ interface AppState {
   ownerId: string | null;
   /** Questionnaire is open. Disk and the server ignore the cards until it finishes or closes. */
   signupDraft: boolean;
+  /** Last Network list for this account. Shown at once, then replaced by the server. */
+  connectionsCache: ConnectionsCache | null;
+  setConnectionsCache: (cache: ConnectionsCache | null) => void;
   resetApp: () => void;
   completeOnboarding: (payload: OnboardingPayload) => void;
   markMainIntroSeen: () => void;
@@ -110,6 +113,23 @@ interface AppState {
   /** Finish a deferred delete on the server. */
   commitContactItemDelete: (itemId: string) => void;
 }
+
+export type NetworkContact = {
+  id: string;
+  displayName: string;
+  savedCardToken: string;
+  sourceEventId: string | null;
+  createdAt: string;
+  role: string;
+  photoUrl: string | null;
+  searchText: string;
+};
+
+export type ConnectionsCache = {
+  ownerId: string;
+  contacts: NetworkContact[];
+  at: number;
+};
 
 export type ContactItemSnapshot = {
   item: ContactItem;
@@ -218,6 +238,7 @@ export const useAppStore = create<AppState>()(
       contactItems: [],
       ownerId: null,
       signupDraft: false,
+      connectionsCache: null,
 
       resetApp: () => {
         setSignupDrafting(false);
@@ -229,8 +250,11 @@ export const useAppStore = create<AppState>()(
           contactItems: [],
           ownerId: null,
           signupDraft: false,
+          connectionsCache: null,
         });
       },
+
+      setConnectionsCache: (cache) => set({ connectionsCache: cache }),
 
       completeOnboarding: ({ photoAttachmentId, displayName, cardId }) => {
         const now = new Date().toISOString();
@@ -808,6 +832,7 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         user: state.user,
         ownerId: state.ownerId,
+        connectionsCache: state.connectionsCache,
         cards: state.signupDraft ? [] : state.cards.map(cardForDisk),
         currentCardIndex: state.signupDraft ? 0 : state.currentCardIndex,
         contactItems: state.signupDraft ? [] : state.contactItems.map(itemForDisk),

@@ -569,9 +569,9 @@ async function runHydrate() {
  * A call that arrives while a pull is running waits, then pulls again, so a
  * sign-in does not keep the previous account's result.
  */
-export function hydrateCardsFromServer(): Promise<void> {
+export function hydrateCardsFromServer(options?: { force?: boolean }): Promise<void> {
   if (signupDrafting()) return Promise.resolve();
-  if (typeof window !== "undefined" && !isCardHydrateRoute(window.location.pathname)) return Promise.resolve();
+  if (typeof window !== "undefined" && !options?.force && !isCardHydrateRoute(window.location.pathname)) return Promise.resolve();
   hydratesLeft += 1;
   const run = hydrateChain.then(() => runHydrate()).catch((error) => {
     console.error("[card-sync] hydrate failed", error);

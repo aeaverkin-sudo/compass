@@ -15,8 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
 import { useLongPress } from "@/shared/hooks/use-long-press";
-import { recallAnswer, rememberAnswer } from "@/shared/lib/last-answer";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { useAppStore } from "@/shared/store/app-store";
 import { foldSearch } from "@/shared/lib/search-fold";
 import { NetworkBand } from "./network-band";
 
@@ -34,7 +34,6 @@ type Contact = {
 };
 
 const HOLD_MS = 500;
-const CONTACTS_KEY = "connections";
 /** Same token as the profile zone label. */
 const ZONE_LABEL = "t-label whitespace-nowrap";
 
@@ -67,6 +66,13 @@ function matchesQuery(contact: Contact, query: string) {
   return contact.searchText.includes(query);
 }
 
+function rememberedContacts(): Contact[] | null {
+  const owner = useAppStore.getState().ownerId;
+  const cache = useAppStore.getState().connectionsCache;
+  if (!owner || !cache || cache.ownerId !== owner) return null;
+  return cache.contacts;
+}
+
 export function NetworkScreen({
   addedName = null,
   addedToken = null,
@@ -75,7 +81,9 @@ export function NetworkScreen({
   addedToken?: string | null;
 }) {
   const router = useRouter();
-  const [contacts, setContacts] = useState<Contact[] | null>(() => recallAnswer<Contact[]>(CONTACTS_KEY));
+  const storeOwnerId = useAppStore((state) => state.ownerId);
+  const cache = useAppStore((state) => state.connectionsCache);
+  const [contacts, setContacts] = useState<Contact[] | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [armedId, setArmedId] = useState<string | null>(null);
@@ -88,7 +96,7 @@ export function NetworkScreen({
   const load = async () => {
     const response = await fetch("/api/connections", { cache: "no-store" });
     if (!response.ok) {
-      setContacts([]);
+      setContacts((current) => current ?? rememberedContacts() ?? []);
       return;
     }
     const body = (await response.json()) as { connections?: Contact[] };
@@ -109,7 +117,10 @@ export function NetworkScreen({
   }, []);
 
   useEffect(() => {
-    if (contacts) rememberAnswer(CONTACTS_KEY, contacts);
+    if (!contacts) return;
+    const owner = useAppStore.getState().ownerId ?? ownerId.current;
+    if (!owner) return;
+    useAppStore.getState().setConnectionsCache({ ownerId: owner, contacts, at: Date.now() });
   }, [contacts]);
 
   useEffect(() => {
@@ -117,10 +128,13 @@ export function NetworkScreen({
     window.history.replaceState(null, "", "/network");
   }, [addedName]);
 
+  const cached = cache && storeOwnerId && cache.ownerId === storeOwnerId ? cache.contacts : null;
+  const shown = contacts ?? cached;
+
   const accepted = useMemo(() => {
     const needle = foldSearch(query.trim());
-    return (contacts ?? []).filter((contact) => matchesQuery(contact, needle));
-  }, [contacts, query]);
+    return (shown ?? []).filter((contact) => matchesQuery(contact, needle));
+  }, [shown, query]);
 
   const readyOwnerId = async () => {
     if (ownerId.current) return ownerId.current;
@@ -130,12 +144,13 @@ export function NetworkScreen({
   };
 
   const remove = async (id: string) => {
-    const index = contacts?.findIndex((contact) => contact.id === id) ?? -1;
-    const before = index >= 0 ? contacts?.[index] : undefined;
+    const list = contacts ?? cached;
+    const index = list?.findIndex((contact) => contact.id === id) ?? -1;
+    const before = index >= 0 ? list?.[index] : undefined;
     if (!before || inFlight.current.has(id)) return;
     inFlight.current.add(id);
     setArmedId(null);
-    setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
+    setContacts((current) => (current ?? list)?.filter((contact) => contact.id !== id) ?? current);
     try {
       const userId = await readyOwnerId();
       const { error } = userId
@@ -143,8 +158,9 @@ export function NetworkScreen({
         : { error: true };
       if (error) {
         setContacts((current) => {
-          if (!current) return current;
-          const next = [...current];
+          const base = current ?? list;
+          if (!base) return current;
+          const next = [...base];
           next.splice(Math.min(index, next.length), 0, before);
           return next;
         });
@@ -154,7 +170,7 @@ export function NetworkScreen({
     }
   };
 
-  const empty = contacts !== null && contacts.length === 0;
+  const empty = shown !== null && shown.length === 0;
 
   return (
     <main
@@ -198,7 +214,9 @@ export function NetworkScreen({
             </DropdownMenu>
           </div>
         </Zone>
-        {empty ? (
+        {shown === null ? (
+          <p className="mt-[18px] mb-0 t-meta text-[var(--grey)]">Loading your contacts…</p>
+        ) : empty ? (
           <Zone label="Contacts">
             <p className="t-body text-[var(--grey)]">No contacts yet.</p>
             <p className="mt-1 t-meta text-[var(--grey)]">Exchange a card and your first contact appears here.</p>

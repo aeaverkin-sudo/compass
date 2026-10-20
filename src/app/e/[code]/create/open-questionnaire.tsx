@@ -26,10 +26,12 @@ import { clearRegisteredDevice, markRegisteredDevice } from "@/shared/lib/regist
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
+import { hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
 import { setSignupDrafting } from "@/shared/services/signup-gate";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { useAppStore } from "@/shared/store/app-store";
+import { useUploadStatus } from "@/shared/store/upload-status";
 import type { Card, ContactItem } from "@/shared/types";
 
 const SKY =
@@ -43,6 +45,26 @@ const STARTERS: ScaffoldZone[] = [
   { id: "files", title: "Files", hint: "PDF, JPG…" },
   { id: "about", title: "About", hint: "A line about you" },
 ];
+
+/** The preview stays on the card until the file is stored. A failed upload leaves it until reload. */
+async function keepCardPhoto(cardId: string, file: File, preview: string) {
+  try {
+    const uploaded = await uploadAttachment({ file, kind: "card-photo", cardId });
+    const response = await fetch(`/api/cards/${cardId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoAttachmentId: uploaded.attachmentId }),
+    });
+    if (!response.ok) throw new Error("Could not save the photo.");
+    const latest = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+    if (latest && latest.photo !== preview && latest.photoAttachmentId) return;
+    useAppStore.getState().updateCard(cardId, { photoAttachmentId: uploaded.attachmentId, photo: undefined });
+  } catch {
+    const latest = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+    if (latest?.photoAttachmentId) return;
+    useUploadStatus.getState().notify("Could not save the photo.");
+  }
+}
 
 const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 let issuedFormPassword = "";
@@ -301,6 +323,8 @@ export function OpenPortfolio({
       }
       finished.current = true;
       const file = photoFile.current;
+      const preview = saved?.photo?.startsWith("data:") ? saved.photo : null;
+      const serverCardId = reply.cardId;
       const go = reply.next || "/main";
       if (account) {
         setSignupDrafting(false);
@@ -335,17 +359,12 @@ export function OpenPortfolio({
           body: JSON.stringify({ cardId: reply.cardId, password }),
         }).catch(() => undefined);
       }
-      if (file) {
-        const uploaded = await uploadAttachment({ file, kind: "card-photo", cardId: reply.cardId }).catch(() => null);
-        if (uploaded) {
-          await fetch(`/api/cards/${reply.cardId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ photoAttachmentId: uploaded.attachmentId }),
-          }).catch(() => undefined);
-        }
+      if (preview) {
+        await hydrateCardsFromServer({ force: true });
+        useAppStore.getState().updateCard(serverCardId, { photo: preview, photoLook: "shadow" });
       }
       router.replace(go);
+      if (file && preview) void keepCardPhoto(serverCardId, file, preview);
     } catch {
       setMessage("Could not create your profile.");
       setBusy(false);
