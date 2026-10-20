@@ -46,15 +46,15 @@ async function mailSignInLink(
   const params = new URLSearchParams({ t: hash });
   if (guestToken) params.set("g", guestToken);
   const href = `${guard.origin}/e/${event.key}/create?${params.toString()}`;
-  await sendEventSignIn(email, event.name.replace(/\s+/g, " ").trim(), href);
+  await sendEventSignIn(email, event.name.replace(/\s+/g, " ").trim(), href, guard.origin);
   await recordPass(event.id, guard.ip);
   return { ok: true, kind: "mailed", email };
 }
 
 /**
- * Create my profile on the open link. A new email turns this browser's session into a permanent account
- * with the password on the screen. An email that already has an account gets a sign-in link instead.
- * Nothing is created before this call: a screen left without Create leaves no account.
+ * Create the account at the end of the questionnaire. A new email turns this browser's session
+ * into a permanent account and returns the password once. An email that already has an account
+ * gets a sign-in link instead. Nothing is created before this call.
  */
 export async function createColdEntryAccount(
   lookup: string,

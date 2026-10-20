@@ -25,13 +25,12 @@ export default async function CreatePortfolioPage({ params, searchParams }: Page
   }
   const event = await loadEventInvite(lookup);
   if (!event) notFound();
-  const key = event.slug?.trim() || event.code;
   const hash = Array.isArray(query.t) ? query.t[0] : query.t;
   const guestToken = Array.isArray(query.g) ? query.g[0] : query.g;
   const guest = await findPassGuest(event.id, guestToken);
   return (
     <CreatePortfolio
-      lookup={key}
+      lookup={lookup}
       hash={hash ?? ""}
       guest={guest ? { token: guest.token, name: guest.name, email: guest.email ?? "" } : null}
     />

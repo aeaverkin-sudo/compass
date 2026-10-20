@@ -61,6 +61,7 @@ export async function sessionHasCard(userId: string): Promise<boolean> {
 }
 
 /** New email gets a starter code. An email that already exists is a login, not a second registration. */
+/** /register confirms an address with a passcode. The event questionnaire does not use this. */
 export async function beginEmail(userId: string, rawEmail: string): Promise<EmailBranch> {
   const email = normalizeEmail(rawEmail);
   const existing = await userIdForEmail(email);

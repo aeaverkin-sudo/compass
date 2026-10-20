@@ -5,9 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
-import { markRegisteredDevice } from "@/shared/lib/registered-device";
-import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
-import { recordConsent } from "@/shared/services/consent-client";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
@@ -18,11 +15,11 @@ import type { PortfolioChoice } from "@/shared/services/event-registration";
 import { PortfolioFace } from "@/shared/components/portfolio-face";
 import { TapButton } from "@/shared/components/tap-button";
 import { openWalletPass } from "@/shared/lib/wallet-client";
+import { readDraft, writeDraft } from "./create/draft";
 
 const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PASS_KEY = "aded:cold-pass";
 const EMAIL_FIELD =
   "compass-input block w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 py-1 t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
 type AcceptReply = {
@@ -123,11 +120,9 @@ export function InviteActions({
   const [going, setGoing] = useState<{ badge: PortfolioChoice | null; change: string } | null>(null);
   const [signInOffer, setSignInOffer] = useState(false);
   const [email, setEmail] = useState("");
-  const [sentTo, setSentTo] = useState<string | null>(null);
   const [website, setWebsite] = useState("");
   const opened = useRef(false);
   const autoRan = useRef(false);
-  const sending = useRef(false);
   const base = `/api/events/${encodeURIComponent(lookup)}`;
   const joinPath = `/e/${encodeURIComponent(lookup)}/join`;
 
@@ -233,74 +228,13 @@ export function InviteActions({
     if (holdsPass) return void enterPass(null);
   };
 
-  const createAccount = async () => {
+  const createAccount = () => {
     const value = email.trim().toLowerCase();
-    if (busy || sending.current || !EMAIL.test(value)) return;
-    sending.current = true;
+    if (busy || !EMAIL.test(value)) return;
     setBusy(true);
-    setHint(null);
-    const supabase = createBrowserSupabaseClient();
-    const send = () =>
-      fetch(`${base}/portfolio`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: value, website }),
-      });
-    try {
-      let response = await send();
-      if (response.status === 401) {
-        await supabase.auth.signInAnonymously();
-        response = await send();
-      }
-      const reply = (await response.json().catch(() => ({}))) as {
-        kind?: "created" | "mailed" | "go";
-        next?: string;
-        email?: string;
-        password?: string;
-        error?: string;
-      };
-      if (!response.ok || !reply.kind) {
-        setHint(reply.error ?? "Could not create your profile.");
-        sending.current = false;
-        setBusy(false);
-        return;
-      }
-      if (reply.kind === "go" && reply.next) {
-        window.location.assign(reply.next);
-        return;
-      }
-      if (reply.kind === "mailed") {
-        setSentTo(reply.email ?? value);
-        sending.current = false;
-        setBusy(false);
-        return;
-      }
-      if (reply.password) {
-        try {
-          window.sessionStorage.setItem(PASS_KEY, reply.password);
-        } catch {
-          /* the welcome mail is skipped if the browser keeps nothing */
-        }
-      }
-      clearLocal();
-      ignoreNextSignedOut();
-      await supabase.auth.signOut({ scope: "local" });
-      const signed = await supabase.auth.signInWithPassword({ email: value, password: reply.password ?? "" });
-      if (signed.error || !signed.data.session) {
-        setHint("Could not open your profile.");
-        sending.current = false;
-        setBusy(false);
-        return;
-      }
-      markRegisteredDevice();
-      clearRegistrationRequired();
-      await recordConsent("register").catch(() => undefined);
-      router.push(`/e/${encodeURIComponent(lookup)}/create`);
-    } catch {
-      setHint("Could not create your profile.");
-      sending.current = false;
-      setBusy(false);
-    }
+    const kept = readDraft(lookup, null);
+    writeDraft(lookup, null, { email: value, website, name: kept?.name ?? "" });
+    router.push(`/e/${encodeURIComponent(lookup)}/create`);
   };
 
   const primary = permanent ? (token ? acceptToken : joinOwn) : acceptToken;
@@ -409,9 +343,6 @@ export function InviteActions({
             </TapButton>
           </>
         ) : createFlow && !token ? (
-          sentTo ? (
-            <p className="m-0 max-w-[280px] text-center t-meta text-[var(--grey)]">{`Check ${sentTo}. Open the link in the email to sign in.`}</p>
-          ) : (
             <form
               className="self-stretch"
               style={{ paddingLeft: VALUE_AXIS_PX }}
@@ -456,7 +387,6 @@ export function InviteActions({
                 className="pointer-events-none absolute -left-[9999px] h-px w-px opacity-0"
               />
             </form>
-          )
         ) : createFlow ? (
           <div className="self-stretch" style={{ paddingLeft: VALUE_AXIS_PX }}>
             <Link href={createHref} className={SKY}>

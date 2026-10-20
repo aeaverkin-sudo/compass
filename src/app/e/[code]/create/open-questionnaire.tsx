@@ -12,16 +12,17 @@ import { TapButton } from "@/shared/components/tap-button";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
-import { clearRegistrationRequired } from "@/shared/lib/session-bootstrap";
+import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
-import { hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { scheduleCardUpsert, hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { syncCardLinkOrder } from "@/shared/services/card-items-sync";
 import { findIdenticalItem } from "@/shared/services/contact-item";
+import { recordConsent } from "@/shared/services/consent-client";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { useAppStore } from "@/shared/store/app-store";
-import { clearLocal } from "../invite-actions";
+import { dropDraft, readDraft, writeDraft } from "./draft";
 
-const PASS_KEY = "aded:cold-pass";
 const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 const CARD_PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
@@ -76,7 +77,15 @@ function placeContact(cardId: string, email: string): string | null {
   return id;
 }
 
-export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }) {
+export function OpenPortfolio({
+  lookup,
+  hash,
+  guest,
+}: {
+  lookup: string;
+  hash: string;
+  guest: { token: string; name: string; email: string } | null;
+}) {
   const router = useRouter();
   const layout = useMainLayout();
   const sessionReady = useSessionBootstrap();
@@ -84,13 +93,14 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
   const [opening, setOpening] = useState(Boolean(hash));
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  /** The account email, still grey, until the cursor lands in the row. */
-  const [greyId, setGreyId] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  /** Grey Contacts hint. A real row is written only on Create portfolio. */
   const [offerEmail, setOfferEmail] = useState<string | null>(null);
   const openAddRef = useRef<(() => void) | null>(null);
   const ran = useRef(false);
   const seeded = useRef(false);
   const eventPath = `/e/${encodeURIComponent(lookup)}`;
+  const guestToken = guest?.token ?? null;
   const card = useAppStore((state) => (cardId ? state.cards.find((entry) => entry.id === cardId) ?? null : null));
   const updateCard = useAppStore((state) => state.updateCard);
 
@@ -106,30 +116,59 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
           setMessage(EXPIRED);
           return;
         }
-        clearLocal();
         markRegisteredDevice();
         clearRegistrationRequired();
         await hydrateCardsFromServer();
-        if (useAppStore.getState().cards.length > 0) {
-          router.replace("/main");
+        const existing = useAppStore.getState().cards[0]?.id ?? null;
+        if (existing) {
+          let pay = false;
+          try {
+            const joined = await fetch(`/api/events/${encodeURIComponent(lookup)}/register`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ cardId: existing, ...(guestToken ? { token: guestToken } : {}) }),
+            });
+            const body = (await joined.json().catch(() => ({}))) as { pay?: boolean };
+            pay = body.pay === true;
+          } catch {
+            /* the event page still registers later */
+          }
+          dropDraft(lookup, guestToken);
+          router.replace(pay ? `${eventPath}/join` : "/main");
           return;
         }
       }
-      const { data } = await supabase.auth.getUser();
+      let { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        const anon = await supabase.auth.signInAnonymously();
+        data = { user: anon.data.user };
+      }
       const user = data.user;
-      if (!user || user.is_anonymous) {
-        router.replace(eventPath);
+      if (!user) {
+        setOpening(false);
+        setMessage("Could not open your portfolio.");
         return;
       }
-      await hydrateCardsFromServer();
-      let id = useAppStore.getState().cards[0]?.id ?? null;
+      const draft = readDraft(lookup, guestToken);
+      const email = (guest?.email || draft?.email || (!user.is_anonymous ? user.email : "") || "").trim().toLowerCase();
+      if (email) {
+        setOfferEmail(email);
+        writeDraft(lookup, guestToken, { email, website: draft?.website ?? "", name: guest?.name || draft?.name || "" });
+      }
+      let id: string | null = useAppStore.getState().cards[0]?.id ?? null;
       if (!id) {
         const limit = await portfolioLimit();
         const state = useAppStore.getState();
-        if (limit !== null && state.cards.length < limit) {
-          state.updateSecondCardDraft({ displayName: "" }, limit);
-          id = useAppStore.getState().cards[0]?.id ?? null;
+        const room = limit ?? 1;
+        if (state.cards.length < room) {
+          const name = guest?.name?.trim() || draft?.name || "";
+          state.updateSecondCardDraft({ displayName: name }, room);
+          id = useAppStore.getState().cards[useAppStore.getState().cards.length - 1]?.id ?? null;
         }
+      } else if (guest?.name?.trim()) {
+        const name = guest.name.trim();
+        const card = useAppStore.getState().cards.find((entry) => entry.id === id);
+        if (card && !card.displayName.trim()) useAppStore.getState().updateCard(card.id, { displayName: name });
       }
       if (!id) {
         setOpening(false);
@@ -139,10 +178,6 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
       if (!seeded.current) {
         seeded.current = true;
         rememberLabels(id);
-        const accountEmail = user.email?.trim().toLowerCase() ?? "";
-        const placed = accountEmail ? placeContact(id, accountEmail) : null;
-        if (placed) setGreyId(placed);
-        else if (accountEmail) setOfferEmail(accountEmail);
       }
       setCardId(id);
       setOpening(false);
@@ -150,21 +185,7 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
       setOpening(false);
       setMessage("Could not open your portfolio.");
     });
-  }, [eventPath, hash, router, sessionReady]);
-
-  useEffect(() => {
-    if (!greyId) return;
-    const wake = (event: Event) => {
-      const node = event.target;
-      if (!(node instanceof Node)) return;
-      const row = document.querySelector(`[data-item-row="${CSS.escape(greyId)}"]`);
-      if (!row?.contains(node)) return;
-      if (node instanceof Element && node.closest("button, [role='checkbox']")) return;
-      setGreyId(null);
-    };
-    document.addEventListener("pointerdown", wake, true);
-    return () => document.removeEventListener("pointerdown", wake, true);
-  }, [greyId]);
+  }, [eventPath, guest, guestToken, hash, lookup, router, sessionReady]);
 
   const scaffold = useMemo(
     () =>
@@ -176,36 +197,104 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
 
   const finish = async () => {
     if (busy || !cardId) return;
+    const email = (offerEmail ?? "").trim().toLowerCase();
+    if (!email) {
+      setMessage("Add your email.");
+      return;
+    }
     setBusy(true);
     setMessage(null);
-    if (offerEmail) placeContact(cardId, offerEmail);
-    let pay = false;
-    try {
-      const joined = await fetch(`/api/events/${encodeURIComponent(lookup)}/register`, {
+    placeContact(cardId, email);
+    const draft = readDraft(lookup, guestToken);
+    const supabase = createBrowserSupabaseClient();
+    const send = () =>
+      fetch(`/api/events/${encodeURIComponent(lookup)}/portfolio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId }),
+        body: JSON.stringify({ email, website: draft?.website ?? "", ...(guestToken ? { guestToken } : {}) }),
       });
-      const body = (await joined.json().catch(() => ({}))) as { pay?: boolean };
-      pay = body.pay === true;
-    } catch {
-      /* the event page still registers later */
-    }
-    let password = "";
     try {
-      password = window.sessionStorage.getItem(PASS_KEY) ?? "";
-      window.sessionStorage.removeItem(PASS_KEY);
+      const { data: current } = await supabase.auth.getUser();
+      const signedIn = Boolean(current.user && !current.user.is_anonymous);
+      if (!signedIn) {
+        let response = await send();
+        if (response.status === 401) {
+          await supabase.auth.signInAnonymously();
+          response = await send();
+        }
+        const reply = (await response.json().catch(() => ({}))) as {
+          kind?: "created" | "mailed" | "go";
+          next?: string;
+          email?: string;
+          password?: string;
+          error?: string;
+        };
+        if (!response.ok || !reply.kind) {
+          setMessage(reply.error ?? "Could not create your profile.");
+          setBusy(false);
+          return;
+        }
+        if (reply.kind === "go" && reply.next) {
+          window.location.assign(reply.next);
+          return;
+        }
+        if (reply.kind === "mailed") {
+          setSentTo(reply.email ?? email);
+          setBusy(false);
+          return;
+        }
+        ignoreNextSignedOut();
+        await supabase.auth.signOut({ scope: "local" });
+        const signed = await supabase.auth.signInWithPassword({ email, password: reply.password ?? "" });
+        if (signed.error || !signed.data.session) {
+          setMessage("Could not open your profile.");
+          setBusy(false);
+          return;
+        }
+        markRegisteredDevice();
+        clearRegistrationRequired();
+        await recordConsent("register").catch(() => undefined);
+        const state = useAppStore.getState();
+        const card = state.cards.find((entry) => entry.id === cardId);
+        if (card) {
+          scheduleCardUpsert(card);
+          const items = state.contactItems.filter((item) => card.contactItemIds.includes(item.id));
+          await syncCardLinkOrder(card, items).catch(() => undefined);
+        }
+        if (reply.password) {
+          await fetch(`/api/events/${encodeURIComponent(lookup)}/portfolio/welcome`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cardId, password: reply.password }),
+          }).catch(() => undefined);
+        }
+      } else {
+        const state = useAppStore.getState();
+        const card = state.cards.find((entry) => entry.id === cardId);
+        if (card) {
+          scheduleCardUpsert(card);
+          const items = state.contactItems.filter((item) => card.contactItemIds.includes(item.id));
+          await syncCardLinkOrder(card, items).catch(() => undefined);
+        }
+      }
+      let pay = false;
+      try {
+        const joined = await fetch(`/api/events/${encodeURIComponent(lookup)}/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cardId, ...(guestToken ? { token: guestToken } : {}) }),
+        });
+        const body = (await joined.json().catch(() => ({}))) as { pay?: boolean };
+        pay = body.pay === true;
+      } catch {
+        /* the event page still registers later */
+      }
+      dropDraft(lookup, guestToken);
+      router.replace(pay ? `${eventPath}/join` : "/main");
     } catch {
-      password = "";
+      setMessage("Could not create your profile.");
+      setBusy(false);
     }
-    if (password) {
-      await fetch(`/api/events/${encodeURIComponent(lookup)}/portfolio/welcome`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId, password }),
-      }).catch(() => undefined);
-    }
-    router.replace(pay ? `${eventPath}/join` : "/main");
   };
 
   if (opening) {
@@ -223,9 +312,6 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
 
   return (
     <main className="compass-main fixed inset-0 flex flex-col overflow-hidden bg-background text-[var(--ink)]">
-      {greyId && /^[0-9a-zA-Z-]+$/.test(greyId) ? (
-        <style>{`[data-item-row="${greyId}"] .t-body{color:var(--placeholder)!important}`}</style>
-      ) : null}
       <ScreenHeader title="Create a portfolio" fallbackHref={eventPath} spacer={false} />
       <div className="shrink-0 bg-background" style={{ paddingTop: headerPad, paddingLeft: inset, paddingRight: inset }}>
         <div className={CARD_PAD}>
@@ -289,6 +375,9 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
               </button>
             </div>
           ) : null}
+          {sentTo ? (
+            <p className="mb-4 t-meta text-[var(--grey)]">{`Check ${sentTo}. Open the link in the email to sign in and join.`}</p>
+          ) : null}
           {message ? <p className="mb-4 t-meta text-[var(--ink)]">{message}</p> : null}
         </div>
       </div>
@@ -304,7 +393,7 @@ export function OpenPortfolio({ lookup, hash }: { lookup: string; hash: string }
       >
         <div className={CARD_PAD}>
           <div style={{ paddingLeft: VALUE_AXIS_PX }}>
-            <TapButton disabled={busy || !card || !sessionReady} onTap={() => void finish()} className={SKY}>
+            <TapButton disabled={busy || !card || !sessionReady || Boolean(sentTo)} onTap={() => void finish()} className={SKY}>
               Create portfolio
             </TapButton>
           </div>
