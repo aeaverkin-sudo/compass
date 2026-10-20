@@ -49,7 +49,7 @@ export function RemoveContact({ token }: { token: string }) {
         onClick={() => void remove()}
         className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
       >
-        Delete from account
+        Delete from network
       </button>
     </div>
   );

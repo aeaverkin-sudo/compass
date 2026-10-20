@@ -29,7 +29,6 @@ import {
 import { typeLabel } from "@/shared/services/portfolio-catalog";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
-import { SkyHint } from "@/shared/components/sky-hint";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useAppStore } from "@/shared/store/app-store";
 import { fileStatusLine, useUploadStatus } from "@/shared/store/upload-status";
@@ -406,7 +405,6 @@ export const CardEditList = memo(function CardEditList({
   const [hideReadyId, setHideReadyId] = useState<string | null>(null);
   const openZoneRef = useRef<((zone: CardZoneId) => void) | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [libraryHint, setLibraryHint] = useState<"add" | "first" | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState(0);
   const [seedHint, setSeedHint] = useState<string | null>(null);
   const [seedTyped, setSeedTyped] = useState("");
@@ -478,7 +476,6 @@ export const CardEditList = memo(function CardEditList({
         setSectionEditId(title ? zone : null);
       });
       focusSeed(zone, title);
-      if (!useAppStore.getState().user.addLibraryHintSeen) setLibraryHint("add");
     };
     openZoneRef.current = (zone) => begin(zone, false);
     if (openAddRef) {
@@ -619,7 +616,6 @@ export const CardEditList = memo(function CardEditList({
 
   const noteAdded = () => {
     const user = useAppStore.getState().user;
-    if (!user.addLibraryHintSeen) useAppStore.getState().markAddLibraryHintSeen();
     if (!user.firstRowHintSeen) useAppStore.getState().markFirstRowHintSeen();
   };
 
@@ -964,15 +960,6 @@ export const CardEditList = memo(function CardEditList({
       })}
       {duplicateNotice > 0 ? (
         <SkyToast key={duplicateNotice} text={DUPLICATE_NOTICE} onDone={() => setDuplicateNotice(0)} />
-      ) : null}
-      {libraryHint === "add" ? (
-        <SkyHint
-          text="Add anything to the library and use it in different portfolios"
-          onDone={() => {
-            useAppStore.getState().markAddLibraryHintSeen();
-            setLibraryHint(null);
-          }}
-        />
       ) : null}
       <Dialog.Root
         open={confirmDelete !== null}

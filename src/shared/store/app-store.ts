@@ -61,7 +61,6 @@ interface AppState {
   markMainIntroSeen: () => void;
   markEmptyFillHintSeen: () => void;
   markFirstRowHintSeen: () => void;
-  markAddLibraryHintSeen: () => void;
   markPassAddHintSeen: () => void;
   markPasswordHintSeen: () => void;
   setRailDock: (dock: "qr" | "photo") => void;
@@ -280,11 +279,6 @@ export const useAppStore = create<AppState>()(
       markPassAddHintSeen: () => {
         if (get().user.passAddHintSeen) return;
         set({ user: { ...get().user, passAddHintSeen: true } });
-      },
-
-      markAddLibraryHintSeen: () => {
-        if (get().user.addLibraryHintSeen) return;
-        set({ user: { ...get().user, addLibraryHintSeen: true } });
       },
 
       markPasswordHintSeen: () => {

@@ -6,9 +6,8 @@ import { loadDeletedCard } from "@/shared/services/connection-snapshot";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { RemoveContact } from "./remove-contact";
 
-/** The card grows with its rows. The page scrolls when they pass the screen, down to the delete button. */
-const FRAME =
-  "compass-main h-dvh overflow-y-auto overscroll-y-contain bg-white [&_article]:!h-auto [&_article]:!overflow-visible [&_.compass-card-scroll]:!overflow-visible [&_.compass-card-scroll]:!overscroll-auto";
+/** The page scrolls the card and the delete button. The card keeps its own frame. */
+const FRAME = "compass-main h-dvh overflow-y-auto overscroll-y-contain bg-white";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +31,9 @@ export default async function NetworkCardPage({ params }: PageProps) {
     if (!kept) notFound();
     return (
       <main className={FRAME}>
-        <PublicCardClient inside deleted card={kept.card} items={kept.items} publicToken={token} />
+        <div className="h-dvh [&>div]:h-full">
+          <PublicCardClient inside deleted card={kept.card} items={kept.items} publicToken={token} />
+        </div>
         <RemoveContact token={token} />
       </main>
     );
@@ -40,7 +41,9 @@ export default async function NetworkCardPage({ params }: PageProps) {
 
   return (
     <main className={FRAME}>
-      <PublicCardClient inside card={loaded.card} items={loaded.items} publicToken={loaded.card.publicToken} />
+      <div className="h-dvh [&>div]:h-full">
+        <PublicCardClient inside card={loaded.card} items={loaded.items} publicToken={loaded.card.publicToken} />
+      </div>
       <RemoveContact token={token} />
     </main>
   );

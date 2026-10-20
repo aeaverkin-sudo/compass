@@ -228,6 +228,9 @@ export const SideRail = memo(function SideRail({
       if (target instanceof Element && target.closest("[data-slot='dropdown-menu-content']")) return;
       if (rootRef.current?.contains(target as Node)) return;
       setStyling(false);
+      requestAnimationFrame(() => {
+        rootRef.current?.getBoundingClientRect();
+      });
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -309,7 +312,6 @@ export const SideRail = memo(function SideRail({
     const node = rootRef.current;
     if (!node) return;
     node.style.boxShadow = "";
-    node.style.willChange = "";
   };
 
   const stopTouchBlock = () => {
@@ -344,7 +346,6 @@ export const SideRail = memo(function SideRail({
       node.style.transition = "none";
       node.style.transform = "";
       node.style.boxShadow = "";
-      node.style.willChange = "";
     }
     paintDock(dockRef.current, { transition: "none" });
   };
@@ -445,7 +446,6 @@ export const SideRail = memo(function SideRail({
     stopTouchBlock();
     unmountShield();
     endLiftVisual();
-    node.style.willChange = "transform";
     node.style.transition = "none";
     node.style.top = layoutTop(to.top);
     node.style.height = `${fromHeight}px`;
@@ -469,7 +469,6 @@ export const SideRail = memo(function SideRail({
     if (!node) return;
     node.style.transition = "none";
     node.style.transform = "";
-    node.style.willChange = "";
     paintDock(dockRef.current, { transition: "none" });
     setRailDock(dockRef.current);
   };
@@ -516,7 +515,6 @@ export const SideRail = memo(function SideRail({
       host.removeEventListener("pointermove", move);
       host.addEventListener("pointermove", move, { passive: false });
       host.style.transition = "transform 120ms ease-out, box-shadow 120ms ease-out";
-      host.style.willChange = "transform";
       host.style.boxShadow = "0 6px 18px rgba(0,0,0,.14)";
       paintTransform(0, true);
       requestAnimationFrame(() => {
@@ -619,6 +617,7 @@ export const SideRail = memo(function SideRail({
         paddingBottom: EDGE_INSET_PX,
         touchAction: "none",
         transition: "none",
+        willChange: "transform",
       }}
       draggable={false}
       onDragStart={(event) => event.preventDefault()}
@@ -626,33 +625,33 @@ export const SideRail = memo(function SideRail({
       onPointerDownCapture={onPointerDownCapture}
       onTransitionEnd={onTransitionEnd}
     >
-      {styling ? (
-        <div
-          className={cn(
-            "absolute bottom-full left-1/2 flex size-11 -translate-x-1/2 items-center justify-center",
-            dragging ? "pointer-events-none" : "pointer-events-auto",
-          )}
-        >
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Rail style"
-              className="flex size-11 items-center justify-center text-[var(--ink)]"
-            >
-              <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" side="bottom" className="min-w-0 px-4 py-3">
-              {LOOKS.map(({ look, label }) => {
-                const on = (railLook ?? null) === look;
-                return (
-                  <DropdownMenuItem key={label} onSelect={() => setRailLook(look)}>
-                    <span className={cn("t-body", on ? "text-[var(--ink)]" : "text-[var(--grey)]")}>{label}</span>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      ) : null}
+      <div
+        className={cn(
+          "absolute bottom-full left-1/2 flex size-11 -translate-x-1/2 items-center justify-center",
+          styling ? "visible opacity-100" : "invisible pointer-events-none opacity-0",
+          styling && dragging && "pointer-events-none",
+        )}
+        aria-hidden={!styling}
+      >
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label="Rail style"
+            className="flex size-11 items-center justify-center text-[var(--ink)]"
+          >
+            <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="bottom" className="min-w-0 px-4 py-3">
+            {LOOKS.map(({ look, label }) => {
+              const on = (railLook ?? null) === look;
+              return (
+                <DropdownMenuItem key={label} onSelect={() => setRailLook(look)}>
+                  <span className={cn("t-body", on ? "text-[var(--ink)]" : "text-[var(--grey)]")}>{label}</span>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <RailMark height={SHARE_SLOT_PX} inert={dragging}>
         <CardShareControl
           card={liveCard}
