@@ -30,7 +30,7 @@ export default async function SaveCardPage({ params }: PageProps) {
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  if (!user) {
+  if (!user || user.is_anonymous) {
     redirect(`/register?card=${encodeURIComponent(token)}`);
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { GuestAcceptResult } from "@/shared/services/guest-accept";
+import type { GuestAcceptResult } from "@/shared/services/member-account";
 
 export function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });

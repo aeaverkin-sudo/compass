@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { mailOrigin } from "@/shared/lib/public-origin";
-import { sendWelcomeMail } from "@/shared/services/cold-entry";
-import { noStore } from "@/shared/services/guest-accept-reply";
+import { sendWelcomeMail } from "@/shared/services/signup";
+import { noStore } from "@/shared/services/http-reply";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

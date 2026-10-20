@@ -37,10 +37,10 @@ function useHasSession() {
     const supabase = createBrowserSupabaseClient();
     let cancel = false;
     void supabase.auth.getUser().then(({ data }) => {
-      if (!cancel) setHas(Boolean(data.user));
+      if (!cancel) setHas(Boolean(data.user && !data.user.is_anonymous));
     });
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      setHas(Boolean(session?.user));
+      setHas(Boolean(session?.user && !session.user.is_anonymous));
     });
     return () => {
       cancel = true;
@@ -74,7 +74,7 @@ export function AccountBand({
   const hasSession = useHasSession();
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
   const signUpHref = `/register?card=${encodeURIComponent(token)}`;
-  const pdfSignUpHref = `${origin}/register?card=${encodeURIComponent(token)}`;
+  const pdfSaveHref = `${origin}/save/${encodeURIComponent(token)}`;
   if (!pdf) {
     return (
       <TabBand
@@ -118,7 +118,7 @@ export function AccountBand({
       }}
     >
       <div className="flex min-h-11 items-stretch">
-        <a href={pdfSignUpHref} className={cn(pdfDoor, "text-left")}>
+        <a href={pdfSaveHref} className={cn(pdfDoor, "text-left")}>
           <span data-pdf-link="" className="inline-block w-fit">
             Add to My
             <br />

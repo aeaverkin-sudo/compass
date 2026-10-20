@@ -21,10 +21,12 @@ import {
   type CardZoneId,
 } from "@/shared/services/card-zones";
 import {
+  detectContactType,
   findIdenticalItem,
   isContactFilled,
   messengerCountryHint,
 } from "@/shared/services/contact-item";
+import { typeLabel } from "@/shared/services/portfolio-catalog";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
 import { SkyHint } from "@/shared/components/sky-hint";
@@ -37,6 +39,12 @@ import { useFinePointer } from "@main/hooks/use-keyboard-dock";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
 const OFF_CARD = "var(--placeholder)";
+
+function typedMark(value: string) {
+  const kind = detectContactType(value);
+  if (!value.trim() || kind === "text") return "";
+  return `${typeLabel(kind)} / `;
+}
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 const NEW_ZONE_TITLE = "TITLE";
@@ -401,7 +409,10 @@ export const CardEditList = memo(function CardEditList({
   const [libraryHint, setLibraryHint] = useState<"add" | "first" | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState(0);
   const [seedHint, setSeedHint] = useState<string | null>(null);
+  const [seedTyped, setSeedTyped] = useState("");
   const [lookingFor, setLookingFor] = useState(false);
+  const zoneDownRef = useRef<string | null>(null);
+  const viewportResizeAt = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const extraBlockRef = useRef<HTMLDivElement>(null);
   const extraValueRef = useRef<WrapFieldHandle>(null);
@@ -419,6 +430,16 @@ export const CardEditList = memo(function CardEditList({
   }, []);
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const mark = () => {
+      viewportResizeAt.current = Date.now();
+    };
+    viewport.addEventListener("resize", mark);
+    return () => viewport.removeEventListener("resize", mark);
+  }, []);
 
   useEffect(() => {
     const cardId = card.id;
@@ -442,7 +463,9 @@ export const CardEditList = memo(function CardEditList({
         return;
       }
       const section = listRef.current?.querySelector(`[data-zone="${CSS.escape(zone)}"]`);
-      section?.querySelector<HTMLElement>("[contenteditable]")?.focus({ preventScroll: true });
+      const field = section?.querySelector<HTMLElement>("[contenteditable]");
+      field?.focus();
+      field?.scrollIntoView({ block: "nearest" });
     };
     const begin = (zone: string, title: boolean) => {
       flushSync(() => {
@@ -839,7 +862,12 @@ export const CardEditList = memo(function CardEditList({
                           onClick={() => addSeedFile(section.id)}
                         />
                       ) : null}
-                      <div data-seed-value="" className="min-w-0 flex-1">
+                      <div data-seed-value="" className="flex min-w-0 flex-1 items-baseline">
+                        {section.id === "social" || section.id === "contact" ? (
+                          typedMark(seedTyped) ? (
+                            <span className="t-body shrink-0 text-[var(--grey)]">{typedMark(seedTyped)}</span>
+                          ) : null
+                        ) : null}
                         <WrapField
                           ref={extraValueRef}
                           initial={section.hint?.includes("@") ? section.hint : ""}
@@ -851,7 +879,10 @@ export const CardEditList = memo(function CardEditList({
                           onPointerDown={() => {
                             advanceSeedRef.current = true;
                           }}
-                          onTextChange={() => setSeedHint(null)}
+                          onTextChange={(next) => {
+                            setSeedTyped(next);
+                            setSeedHint(null);
+                          }}
                           onDone={(next) => {
                             if (section.hint && next.trim() === section.hint.trim()) {
                               endSeed(section.id);
@@ -893,7 +924,14 @@ export const CardEditList = memo(function CardEditList({
                     data-no-swipe
                     aria-label={section.title}
                     className="t-body w-full bg-transparent text-left text-[var(--placeholder)]"
-                    onPointerUp={() => openZoneRef.current?.(section.id)}
+                    onPointerDown={() => {
+                      zoneDownRef.current = section.id;
+                    }}
+                    onClick={() => {
+                      if (zoneDownRef.current !== section.id) return;
+                      if (Date.now() - viewportResizeAt.current < 350) return;
+                      openZoneRef.current?.(section.id);
+                    }}
                   >
                     {section.hint}
                   </button>
@@ -907,8 +945,13 @@ export const CardEditList = memo(function CardEditList({
                       style={{ color: OFF_CARD }}
                       onPointerDown={() => {
                         keepExtraRef.current = isExtraZoneId(section.id);
+                        zoneDownRef.current = section.id;
                       }}
-                      onPointerUp={() => openZoneRef.current?.(section.id)}
+                      onClick={() => {
+                        if (zoneDownRef.current !== section.id) return;
+                        if (Date.now() - viewportResizeAt.current < 350) return;
+                        openZoneRef.current?.(section.id);
+                      }}
                     >
                       +
                     </button>
@@ -1028,6 +1071,7 @@ const EditRow = memo(function EditRow({
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
   const [fades, setFades] = useState(false);
+  const [liveText, setLiveText] = useState(value);
   const longPress = useLongPress(() => {
     pressedLong.current = true;
     setHolding(false);
@@ -1070,7 +1114,12 @@ const EditRow = memo(function EditRow({
   return (
     <div ref={rowRef} data-item-row={itemId} className="relative min-w-0">
       {editing ? (
-        <div className={cn(side, "min-w-0")}>
+        <div className={cn(side, "flex min-w-0 items-baseline")}>
+          {zoneId === "social" || zoneId === "contact" ? (
+            typedMark(liveText) ? (
+              <span className="t-body shrink-0 text-[var(--grey)]">{typedMark(liveText)}</span>
+            ) : null
+          ) : null}
           <WrapField
             ref={dockRef}
             initial={value}
@@ -1078,6 +1127,7 @@ const EditRow = memo(function EditRow({
             multiline={multiline}
             breakButton={false}
             onTextChange={(next) => {
+              setLiveText(next);
               if (!next.trim()) onErase(itemId);
             }}
             onDone={(next) => onConfirm(itemId, value, next)}

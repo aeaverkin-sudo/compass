@@ -115,9 +115,11 @@ export async function cardPassRegistered(ownerId: string, cardId: string): Promi
   if (!slot) return false;
   const serial = walletSerialFor(ownerId, slot.slot);
   const listed = await admin.from("wallet_pass_devices").select("serial").eq("serial", serial).limit(1);
-  if (!listed.error && (listed.data ?? []).length > 0) return true;
-  if (listed.error && !missingTable(listed.error.message)) throw new Error(listed.error.message);
-  return readDevices(user.app_metadata?.wallet_devices).some((row) => row.serial === serial);
+  if (listed.error) {
+    if (missingTable(listed.error.message)) return false;
+    throw new Error(listed.error.message);
+  }
+  return (listed.data ?? []).length > 0;
 }
 
 /** Serials this device has registered, slot suffix included. Empty when the table is not there yet. */

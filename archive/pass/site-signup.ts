@@ -1,7 +1,7 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { MIN_PASSWORD } from "@/shared/services/cold-entry";
 import { isEmail, userIdForEmail } from "@/shared/services/email-signup";
-import { isPermanentAccount, PASSWORD_SET, type SessionUser } from "@/shared/services/guest-accept";
+import { isPermanentAccount, PASSWORD_SET, type SessionUser } from "@/shared/services/member-account";
 import { clearTrialClock } from "@/shared/services/trial";
 
 export type SiteSignupResult =

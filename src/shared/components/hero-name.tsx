@@ -90,7 +90,12 @@ export function HeroName({
       const width = box.clientWidth;
       if (!value) {
         setWrapWord(false);
-        setSize(fitToWidth(placeholder, Math.max(0, width - 4), 400, 19, 8));
+        const lines = placeholder.split("\n").filter((line) => line.length > 0);
+        const fitted = (lines.length > 0 ? lines : [placeholder]).reduce(
+          (tightest, line) => Math.min(tightest, fitToWidth(line, Math.max(0, width - 4), 400, 19, 8)),
+          19,
+        );
+        setSize(fitted);
         return;
       }
       const parts = splitHeroLines(value, maxLines);
@@ -104,11 +109,6 @@ export function HeroName({
       const heightSize = Math.max(8, (box.clientHeight - gap) / (count + HERO_DESCENDER_OVERFLOW));
       setWrapWord(false);
       setSize(Math.min(HERO_NAME_MAX_PX, widthSize, heightSize));
-      const area = box.querySelector("textarea");
-      if (area) {
-        area.scrollTop = 0;
-        area.scrollLeft = 0;
-      }
     };
     fit();
     const observer = new ResizeObserver(fit);
@@ -124,38 +124,16 @@ export function HeroName({
 
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
+  const placeholderLines = placeholder.split("\n");
   const lineStyle = {
     fontSize: size,
     lineHeight: 1,
     fontWeight: empty ? 400 : 600,
     letterSpacing: empty ? "0px" : "-1px",
     boxSizing: "border-box" as const,
-    height: size * (empty ? 1 : lineCount) + rolePad,
+    height: size * (empty ? placeholderLines.length : lineCount) + rolePad,
     paddingBottom: rolePad,
     ...(centered ? { marginBottom: -rolePad } : {}),
-  };
-
-  const holdScroll = (node: HTMLTextAreaElement) => {
-    const scroller = node.closest<HTMLElement>(".compass-card-scroll");
-    const top = scroller?.scrollTop ?? 0;
-    const pin = () => {
-      if (scroller) scroller.scrollTop = top;
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    };
-    pin();
-    requestAnimationFrame(pin);
-    window.addEventListener("scroll", pin, { passive: true });
-    window.visualViewport?.addEventListener("scroll", pin);
-    window.visualViewport?.addEventListener("resize", pin);
-    const stop = () => {
-      window.removeEventListener("scroll", pin);
-      window.visualViewport?.removeEventListener("scroll", pin);
-      window.visualViewport?.removeEventListener("resize", pin);
-      node.removeEventListener("blur", stop);
-    };
-    node.addEventListener("blur", stop);
   };
 
   return (
@@ -173,7 +151,7 @@ export function HeroName({
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]",
+              "pointer-events-none absolute left-0 whitespace-pre border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]",
               centered && "top-1/2 -translate-y-1/2",
             )}
             style={{ fontSize: size, fontWeight: 400, lineHeight: 1, bottom: centered ? undefined : descender }}
@@ -192,13 +170,11 @@ export function HeroName({
           spellCheck={false}
           data-no-swipe
           onChange={(event) => {
-            event.currentTarget.scrollTop = 0;
-            event.currentTarget.scrollLeft = 0;
             onChange(clamp(event.target.value));
           }}
           onFocus={(event) => {
             onFocus?.();
-            holdScroll(event.currentTarget);
+            event.currentTarget.scrollIntoView({ block: "nearest" });
           }}
           onPointerDown={(event) => event.stopPropagation()}
           onBeforeInput={(event) => {
@@ -238,7 +214,7 @@ export function HeroName({
           style={lineStyle}
         >
           {empty ? (
-            <div className="whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]">{placeholder}</div>
+            <div className="whitespace-pre border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]">{placeholder}</div>
           ) : twoLines ? (
             lines.map((line, index) => (
               <div key={index} className="whitespace-nowrap">

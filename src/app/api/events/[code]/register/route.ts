@@ -5,7 +5,7 @@ import { GUEST_COOKIE, isGuestToken } from "@/shared/services/event-guest-pass";
 import { moveRegistrationCard } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { eventListStatus } from "@/shared/services/events";
-import { isPermanentAccount, joinWithOwnCard } from "@/shared/services/guest-accept";
+import { isPermanentAccount, joinWithOwnCard } from "@/shared/services/member-account";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,10 +52,9 @@ export async function POST(request: Request, context: RouteProps) {
 
   try {
     const jar = await cookies();
-    const guestToken = join.token ?? jar.get(GUEST_COOKIE)?.value ?? null;
-    const joined = await joinWithOwnCard(userId, event, code, guestToken, join.cardId || null);
+    const joined = await joinWithOwnCard(userId, event, code, join.token, join.cardId || null);
     if (!joined.ok) return noStore({ error: joined.error }, joined.status);
-    if (guestToken) jar.delete(GUEST_COOKIE);
+    jar.delete(GUEST_COOKIE);
     return noStore({ joined: Boolean(joined.registrationId), pay: joined.pay });
   } catch (error) {
     console.error("[events] register", error);

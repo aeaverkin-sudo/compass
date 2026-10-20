@@ -1,5 +1,4 @@
 import { Resend } from "resend";
-import { eventSignInMail } from "@/shared/mail/welcome-mail";
 
 export function mailConfigured() {
   return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
@@ -95,18 +94,6 @@ export async function sendChangeCode(to: string, code: string) {
 /** The open link, the same email on another device. The link signs in once. */
 export async function sendPassLink(to: string, eventName: string, link: string) {
   await send(to, `Your pass for ${eventName}`, `Open this link to get your pass: ${link}`);
-}
-
-/** Create on the open link with an email that already has an account. The link signs in once and joins. */
-export async function sendEventSignIn(to: string, eventName: string, link: string, origin: string) {
-  const site = origin.replace(/\/$/, "");
-  const mail = eventSignInMail({
-    logoSrc: `${site}/brand/aded-grid-mail.png`,
-    eventName,
-    link,
-    siteLabel: site.replace(/^https?:\/\//, ""),
-  });
-  await sendHtmlMail({ to, subject: mail.subject, html: mail.html, text: mail.text });
 }
 
 export async function sendPasswordReset(to: string, link: string) {

@@ -5,6 +5,7 @@ import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from 
 import type { Card, CardStatus } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { signupDrafting } from "@/shared/services/signup-gate";
 
 const UPSERT_DEBOUNCE_MS = 400;
 const PUBLIC_TOKEN_LENGTH = 21;
@@ -238,6 +239,7 @@ async function currentUserId() {
 /** Upsert scalar columns only. The avatar is `photo_attachment_id`, never the image bytes. */
 export async function upsertCardScalars(card: Card): Promise<void> {
   try {
+    if (signupDrafting()) return;
     if (!isCardUuid(card.id)) return;
 
     const ownerId = await currentUserId();
@@ -312,6 +314,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
 
 /** Coalesce keystroke updates. The latest card object wins. */
 export function scheduleCardUpsert(card: Card, options?: { pulse?: boolean }) {
+  if (signupDrafting()) return;
   const previous = pendingUpserts.get(card.id);
   if (previous) clearTimeout(previous.timer);
 
@@ -333,6 +336,7 @@ export function scheduleCardUpsert(card: Card, options?: { pulse?: boolean }) {
 
 /** Writes Public/Private without the full upsert, which would otherwise keep the column default. */
 export function writeCardListed(cardId: string, listed: boolean) {
+  if (signupDrafting()) return;
   const pending = pendingUpserts.get(cardId);
   if (pending) pending.card = { ...pending.card, listed };
   const supabase = createBrowserSupabaseClient();
@@ -346,6 +350,7 @@ export function writeCardListed(cardId: string, listed: boolean) {
 }
 
 function writeCardColumn(cardId: string, column: "rubric_labels" | "item_zones", value: Record<string, string> | null) {
+  if (signupDrafting()) return;
   const pending = pendingUpserts.get(cardId);
   if (pending) {
     pending.card = {
@@ -379,6 +384,7 @@ export function writeCardItemZones(cardId: string, itemZones: Record<string, str
 
 /** Writes rubric order. A missing column must not block the rest of the card save. */
 export function writeCardRubricOrder(cardId: string, rubricOrder: string[] | null) {
+  if (signupDrafting()) return;
   const pending = pendingUpserts.get(cardId);
   if (pending) pending.card = { ...pending.card, rubricOrder: rubricOrder ?? undefined };
   const supabase = createBrowserSupabaseClient();
@@ -393,6 +399,7 @@ export function writeCardRubricOrder(cardId: string, rubricOrder: string[] | nul
 
 /** Writes the search flag without the full upsert, so a missing column does not block every save. */
 export function writeCardSearchable(cardId: string, searchable: boolean) {
+  if (signupDrafting()) return;
   const pending = pendingUpserts.get(cardId);
   if (pending) pending.card = { ...pending.card, searchable };
   const supabase = createBrowserSupabaseClient();
@@ -523,8 +530,12 @@ async function runHydrate() {
   }
 
   const remoteById = new Map(remote.map((row) => [row.id, row]));
+  const sessionUserId = await currentUserId();
+  const storeOwner = useAppStore.getState().ownerId;
+  const mayUploadLocal = Boolean(sessionUserId && storeOwner === sessionUserId);
   const toUpload = merged.filter((card) => {
     const row = remoteById.get(card.id);
+    if (!row && !mayUploadLocal) return false;
     return (
       !row ||
       row.status !== card.status ||
@@ -558,6 +569,7 @@ async function runHydrate() {
  * sign-in does not keep the previous account's result.
  */
 export function hydrateCardsFromServer(): Promise<void> {
+  if (signupDrafting()) return Promise.resolve();
   hydratesLeft += 1;
   const run = hydrateChain.then(() => runHydrate()).catch((error) => {
     console.error("[card-sync] hydrate failed", error);

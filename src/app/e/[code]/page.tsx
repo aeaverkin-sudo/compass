@@ -14,7 +14,7 @@ import { eventHasEnded } from "@/shared/services/events";
 import { requestOrigin } from "@/shared/services/public-card-meta";
 import { eventTitleLine } from "@/shared/event/event-title";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
-import { holdsEventPass, isPermanentAccount, mayJoinWithoutLink } from "@/shared/services/guest-accept";
+import { isPermanentAccount, mayJoinWithoutLink } from "@/shared/services/member-account";
 import { loadOpenLink } from "@/shared/services/event-open-link";
 import { InviteActions } from "./invite-actions";
 
@@ -81,6 +81,7 @@ function previewVersion(
     layout: string;
     inviteRows: unknown;
     logoLook: string | null;
+    posterUpdatedAt: string | null;
   },
   pay: { isPaid: boolean; price: number | null; currency: string; tiers?: { price: number | null }[] },
 ) {
@@ -96,6 +97,7 @@ function previewVersion(
     previewPriceKey(pay),
     JSON.stringify(event.inviteRows ?? null),
     event.logoLook,
+    event.posterUpdatedAt,
   ].join("\n");
   let hash = 0;
   for (let index = 0; index < raw.length; index += 1) hash = (hash * 31 + raw.charCodeAt(index)) >>> 0;
@@ -138,13 +140,12 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const guest = guestToken ? await findPassGuest(event.id, guestToken) : null;
   const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
   const permanent = await isPermanentAccount(session);
-  const holdsPass = !permanent && !guest && (await holdsEventPass(session, event.id));
   const viewerId = user && !user.is_anonymous ? user.id : null;
   const counts = await loadOwnerEventCounts(event.id, viewerId);
   const seats = await loadEventSeats(event.id);
   const registered = Boolean(user && (await loadOwnRegistration(event.id, user.id)));
   const soldOut = seats.soldOut && !registered;
-  const byLink = !guest && !holdsPass && !registered;
+  const byLink = !guest && !registered;
   const mayJoin = user && permanent ? await mayJoinWithoutLink(event.id, user.id) : (await loadOpenLink(event.id)).open;
   const closed = byLink && !mayJoin;
   const back = guest ? `/e/${encodeURIComponent(lookup)}?g=${guest.token}&go=1` : `/e/${encodeURIComponent(lookup)}/join`;
@@ -197,7 +198,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
               lookup={lookup}
               token={guest?.token ?? null}
               permanent={permanent}
-              holdsPass={holdsPass}
+              registered={registered}
               auto={auto}
               ended={ended}
               signInHref={signInHref}

@@ -7,7 +7,6 @@ import { clearRegisteredDevice, deviceWasRegistered, markRegisteredDevice } from
 import {
   clearRegistrationRequired,
   clearStoredAuthTokens,
-  consumeOAuthReplaceLocal,
   consumeSignedOutIgnore,
   ignoreNextSignedOut,
   isDeadAuthSession,
@@ -20,43 +19,27 @@ import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/service
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
 
-function restoreRegisteredOnboarding(isAnonymous: boolean) {
-  if (isAnonymous) return;
-  const state = useAppStore.getState();
-  if (state.user.onboarded) return;
-  const hasPortfolio = state.cards.some(
-    (card) => card.displayName.trim().length > 0 || Boolean(card.photoAttachmentId),
-  );
-  if (!hasPortfolio) return;
-  useAppStore.setState({ user: { ...state.user, onboarded: true } });
-}
-
 function acceptUser(user: User) {
-  if (user.is_anonymous && deviceWasRegistered()) {
-    console.info("[supabase] anonymous session on a registered device");
+  if (user.is_anonymous) {
+    console.info("[supabase] anonymous session dropped");
     ignoreNextSignedOut();
     void createBrowserSupabaseClient().auth.signOut({ scope: "local" });
-    sendRegisteredDeviceToSignIn();
+    clearStoredAuthTokens();
+    useAppStore.getState().resetApp();
+    if (deviceWasRegistered()) sendRegisteredDeviceToSignIn();
     return;
   }
-  if (!user.is_anonymous) {
-    if (user.app_metadata?.event_trial !== true) markRegisteredDevice();
-    clearRegistrationRequired();
-    if (consumeOAuthReplaceLocal()) {
-      dropPendingCardUpserts();
-      dropPendingItemUpserts();
-      dropPendingNotes();
-      const state = useAppStore.getState();
-      useAppStore.setState({
-        cards: [],
-        contactItems: [],
-        currentCardIndex: 0,
-        user: { ...state.user, onboarded: true },
-      });
-    }
+  markRegisteredDevice();
+  clearRegistrationRequired();
+  const state = useAppStore.getState();
+  if (state.ownerId !== user.id) {
+    dropPendingCardUpserts();
+    dropPendingItemUpserts();
+    dropPendingNotes();
+    useAppStore.getState().resetApp();
   }
-  restoreRegisteredOnboarding(Boolean(user.is_anonymous));
-  console.info("[supabase] session", user.id, user.is_anonymous ? "trial" : "registered");
+  useAppStore.setState({ ownerId: user.id });
+  console.info("[supabase] session", user.id);
   void hydrateCardsFromServer();
 }
 
@@ -66,24 +49,14 @@ function sendRegisteredDeviceToSignIn() {
   window.location.replace("/register?signin=1&expired=1");
 }
 
-/** The stored user is gone. A fresh trial must not be treated as a lost login. */
-async function startFreshAnonymous(supabase: SupabaseClient) {
+/** A dead cookie is cleared. Nobody is created in its place. */
+async function dropDeadSession(supabase: SupabaseClient) {
   clearRegisteredDevice();
   clearRegistrationRequired();
   ignoreNextSignedOut();
   await supabase.auth.signOut({ scope: "local" });
   clearStoredAuthTokens();
-  await openAnonymous(supabase);
-}
-
-async function openAnonymous(supabase: SupabaseClient) {
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error || !data.user) {
-    console.error("[supabase] anonymous sign-in failed", error?.message ?? "no user");
-    void hydrateCardsFromServer();
-    return;
-  }
-  acceptUser(data.user);
+  useAppStore.getState().resetApp();
 }
 
 /** Opens an anonymous Supabase session on a new device. Renders nothing. */
@@ -112,7 +85,7 @@ export function SupabaseSession() {
         const { data: existing, error: existingError } = await supabase.auth.getUser();
         if (isDeadAuthSession(existingError)) {
           console.info("[supabase] dead session");
-          await startFreshAnonymous(supabase);
+          await dropDeadSession(supabase);
           return;
         }
         if (existing.user) {
@@ -127,7 +100,7 @@ export function SupabaseSession() {
         const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
         if (isDeadAuthSession(refreshError)) {
           console.info("[supabase] dead refresh");
-          await startFreshAnonymous(supabase);
+          await dropDeadSession(supabase);
           return;
         }
         if (refreshed.user) {
@@ -141,10 +114,7 @@ export function SupabaseSession() {
         if (deviceWasRegistered()) {
           console.info("[supabase] registered device, session missing");
           sendRegisteredDeviceToSignIn();
-          return;
         }
-
-        await openAnonymous(supabase);
       } finally {
         markSessionBootstrapComplete();
       }

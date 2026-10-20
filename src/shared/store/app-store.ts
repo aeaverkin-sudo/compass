@@ -19,6 +19,7 @@ import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-u
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
 import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
+import { setSignupDrafting } from "@/shared/services/signup-gate";
 import {
   BASE_EDIT_ZONES,
   canonZoneId,
@@ -51,6 +52,10 @@ interface AppState {
   cards: Card[];
   currentCardIndex: number;
   contactItems: ContactItem[];
+  /** Account these cards were last loaded for. A different sign-in wipes the store first. */
+  ownerId: string | null;
+  /** Questionnaire is open. Disk and the server ignore the cards until it finishes or closes. */
+  signupDraft: boolean;
   resetApp: () => void;
   completeOnboarding: (payload: OnboardingPayload) => void;
   markMainIntroSeen: () => void;
@@ -212,14 +217,19 @@ export const useAppStore = create<AppState>()(
       cards: [],
       currentCardIndex: 0,
       contactItems: [],
+      ownerId: null,
+      signupDraft: false,
 
       resetApp: () => {
+        setSignupDrafting(false);
         void useAppStore.persist.clearStorage();
         set({
           user: createInitialUser(),
           cards: [],
           currentCardIndex: 0,
           contactItems: [],
+          ownerId: null,
+          signupDraft: false,
         });
       },
 
@@ -803,9 +813,10 @@ export const useAppStore = create<AppState>()(
       },
       partialize: (state) => ({
         user: state.user,
-        cards: state.cards.map(cardForDisk),
-        currentCardIndex: state.currentCardIndex,
-        contactItems: state.contactItems.map(itemForDisk),
+        ownerId: state.ownerId,
+        cards: state.signupDraft ? [] : state.cards.map(cardForDisk),
+        currentCardIndex: state.signupDraft ? 0 : state.currentCardIndex,
+        contactItems: state.signupDraft ? [] : state.contactItems.map(itemForDisk),
       }),
     },
   ),

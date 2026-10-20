@@ -38,14 +38,13 @@ export default function DeleteAccountPage() {
       dropPendingCardUpserts();
       dropPendingItemUpserts();
       dropPendingNotes();
-      const user = useAppStore.getState().user;
-      useAppStore.setState({
-        cards: [],
-        contactItems: [],
-        currentCardIndex: 0,
-        user: { ...user, onboarded: false },
-      });
+      useAppStore.getState().resetApp();
       clearRegisteredDevice();
+      try {
+        window.localStorage.removeItem("aded:wallet-hint");
+      } catch {
+        /* private mode */
+      }
       ignoreNextSignedOut();
       await createBrowserSupabaseClient().auth.signOut();
       router.replace("/");

@@ -6,7 +6,7 @@ import { loadOpenLink } from "@/shared/services/event-open-link";
 import { passAllowed, recordPass, TRY_LATER } from "@/shared/services/event-pass-guard";
 import { loadEventSeats, SOLD_OUT } from "@/shared/services/event-seats";
 import { eventListStatus } from "@/shared/services/events";
-import { BY_INVITATION, isPermanentAccount, PASSWORD_SET, type SessionUser } from "@/shared/services/guest-accept";
+import { BY_INVITATION, isPermanentAccount, PASSWORD_SET, type SessionUser } from "@/shared/services/member-account";
 import { mailConfigured, sendEventSignIn, sendHtmlMail } from "@/shared/services/mail";
 import { publicCardPath } from "@/shared/services/public-card-url";
 import { clearTrialClock } from "@/shared/services/trial";

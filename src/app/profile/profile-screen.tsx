@@ -9,7 +9,8 @@ import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { cardInWallet, hintWalletAdded, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { cardInWallet, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { clearRegisteredDevice } from "@/shared/lib/registered-device";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
@@ -148,13 +149,13 @@ export function ProfileScreen() {
     dropPendingCardUpserts();
     dropPendingItemUpserts();
     dropPendingNotes();
-    const user = useAppStore.getState().user;
-    useAppStore.setState({
-      cards: [],
-      contactItems: [],
-      currentCardIndex: 0,
-      user: { ...user, onboarded: false },
-    });
+    useAppStore.getState().resetApp();
+    clearRegisteredDevice();
+    try {
+      window.localStorage.removeItem("aded:wallet-hint");
+    } catch {
+      /* private mode */
+    }
     ignoreNextSignedOut();
     await createBrowserSupabaseClient().auth.signOut();
     router.push("/");
@@ -204,8 +205,6 @@ export function ProfileScreen() {
           setWalletNotice(WALLET_SOON);
           return;
         }
-        hintWalletAdded(cardId);
-        markWallet(cardId, true);
         watchWallet(cardId);
       })
       .finally(() => {
@@ -510,9 +509,7 @@ export function ProfileScreen() {
             </button>
           )}
         </p>
-        {account.provider === "google" ? (
-          <p className="mt-1 t-meta text-[var(--ink)]">Managed by Google</p>
-        ) : account.provider === "email" || eventPass ? null : (
+        {account.provider === "email" || eventPass ? null : (
           <p className="mt-1 t-meta text-[var(--ink)]">Coming soon</p>
         )}
         <div className="hidden">

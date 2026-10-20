@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
-import { noStore } from "@/shared/services/guest-accept-reply";
+import { noStore } from "@/shared/services/http-reply";
 import { createSiteAccount } from "@/shared/services/site-signup";
 
 export const runtime = "nodejs";

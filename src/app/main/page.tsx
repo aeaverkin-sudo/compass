@@ -29,11 +29,12 @@ export default function MainPage() {
   const cardsReady = useCardsHydrated();
   const onboarded = useAppStore((state) => state.user.onboarded);
   const hasCards = useAppStore((state) => state.cards.length > 0);
+  const ownerId = useAppStore((state) => state.ownerId);
   const portfolio = useAppStore((state) =>
     state.cards.some((card) => card.displayName.trim() || card.photoAttachmentId || card.photo),
   );
   // A returning device draws its stored cards at once; the session check and the server pull catch up behind.
-  const cached = hydrated && onboarded && hasCards && portfolio && !needsSignIn;
+  const cached = hydrated && onboarded && hasCards && portfolio && !needsSignIn && Boolean(ownerId);
   const [openEmpty, setOpenEmpty] = useState(false);
 
   useEffect(() => {
@@ -42,21 +43,44 @@ export default function MainPage() {
 
   useEffect(() => {
     if (!hydrated || !sessionReady) return;
+    let cancel = false;
+    void createBrowserSupabaseClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        if (cancel) return;
+        if (!data.user || data.user.is_anonymous) {
+          router.replace(source ? `/register?signin=1&card=${encodeURIComponent(source)}` : "/register?signin=1");
+        }
+      })
+      .catch(() => undefined);
     if (needsSignIn) {
       router.replace(source ? `/register?signin=1&expired=1&card=${encodeURIComponent(source)}` : "/register?signin=1&expired=1");
-      return;
+      return () => {
+        cancel = true;
+      };
     }
-    if (!cardsReady) return;
+    if (!cardsReady) {
+      return () => {
+        cancel = true;
+      };
+    }
     if (source && portfolio) {
       router.replace(`/save/${encodeURIComponent(source)}`);
-      return;
+      return () => {
+        cancel = true;
+      };
     }
     if (!onboarded && !source) {
       router.replace("/");
-      return;
+      return () => {
+        cancel = true;
+      };
     }
-    if (portfolio) return;
-    let cancel = false;
+    if (portfolio) {
+      return () => {
+        cancel = true;
+      };
+    }
     void createBrowserSupabaseClient()
       .auth.getUser()
       .then(({ data }) => {

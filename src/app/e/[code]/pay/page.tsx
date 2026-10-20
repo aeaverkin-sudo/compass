@@ -5,7 +5,7 @@ import { payView } from "@/shared/event/payment-label";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { ensurePayCode, listOwnPortfolios, loadOwnRegistration } from "@/shared/services/event-registration";
-import { isPermanentAccount } from "@/shared/services/guest-accept";
+import { isPermanentAccount } from "@/shared/services/member-account";
 import { PayScreen } from "./pay-screen";
 
 export const dynamic = "force-dynamic";

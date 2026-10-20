@@ -27,6 +27,7 @@ export type EventInvite = {
   layout: EventLayoutId;
   inviteRows: CardInviteRow[] | null;
   logoLook: InviteLogoLook | null;
+  posterUpdatedAt: string | null;
   publicToken: string;
   code: string;
   slug: string | null;
@@ -66,7 +67,11 @@ export async function loadEventInvite(lookup: string): Promise<EventInvite | nul
   const row = (Array.isArray(loaded.data) ? loaded.data[0] : loaded.data) as InviteRow | undefined;
   if (!row?.id || !row.public_token || !row.code) return null;
 
-  const [face, timeZone] = await Promise.all([readEventFace(row.id), loadEventTimeZone(row.id)]);
+  const [face, timeZone, poster] = await Promise.all([
+    readEventFace(row.id),
+    loadEventTimeZone(row.id),
+    admin.from("events").select("poster_updated_at").eq("id", row.id).maybeSingle(),
+  ]);
   return {
     timeZone,
     id: row.id,
@@ -81,6 +86,7 @@ export async function loadEventInvite(lookup: string): Promise<EventInvite | nul
     layout: face.layout,
     inviteRows: face.inviteRows ?? null,
     logoLook: face.logoLook ?? null,
+    posterUpdatedAt: poster.error ? null : ((poster.data as { poster_updated_at?: string | null } | null)?.poster_updated_at ?? null),
     publicToken: row.public_token,
     code: row.code,
     slug: row.slug?.trim() || null,

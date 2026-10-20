@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
-import { PASSWORD_SET } from "@/shared/services/guest-accept";
+import { PASSWORD_SET } from "@/shared/services/member-account";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

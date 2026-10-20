@@ -6,7 +6,7 @@ import { loadEventInvite } from "@/shared/services/event-invite";
 import { ensurePayCode, listOwnPortfolios, loadOwnRegistration } from "@/shared/services/event-registration";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { eventHasEnded } from "@/shared/services/events";
-import { holdsEventPass, isPermanentAccount, mayJoinWithoutLink } from "@/shared/services/guest-accept";
+import { isPermanentAccount, mayJoinWithoutLink } from "@/shared/services/member-account";
 import { EventJoin } from "./event-join";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +43,7 @@ export default async function EventJoinPage({ params }: PageProps) {
   if (eventHasEnded(event.date, event.endsAt)) redirect(invite);
   const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
   if (!user || !(await isPermanentAccount(session))) {
-    redirect((await holdsEventPass(session, event.id)) ? "/main" : invite);
+    redirect(invite);
   }
 
   const pay = await loadEventPay(event.id);
