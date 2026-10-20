@@ -8,7 +8,7 @@ import type { DeliveredNote } from "@/shared/services/notes-types";
 import { AccountBand } from "@/shared/components/account-band";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { TapButton } from "@/shared/components/tap-button";
-import { cardInWallet, hintWalletAdded, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { cardInWallet, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
@@ -114,8 +114,6 @@ function AddToWallet({ cardId }: { cardId: string }) {
                     setToast(true);
                     return;
                   }
-                  hintWalletAdded(cardId);
-                  setMarkedId(cardId);
                   watchRegistration();
                 });
               }}
