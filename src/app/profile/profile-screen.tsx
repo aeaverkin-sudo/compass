@@ -404,12 +404,12 @@ export function ProfileScreen() {
                   </p>
                   {ready ? (
                     inWallet[card.id] ? (
-                      <p className="mt-1 t-caps text-[var(--grey)]">IN WALLET</p>
+                      <p className="mt-1 t-label">IN WALLET</p>
                     ) : (
                       <button
                         type="button"
                         onClick={() => putInWallet(card.id)}
-                        className="mt-1 border-0 bg-transparent p-0 t-caps text-[var(--ink)] underline"
+                        className="mt-1 border-0 bg-transparent p-0 t-label underline"
                       >
                         PUT IN WALLET
                       </button>
