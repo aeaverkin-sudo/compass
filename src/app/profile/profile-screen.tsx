@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { cardInWallet, hintWalletAdded, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
@@ -29,6 +29,8 @@ const ZONE_VALUE =
 const PAID_TIER_ENABLED = false;
 
 const PORTFOLIOS_OPEN_KEY = "aded:profile-portfolios-open";
+/** Same catch-up as the card, after the pass file is handed to Apple. */
+const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
 function formatBytes(bytes: number) {
   if (bytes <= 0) return "0 MB";
@@ -131,7 +133,12 @@ export function ProfileScreen() {
   const [busy, setBusy] = useState(false);
   const [portfoliosOpen, setPortfoliosOpen] = useState(true);
   const [walletNotice, setWalletNotice] = useState<string | null>(null);
+  const [inWallet, setInWallet] = useState<Record<string, boolean>>({});
   const walletBusy = useRef(false);
+  const walletRead = useRef(new Map<string, number>());
+  const walletPollGen = useRef(new Map<string, number>());
+  const walletPolls = useRef<number[]>([]);
+  const readyWalletKey = cards.filter((card) => isCardReady(card)).map((card) => card.id).join("|");
   const signedIn = account?.registered === true;
   const canChangePassword = signedIn && account?.provider === "email";
 
@@ -169,17 +176,82 @@ export function ProfileScreen() {
     }
   };
 
+  const markWallet = useCallback((cardId: string, added: boolean) => {
+    setInWallet((current) => (current[cardId] === added ? current : { ...current, [cardId]: added }));
+  }, []);
+
+  const watchWallet = useCallback((cardId: string) => {
+    const generation = (walletPollGen.current.get(cardId) ?? 0) + 1;
+    walletPollGen.current.set(cardId, generation);
+    for (const delay of WALLET_RECHECK_MS) {
+      const timer = window.setTimeout(() => {
+        if (walletPollGen.current.get(cardId) !== generation) return;
+        void cardInWallet(cardId).then((added) => {
+          if (walletPollGen.current.get(cardId) !== generation || added !== true) return;
+          markWallet(cardId, true);
+        });
+      }, delay);
+      walletPolls.current.push(timer);
+    }
+  }, [markWallet]);
+
   const putInWallet = (cardId: string) => {
     if (walletBusy.current) return;
     walletBusy.current = true;
     void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`)
       .then((opened) => {
-        if (!opened) setWalletNotice(WALLET_SOON);
+        if (!opened) {
+          setWalletNotice(WALLET_SOON);
+          return;
+        }
+        hintWalletAdded(cardId);
+        markWallet(cardId, true);
+        watchWallet(cardId);
       })
       .finally(() => {
         walletBusy.current = false;
       });
   };
+
+  useEffect(() => {
+    const ids = readyWalletKey ? readyWalletKey.split("|") : [];
+    const reads = walletRead.current;
+    const refresh = () => {
+      for (const cardId of ids) {
+        const ticket = (reads.get(cardId) ?? 0) + 1;
+        reads.set(cardId, ticket);
+        void cardInWallet(cardId).then((added) => {
+          if (reads.get(cardId) !== ticket || added === null) return;
+          markWallet(cardId, added);
+        });
+      }
+    };
+    refresh();
+    let returnTimer = 0;
+    const onReturn = () => {
+      if (document.visibilityState === "hidden") return;
+      window.clearTimeout(returnTimer);
+      returnTimer = window.setTimeout(refresh, 300);
+    };
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
+    return () => {
+      for (const cardId of ids) reads.set(cardId, (reads.get(cardId) ?? 0) + 1);
+      window.clearTimeout(returnTimer);
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
+    };
+  }, [markWallet, readyWalletKey]);
+
+  useEffect(() => {
+    const polls = walletPolls;
+    const gens = walletPollGen;
+    return () => {
+      polls.current.forEach((id) => window.clearTimeout(id));
+      polls.current = [];
+      for (const [cardId, generation] of gens.current) gens.current.set(cardId, generation + 1);
+    };
+  }, []);
 
   useEffect(() => {
     if (window.location.hash !== "#subscription") return;
@@ -188,6 +260,7 @@ export function ProfileScreen() {
 
   useEffect(() => {
     if (window.location.hash !== "#portfolios") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPortfoliosOpen(true);
     try {
       window.localStorage.setItem(PORTFOLIOS_OPEN_KEY, "1");
@@ -330,13 +403,17 @@ export function ProfileScreen() {
                     {card.displayName.trim() || "Untitled"}
                   </p>
                   {ready ? (
-                    <button
-                      type="button"
-                      onClick={() => putInWallet(card.id)}
-                      className="mt-1 border-0 bg-transparent p-0 t-meta text-[var(--ink)] underline"
-                    >
-                      Put in Wallet
-                    </button>
+                    inWallet[card.id] ? (
+                      <p className="mt-1 t-caps text-[var(--grey)]">IN WALLET</p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => putInWallet(card.id)}
+                        className="mt-1 border-0 bg-transparent p-0 t-caps text-[var(--ink)] underline"
+                      >
+                        PUT IN WALLET
+                      </button>
+                    )
                   ) : null}
                   <div className="mt-2 flex items-center gap-3">
                     <span className="t-label">
