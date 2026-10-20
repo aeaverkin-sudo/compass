@@ -240,7 +240,7 @@ export const SideRail = memo(function SideRail({
       node.draggable = false;
       node.setAttribute("draggable", "false");
     }
-  }, [liveCard.id, showPlus, dragging]);
+  }, [liveCard.id, liveCard.nextScanAddons, showPlus, dragging]);
 
   const mountShield = () => {
     if (shieldRef.current || typeof document === "undefined") return;
