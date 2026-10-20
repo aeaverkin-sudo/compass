@@ -7,13 +7,13 @@ import {
   loadAttachment,
   removeStoredObject,
 } from "@/shared/services/attachment-api";
-import { SIGNED_READ_SECONDS, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
+import { NOTE_FILE_GRACE_MS, SIGNED_READ_SECONDS, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 
 export type { DeliveredNote } from "@/shared/services/notes-types";
 
-export const NOTES_PENDING_MS = 14 * 24 * 60 * 60 * 1000;
+export const NOTES_PENDING_MS = 7 * 24 * 60 * 60 * 1000;
 export const NOTE_TEXT_MAX = 280;
 
 export type NoteWrite = {
@@ -331,7 +331,29 @@ export async function consumePendingNotes(cardId: string, via?: "share"): Promis
     // Visit already counted; delivery is what matters.
   }
 
-  return notesOnTransfer(transferId);
+  const notes = await notesOnTransfer(transferId);
+  try {
+    await scheduleDeliveredFiles(transferId);
+    const { error: deleteError } = await admin().from("card_transfers").delete().eq("id", transferId);
+    if (deleteError) throw new Error(deleteError.message);
+  } catch (reason) {
+    console.error("[notes] retire delivered transfer", transferId, reason);
+  }
+  return notes;
+}
+
+/** The viewer already holds a signed URL. The bytes wait out that URL, then the cron deletes them. */
+async function scheduleDeliveredFiles(transferId: string): Promise<void> {
+  const files = await itemFiles(transferId);
+  const attachmentIds = files.flatMap((file) => (file.attachment_id ? [file.attachment_id] : []));
+  if (attachmentIds.length === 0) return;
+  const deleteAfter = new Date(Date.now() + NOTE_FILE_GRACE_MS).toISOString();
+  const { error } = await admin()
+    .from("attachments")
+    .update({ delete_after: deleteAfter })
+    .in("id", attachmentIds)
+    .eq("bucket", TRANSFER_ASSETS_BUCKET);
+  if (error) throw new Error(error.message);
 }
 
 /** Selfie files that belong to a consumed transfer on this card. Blocks id guessing. */
