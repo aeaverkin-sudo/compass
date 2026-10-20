@@ -1,6 +1,20 @@
+import { execSync } from "node:child_process";
 import type { NextConfig } from "next";
 
+function resolveBuildId() {
+  if (process.env.NEXT_PUBLIC_BUILD_ID) return process.env.NEXT_PUBLIC_BUILD_ID;
+  if (process.env.RENDER_GIT_COMMIT) return process.env.RENDER_GIT_COMMIT;
+  try {
+    return execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    return "dev";
+  }
+}
+
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_BUILD_ID: resolveBuildId(),
+  },
   // Smaller runtime footprint — important on Render free tier (512 MB).
   output: "standalone",
   // The poster snapshot unpacks Chromium from these archives at run time; the trace cannot see them.
