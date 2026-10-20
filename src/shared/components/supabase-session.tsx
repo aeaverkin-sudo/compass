@@ -14,6 +14,7 @@ import {
   markRegistrationRequired,
   markSessionBootstrapComplete,
 } from "@/shared/lib/session-bootstrap";
+import { isOwnerAppRoute } from "@/shared/lib/owner-app-route";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
@@ -61,9 +62,7 @@ function acceptUser(user: User) {
 
 function sendRegisteredDeviceToSignIn() {
   markRegistrationRequired();
-  const path = window.location.pathname;
-  if (path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/c/") || path === "/welcome") return;
-  if (/^\/e\/[^/]+\/create$/.test(path) && new URLSearchParams(window.location.search).has("t")) return;
+  if (!isOwnerAppRoute(window.location.pathname)) return;
   window.location.replace("/register?signin=1&expired=1");
 }
 
