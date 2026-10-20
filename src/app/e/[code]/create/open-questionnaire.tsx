@@ -26,7 +26,10 @@ import { clearRegisteredDevice, markRegisteredDevice } from "@/shared/lib/regist
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
+import { effectiveZone } from "@/shared/services/card-zones";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { holdZoneFile, pauseFileRecovery, takeZoneFiles, uploadHeldZoneFiles } from "@/shared/services/deferred-files";
+import { isAttachmentType } from "@/shared/services/portfolio-limits";
 import { recordConsent } from "@/shared/services/consent-client";
 import { setSignupDrafting } from "@/shared/services/signup-gate";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -105,10 +108,14 @@ function zoneRows(card: Card, items: ContactItem[]) {
   return ids.map((id) => ({
     id,
     title: card.rubricLabels?.[id]?.trim() || STARTERS.find((zone) => zone.id === id)?.title || id,
-    rows: card.contactItemIds
-      .filter((itemId) => card.itemZones?.[itemId] === id)
-      .map((itemId) => items.find((item) => item.id === itemId)?.value.trim() ?? "")
-      .filter(Boolean),
+    rows: card.contactItemIds.flatMap((itemId) => {
+      const item = items.find((entry) => entry.id === itemId);
+      if (!item || effectiveZone(card, item) !== id) return [];
+      const value = item.value.trim();
+      if (!value || value.startsWith("data:")) return [];
+      if (isAttachmentType(item.type)) return [{ value, type: item.type, label: item.label }];
+      return [{ value }];
+    }),
   }));
 }
 
@@ -359,9 +366,17 @@ export function OpenPortfolio({
           body: JSON.stringify({ cardId: reply.cardId, password }),
         }).catch(() => undefined);
       }
-      if (preview) {
-        await hydrateCardsFromServer({ force: true });
-        useAppStore.getState().updateCard(serverCardId, { photo: preview, photoLook: "shadow" });
+      const zoneFiles = takeZoneFiles();
+      pauseFileRecovery(true);
+      try {
+        if (preview || zoneFiles.length > 0) await hydrateCardsFromServer({ force: true });
+        if (preview) useAppStore.getState().updateCard(serverCardId, { photo: preview, photoLook: "shadow" });
+        if (zoneFiles.length > 0) await uploadHeldZoneFiles(serverCardId, zoneFiles);
+      } catch (error) {
+        for (const zoneFile of zoneFiles) holdZoneFile(zoneFile);
+        throw error;
+      } finally {
+        pauseFileRecovery(false);
       }
       router.replace(go);
       if (file && preview) void keepCardPhoto(serverCardId, file, preview);
@@ -490,7 +505,7 @@ export function OpenPortfolio({
               <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px]">
                 <span className="t-label">
                   Email
-                  <span className="relative -top-[0.45em] ml-[2px] text-[0.7em] leading-none">*</span>
+                  <span className="relative -top-[0.35em] ml-[0.15em] font-[inherit] text-[1em] leading-none">*</span>
                 </span>
                 <input
                   type="email"

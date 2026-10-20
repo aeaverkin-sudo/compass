@@ -39,6 +39,17 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 import { DELETE_RED } from "@/shared/layout/delete-red";
 
 const OFF_CARD = "var(--placeholder)";
+/** Row order for an open EDIT. Cleared when that list unmounts, so the next entry sorts again. */
+const editRowOrder = new Map<string, Map<string, string[]>>();
+
+function zonesOrder(cardId: string) {
+  let zones = editRowOrder.get(cardId);
+  if (!zones) {
+    zones = new Map();
+    editRowOrder.set(cardId, zones);
+  }
+  return zones;
+}
 
 function typedMark(value: string) {
   const kind = detectContactType(value);
@@ -67,6 +78,26 @@ export type ScaffoldZone = { id: CardZoneId; title: string; hint: string; requir
 
 function lineOf(row: CardDisplayRow) {
   return row.axis ? `${row.axis} / ${row.value}` : row.value;
+}
+
+/** The order captured at entry. Later checkbox toggles do not move a row. */
+function freezeSection(section: EditSection, memory: Map<string, string[]>): EditSection {
+  const prev = memory.get(section.id) ?? [];
+  const byId = new Map(
+    section.rows.flatMap(({ row, onCard }) => (row.item ? [[row.item.id, { row, onCard }] as const] : [])),
+  );
+  const next = prev.filter((id) => byId.has(id));
+  for (const { row } of section.rows) {
+    if (row.item && !next.includes(row.item.id)) next.push(row.item.id);
+  }
+  memory.set(section.id, next);
+  return {
+    ...section,
+    rows: next.flatMap((id) => {
+      const entry = byId.get(id);
+      return entry ? [entry] : [];
+    }),
+  };
 }
 
 function sectionOf(
@@ -131,7 +162,7 @@ function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => v
       checked={onCard}
       data-no-swipe
       aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
-      className="relative z-10 -mr-[11px] -mt-[11px]"
+      className="relative z-10 h-full w-[30px] items-start justify-end"
       onPointerDown={(event) => {
         viaPointer.current = false;
         origin.current = { x: event.clientX, y: event.clientY };
@@ -165,6 +196,16 @@ function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => v
       onCheckedChange={() => undefined}
     />
   );
+}
+
+/** An extra shelf with no rows left in it, titled or not. Removed when EDIT closes. */
+function vacantExtraId(card: Card) {
+  for (const id of card.rubricOrder ?? []) {
+    if (!isExtraZoneId(id)) continue;
+    if (Object.values(card.itemZones ?? {}).some((zone) => zone === id)) continue;
+    return id;
+  }
+  return null;
 }
 
 function unusedExtraId(card: Card, keepId?: string) {
@@ -390,6 +431,7 @@ export const CardEditList = memo(function CardEditList({
   const updateContactItem = useAppStore((state) => state.updateContactItem);
   const addItemToCard = useAppStore((state) => state.addItemToCard);
   const removeItemFromCard = useAppStore((state) => state.removeItemFromCard);
+  const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
   const setRubricLabel = useAppStore((state) => state.setRubricLabel);
   const addCustomZone = useAppStore((state) => state.addCustomZone);
@@ -442,14 +484,15 @@ export const CardEditList = memo(function CardEditList({
   useEffect(() => {
     const cardId = card.id;
     return () => {
+      editRowOrder.delete(cardId);
       const live = useAppStore.getState().cards.find((entry) => entry.id === cardId);
       if (!live) return;
       const hide = useAppStore.getState().hideZone;
-      let leftover = unusedExtraId(live);
+      let leftover = vacantExtraId(live);
       while (leftover) {
         hide(cardId, leftover);
         const next = useAppStore.getState().cards.find((entry) => entry.id === cardId);
-        leftover = next ? unusedExtraId(next) : null;
+        leftover = next ? vacantExtraId(next) : null;
       }
     };
   }, [card.id]);
@@ -506,7 +549,10 @@ export const CardEditList = memo(function CardEditList({
   });
 
   const sections = useMemo(
-    () => buildSections(card, items, useAppStore.getState().cards, scaffold),
+    () =>
+      buildSections(card, items, useAppStore.getState().cards, scaffold).map((section) =>
+        freezeSection(section, zonesOrder(card.id)),
+      ),
     [card, items, scaffold],
   );
 
@@ -539,8 +585,29 @@ export const CardEditList = memo(function CardEditList({
       const on = useAppStore.getState().cards.find((entry) => entry.id === card.id)?.contactItemIds.includes(itemId);
       if (on) removeItemFromCard(card.id, itemId);
       else include(itemId, zoneId);
+      const ids = zonesOrder(card.id).get(zoneId);
+      const live = useAppStore.getState().cards.find((entry) => entry.id === card.id);
+      if (!ids || !live) return;
+      const onCard = new Set(live.contactItemIds);
+      const visual = ids.filter((id) => onCard.has(id));
+      const zoneSet = new Set(ids);
+      let placed = false;
+      const next: string[] = [];
+      for (const id of live.contactItemIds) {
+        if (!zoneSet.has(id)) {
+          next.push(id);
+          continue;
+        }
+        if (!placed) {
+          next.push(...visual);
+          placed = true;
+        }
+      }
+      if (!placed) next.push(...visual);
+      const same = next.length === live.contactItemIds.length && next.every((id, index) => id === live.contactItemIds[index]);
+      if (!same) setCardItemOrder(card.id, next);
     },
-    [card.id, include, removeItemFromCard],
+    [card.id, include, removeItemFromCard, setCardItemOrder],
   );
 
   const startRowEdit = useCallback((itemId: string) => {
@@ -705,6 +772,7 @@ export const CardEditList = memo(function CardEditList({
         const zone = (
           <section
             data-zone={section.id}
+            {...(seedingThis ? { "data-seed-zone": "" } : {})}
             className={cn(
               "min-w-0 py-[18px]",
               index < sections.length - 1 && "border-b border-[var(--rule)]",
@@ -1194,9 +1262,8 @@ const EditRow = memo(function EditRow({
           )}
         />
       ) : null}
-      {checks || deleteReady ? (
-      <div className="absolute top-0 right-0 flex items-start">
-        {deleteReady ? (
+      {deleteReady ? (
+        <div className="absolute top-0 right-0 flex items-start">
           <button
             type="button"
             data-delete-marker
@@ -1207,10 +1274,11 @@ const EditRow = memo(function EditRow({
           >
             <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
           </button>
-        ) : (
+        </div>
+      ) : checks ? (
+        <div className="absolute inset-y-0 right-0 flex w-[30px] items-start justify-end">
           <LibraryCheck onCard={onCard} onToggle={() => onToggle(itemId, zoneId)} />
-        )}
-      </div>
+        </div>
       ) : null}
     </div>
   );

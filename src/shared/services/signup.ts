@@ -1,6 +1,8 @@
 import { nanoid } from "nanoid";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { isAttachmentType } from "@/shared/services/portfolio-limits";
+import type { ContactItem, ContactType } from "@/shared/types";
 import { isEmail, userIdForEmail } from "@/shared/services/email-signup";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { joinWithOwnCard, PASSWORD_SET } from "@/shared/services/member-account";
@@ -13,7 +15,9 @@ import { WELCOME_SUBJECT, welcomeMail } from "@/shared/mail/welcome-mail";
 
 export const MIN_PASSWORD = 8;
 
-export type SignupZone = { id: string; title: string; rows: string[] };
+export type SignupRow = { value: string; type?: string; label?: string };
+
+export type SignupZone = { id: string; title: string; rows: SignupRow[] };
 
 export type SignupBody = {
   email?: string;
@@ -48,14 +52,43 @@ export function signupNext(input: { pay: boolean; lookup: string; requested: str
   return "/main";
 }
 
+function asRow(value: unknown): SignupRow | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? { value: trimmed } : null;
+  }
+  if (!value || typeof value !== "object") return null;
+  const row = value as SignupRow;
+  const trimmed = typeof row.value === "string" ? row.value.trim() : "";
+  if (!trimmed) return null;
+  return {
+    value: trimmed.slice(0, 2000),
+    type: typeof row.type === "string" ? row.type : undefined,
+    label: typeof row.label === "string" ? row.label.trim().slice(0, 80) : undefined,
+  };
+}
+
 function filledZones(zones: SignupZone[]) {
   return zones
     .map((zone) => ({
-      id: zone.id.trim(),
-      title: zone.title.trim(),
-      rows: zone.rows.map((row) => row.trim()).filter(Boolean),
+      id: String(zone?.id ?? "").trim(),
+      title: String(zone?.title ?? "").trim(),
+      rows: (Array.isArray(zone?.rows) ? zone.rows : []).flatMap((row) => {
+        const next = asRow(row);
+        return next ? [next] : [];
+      }),
     }))
     .filter((zone) => zone.id && zone.rows.length > 0);
+}
+
+/** A file keeps the type the form sent. A position line stays a position. Everything else is read from the text. */
+function itemForRow(sort: number, zoneId: string, row: SignupRow): ContactItem {
+  const seed = createEmptyContactItem(sort);
+  if (row.type && isAttachmentType(row.type as ContactType)) {
+    return { ...seed, type: row.type as ContactType, label: row.label ?? "", value: row.value, url: "" };
+  }
+  if (zoneId === "position") return normalizeContactItem({ ...seed, type: "position" }, row.value);
+  return normalizeContactItem(seed, row.value);
 }
 
 /** Create the account and its first card. Auth is created first; a failed write deletes that user. */
@@ -142,7 +175,7 @@ export async function createSignup(
     let sort = 0;
     for (const zone of zones) {
       for (const row of zone.rows) {
-        const normalized = normalizeContactItem(createEmptyContactItem(sort), row);
+        const normalized = itemForRow(sort, zone.id, row);
         const saved = await admin.from("items").insert({
           id: normalized.id,
           owner_id: userId,

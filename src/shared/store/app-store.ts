@@ -19,7 +19,8 @@ import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-u
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
 import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
-import { setSignupDrafting } from "@/shared/services/signup-gate";
+import { fileRecoveryPaused, holdZoneFile } from "@/shared/services/deferred-files";
+import { setSignupDrafting, signupDrafting } from "@/shared/services/signup-gate";
 import {
   BASE_EDIT_ZONES,
   canonZoneId,
@@ -439,6 +440,11 @@ export const useAppStore = create<AppState>()(
           ),
         });
 
+        if (signupDrafting()) {
+          holdZoneFile(file);
+          return { ok: true };
+        }
+
         const run = (uploadRuns.get(itemId) ?? 0) + 1;
         uploadRuns.set(itemId, run);
         const current = () => uploadRuns.get(itemId) === run;
@@ -479,6 +485,7 @@ export const useAppStore = create<AppState>()(
       },
 
       recoverFileRows: () => {
+        if (fileRecoveryPaused()) return;
         for (const item of get().contactItems) {
           if (!isAttachmentType(item.type) || item.attachmentId || item.url) continue;
           if (useUploadStatus.getState().byItem[item.id] || uploadRuns.has(item.id)) continue;

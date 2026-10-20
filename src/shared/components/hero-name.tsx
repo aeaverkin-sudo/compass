@@ -34,7 +34,7 @@ function heroPlaceholder(text: string) {
   return (
     <>
       {body}
-      <span className="relative -top-[0.45em] ml-[2px] text-[0.7em] leading-none">*</span>
+      <span className="relative -top-[0.35em] ml-[0.15em] font-[inherit] text-[1em] leading-none text-[var(--placeholder)]">*</span>
     </>
   );
 }

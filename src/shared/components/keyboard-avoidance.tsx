@@ -40,7 +40,11 @@ function clearHeld(held: Held) {
 }
 
 function rowOf(el: HTMLElement) {
-  return el.closest<HTMLElement>("[data-item-row], [data-seed-value]") ?? el;
+  return (
+    el.closest<HTMLElement>("[data-seed-zone]") ??
+    el.closest<HTMLElement>("[data-item-row], [data-seed-value]") ??
+    el
+  );
 }
 
 /** How much a sticky or fixed bar covers the top of the scrolling list. */
@@ -141,6 +145,7 @@ export function KeyboardAvoidance() {
     const held: Held = { scroller: null, row: null };
     let followUp = 0;
     let later = 0;
+    let settled = 0;
 
     const run = () => {
       if (!active || !document.contains(active)) return;
@@ -154,7 +159,9 @@ export function KeyboardAvoidance() {
       window.cancelAnimationFrame(followUp);
       followUp = requestAnimationFrame(run);
       window.clearTimeout(later);
+      window.clearTimeout(settled);
       later = window.setTimeout(run, 320);
+      settled = window.setTimeout(run, 700);
     };
 
     const onFocusOut = () => {
@@ -184,6 +191,7 @@ export function KeyboardAvoidance() {
       window.visualViewport?.removeEventListener("scroll", onViewport);
       window.cancelAnimationFrame(followUp);
       window.clearTimeout(later);
+      window.clearTimeout(settled);
       clearHeld(held);
     };
   }, []);
