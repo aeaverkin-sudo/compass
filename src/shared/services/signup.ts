@@ -10,6 +10,7 @@ import { eventListStatus } from "@/shared/services/events";
 import { joinWithOwnCard, PASSWORD_SET } from "@/shared/services/guest-accept";
 import { ATTACHMENT_TYPES, type AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { saveConnection } from "@/shared/services/save-connection";
+import { sendWelcomeMail } from "@/shared/services/cold-entry";
 
 export const MIN_PASSWORD = 8;
 
@@ -150,7 +151,7 @@ async function joinEvent(
 }
 
 /** Create the account and its first card. Auth is created first; a failed write deletes that user. */
-export async function createSignup(body: SignupBody): Promise<SignupResult> {
+export async function createSignup(body: SignupBody, origin = ""): Promise<SignupResult> {
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
   const displayName = typeof body.card?.displayName === "string" ? body.card.displayName.trim() : "";
@@ -279,6 +280,11 @@ export async function createSignup(body: SignupBody): Promise<SignupResult> {
 
     const door = await keepSourceCard(admin, userId, body.sourceToken);
     const eventDoor = await joinEvent(userId, cardId, body.event);
+    if (origin) {
+      void sendWelcomeMail(userId, cardId, password, origin).catch((error) => {
+        console.error("[mail] welcome", error instanceof Error ? error.message : error);
+      });
+    }
     return { ok: true, status: 201, cardId, publicToken, fileItems, ...door, ...eventDoor };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);

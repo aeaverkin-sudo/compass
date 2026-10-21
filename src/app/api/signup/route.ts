@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { mailOrigin } from "@/shared/lib/public-origin";
 import { createSignup, type SignupBody } from "@/shared/services/signup";
 
 export const runtime = "nodejs";
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
   } catch {
     return noStore({ error: "Could not create your profile." }, 400);
   }
-  const result = await createSignup(body ?? {});
+  const result = await createSignup(body ?? {}, mailOrigin(request));
   if (!result.ok) return noStore({ error: result.error, kind: result.kind }, result.status);
   return noStore(
     {

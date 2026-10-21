@@ -1,16 +1,18 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import { nanoid } from "nanoid";
 import { X } from "lucide-react";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
-import { nextExtraZoneId } from "@/shared/services/card-zones";
+import { nextExtraZoneId, zoneForItem } from "@/shared/services/card-zones";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { linkDisplay } from "@/shared/services/link-display";
 import { detectAttachmentType, typeLabel } from "@/shared/services/portfolio-catalog";
 import type { AttachmentContactType } from "@/shared/services/portfolio-limits";
+import type { ContactType } from "@/shared/types";
 
 const DELETE_RED = "#E23B2F";
 const HOLD_MS = 900;
@@ -33,6 +35,7 @@ export type EntryZone = {
 
 const STARTERS: EntryZone[] = [
   { id: "position", title: "Position", defaultTitle: "Position", custom: false, rows: [] },
+  { id: "company", title: "Company", defaultTitle: "Company", custom: false, rows: [] },
   { id: "web", title: "Web", defaultTitle: "Web", custom: false, rows: [] },
   { id: "social", title: "Social", defaultTitle: "Social", custom: false, rows: [] },
   { id: "files", title: "Files", defaultTitle: "Files", custom: false, rows: [] },
@@ -41,10 +44,23 @@ const STARTERS: EntryZone[] = [
 
 const HINTS: Record<string, string> = {
   position: "What you do",
+  company: "Where you work",
   web: "Website",
   social: "Instagram, LinkedIn, etc.",
   files: "PDF, JPG, etc.",
   about: "A line about you",
+};
+
+/** Same shelf names the portfolio prints. A file row keeps its own mark. */
+const MESSENGERS = new Set<ContactType>(["whatsapp", "telegram", "viber", "signal"]);
+const FILE_AXIS: Partial<Record<ContactType, string>> = {
+  pdf: "PDF",
+  photo: "IMG",
+  presentation: "PPT",
+  document: "DOC",
+  spreadsheet: "XLS",
+  audio: "AUD",
+  video: "VID",
 };
 
 export type EntryZonesHandle = { snapshot: () => EntryZone[] };
@@ -61,6 +77,22 @@ function blankCustom(zones: EntryZone[]) {
 
 function storedLine(value: string) {
   return normalizeContactItem(createEmptyContactItem(0), value).value;
+}
+
+/** Saved text, labelled the way the portfolio labels it. The field itself keeps `row.value`. */
+function lineOf(row: EntryRow) {
+  if (row.type) return `${fileMark(row.type)} / ${row.value}`;
+  const item = normalizeContactItem(createEmptyContactItem(0), row.value);
+  const shown = linkDisplay(item);
+  if (!shown) return row.value;
+  const zone = zoneForItem(item);
+  const axis =
+    zone === "social" || zone === "lifestyle" || MESSENGERS.has(item.type)
+      ? typeLabel(item.type)
+      : zone === "files"
+        ? (FILE_AXIS[item.type] ?? "FILE")
+        : "";
+  return axis ? `${axis} / ${shown}` : shown;
 }
 
 export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, ref) {
@@ -208,13 +240,30 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     className="t-label m-0 w-full border-0 bg-transparent p-0 text-[var(--grey)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
                     onChange={(event) => setTitleText(event.target.value)}
                     onKeyDown={(event) => {
+                      if (
+                        (event.key === "Backspace" || event.key === "Delete") &&
+                        zone.custom &&
+                        !titleText &&
+                        zone.rows.length === 0 &&
+                        !seedText
+                      ) {
+                        event.preventDefault();
+                        setTitleId(null);
+                        setSeedId((current) => (current === zone.id ? null : current));
+                        setSeedText("");
+                        setZones((current) => current.filter((entry) => entry.id !== zone.id));
+                        return;
+                      }
                       if (event.key !== "Enter") return;
                       event.preventDefault();
                       commitTitle(zone.id, titleText);
                       setSeedId(zone.id);
                       focusValue.current = true;
                     }}
-                    onBlur={() => commitTitle(zone.id, titleText)}
+                    onBlur={() => {
+                      if (!zonesRef.current.some((entry) => entry.id === zone.id)) return;
+                      commitTitle(zone.id, titleText);
+                    }}
                   />
                 ) : (
                   <TitleButton
@@ -258,7 +307,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                 ) : (
                   <RowButton
                     key={row.key}
-                    text={row.type ? `${fileMark(row.type)} / ${row.value}` : row.value}
+                    text={lineOf(row)}
                     armed={armed === row.key}
                     onEdit={() => {
                       setEditKey(row.key);
@@ -358,6 +407,16 @@ function Field({
   onCommit: () => void;
   inputRef?: RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
 }) {
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if ((event.key === "Backspace" || event.key === "Delete") && !value) {
+      event.preventDefault();
+      onCommit();
+      return;
+    }
+    if (about || event.key !== "Enter") return;
+    event.preventDefault();
+    onCommit();
+  };
   const className = "t-body m-0 w-full min-w-0 border-0 bg-transparent p-0 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
   if (about) {
     return (
@@ -369,6 +428,7 @@ function Field({
         aria-label={placeholder || "About"}
         className={`${className} resize-none`}
         onChange={(event) => onChange(event.target.value)}
+        onKeyDown={onKeyDown}
         onBlur={onCommit}
       />
     );
@@ -381,11 +441,7 @@ function Field({
       aria-label={placeholder || "Value"}
       className={className}
       onChange={(event) => onChange(event.target.value)}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter") return;
-        event.preventDefault();
-        onCommit();
-      }}
+      onKeyDown={onKeyDown}
       onBlur={onCommit}
     />
   );
