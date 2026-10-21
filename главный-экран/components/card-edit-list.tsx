@@ -1,8 +1,8 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { File as FileIcon, Plus, X } from "lucide-react";
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/shared/components/ui/checkbox";
@@ -15,10 +15,7 @@ import {
   groupEditSections,
   isExtraZoneId,
   isProseValue,
-  labelForNewZone,
-  SOCIAL_HINT,
-  FILES_HINT,
-  zoneTitle,
+  ZONE_HINTS,
   type CardDisplayRow,
   type CardZoneId,
 } from "@/shared/services/card-zones";
@@ -28,146 +25,75 @@ import {
   isContactFilled,
   messengerCountryHint,
 } from "@/shared/services/contact-item";
-import { typeLabel } from "@/shared/services/portfolio-catalog";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
+import { SkyHint } from "@/shared/components/sky-hint";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useAppStore } from "@/shared/store/app-store";
 import { fileStatusLine, useUploadStatus } from "@/shared/store/upload-status";
 import { isAttachmentType } from "@/shared/services/portfolio-limits";
 import type { Card, ContactItem } from "@/shared/types";
-import { useFinePointer } from "@main/hooks/use-keyboard-dock";
+import { itemPhotoSrc } from "@/shared/services/card-photo";
+import { useFinePointer, useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
-import { DELETE_RED } from "@/shared/layout/delete-red";
 
 const OFF_CARD = "var(--placeholder)";
-/** Row order for an open EDIT. Cleared when that list unmounts, so the next entry sorts again. */
-const editRowOrder = new Map<string, Map<string, string[]>>();
-
-function zonesOrder(cardId: string) {
-  let zones = editRowOrder.get(cardId);
-  if (!zones) {
-    zones = new Map();
-    editRowOrder.set(cardId, zones);
-  }
-  return zones;
-}
-
-function typedMark(value: string) {
-  const kind = detectContactType(value);
-  if (!value.trim() || kind === "text") return "";
-  return `${typeLabel(kind)} / `;
-}
+const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-const NEW_SECTION_HINT = "Contacts, location, etc.";
-
-function seedPlaceholder(section: { id: string; hint?: string }) {
-  if (section.hint?.includes("@")) return undefined;
-  if (section.hint) return section.hint;
-  if (isExtraZoneId(section.id)) return NEW_SECTION_HINT;
-  if (section.id === "social") return SOCIAL_HINT;
-  if (section.id === "files") return FILES_HINT;
-  return ADD_PLACEHOLDER;
-}
-
-function withNewSectionHint(section: EditSection): EditSection {
-  if (section.rows.length > 0 || section.hint || !isExtraZoneId(section.id)) return section;
-  return { ...section, hint: NEW_SECTION_HINT };
-}
 const NEW_ZONE_TITLE = "TITLE";
 const LOOKING_FOR = "Looking for";
 /** An event pass keeps Event on About, so Looking for takes a section the pass never fills. */
 const LOOKING_FOR_ZONE = "background";
+const BLUR_GUARD_MS = 300;
+const OPEN_GUARD_MS = 450;
 const DUPLICATE_NOTICE = "Already in your library";
+
+/** A docked line grows with its text up to the screen above the keyboard; only past that it scrolls. */
+function dockReach(keyboard: number) {
+  return `calc(100dvh - ${keyboard}px - 56px)`;
+}
 
 type EditSection = {
   id: CardZoneId;
   title: string;
   included: boolean;
   rows: { row: CardDisplayRow; onCard: boolean }[];
-  /** Empty starter row. The hint stands in for the plus until the zone has a line. */
-  hint?: string;
-  /** Questionnaire floor. A grey asterisk sits on the label. */
-  required?: boolean;
 };
-
-export type ScaffoldZone = { id: CardZoneId; title: string; hint: string; required?: boolean };
 
 function lineOf(row: CardDisplayRow) {
   return row.axis ? `${row.axis} / ${row.value}` : row.value;
 }
 
-/** The order captured at entry. Later checkbox toggles do not move a row. */
-function freezeSection(section: EditSection, memory: Map<string, string[]>): EditSection {
-  const prev = memory.get(section.id) ?? [];
-  const byId = new Map(
-    section.rows.flatMap(({ row, onCard }) => (row.item ? [[row.item.id, { row, onCard }] as const] : [])),
-  );
-  const next = prev.filter((id) => byId.has(id));
-  for (const { row } of section.rows) {
-    if (row.item && !next.includes(row.item.id)) next.push(row.item.id);
-  }
-  memory.set(section.id, next);
-  return {
-    ...section,
-    rows: next.flatMap((id) => {
-      const entry = byId.get(id);
-      return entry ? [entry] : [];
-    }),
-  };
+/** A finished link. Enter closes it. About and other free text keep the line break. */
+function enterFinishes(value: string, zoneId?: CardZoneId | null) {
+  const line = value.trim();
+  if (!line || zoneId === "about" || isProseValue(line)) return false;
+  if (detectContactType(line) !== "text") return true;
+  return Boolean(zoneId);
 }
 
-function sectionOf(
-  zone: { id: CardZoneId; title: string; rows: CardDisplayRow[] },
-  onCard: Set<string>,
-  order: Map<string, number>,
-  hint?: string,
-): EditSection {
-  const chosen = zone.rows
-    .filter((row) => row.item && onCard.has(row.item.id))
-    .sort((a, b) => (order.get(a.item!.id) ?? 0) - (order.get(b.item!.id) ?? 0));
-  const spare = zone.rows
-    .filter((row) => row.item && !onCard.has(row.item.id))
-    .sort((a, b) => (a.item!.order ?? 0) - (b.item!.order ?? 0));
-  return {
-    id: zone.id,
-    title: zone.title,
-    included: chosen.length > 0,
-    hint: chosen.length + spare.length > 0 ? undefined : hint,
-    rows: [
-      ...chosen.map((row) => ({ row, onCard: true })),
-      ...spare.map((row) => ({ row, onCard: false })),
-    ],
-  };
-}
-
-function buildSections(card: Card, items: ContactItem[], cards: Card[], scaffold?: ScaffoldZone[]): EditSection[] {
+function buildSections(card: Card, items: ContactItem[], cards: Card[]): EditSection[] {
   const onCard = new Set(card.contactItemIds);
   const order = new Map(card.contactItemIds.map((id, index) => [id, index]));
   const grouped = groupEditSections(items.filter(isContactFilled), card, cards);
-  const built = grouped.map((zone) => sectionOf(zone, onCard, order));
-  if (!scaffold?.length) return built.map(withNewSectionHint);
 
-  const hidden = new Set((card.hiddenZones ?? []).flatMap((id) => (id ? [id] : [])));
-  const byId = new Map(built.map((section) => [section.id, section]));
-  const seeded = scaffold.flatMap((zone) => {
-    if (hidden.has(zone.id)) return [];
-    const found = byId.get(zone.id);
-    if (found) return [{ ...found, hint: found.rows.length > 0 ? undefined : zone.hint, required: zone.required }];
-    return [
-      {
-        ...sectionOf(
-          { id: zone.id, title: zoneTitle(card, zone.id, zone.title), rows: [] },
-          onCard,
-          order,
-          zone.hint,
-        ),
-        required: zone.required,
-      },
-    ];
+  return grouped.map((zone) => {
+    const chosen = zone.rows
+      .filter((row) => row.item && onCard.has(row.item.id))
+      .sort((a, b) => (order.get(a.item!.id) ?? 0) - (order.get(b.item!.id) ?? 0));
+    const spare = zone.rows
+      .filter((row) => row.item && !onCard.has(row.item.id))
+      .sort((a, b) => (a.item!.order ?? 0) - (b.item!.order ?? 0));
+    return {
+      id: zone.id,
+      title: zone.title,
+      included: chosen.length > 0,
+      rows: [
+        ...chosen.map((row) => ({ row, onCard: true })),
+        ...spare.map((row) => ({ row, onCard: false })),
+      ],
+    };
   });
-  const rest = built.filter((section) => !scaffold.some((zone) => zone.id === section.id)).map(withNewSectionHint);
-  return [...seeded, ...rest];
 }
 
 function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => void }) {
@@ -179,7 +105,7 @@ function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => v
       checked={onCard}
       data-no-swipe
       aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
-      className="relative z-10 h-full w-[30px] items-start justify-end"
+      className="relative z-10 -mr-[11px] -mt-[11px]"
       onPointerDown={(event) => {
         viaPointer.current = false;
         origin.current = { x: event.clientX, y: event.clientY };
@@ -215,16 +141,6 @@ function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => v
   );
 }
 
-/** An extra shelf with no rows left in it, titled or not. Removed when EDIT closes. */
-function vacantExtraId(card: Card) {
-  for (const id of card.rubricOrder ?? []) {
-    if (!isExtraZoneId(id)) continue;
-    if (Object.values(card.itemZones ?? {}).some((zone) => zone === id)) continue;
-    return id;
-  }
-  return null;
-}
-
 function unusedExtraId(card: Card, keepId?: string) {
   for (const id of card.rubricOrder ?? []) {
     if (!isExtraZoneId(id) || id === keepId) continue;
@@ -233,11 +149,6 @@ function unusedExtraId(card: Card, keepId?: string) {
     return id;
   }
   return null;
-}
-
-/** Files, and a section opened from the plus. Position, Web, Social and About stay text. */
-function offersFileAdd(zoneId: CardZoneId) {
-  return zoneId === "files" || isExtraZoneId(zoneId);
 }
 
 function FileAddButton({
@@ -287,7 +198,6 @@ function SectionLabel({
   advancing,
   onArmHide,
   onHide,
-  required = false,
 }: {
   title: string;
   included: boolean;
@@ -295,7 +205,7 @@ function SectionLabel({
   hideReady: boolean;
   /** New extra shelf: the label slot shows TITLE until a name is typed. */
   pill?: boolean;
-  /** A new zone: Enter in the title moves into the value on the same row. */
+  /** Parent docks the whole new zone; this heading stays in that block. */
   seed?: boolean;
   onEdit: () => void;
   onCommit: (next: string) => void;
@@ -306,12 +216,15 @@ function SectionLabel({
   advancing?: RefObject<boolean>;
   onArmHide: () => void;
   onHide: () => void;
-  required?: boolean;
 }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<WrapFieldHandle>(null);
   const desktop = useFinePointer();
+  const dockBottom = useKeyboardDock(editing && !desktop && !seed, true);
+  const docked = editing && !seed && (!desktop || dockBottom > 0);
   const openedAt = useRef(0);
   const pressedLong = useRef(false);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
   const longPress = useLongPress(() => {
     pressedLong.current = true;
     tick();
@@ -337,8 +250,11 @@ function SectionLabel({
   useLayoutEffect(() => {
     if (!editing) return;
     openedAt.current = Date.now();
+    const list = wrapRef.current?.closest("[data-card-chip-list]");
+    const rect = list?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
     dockRef.current?.focusEnd();
-  }, [editing]);
+  }, [editing, docked]);
 
   const field = (
     <WrapField
@@ -373,8 +289,8 @@ function SectionLabel({
 
   return (
     <>
-      <div className="relative min-w-0">
-        {editing ? (
+      <div ref={wrapRef} className="relative min-w-0">
+        {editing && !docked ? (
           <HeadingCompose field={field} />
         ) : (
           <button
@@ -382,6 +298,7 @@ function SectionLabel({
             data-no-swipe
             className={cn(
               "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
+              editing && "invisible pointer-events-none",
               hideReady && "opacity-40",
             )}
             style={{ color: included && title.trim() ? "var(--grey)" : OFF_CARD }}
@@ -400,10 +317,9 @@ function SectionLabel({
             onContextMenu={longPress.onContextMenu}
           >
             {shown}
-            {required ? <span className="text-[var(--grey)]"> *</span> : null}
           </button>
         )}
-        {hideReady && !(editing && pill) ? (
+        {hideReady && !(editing && !docked && pill) ? (
           <button
             type="button"
             data-delete-marker
@@ -416,6 +332,20 @@ function SectionLabel({
           </button>
         ) : null}
       </div>
+      {docked
+        ? createPortal(
+            <div
+              data-no-swipe
+              className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
+              style={{ paddingBottom: dockBottom }}
+            >
+              <div style={{ marginLeft: frame.left, width: frame.width }}>
+                <HeadingCompose field={field} lined />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }
@@ -426,15 +356,12 @@ export const CardEditList = memo(function CardEditList({
   composeOnMount = false,
   openAddRef,
   onComposingChange,
-  scaffold,
 }: {
   card: Card;
   items: ContactItem[];
   composeOnMount?: boolean;
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
-  /** Empty named zones for the cold-entry form. Omitted on the card itself. */
-  scaffold?: ScaffoldZone[];
 }) {
   const card = useAppStore((state) => state.cards.find((entry) => entry.id === cardProp.id) ?? cardProp);
   const items = useAppStore((state) => state.contactItems);
@@ -443,13 +370,13 @@ export const CardEditList = memo(function CardEditList({
   const updateContactItem = useAppStore((state) => state.updateContactItem);
   const addItemToCard = useAppStore((state) => state.addItemToCard);
   const removeItemFromCard = useAppStore((state) => state.removeItemFromCard);
-  const setCardItemOrder = useAppStore((state) => state.setCardItemOrder);
   const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
   const setRubricLabel = useAppStore((state) => state.setRubricLabel);
   const addCustomZone = useAppStore((state) => state.addCustomZone);
   const hideZone = useAppStore((state) => state.hideZone);
   const addContactItem = useAppStore((state) => state.addContactItem);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
+  const desktop = useFinePointer();
 
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
@@ -459,21 +386,13 @@ export const CardEditList = memo(function CardEditList({
   const [hideReadyId, setHideReadyId] = useState<string | null>(null);
   const openZoneRef = useRef<((zone: CardZoneId) => void) | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [libraryHint, setLibraryHint] = useState<"add" | "first" | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState(0);
-  const [seedHint, setSeedHint] = useState<string | null>(null);
-  const [seedTyped, setSeedTyped] = useState("");
-  const [lookingFor, setLookingFor] = useState(false);
-  const zoneDownRef = useRef<string | null>(null);
-  const viewportResizeAt = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
   const extraBlockRef = useRef<HTMLDivElement>(null);
   const extraValueRef = useRef<WrapFieldHandle>(null);
+  const [extraFrame, setExtraFrame] = useState({ left: 0, width: 0 });
   const keepExtraRef = useRef(false);
-  const composeOnce = useRef(false);
-  const passCard = useAppStore((state) => {
-    const labels = state.cards.find((entry) => entry.id === card.id)?.rubricLabels;
-    return labels?.about === "Event" || labels?.additional === "Event";
-  });
 
   const refuseDuplicate = useCallback((twinId: string) => {
     tick();
@@ -484,94 +403,69 @@ export const CardEditList = memo(function CardEditList({
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
   useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    const mark = () => {
-      viewportResizeAt.current = Date.now();
-    };
-    viewport.addEventListener("resize", mark);
-    return () => viewport.removeEventListener("resize", mark);
-  }, []);
-
-  useEffect(() => {
     const cardId = card.id;
     return () => {
-      editRowOrder.delete(cardId);
       const live = useAppStore.getState().cards.find((entry) => entry.id === cardId);
       if (!live) return;
       const hide = useAppStore.getState().hideZone;
-      let leftover = vacantExtraId(live);
+      let leftover = unusedExtraId(live);
       while (leftover) {
         hide(cardId, leftover);
         const next = useAppStore.getState().cards.find((entry) => entry.id === cardId);
-        leftover = next ? vacantExtraId(next) : null;
+        leftover = next ? unusedExtraId(next) : null;
       }
     };
   }, [card.id]);
 
   useEffect(() => {
-    const focusSeed = (zone: string, title: boolean) => {
-      if (!title && extraValueRef.current) {
-        extraValueRef.current.focusEnd();
-        return;
+    if (!openAddRef) return;
+    openAddRef.current = () => {
+      const live = useAppStore.getState().cards.find((entry) => entry.id === card.id);
+      const existing = live ? unusedExtraId(live) : null;
+      if (existing && live) {
+        let leftover = unusedExtraId(live, existing);
+        while (leftover) {
+          hideZone(card.id, leftover);
+          const next = useAppStore.getState().cards.find((entry) => entry.id === card.id);
+          leftover = next ? unusedExtraId(next, existing) : null;
+        }
       }
-      const section = listRef.current?.querySelector(`[data-zone="${CSS.escape(zone)}"]`);
-      const field = section?.querySelector<HTMLElement>("[contenteditable]");
-      field?.focus();
-      field?.scrollIntoView({ block: "nearest" });
-    };
-    const begin = (zone: string, title: boolean) => {
+      const id = existing ?? addCustomZone(card.id);
+      if (!id) return;
       flushSync(() => {
         setTextEditId(null);
         setDeleteReadyId(null);
         setHideReadyId(null);
-        setSeedHint(null);
-        setSeedTyped("");
-        setLookingFor(false);
-        setSeedZoneId(zone);
-        setSectionEditId(title ? zone : null);
+        setSeedZoneId(id);
+        setSectionEditId(id);
       });
-      focusSeed(zone, title);
+      const section = listRef.current?.querySelector(`[data-zone="${CSS.escape(id)}"]`);
+      section?.scrollIntoView({ block: "end", inline: "nearest" });
+      section?.querySelector<HTMLElement>("[contenteditable]")?.focus();
     };
-    openZoneRef.current = (zone) => begin(zone, false);
-    if (openAddRef) {
-      openAddRef.current = () => {
-        const live = useAppStore.getState().cards.find((entry) => entry.id === card.id);
-        const existing = live ? unusedExtraId(live) : null;
-        if (existing && live) {
-          let leftover = unusedExtraId(live, existing);
-          while (leftover) {
-            hideZone(card.id, leftover);
-            const next = useAppStore.getState().cards.find((entry) => entry.id === card.id);
-            leftover = next ? unusedExtraId(next, existing) : null;
-          }
-        }
-        const id = existing ?? addCustomZone(card.id);
-        if (!id) return;
-        begin(id, true);
-      };
-    }
-    if (composeOnMount && !composeOnce.current) {
-      composeOnce.current = true;
-      openAddRef?.current?.();
-    }
     return () => {
-      openZoneRef.current = null;
-      if (openAddRef) openAddRef.current = null;
+      openAddRef.current = null;
     };
   });
 
   const sections = useMemo(
-    () =>
-      buildSections(card, items, useAppStore.getState().cards, scaffold).map((section) =>
-        freezeSection(section, zonesOrder(card.id)),
-      ),
-    [card, items, scaffold],
+    () => buildSections(card, items, useAppStore.getState().cards),
+    [card, items],
   );
+  const seeding = Boolean(seedZoneId && isExtraZoneId(seedZoneId));
+  const extraDockBottom = useKeyboardDock(seeding && !desktop, true);
+  const extraDocked = seeding && (!desktop || extraDockBottom > 0);
 
-  useEffect(() => {
-    onComposingChange?.(Boolean(seedZoneId));
-  }, [onComposingChange, seedZoneId]);
+  useLayoutEffect(() => {
+    if (!seeding) return;
+    const rect = listRef.current?.getBoundingClientRect();
+    if (rect) setExtraFrame({ left: rect.left, width: rect.width });
+  }, [seeding, extraDocked]);
+
+  useLayoutEffect(() => {
+    if (!seeding) return;
+    extraBlockRef.current?.querySelector<HTMLElement>("[contenteditable]")?.focus();
+  }, [seeding]);
 
   useEffect(() => {
     if (!deleteReadyId && !hideReadyId) return;
@@ -598,29 +492,8 @@ export const CardEditList = memo(function CardEditList({
       const on = useAppStore.getState().cards.find((entry) => entry.id === card.id)?.contactItemIds.includes(itemId);
       if (on) removeItemFromCard(card.id, itemId);
       else include(itemId, zoneId);
-      const ids = zonesOrder(card.id).get(zoneId);
-      const live = useAppStore.getState().cards.find((entry) => entry.id === card.id);
-      if (!ids || !live) return;
-      const onCard = new Set(live.contactItemIds);
-      const visual = ids.filter((id) => onCard.has(id));
-      const zoneSet = new Set(ids);
-      let placed = false;
-      const next: string[] = [];
-      for (const id of live.contactItemIds) {
-        if (!zoneSet.has(id)) {
-          next.push(id);
-          continue;
-        }
-        if (!placed) {
-          next.push(...visual);
-          placed = true;
-        }
-      }
-      if (!placed) next.push(...visual);
-      const same = next.length === live.contactItemIds.length && next.every((id, index) => id === live.contactItemIds[index]);
-      if (!same) setCardItemOrder(card.id, next);
     },
-    [card.id, include, removeItemFromCard, setCardItemOrder],
+    [card.id, include, removeItemFromCard],
   );
 
   const startRowEdit = useCallback((itemId: string) => {
@@ -688,15 +561,6 @@ export const CardEditList = memo(function CardEditList({
   const endSeed = (zoneId?: string) => {
     setSeedZoneId((current) => (zoneId && current !== zoneId ? current : null));
     setSectionEditId((current) => (zoneId && current !== zoneId ? current : null));
-    if (!zoneId || zoneId === seedZoneId) {
-      setSeedHint(null);
-      setLookingFor(false);
-    }
-  };
-
-  const noteAdded = () => {
-    const user = useAppStore.getState().user;
-    if (!user.firstRowHintSeen) useAppStore.getState().markFirstRowHintSeen();
   };
 
   const seedItem = (zoneId: string, raw: string) => {
@@ -708,11 +572,6 @@ export const CardEditList = memo(function CardEditList({
     const twin = findIdenticalItem(useAppStore.getState().contactItems, value);
     if (twin) {
       refuseDuplicate(twin.id);
-      return;
-    }
-    const countryHint = messengerCountryHint(value);
-    if (countryHint) {
-      setSeedHint(countryHint);
       return;
     }
     const id = addContactItem();
@@ -727,21 +586,7 @@ export const CardEditList = memo(function CardEditList({
       endSeed(zoneId);
       return;
     }
-    if (lookingFor) {
-      const state = useAppStore.getState();
-      addItemToCard(card.id, id, LOOKING_FOR_ZONE);
-      state.setRubricLabel(card.id, LOOKING_FOR_ZONE, LOOKING_FOR);
-      const order = state.cards.find((entry) => entry.id === card.id)?.rubricOrder ?? [];
-      if (order.length > 0 && !order.includes(LOOKING_FOR_ZONE)) state.setCardRubricOrder(card.id, [...order, LOOKING_FOR_ZONE]);
-    } else {
-      addItemToCard(card.id, id, zoneId);
-      const named = useAppStore.getState().cards.find((entry) => entry.id === card.id)?.rubricLabels?.[zoneId]?.trim() ?? "";
-      if (!named && isExtraZoneId(zoneId)) {
-        const label = labelForNewZone("", value);
-        if (label) useAppStore.getState().setRubricLabel(card.id, zoneId, label);
-      }
-    }
-    noteAdded();
+    addItemToCard(card.id, id, zoneId);
     endSeed(zoneId);
   };
 
@@ -756,49 +601,40 @@ export const CardEditList = memo(function CardEditList({
         return;
       }
       addItemToCard(card.id, id, zoneId);
-      const named = useAppStore.getState().cards.find((entry) => entry.id === card.id)?.rubricLabels?.[zoneId]?.trim() ?? "";
-      if (!named && isExtraZoneId(zoneId)) {
-        const label = labelForNewZone("", file.name);
-        if (label) useAppStore.getState().setRubricLabel(card.id, zoneId, label);
-      }
-      noteAdded();
       endSeed(zoneId);
     });
   };
 
   const stayInSeed = (event: FocusEvent<HTMLDivElement>) =>
     Boolean(extraBlockRef.current?.contains(event.relatedTarget as Node | null));
-  const showChecks = !scaffold;
 
   return (
     <div
       ref={listRef}
       data-card-chip-list={card.id}
       data-card-content
+      style={extraDocked ? { paddingBottom: extraDockBottom } : undefined}
     >
       {sections.map((section, index) => {
         const seedingThis = seedZoneId === section.id;
-        const fileHere = offersFileAdd(section.id);
-        const fresh = seedingThis && isExtraZoneId(section.id) && section.rows.length === 0;
-        const bare = Boolean(section.hint) && !seedingThis;
         const zone = (
           <section
             data-zone={section.id}
-            {...(seedingThis ? { "data-seed-zone": "" } : {})}
             className={cn(
-              "min-w-0 py-[18px]",
-              index < sections.length - 1 && "border-b border-[var(--rule)]",
+              "min-w-0",
+              seedingThis && extraDocked ? "pb-3" : "py-[18px]",
+              !(seedingThis && extraDocked) && index < sections.length - 1 && "border-b border-[var(--rule)]",
             )}
           >
             <div
               ref={seedingThis ? extraBlockRef : undefined}
               className={cn(
-                fresh
+                seedingThis
                   ? "flex min-w-0 items-stretch"
                   : "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]",
               )}
             >
-              <div className={cn("min-w-0", fresh && "w-[86px] shrink-0", bare && "text-[var(--placeholder)]", bare && showChecks && "[&_[data-section-number]]:text-[var(--placeholder)]")}>
+              <div className={cn("min-w-0", seedingThis && "w-[86px] shrink-0")}>
                 <SectionNumber value={sectionNumberLabel(index)} />
                 <div className="mt-[6px]">
                   <SectionLabel
@@ -808,7 +644,6 @@ export const CardEditList = memo(function CardEditList({
                     hideReady={hideReadyId === section.id}
                     pill={isExtraZoneId(section.id)}
                     seed={seedingThis}
-                    required={section.required}
                     onStay={seedingThis ? stayInSeed : undefined}
                     advancing={seedingThis ? advanceSeedRef : undefined}
                     onAdvance={(next) => {
@@ -876,10 +711,10 @@ export const CardEditList = memo(function CardEditList({
                   />
                 </div>
               </div>
-              {fresh ? (
+              {seedingThis ? (
                 <div aria-hidden className="mx-[14px] w-px self-stretch bg-[var(--rule)]" />
               ) : null}
-              <ValueCap className={cn("flex min-w-0 flex-col gap-[6px]", fresh && "flex-1")}>
+              <ValueCap className={cn("flex min-w-0 flex-col gap-[6px]", seedingThis && "flex-1")}>
                 {section.rows.map(({ row, onCard }) => {
                   const item = row.item;
                   if (!item) return null;
@@ -906,111 +741,46 @@ export const CardEditList = memo(function CardEditList({
                       onErase={eraseRow}
                       fileUrl={isAttachmentType(item.type) ? row.url : undefined}
                       onRetryFile={retryFile}
-                      checks={showChecks}
                     />
                   );
                 })}
                 {seedingThis ? (
-                  <div className="flex min-w-0 flex-col gap-[6px]">
-                    {seedHint ? <p className="t-meta text-[var(--ink)]">{seedHint}</p> : null}
-                    {passCard && !lookingFor ? (
-                      <button
-                        type="button"
-                        data-no-swipe
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => {
-                          setLookingFor(true);
-                          extraValueRef.current?.focusEnd();
-                        }}
-                        className="block border-0 bg-transparent p-0 text-left t-meta text-[var(--grey)]"
-                      >
-                        {LOOKING_FOR}
-                      </button>
-                    ) : null}
-                    <div className="flex min-w-0 items-start gap-[11px]">
-                      {lookingFor ? (
-                        <span className="shrink-0 pt-[3px] t-label">{LOOKING_FOR}</span>
-                      ) : fileHere ? (
-                        <FileAddButton
-                          onPointerDown={() => {
-                            advanceSeedRef.current = true;
-                          }}
-                          onClick={() => addSeedFile(section.id)}
-                        />
-                      ) : null}
-                      <div data-seed-value="" className="flex min-w-0 flex-1 items-baseline">
-                        {section.id === "social" || section.id === "contact" ? (
-                          typedMark(seedTyped) ? (
-                            <span className="t-body shrink-0 text-[var(--grey)]">{typedMark(seedTyped)}</span>
-                          ) : null
-                        ) : null}
-                        <WrapField
-                          ref={extraValueRef}
-                          initial={section.hint?.includes("@") ? section.hint : ""}
-                          label={ADD_PLACEHOLDER}
-                          placeholder={section.rows.length > 0 ? undefined : seedPlaceholder(section)}
-                          placeholderClassName="t-body text-[var(--placeholder)]"
-                          multiline={section.id === "about"}
-                          breakButton={false}
-                          onPointerDown={() => {
-                            advanceSeedRef.current = true;
-                          }}
-                          onTextChange={(next) => {
-                            setSeedTyped(next);
-                            setSeedHint(null);
-                          }}
-                          onDone={(next) => {
-                            if (section.hint && next.trim() === section.hint.trim()) {
-                              endSeed(section.id);
-                              return;
-                            }
-                            seedItem(section.id, next);
-                          }}
-                          onEmptyDelete={() => {
-                            if (section.title.trim() || extraValueRef.current?.text().trim()) return;
-                            hideZone(card.id, section.id);
-                            endSeed(section.id);
-                          }}
-                          onBlur={(next, event) => {
-                            if (stayInSeed(event)) return;
-                            if (!next.trim()) {
-                              if (!section.title.trim()) hideZone(card.id, section.id);
-                              endSeed(section.id);
-                              return;
-                            }
-                            if (section.hint && next.trim() === section.hint.trim()) {
-                              endSeed(section.id);
-                              return;
-                            }
-                            seedItem(section.id, next);
-                          }}
-                          className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
-                        />
-                      </div>
-                      {showChecks ? (
-                        <div className="pointer-events-none">
-                          <LibraryCheck onCard={false} onToggle={() => undefined} />
-                        </div>
-                      ) : null}
+                  <div className="flex min-w-0 items-start gap-[11px]">
+                    <FileAddButton
+                      onPointerDown={() => {
+                        advanceSeedRef.current = true;
+                      }}
+                      onClick={() => addSeedFile(section.id)}
+                    />
+                    <WrapField
+                      ref={extraValueRef}
+                      label={ADD_PLACEHOLDER}
+                      placeholder={ADD_PLACEHOLDER}
+                      placeholderClassName="t-body text-[var(--placeholder)]"
+                      onPointerDown={() => {
+                        advanceSeedRef.current = true;
+                      }}
+                      onDone={(next) => seedItem(section.id, next)}
+                      onEmptyDelete={() => {
+                        if (section.title.trim() || extraValueRef.current?.text().trim()) return;
+                        hideZone(card.id, section.id);
+                        endSeed(section.id);
+                      }}
+                      onBlur={(next, event) => {
+                        if (stayInSeed(event)) return;
+                        if (!next.trim()) {
+                          if (!section.title.trim()) hideZone(card.id, section.id);
+                          endSeed(section.id);
+                          return;
+                        }
+                        seedItem(section.id, next);
+                      }}
+                      className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
+                    />
+                    <div className="pointer-events-none">
+                      <LibraryCheck onCard={false} onToggle={() => undefined} />
                     </div>
                   </div>
-                ) : bare ? (
-                  <button
-                    type="button"
-                    data-no-swipe
-                    aria-label={section.title}
-                    className="t-body w-full bg-transparent text-left text-[var(--placeholder)]"
-                    onPointerDown={() => {
-                      zoneDownRef.current = section.id;
-                    }}
-                    onClick={() => {
-                      if (zoneDownRef.current !== section.id) return;
-                      if (Date.now() - viewportResizeAt.current < 350) return;
-                      openZoneRef.current?.(section.id);
-                    }}
-                  >
-                    {section.hint}
-                  </button>
                 ) : (
                     <button
                       type="button"
@@ -1021,13 +791,8 @@ export const CardEditList = memo(function CardEditList({
                       style={{ color: OFF_CARD }}
                       onPointerDown={() => {
                         keepExtraRef.current = isExtraZoneId(section.id);
-                        zoneDownRef.current = section.id;
                       }}
-                      onClick={() => {
-                        if (zoneDownRef.current !== section.id) return;
-                        if (Date.now() - viewportResizeAt.current < 350) return;
-                        openZoneRef.current?.(section.id);
-                      }}
+                      onPointerUp={() => openZoneRef.current?.(section.id)}
                     >
                       +
                     </button>
@@ -1036,10 +801,60 @@ export const CardEditList = memo(function CardEditList({
             </div>
           </section>
         );
-        return <Fragment key={section.id}>{zone}</Fragment>;
+        return (
+          <Fragment key={section.id}>
+            {seedingThis && extraDocked
+              ? createPortal(
+                  <div
+                    data-no-swipe
+                    className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
+                    style={{ paddingBottom: extraDockBottom }}
+                  >
+                    <div style={{ marginLeft: extraFrame.left, width: extraFrame.width }}>{zone}</div>
+                  </div>,
+                  document.body,
+                )
+              : zone}
+          </Fragment>
+        );
       })}
+      <AddLine
+        cardId={card.id}
+        openOnMount={composeOnMount}
+        openZoneRef={openZoneRef}
+        onFocus={() => setTextEditId(null)}
+        onDuplicate={refuseDuplicate}
+        onOpenChange={(open) => {
+          onComposingChange?.(open);
+          if (open && !useAppStore.getState().user.addLibraryHintSeen) setLibraryHint("add");
+        }}
+        onAdded={() => {
+          const user = useAppStore.getState().user;
+          if (user.firstRowHintSeen) return;
+          if (!user.addLibraryHintSeen) useAppStore.getState().markAddLibraryHintSeen();
+          setLibraryHint("first");
+        }}
+      />
       {duplicateNotice > 0 ? (
         <SkyToast key={duplicateNotice} text={DUPLICATE_NOTICE} onDone={() => setDuplicateNotice(0)} />
+      ) : null}
+      {libraryHint === "add" ? (
+        <SkyHint
+          text="Add anything to the library and use it in different portfolios"
+          onDone={() => {
+            useAppStore.getState().markAddLibraryHintSeen();
+            setLibraryHint(null);
+          }}
+        />
+      ) : null}
+      {libraryHint === "first" ? (
+        <SkyHint
+          text="Tap + to use in the portfolio"
+          onDone={() => {
+            useAppStore.getState().markFirstRowHintSeen();
+            setLibraryHint(null);
+          }}
+        />
       ) : null}
       <Dialog.Root
         open={confirmDelete !== null}
@@ -1087,6 +902,349 @@ export const CardEditList = memo(function CardEditList({
   );
 });
 
+/** Sky plaque at the very bottom. The first portfolio resets to photo and name; any other is deleted. */
+/**
+ * A zone's + docks one writing line above the keyboard. Text stays here until Done,
+ * so nothing half-typed reaches the card. A picked file joins the same line.
+ */
+function AddLine({
+  cardId,
+  openOnMount,
+  openZoneRef,
+  onFocus,
+  onDuplicate,
+  onOpenChange,
+  onAdded,
+}: {
+  cardId: string;
+  openOnMount: boolean;
+  /** A zone's +. The new row is pinned to that shelf. */
+  openZoneRef?: RefObject<((zone: CardZoneId) => void) | null>;
+  onFocus: () => void;
+  /** The typed line is already a library row. The line stays open with its text. */
+  onDuplicate: (twinId: string) => void;
+  onOpenChange: (open: boolean) => void;
+  onAdded: (itemId: string) => void;
+}) {
+  const addContactItem = useAppStore((state) => state.addContactItem);
+  const addItemToCard = useAppStore((state) => state.addItemToCard);
+  const updateContactItem = useAppStore((state) => state.updateContactItem);
+  const updateContactItemAttachment = useAppStore((state) => state.updateContactItemAttachment);
+  const deleteContactItem = useAppStore((state) => state.deleteContactItem);
+
+  const [open, setOpen] = useState(false);
+  const [pinZone, setPinZone] = useState<CardZoneId | null>(null);
+  const pinZoneRef = useRef<CardZoneId | null>(null);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
+  const [text, setText] = useState("");
+  const [fileItemId, setFileItemId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const [lookingFor, setLookingFor] = useState(false);
+  const passCard = useAppStore((state) => {
+    const labels = state.cards.find((card) => card.id === cardId)?.rubricLabels;
+    return labels?.about === "Event" || labels?.additional === "Event";
+  });
+  const fileItem = useAppStore((state) =>
+    fileItemId ? state.contactItems.find((item) => item.id === fileItemId) : undefined,
+  );
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const lineRef = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<WrapFieldHandle>(null);
+  const picking = useRef(false);
+  const openedAt = useRef(0);
+  const closedRef = useRef(false);
+  const dockBottom = useKeyboardDock(open, true);
+  const filePhoto = fileItem ? itemPhotoSrc(fileItem) : null;
+
+  /** The docked line spans exactly the card column. */
+  const startDocking = () => {
+    const rect = anchorRef.current?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
+    openedAt.current = Date.now();
+    closedRef.current = false;
+    setError(null);
+    setHint(null);
+    setOpen(true);
+    onOpenChange(true);
+  };
+
+  const beginCompose = (zone?: CardZoneId) => {
+    pinZoneRef.current = zone ?? null;
+    setPinZone(zone ?? null);
+    flushSync(startDocking);
+    fieldRef.current?.focusEnd();
+  };
+
+  useEffect(() => {
+    if (!openZoneRef) return;
+    openZoneRef.current = (zone) => beginCompose(zone);
+    return () => {
+      openZoneRef.current = null;
+    };
+  });
+
+  // The empty card asks for the line once, as it opens.
+  useLayoutEffect(() => {
+    if (openOnMount) startDocking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openOnMount]);
+
+  // Layout phase: mounted from a tap, the focus still counts as the user's and raises the keyboard.
+  useLayoutEffect(() => {
+    if (open) fieldRef.current?.focusEnd();
+  }, [open]);
+
+  const dismissLine = () => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    setLookingFor(false);
+    setText("");
+    setFileItemId(null);
+    pinZoneRef.current = null;
+    setPinZone(null);
+    setOpen(false);
+    onOpenChange(false);
+  };
+
+  /** A chosen file leaves the writing line. The card body shows it, and OK confirms the edit. */
+  const placeOnCard = (itemId: string) => {
+    addItemToCard(cardId, itemId, pinZoneRef.current ?? undefined);
+    onAdded(itemId);
+  };
+
+  const placeFile = (itemId: string) => {
+    const value = text.replace(/\s*\n\s*/g, " ").trim();
+    if (value) updateContactItem(itemId, { label: value });
+    placeOnCard(itemId);
+    picking.current = false;
+    dismissLine();
+  };
+
+  const commit = (raw?: string) => {
+    const source = raw ?? text;
+    const value = fileItemId ? source.replace(/\s*\n\s*/g, " ").trim() : source.trim();
+    if (fileItemId) {
+      if (value) updateContactItem(fileItemId, { label: value });
+      placeOnCard(fileItemId);
+      return true;
+    }
+    if (!value) return true;
+    const twin = findIdenticalItem(useAppStore.getState().contactItems, value);
+    if (twin) {
+      onDuplicate(twin.id);
+      return false;
+    }
+    const countryHint = messengerCountryHint(value);
+    if (countryHint) {
+      setHint(countryHint);
+      return false;
+    }
+    const id = addContactItem();
+    if (!id) return true;
+    updateContactItem(id, { value });
+    const item = useAppStore.getState().contactItems.find((row) => row.id === id);
+    if (!item || !isContactFilled(item)) {
+      deleteContactItem(id);
+      return true;
+    }
+    placeOnCard(id);
+    if (lookingFor) placeLookingFor(id);
+    return true;
+  };
+
+  /** The pass's Looking for row is its own section, after the ones the card already has. */
+  const placeLookingFor = (itemId: string) => {
+    const state = useAppStore.getState();
+    const card = state.cards.find((entry) => entry.id === cardId);
+    state.setItemZone(cardId, itemId, LOOKING_FOR_ZONE);
+    state.setRubricLabel(cardId, LOOKING_FOR_ZONE, LOOKING_FOR);
+    const order = card?.rubricOrder ?? [];
+    if (order.length > 0 && !order.includes(LOOKING_FOR_ZONE)) state.setCardRubricOrder(cardId, [...order, LOOKING_FOR_ZONE]);
+  };
+
+  const close = (raw?: string) => {
+    if (closedRef.current) return;
+    if (!commit(raw)) return;
+    dismissLine();
+  };
+
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  });
+
+  // A tap anywhere but the writing row leaves the line. The blue plate stays up
+  // until the finger lifts, so the tap cannot fall through onto a row underneath.
+  useEffect(() => {
+    if (!open) return;
+    const inside = (target: EventTarget | null) => target instanceof Node && !!rowRef.current?.contains(target);
+    const onPointerDown = (event: PointerEvent) => {
+      if (inside(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      if (inside(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const swallow = (click: Event) => {
+        click.preventDefault();
+        click.stopPropagation();
+      };
+      document.addEventListener("click", swallow, true);
+      window.setTimeout(() => document.removeEventListener("click", swallow, true), 500);
+      closeRef.current(fieldRef.current?.text());
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerup", onPointerUp, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerup", onPointerUp, true);
+    };
+  }, [open]);
+
+  // iOS may hand focus around while the keyboard settles or a full-screen picker is up;
+  // the line closes only once focus has really left it.
+  const handleBlur = (raw: string) => {
+    window.setTimeout(() => {
+      if (picking.current) return;
+      if (Date.now() - openedAt.current < OPEN_GUARD_MS) return;
+      if (lineRef.current?.contains(document.activeElement)) return;
+      close(raw);
+    }, BLUR_GUARD_MS);
+  };
+
+  const raiseKeyboard = () => {
+    const field = fieldRef.current?.element();
+    if (!field) return;
+    field.blur();
+    field.focus({ preventScroll: true });
+  };
+
+  const refocus = () => {
+    // Same turn as the sheet's cancel, same move as a tap on the line.
+    raiseKeyboard();
+    window.setTimeout(() => {
+      picking.current = false;
+    }, BLUR_GUARD_MS);
+  };
+
+  const takeAttachment = () => {
+    picking.current = true;
+    openContactAttachmentPicker((dataUrl, file) => {
+      const id = addContactItem();
+      if (!id) return;
+      const result = updateContactItemAttachment(cardId, id, file, dataUrl);
+      if (result.ok) {
+        setError(null);
+        placeFile(id);
+      } else {
+        deleteContactItem(id);
+        setError(result.message);
+      }
+    }, () => {
+      if (closedRef.current) return;
+      refocus();
+    });
+    const field = fieldRef.current?.element();
+    if (field && document.activeElement !== field) fieldRef.current?.focusEnd();
+  };
+
+  return (
+    <>
+      <div ref={anchorRef} className="h-0" aria-hidden />
+      {open
+        ? createPortal(
+            <div
+              ref={lineRef}
+              data-no-swipe
+              className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
+              style={{ paddingBottom: dockBottom }}
+            >
+              <div
+                ref={rowRef}
+                className="overflow-y-auto overscroll-contain"
+                style={{ marginLeft: frame.left, width: frame.width, maxHeight: dockReach(dockBottom) }}
+              >
+                {error ? <p className="pt-2 t-meta text-destructive">{error}</p> : null}
+                {hint ? <p className="pt-2 t-meta text-[var(--ink)]">{hint}</p> : null}
+                {passCard && !lookingFor && !fileItem && !text ? (
+                  <button
+                    type="button"
+                    data-no-swipe
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setLookingFor(true);
+                      fieldRef.current?.focusEnd();
+                    }}
+                    className="block border-0 bg-transparent p-0 pt-2 text-left t-meta text-[var(--grey)]"
+                  >
+                    {LOOKING_FOR}
+                  </button>
+                ) : null}
+                <div className="flex items-start gap-[11px]">
+                  {lookingFor ? (
+                    <span className="shrink-0 pt-[3px] t-label">{LOOKING_FOR}</span>
+                  ) : filePhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={filePhoto} alt="" className="size-10 shrink-0 object-cover" />
+                  ) : fileItem ? (
+                    <FileIcon className="size-7 shrink-0 text-[#111]" strokeWidth={1} aria-hidden />
+                  ) : (
+                    <FileAddButton onClick={takeAttachment} />
+                  )}
+                  <WrapField
+                    ref={fieldRef}
+                    label={ADD_PLACEHOLDER}
+                    placeholder={fileItem ? fileItem.value : (pinZone && ZONE_HINTS[pinZone]) || ADD_PLACEHOLDER}
+                    placeholderClassName="text-[16px] text-[var(--grey)]"
+                    multiline={!fileItemId && !enterFinishes(text, pinZone)}
+                    breakButton={false}
+                    onTextChange={(next) => {
+                      setText(next);
+                      setError(null);
+                      setHint(null);
+                    }}
+                    onDone={(next) => {
+                      if (!commit(next)) return;
+                      dismissLine();
+                    }}
+                    onEmptyDelete={() => {
+                      const zone = pinZoneRef.current;
+                      if (!zone || !isExtraZoneId(zone) || fileItemId) return;
+                      const live = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+                      if (!live || live.rubricLabels?.[zone]?.trim()) return;
+                      const used = Object.values(live.itemZones ?? {}).some((id) => id === zone);
+                      if (used) return;
+                      useAppStore.getState().hideZone(cardId, zone);
+                      dismissLine();
+                    }}
+                    onFocus={onFocus}
+                    onBlur={handleBlur}
+                    onPointerDown={() => {
+                      const vv = window.visualViewport;
+                      if (!vv) return;
+                      const overlap = window.innerHeight - vv.offsetTop - vv.height;
+                      if (overlap > 120) return;
+                      raiseKeyboard();
+                    }}
+                    className="min-w-0 flex-1 bg-transparent p-0 text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
+                  />
+                  <div className="pointer-events-none">
+                    <LibraryCheck onCard={false} onToggle={() => undefined} />
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
+  );
+}
+
 const EditRow = memo(function EditRow({
   itemId,
   zoneId,
@@ -1104,7 +1262,6 @@ const EditRow = memo(function EditRow({
   onErase,
   fileUrl,
   onRetryFile,
-  checks = true,
 }: {
   itemId: string;
   zoneId: CardZoneId;
@@ -1124,8 +1281,6 @@ const EditRow = memo(function EditRow({
   /** Set on file rows: the row shows its upload state under the name. */
   fileUrl?: string;
   onRetryFile: (itemId: string) => void;
-  /** Library tick. The registration form leaves it off. */
-  checks?: boolean;
 }) {
   const fileStatus = useUploadStatus((state) => state.byItem[itemId]);
   const statusLine = fileUrl === undefined ? null : fileStatusLine(fileStatus, fileUrl);
@@ -1134,11 +1289,12 @@ const EditRow = memo(function EditRow({
   const fieldRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<WrapFieldHandle>(null);
+  const dockBottom = useKeyboardDock(editing, true);
+  const [frame, setFrame] = useState({ left: 0, width: 0 });
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
   const [fades, setFades] = useState(false);
-  const [liveText, setLiveText] = useState(value);
   const longPress = useLongPress(() => {
     pressedLong.current = true;
     setHolding(false);
@@ -1174,56 +1330,28 @@ const EditRow = memo(function EditRow({
 
   useLayoutEffect(() => {
     if (!editing) return;
+    const list = rowRef.current?.closest("[data-card-chip-list]");
+    const rect = list?.getBoundingClientRect();
+    if (rect) setFrame({ left: rect.left, width: rect.width });
     dockRef.current?.focusEnd();
   }, [editing]);
 
-  const side = checks || deleteReady ? "mr-[26px]" : "";
   return (
     <div ref={rowRef} data-item-row={itemId} className="relative min-w-0">
-      {editing ? (
-        <div className={cn(side, "flex min-w-0 items-baseline")}>
-          {zoneId === "social" || zoneId === "contact" ? (
-            typedMark(liveText) ? (
-              <span className="t-body shrink-0 text-[var(--grey)]">{typedMark(liveText)}</span>
-            ) : null
-          ) : null}
-          <WrapField
-            ref={dockRef}
-            initial={value}
-            label="Edit row"
-            multiline={multiline}
-            breakButton={false}
-            onTextChange={(next) => {
-              setLiveText(next);
-              if (!next.trim()) onErase(itemId);
-            }}
-            onDone={(next) => onConfirm(itemId, value, next)}
-            onBlur={(next) => {
-              if (!next.trim()) return;
-              if (Date.now() - openedAt.current < 700) {
-                dockRef.current?.focusEnd();
-                return;
-              }
-              onConfirm(itemId, value, next);
-            }}
-            className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
-          />
-        </div>
-      ) : (
       <div
         ref={fieldRef}
         aria-label={text}
         data-no-swipe
         className={cn(
-          side,
-          "min-w-0 overflow-clip",
+          "mr-[26px] min-w-0 overflow-clip",
+          editing && "invisible pointer-events-none",
           (holding || deleteReady) && "opacity-40",
         )}
         style={{
           color: onCard ? "var(--ink)" : OFF_CARD,
         }}
         onPointerDown={(event) => {
-          if (deleteReady) return;
+          if (editing || deleteReady) return;
           pressedLong.current = false;
           setHolding(true);
           longPress.onPointerDown(event);
@@ -1231,7 +1359,7 @@ const EditRow = memo(function EditRow({
         onPointerMove={longPress.onPointerMove}
         onPointerUp={(event) => {
           release();
-          if (pressedLong.current || deleteReady) return;
+          if (editing || pressedLong.current || deleteReady) return;
           if (!(event.target instanceof Node) || !fieldRef.current?.contains(event.target)) return;
           beginEdit();
         }}
@@ -1250,32 +1378,66 @@ const EditRow = memo(function EditRow({
           {text}
         </div>
       </div>
-      )}
       {statusLine ? (
         uploadFailed ? (
           <button
             type="button"
             data-no-swipe
             onClick={() => onRetryFile(itemId)}
-            className={cn(side, "block text-left t-meta text-[var(--grey)]")}
+            className="mr-[26px] block text-left t-meta text-[var(--grey)]"
           >
             {statusLine}
           </button>
         ) : (
-          <span className={cn(side, "block t-meta text-[var(--grey)]")}>{statusLine}</span>
+          <span className="mr-[26px] block t-meta text-[var(--grey)]">{statusLine}</span>
         )
       ) : null}
+      {editing
+        ? createPortal(
+            <div
+              data-no-swipe
+              className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
+              style={{ paddingBottom: dockBottom }}
+            >
+              <div
+                className="overflow-y-auto overscroll-contain"
+                style={{ marginLeft: frame.left, width: frame.width, maxHeight: dockReach(dockBottom) }}
+              >
+                <div className="flex flex-col justify-end border-b border-[var(--rule)]">
+                  <WrapField
+                    ref={dockRef}
+                    initial={value}
+                    label="Edit row"
+                    multiline={multiline}
+                    onTextChange={(next) => {
+                      if (!next.trim()) onErase(itemId);
+                    }}
+                    breakButton={false}
+                    onDone={(next) => onConfirm(itemId, value, next)}
+                    onBlur={(next) => {
+                      if (!next.trim()) return;
+                      if (Date.now() - openedAt.current < 700) {
+                        dockRef.current?.focusEnd();
+                        return;
+                      }
+                      onConfirm(itemId, value, next);
+                    }}
+                    className="bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       {fades && !editing && !multiline && !isProseValue(value) && !value.includes("\n") ? (
         <span
           aria-hidden
-          className={cn(
-            "pointer-events-none absolute inset-y-0 w-4 bg-gradient-to-r from-transparent to-white",
-            checks ? "right-[26px]" : "right-0",
-          )}
+          className="pointer-events-none absolute inset-y-0 right-[26px] w-4 bg-gradient-to-r from-transparent to-white"
         />
       ) : null}
-      {deleteReady ? (
-        <div className="absolute top-0 right-0 flex items-start">
+      <div className="absolute top-0 right-0 flex items-start">
+        {deleteReady ? (
           <button
             type="button"
             data-delete-marker
@@ -1286,12 +1448,10 @@ const EditRow = memo(function EditRow({
           >
             <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
           </button>
-        </div>
-      ) : checks ? (
-        <div className="absolute inset-y-0 right-0 flex w-[30px] items-start justify-end">
+        ) : (
           <LibraryCheck onCard={onCard} onToggle={() => onToggle(itemId, zoneId)} />
-        </div>
-      ) : null}
+        )}
+      </div>
     </div>
   );
 });

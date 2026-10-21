@@ -42,9 +42,6 @@ export type PassInput = {
   backFields?: WalletBackField[];
   /** The QR. */
   barcodeMessage: string;
-  /** Apple calls this when the pass is added or removed. HTTPS, with a trailing slash. */
-  webServiceURL?: string;
-  authenticationToken?: string;
   /** Wallet prints it under the QR. */
   barcodeAltText?: string;
   expiresAt?: string | null;
@@ -118,9 +115,6 @@ export async function buildPass(input: PassInput): Promise<Buffer> {
     backgroundColor: "rgb(255, 255, 255)",
     foregroundColor: "rgb(17, 17, 17)",
     labelColor: "rgb(232, 100, 12)",
-    ...(input.webServiceURL && input.authenticationToken
-      ? { webServiceURL: input.webServiceURL, authenticationToken: input.authenticationToken }
-      : {}),
   });
   pass.type = "storeCard";
   const { icon } = await adedBrand();

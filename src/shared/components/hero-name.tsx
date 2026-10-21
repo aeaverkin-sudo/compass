@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
 
@@ -27,23 +27,10 @@ export function clampHeroLines(value: string, maxLines: number) {
   return [...parts.slice(0, maxLines - 1), parts.slice(maxLines - 1).join(" ")].join("\n");
 }
 
-/** A trailing * sits up and to the right of the last letter, in the same color and weight. */
-function heroPlaceholder(text: string) {
-  if (!text.endsWith("*")) return text;
-  const body = text.slice(0, -1).replace(/ $/, "");
-  return (
-    <>
-      {body}
-      <span className="relative -top-[0.35em] ml-[0.15em] font-[inherit] text-[1em] leading-none text-[var(--placeholder)]">*</span>
-    </>
-  );
-}
-
 function textWidth(text: string, size: number, weight: number) {
   const probe = document.createElement("span");
-  // A trailing space has no box of its own. The mark after it makes that space count.
-  probe.textContent = `${text}\u200b`;
-  probe.style.cssText = `position:absolute;left:-9999px;white-space:pre;font-family:${getComputedStyle(document.body).fontFamily};font-weight:${weight};font-size:${size}px;line-height:1;letter-spacing:${weight === 600 ? "-1px" : "0px"}`;
+  probe.textContent = text;
+  probe.style.cssText = `position:absolute;left:-9999px;white-space:nowrap;font-family:${getComputedStyle(document.body).fontFamily};font-weight:${weight};font-size:${size}px;line-height:1;letter-spacing:${weight === 600 ? "-1px" : "0px"}`;
   document.body.appendChild(probe);
   const width = probe.getBoundingClientRect().width;
   probe.remove();
@@ -69,9 +56,6 @@ export function HeroName({
   placeholder = "Name or portfolio title",
   maxLines = 2,
   align = "bottom",
-  pending = false,
-  onFocus,
-  fullRule = false,
 }: {
   value: string;
   onChange?: (displayName: string) => void;
@@ -79,17 +63,11 @@ export function HeroName({
   roleBelow?: boolean;
   placeholder?: string;
   maxLines?: number;
-  /** Offered text stays grey until the caret is placed. */
-  pending?: boolean;
-  onFocus?: () => void;
   /** Center puts the lines themselves, without the descender pad, on the middle of the photo. */
   align?: "bottom" | "center";
-  /** Questionnaire: the rule under the name runs the width of the name column. */
-  fullRule?: boolean;
 }) {
   const centered = align === "center";
   const boxRef = useRef<HTMLDivElement>(null);
-  const releasePin = useRef<(() => void) | null>(null);
   const [size, setSize] = useState(16);
   const [wrapWord, setWrapWord] = useState(false);
   const lines = splitHeroLines(value, maxLines);
@@ -107,12 +85,7 @@ export function HeroName({
       const width = box.clientWidth;
       if (!value) {
         setWrapWord(false);
-        const lines = placeholder.split("\n").filter((line) => line.length > 0);
-        const fitted = (lines.length > 0 ? lines : [placeholder]).reduce(
-          (tightest, line) => Math.min(tightest, fitToWidth(line, Math.max(0, width - 4), 400, 19, 8)),
-          19,
-        );
-        setSize(fitted);
+        setSize(fitToWidth(placeholder, Math.max(0, width - 4), 400, 19, 8));
         return;
       }
       const parts = splitHeroLines(value, maxLines);
@@ -144,40 +117,40 @@ export function HeroName({
     };
   }, [maxLines, placeholder, roleBelow, value]);
 
-  useEffect(() => () => releasePin.current?.(), []);
-
-  /** iOS moves a focused field inside a fixed page. Hold the window, not the zone list. */
-  const pinWindow = () => {
-    releasePin.current?.();
-    const pin = () => {
-      window.scrollTo(0, 0);
-    };
-    const stop = () => {
-      window.removeEventListener("scroll", pin);
-      window.visualViewport?.removeEventListener("scroll", pin);
-      window.visualViewport?.removeEventListener("resize", pin);
-      if (releasePin.current === stop) releasePin.current = null;
-    };
-    window.addEventListener("scroll", pin, { passive: true });
-    window.visualViewport?.addEventListener("scroll", pin);
-    window.visualViewport?.addEventListener("resize", pin);
-    pin();
-    requestAnimationFrame(pin);
-    releasePin.current = stop;
-  };
-
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
-  const placeholderLines = placeholder.split("\n");
   const lineStyle = {
     fontSize: size,
     lineHeight: 1,
     fontWeight: empty ? 400 : 600,
     letterSpacing: empty ? "0px" : "-1px",
     boxSizing: "border-box" as const,
-    height: size * (empty ? placeholderLines.length : lineCount) + rolePad,
+    height: size * (empty ? 1 : lineCount) + rolePad,
     paddingBottom: rolePad,
     ...(centered ? { marginBottom: -rolePad } : {}),
+  };
+
+  const holdScroll = (node: HTMLTextAreaElement) => {
+    const scroller = node.closest<HTMLElement>(".compass-card-scroll");
+    const top = scroller?.scrollTop ?? 0;
+    const pin = () => {
+      if (scroller) scroller.scrollTop = top;
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    pin();
+    requestAnimationFrame(pin);
+    window.addEventListener("scroll", pin, { passive: true });
+    window.visualViewport?.addEventListener("scroll", pin);
+    window.visualViewport?.addEventListener("resize", pin);
+    const stop = () => {
+      window.removeEventListener("scroll", pin);
+      window.visualViewport?.removeEventListener("scroll", pin);
+      window.visualViewport?.removeEventListener("resize", pin);
+      node.removeEventListener("blur", stop);
+    };
+    node.addEventListener("blur", stop);
   };
 
   return (
@@ -187,7 +160,6 @@ export function HeroName({
       className={cn(
         "relative flex min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-visible",
         centered ? "items-center" : "items-end",
-        fullRule && "border-b border-[var(--rule)]",
       )}
     >
       {onChange ? (
@@ -196,13 +168,12 @@ export function HeroName({
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute left-0 whitespace-pre pb-px text-[var(--placeholder)]",
-              !fullRule && "border-b-[0.5px] border-[#D0D0D0]",
+              "pointer-events-none absolute left-0 whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]",
               centered && "top-1/2 -translate-y-1/2",
             )}
             style={{ fontSize: size, fontWeight: 400, lineHeight: 1, bottom: centered ? undefined : descender }}
           >
-            {heroPlaceholder(placeholder)}
+            {placeholder}
           </span>
         ) : null}
         <textarea
@@ -215,21 +186,12 @@ export function HeroName({
           autoCorrect="off"
           spellCheck={false}
           data-no-swipe
-          data-keep-window=""
           onChange={(event) => {
             event.currentTarget.scrollTop = 0;
             event.currentTarget.scrollLeft = 0;
             onChange(clamp(event.target.value));
           }}
-          onScroll={(event) => {
-            event.currentTarget.scrollTop = 0;
-            event.currentTarget.scrollLeft = 0;
-          }}
-          onFocus={() => {
-            onFocus?.();
-            pinWindow();
-          }}
-          onBlur={() => releasePin.current?.()}
+          onFocus={(event) => holdScroll(event.currentTarget)}
           onPointerDown={(event) => event.stopPropagation()}
           onBeforeInput={(event) => {
             const native = event.nativeEvent;
@@ -252,10 +214,7 @@ export function HeroName({
             onChange(clamp(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className={cn(
-            "compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre outline-none",
-            pending ? "text-[var(--placeholder)] caret-[var(--ink)]" : "text-[var(--ink)]",
-          )}
+          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre text-[var(--ink)] outline-none"
           style={empty ? { ...lineStyle, color: "transparent", caretColor: "var(--ink)" } : lineStyle}
         />
         </>
@@ -268,7 +227,7 @@ export function HeroName({
           style={lineStyle}
         >
           {empty ? (
-            <div className="whitespace-pre border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]">{heroPlaceholder(placeholder)}</div>
+            <div className="whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]">{placeholder}</div>
           ) : twoLines ? (
             lines.map((line, index) => (
               <div key={index} className="whitespace-nowrap">

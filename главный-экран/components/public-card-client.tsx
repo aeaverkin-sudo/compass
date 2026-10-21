@@ -186,7 +186,7 @@ export function PublicCardClient({
       });
       if (response.status === 401) {
         const next = `/scan/card?token=${encodeURIComponent(publicToken)}`;
-        router.push(`/register?card=${encodeURIComponent(publicToken)}&next=${encodeURIComponent(next)}`);
+        router.push(`/register?signin=1&next=${encodeURIComponent(next)}`);
         setSaveState("ready");
         return;
       }
@@ -275,7 +275,11 @@ export function PublicCardClient({
       >
         {sheet}
       </div>
-      <AccountBand token={card.publicToken} onPdf={onPdfTap} />
+      <AccountBand
+        token={card.publicToken}
+        onPreparePdf={preparePdf}
+        onPdf={onPdfTap}
+      />
     </div>
   );
 }

@@ -132,6 +132,8 @@ export interface User {
   emptyFillHintSeen?: boolean;
   /** True once, after the first library row, the tap-to-use hint has been shown. */
   firstRowHintSeen?: boolean;
+  /** True once the add-to-library hint has been shown. */
+  addLibraryHintSeen?: boolean;
   /** True once a guest's event pass has shown what to add next. */
   passAddHintSeen?: boolean;
   /** True once the one-time password reminder has been shown on the portfolio. */

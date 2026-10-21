@@ -37,6 +37,12 @@ type PassPerson = { name: string; email: string | null; phone: string | null };
 
 async function accountKind(userId: string): Promise<AccountKind> {
   const admin = createAdminSupabaseClient();
+  const full = await admin.from("profiles").select("registered_at, event_trial").eq("id", userId).maybeSingle();
+  if (!full.error) {
+    const row = full.data as { registered_at: string | null; event_trial: boolean | null } | null;
+    return { registered: Boolean(row?.registered_at), eventTrial: row?.event_trial === true };
+  }
+  if (!/event_trial/i.test(full.error.message)) throw new Error(full.error.message);
   const kept = await admin.from("profiles").select("registered_at").eq("id", userId).maybeSingle();
   if (kept.error) throw new Error(kept.error.message);
   return { registered: Boolean((kept.data as { registered_at: string | null } | null)?.registered_at), eventTrial: false };
@@ -47,13 +53,18 @@ function isPassAccount(kind: AccountKind): boolean {
   return kind.eventTrial && !kind.registered;
 }
 
-/** A signed-in account with a registration time. Anonymous cookies are not an account. */
+/** A registered account that is not a trial or an event pass. */
 export async function isPermanentAccount(session: SessionUser): Promise<boolean> {
   if (!session || session.anonymous) return false;
-  const admin = createAdminSupabaseClient();
-  const row = await admin.from("profiles").select("registered_at").eq("id", session.id).maybeSingle();
-  if (row.error) throw new Error(row.error.message);
-  return Boolean((row.data as { registered_at: string | null } | null)?.registered_at);
+  const kind = await accountKind(session.id);
+  return kind.registered && !kind.eventTrial;
+}
+
+/** The session already holds a pass on this event. */
+export async function holdsEventPass(session: SessionUser, eventId: string): Promise<boolean> {
+  if (!session) return false;
+  if (!isPassAccount(await accountKind(session.id))) return false;
+  return Boolean(await loadOwnRegistration(eventId, session.id));
 }
 
 function invitePath(event: EventInvite, token: string | null): string {
@@ -195,17 +206,6 @@ async function settleRegistration(
   } catch (error) {
     console.error("[events] guest consent", error);
   }
-}
-
-function namedPortfolio(cards: PortfolioChoice[]): boolean {
-  return cards.some((card) => card.name.trim() || Boolean(card.photoAttachmentId));
-}
-
-/** Payment first when the event is still unpaid, then the empty-portfolio questionnaire. */
-async function afterEmptyPortfolio(event: EventInvite, userId: string | null, createPath: string): Promise<string> {
-  const paid = userId ? await paysFirst(event.id, userId) : (await loadEventPay(event.id)).isPaid;
-  if (!paid) return createPath;
-  return `/e/${encodeURIComponent(event.slug ?? event.code)}/pay?next=${encodeURIComponent(createPath)}`;
 }
 
 /** A paid event shows the payment screen first, unless a paid list has already confirmed it. */
@@ -352,10 +352,6 @@ export async function acceptGuestPass(
   }
 
   if (await isPermanentAccount(session)) {
-    const owned = await listOwnPortfolios(session!.id);
-    if (!namedPortfolio(owned)) {
-      return { ok: true, kind: "go", next: await afterEmptyPortfolio(event, session!.id, createPath) };
-    }
     const joined = await joinWithOwnCard(session!.id, event, lookup, guest.token, null, consentPath);
     if (!joined.ok) return joined;
     if (!joined.registrationId) return { ok: true, kind: "go", next: joinPath };
@@ -369,5 +365,5 @@ export async function acceptGuestPass(
     return { ok: true, kind: "go", next: signInPath(invitePath(event, guest.token)), notice: TAKEN_EMAIL };
   }
 
-  return { ok: true, kind: "go", next: await afterEmptyPortfolio(event, session?.id ?? null, createPath) };
+  return { ok: true, kind: "go", next: createPath };
 }

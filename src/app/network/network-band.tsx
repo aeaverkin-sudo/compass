@@ -39,6 +39,7 @@ export function NetworkBand({ current }: { current: NetworkSection }) {
   }, [router, left, right]);
 
   const go = (href: string) => ({
+    onPrepare: () => router.prefetch(href),
     onTap: () => router.push(href),
   });
 

@@ -96,6 +96,24 @@ export async function sendPassLink(to: string, eventName: string, link: string) 
   await send(to, `Your pass for ${eventName}`, `Open this link to get your pass: ${link}`);
 }
 
+/** Add to My Network without a password. The link signs in once and saves the card. */
+export async function sendSaveLink(to: string, cardName: string, link: string) {
+  await send(
+    to,
+    `Add ${cardName} to your network`,
+    `Open this link to add ${cardName} to your network:\n${link}\n\nNo password needed. If you didn't ask for this, ignore this message.\n\nCheers,\nADED team`,
+  );
+}
+
+/** Create on the open link with an email that already has an account. The link signs in once and joins. */
+export async function sendEventSignIn(to: string, eventName: string, link: string) {
+  await send(
+    to,
+    `Sign in to join ${eventName}`,
+    `Open this link to sign in and join ${eventName}:\n${link}\n\nNo password needed. If you didn't ask for this, ignore this message.\n\nCheers,\nADED team`,
+  );
+}
+
 export async function sendPasswordReset(to: string, link: string) {
   await send(
     to,

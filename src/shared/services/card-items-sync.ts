@@ -4,7 +4,6 @@ import { isAttachmentType } from "@/shared/services/portfolio-limits";
 import { itemContentKey } from "@/shared/services/item-key";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { upsertCardScalars } from "@/shared/services/card-sync";
-import { signupDrafting } from "@/shared/services/signup-gate";
 
 const UPSERT_DEBOUNCE_MS = 400;
 
@@ -209,7 +208,6 @@ export function dropPendingItemUpserts() {
 }
 
 export function scheduleItemUpsert(item: ContactItem, options?: { pulse?: boolean }) {
-  if (signupDrafting()) return;
   const previous = pendingItemUpserts.get(item.id);
   if (previous) clearTimeout(previous.timer);
   const pulse = options?.pulse !== false;
@@ -243,7 +241,6 @@ export async function syncItemOnCard(card: Card, item: ContactItem) {
 }
 
 export async function syncCardLinkOrder(card: Card, items: ContactItem[]) {
-  if (signupDrafting()) return;
   try {
     await upsertCardScalars(card);
     const onCard = new Set(card.contactItemIds);
@@ -380,11 +377,8 @@ export async function hydrateCardItems() {
   useAppStore.setState({ cards, contactItems: items });
 
   const remoteItemIds = new Set(remoteItems.map((row) => row.id));
-  const storeOwner = useAppStore.getState().ownerId;
-  const mayUploadLocal = Boolean(userId && storeOwner === userId);
   const toUpload = items.filter(
     (item) =>
-      mayUploadLocal &&
       !remoteItemIds.has(item.id) &&
       !item.syncedOwner &&
       !unfinishedFile(item) &&

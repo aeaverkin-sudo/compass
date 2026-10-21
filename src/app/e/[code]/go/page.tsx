@@ -4,7 +4,7 @@ import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { eventHasEnded } from "@/shared/services/events";
-import { isPermanentAccount } from "@/shared/services/member-account";
+import { isPermanentAccount } from "@/shared/services/guest-accept";
 import { InviteActions } from "../invite-actions";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +51,7 @@ export default async function GoFromMailPage({ params, searchParams }: PageProps
         lookup={lookup}
         token={guest.token}
         permanent
+        holdsPass={false}
         auto
         ended={false}
         signInHref={`/register?signin=1&next=${encodeURIComponent(`${poster}&go=1`)}`}

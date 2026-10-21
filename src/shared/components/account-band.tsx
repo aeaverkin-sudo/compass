@@ -29,13 +29,13 @@ function useOrigin() {
 /**
  * Two doors under the portfolio name. The web plaque is the main TabBand.
  * The painted PDF keeps its own row.
- * Add to My Network always opens /save. That page sends a stranger to sign-up.
  */
 export function AccountBand({
   token,
   pdf = false,
   inset,
   onPdf,
+  onPreparePdf,
 }: {
   token: string;
   /** Painted PDF carries the ADED mark. The web plaque keeps Save PDF file. */
@@ -44,10 +44,10 @@ export function AccountBand({
   inset?: number;
   /** Web door. The painted PDF keeps its own right-hand link. */
   onPdf?: () => void;
+  onPreparePdf?: () => void;
 }) {
   const origin = useOrigin();
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
-  const pdfSaveHref = saveHref;
   if (!pdf) {
     return (
       <TabBand
@@ -56,11 +56,12 @@ export function AccountBand({
         label="Account"
         left={
           <a href={saveHref} className={DOOR}>
-            <span>Add to My Network</span>
+            <span data-pdf-link="">Add to My Network</span>
           </a>
         }
         right={
           <TapButton
+            onPrepare={onPreparePdf}
             onTap={() => onPdf?.()}
             className={cn(DOOR, "justify-end border-0 bg-transparent")}
           >
@@ -82,7 +83,7 @@ export function AccountBand({
       }}
     >
       <div className="flex min-h-11 items-stretch">
-        <a href={pdfSaveHref} className={cn(pdfDoor, "text-left")}>
+        <a href={saveHref} className={cn(pdfDoor, "text-left")}>
           <span data-pdf-link="" className="inline-block w-fit">
             Add to My
             <br />

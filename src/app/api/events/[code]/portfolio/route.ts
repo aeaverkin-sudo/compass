@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { createColdEntryAccount } from "@/shared/services/cold-entry";
-import { noStore } from "@/shared/services/http-reply";
+import { noStore } from "@/shared/services/guest-accept-reply";
 import { requestIp } from "@/shared/services/event-pass-guard";
 import { mailOrigin } from "@/shared/lib/public-origin";
 

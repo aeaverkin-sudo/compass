@@ -6,21 +6,18 @@ import { loadOpenLink } from "@/shared/services/event-open-link";
 import { passAllowed, recordPass, TRY_LATER } from "@/shared/services/event-pass-guard";
 import { loadEventSeats, SOLD_OUT } from "@/shared/services/event-seats";
 import { eventListStatus } from "@/shared/services/events";
-import { BY_INVITATION, isPermanentAccount, PASSWORD_SET, type SessionUser } from "@/shared/services/member-account";
+import { BY_INVITATION, isPermanentAccount, PASSWORD_SET, type SessionUser } from "@/shared/services/guest-accept";
 import { mailConfigured, sendEventSignIn, sendHtmlMail } from "@/shared/services/mail";
 import { publicCardPath } from "@/shared/services/public-card-url";
 import { clearTrialClock } from "@/shared/services/trial";
 import { walletLinkPath } from "@/shared/services/wallet-link";
 import { WELCOME_SUBJECT, welcomeMail } from "@/shared/mail/welcome-mail";
-import { customAlphabet } from "nanoid";
-
-const issuedPassword = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 8);
 
 export const MIN_PASSWORD = 8;
 
 export type ColdEntryResult =
   /** The session is now this permanent account. The browser signs in with the same password. */
-  | { ok: true; kind: "created"; password?: string }
+  | { ok: true; kind: "created" }
   /** The email already has an account: the sign-in link went there. */
   | { ok: true; kind: "mailed"; email: string }
   | { ok: true; kind: "go"; next: string }
@@ -46,15 +43,15 @@ async function mailSignInLink(
   const params = new URLSearchParams({ t: hash });
   if (guestToken) params.set("g", guestToken);
   const href = `${guard.origin}/e/${event.key}/create?${params.toString()}`;
-  await sendEventSignIn(email, event.name.replace(/\s+/g, " ").trim(), href, guard.origin);
+  await sendEventSignIn(email, event.name.replace(/\s+/g, " ").trim(), href);
   await recordPass(event.id, guard.ip);
   return { ok: true, kind: "mailed", email };
 }
 
 /**
- * Create the account at the end of the questionnaire. A new email turns this browser's session
- * into a permanent account and returns the password once. An email that already has an account
- * gets a sign-in link instead. Nothing is created before this call.
+ * Create my profile on the open link. A new email turns this browser's session into a permanent account
+ * with the password on the screen. An email that already has an account gets a sign-in link instead.
+ * Nothing is created before this call: a screen left without Create leaves no account.
  */
 export async function createColdEntryAccount(
   lookup: string,
@@ -80,15 +77,9 @@ export async function createColdEntryAccount(
   const owner = await userIdForEmail(email);
   if (owner && owner !== session?.id) return mailSignInLink(email, mailEvent, guard, guest?.token ?? null);
 
-  let password = typeof input.password === "string" ? input.password.trim() : "";
-  let issued: string | undefined;
+  const password = typeof input.password === "string" ? input.password.trim() : "";
   if (password.length < MIN_PASSWORD) {
-    if (password.length > 0) {
-      return { ok: false, status: 400, error: `Use at least ${MIN_PASSWORD} characters for the password.` };
-    }
-    const raw = issuedPassword();
-    password = `${raw.slice(0, 4)}-${raw.slice(4)}`;
-    issued = password;
+    return { ok: false, status: 400, error: `Use at least ${MIN_PASSWORD} characters for the password.` };
   }
   if (!session) return { ok: false, status: 401, error: "Open the link again." };
   if (!guest && (await loadEventSeats(event.id)).soldOut) return { ok: false, status: 409, error: SOLD_OUT };
@@ -108,7 +99,7 @@ export async function createColdEntryAccount(
   }
   await clearTrialClock(session.id);
   await recordPass(event.id, guard.ip);
-  return { ok: true, kind: "created", ...(issued ? { password: issued } : {}) };
+  return { ok: true, kind: "created" };
 }
 
 const WELCOME_SENT = "welcome_mail_at";

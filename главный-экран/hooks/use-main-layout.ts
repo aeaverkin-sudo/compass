@@ -91,18 +91,12 @@ export function useMainLayout() {
     const frame = requestAnimationFrame(() => {
       document.documentElement.classList.add("compass-settled");
     });
-    let width = window.innerWidth;
-    const onResize = () => {
-      if (window.innerWidth === width) return;
-      width = window.innerWidth;
-      sync();
-    };
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", sync);
     window.addEventListener("orientationchange", sync);
 
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener("resize", onResize);
+      window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
     };
   }, []);

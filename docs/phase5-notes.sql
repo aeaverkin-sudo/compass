@@ -2,7 +2,7 @@
 -- Compass — Phase 5: one-time notes
 -- Supabase → SQL Editor → Run once. Safe to run again.
 --
--- A card has at most one pending transfer. It waits 7 days, or
+-- A card has at most one pending transfer. It waits 14 days, or
 -- until the first real viewer. Voice is always last via sort_order.
 -- Bytes stay in the existing private bucket transfer-assets.
 -- The consume function is for the service role only.
@@ -16,7 +16,7 @@ create unique index if not exists card_transfers_one_pending
   where status = 'pending';
 
 alter table public.card_transfers
-  alter column expires_at set default (now() + interval '7 days');
+  alter column expires_at set default (now() + interval '14 days');
 
 -- One row wins. A second concurrent call skips the locked row and returns null.
 create or replace function public.consume_pending_transfer(p_card_id uuid)

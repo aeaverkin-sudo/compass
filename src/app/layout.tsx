@@ -8,7 +8,6 @@ import { ServiceWorker } from "@/shared/components/service-worker";
 import { SupabaseSession } from "@/shared/components/supabase-session";
 import { TabPrefetch } from "@/shared/components/tab-prefetch";
 import { TrialLock } from "@/shared/components/trial-lock";
-import { KeyboardAvoidance } from "@/shared/components/keyboard-avoidance";
 import { VisualBottom } from "@/shared/components/visual-bottom";
 import "./globals.css";
 
@@ -54,7 +53,7 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   themeColor: "#F9F8F6",
-  interactiveWidget: "resizes-content",
+  interactiveWidget: "overlays-content",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -70,7 +69,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <MonochromeSync />
         <SupabaseSession />
         <VisualBottom />
-        <KeyboardAvoidance />
         <PdfPreviewHost />
         <TabPrefetch />
         <ServiceWorker />

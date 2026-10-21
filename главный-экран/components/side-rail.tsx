@@ -79,7 +79,6 @@ function RailMark({
     >
       {children != null ? (
         <div
-          data-rail-mark=""
           className={cn(
             "absolute top-1/2 left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center",
             FREEZE_CLASS,
@@ -210,9 +209,6 @@ export const SideRail = memo(function SideRail({
   });
   const pointerDownRef = useRef(false);
   const holdTimerRef = useRef<number | null>(null);
-  const stuckTimerRef = useRef<number | null>(null);
-  const gestureRef = useRef(0);
-  const ownReleaseRef = useRef(false);
   const startRef = useRef({ x: 0, y: 0, pointerId: -1 });
   const draggingRef = useRef(false);
   const settlingRef = useRef(false);
@@ -232,9 +228,6 @@ export const SideRail = memo(function SideRail({
       if (target instanceof Element && target.closest("[data-slot='dropdown-menu-content']")) return;
       if (rootRef.current?.contains(target as Node)) return;
       setStyling(false);
-      requestAnimationFrame(() => {
-        rootRef.current?.getBoundingClientRect();
-      });
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
@@ -247,7 +240,7 @@ export const SideRail = memo(function SideRail({
       node.draggable = false;
       node.setAttribute("draggable", "false");
     }
-  }, [liveCard.id, liveCard.nextScanAddons, showPlus, dragging]);
+  }, [liveCard.id, showPlus, dragging]);
 
   const mountShield = () => {
     if (shieldRef.current || typeof document === "undefined") return;
@@ -316,6 +309,7 @@ export const SideRail = memo(function SideRail({
     const node = rootRef.current;
     if (!node) return;
     node.style.boxShadow = "";
+    node.style.willChange = "";
   };
 
   const stopTouchBlock = () => {
@@ -350,6 +344,7 @@ export const SideRail = memo(function SideRail({
       node.style.transition = "none";
       node.style.transform = "";
       node.style.boxShadow = "";
+      node.style.willChange = "";
     }
     paintDock(dockRef.current, { transition: "none" });
   };
@@ -358,54 +353,22 @@ export const SideRail = memo(function SideRail({
     const node = rootRef.current;
     const pointerId = startRef.current.pointerId;
     if (!node || pointerId < 0) return;
-    ownReleaseRef.current = true;
     try {
       if (node.hasPointerCapture(pointerId)) node.releasePointerCapture(pointerId);
     } catch {
       // Already released.
     }
-    ownReleaseRef.current = false;
   };
 
-  const clearStuckTimer = () => {
-    if (stuckTimerRef.current == null) return;
-    window.clearTimeout(stuckTimerRef.current);
-    stuckTimerRef.current = null;
-  };
-
-  const unlockMarks = () => {
-    rootRef.current?.querySelectorAll<HTMLElement>("[data-rail-mark]").forEach((node) => {
-      node.style.pointerEvents = "auto";
-    });
-  };
-
-  const dropStyle = () => {
-    setStyling(false);
-    requestAnimationFrame(() => {
-      rootRef.current?.getBoundingClientRect();
-    });
-  };
-
-  /** A hold that never received pointerup. The digit must be tappable again, and the dots must not stay. */
-  const abortGesture = () => {
-    gestureRef.current += 1;
+  const cancelGesture = () => {
     const wasDragging = draggingRef.current;
-    const live = pointerDownRef.current || wasDragging || holdTimerRef.current != null;
-    clearStuckTimer();
     clearHoldTimer();
     pointerDownRef.current = false;
     detachRef.current?.();
     detachRef.current = null;
     releaseCapture();
-    if (live) resetLift();
-    else setDragging(false);
-    unlockMarks();
+    resetLift();
     if (wasDragging) suppressNextClick();
-    dropStyle();
-  };
-
-  const cancelGesture = () => {
-    abortGesture();
   };
 
   useEffect(() => {
@@ -449,28 +412,22 @@ export const SideRail = memo(function SideRail({
       if (pointerDownRef.current && !draggingRef.current) cancelGesture();
     };
     const onHide = () => {
-      if (document.visibilityState === "hidden") abortGesture();
+      if (document.visibilityState === "hidden") cancelGesture();
     };
-    const onBlur = () => abortGesture();
-    const onPageHide = () => abortGesture();
-    const onLeave = () => {
-      if (!pointerDownRef.current && !draggingRef.current && holdTimerRef.current == null) return;
-      abortGesture();
-    };
+    const onBlur = () => cancelGesture();
+    const onPageHide = () => cancelGesture();
     const scroller = document.querySelector(".compass-card-scroll");
     scroller?.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("blur", onBlur);
     window.addEventListener("pagehide", onPageHide);
-    window.addEventListener("pointerleave", onLeave);
     return () => {
       scroller?.removeEventListener("scroll", onScroll);
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("pagehide", onPageHide);
-      window.removeEventListener("pointerleave", onLeave);
       cancelGesture();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount/unmount only
@@ -488,6 +445,7 @@ export const SideRail = memo(function SideRail({
     stopTouchBlock();
     unmountShield();
     endLiftVisual();
+    node.style.willChange = "transform";
     node.style.transition = "none";
     node.style.top = layoutTop(to.top);
     node.style.height = `${fromHeight}px`;
@@ -511,6 +469,7 @@ export const SideRail = memo(function SideRail({
     if (!node) return;
     node.style.transition = "none";
     node.style.transform = "";
+    node.style.willChange = "";
     paintDock(dockRef.current, { transition: "none" });
     setRailDock(dockRef.current);
   };
@@ -522,14 +481,7 @@ export const SideRail = memo(function SideRail({
     const startX = event.clientX;
     const startY = event.clientY;
     const host = event.currentTarget;
-    const gesture = ++gestureRef.current;
     pointerDownRef.current = true;
-    clearStuckTimer();
-    stuckTimerRef.current = window.setTimeout(() => {
-      stuckTimerRef.current = null;
-      if (gesture !== gestureRef.current) return;
-      abortGesture();
-    }, 10_000);
     startRef.current = { x: startX, y: startY, pointerId };
     clearHoldTimer();
     syncAnchors();
@@ -545,9 +497,6 @@ export const SideRail = memo(function SideRail({
       if (!pointerDownRef.current || ended) return;
       draggingRef.current = true;
       setDragging(true);
-      rootRef.current?.querySelectorAll<HTMLElement>("[data-rail-mark]").forEach((node) => {
-        node.style.pointerEvents = "";
-      });
       setStyling(true);
       dragYRef.current = 0;
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
@@ -567,6 +516,7 @@ export const SideRail = memo(function SideRail({
       host.removeEventListener("pointermove", move);
       host.addEventListener("pointermove", move, { passive: false });
       host.style.transition = "transform 120ms ease-out, box-shadow 120ms ease-out";
+      host.style.willChange = "transform";
       host.style.boxShadow = "0 6px 18px rgba(0,0,0,.14)";
       paintTransform(0, true);
       requestAnimationFrame(() => {
@@ -576,7 +526,7 @@ export const SideRail = memo(function SideRail({
     }, RAIL_HOLD_MS);
 
     const move = (native: PointerEvent) => {
-      if (native.pointerId !== pointerId || gesture !== gestureRef.current) return;
+      if (native.pointerId !== pointerId) return;
       const dx = native.clientX - startX;
       const dy = native.clientY - startY;
       if (!draggingRef.current) {
@@ -601,15 +551,20 @@ export const SideRail = memo(function SideRail({
     };
 
     const cancel = (native: PointerEvent) => {
-      if (native.pointerId !== pointerId || ended || gesture !== gestureRef.current) return;
+      if (native.pointerId !== pointerId || ended) return;
       ended = true;
-      abortGesture();
+      const wasDragging = draggingRef.current;
+      pointerDownRef.current = false;
+      clearHoldTimer();
+      detach();
+      releaseCapture();
+      resetLift();
+      if (wasDragging) suppressNextClick();
     };
 
     const up = (native: PointerEvent) => {
-      if (native.pointerId !== pointerId || ended || gesture !== gestureRef.current) return;
+      if (native.pointerId !== pointerId || ended) return;
       ended = true;
-      clearStuckTimer();
       pointerDownRef.current = false;
       clearHoldTimer();
       detach();
@@ -664,47 +619,40 @@ export const SideRail = memo(function SideRail({
         paddingBottom: EDGE_INSET_PX,
         touchAction: "none",
         transition: "none",
-        willChange: "transform",
       }}
       draggable={false}
       onDragStart={(event) => event.preventDefault()}
       onContextMenu={(event) => event.preventDefault()}
       onPointerDownCapture={onPointerDownCapture}
-      onLostPointerCapture={(event) => {
-        if (ownReleaseRef.current) return;
-        if (event.pointerId !== startRef.current.pointerId) return;
-        if (!pointerDownRef.current && !draggingRef.current && holdTimerRef.current == null) return;
-        abortGesture();
-      }}
       onTransitionEnd={onTransitionEnd}
     >
-      <div
-        className={cn(
-          "absolute bottom-full left-1/2 flex size-11 -translate-x-1/2 items-center justify-center",
-          styling ? "visible opacity-100" : "invisible pointer-events-none opacity-0",
-          styling && dragging && "pointer-events-none",
-        )}
-        aria-hidden={!styling}
-      >
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label="Rail style"
-            className="flex size-11 items-center justify-center text-[var(--ink)]"
-          >
-            <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="bottom" className="min-w-0 px-4 py-3">
-            {LOOKS.map(({ look, label }) => {
-              const on = (railLook ?? null) === look;
-              return (
-                <DropdownMenuItem key={label} onSelect={() => setRailLook(look)}>
-                  <span className={cn("t-body", on ? "text-[var(--ink)]" : "text-[var(--grey)]")}>{label}</span>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {styling ? (
+        <div
+          className={cn(
+            "absolute bottom-full left-1/2 flex size-11 -translate-x-1/2 items-center justify-center",
+            dragging ? "pointer-events-none" : "pointer-events-auto",
+          )}
+        >
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Rail style"
+              className="flex size-11 items-center justify-center text-[var(--ink)]"
+            >
+              <Ellipsis className="size-4" strokeWidth={1.5} aria-hidden />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="bottom" className="min-w-0 px-4 py-3">
+              {LOOKS.map(({ look, label }) => {
+                const on = (railLook ?? null) === look;
+                return (
+                  <DropdownMenuItem key={label} onSelect={() => setRailLook(look)}>
+                    <span className={cn("t-body", on ? "text-[var(--ink)]" : "text-[var(--grey)]")}>{label}</span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
       <RailMark height={SHARE_SLOT_PX} inert={dragging}>
         <CardShareControl
           card={liveCard}

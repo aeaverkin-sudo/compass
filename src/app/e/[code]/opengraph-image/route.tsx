@@ -60,7 +60,7 @@ async function posterDataUrl(event: EventInvite): Promise<string | null> {
   }
 }
 
-const FRESH = "public, max-age=300, stale-while-revalidate=3600";
+const FRESH = "public, max-age=86400, stale-while-revalidate=604800";
 const BRIEF = "public, max-age=60";
 
 function paint(element: ReturnType<typeof ogPosterElement>, loaded: { regular: ArrayBuffer; bold: ArrayBuffer } | null, cache: string) {

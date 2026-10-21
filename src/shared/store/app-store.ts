@@ -19,8 +19,6 @@ import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-u
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
 import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
-import { fileRecoveryPaused, holdZoneFile } from "@/shared/services/deferred-files";
-import { setSignupDrafting, signupDrafting } from "@/shared/services/signup-gate";
 import {
   BASE_EDIT_ZONES,
   canonZoneId,
@@ -53,18 +51,12 @@ interface AppState {
   cards: Card[];
   currentCardIndex: number;
   contactItems: ContactItem[];
-  /** Account these cards were last loaded for. A different sign-in wipes the store first. */
-  ownerId: string | null;
-  /** Questionnaire is open. Disk and the server ignore the cards until it finishes or closes. */
-  signupDraft: boolean;
-  /** Last Network list for this account. Shown at once, then replaced by the server. */
-  connectionsCache: ConnectionsCache | null;
-  setConnectionsCache: (cache: ConnectionsCache | null) => void;
   resetApp: () => void;
   completeOnboarding: (payload: OnboardingPayload) => void;
   markMainIntroSeen: () => void;
   markEmptyFillHintSeen: () => void;
   markFirstRowHintSeen: () => void;
+  markAddLibraryHintSeen: () => void;
   markPassAddHintSeen: () => void;
   markPasswordHintSeen: () => void;
   setRailDock: (dock: "qr" | "photo") => void;
@@ -114,23 +106,6 @@ interface AppState {
   /** Finish a deferred delete on the server. */
   commitContactItemDelete: (itemId: string) => void;
 }
-
-export type NetworkContact = {
-  id: string;
-  displayName: string;
-  savedCardToken: string;
-  sourceEventId: string | null;
-  createdAt: string;
-  role: string;
-  photoUrl: string | null;
-  searchText: string;
-};
-
-export type ConnectionsCache = {
-  ownerId: string;
-  contacts: NetworkContact[];
-  at: number;
-};
 
 export type ContactItemSnapshot = {
   item: ContactItem;
@@ -237,25 +212,16 @@ export const useAppStore = create<AppState>()(
       cards: [],
       currentCardIndex: 0,
       contactItems: [],
-      ownerId: null,
-      signupDraft: false,
-      connectionsCache: null,
 
       resetApp: () => {
-        setSignupDrafting(false);
         void useAppStore.persist.clearStorage();
         set({
           user: createInitialUser(),
           cards: [],
           currentCardIndex: 0,
           contactItems: [],
-          ownerId: null,
-          signupDraft: false,
-          connectionsCache: null,
         });
       },
-
-      setConnectionsCache: (cache) => set({ connectionsCache: cache }),
 
       completeOnboarding: ({ photoAttachmentId, displayName, cardId }) => {
         const now = new Date().toISOString();
@@ -304,6 +270,11 @@ export const useAppStore = create<AppState>()(
       markPassAddHintSeen: () => {
         if (get().user.passAddHintSeen) return;
         set({ user: { ...get().user, passAddHintSeen: true } });
+      },
+
+      markAddLibraryHintSeen: () => {
+        if (get().user.addLibraryHintSeen) return;
+        set({ user: { ...get().user, addLibraryHintSeen: true } });
       },
 
       markPasswordHintSeen: () => {
@@ -440,11 +411,6 @@ export const useAppStore = create<AppState>()(
           ),
         });
 
-        if (signupDrafting()) {
-          holdZoneFile(file);
-          return { ok: true };
-        }
-
         const run = (uploadRuns.get(itemId) ?? 0) + 1;
         uploadRuns.set(itemId, run);
         const current = () => uploadRuns.get(itemId) === run;
@@ -485,7 +451,6 @@ export const useAppStore = create<AppState>()(
       },
 
       recoverFileRows: () => {
-        if (fileRecoveryPaused() || signupDrafting()) return;
         for (const item of get().contactItems) {
           if (!isAttachmentType(item.type) || item.attachmentId || item.url) continue;
           if (useUploadStatus.getState().byItem[item.id] || uploadRuns.has(item.id)) continue;
@@ -838,11 +803,9 @@ export const useAppStore = create<AppState>()(
       },
       partialize: (state) => ({
         user: state.user,
-        ownerId: state.ownerId,
-        connectionsCache: state.connectionsCache,
-        cards: state.signupDraft ? [] : state.cards.map(cardForDisk),
-        currentCardIndex: state.signupDraft ? 0 : state.currentCardIndex,
-        contactItems: state.signupDraft ? [] : state.contactItems.map(itemForDisk),
+        cards: state.cards.map(cardForDisk),
+        currentCardIndex: state.currentCardIndex,
+        contactItems: state.contactItems.map(itemForDisk),
       }),
     },
   ),

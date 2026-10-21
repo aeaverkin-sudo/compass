@@ -1,5 +1,5 @@
 import type { ContactItem, ContactType } from "@/shared/types";
-import { detectContactType, itemDisplayValue } from "./contact-item";
+import { itemDisplayValue } from "./contact-item";
 import { isAttachmentType } from "./portfolio-limits";
 import { typeLabel } from "./portfolio-catalog";
 
@@ -48,16 +48,13 @@ export const BASE_EDIT_ZONES: readonly CardZoneId[] = [
   "about",
 ];
 
-export const SOCIAL_HINT = "Instagram, LinkedIn, etc.";
-export const FILES_HINT = "PDF, JPG, etc.";
-
 export const ZONE_HINTS: Partial<Record<CardZoneId, string>> = {
   position: "Role",
   location: "City, country",
   web: "Website",
-  social: SOCIAL_HINT,
+  social: "Instagram, etc.",
   contact: "Email, phone, messenger",
-  files: FILES_HINT,
+  files: "PDF, JPG, …",
   about: "Write about yourself",
 };
 
@@ -267,23 +264,6 @@ export function isProseValue(text: string) {
 }
 
 /**
- * A new zone whose title was left empty. A machine type names the shelf.
- * A role line, from the role list already in this file, names Position.
- * Anything else is About. A title the person typed is left as it is.
- * Saved rows are not renamed.
- */
-export function labelForNewZone(title: string, value: string): string | null {
-  if (title.trim()) return null;
-  const type = detectContactType(value);
-  if (type !== "text") {
-    const zone = zoneForItem({ id: "", type, label: "", value, url: "", order: 0 });
-    return CARD_ZONES.find((entry) => entry.id === zone)?.title ?? "About";
-  }
-  if (parseDescription(value).position) return "Position";
-  return "About";
-}
-
-/**
  * Honest shelf: a machine type goes to its zone. Free text stays About.
  * Role words, cities, and names are not silent moves.
  */
@@ -353,10 +333,9 @@ export function groupLibrary(
   const exceptId = scope && "id" in scope ? scope.id : undefined;
   for (const item of items) {
     const onCard = onThis?.has(item.id) ?? true;
-    const pinned = canonZoneId(scope?.itemZones?.[item.id]);
-    const zone =
-      pinned ??
-      (onCard ? zoneForItem(item) : (zoneFromPlacements(item, placements, exceptId) ?? zoneForItem(item)));
+    const zone = onCard
+      ? effectiveZone(scope, item)
+      : (zoneFromPlacements(item, placements, exceptId) ?? zoneForItem(item));
     pushDisplayed(buckets, item, undefined, scope, zone);
   }
   return sectionsFrom(buckets, scope);

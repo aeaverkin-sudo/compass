@@ -111,17 +111,11 @@ async function snapshot(lookup: string): Promise<void> {
   if (!event) return;
   const started = Date.now();
   const { png, chromiumMb } = await renderSheet(event.code);
+  const path = `${event.id}.png`;
   const admin = createAdminSupabaseClient();
-  const previous = await admin.from("events").select("poster_path").eq("id", event.id).maybeSingle();
-  const previousPath = (previous.data as { poster_path?: string | null } | null)?.poster_path ?? null;
-  const stamp = new Date().toISOString();
-  const path = `${event.id}-${stamp}.png`;
-  const stored = await admin.storage.from(POSTER_BUCKET).upload(path, png, { contentType: "image/png", upsert: true, cacheControl: "300" });
+  const stored = await admin.storage.from(POSTER_BUCKET).upload(path, png, { contentType: "image/png", upsert: true, cacheControl: "86400" });
   if (stored.error) throw new Error(stored.error.message);
-  const saved = await admin.from("events").update({ poster_path: path, poster_updated_at: stamp }).eq("id", event.id);
-  if (!saved.error && previousPath && previousPath !== path) {
-    await admin.storage.from(POSTER_BUCKET).remove([previousPath]);
-  }
+  const saved = await admin.from("events").update({ poster_path: path, poster_updated_at: new Date().toISOString() }).eq("id", event.id);
   if (saved.error) throw new Error(saved.error.message);
   const nodeMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
   console.info(`[poster] ${event.id} ${png.length} bytes in ${Date.now() - started} ms · chromium ${chromiumMb ?? "?"} MB · node ${nodeMb} MB`);

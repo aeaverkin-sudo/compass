@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  if (!user || user.is_anonymous) return noStore({ error: "Sign in" }, 401);
+  if (!user) return noStore({ error: "Sign in" }, 401);
 
   let token = "";
   try {

@@ -6,7 +6,8 @@ import { writeScreenVars } from "@main/layout";
 
 /**
  * The head script has already sized the shell. This repeats that measure
- * after navigation and when the phone turns. The keyboard does not resize it.
+ * after navigation and when the visible viewport moves.
+ * The band stays hidden until this runs, which is before the first paint.
  */
 export function VisualBottom() {
   const pathname = usePathname();
@@ -27,10 +28,16 @@ export function VisualBottom() {
     };
 
     write();
+    window.visualViewport?.addEventListener("resize", schedule);
+    window.visualViewport?.addEventListener("scroll", schedule);
     window.addEventListener("orientationchange", schedule);
+    window.addEventListener("resize", schedule);
     return () => {
       if (frame) cancelAnimationFrame(frame);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("scroll", schedule);
       window.removeEventListener("orientationchange", schedule);
+      window.removeEventListener("resize", schedule);
     };
   }, [pathname]);
 

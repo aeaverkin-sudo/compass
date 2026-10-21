@@ -15,13 +15,12 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
 import { useLongPress } from "@/shared/hooks/use-long-press";
+import { recallAnswer, rememberAnswer } from "@/shared/lib/last-answer";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { useAppStore } from "@/shared/store/app-store";
 import { foldSearch } from "@/shared/lib/search-fold";
-import { DELETE_RED } from "@/shared/layout/delete-red";
 import { NetworkBand } from "./network-band";
 
-type SortMode = "recent" | "alphabet";
+type SortMode = "recent" | "alphabet" | "event";
 
 type Contact = {
   id: string;
@@ -35,12 +34,14 @@ type Contact = {
 };
 
 const HOLD_MS = 500;
+const CONTACTS_KEY = "connections";
 /** Same token as the profile zone label. */
 const ZONE_LABEL = "t-label whitespace-nowrap";
 
 const SORTS: { id: SortMode; label: string }[] = [
   { id: "recent", label: "Recently added" },
   { id: "alphabet", label: "Alphabet" },
+  { id: "event", label: "by Event" },
 ];
 
 function letterOf(name: string) {
@@ -66,13 +67,6 @@ function matchesQuery(contact: Contact, query: string) {
   return contact.searchText.includes(query);
 }
 
-function rememberedContacts(): Contact[] | null {
-  const owner = useAppStore.getState().ownerId;
-  const cache = useAppStore.getState().connectionsCache;
-  if (!owner || !cache || cache.ownerId !== owner) return null;
-  return cache.contacts;
-}
-
 export function NetworkScreen({
   addedName = null,
   addedToken = null,
@@ -81,9 +75,7 @@ export function NetworkScreen({
   addedToken?: string | null;
 }) {
   const router = useRouter();
-  const storeOwnerId = useAppStore((state) => state.ownerId);
-  const cache = useAppStore((state) => state.connectionsCache);
-  const [contacts, setContacts] = useState<Contact[] | null>(null);
+  const [contacts, setContacts] = useState<Contact[] | null>(() => recallAnswer<Contact[]>(CONTACTS_KEY));
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [armedId, setArmedId] = useState<string | null>(null);
@@ -96,7 +88,7 @@ export function NetworkScreen({
   const load = async () => {
     const response = await fetch("/api/connections", { cache: "no-store" });
     if (!response.ok) {
-      setContacts((current) => current ?? rememberedContacts() ?? []);
+      setContacts([]);
       return;
     }
     const body = (await response.json()) as { connections?: Contact[] };
@@ -117,10 +109,7 @@ export function NetworkScreen({
   }, []);
 
   useEffect(() => {
-    if (!contacts) return;
-    const owner = useAppStore.getState().ownerId ?? ownerId.current;
-    if (!owner) return;
-    useAppStore.getState().setConnectionsCache({ ownerId: owner, contacts, at: Date.now() });
+    if (contacts) rememberAnswer(CONTACTS_KEY, contacts);
   }, [contacts]);
 
   useEffect(() => {
@@ -128,13 +117,10 @@ export function NetworkScreen({
     window.history.replaceState(null, "", "/network");
   }, [addedName]);
 
-  const cached = cache && storeOwnerId && cache.ownerId === storeOwnerId ? cache.contacts : null;
-  const shown = contacts ?? cached;
-
   const accepted = useMemo(() => {
     const needle = foldSearch(query.trim());
-    return (shown ?? []).filter((contact) => matchesQuery(contact, needle));
-  }, [shown, query]);
+    return (contacts ?? []).filter((contact) => matchesQuery(contact, needle));
+  }, [contacts, query]);
 
   const readyOwnerId = async () => {
     if (ownerId.current) return ownerId.current;
@@ -144,13 +130,12 @@ export function NetworkScreen({
   };
 
   const remove = async (id: string) => {
-    const list = contacts ?? cached;
-    const index = list?.findIndex((contact) => contact.id === id) ?? -1;
-    const before = index >= 0 ? list?.[index] : undefined;
+    const index = contacts?.findIndex((contact) => contact.id === id) ?? -1;
+    const before = index >= 0 ? contacts?.[index] : undefined;
     if (!before || inFlight.current.has(id)) return;
     inFlight.current.add(id);
     setArmedId(null);
-    setContacts((current) => (current ?? list)?.filter((contact) => contact.id !== id) ?? current);
+    setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
     try {
       const userId = await readyOwnerId();
       const { error } = userId
@@ -158,9 +143,8 @@ export function NetworkScreen({
         : { error: true };
       if (error) {
         setContacts((current) => {
-          const base = current ?? list;
-          if (!base) return current;
-          const next = [...base];
+          if (!current) return current;
+          const next = [...current];
           next.splice(Math.min(index, next.length), 0, before);
           return next;
         });
@@ -170,7 +154,7 @@ export function NetworkScreen({
     }
   };
 
-  const empty = shown !== null && shown.length === 0;
+  const empty = contacts !== null && contacts.length === 0;
 
   return (
     <main
@@ -214,9 +198,7 @@ export function NetworkScreen({
             </DropdownMenu>
           </div>
         </Zone>
-        {shown === null ? (
-          <p className="mt-[18px] mb-0 t-meta text-[var(--grey)]">Loading your contacts…</p>
-        ) : empty ? (
+        {empty ? (
           <Zone label="Contacts">
             <p className="t-body text-[var(--grey)]">No contacts yet.</p>
             <p className="mt-1 t-meta text-[var(--grey)]">Exchange a card and your first contact appears here.</p>
@@ -232,7 +214,7 @@ export function NetworkScreen({
               />
             ) : (
               <FlatList
-                contacts={groupAccepted(accepted)}
+                contacts={groupAccepted(accepted, sort)}
                 armedId={armedId}
                 onArm={setArmedId}
                 onRemove={(id) => void remove(id)}
@@ -248,7 +230,21 @@ export function NetworkScreen({
   );
 }
 
-function groupAccepted(contacts: Contact[]) {
+function groupAccepted(contacts: Contact[], sort: SortMode) {
+  if (sort === "event") {
+    const groups = new Map<string, Contact[]>();
+    for (const contact of contacts) {
+      const key = contact.sourceEventId ?? "";
+      const list = groups.get(key) ?? [];
+      list.push(contact);
+      groups.set(key, list);
+    }
+    return [...groups.entries()].map(([key, list]) => ({
+      key,
+      label: key ? "Event" : "",
+      contacts: list.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    }));
+  }
   return [
     {
       key: "recent",
@@ -372,8 +368,8 @@ function ContactRow({
         </div>
       </Link>
       {armed ? (
-        <button type="button" aria-label="Delete" onClick={onRemove} className="inline-flex size-8 items-center justify-center border-0 bg-transparent">
-          <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} />
+        <button type="button" aria-label="Delete" onClick={onRemove} className="inline-flex size-8 items-center justify-center border-0 bg-transparent text-[#111]">
+          <X className="size-4" strokeWidth={1.5} />
         </button>
       ) : null}
     </li>

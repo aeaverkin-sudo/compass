@@ -1,14 +1,11 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import { Plus, Wallet } from "lucide-react";
+import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { AccountBand } from "@/shared/components/account-band";
-import { SkyToast } from "@/shared/components/sky-toast";
-import { TapButton } from "@/shared/components/tap-button";
-import { cardInWallet, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
@@ -18,7 +15,7 @@ import { PhotoSlotPicker, photoSlotLookClass } from "@landing/components/photo-s
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
-import { CardEditList, type ScaffoldZone } from "./card-edit-list";
+import { CardEditList } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NotesRubric } from "./notes-rubric";
 import { useOwnerNotesDelivery } from "../hooks/use-owner-notes-delivery";
@@ -43,92 +40,6 @@ import {
 } from "../layout";
 
 const HERO_PHOTO_PX = 128;
-
-/** Apple's registration arrives after the file opens. A few reads, then stop. */
-const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
-
-/** Under the last line, on the value column. The tab bar stays below the card. */
-function AddToWallet({ cardId }: { cardId: string }) {
-  const [toast, setToast] = useState(false);
-  const [markedId, setMarkedId] = useState<string | null>(null);
-  const inWallet = markedId === cardId;
-  const read = useRef(0);
-  const pollGen = useRef(0);
-  const polls = useRef<number[]>([]);
-  const apply = useCallback((added: boolean | null) => {
-    if (added === true) setMarkedId(cardId);
-    else if (added === false) setMarkedId((current) => (current === cardId ? null : current));
-  }, [cardId]);
-  const refresh = useCallback(() => {
-    const ticket = ++read.current;
-    void cardInWallet(cardId).then((added) => {
-      if (ticket === read.current) apply(added);
-    });
-  }, [apply, cardId]);
-  const watchRegistration = useCallback(() => {
-    polls.current.forEach((id) => window.clearTimeout(id));
-    const generation = ++pollGen.current;
-    polls.current = WALLET_RECHECK_MS.map((delay) =>
-      window.setTimeout(() => {
-        if (generation !== pollGen.current) return;
-        void cardInWallet(cardId).then((added) => {
-          if (generation === pollGen.current && added === true) apply(true);
-        });
-      }, delay),
-    );
-  }, [apply, cardId]);
-  useEffect(() => {
-    let returnTimer = 0;
-    refresh();
-    const onReturn = () => {
-      if (document.visibilityState === "hidden") return;
-      window.clearTimeout(returnTimer);
-      returnTimer = window.setTimeout(refresh, 300);
-    };
-    document.addEventListener("visibilitychange", onReturn);
-    window.addEventListener("focus", onReturn);
-    return () => {
-      read.current += 1;
-      pollGen.current += 1;
-      window.clearTimeout(returnTimer);
-      polls.current.forEach((id) => window.clearTimeout(id));
-      polls.current = [];
-      document.removeEventListener("visibilitychange", onReturn);
-      window.removeEventListener("focus", onReturn);
-    };
-  }, [refresh]);
-  return (
-    <>
-      <section className="border-t border-[var(--rule)] py-[18px]">
-        <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
-          <span />
-          {inWallet ? (
-            <p className="inline-flex items-center py-[10.8px] t-caps text-[var(--grey)]">IN WALLET</p>
-          ) : (
-            <TapButton
-              data-card-content
-              data-no-swipe
-              onTap={() => {
-                void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
-                  if (!opened) {
-                    setToast(true);
-                    return;
-                  }
-                  watchRegistration();
-                });
-              }}
-              className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
-            >
-              <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
-              Add to Wallet
-            </TapButton>
-          )}
-        </div>
-      </section>
-      {toast ? <SkyToast text={WALLET_SOON} onDone={() => setToast(false)} /> : null}
-    </>
-  );
-}
 
 /** Name and photo stay on the live card. The rest of the sheet can paint a frame later. */
 function useLiveFace(card: Card) {
@@ -155,9 +66,6 @@ function EditorialHeader({
   plate = false,
   scale = 1,
   portfolioMark = false,
-  namePending = false,
-  photoEmptyMark,
-  fullRule = false,
 }: {
   card: Card;
   positionTitle?: string;
@@ -174,11 +82,6 @@ function EditorialHeader({
   scale?: number;
   /** Public / PDF: orange PORTFOLIO at the top-right of the header, on the zone axis. */
   portfolioMark?: boolean;
-  /** Offered name stays grey until the first edit. */
-  namePending?: boolean;
-  photoEmptyMark?: ReactNode;
-  /** Questionnaire: a zone rule under the name, the width of the name column. */
-  fullRule?: boolean;
 }) {
   const face = useLiveFace(card);
   const photoSrc = face.photoSrc;
@@ -216,7 +119,6 @@ function EditorialHeader({
               borderRadiusPx={0}
               photoLook={face.photoLook}
               onPhotoLook={setPhotoLook}
-              emptyMark={photoEmptyMark}
             />
           ) : photoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -235,9 +137,7 @@ function EditorialHeader({
             <HeroName
               value={face.displayName}
               onChange={onDisplayNameChange}
-              pending={namePending}
               roleBelow={Boolean(positionTitle)}
-              fullRule={fullRule}
             />
             {positionTitle ? (
               <p
@@ -442,17 +342,6 @@ type BusinessCardProps = {
   sheetTotal?: number;
   /** A guest's event card: `{EVENT} · PASS` under the QR. The card counts as ready without a photo. */
   sheetMark?: string;
-  /** Questionnaire: the photo and the name, even before either is filled. */
-  headerWhenEmpty?: boolean;
-  /** Empty named zones. Omitted on the card itself. */
-  scaffold?: ScaffoldZone[];
-  /** Sits in the same scroll as the zones. */
-  footer?: ReactNode;
-  /** Offered name stays grey until the first key. */
-  namePending?: boolean;
-  photoEmptyMark?: ReactNode;
-  /** Questionnaire: a zone rule under the name. The portfolio leaves this off. */
-  fullRule?: boolean;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -481,12 +370,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     sheetIndex,
     sheetTotal,
     sheetMark,
-    headerWhenEmpty = false,
-    scaffold,
-    footer,
-    namePending = false,
-    photoEmptyMark,
-    fullRule = false,
   },
   ref,
 ) {
@@ -650,7 +533,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     >
       {!compact ? (
         <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
-          {blank && !headerWhenEmpty ? (
+          {blank ? (
             <EmptyPortfolioStart
               card={card}
               onPhotoChange={onPhotoChange}
@@ -670,9 +553,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               plate
               scale={readOnly ? 1 : headerScale}
               portfolioMark={readOnly}
-              namePending={namePending}
-              photoEmptyMark={photoEmptyMark}
-              fullRule={fullRule}
             />
           )}
         </div>
@@ -745,7 +625,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           composeOnMount={composeOnMount}
           openAddRef={openAddRef}
           onComposingChange={onComposingChange}
-          scaffold={scaffold}
         />
       ) : (
       <div
@@ -796,7 +675,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       </div>
       )}
 
-      {!compact && !editing && !readOnly && items.length > 0 ? <AddToWallet cardId={card.id} /> : null}
       {!compact && !editing ? (
         <NotesRubric
           ownerNotes={readOnly ? undefined : nextScanAddons}
@@ -816,7 +694,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           ) : null}
         </div>
       ) : null}
-      {footer}
       </div>
       </div>
       </div>

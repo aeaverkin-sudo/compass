@@ -1,6 +1,6 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { deleteAttachment, removeStoredObject } from "@/shared/services/attachment-api";
-import { CARD_ATTACHMENTS_BUCKET, NOTE_FILE_GRACE_MS, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
+import { CARD_ATTACHMENTS_BUCKET, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
 import { deleteOwnAccount } from "@/shared/services/account-delete";
 import { keepSavedCardSnapshots } from "@/shared/services/connection-snapshot";
 
@@ -9,8 +9,8 @@ const DAY_MS = 24 * HOUR_MS;
 
 /** Tapped in, never started the trial. */
 export const ABANDONED_ANON_MS = 48 * HOUR_MS;
-/** Undelivered handoff kept past this is removed with its files. Matches the note TTL. */
-export const STALE_TRANSFER_MS = 7 * DAY_MS;
+/** Undelivered handoff kept past this is removed with its files. */
+export const STALE_TRANSFER_MS = 14 * DAY_MS;
 /** A just-uploaded file is not an orphan yet. */
 const ORPHAN_MIN_AGE_MS = 24 * HOUR_MS;
 
@@ -23,7 +23,6 @@ type AttachmentRow = {
   owner_id: string;
   bucket: string;
   storage_path: string;
-  delete_after?: string | null;
 };
 
 export type PurgeReport = {
@@ -161,94 +160,41 @@ async function purgeUsers(filter: "trial" | "anon") {
   return count;
 }
 
-async function retireTransfer(id: string) {
+async function purgeStaleTransfers() {
   const admin = createAdminSupabaseClient();
-  const files = await admin.from("transfer_items").select("attachment_id").eq("transfer_id", id);
-  if (files.error) throw new Error(files.error.message);
-  const attachmentIds = (files.data ?? []).flatMap((row) =>
-    typeof row.attachment_id === "string" ? [row.attachment_id] : [],
-  );
-  const { error: deleteError } = await admin.from("card_transfers").delete().eq("id", id);
-  if (deleteError) throw new Error(deleteError.message);
-  if (attachmentIds.length === 0) return;
-  const { data: rows, error: readError } = await admin
-    .from("attachments")
-    .select("id, owner_id, bucket, storage_path")
-    .in("id", attachmentIds);
-  if (readError) throw new Error(readError.message);
-  for (const row of (rows ?? []) as AttachmentRow[]) {
-    try {
-      await dropAttachment(row);
-    } catch (reason) {
-      console.error("[purge] transfer file", row.id, reason);
-    }
-  }
-}
-
-async function transferIds(
-  status: "pending" | "expired" | "consumed",
-  column: "expires_at" | "consumed_at",
-  cutoff: string,
-) {
-  const admin = createAdminSupabaseClient();
-  const { data, error } = await admin
-    .from("card_transfers")
-    .select("id")
-    .eq("status", status)
-    .lt(column, cutoff)
-    .limit(FILE_BATCH);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => row.id as string);
-}
-
-async function abandonedTransferIds(now: string) {
-  const admin = createAdminSupabaseClient();
-  const createdCutoff = new Date(Date.now() - STALE_TRANSFER_MS).toISOString();
+  const cutoff = new Date(Date.now() - STALE_TRANSFER_MS).toISOString();
   const { data, error } = await admin
     .from("card_transfers")
     .select("id")
     .in("status", ["pending", "expired"])
-    .or(`expires_at.lt."${now}",created_at.lt."${createdCutoff}"`)
+    .lt("created_at", cutoff)
     .limit(FILE_BATCH);
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => row.id as string);
-}
-
-/** Abandoned notes past their TTL, delivered notes the handoff could not retire, and files past the grace. */
-async function purgeStaleTransfers() {
-  const now = new Date().toISOString();
-  const graceCutoff = new Date(Date.now() - NOTE_FILE_GRACE_MS).toISOString();
-  const abandoned = await abandonedTransferIds(now);
-  const consumed = await transferIds("consumed", "consumed_at", graceCutoff);
   let count = 0;
-  for (const id of [...abandoned, ...consumed]) {
-    await retireTransfer(id);
-    count += 1;
-  }
-  count += await purgeScheduledTransferFiles();
-  return count;
-}
-
-async function purgeScheduledTransferFiles() {
-  const admin = createAdminSupabaseClient();
-  const { data, error } = await admin
-    .from("attachments")
-    .select("id, owner_id, bucket, storage_path, delete_after")
-    .eq("bucket", TRANSFER_ASSETS_BUCKET)
-    .lte("delete_after", new Date().toISOString())
-    .limit(FILE_BATCH);
-  if (error) {
-    if (/delete_after/i.test(error.message)) return 0;
-    throw new Error(error.message);
-  }
-  let count = 0;
-  for (const row of (data ?? []) as AttachmentRow[]) {
-    try {
-      await dropAttachment(row);
-      count += 1;
-    } catch (reason) {
-      console.error("[purge] delivered file", row.id, reason);
+  for (const transfer of data ?? []) {
+    const id = transfer.id as string;
+    const files = await admin.from("transfer_items").select("attachment_id").eq("transfer_id", id);
+    if (files.error) throw new Error(files.error.message);
+    const attachmentIds = (files.data ?? []).flatMap((row) =>
+      typeof row.attachment_id === "string" ? [row.attachment_id] : [],
+    );
+    const { error: deleteError } = await admin.from("card_transfers").delete().eq("id", id);
+    if (deleteError) throw new Error(deleteError.message);
+    if (attachmentIds.length > 0) {
+      const { data: rows, error: readError } = await admin
+        .from("attachments")
+        .select("id, owner_id, bucket, storage_path")
+        .in("id", attachmentIds);
+      if (readError) throw new Error(readError.message);
+      for (const row of (rows ?? []) as AttachmentRow[]) {
+        try {
+          await dropAttachment(row);
+        } catch (reason) {
+          console.error("[purge] transfer file", row.id, reason);
+        }
+      }
     }
+    count += 1;
   }
   return count;
 }
@@ -256,29 +202,14 @@ async function purgeScheduledTransferFiles() {
 async function purgeOrphanRows() {
   const admin = createAdminSupabaseClient();
   const cutoff = new Date(Date.now() - ORPHAN_MIN_AGE_MS).toISOString();
-  const listed = await admin
+  const { data, error } = await admin
     .from("attachments")
-    .select("id, owner_id, bucket, storage_path, delete_after")
+    .select("id, owner_id, bucket, storage_path")
     .lt("created_at", cutoff)
     .order("created_at")
     .limit(FILE_BATCH);
-  let data = listed.data as AttachmentRow[] | null;
-  let error = listed.error;
-  if (error && /delete_after/i.test(error.message)) {
-    const fallback = await admin
-      .from("attachments")
-      .select("id, owner_id, bucket, storage_path")
-      .lt("created_at", cutoff)
-      .order("created_at")
-      .limit(FILE_BATCH);
-    data = fallback.data as AttachmentRow[] | null;
-    error = fallback.error;
-  }
   if (error) throw new Error(error.message);
-  const rows = ((data ?? []) as AttachmentRow[]).filter((row) => {
-    if (!row.delete_after) return true;
-    return new Date(row.delete_after).getTime() <= Date.now();
-  });
+  const rows = (data ?? []) as AttachmentRow[];
   const used = await referenced(rows.map((row) => row.id));
   let count = 0;
   for (const row of rows) {

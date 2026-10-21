@@ -2,19 +2,7 @@ type Listener = () => void;
 
 let ready = false;
 let registrationRequired = false;
-let liveSession = false;
 const listeners = new Set<Listener>();
-
-/** A non-anonymous session survived the auth check. */
-export function markLiveSession(live: boolean) {
-  if (liveSession === live) return;
-  liveSession = live;
-  for (const listener of listeners) listener();
-}
-
-export function getLiveSession() {
-  return liveSession;
-}
 
 /** Called once SupabaseSession finishes its first auth check. */
 export function markSessionBootstrapComplete() {
@@ -65,6 +53,26 @@ export function consumeSignedOutIgnore() {
   return true;
 }
 
+const OAUTH_REPLACE_LOCAL = "aded-oauth-replace-local";
+
+/** Existing-account Google sign-in is about to leave the page. The trial stays until that session is real. */
+export function markOAuthReplaceLocal() {
+  try {
+    sessionStorage.setItem(OAUTH_REPLACE_LOCAL, "1");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** The Google redirect did not finish. Keep the trial. */
+export function cancelOAuthReplaceLocal() {
+  try {
+    sessionStorage.removeItem(OAUTH_REPLACE_LOCAL);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 /** A stored login whose user is gone. A missing session is not dead: that phone may still need Sign in. */
 export function isDeadAuthSession(error: { name?: string; message?: string; code?: string } | null): boolean {
   if (!error || error.name === "AuthSessionMissingError" || error.name === "AuthRetryableFetchError") return false;
@@ -93,5 +101,16 @@ export function clearStoredAuthTokens() {
     for (const key of keys) localStorage.removeItem(key);
   } catch {
     // Private mode can block storage.
+  }
+}
+
+/** True once, after a confirmed non-anonymous return. The trial must not merge into that account. */
+export function consumeOAuthReplaceLocal() {
+  try {
+    if (sessionStorage.getItem(OAUTH_REPLACE_LOCAL) !== "1") return false;
+    sessionStorage.removeItem(OAUTH_REPLACE_LOCAL);
+    return true;
+  } catch {
+    return false;
   }
 }

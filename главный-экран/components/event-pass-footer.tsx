@@ -3,8 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
+import { TapButton } from "@/shared/components/tap-button";
+import { SkyToast } from "@/shared/components/sky-toast";
 import { deletionLine } from "@/shared/lib/deletion-date";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { useAppStore } from "@/shared/store/app-store";
 
 const FIELD =
   "compass-input block w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 py-1 text-center t-body text-[var(--ink)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
@@ -81,7 +85,7 @@ function AddEmail({ pendingEmail }: { pendingEmail: string | null }) {
   );
 }
 
-/** Under the rows of a guest's event card: the scanner before the end, or Keep after it. */
+/** Under the rows of a guest's event card: the scanner and Wallet before the end, or Keep after it. */
 export function EventPassFooter({
   ended,
   payPending,
@@ -95,6 +99,7 @@ export function EventPassFooter({
   needsEmail: boolean;
   pendingEmail: string | null;
 }) {
+  const [toast, setToast] = useState(false);
   const deletion = deletionLine(deleteAt);
 
   return (
@@ -126,8 +131,27 @@ export function EventPassFooter({
             </Link>
           </div>
           <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">Scan a guest&apos;s QR to keep their card.</p>
+          <div className="mt-6">
+            <TapButton
+              data-card-content
+              data-no-swipe
+              onTap={() => {
+                const { cards, currentCardIndex } = useAppStore.getState();
+                const card = cards[currentCardIndex] ?? cards[0];
+                if (!card) return setToast(true);
+                void openWalletPass(`/api/cards/${card.id}/pass`).then((opened) => setToast(!opened));
+              }}
+              className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
+            >
+              Add to Apple Wallet
+            </TapButton>
+          </div>
+          <p className="mt-3 mb-0 max-w-[260px] text-center t-meta text-[var(--grey)]">
+            This event pass is also your portfolio — share it with people you meet at the event.
+          </p>
         </>
       )}
+      {toast ? <SkyToast text={WALLET_SOON} onDone={() => setToast(false)} /> : null}
     </div>
   );
 }

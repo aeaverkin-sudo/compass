@@ -1,8 +1,8 @@
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { mailOrigin } from "@/shared/lib/public-origin";
 import { requestIp } from "@/shared/services/event-pass-guard";
-import { acceptGuestPass } from "@/shared/services/member-account";
-import { acceptReply, noStore } from "@/shared/services/http-reply";
+import { acceptGuestPass } from "@/shared/services/guest-accept";
+import { acceptReply, noStore } from "@/shared/services/guest-accept-reply";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

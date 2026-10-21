@@ -351,8 +351,6 @@ body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   scrollbar-width: none;
-  scroll-padding-top: 6.4px;
-  scroll-padding-bottom: 8px;
 }
 
 .compass-preview-scroll {

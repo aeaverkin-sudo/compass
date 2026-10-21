@@ -1,29 +1,20 @@
-// ADED service worker. Static files come from the cache. Pages come from the network.
-// A cached page is used only when the network rejects the request. A slow network waits.
-// The cache name is the build id in the script URL (?v=), so a deploy drops the previous shell.
+// ADED service worker: static files from the cache, pages from the network with a cached shell to fall back on.
 // Never cached: /api/*, the event cabinet (/e/*/manage*), stored files (/f/*), auth callbacks.
 
-const version = new URL(self.location.href).searchParams.get("v") || "0";
-const STATIC = `aded-static-${version}`;
-const PAGES = `aded-pages-${version}`;
+const STATIC = "aded-static-v1";
+const PAGES = "aded-pages-v1";
 const SHELL = "/main";
 const SHELLS = new Set(["/", "/main", "/profile", "/network", "/network/event", "/network/connections", "/network/data"]);
+const PAGE_TIMEOUT_MS = 3000;
 const STATIC_LIMIT = 400;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    (async () => {
-      try {
-        const cache = await caches.open(PAGES);
-        const response = await fetch(new Request(SHELL, { cache: "reload" }));
-        if (response.ok && response.type === "basic" && !response.redirected) {
-          await storeShell(cache, SHELL, response);
-        }
-      } catch {
-        // The next online navigation fills the shell.
-      }
-      await self.skipWaiting();
-    })(),
+    caches
+      .open(PAGES)
+      .then((cache) => cache.add(new Request(SHELL, { cache: "reload" })))
+      .catch(() => undefined)
+      .then(() => self.skipWaiting()),
   );
 });
 
@@ -54,33 +45,6 @@ function isPrivate(path) {
   );
 }
 
-function staticUrls(html) {
-  const urls = new Set();
-  const re = /(?:href|src)\s*=\s*["']([^"']+)["']/g;
-  let match = re.exec(html);
-  while (match) {
-    const value = match[1];
-    const index = value.indexOf("/_next/static/");
-    if (index !== -1) urls.add(value.slice(index));
-    match = re.exec(html);
-  }
-  return [...urls];
-}
-
-async function storeShell(pageCache, path, response) {
-  const html = await response.clone().text();
-  await pageCache.put(path, response);
-  const urls = staticUrls(html);
-  if (urls.length === 0) return;
-  const staticCache = await caches.open(STATIC);
-  try {
-    await staticCache.addAll(urls);
-  } catch {
-    await Promise.all(urls.map((url) => staticCache.add(url).catch(() => undefined)));
-  }
-  await trim(staticCache);
-}
-
 async function trim(cache) {
   const keys = await cache.keys();
   const extra = keys.length - STATIC_LIMIT;
@@ -99,26 +63,20 @@ async function fromCacheFirst(request) {
   return response;
 }
 
-function loadPage(request, path) {
-  const task = (async () => {
-    const cache = await caches.open(PAGES);
-    try {
-      const response = await fetch(request);
-      const store =
-        response.ok && response.type === "basic" && !response.redirected && SHELLS.has(path)
-          ? storeShell(cache, path, response.clone())
-          : Promise.resolve();
-      return { response, store };
-    } catch (error) {
-      const cached = (await cache.match(path)) || (path === "/" ? await cache.match(SHELL) : undefined);
-      if (cached) return { response: cached, store: Promise.resolve() };
-      throw error;
+async function fromNetworkFirst(request, path) {
+  const cache = await caches.open(PAGES);
+  const network = fetch(request).then(async (response) => {
+    if (response.ok && response.type === "basic" && !response.redirected && SHELLS.has(path)) {
+      await cache.put(path, response.clone());
     }
-  })();
-  return {
-    response: task.then((result) => result.response),
-    store: task.then((result) => result.store).catch(() => undefined),
-  };
+    return response;
+  });
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(null), PAGE_TIMEOUT_MS));
+  const first = await Promise.race([network.catch(() => null), timeout]);
+  if (first) return first;
+  const cached = (await cache.match(path)) || (path === "/" ? await cache.match(SHELL) : undefined);
+  if (cached) return cached;
+  return network;
 }
 
 self.addEventListener("fetch", (event) => {
@@ -132,9 +90,5 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fromCacheFirst(request));
     return;
   }
-  if (request.mode === "navigate") {
-    const page = loadPage(request, path);
-    event.respondWith(page.response);
-    event.waitUntil(page.store);
-  }
+  if (request.mode === "navigate") event.respondWith(fromNetworkFirst(request, path));
 });

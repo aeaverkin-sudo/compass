@@ -1,14 +1,14 @@
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { mailOrigin } from "@/shared/lib/public-origin";
-import { sendWelcomeMail } from "@/shared/services/signup";
-import { noStore } from "@/shared/services/http-reply";
+import { sendWelcomeMail } from "@/shared/services/cold-entry";
+import { noStore } from "@/shared/services/guest-accept-reply";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** The one welcome mail after Create portfolio on the site. */
+/** The welcome mail after Create my profile. Sent once per account. */
 export async function POST(request: Request) {
   let body: { cardId?: unknown; password?: unknown } = {};
   try {

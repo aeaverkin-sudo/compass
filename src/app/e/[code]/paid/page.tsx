@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadOwnRegistration } from "@/shared/services/event-registration";
 import { markPaidFromReturn } from "@/shared/services/event-payment";
-import { isPermanentAccount } from "@/shared/services/member-account";
+import { isPermanentAccount } from "@/shared/services/guest-accept";
 
 export const dynamic = "force-dynamic";
 
