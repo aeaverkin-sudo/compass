@@ -76,26 +76,111 @@ function computeLayout(): MainLayout | null {
   };
 }
 
+type HeadMeasure = { appH: string; bandH: string; vvBottom: string; hd: string };
+
+function readScreenSnapshot(): HeadMeasure {
+  const root = document.documentElement;
+  const read = (name: string) => root.style.getPropertyValue(name).trim();
+  return {
+    appH: read("--app-h"),
+    bandH: read("--band-h"),
+    vvBottom: read("--vv-bottom"),
+    hd: read("--hd"),
+  };
+}
+
+function headMeasure(): HeadMeasure | null {
+  const stored = (window as Window & { __compassHeadMeasure?: HeadMeasure }).__compassHeadMeasure;
+  return stored ?? null;
+}
+
+let startupLogged = false;
+
+/** A late viewport correction on launch must land before motion starts. Past this, motion is allowed anyway. */
+const STARTUP_CAP_MS = 400;
+
 export function useMainLayout() {
   const [layout, setLayout] = useState<MainLayout | null>(null);
 
   useLayoutEffect(() => {
+    const root = document.documentElement;
+    const cold = !root.classList.contains("compass-settled");
+
     const sync = () => {
-      setLayout(computeLayout());
+      const head = cold ? headMeasure() : null;
+      const next = computeLayout();
+      if (head && !startupLogged && process.env.NODE_ENV !== "production") {
+        startupLogged = true;
+        const after = readScreenSnapshot();
+        console.info("[layout] head vs mount", {
+          appH: head.appH,
+          after: after.appH,
+          bandH: { head: head.bandH, after: after.bandH },
+          vvBottom: { head: head.vvBottom, after: after.vvBottom },
+          hd: { head: head.hd, after: after.hd },
+        });
+      }
+      setLayout(next);
     };
 
     // Recompute only on real layout changes (orientation / window size), not on
     // keyboard toggles — the visual viewport resize would shift the whole stack.
     sync();
-    // The first numbers are already on :root. Height transitions start after that paint.
-    const frame = requestAnimationFrame(() => {
-      document.documentElement.classList.add("compass-settled");
-    });
+
+    let timer = 0;
+    let outer = 0;
+    let inner = 0;
+    let onViewport: (() => void) | null = null;
+    if (cold) {
+      const started = performance.now();
+      const standalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+      const clearArm = () => {
+        if (timer) window.clearTimeout(timer);
+        cancelAnimationFrame(outer);
+        cancelAnimationFrame(inner);
+        timer = 0;
+      };
+      const finish = () => {
+        clearArm();
+        root.classList.add("compass-settled");
+        if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
+      };
+      const finishSoon = () => {
+        clearArm();
+        outer = requestAnimationFrame(() => {
+          inner = requestAnimationFrame(finish);
+        });
+      };
+      // A browser viewport is already stable: two frames is enough.
+      // The installed app reports a viewport that moves for a few hundred milliseconds.
+      const arm = () => {
+        clearArm();
+        const remain = STARTUP_CAP_MS - (performance.now() - started);
+        if (standalone && remain > 0) {
+          timer = window.setTimeout(finishSoon, remain);
+          return;
+        }
+        finishSoon();
+      };
+      onViewport = () => {
+        if (root.classList.contains("compass-settled")) return;
+        sync();
+        arm();
+      };
+      window.visualViewport?.addEventListener("resize", onViewport);
+      arm();
+    }
+
     window.addEventListener("resize", sync);
     window.addEventListener("orientationchange", sync);
 
     return () => {
-      cancelAnimationFrame(frame);
+      if (timer) window.clearTimeout(timer);
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+      if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
       window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
     };

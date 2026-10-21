@@ -14,6 +14,10 @@ export function VisualBottom() {
 
   useLayoutEffect(() => {
     const root = document.documentElement;
+    // / and /main stay unsettled until the portfolio measures. Any other arrival releases motion.
+    if (pathname !== "/" && pathname !== "/main" && !pathname.startsWith("/main/")) {
+      root.classList.add("compass-settled");
+    }
     let frame = 0;
 
     const write = () => {

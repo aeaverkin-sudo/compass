@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainScreen } from "@main/components/main-screen";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
@@ -29,6 +29,11 @@ export default function MainPage() {
   // A returning device draws its stored cards at once; the session check and the server pull catch up behind.
   const cached = hydrated && onboarded && hasCards && !needsSignIn;
 
+  useLayoutEffect(() => {
+    applyMainChrome();
+  }, []);
+
+  // A client arrival from / replaces the status-bar color after the layout pass.
   useEffect(() => {
     applyMainChrome();
   }, []);
