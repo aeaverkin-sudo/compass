@@ -157,6 +157,7 @@ function EditorialHeader({
   portfolioMark = false,
   namePending = false,
   photoEmptyMark,
+  fullRule = false,
 }: {
   card: Card;
   positionTitle?: string;
@@ -176,6 +177,8 @@ function EditorialHeader({
   /** Offered name stays grey until the first edit. */
   namePending?: boolean;
   photoEmptyMark?: ReactNode;
+  /** Questionnaire: a zone rule under the name, the width of the name column. */
+  fullRule?: boolean;
 }) {
   const face = useLiveFace(card);
   const photoSrc = face.photoSrc;
@@ -234,6 +237,7 @@ function EditorialHeader({
               onChange={onDisplayNameChange}
               pending={namePending}
               roleBelow={Boolean(positionTitle)}
+              fullRule={fullRule}
             />
             {positionTitle ? (
               <p
@@ -447,6 +451,8 @@ type BusinessCardProps = {
   /** Offered name stays grey until the first key. */
   namePending?: boolean;
   photoEmptyMark?: ReactNode;
+  /** Questionnaire: a zone rule under the name. The portfolio leaves this off. */
+  fullRule?: boolean;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -480,6 +486,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     footer,
     namePending = false,
     photoEmptyMark,
+    fullRule = false,
   },
   ref,
 ) {
@@ -665,6 +672,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               portfolioMark={readOnly}
               namePending={namePending}
               photoEmptyMark={photoEmptyMark}
+              fullRule={fullRule}
             />
           )}
         </div>

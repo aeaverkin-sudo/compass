@@ -334,6 +334,7 @@ export function SignupScreen({
             openAddRef={openAddRef}
             namePending={titlePending}
             photoEmptyMark={photoEmpty}
+            fullRule
             onPhotoChange={(dataUrl, file) => {
               setPhoto(dataUrl && file ? { file, dataUrl } : null);
               useAppStore.getState().updateCard(card.id, {
