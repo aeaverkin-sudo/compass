@@ -71,6 +71,7 @@ export function HeroName({
   align = "bottom",
   pending = false,
   onFocus,
+  fullRule = false,
 }: {
   value: string;
   onChange?: (displayName: string) => void;
@@ -83,6 +84,8 @@ export function HeroName({
   onFocus?: () => void;
   /** Center puts the lines themselves, without the descender pad, on the middle of the photo. */
   align?: "bottom" | "center";
+  /** Questionnaire: the rule under the name runs the width of the name column. */
+  fullRule?: boolean;
 }) {
   const centered = align === "center";
   const boxRef = useRef<HTMLDivElement>(null);
@@ -184,6 +187,7 @@ export function HeroName({
       className={cn(
         "relative flex min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-visible",
         centered ? "items-center" : "items-end",
+        fullRule && "border-b border-[var(--rule)]",
       )}
     >
       {onChange ? (
@@ -192,7 +196,8 @@ export function HeroName({
           <span
             aria-hidden
             className={cn(
-              "pointer-events-none absolute left-0 whitespace-pre border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]",
+              "pointer-events-none absolute left-0 whitespace-pre pb-px text-[var(--placeholder)]",
+              !fullRule && "border-b-[0.5px] border-[#D0D0D0]",
               centered && "top-1/2 -translate-y-1/2",
             )}
             style={{ fontSize: size, fontWeight: 400, lineHeight: 1, bottom: centered ? undefined : descender }}

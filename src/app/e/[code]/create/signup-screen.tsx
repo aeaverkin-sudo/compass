@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { BusinessCard } from "@main/components/business-card";
 import { type ScaffoldZone } from "@main/components/card-edit-list";
+import { CARD_TOP_TRIM_PX, RULE_GAP_PX, SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { useMainLayout } from "@main/hooks/use-main-layout";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
-import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { clearRegisteredDevice, markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
@@ -314,7 +315,15 @@ export function SignupScreen({
     <main className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background text-[var(--ink)]">
       <BackButton fallbackHref={eventPath} />
       {layout && card ? (
-        <div className="absolute overflow-hidden" style={{ left: inset, right: inset, top: layout.qrTop, zIndex: 20 }}>
+        <div
+          className="absolute overflow-hidden"
+          style={{
+            left: inset,
+            right: inset,
+            top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px + ${HEADER_ROW_PX / 2 + 18 - (RULE_GAP_PX - CARD_TOP_TRIM_PX) * layout.headerScale}px)`,
+            zIndex: 20,
+          }}
+        >
           <BusinessCard
             card={card}
             library={[]}
