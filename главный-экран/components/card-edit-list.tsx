@@ -1,7 +1,7 @@
 "use client";
 
 import { File as FileIcon, Plus, X } from "lucide-react";
-import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type ReactNode, type RefObject } from "react";
 import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
@@ -46,11 +46,17 @@ const LOOKING_FOR = "Looking for";
 const LOOKING_FOR_ZONE = "background";
 const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
+const KEYBOARD_MIN_PX = 80;
 const DUPLICATE_NOTICE = "Already in your library";
 
 /** A docked line grows with its text up to the screen above the keyboard; only past that it scrolls. */
 function dockReach(keyboard: number) {
   return `calc(100dvh - ${keyboard}px - 56px)`;
+}
+
+function isLiftField(node: EventTarget | null): node is HTMLElement {
+  if (!(node instanceof HTMLElement)) return false;
+  return node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node.isContentEditable;
 }
 
 type EditSection = {
@@ -217,14 +223,10 @@ function SectionLabel({
   onArmHide: () => void;
   onHide: () => void;
 }) {
-  const wrapRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<WrapFieldHandle>(null);
   const desktop = useFinePointer();
-  const dockBottom = useKeyboardDock(editing && !desktop && !seed, true);
-  const docked = editing && !seed && (!desktop || dockBottom > 0);
   const openedAt = useRef(0);
   const pressedLong = useRef(false);
-  const [frame, setFrame] = useState({ left: 0, width: 0 });
   const longPress = useLongPress(() => {
     pressedLong.current = true;
     tick();
@@ -250,11 +252,8 @@ function SectionLabel({
   useLayoutEffect(() => {
     if (!editing) return;
     openedAt.current = Date.now();
-    const list = wrapRef.current?.closest("[data-card-chip-list]");
-    const rect = list?.getBoundingClientRect();
-    if (rect) setFrame({ left: rect.left, width: rect.width });
     dockRef.current?.focusEnd();
-  }, [editing, docked]);
+  }, [editing]);
 
   const field = (
     <WrapField
@@ -289,8 +288,8 @@ function SectionLabel({
 
   return (
     <>
-      <div ref={wrapRef} className="relative min-w-0">
-        {editing && !docked ? (
+      <div className="relative min-w-0">
+        {editing ? (
           <HeadingCompose field={field} />
         ) : (
           <button
@@ -298,7 +297,6 @@ function SectionLabel({
             data-no-swipe
             className={cn(
               "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
-              editing && "invisible pointer-events-none",
               hideReady && "opacity-40",
             )}
             style={{ color: included && title.trim() ? "var(--grey)" : OFF_CARD }}
@@ -319,7 +317,7 @@ function SectionLabel({
             {shown}
           </button>
         )}
-        {hideReady && !(editing && !docked && pill) ? (
+        {hideReady && !(editing && pill) ? (
           <button
             type="button"
             data-delete-marker
@@ -332,20 +330,6 @@ function SectionLabel({
           </button>
         ) : null}
       </div>
-      {docked
-        ? createPortal(
-            <div
-              data-no-swipe
-              className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
-              style={{ paddingBottom: dockBottom }}
-            >
-              <div style={{ marginLeft: frame.left, width: frame.width }}>
-                <HeadingCompose field={field} lined />
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
     </>
   );
 }
@@ -376,8 +360,7 @@ export const CardEditList = memo(function CardEditList({
   const hideZone = useAppStore((state) => state.hideZone);
   const addContactItem = useAppStore((state) => state.addContactItem);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
-  const desktop = useFinePointer();
-
+  const openNewZoneRef = useRef<() => void>(() => {});
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
   const [seedZoneId, setSeedZoneId] = useState<string | null>(null);
@@ -391,7 +374,6 @@ export const CardEditList = memo(function CardEditList({
   const listRef = useRef<HTMLDivElement>(null);
   const extraBlockRef = useRef<HTMLDivElement>(null);
   const extraValueRef = useRef<WrapFieldHandle>(null);
-  const [extraFrame, setExtraFrame] = useState({ left: 0, width: 0 });
   const keepExtraRef = useRef(false);
 
   const refuseDuplicate = useCallback((twinId: string) => {
@@ -419,7 +401,7 @@ export const CardEditList = memo(function CardEditList({
 
   useEffect(() => {
     if (!openAddRef) return;
-    openAddRef.current = () => {
+    const openNewZone = () => {
       const live = useAppStore.getState().cards.find((entry) => entry.id === card.id);
       const existing = live ? unusedExtraId(live) : null;
       if (existing && live) {
@@ -443,24 +425,77 @@ export const CardEditList = memo(function CardEditList({
       section?.scrollIntoView({ block: "end", inline: "nearest" });
       section?.querySelector<HTMLElement>("[contenteditable]")?.focus();
     };
+    openNewZoneRef.current = openNewZone;
+    openAddRef.current = openNewZone;
     return () => {
       openAddRef.current = null;
     };
   });
 
+  useEffect(() => {
+    const list = listRef.current;
+    const scroller = list?.closest<HTMLElement>(".compass-card-scroll");
+    if (!list || !scroller) return;
+    let timer = 0;
+    let waiting = false;
+    const keyboard = () => {
+      const viewport = window.visualViewport;
+      if (!viewport) return 0;
+      return Math.max(0, window.innerHeight - viewport.offsetTop - viewport.height);
+    };
+    const place = () => {
+      const field = document.activeElement;
+      const mine = isLiftField(field) && list.contains(field);
+      const height = keyboard();
+      const open = mine && height > KEYBOARD_MIN_PX;
+      scroller.style.paddingBottom = open ? `${Math.round(height)}px` : "";
+      const viewport = window.visualViewport;
+      if (!mine || !viewport || !open) return;
+      const covered = field.getBoundingClientRect().bottom - (viewport.offsetTop + viewport.height - 8);
+      if (covered > 2) scroller.scrollBy({ top: covered, behavior: "smooth" });
+    };
+    const schedule = () => {
+      const viewport = window.visualViewport;
+      if (!viewport || waiting) {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(place, 300);
+        return;
+      }
+      waiting = true;
+      const done = () => {
+        waiting = false;
+        viewport.removeEventListener("resize", done);
+        window.clearTimeout(timer);
+        place();
+      };
+      viewport.addEventListener("resize", done);
+      timer = window.setTimeout(done, 300);
+    };
+    const onFocus = (event: globalThis.FocusEvent) => {
+      if (!isLiftField(event.target) || !list.contains(event.target)) return;
+      schedule();
+    };
+    scroller.addEventListener("focusin", onFocus);
+    scroller.addEventListener("focusout", place);
+    window.visualViewport?.addEventListener("resize", place);
+    return () => {
+      scroller.removeEventListener("focusin", onFocus);
+      scroller.removeEventListener("focusout", place);
+      window.visualViewport?.removeEventListener("resize", place);
+      window.clearTimeout(timer);
+      scroller.style.paddingBottom = "";
+    };
+  }, []);
+
+  useEffect(() => {
+    if (composeOnMount) openNewZoneRef.current();
+  }, [composeOnMount]);
+
   const sections = useMemo(
     () => buildSections(card, items, useAppStore.getState().cards),
     [card, items],
   );
-  const seeding = Boolean(seedZoneId && isExtraZoneId(seedZoneId));
-  const extraDockBottom = useKeyboardDock(seeding && !desktop, true);
-  const extraDocked = seeding && (!desktop || extraDockBottom > 0);
-
-  useLayoutEffect(() => {
-    if (!seeding) return;
-    const rect = listRef.current?.getBoundingClientRect();
-    if (rect) setExtraFrame({ left: rect.left, width: rect.width });
-  }, [seeding, extraDocked]);
+  const seeding = Boolean(seedZoneId);
 
   useLayoutEffect(() => {
     if (!seeding) return;
@@ -609,32 +644,29 @@ export const CardEditList = memo(function CardEditList({
     Boolean(extraBlockRef.current?.contains(event.relatedTarget as Node | null));
 
   return (
-    <div
-      ref={listRef}
-      data-card-chip-list={card.id}
-      data-card-content
-      style={extraDocked ? { paddingBottom: extraDockBottom } : undefined}
-    >
+    <div ref={listRef} data-card-chip-list={card.id} data-card-content>
       {sections.map((section, index) => {
         const seedingThis = seedZoneId === section.id;
-        const zone = (
+        const zoneHint = isExtraZoneId(section.id) ? "Contacts, location, etc." : (ZONE_HINTS[section.id] ?? "");
+        const files = section.id === "files" || isExtraZoneId(section.id);
+        const startSeed = () => {
+          setTextEditId(null);
+          setSectionEditId(null);
+          setDeleteReadyId(null);
+          setHideReadyId(null);
+          setSeedZoneId(section.id);
+        };
+        return (
           <section
+            key={section.id}
             data-zone={section.id}
-            className={cn(
-              "min-w-0",
-              seedingThis && extraDocked ? "pb-3" : "py-[18px]",
-              !(seedingThis && extraDocked) && index < sections.length - 1 && "border-b border-[var(--rule)]",
-            )}
+            className={cn("min-w-0 py-[18px]", index < sections.length - 1 && "border-b border-[var(--rule)]")}
           >
             <div
               ref={seedingThis ? extraBlockRef : undefined}
-              className={cn(
-                seedingThis
-                  ? "flex min-w-0 items-stretch"
-                  : "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]",
-              )}
+              className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]"
             >
-              <div className={cn("min-w-0", seedingThis && "w-[86px] shrink-0")}>
+              <div className="min-w-0">
                 <SectionNumber value={sectionNumberLabel(index)} />
                 <div className="mt-[6px]">
                   <SectionLabel
@@ -711,10 +743,7 @@ export const CardEditList = memo(function CardEditList({
                   />
                 </div>
               </div>
-              {seedingThis ? (
-                <div aria-hidden className="mx-[14px] w-px self-stretch bg-[var(--rule)]" />
-              ) : null}
-              <ValueCap className={cn("flex min-w-0 flex-col gap-[6px]", seedingThis && "flex-1")}>
+              <ValueCap className="flex min-w-0 flex-col gap-[6px]">
                 {section.rows.map(({ row, onCard }) => {
                   const item = row.item;
                   if (!item) return null;
@@ -746,17 +775,20 @@ export const CardEditList = memo(function CardEditList({
                 })}
                 {seedingThis ? (
                   <div className="flex min-w-0 items-start gap-[11px]">
-                    <FileAddButton
-                      onPointerDown={() => {
-                        advanceSeedRef.current = true;
-                      }}
-                      onClick={() => addSeedFile(section.id)}
-                    />
+                    {files ? (
+                      <FileAddButton
+                        onPointerDown={() => {
+                          advanceSeedRef.current = true;
+                        }}
+                        onClick={() => addSeedFile(section.id)}
+                      />
+                    ) : null}
                     <WrapField
                       ref={extraValueRef}
-                      label={ADD_PLACEHOLDER}
-                      placeholder={ADD_PLACEHOLDER}
+                      label={section.rows.length === 0 ? zoneHint : "Value"}
+                      placeholder={section.rows.length === 0 ? zoneHint : ""}
                       placeholderClassName="t-body text-[var(--placeholder)]"
+                      autoFocus={!isExtraZoneId(section.id) || Boolean(section.title.trim())}
                       onPointerDown={() => {
                         advanceSeedRef.current = true;
                       }}
@@ -781,46 +813,36 @@ export const CardEditList = memo(function CardEditList({
                       <LibraryCheck onCard={false} onToggle={() => undefined} />
                     </div>
                   </div>
+                ) : section.rows.length === 0 ? (
+                  <button
+                    type="button"
+                    data-no-swipe
+                    className="t-body w-full bg-transparent text-left"
+                    style={{ color: OFF_CARD }}
+                    onClick={startSeed}
+                  >
+                    {zoneHint}
+                  </button>
                 ) : (
-                    <button
-                      type="button"
-                      data-no-swipe
-                      data-zone-add=""
-                      aria-label="Add to section"
-                      className="t-body w-full bg-transparent text-left"
-                      style={{ color: OFF_CARD }}
-                      onPointerDown={() => {
-                        keepExtraRef.current = isExtraZoneId(section.id);
-                      }}
-                      onPointerUp={() => openZoneRef.current?.(section.id)}
-                    >
-                      +
-                    </button>
+                  <button
+                    type="button"
+                    data-no-swipe
+                    data-zone-add=""
+                    aria-label="Add to section"
+                    className="t-body w-full border-0 bg-transparent p-0 text-left text-[var(--placeholder)]"
+                    onClick={startSeed}
+                  >
+                    +
+                  </button>
                 )}
               </ValueCap>
             </div>
           </section>
         );
-        return (
-          <Fragment key={section.id}>
-            {seedingThis && extraDocked
-              ? createPortal(
-                  <div
-                    data-no-swipe
-                    className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
-                    style={{ paddingBottom: extraDockBottom }}
-                  >
-                    <div style={{ marginLeft: extraFrame.left, width: extraFrame.width }}>{zone}</div>
-                  </div>,
-                  document.body,
-                )
-              : zone}
-          </Fragment>
-        );
       })}
       <AddLine
         cardId={card.id}
-        openOnMount={composeOnMount}
+        openOnMount={false}
         openZoneRef={openZoneRef}
         onFocus={() => setTextEditId(null)}
         onDuplicate={refuseDuplicate}
@@ -1289,8 +1311,6 @@ const EditRow = memo(function EditRow({
   const fieldRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<WrapFieldHandle>(null);
-  const dockBottom = useKeyboardDock(editing, true);
-  const [frame, setFrame] = useState({ left: 0, width: 0 });
   const pressedLong = useRef(false);
   const openedAt = useRef(0);
   const [holding, setHolding] = useState(false);
@@ -1330,9 +1350,6 @@ const EditRow = memo(function EditRow({
 
   useLayoutEffect(() => {
     if (!editing) return;
-    const list = rowRef.current?.closest("[data-card-chip-list]");
-    const rect = list?.getBoundingClientRect();
-    if (rect) setFrame({ left: rect.left, width: rect.width });
     dockRef.current?.focusEnd();
   }, [editing]);
 
@@ -1344,7 +1361,6 @@ const EditRow = memo(function EditRow({
         data-no-swipe
         className={cn(
           "mr-[26px] min-w-0 overflow-clip",
-          editing && "invisible pointer-events-none",
           (holding || deleteReady) && "opacity-40",
         )}
         style={{
@@ -1369,13 +1385,37 @@ const EditRow = memo(function EditRow({
         <div
           ref={lineRef}
           className={cn(
-            "t-body origin-left select-none",
-            multiline || isProseValue(value) || value.includes("\n") || value.includes("  ")
+            "t-body origin-left",
+            editing ? "whitespace-pre-wrap break-words" : "select-none",
+            !editing && (multiline || isProseValue(value) || value.includes("\n") || value.includes("  "))
               ? "w-full whitespace-pre-wrap break-words"
-              : "w-max whitespace-nowrap",
+              : !editing && "w-max whitespace-nowrap",
           )}
         >
-          {text}
+          {editing ? (
+            <WrapField
+              ref={dockRef}
+              initial={value}
+              label="Edit row"
+              multiline={multiline}
+              onTextChange={(next) => {
+                if (!next.trim()) onErase(itemId);
+              }}
+              breakButton={false}
+              onDone={(next) => onConfirm(itemId, value, next)}
+              onBlur={(next) => {
+                if (!next.trim()) return;
+                if (Date.now() - openedAt.current < 700) {
+                  dockRef.current?.focusEnd();
+                  return;
+                }
+                onConfirm(itemId, value, next);
+              }}
+              className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
+            />
+          ) : (
+            text
+          )}
         </div>
       </div>
       {statusLine ? (
@@ -1392,44 +1432,6 @@ const EditRow = memo(function EditRow({
           <span className="mr-[26px] block t-meta text-[var(--grey)]">{statusLine}</span>
         )
       ) : null}
-      {editing
-        ? createPortal(
-            <div
-              data-no-swipe
-              className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--rule)] bg-[#fff] pt-3"
-              style={{ paddingBottom: dockBottom }}
-            >
-              <div
-                className="overflow-y-auto overscroll-contain"
-                style={{ marginLeft: frame.left, width: frame.width, maxHeight: dockReach(dockBottom) }}
-              >
-                <div className="flex flex-col justify-end border-b border-[var(--rule)]">
-                  <WrapField
-                    ref={dockRef}
-                    initial={value}
-                    label="Edit row"
-                    multiline={multiline}
-                    onTextChange={(next) => {
-                      if (!next.trim()) onErase(itemId);
-                    }}
-                    breakButton={false}
-                    onDone={(next) => onConfirm(itemId, value, next)}
-                    onBlur={(next) => {
-                      if (!next.trim()) return;
-                      if (Date.now() - openedAt.current < 700) {
-                        dockRef.current?.focusEnd();
-                        return;
-                      }
-                      onConfirm(itemId, value, next);
-                    }}
-                    className="bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
-                  />
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
       {fades && !editing && !multiline && !isProseValue(value) && !value.includes("\n") ? (
         <span
           aria-hidden
