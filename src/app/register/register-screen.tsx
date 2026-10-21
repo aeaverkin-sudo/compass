@@ -3,20 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Rule } from "@/shared/components/rule";
 import { Zone } from "@/shared/components/zone";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { isInAppBrowser } from "@/shared/lib/in-app-browser";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
-import {
-  cancelOAuthReplaceLocal,
-  clearRegistrationRequired,
-  ignoreNextSignedOut,
-  markOAuthReplaceLocal,
-} from "@/shared/lib/session-bootstrap";
+import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
@@ -34,10 +29,6 @@ function afterAuthPath(next: string | null) {
 
 function keepsNext(path: string) {
   return path.startsWith("/save/") || isEventJoinPath(path) || isEventTeamPath(path) || isEventInvitePath(path);
-}
-
-function deviceHasCard(cards: { displayName: string; photoAttachmentId?: string; photo?: string }[]) {
-  return cards.some((card) => card.displayName.trim() || card.photoAttachmentId || card.photo);
 }
 
 function rememberLocal() {
@@ -59,21 +50,11 @@ function clearLocal() {
   });
 }
 
-/**
- * Password sign-in clears the trial first and puts it back if the password is wrong.
- * Google leaves the page before the session exists, so the trial stays until that
- * return is a real account.
- */
-async function enterExistingAccount(signIn: () => Promise<string | null>, redirects = false) {
+/** Password sign-in clears the trial first and puts it back if the password is wrong. */
+async function enterExistingAccount(signIn: () => Promise<string | null>) {
   dropPendingCardUpserts();
   dropPendingItemUpserts();
   dropPendingNotes();
-  if (redirects) {
-    markOAuthReplaceLocal();
-    const error = await signIn();
-    if (error) cancelOAuthReplaceLocal();
-    return error;
-  }
   const snapshot = rememberLocal();
   clearLocal();
   const error = await signIn();
@@ -114,11 +95,6 @@ function Message({ text }: { text: string | null }) {
   );
 }
 
-function accountAlreadyExists(code: string | undefined, message: string | undefined) {
-  if (code === "identity_already_exists" || code === "email_exists") return true;
-  return /identity_already_exists|email_exists/i.test(message ?? "");
-}
-
 function signInHref(nextPath: string, error?: string) {
   const query = new URLSearchParams();
   query.set("signin", "1");
@@ -131,8 +107,6 @@ export function RegisterScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const signinOnly = params.get("signin") === "1";
-  const taken = params.get("taken") === "1";
-  const [inApp, setInApp] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const emailed = params.get("email")?.trim() ?? "";
   const [email, setEmail] = useState(emailed);
@@ -143,58 +117,26 @@ export function RegisterScreen() {
   }
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(
     params.get("expired") === "1" ? "Session expired. Sign in." : params.get("error"),
   );
   const [emailStep, setEmailStep] = useState<"hidden" | "email" | "code">("hidden");
-  const [signInMail, setSignInMail] = useState(false);
   const [dimConsent, setDimConsent] = useState(false);
-  const cards = useAppStore((state) => state.cards);
   const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
   const consentSaved = useRef(false);
   const blinkTimers = useRef<number[]>([]);
-  const googleStarted = useRef(false);
-  const googlePending = useRef(false);
 
-  useEffect(() => {
-    setInApp(isInAppBrowser());
-  }, []);
-
-  useEffect(() => {
-    if (params.get("google") === "1") return;
-    cancelOAuthReplaceLocal();
-  }, [params]);
-
-  useEffect(() => {
-    const releaseGoogle = () => {
-      googlePending.current = false;
-      googleStarted.current = false;
-      cancelOAuthReplaceLocal();
-      setBusy(false);
-    };
-    const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) releaseGoogle();
-    };
-    const onVisible = () => {
-      if (document.visibilityState !== "visible" || !googlePending.current) return;
-      releaseGoogle();
-    };
-    window.addEventListener("pageshow", onPageShow);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.removeEventListener("pageshow", onPageShow);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, []);
-
-  const hasCard = deviceHasCard(cards);
   const nextPath = afterAuthPath(params.get("next"));
-  const googleRedirect = () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
-  const mergeWarning = hasCard
-    ? "This device already has a portfolio. Signing in will not merge it into the existing account."
-    : null;
+
+  useEffect(() => {
+    if (!signinOnly) return;
+    if (emailed) passwordRef.current?.focus();
+    else emailRef.current?.focus();
+  }, [signinOnly, emailed]);
 
   const blinkConsent = () => {
     blinkTimers.current.forEach((id) => window.clearTimeout(id));
@@ -226,80 +168,6 @@ export function RegisterScreen() {
     if (accepted) return true;
     blinkConsent();
     return false;
-  };
-
-  const startGoogleSignIn = () =>
-    enterExistingAccount(async () => {
-      const supabase = createBrowserSupabaseClient();
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: googleRedirect() },
-      });
-      return oauthError?.message ?? null;
-    }, true);
-
-  useEffect(() => {
-    if (params.get("google") !== "1" || googleStarted.current || isInAppBrowser()) return;
-    googleStarted.current = true;
-    googlePending.current = true;
-    setBusy(true);
-    void startGoogleSignIn().then((error) => {
-      if (!error) return;
-      googlePending.current = false;
-      setMessage(error);
-      setBusy(false);
-    });
-  }, [params]);
-
-  const continueWithGoogle = async () => {
-    if (!gate() || busy) return;
-    googlePending.current = true;
-    setBusy(true);
-    setMessage(null);
-    let leaving = false;
-    try {
-      await ensureConsent();
-      const supabase = createBrowserSupabaseClient();
-      const { error } = await supabase.auth.linkIdentity({
-        provider: "google",
-        options: { redirectTo: googleRedirect() },
-      });
-      if (!error) {
-        leaving = true;
-        return;
-      }
-      if (accountAlreadyExists(error.code, error.message)) {
-        const signInError = await startGoogleSignIn();
-        if (!signInError) {
-          leaving = true;
-          return;
-        }
-        setMessage(signInError);
-        return;
-      }
-      setMessage(error.message);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not start Google");
-    } finally {
-      if (!leaving) {
-        googlePending.current = false;
-        setBusy(false);
-      }
-    }
-  };
-
-  const signInExistingGoogle = async () => {
-    if (busy) return;
-    if (!signinOnly && !gate()) return;
-    googlePending.current = true;
-    setBusy(true);
-    setMessage(null);
-    const error = await startGoogleSignIn();
-    if (error) {
-      googlePending.current = false;
-      setMessage(error);
-      setBusy(false);
-    }
   };
 
   const submitEmail = async () => {
@@ -421,10 +289,6 @@ export function RegisterScreen() {
   };
 
   if (signinOnly) {
-    const leaveSignInMail = () => {
-      setMessage(null);
-      setSignInMail(false);
-    };
     const signUpHref = (() => {
       const query = new URLSearchParams();
       if (keepsNext(nextPath)) query.set("next", nextPath);
@@ -434,33 +298,34 @@ export function RegisterScreen() {
     const eventPath = isEventInvitePath(nextPath) || isEventJoinPath(nextPath);
     return (
       <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-        <ScreenHeader title="Sign in" fallbackHref="/" onBack={signInMail ? leaveSignInMail : undefined} />
-        {signInMail ? (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submitPassword();
-            }}
-          >
-            <Zone label="Email">
-              <input
-                id="signin-email"
-                ref={emailRef}
-                type="email"
-                autoCapitalize="none"
-                autoComplete="email"
-                aria-label="Email"
-                placeholder="name@mail.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={FIELD}
-              />
-            </Zone>
-            <Rule />
-            <Zone label="Password">
+        <ScreenHeader title="Sign in" fallbackHref="/" />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitPassword();
+          }}
+        >
+          <Zone label="Email">
+            <input
+              id="signin-email"
+              ref={emailRef}
+              type="email"
+              autoCapitalize="none"
+              autoComplete="email"
+              aria-label="Email"
+              placeholder="name@mail.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              className={FIELD}
+            />
+          </Zone>
+          <Rule />
+          <Zone label="Password">
+            <span className="flex min-w-0 items-center gap-2">
               <input
                 id="signin-password"
-                type="password"
+                ref={passwordRef}
+                type={passwordVisible ? "text" : "password"}
                 autoCapitalize="none"
                 autoComplete="current-password"
                 aria-label="Password"
@@ -469,79 +334,48 @@ export function RegisterScreen() {
                 onChange={(event) => setPassword(event.target.value)}
                 className={FIELD}
               />
-              <p className="mt-2 t-meta text-[var(--grey)]">
-                Signed up with a code? That code is your password.
-              </p>
-            </Zone>
-            <Rule />
-            <Zone label="">
-              <button type="submit" disabled={busy} className={PRIMARY}>
-                Sign in
-              </button>
-              <p className="mt-4 t-meta text-[var(--ink)]">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void forgotPassword()}
-                  className={`${UNDERLINE} disabled:text-[var(--grey)]`}
-                  style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
-                >
-                  Forgot password
-                </button>
-                <span className="text-[#c2c2c2]"> / </span>
-                <a href={FORGOT_EMAIL} className={UNDERLINE} style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}>
-                  Forgot email
-                </a>
-              </p>
-            </Zone>
-          </form>
-        ) : (
-          <>
-            <Zone label="Sign in">
-              <div className="-my-3">
-              {inApp ? (
-                eventPath ? (
-                  <p className="my-3 t-meta text-[var(--grey)]">
-                    Google sign-in doesn&apos;t work here — use your email and password, or open the link in Safari.
-                  </p>
-                ) : null
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void signInExistingGoogle()}
-                  className={CHOICE}
-                  style={{ color: "var(--ink)" }}
-                  aria-label="Sign in with Google"
-                >
-                  With Google
-                </button>
-              )}
               <button
                 type="button"
-                onClick={() => {
-                  setMessage(null);
-                  setSignInMail(true);
-                  window.setTimeout(() => emailRef.current?.focus(), 0);
-                }}
-                className={CHOICE}
-                style={{ color: "var(--ink)" }}
-                aria-label="Sign in with email"
+                aria-label={passwordVisible ? "Hide password" : "Show password"}
+                className="shrink-0 border-0 bg-transparent p-0 text-[var(--ink)]"
+                onClick={() => setPasswordVisible((current) => !current)}
               >
-                With email
+                {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
               </button>
-              </div>
-            </Zone>
-            {eventPath ? null : (
-              <>
-                <Rule />
-                <Zone label="No account">
-                  <Link href={signUpHref} className="t-caps text-[var(--ink)]">
-                    Sign up
-                  </Link>
-                </Zone>
-              </>
-            )}
-          </>
+            </span>
+            <p className="mt-2 t-meta text-[var(--grey)]">
+              Signed up with a code? That code is your password.
+            </p>
+          </Zone>
+          <Rule />
+          <Zone label="">
+            <button type="submit" disabled={busy} className={`${PRIMARY} w-full`}>
+              Sign in
+            </button>
+            <p className="mt-4 t-meta text-[var(--ink)]">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void forgotPassword()}
+                className={`${UNDERLINE} disabled:text-[var(--grey)]`}
+                style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
+              >
+                Forgot password
+              </button>
+              <span className="text-[#c2c2c2]"> / </span>
+              <a href={FORGOT_EMAIL} className={UNDERLINE} style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}>
+                Forgot email
+              </a>
+            </p>
+          </Zone>
+        </form>
+        {eventPath ? null : (
+          <p className="m-0 t-meta text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
+            No account?{" "}
+            <Link href={signUpHref} className="text-[var(--ink)] underline">
+              Sign up
+            </Link>
+          </p>
         )}
         <Message text={message} />
       </main>
@@ -645,25 +479,6 @@ export function RegisterScreen() {
       <ScreenHeader title="Sign up" fallbackHref="/" />
       <Zone label="Sign up">
         <div className="-my-3">
-        {inApp ? null : (
-          <>
-            <button
-              type="button"
-              onClick={() => void (taken ? signInExistingGoogle() : continueWithGoogle())}
-              className={CHOICE}
-              style={{ color: ink }}
-              aria-label="Sign up with Google"
-            >
-              With Google
-            </button>
-            {taken ? (
-              <p className="pb-2 t-meta text-[var(--ink)]">
-                This Google account already has a profile.
-                {mergeWarning ? ` ${mergeWarning}` : ""}
-              </p>
-            ) : null}
-          </>
-        )}
         <button type="button" onClick={openEmail} className={CHOICE} style={{ color: ink }} aria-label="Sign up with email">
           With email
         </button>

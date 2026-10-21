@@ -317,11 +317,7 @@ export function ProfileScreen() {
       ) : (
         <Zone label="Account" rule>
           <p className={ZONE_VALUE}>
-            {account.provider === "google"
-              ? "Signed in with Google."
-              : account.email
-                ? `Signed in as ${account.email}.`
-                : "Signed in."}
+            {account.email ? `Signed in as ${account.email}.` : "Signed in."}
           </p>
           <p className="mt-3 flex gap-4 t-body">
             {canChangePassword ? (
@@ -512,9 +508,7 @@ export function ProfileScreen() {
             </button>
           )}
         </p>
-        {account.provider === "google" ? (
-          <p className="mt-1 t-meta text-[var(--ink)]">Managed by Google</p>
-        ) : account.provider === "email" || eventPass ? null : (
+        {account.provider === "email" || eventPass ? null : (
           <p className="mt-1 t-meta text-[var(--ink)]">Coming soon</p>
         )}
         <div className="hidden">
