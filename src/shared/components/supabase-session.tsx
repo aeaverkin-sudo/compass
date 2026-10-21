@@ -44,11 +44,21 @@ function acceptUser(user: User) {
   void hydrateCardsFromServer();
 }
 
+/** A dead session sends the owner to sign-in only from a working screen. A public card stays open. */
+function isOwnerRoute(path: string) {
+  const pathname = path.split("?")[0]?.split("#")[0] ?? path;
+  if (pathname === "/main" || pathname.startsWith("/main/")) return true;
+  if (pathname === "/profile" || pathname.startsWith("/profile/")) return true;
+  if (pathname === "/account" || pathname.startsWith("/account/")) return true;
+  if (/^\/e\/[^/]+\/manage(?:\/|$)/.test(pathname)) return true;
+  if (pathname === "/network/c" || pathname.startsWith("/network/c/")) return false;
+  if (pathname === "/network" || pathname.startsWith("/network/")) return true;
+  return false;
+}
+
 function sendRegisteredDeviceToSignIn() {
   markRegistrationRequired();
-  const path = window.location.pathname;
-  if (path.startsWith("/register") || path.startsWith("/auth") || path.startsWith("/c/") || path === "/welcome") return;
-  if (/^\/e\/[^/]+\/create$/.test(path) && new URLSearchParams(window.location.search).has("t")) return;
+  if (!isOwnerRoute(window.location.pathname)) return;
   window.location.replace("/register?signin=1&expired=1");
 }
 
