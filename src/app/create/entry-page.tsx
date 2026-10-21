@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
-import { SCREEN_TOP_AXIS_PX } from "@main/layout";
+import { carouselSidePaddingPx, SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
@@ -15,6 +15,7 @@ import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { scheduleItemUpsert } from "@/shared/services/card-items-sync";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { useAppStore } from "@/shared/store/app-store";
+import { useUploadStatus } from "@/shared/store/upload-status";
 import { EntryName } from "./entry-name";
 import { EntryZones, type EntryZonesHandle } from "./entry-zones";
 
@@ -69,12 +70,21 @@ export function EntryPage({ input }: { input: EntryInput }) {
   const [taken, setTaken] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const zonesRef = useRef<EntryZonesHandle>(null);
+  const [sidePad, setSidePad] = useState(() => carouselSidePaddingPx(0, true));
   const [passwordValue, setPasswordValue] = useState<string | null>(null);
   const passwordShown = passwordValue ?? "";
   const ready = Boolean(name.trim() && emailOk(email) && passwordShown.length >= PASSWORD_MIN);
+  const frame = { paddingLeft: sidePad, paddingRight: sidePad };
 
   useEffect(() => {
     setPasswordValue((current) => current ?? passwordNow());
+  }, []);
+
+  useEffect(() => {
+    const measure = () => setSidePad(carouselSidePaddingPx(window.innerWidth, true));
+    measure();
+    window.addEventListener("orientationchange", measure);
+    return () => window.removeEventListener("orientationchange", measure);
   }, []);
 
   useEffect(() => {
@@ -191,28 +201,40 @@ export function EntryPage({ input }: { input: EntryInput }) {
       markRegisteredDevice();
       clearRegistrationRequired();
       useAppStore.setState({ user: { ...useAppStore.getState().user, onboarded: true } });
+      const rows = zones.flatMap((zone) => zone.rows);
+      const files = (reply.fileItems ?? []).flatMap((item) => {
+        const row = rows.find((entry) => entry.key === item.key);
+        return row?.file && row.type ? [{ itemId: item.itemId, file: row.file, type: row.type }] : [];
+      });
+      for (const item of files) {
+        useUploadStatus.getState().setStatus(item.itemId, { state: "uploading", percent: null });
+      }
       await hydrateCardsFromServer();
-      try {
-        if (photo) {
+      if (photo) {
+        try {
           useAppStore.getState().updateCard(cardId, { photo: photo.dataUrl, photoLook: "shadow" });
           const readyPhoto = await uploadAttachment({ file: photo.file, kind: "card-photo", cardId });
           useAppStore.getState().updateCard(cardId, { photoAttachmentId: readyPhoto.attachmentId, photoLook: "shadow" });
+        } catch {
+          // The account exists. The photo can be added again in Edit.
         }
-        const rows = zones.flatMap((zone) => zone.rows);
-        for (const item of reply.fileItems ?? []) {
-          const row = rows.find((entry) => entry.key === item.key);
-          if (!row?.file || !row.type) continue;
-          const readyFile = await uploadAttachment({ file: row.file, kind: row.type, cardId });
+      }
+      for (const item of files) {
+        try {
+          const readyFile = await uploadAttachment({ file: item.file, kind: item.type, cardId });
           const current = useAppStore.getState().contactItems.find((entry) => entry.id === item.itemId);
-          if (!current) continue;
-          const next = { ...current, attachmentId: readyFile.attachmentId, url: "" };
-          useAppStore.setState({
-            contactItems: useAppStore.getState().contactItems.map((entry) => (entry.id === item.itemId ? next : entry)),
-          });
-          scheduleItemUpsert(next);
+          if (current) {
+            const next = { ...current, attachmentId: readyFile.attachmentId, url: "" };
+            useAppStore.setState({
+              contactItems: useAppStore.getState().contactItems.map((entry) => (entry.id === item.itemId ? next : entry)),
+            });
+            scheduleItemUpsert(next);
+          }
+          useUploadStatus.getState().setStatus(item.itemId, null);
+        } catch (error) {
+          const reason = error instanceof Error && error.message ? error.message : "Upload failed";
+          useUploadStatus.getState().fail(item.itemId, reason);
         }
-      } catch {
-        // The account exists. A failed file can be attached again in Edit.
       }
       router.replace("/main");
     } catch {
@@ -228,6 +250,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
     >
       <BackButton fallbackHref="/" />
       <div style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - 11px + 22px + 18px)` }} />
+      <div style={frame}>
       <div className={PAD}>
         <div className="flex items-stretch gap-3" style={{ height: 128 }}>
           <div className="relative shrink-0">
@@ -260,12 +283,14 @@ export function EntryPage({ input }: { input: EntryInput }) {
         </div>
         <EntryZones ref={zonesRef} />
       </div>
+      </div>
       <div className="bg-sky py-[18px]">
+        <div style={frame}>
         <div className={`${PAD} flex flex-col gap-[14px]`}>
           <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
             <span className="t-label">
               Email
-              <span className="relative -top-[0.35em] ml-[0.15em] leading-none">*</span>
+              <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
             </span>
             <input
               type="email"
@@ -313,15 +338,21 @@ export function EntryPage({ input }: { input: EntryInput }) {
             You can change it anytime in Profile.
           </p>
         </div>
+        </div>
       </div>
+      <div style={frame}>
       <div className={`${PAD} flex flex-col gap-4 pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]`}>
-        {error ? <p className="m-0 t-meta text-[var(--ink)]">{error}</p> : null}
+        {error ? <p className="m-0 t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>{error}</p> : null}
         {taken ? (
-          <a href={`/register?signin=1&email=${encodeURIComponent(email.trim().toLowerCase())}`} className="t-meta text-[var(--ink)] underline">
+          <a
+            href={`/register?signin=1&email=${encodeURIComponent(email.trim().toLowerCase())}`}
+            className="t-meta text-[var(--ink)] underline"
+            style={{ marginLeft: VALUE_AXIS_PX }}
+          >
             Sign in
           </a>
         ) : null}
-        <div className="grid grid-cols-[86px_minmax(0,1fr)]">
+        <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]">
           <span />
           <TapButton
             onTap={() => void submit()}
@@ -331,12 +362,13 @@ export function EntryPage({ input }: { input: EntryInput }) {
             Create portfolio
           </TapButton>
         </div>
-        <p className="m-0 text-center t-meta text-[var(--grey)]">
+        <p className="m-0 t-meta text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
           Already have an account?{" "}
           <a href="/register?signin=1" className="underline">
             Sign in
           </a>
         </p>
+      </div>
       </div>
     </main>
   );

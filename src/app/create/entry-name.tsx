@@ -31,7 +31,7 @@ export function EntryName({
               NAME, COMPANY,
               <br />
               PORTFOLIO TITLE
-              <span className="relative -top-[0.35em] ml-[0.15em] leading-none">*</span>
+              <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
             </>
           )}
         </span>

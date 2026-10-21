@@ -8,6 +8,7 @@ import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-n
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 import { nextExtraZoneId } from "@/shared/services/card-zones";
+import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
 import { detectAttachmentType, typeLabel } from "@/shared/services/portfolio-catalog";
 import type { AttachmentContactType } from "@/shared/services/portfolio-limits";
 
@@ -58,6 +59,10 @@ function blankCustom(zones: EntryZone[]) {
   return zones.find((zone) => zone.custom && !zone.title.trim() && zone.rows.length === 0) ?? null;
 }
 
+function storedLine(value: string) {
+  return normalizeContactItem(createEmptyContactItem(0), value).value;
+}
+
 export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, ref) {
   const [zones, setZones] = useState<EntryZone[]>(STARTERS);
   const [seedId, setSeedId] = useState<string | null>(null);
@@ -97,7 +102,8 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
   }, [seedId, zones]);
 
   const commitSeed = (zoneId: string, text: string) => {
-    const value = text.trim();
+    const typed = text.trim();
+    const value = typed ? storedLine(typed) : "";
     setSeedId(null);
     setSeedText("");
     if (!value) {
@@ -112,7 +118,8 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
   };
 
   const commitEdit = (key: string, text: string) => {
-    const value = text.trim();
+    const typed = text.trim();
+    const value = typed ? storedLine(typed) : "";
     setEditKey(null);
     setEditText("");
     setZones((current) =>
@@ -276,17 +283,17 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     <button
                       type="button"
                       aria-label="Add file"
-                      className="shrink-0 border-0 bg-transparent p-0 text-[var(--placeholder)]"
+                      className="shrink-0 border-0 bg-transparent p-0 text-[var(--ink)]"
                       onPointerDown={(event) => event.preventDefault()}
                       onClick={() => addFile(zone.id)}
                     >
-                      <MarkPlus className="text-[var(--placeholder)]" />
+                      <MarkPlus className="text-[var(--ink)]" />
                     </button>
                   ) : null}
                   <Field
                     about={about}
                     value={seedText}
-                    placeholder={hint}
+                    placeholder={zone.rows.length === 0 ? hint : ""}
                     inputRef={valueRef}
                     onChange={setSeedText}
                     onCommit={() => commitSeed(zone.id, seedText)}
@@ -322,7 +329,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
           </section>
         );
       })}
-      <div className="grid grid-cols-[86px_minmax(0,1fr)] py-[18px]">
+      <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] py-[18px]">
         <span />
         <button type="button" aria-label="Add section" className="border-0 bg-transparent p-0 text-left text-[var(--ink)]" onClick={addZone}>
           <MarkPlus />
