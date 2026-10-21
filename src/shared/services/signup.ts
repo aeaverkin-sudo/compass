@@ -5,6 +5,7 @@ import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/
 import { isEmail, userIdForEmail } from "@/shared/services/email-signup";
 import { PASSWORD_SET } from "@/shared/services/guest-accept";
 import { ATTACHMENT_TYPES, type AttachmentContactType } from "@/shared/services/portfolio-limits";
+import { saveConnection } from "@/shared/services/save-connection";
 
 export const MIN_PASSWORD = 8;
 
@@ -13,9 +14,13 @@ const ZONE_ID = /^(?:name|age|company|position|background|education|location|lan
 type SignupRow = { key?: unknown; value?: unknown; type?: unknown };
 type SignupZone = { id?: unknown; title?: unknown; rows?: unknown };
 
+const PUBLIC_TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
+
 export type SignupBody = {
   email?: unknown;
   password?: unknown;
+  /** Public token of someone else's card. Comes only from `/create?card=`, which our own screens build. */
+  sourceToken?: unknown;
   card?: {
     displayName?: unknown;
     rubricOrder?: unknown;
@@ -27,7 +32,18 @@ export type SignupBody = {
 export type SignupFileItem = { key: string; itemId: string };
 
 export type SignupResult =
-  | { ok: true; status: 201; cardId: string; publicToken: string; fileItems: SignupFileItem[] }
+  | {
+      ok: true;
+      status: 201;
+      cardId: string;
+      publicToken: string;
+      fileItems: SignupFileItem[];
+      /** The other person's card is in this account's book. */
+      saved?: boolean;
+      savedName?: string;
+      /** The account exists. The card door did not. The client opens the portfolio. */
+      warning?: string;
+    }
   | { ok: false; status: number; error: string; kind?: "login" };
 
 function emailTaken(error: { message?: string; code?: string } | null) {
@@ -65,6 +81,32 @@ function readZones(input: unknown): { id: string; title: string; rows: { key: st
     zones.push({ id, title, rows });
   }
   return zones;
+}
+
+/** A failed save leaves the new account in place. The caller opens the portfolio instead of Network. */
+async function keepSourceCard(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  userId: string,
+  sourceToken: unknown,
+): Promise<{ saved?: boolean; savedName?: string; warning?: string }> {
+  const token = typeof sourceToken === "string" ? sourceToken.trim() : "";
+  if (!PUBLIC_TOKEN.test(token)) return {};
+  try {
+    const found = await admin
+      .from("cards")
+      .select("id, owner_id, display_name")
+      .eq("public_token", token)
+      .maybeSingle();
+    if (found.error || !found.data || found.data.owner_id === userId) return { warning: "card" };
+    const saved = await saveConnection({ ownerId: userId, cardId: found.data.id });
+    if (!saved.ok) return { warning: "card" };
+    const raw = found.data.display_name;
+    const savedName = (typeof raw === "string" ? raw.trim() : "") || "Untitled";
+    return { saved: true, savedName };
+  } catch (error) {
+    console.error("[signup] card", error instanceof Error ? error.message : error);
+    return { warning: "card" };
+  }
 }
 
 /** Create the account and its first card. Auth is created first; a failed write deletes that user. */
@@ -195,7 +237,8 @@ export async function createSignup(body: SignupBody): Promise<SignupResult> {
       if (zoned.error && !/item_zones/i.test(zoned.error.message)) throw new Error(zoned.error.message);
     }
 
-    return { ok: true, status: 201, cardId, publicToken, fileItems };
+    const door = await keepSourceCard(admin, userId, body.sourceToken);
+    return { ok: true, status: 201, cardId, publicToken, fileItems, ...door };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);
     console.error("[signup]", error instanceof Error ? error.message : error);

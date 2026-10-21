@@ -23,7 +23,7 @@ function ownCard(token: string) {
 
 /**
  * Saves someone else's public card into the book of whoever holds a session, then opens Network.
- * A trial or event pass account saves too, anonymous included. No session gets an email link, not a password wall.
+ * No account, including an anonymous session, opens the portfolio questionnaire with this card attached.
  */
 export default async function SaveCardPage({ params }: PageProps) {
   const { token } = await params;
@@ -32,8 +32,8 @@ export default async function SaveCardPage({ params }: PageProps) {
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  if (!user) {
-    redirect(`/c/${encodeURIComponent(token)}/add`);
+  if (!user || user.is_anonymous) {
+    redirect(`/create?card=${encodeURIComponent(token)}`);
   }
 
   const admin = createAdminSupabaseClient();

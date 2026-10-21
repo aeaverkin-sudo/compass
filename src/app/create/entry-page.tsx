@@ -53,6 +53,15 @@ function passwordNow() {
   return issuedPassword;
 }
 
+/** An existing account signs in and `/save` puts the card in Network. The questionnaire is not shown again. */
+function signInHref(email?: string, token?: string) {
+  const query = new URLSearchParams();
+  query.set("signin", "1");
+  if (email) query.set("email", email);
+  if (token) query.set("next", `/save/${token}`);
+  return `/register?${query.toString()}`;
+}
+
 function isField(node: EventTarget | null): node is HTMLElement {
   return node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement;
 }
@@ -158,6 +167,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
         body: JSON.stringify({
           email: emailValue,
           password: secret,
+          ...(input.sourceToken ? { sourceToken: input.sourceToken } : {}),
           card: {
             displayName: titleValue,
             rubricOrder: zones.map((zone) => zone.id),
@@ -178,6 +188,9 @@ export function EntryPage({ input }: { input: EntryInput }) {
         kind?: string;
         error?: string;
         fileItems?: { key: string; itemId: string }[];
+        saved?: boolean;
+        savedName?: string;
+        warning?: string;
       };
       if (response.status === 409 || reply.kind === "login") {
         setTaken(true);
@@ -249,7 +262,12 @@ export function EntryPage({ input }: { input: EntryInput }) {
       for (const item of files) {
         useUploadStatus.getState().setStatus(item.itemId, { state: "uploading", percent: null });
       }
-      router.replace("/main");
+      if (input.sourceToken && reply.saved && !reply.warning) {
+        const added = reply.savedName?.trim() || "Untitled";
+        router.replace(`/network?added=${encodeURIComponent(added)}&from=${encodeURIComponent(input.sourceToken)}`);
+      } else {
+        router.replace("/main");
+      }
       void (async () => {
         const synced = hydrateCardsFromServer();
         if (photo) {
@@ -392,7 +410,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
         {error ? <p className="m-0 t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>{error}</p> : null}
         {taken ? (
           <a
-            href={`/register?signin=1&email=${encodeURIComponent(email.trim().toLowerCase())}`}
+            href={signInHref(email.trim().toLowerCase(), input.sourceToken)}
             className="t-meta text-[var(--ink)] underline"
             style={{ marginLeft: VALUE_AXIS_PX }}
           >
@@ -411,7 +429,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
         </div>
         <p className="m-0 t-meta text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
           Already have an account?{" "}
-          <a href="/register?signin=1" className="underline">
+          <a href={signInHref(undefined, input.sourceToken)} className="underline">
             Sign in
           </a>
         </p>
