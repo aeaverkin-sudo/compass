@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { isEventLookup } from "@/shared/event/lookup";
-import { isGuestToken } from "@/shared/services/event-guest-pass";
+import { findPassGuest, isGuestToken } from "@/shared/services/event-guest-pass";
+import { loadEventInvite } from "@/shared/services/event-invite";
 import { EntryPage } from "./entry-page";
 
 export const metadata: Metadata = { title: "Create a portfolio", robots: { index: false } };
@@ -21,15 +22,25 @@ export default async function CreatePage({ searchParams }: PageProps) {
   const query = await searchParams;
   const card = one(query.card);
   const lookup = one(query.event);
-  const guest = one(query.g);
+  const guestToken = one(query.g);
   const event = lookup && isEventLookup(lookup)
-    ? { lookup, ...(guest && isGuestToken(guest) ? { guestToken: guest } : {}) }
+    ? { lookup, ...(guestToken && isGuestToken(guestToken) ? { guestToken } : {}) }
     : undefined;
+  let name = one(query.name);
+  let email = one(query.email);
+  if (event?.guestToken && (!name || !email)) {
+    const invite = await loadEventInvite(event.lookup);
+    const person = invite ? await findPassGuest(invite.id, event.guestToken) : null;
+    if (person) {
+      if (!name) name = person.name.trim() || undefined;
+      if (!email) email = person.email?.trim().toLowerCase() || undefined;
+    }
+  }
   return (
     <EntryPage
       input={{
-        name: one(query.name),
-        email: one(query.email),
+        name,
+        email,
         ...(card && CARD_TOKEN.test(card) ? { sourceToken: card } : {}),
         ...(event ? { event } : {}),
       }}
