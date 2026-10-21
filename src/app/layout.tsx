@@ -17,6 +17,10 @@ html{height:var(--app-h,100svh)!important;bottom:auto!important}
 html:not(.compass-sized),html:not(.compass-sized) body{background:#fff!important}
 html:not(.compass-sized) .compass-layer,html:not(.compass-sized) .compass-sky-band{visibility:hidden}
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
+@media (display-mode: standalone){
+  html:not(.compass-settled) main.compass-main,html:not(.compass-settled) .compass-sky-band{visibility:hidden!important}
+}
+html.compass-standalone:not(.compass-settled) main.compass-main,html.compass-standalone:not(.compass-settled) .compass-sky-band{visibility:hidden!important}
 main.compass-main.fixed.top-0{height:var(--app-h,100svh)}
 div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100svh);bottom:auto;background:#fff}
 @media (hover:hover) and (pointer:fine){
@@ -37,6 +41,7 @@ const RELEASE_MOTION_SCRIPT = `(function(){
 var root=document.documentElement;
 var read=function(name){return root.style.getPropertyValue(name).trim()};
 window.__compassHeadMeasure={appH:read("--app-h"),bandH:read("--band-h"),vvBottom:read("--vv-bottom"),hd:read("--hd")};
+if(window.matchMedia("(display-mode: standalone)").matches||navigator.standalone)root.classList.add("compass-standalone");
 var path=location.pathname;
 if(path==="/main"||path.indexOf("/main/")===0)return;
 if(path==="/"){
