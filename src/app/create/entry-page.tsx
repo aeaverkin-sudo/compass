@@ -211,32 +211,36 @@ export function EntryPage({ input }: { input: EntryInput }) {
       }
       await hydrateCardsFromServer();
       if (photo) {
-        try {
-          useAppStore.getState().updateCard(cardId, { photo: photo.dataUrl, photoLook: "shadow" });
-          const readyPhoto = await uploadAttachment({ file: photo.file, kind: "card-photo", cardId });
-          useAppStore.getState().updateCard(cardId, { photoAttachmentId: readyPhoto.attachmentId, photoLook: "shadow" });
-        } catch {
-          // The account exists. The photo can be added again in Edit.
-        }
-      }
-      for (const item of files) {
-        try {
-          const readyFile = await uploadAttachment({ file: item.file, kind: item.type, cardId });
-          const current = useAppStore.getState().contactItems.find((entry) => entry.id === item.itemId);
-          if (current) {
-            const next = { ...current, attachmentId: readyFile.attachmentId, url: "" };
-            useAppStore.setState({
-              contactItems: useAppStore.getState().contactItems.map((entry) => (entry.id === item.itemId ? next : entry)),
-            });
-            scheduleItemUpsert(next);
-          }
-          useUploadStatus.getState().setStatus(item.itemId, null);
-        } catch (error) {
-          const reason = error instanceof Error && error.message ? error.message : "Upload failed";
-          useUploadStatus.getState().fail(item.itemId, reason);
-        }
+        useAppStore.getState().updateCard(cardId, { photo: photo.dataUrl, photoLook: "shadow" });
       }
       router.replace("/main");
+      void (async () => {
+        if (photo) {
+          try {
+            const readyPhoto = await uploadAttachment({ file: photo.file, kind: "card-photo", cardId });
+            useAppStore.getState().updateCard(cardId, { photoAttachmentId: readyPhoto.attachmentId, photoLook: "shadow" });
+          } catch {
+            // The portfolio is already open. The photo can be added again in Edit.
+          }
+        }
+        for (const item of files) {
+          try {
+            const readyFile = await uploadAttachment({ file: item.file, kind: item.type, cardId });
+            const current = useAppStore.getState().contactItems.find((entry) => entry.id === item.itemId);
+            if (current) {
+              const next = { ...current, attachmentId: readyFile.attachmentId, url: "" };
+              useAppStore.setState({
+                contactItems: useAppStore.getState().contactItems.map((entry) => (entry.id === item.itemId ? next : entry)),
+              });
+              scheduleItemUpsert(next);
+            }
+            useUploadStatus.getState().setStatus(item.itemId, null);
+          } catch (error) {
+            const reason = error instanceof Error && error.message ? error.message : "Upload failed";
+            useUploadStatus.getState().fail(item.itemId, reason);
+          }
+        }
+      })();
     } catch {
       setError("Could not create your profile.");
       setBusy(false);
@@ -359,7 +363,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
             disabled={!ready || busy}
             className="w-full bg-sky px-[21.6px] py-[10.8px] text-center t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:text-[var(--grey)]"
           >
-            Create portfolio
+            {busy ? "Creating…" : "Create portfolio"}
           </TapButton>
         </div>
         <p className="m-0 t-meta text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
