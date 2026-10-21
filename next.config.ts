@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
+/** Changes on every Render deploy, so the service worker drops the previous shell. */
+const buildId = process.env.NEXT_PUBLIC_BUILD_ID || process.env.RENDER_GIT_COMMIT || "dev";
+
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_BUILD_ID: buildId,
+  },
   // Smaller runtime footprint — important on Render free tier (512 MB).
   output: "standalone",
   // The poster snapshot unpacks Chromium from these archives at run time; the trace cannot see them.

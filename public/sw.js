@@ -1,18 +1,20 @@
-// ADED service worker: static files from the cache, pages from the network with a cached shell to fall back on.
+// ADED service worker. Static files come from the cache. A page comes from the network.
+// The cached shell is used only when the network itself fails, and only with the build that saved it.
 // Never cached: /api/*, the event cabinet (/e/*/manage*), stored files (/f/*), auth callbacks.
 
-const STATIC = "aded-static-v1";
-const PAGES = "aded-pages-v1";
+const version = new URL(self.location.href).searchParams.get("v") || "dev";
+const STATIC = `aded-static-${version}`;
+const PAGES = `aded-pages-${version}`;
 const SHELL = "/main";
 const SHELLS = new Set(["/", "/main", "/profile", "/network", "/network/event", "/network/connections", "/network/data"]);
-const PAGE_TIMEOUT_MS = 3000;
 const STATIC_LIMIT = 400;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(PAGES)
-      .then((cache) => cache.add(new Request(SHELL, { cache: "reload" })))
+    fetch(new Request(SHELL, { cache: "reload" }))
+      .then((response) => {
+        if (response.ok && response.type === "basic" && !response.redirected) return storeShell(SHELL, response);
+      })
       .catch(() => undefined)
       .then(() => self.skipWaiting()),
   );
@@ -45,10 +47,43 @@ function isPrivate(path) {
   );
 }
 
+function assetUrls(html) {
+  const found = new Set();
+  const pattern = /(?:href|src)=["'](\/_next\/static\/[^"']+)["']/g;
+  let match = pattern.exec(html);
+  while (match) {
+    found.add(match[1]);
+    match = pattern.exec(html);
+  }
+  return [...found];
+}
+
 async function trim(cache) {
   const keys = await cache.keys();
   const extra = keys.length - STATIC_LIMIT;
   for (let index = 0; index < extra; index += 1) await cache.delete(keys[index]);
+}
+
+/** The shell is stored with the CSS and JS it points at, so an offline open still has its styles. */
+async function storeShell(path, response) {
+  const html = await response.clone().text();
+  const pages = await caches.open(PAGES);
+  await pages.put(path, response);
+  const urls = assetUrls(html);
+  if (!urls.length) return;
+  const assets = await caches.open(STATIC);
+  await Promise.all(
+    urls.map(async (url) => {
+      if (await assets.match(url)) return;
+      try {
+        const asset = await fetch(new Request(url, { cache: "reload" }));
+        if (asset.ok && asset.type === "basic") await assets.put(url, asset);
+      } catch {
+        // One missing chunk must not drop the shell.
+      }
+    }),
+  );
+  void trim(assets);
 }
 
 async function fromCacheFirst(request) {
@@ -64,19 +99,18 @@ async function fromCacheFirst(request) {
 }
 
 async function fromNetworkFirst(request, path) {
-  const cache = await caches.open(PAGES);
-  const network = fetch(request).then(async (response) => {
+  try {
+    const response = await fetch(request);
     if (response.ok && response.type === "basic" && !response.redirected && SHELLS.has(path)) {
-      await cache.put(path, response.clone());
+      await storeShell(path, response.clone());
     }
     return response;
-  });
-  const timeout = new Promise((resolve) => setTimeout(() => resolve(null), PAGE_TIMEOUT_MS));
-  const first = await Promise.race([network.catch(() => null), timeout]);
-  if (first) return first;
-  const cached = (await cache.match(path)) || (path === "/" ? await cache.match(SHELL) : undefined);
-  if (cached) return cached;
-  return network;
+  } catch {
+    const cache = await caches.open(PAGES);
+    const cached = (await cache.match(path)) || (path === "/" ? await cache.match(SHELL) : undefined);
+    if (cached) return cached;
+    return fetch(request);
+  }
 }
 
 self.addEventListener("fetch", (event) => {
