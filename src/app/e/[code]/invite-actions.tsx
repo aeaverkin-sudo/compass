@@ -290,7 +290,7 @@ export function InviteActions({
   }
 
   const shut = (closed && !token) || (soldOut && !token && !holdsPass);
-  const createHref = `/e/${encodeURIComponent(lookup)}/create${token ? `?g=${encodeURIComponent(token)}` : ""}`;
+  const createHref = `/create?event=${encodeURIComponent(lookup)}${token ? `&g=${encodeURIComponent(token)}` : ""}`;
   const createFlow = !shut && !permanent && !holdsPass;
 
   return (

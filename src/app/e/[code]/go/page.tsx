@@ -43,7 +43,7 @@ export default async function GoFromMailPage({ params, searchParams }: PageProps
   const user = data.user ?? null;
   const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
   const permanent = await isPermanentAccount(session);
-  if (!permanent) redirect(`${base}/create?g=${encodeURIComponent(guest.token)}`);
+  if (!permanent) redirect(`/create?event=${encodeURIComponent(lookup)}&g=${encodeURIComponent(guest.token)}`);
 
   return (
     <main className="compass-main flex h-dvh w-full items-center justify-center bg-white px-[var(--gutter)] text-[var(--ink)]">

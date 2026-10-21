@@ -53,12 +53,19 @@ function passwordNow() {
   return issuedPassword;
 }
 
-/** An existing account signs in and `/save` puts the card in Network. The questionnaire is not shown again. */
-function signInHref(email?: string, token?: string) {
+/** An existing account signs in and finishes the door there. The questionnaire is not shown again. */
+function signInHref(email: string | undefined, input: EntryInput) {
   const query = new URLSearchParams();
   query.set("signin", "1");
   if (email) query.set("email", email);
-  if (token) query.set("next", `/save/${token}`);
+  if (input.event) {
+    const next = input.event.guestToken
+      ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
+      : `/e/${encodeURIComponent(input.event.lookup)}`;
+    query.set("next", next);
+  } else if (input.sourceToken) {
+    query.set("next", `/save/${input.sourceToken}`);
+  }
   return `/register?${query.toString()}`;
 }
 
@@ -168,6 +175,9 @@ export function EntryPage({ input }: { input: EntryInput }) {
           email: emailValue,
           password: secret,
           ...(input.sourceToken ? { sourceToken: input.sourceToken } : {}),
+          ...(input.event
+            ? { event: { lookup: input.event.lookup, ...(input.event.guestToken ? { guestToken: input.event.guestToken } : {}) } }
+            : {}),
           card: {
             displayName: titleValue,
             rubricOrder: zones.map((zone) => zone.id),
@@ -190,6 +200,9 @@ export function EntryPage({ input }: { input: EntryInput }) {
         fileItems?: { key: string; itemId: string }[];
         saved?: boolean;
         savedName?: string;
+        joined?: boolean;
+        pay?: boolean;
+        eventLookup?: string;
         warning?: string;
       };
       if (response.status === 409 || reply.kind === "login") {
@@ -262,7 +275,10 @@ export function EntryPage({ input }: { input: EntryInput }) {
       for (const item of files) {
         useUploadStatus.getState().setStatus(item.itemId, { state: "uploading", percent: null });
       }
-      if (input.sourceToken && reply.saved && !reply.warning) {
+      if (reply.joined && reply.eventLookup) {
+        const screen = reply.pay ? "pay" : "join";
+        router.replace(`/e/${encodeURIComponent(reply.eventLookup)}/${screen}`);
+      } else if (input.sourceToken && reply.saved && !reply.warning) {
         const added = reply.savedName?.trim() || "Untitled";
         router.replace(`/network?added=${encodeURIComponent(added)}&from=${encodeURIComponent(input.sourceToken)}`);
       } else {
@@ -410,7 +426,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
         {error ? <p className="m-0 t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>{error}</p> : null}
         {taken ? (
           <a
-            href={signInHref(email.trim().toLowerCase(), input.sourceToken)}
+            href={signInHref(email.trim().toLowerCase(), input)}
             className="t-meta text-[var(--ink)] underline"
             style={{ marginLeft: VALUE_AXIS_PX }}
           >
@@ -429,7 +445,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
         </div>
         <p className="m-0 t-meta text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
           Already have an account?{" "}
-          <a href={signInHref(undefined, input.sourceToken)} className="underline">
+          <a href={signInHref(undefined, input)} className="underline">
             Sign in
           </a>
         </p>

@@ -340,7 +340,7 @@ export async function acceptGuestPass(
   const guest = await findPassGuest(event.id, token);
   if (!guest) return { ok: false, status: 404, error: "Invitation not found" };
   const joinPath = `/e/${encodeURIComponent(event.slug ?? event.code)}/join`;
-  const createPath = `/e/${encodeURIComponent(event.slug ?? event.code)}/create?g=${encodeURIComponent(guest.token)}`;
+  const createPath = `/create?event=${encodeURIComponent(event.slug ?? event.code)}&g=${encodeURIComponent(guest.token)}`;
   const consentPath: EventConsentPath = from.source === "mail" ? "mail" : "event";
 
   if (guest.registrationId) {

@@ -23,6 +23,7 @@ export async function POST(request: Request) {
       publicToken: result.publicToken,
       fileItems: result.fileItems,
       ...(result.saved ? { saved: true, savedName: result.savedName } : {}),
+      ...(result.joined ? { joined: true, pay: result.pay === true, eventLookup: result.eventLookup } : {}),
       ...(result.warning ? { warning: result.warning } : {}),
     },
     201,

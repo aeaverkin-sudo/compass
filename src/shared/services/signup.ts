@@ -2,8 +2,12 @@ import { nanoid } from "nanoid";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { slugFromName, uniqueHandle } from "@/shared/services/card-handle";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { isEventLookup } from "@/shared/event/lookup";
 import { isEmail, userIdForEmail } from "@/shared/services/email-signup";
-import { PASSWORD_SET } from "@/shared/services/guest-accept";
+import { isGuestToken } from "@/shared/services/event-guest-pass";
+import { loadEventInvite } from "@/shared/services/event-invite";
+import { eventListStatus } from "@/shared/services/events";
+import { joinWithOwnCard, PASSWORD_SET } from "@/shared/services/guest-accept";
 import { ATTACHMENT_TYPES, type AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { saveConnection } from "@/shared/services/save-connection";
 
@@ -21,6 +25,8 @@ export type SignupBody = {
   password?: unknown;
   /** Public token of someone else's card. Comes only from `/create?card=`, which our own screens build. */
   sourceToken?: unknown;
+  /** Event lookup from `/create?event=`. `guestToken` is only carried through; the form does not read the guest. */
+  event?: { lookup?: unknown; guestToken?: unknown };
   card?: {
     displayName?: unknown;
     rubricOrder?: unknown;
@@ -41,7 +47,11 @@ export type SignupResult =
       /** The other person's card is in this account's book. */
       saved?: boolean;
       savedName?: string;
-      /** The account exists. The card door did not. The client opens the portfolio. */
+      /** The new account is on the event list. `pay` opens the payment screen. */
+      joined?: boolean;
+      pay?: boolean;
+      eventLookup?: string;
+      /** The account exists. A door did not. The client opens the portfolio. */
       warning?: string;
     }
   | { ok: false; status: number; error: string; kind?: "login" };
@@ -106,6 +116,36 @@ async function keepSourceCard(
   } catch (error) {
     console.error("[signup] card", error instanceof Error ? error.message : error);
     return { warning: "card" };
+  }
+}
+
+/** A failed join leaves the new account in place. The caller opens the portfolio instead of the event. */
+async function joinEvent(
+  userId: string,
+  cardId: string,
+  event: SignupBody["event"],
+): Promise<{ joined?: boolean; pay?: boolean; eventLookup?: string; warning?: string }> {
+  const lookup = typeof event?.lookup === "string" ? event.lookup.trim() : "";
+  if (!lookup) return {};
+  if (!isEventLookup(lookup)) return { warning: "event" };
+  const rawGuest = event?.guestToken;
+  const guestToken = isGuestToken(rawGuest) ? rawGuest : null;
+  if (rawGuest != null && rawGuest !== "" && !guestToken) return { warning: "event" };
+  try {
+    const invite = await loadEventInvite(lookup);
+    if (!invite || eventListStatus(invite.date, Date.now(), invite.endsAt) === "past") {
+      console.error("[signup] event", invite ? "ended" : "missing");
+      return { warning: "event" };
+    }
+    const joined = await joinWithOwnCard(userId, invite, lookup, guestToken, cardId);
+    if (!joined.ok || !joined.registrationId) {
+      console.error("[signup] event", joined.ok ? "no registration" : joined.error);
+      return { warning: "event" };
+    }
+    return { joined: true, pay: joined.pay, eventLookup: invite.slug?.trim() || invite.code };
+  } catch (error) {
+    console.error("[signup] event", error instanceof Error ? error.message : error);
+    return { warning: "event" };
   }
 }
 
@@ -238,7 +278,8 @@ export async function createSignup(body: SignupBody): Promise<SignupResult> {
     }
 
     const door = await keepSourceCard(admin, userId, body.sourceToken);
-    return { ok: true, status: 201, cardId, publicToken, fileItems, ...door };
+    const eventDoor = await joinEvent(userId, cardId, body.event);
+    return { ok: true, status: 201, cardId, publicToken, fileItems, ...door, ...eventDoor };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);
     console.error("[signup]", error instanceof Error ? error.message : error);
