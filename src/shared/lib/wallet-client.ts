@@ -1,6 +1,23 @@
 export const WALLET_SOON = "Apple Wallet · coming soon";
 
 /**
+ * Whether this pass is in Wallet right now.
+ * `true` / `false` come from the server. `null` means this read failed — keep the last label.
+ */
+export async function cardInWallet(cardId: string): Promise<boolean | null> {
+  try {
+    const response = await fetch(`/api/wallet/status?card=${encodeURIComponent(cardId)}`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { added?: boolean };
+    if (body.added === true) return true;
+    if (body.added === false) return false;
+  } catch {
+    /* no server answer on this view */
+  }
+  return null;
+}
+
+/**
  * Asks whether Wallet is set up, then opens the pass address itself.
  * iOS adds a pass from a real response with the pkpass type; a blob URL is not reliable.
  * Resolves false when Wallet is not ready, so the caller shows «coming soon».
