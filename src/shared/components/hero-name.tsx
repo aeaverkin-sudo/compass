@@ -41,8 +41,9 @@ function heroPlaceholder(text: string) {
 
 function textWidth(text: string, size: number, weight: number) {
   const probe = document.createElement("span");
-  probe.textContent = text;
-  probe.style.cssText = `position:absolute;left:-9999px;white-space:nowrap;font-family:${getComputedStyle(document.body).fontFamily};font-weight:${weight};font-size:${size}px;line-height:1;letter-spacing:${weight === 600 ? "-1px" : "0px"}`;
+  // A trailing space has no box of its own. The mark after it makes that space count.
+  probe.textContent = `${text}\u200b`;
+  probe.style.cssText = `position:absolute;left:-9999px;white-space:pre;font-family:${getComputedStyle(document.body).fontFamily};font-weight:${weight};font-size:${size}px;line-height:1;letter-spacing:${weight === 600 ? "-1px" : "0px"}`;
   document.body.appendChild(probe);
   const width = probe.getBoundingClientRect().width;
   probe.remove();
@@ -122,6 +123,11 @@ export function HeroName({
       const heightSize = Math.max(8, (box.clientHeight - gap) / (count + HERO_DESCENDER_OVERFLOW));
       setWrapWord(false);
       setSize(Math.min(HERO_NAME_MAX_PX, widthSize, heightSize));
+      const area = box.querySelector("textarea");
+      if (area) {
+        area.scrollTop = 0;
+        area.scrollLeft = 0;
+      }
     };
     fit();
     const observer = new ResizeObserver(fit);
@@ -206,7 +212,13 @@ export function HeroName({
           data-no-swipe
           data-keep-window=""
           onChange={(event) => {
+            event.currentTarget.scrollTop = 0;
+            event.currentTarget.scrollLeft = 0;
             onChange(clamp(event.target.value));
+          }}
+          onScroll={(event) => {
+            event.currentTarget.scrollTop = 0;
+            event.currentTarget.scrollLeft = 0;
           }}
           onFocus={() => {
             onFocus?.();
