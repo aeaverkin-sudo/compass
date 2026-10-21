@@ -355,10 +355,6 @@ body {
   scroll-padding-bottom: 8px;
 }
 
-.compass-card-scroll:has(:focus) {
-  padding-bottom: 40vh;
-}
-
 .compass-preview-scroll {
   scrollbar-width: none;
 }
