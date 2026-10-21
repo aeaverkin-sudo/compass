@@ -17,5 +17,5 @@ export async function POST(request: Request) {
   }
   const result = await createSignup(body ?? {});
   if (!result.ok) return noStore({ error: result.error, kind: result.kind }, result.status);
-  return noStore({ cardId: result.cardId, fileItems: result.fileItems }, 201);
+  return noStore({ cardId: result.cardId, publicToken: result.publicToken, fileItems: result.fileItems }, 201);
 }

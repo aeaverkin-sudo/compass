@@ -27,7 +27,7 @@ export type SignupBody = {
 export type SignupFileItem = { key: string; itemId: string };
 
 export type SignupResult =
-  | { ok: true; status: 201; cardId: string; fileItems: SignupFileItem[] }
+  | { ok: true; status: 201; cardId: string; publicToken: string; fileItems: SignupFileItem[] }
   | { ok: false; status: number; error: string; kind?: "login" };
 
 function emailTaken(error: { message?: string; code?: string } | null) {
@@ -120,13 +120,14 @@ export async function createSignup(body: SignupBody): Promise<SignupResult> {
       handle = uniqueHandle(base, used);
     }
 
+    const publicToken = nanoid(21);
     const card = await admin.from("cards").insert({
       id: cardId,
       owner_id: userId,
       display_name: displayName,
       title: "",
       status: "published",
-      public_token: nanoid(21),
+      public_token: publicToken,
       handle,
       qr_version: 1,
       is_public: true,
@@ -194,7 +195,7 @@ export async function createSignup(body: SignupBody): Promise<SignupResult> {
       if (zoned.error && !/item_zones/i.test(zoned.error.message)) throw new Error(zoned.error.message);
     }
 
-    return { ok: true, status: 201, cardId, fileItems };
+    return { ok: true, status: 201, cardId, publicToken, fileItems };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);
     console.error("[signup]", error instanceof Error ? error.message : error);

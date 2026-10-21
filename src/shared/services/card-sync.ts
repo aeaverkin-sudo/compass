@@ -235,6 +235,12 @@ async function currentUserId() {
   return data.user.id;
 }
 
+/** Local session only. Used to drop a pull that started before sign-in. */
+async function sessionUserId() {
+  const { data } = await createBrowserSupabaseClient().auth.getSession();
+  return data.session?.user?.id ?? null;
+}
+
 /** Upsert scalar columns only. The avatar is `photo_attachment_id`, never the image bytes. */
 export async function upsertCardScalars(card: Card): Promise<void> {
   try {
@@ -495,6 +501,8 @@ async function runHydrate() {
 
   const remote = (data ?? []) as unknown as CardRow[];
   const { useAppStore } = await import("@/shared/store/app-store");
+  // Sign-in can finish while this pull is in flight. Writing it would put the previous account's cards on the new one.
+  if ((await sessionUserId()) !== ownerId) return;
   const local = useAppStore.getState().cards;
   const merged = handlesForCards(
     mergeCardScalars(local, remote).map((card) => {
@@ -536,12 +544,15 @@ async function runHydrate() {
     );
   });
   await Promise.all(toUpload.map((card) => upsertCardScalars(card)));
+  if ((await sessionUserId()) !== ownerId) return;
 
   const { hydrateCardItems } = await import("@/shared/services/card-items-sync");
   await hydrateCardItems();
+  if ((await sessionUserId()) !== ownerId) return;
 
   const { migrateLocalMedia } = await import("@/shared/services/attachment-upload");
   await migrateLocalMedia();
+  if ((await sessionUserId()) !== ownerId) return;
 
   useAppStore.getState().recoverFileRows();
 

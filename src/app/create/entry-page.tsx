@@ -13,7 +13,9 @@ import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/ses
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { scheduleItemUpsert } from "@/shared/services/card-items-sync";
-import { hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { assignHandle } from "@/shared/services/card-handle";
+import { ensureCardIdentity, hydrateCardsFromServer } from "@/shared/services/card-sync";
+import type { Card } from "@/shared/types";
 import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { EntryName } from "./entry-name";
@@ -147,10 +149,12 @@ export function EntryPage({ input }: { input: EntryInput }) {
     setBusy(true);
     setError(null);
     setTaken(false);
+    let created = false;
     try {
       const response = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(20000),
         body: JSON.stringify({
           email: emailValue,
           password: secret,
@@ -170,6 +174,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
       });
       const reply = (await response.json().catch(() => ({}))) as {
         cardId?: string;
+        publicToken?: string;
         kind?: string;
         error?: string;
         fileItems?: { key: string; itemId: string }[];
@@ -186,21 +191,56 @@ export function EntryPage({ input }: { input: EntryInput }) {
         return;
       }
       const cardId = reply.cardId;
+      created = true;
       (document.activeElement as HTMLElement | null)?.blur();
       const supabase = createBrowserSupabaseClient();
-      ignoreNextSignedOut();
-      await supabase.auth.signOut({ scope: "local" });
-      const signed = await supabase.auth.signInWithPassword({ email: emailValue, password: secret });
+      const signed = await Promise.race([
+        (async () => {
+          ignoreNextSignedOut();
+          await supabase.auth.signOut({ scope: "local" });
+          return supabase.auth.signInWithPassword({ email: emailValue, password: secret });
+        })(),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("sign-in")), 20000);
+        }),
+      ]);
       if (signed.error || !signed.data.session) {
         setError("Account created, but sign-in failed — tap Sign in.");
         setTaken(true);
         setBusy(false);
         return;
       }
+      const now = new Date().toISOString();
+      const portfolio: Card = assignHandle(
+        ensureCardIdentity({
+          id: cardId,
+          displayName: titleValue,
+          photo: photo?.dataUrl,
+          photoLook: photo ? "shadow" : undefined,
+          title: "",
+          status: "published",
+          publicToken: reply.publicToken ?? "",
+          qrVersion: 1,
+          contactItemIds: [],
+          rubricOrder: zones.map((zone) => zone.id),
+          rubricLabels: Object.fromEntries(zones.flatMap((zone) => (zone.title.trim() ? [[zone.id, zone.title.trim()]] : []))),
+          listed: true,
+          nextScanAddons: [],
+          createdAt: now,
+          updatedAt: now,
+        }),
+        [],
+        true,
+      );
       useAppStore.getState().resetApp();
       markRegisteredDevice();
       clearRegistrationRequired();
-      useAppStore.setState({ user: { ...useAppStore.getState().user, onboarded: true } });
+      useAppStore.setState({
+        user: { ...useAppStore.getState().user, onboarded: true },
+        cards: [portfolio],
+        currentCardIndex: 0,
+        contactItems: [],
+      });
       const rows = zones.flatMap((zone) => zone.rows);
       const files = (reply.fileItems ?? []).flatMap((item) => {
         const row = rows.find((entry) => entry.key === item.key);
@@ -209,12 +249,9 @@ export function EntryPage({ input }: { input: EntryInput }) {
       for (const item of files) {
         useUploadStatus.getState().setStatus(item.itemId, { state: "uploading", percent: null });
       }
-      await hydrateCardsFromServer();
-      if (photo) {
-        useAppStore.getState().updateCard(cardId, { photo: photo.dataUrl, photoLook: "shadow" });
-      }
       router.replace("/main");
       void (async () => {
+        const synced = hydrateCardsFromServer();
         if (photo) {
           try {
             const readyPhoto = await uploadAttachment({ file: photo.file, kind: "card-photo", cardId });
@@ -223,6 +260,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
             // The portfolio is already open. The photo can be added again in Edit.
           }
         }
+        await synced;
         for (const item of files) {
           try {
             const readyFile = await uploadAttachment({ file: item.file, kind: item.type, cardId });
@@ -242,7 +280,12 @@ export function EntryPage({ input }: { input: EntryInput }) {
         }
       })();
     } catch {
-      setError("Could not create your profile.");
+      if (created) {
+        setError("Account created, but sign-in failed — tap Sign in.");
+        setTaken(true);
+      } else {
+        setError("Could not create your profile.");
+      }
       setBusy(false);
     }
   };
