@@ -196,11 +196,11 @@ export function LiveCardLanding() {
       )}
     >
       <nav ref={navRef} className="flex shrink-0 items-center justify-between px-[26px] py-[22px]">
-        <Link href="/register" aria-label="Sign up" className="press -m-3 flex p-3">
+        <Link href="/create" aria-label="Sign up" className="press -m-3 flex p-3">
           <Image src={LOGO} alt="aded" width={70} height={22} priority className="h-[22px] w-auto" />
         </Link>
         <Link
-          href="/register"
+          href="/create"
           className={cn("press -m-3 p-3 text-[12px] tracking-[.14em] uppercase no-underline", MONO)}
           style={{ color: ORANGE }}
         >
@@ -337,7 +337,7 @@ export function LiveCardLanding() {
           </div>
 
           <Link
-            href="/register"
+            href="/create"
             className={cn(
               "absolute top-[312px] right-[-24px] z-[6] block rounded-[7px] px-8 py-6 text-left whitespace-nowrap text-[#111]",
               "shadow-[0_22px_48px_rgba(0,0,0,.26),0_3px_10px_rgba(0,0,0,.12)]",
