@@ -7,7 +7,7 @@ import { BusinessCard } from "@main/components/business-card";
 import { type ScaffoldZone } from "@main/components/card-edit-list";
 import { useMainLayout } from "@main/hooks/use-main-layout";
 import { MarkPlus } from "@/shared/components/mark-plus";
-import { ScreenHeader } from "@/shared/components/screen-header";
+import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
@@ -140,6 +140,7 @@ export function SignupScreen({
     const id = useAppStore.getState().cards.at(-1)?.id ?? null;
     if (!id) return;
     tempId.current = id;
+    useAppStore.getState().updateCard(id, { photoLook: "shadow" });
     for (const zone of STARTERS) useAppStore.getState().setRubricLabel(id, zone.id, zone.title);
   };
 
@@ -311,7 +312,7 @@ export function SignupScreen({
 
   return (
     <main className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background text-[var(--ink)]">
-      <ScreenHeader title="Create your portfolio" fallbackHref={eventPath} spacer={false} />
+      <BackButton fallbackHref={eventPath} />
       {layout && card ? (
         <div className="absolute overflow-hidden" style={{ left: inset, right: inset, top: layout.qrTop, zIndex: 20 }}>
           <BusinessCard
@@ -328,7 +329,7 @@ export function SignupScreen({
               setPhoto(dataUrl && file ? { file, dataUrl } : null);
               useAppStore.getState().updateCard(card.id, {
                 photo: dataUrl ?? undefined,
-                photoLook: dataUrl ? "shadow" : undefined,
+                photoLook: "shadow",
               });
             }}
             onDisplayNameChange={(next) => {
