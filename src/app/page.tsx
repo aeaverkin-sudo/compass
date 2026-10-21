@@ -50,5 +50,5 @@ export default function Home() {
   }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, cards, router]);
 
   if (landing) return <LiveCardLanding />;
-  return <div className="h-svh bg-white" aria-hidden />;
+  return <div className="fixed inset-0 bg-white" aria-hidden />;
 }

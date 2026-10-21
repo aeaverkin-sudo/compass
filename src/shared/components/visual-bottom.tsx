@@ -2,7 +2,7 @@
 
 import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
-import { standaloneApp, writeScreenVars } from "@main/layout";
+import { writeScreenVars } from "@main/layout";
 
 /**
  * The head script has already sized the shell. This repeats that measure
@@ -28,37 +28,20 @@ export function VisualBottom() {
 
     const schedule = () => {
       if (frame) return;
-      frame = requestAnimationFrame(() => {
-        if (standaloneApp() && root.classList.contains("compass-settled")) {
-          frame = 0;
-          return;
-        }
-        write();
-      });
-    };
-
-    const onViewport = () => {
-      // After the installed app has been shown, a late status-bar correction must not move the card.
-      if (standaloneApp() && root.classList.contains("compass-settled")) return;
-      schedule();
-    };
-
-    const onTurn = () => {
-      if (frame) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(write);
     };
 
     write();
-    window.visualViewport?.addEventListener("resize", onViewport);
-    window.visualViewport?.addEventListener("scroll", onViewport);
-    window.addEventListener("orientationchange", onTurn);
-    window.addEventListener("resize", onViewport);
+    window.visualViewport?.addEventListener("resize", schedule);
+    window.visualViewport?.addEventListener("scroll", schedule);
+    window.addEventListener("orientationchange", schedule);
+    window.addEventListener("resize", schedule);
     return () => {
       if (frame) cancelAnimationFrame(frame);
-      window.visualViewport?.removeEventListener("resize", onViewport);
-      window.visualViewport?.removeEventListener("scroll", onViewport);
-      window.removeEventListener("orientationchange", onTurn);
-      window.removeEventListener("resize", onViewport);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("scroll", schedule);
+      window.removeEventListener("orientationchange", schedule);
+      window.removeEventListener("resize", schedule);
     };
   }, [pathname]);
 
