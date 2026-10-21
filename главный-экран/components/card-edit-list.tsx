@@ -948,7 +948,7 @@ export const CardEditList = memo(function CardEditList({
                           ref={extraValueRef}
                           initial={section.hint?.includes("@") ? section.hint : ""}
                           label={ADD_PLACEHOLDER}
-                          placeholder={seedPlaceholder(section)}
+                          placeholder={section.rows.length > 0 ? undefined : seedPlaceholder(section)}
                           placeholderClassName="t-body text-[var(--placeholder)]"
                           multiline={section.id === "about"}
                           breakButton={false}
