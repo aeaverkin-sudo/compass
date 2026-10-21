@@ -14,7 +14,7 @@ import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isEventInvitePath, isEventJoinPath, isEventTeamPath } from "@/shared/event/lookup";
-import { OpenPortfolio } from "../e/[code]/create/open-questionnaire";
+import { SignupScreen } from "../e/[code]/create/signup-screen";
 import { sourceCardToken } from "@/shared/services/source-card";
 import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { useAppStore } from "@/shared/store/app-store";
@@ -239,6 +239,13 @@ export function RegisterScreen() {
   }
 
   const fromEvent = signupEvent(params.get("next"));
-  return <OpenPortfolio sourceToken={card} lookup={fromEvent?.lookup} guest={fromEvent?.guest ?? null} />;
+  return (
+    <SignupScreen
+      sourceToken={card}
+      event={fromEvent ? { lookup: fromEvent.lookup } : undefined}
+      guest={fromEvent?.guest}
+      next={params.get("next") ?? ""}
+    />
+  );
 }
 

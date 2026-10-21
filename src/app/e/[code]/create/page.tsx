@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
 import { loadEventInvite } from "@/shared/services/event-invite";
-import { OpenPortfolio } from "./open-questionnaire";
+import { SignupScreen } from "./signup-screen";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +28,8 @@ export default async function CreatePortfolioPage({ params, searchParams }: Page
   const guestToken = Array.isArray(query.g) ? query.g[0] : query.g;
   const guest = await findPassGuest(event.id, guestToken);
   return (
-    <OpenPortfolio
-      lookup={lookup}
+    <SignupScreen
+      event={{ lookup }}
       guest={guest ? { token: guest.token, name: guest.name, email: guest.email ?? "" } : null}
     />
   );
