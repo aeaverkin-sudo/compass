@@ -18,7 +18,7 @@ import { PhotoSlotPicker, photoSlotLookClass } from "@landing/components/photo-s
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
-import { CardEditList } from "./card-edit-list";
+import { CardEditList, type ScaffoldZone } from "./card-edit-list";
 import { ContactItemChipList } from "./contact-item-chip";
 import { NotesRubric } from "./notes-rubric";
 import { useOwnerNotesDelivery } from "../hooks/use-owner-notes-delivery";
@@ -155,6 +155,8 @@ function EditorialHeader({
   plate = false,
   scale = 1,
   portfolioMark = false,
+  namePending = false,
+  photoEmptyMark,
 }: {
   card: Card;
   positionTitle?: string;
@@ -171,6 +173,9 @@ function EditorialHeader({
   scale?: number;
   /** Public / PDF: orange PORTFOLIO at the top-right of the header, on the zone axis. */
   portfolioMark?: boolean;
+  /** Offered name stays grey until the first edit. */
+  namePending?: boolean;
+  photoEmptyMark?: ReactNode;
 }) {
   const face = useLiveFace(card);
   const photoSrc = face.photoSrc;
@@ -208,6 +213,7 @@ function EditorialHeader({
               borderRadiusPx={0}
               photoLook={face.photoLook}
               onPhotoLook={setPhotoLook}
+              emptyMark={photoEmptyMark}
             />
           ) : photoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -226,6 +232,7 @@ function EditorialHeader({
             <HeroName
               value={face.displayName}
               onChange={onDisplayNameChange}
+              pending={namePending}
               roleBelow={Boolean(positionTitle)}
             />
             {positionTitle ? (
@@ -431,6 +438,15 @@ type BusinessCardProps = {
   sheetTotal?: number;
   /** A guest's event card: `{EVENT} · PASS` under the QR. The card counts as ready without a photo. */
   sheetMark?: string;
+  /** Questionnaire: the photo and the name, even before either is filled. */
+  headerWhenEmpty?: boolean;
+  /** Empty named zones. Omitted on the card itself. */
+  scaffold?: ScaffoldZone[];
+  /** Sits in the same scroll as the zones. */
+  footer?: ReactNode;
+  /** Offered name stays grey until the first key. */
+  namePending?: boolean;
+  photoEmptyMark?: ReactNode;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -459,6 +475,11 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     sheetIndex,
     sheetTotal,
     sheetMark,
+    headerWhenEmpty = false,
+    scaffold,
+    footer,
+    namePending = false,
+    photoEmptyMark,
   },
   ref,
 ) {
@@ -622,7 +643,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     >
       {!compact ? (
         <div className="shrink-0 px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
-          {blank ? (
+          {blank && !headerWhenEmpty ? (
             <EmptyPortfolioStart
               card={card}
               onPhotoChange={onPhotoChange}
@@ -642,6 +663,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               plate
               scale={readOnly ? 1 : headerScale}
               portfolioMark={readOnly}
+              namePending={namePending}
+              photoEmptyMark={photoEmptyMark}
             />
           )}
         </div>
@@ -714,6 +737,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           composeOnMount={composeOnMount}
           openAddRef={openAddRef}
           onComposingChange={onComposingChange}
+          scaffold={scaffold}
         />
       ) : (
       <div
@@ -784,6 +808,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           ) : null}
         </div>
       ) : null}
+      {footer}
       </div>
       </div>
       </div>

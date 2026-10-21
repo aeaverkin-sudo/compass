@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { fileRecoveryPaused } from "@/shared/services/deferred-files";
+import { signupDrafting } from "@/shared/services/signup-gate";
 
 /** Live state of one file row. Not persisted: a reload re-checks the row on the server. */
 export type FileRowStatus =
@@ -11,7 +12,7 @@ export type FileRowStatus =
 
 /** Grey line under a file row. A row with no file, no link and no live state has failed. */
 export function fileStatusLine(status: FileRowStatus | undefined, url: string): string | null {
-  if (!status && fileRecoveryPaused()) return null;
+  if (!status && (fileRecoveryPaused() || signupDrafting())) return null;
   if (status?.state === "uploading") {
     return status.percent == null ? "Uploading…" : `Uploading… ${status.percent}%`;
   }

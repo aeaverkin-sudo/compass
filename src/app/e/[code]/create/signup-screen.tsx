@@ -3,25 +3,14 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
-import { CardEditList, type ScaffoldZone } from "@main/components/card-edit-list";
+import { BusinessCard } from "@main/components/business-card";
+import { type ScaffoldZone } from "@main/components/card-edit-list";
 import { useMainLayout } from "@main/hooks/use-main-layout";
-import {
-  CARD_HEADER_PAD_PX,
-  CARD_TOP_TRIM_PX,
-  HEADER_FADE_PX,
-  HERO_PHOTO_PX,
-  RULE_GAP_PX,
-  SCREEN_TOP_AXIS_PX,
-  SECTION_PAD_PX,
-  SHEET_INSET,
-} from "@main/layout";
 import { MarkPlus } from "@/shared/components/mark-plus";
-import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
-import { HeroName } from "@/shared/components/hero-name";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { TapButton } from "@/shared/components/tap-button";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
-import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { clearRegisteredDevice, markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
@@ -121,6 +110,7 @@ export function SignupScreen({
   const [passwordVisible, setPasswordVisible] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signInFailed, setSignInFailed] = useState(false);
   const openAddRef = useRef<(() => void) | null>(null);
   const finished = useRef(false);
   const hadSession = useRef(false);
@@ -217,6 +207,7 @@ export function SignupScreen({
     const titleValue = title.trim();
     setBusy(true);
     setError(null);
+    setSignInFailed(false);
     const draftId = card.id;
     const fresh = useAppStore.getState();
     const saved = fresh.cards.find((entry) => entry.id === draftId);
@@ -253,10 +244,10 @@ export function SignupScreen({
         setBusy(false);
         return;
       }
-      finished.current = true;
       const serverCardId = reply.cardId;
       const go = reply.next || "/main";
       if (account) {
+        finished.current = true;
         setSignupDrafting(false);
         const state = useAppStore.getState();
         const keep = new Set(state.cards.filter((entry) => entry.id !== draftId).flatMap((entry) => entry.contactItemIds));
@@ -267,16 +258,17 @@ export function SignupScreen({
         });
       } else {
         const supabase = createBrowserSupabaseClient();
-        useAppStore.getState().resetApp();
-        clearRegisteredDevice();
         ignoreNextSignedOut();
         await supabase.auth.signOut({ scope: "local" });
         const signed = await supabase.auth.signInWithPassword({ email: emailValue, password });
         if (signed.error || !signed.data.session) {
-          setError("Could not open your profile.");
+          setSignInFailed(true);
           setBusy(false);
           return;
         }
+        finished.current = true;
+        useAppStore.getState().resetApp();
+        clearRegisteredDevice();
         markRegisteredDevice();
         clearRegistrationRequired();
         await recordConsent("register").catch(() => undefined);
@@ -308,150 +300,138 @@ export function SignupScreen({
     }
   };
 
-  const scale = layout?.headerScale ?? 1;
-  const photoPx = HERO_PHOTO_PX * scale;
-  const inset = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
-  const headerPad = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px)`;
+  const inset = layout?.edgeInsetBrowse ?? 0;
+  const photoEmpty = (
+    <span className="t-caps px-1 text-center leading-[1.15] text-[var(--grey)]">
+      Add
+      <br />
+      photo
+    </span>
+  );
 
   return (
-    <main className="compass-main fixed inset-0 flex flex-col overflow-hidden bg-background text-[var(--ink)]">
+    <main className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background text-[var(--ink)]">
       <ScreenHeader title="Create your portfolio" fallbackHref={eventPath} spacer={false} />
-      <div className="shrink-0 bg-background" style={{ paddingTop: headerPad, paddingLeft: inset, paddingRight: inset }}>
-        <div className={CARD_PAD}>
-          <div
-            className="relative"
-            style={{ paddingTop: (RULE_GAP_PX - CARD_TOP_TRIM_PX) * scale, paddingBottom: CARD_HEADER_PAD_PX * scale }}
-          >
-            <div className="flex shrink-0 items-stretch gap-3" style={{ height: photoPx }}>
-              <PhotoSlotPicker
-                photo={photo?.dataUrl ?? null}
-                photoLook="shadow"
-                emptyMark={
-                  <span className="t-caps px-1 text-center leading-[1.15] text-[var(--grey)]">
-                    Add
-                    <br />
-                    photo
-                  </span>
-                }
-                onPhotoChange={(dataUrl, file) => setPhoto(dataUrl && file ? { file, dataUrl } : null)}
-                sizePx={photoPx}
-                borderRadiusPx={0}
-                surfaceClassName="bg-transparent"
-              />
-              <div className="relative flex h-full min-w-0 flex-1 flex-col">
-                <HeroName
-                  value={title}
-                  pending={titlePending}
-                  onChange={(next) => {
-                    setTitlePending(false);
-                    setTitle(next);
-                    if (card) useAppStore.getState().updateCard(card.id, { displayName: next });
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div
-        className="compass-card-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain"
-        style={{
-          paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-          WebkitMaskImage: `linear-gradient(to bottom, transparent 0, #000 ${HEADER_FADE_PX}px)`,
-          maskImage: `linear-gradient(to bottom, transparent 0, #000 ${HEADER_FADE_PX}px)`,
-        }}
-      >
-        <div style={{ marginTop: -(SECTION_PAD_PX - HEADER_FADE_PX), paddingLeft: inset, paddingRight: inset }}>
-          <div className={CARD_PAD}>
-            {card ? <CardEditList card={card} items={[]} scaffold={STARTERS} openAddRef={openAddRef} /> : null}
-            <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-t border-[var(--rule)] py-[18px]">
-              <span />
-              <button
-                type="button"
-                aria-label="Add"
-                className="flex border-0 bg-transparent p-0 text-[var(--ink)]"
-                onPointerUp={() => openAddRef.current?.()}
-              >
-                <MarkPlus />
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="bg-sky py-[18px]">
-          <div style={{ paddingLeft: inset, paddingRight: inset }}>
-            <div className={CARD_PAD}>
-              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
-                <span className="t-label">
-                  Email
-                  <span className="relative -top-[0.35em] ml-[0.15em] font-[inherit] text-[1em] leading-none">*</span>
-                </span>
-                <input
-                  type="email"
-                  inputMode="email"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  aria-label="Email"
-                  placeholder="name@mail.com"
-                  value={email}
-                  onChange={(event) => {
-                    setEmailPending(false);
-                    setEmail(event.target.value);
-                  }}
-                  className={`compass-input block w-full border-0 bg-transparent px-0 py-1 t-body caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)] ${emailPending ? "text-[var(--placeholder)]" : "text-[var(--ink)]"}`}
-                />
-              </div>
-              {account ? null : (
-                <div className="mt-[18px]">
-                  <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)]">
-                    <span className="t-label pt-1">Password</span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type={passwordVisible ? "text" : "password"}
-                        autoCapitalize="none"
-                        autoComplete="new-password"
-                        aria-label="Password"
-                        readOnly
-                        value={password}
-                        className="compass-input block min-w-0 flex-1 border-0 bg-transparent p-0 py-1 t-body text-[var(--ink)] outline-none"
-                      />
-                      <button
-                        type="button"
-                        aria-label={passwordVisible ? "Hide password" : "Show password"}
-                        className="border-0 bg-transparent p-1 text-[var(--ink)]"
-                        onClick={() => setPasswordVisible((shown) => !shown)}
-                      >
-                        {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
-                      </button>
-                    </div>
-                  </div>
-                  <p className="mt-2 mb-0 t-meta text-[var(--grey)]" style={{ paddingLeft: VALUE_AXIS_PX }}>
-                    You can change it anytime in Profile.
-                  </p>
+      {layout && card ? (
+        <div className="absolute overflow-hidden" style={{ left: inset, right: inset, top: layout.qrTop, zIndex: 20 }}>
+          <BusinessCard
+            card={card}
+            library={[]}
+            mode="browse"
+            editing
+            headerWhenEmpty
+            scaffold={STARTERS}
+            openAddRef={openAddRef}
+            namePending={titlePending}
+            photoEmptyMark={photoEmpty}
+            onPhotoChange={(dataUrl, file) => {
+              setPhoto(dataUrl && file ? { file, dataUrl } : null);
+              useAppStore.getState().updateCard(card.id, {
+                photo: dataUrl ?? undefined,
+                photoLook: dataUrl ? "shadow" : undefined,
+              });
+            }}
+            onDisplayNameChange={(next) => {
+              setTitlePending(false);
+              setTitle(next);
+              useAppStore.getState().updateCard(card.id, { displayName: next });
+            }}
+            footer={
+              <>
+                <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-t border-[var(--rule)] py-[18px]">
+                  <span />
+                  <button
+                    type="button"
+                    aria-label="Add"
+                    className="flex border-0 bg-transparent p-0 text-[var(--ink)]"
+                    onPointerUp={() => openAddRef.current?.()}
+                  >
+                    <MarkPlus />
+                  </button>
                 </div>
-              )}
-            </div>
-          </div>
+                <div className="-mx-[calc(clamp(24px,6.1vw,28px)-3mm)] bg-sky py-[18px]">
+                  <div className={CARD_PAD}>
+                    <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
+                      <span className="t-label">
+                        Email
+                        <span className="relative -top-[0.35em] ml-[0.15em] leading-none">*</span>
+                      </span>
+                      <input
+                        type="email"
+                        inputMode="email"
+                        autoCapitalize="none"
+                        autoComplete="email"
+                        aria-label="Email"
+                        placeholder="name@mail.com"
+                        value={email}
+                        onChange={(event) => {
+                          setEmailPending(false);
+                          setEmail(event.target.value);
+                        }}
+                        className={`compass-input block w-full border-0 bg-transparent px-0 py-1 t-body caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)] ${emailPending ? "text-[var(--placeholder)]" : "text-[var(--ink)]"}`}
+                      />
+                    </div>
+                    {account ? null : (
+                      <div className="mt-[18px]">
+                        <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)]">
+                          <span className="t-label pt-1">Password</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type={passwordVisible ? "text" : "password"}
+                              autoCapitalize="none"
+                              autoComplete="new-password"
+                              aria-label="Password"
+                              readOnly
+                              value={password}
+                              className="compass-input block min-w-0 flex-1 border-0 bg-transparent p-0 py-1 t-body text-[var(--ink)] outline-none"
+                            />
+                            <button
+                              type="button"
+                              aria-label={passwordVisible ? "Hide password" : "Show password"}
+                              className="border-0 bg-transparent p-1 text-[var(--ink)]"
+                              onClick={() => setPasswordVisible((shown) => !shown)}
+                            >
+                              {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-2 mb-0 t-meta text-[var(--grey)]" style={{ paddingLeft: VALUE_AXIS_PX }}>
+                          You can change it anytime in Profile.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {signInFailed ? (
+                  <p className="mt-4 mb-0 t-meta text-[var(--ink)]">
+                    Account created, but sign-in failed — tap{" "}
+                    <a href={signInTo} className="underline">
+                      Sign in
+                    </a>
+                    .
+                  </p>
+                ) : error ? (
+                  <p className="mt-4 mb-0 t-meta text-[var(--ink)]">{error}</p>
+                ) : null}
+                <div className="py-[18px]" style={{ paddingLeft: VALUE_AXIS_PX }}>
+                  <TapButton disabled={busy || !ready} onTap={() => void finish()} className={SKY}>
+                    Create portfolio
+                  </TapButton>
+                  {account ? null : (
+                    <p className="mt-4 mb-0 t-meta text-[var(--grey)]">
+                      Already have an account?{" "}
+                      <a href={signInTo} className="text-[var(--grey)] underline">
+                        Sign in
+                      </a>
+                    </p>
+                  )}
+                </div>
+                <div className="h-8" />
+              </>
+            }
+          />
         </div>
-        <div style={{ paddingLeft: inset, paddingRight: inset }}>
-          <div className={CARD_PAD}>
-            {error ? <p className="mt-4 mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
-            <div className="py-[18px]" style={{ paddingLeft: VALUE_AXIS_PX }}>
-              <TapButton disabled={busy || !ready} onTap={() => void finish()} className={SKY}>
-                Create portfolio
-              </TapButton>
-              {account ? null : (
-                <p className="mt-4 mb-0 t-meta text-[var(--grey)]">
-                  Already have an account?{" "}
-                  <a href={signInTo} className="text-[var(--grey)] underline">
-                    Sign in
-                  </a>
-                </p>
-              )}
-            </div>
-            <div className="h-8" />
-          </div>
-        </div>
-      </div>
+      ) : null}
     </main>
   );
 }

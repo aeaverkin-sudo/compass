@@ -16,6 +16,8 @@ import {
   isExtraZoneId,
   isProseValue,
   labelForNewZone,
+  SOCIAL_HINT,
+  FILES_HINT,
   zoneTitle,
   type CardDisplayRow,
   type CardZoneId,
@@ -57,6 +59,21 @@ function typedMark(value: string) {
   return `${typeLabel(kind)} / `;
 }
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
+const NEW_SECTION_HINT = "Contacts, location, etc.";
+
+function seedPlaceholder(section: { id: string; hint?: string }) {
+  if (section.hint?.includes("@")) return undefined;
+  if (section.hint) return section.hint;
+  if (isExtraZoneId(section.id)) return NEW_SECTION_HINT;
+  if (section.id === "social") return SOCIAL_HINT;
+  if (section.id === "files") return FILES_HINT;
+  return ADD_PLACEHOLDER;
+}
+
+function withNewSectionHint(section: EditSection): EditSection {
+  if (section.rows.length > 0 || section.hint || !isExtraZoneId(section.id)) return section;
+  return { ...section, hint: NEW_SECTION_HINT };
+}
 const NEW_ZONE_TITLE = "TITLE";
 const LOOKING_FOR = "Looking for";
 /** An event pass keeps Event on About, so Looking for takes a section the pass never fills. */
@@ -129,7 +146,7 @@ function buildSections(card: Card, items: ContactItem[], cards: Card[], scaffold
   const order = new Map(card.contactItemIds.map((id, index) => [id, index]));
   const grouped = groupEditSections(items.filter(isContactFilled), card, cards);
   const built = grouped.map((zone) => sectionOf(zone, onCard, order));
-  if (!scaffold?.length) return built;
+  if (!scaffold?.length) return built.map(withNewSectionHint);
 
   const hidden = new Set((card.hiddenZones ?? []).flatMap((id) => (id ? [id] : [])));
   const byId = new Map(built.map((section) => [section.id, section]));
@@ -149,7 +166,7 @@ function buildSections(card: Card, items: ContactItem[], cards: Card[], scaffold
       },
     ];
   });
-  const rest = built.filter((section) => !scaffold.some((zone) => zone.id === section.id));
+  const rest = built.filter((section) => !scaffold.some((zone) => zone.id === section.id)).map(withNewSectionHint);
   return [...seeded, ...rest];
 }
 
@@ -218,14 +235,9 @@ function unusedExtraId(card: Card, keepId?: string) {
   return null;
 }
 
-/** Files, a new open section, or a section that already holds a file. Social, Contact and Web stay text. */
-function offersFileAdd(
-  zoneId: CardZoneId,
-  rows: { row: { item: ContactItem | null } }[],
-  blank: boolean,
-) {
-  if (blank || zoneId === "files" || isExtraZoneId(zoneId)) return true;
-  return rows.some(({ row }) => row.item != null && isAttachmentType(row.item.type));
+/** Files, and a section opened from the plus. Position, Web, Social and About stay text. */
+function offersFileAdd(zoneId: CardZoneId) {
+  return zoneId === "files" || isExtraZoneId(zoneId);
 }
 
 function FileAddButton({
@@ -514,6 +526,7 @@ export const CardEditList = memo(function CardEditList({
         setDeleteReadyId(null);
         setHideReadyId(null);
         setSeedHint(null);
+        setSeedTyped("");
         setLookingFor(false);
         setSeedZoneId(zone);
         setSectionEditId(title ? zone : null);
@@ -755,7 +768,6 @@ export const CardEditList = memo(function CardEditList({
 
   const stayInSeed = (event: FocusEvent<HTMLDivElement>) =>
     Boolean(extraBlockRef.current?.contains(event.relatedTarget as Node | null));
-  const blankCard = sections.every((entry) => entry.rows.length === 0);
   const showChecks = !scaffold;
 
   return (
@@ -766,7 +778,7 @@ export const CardEditList = memo(function CardEditList({
     >
       {sections.map((section, index) => {
         const seedingThis = seedZoneId === section.id;
-        const fileHere = offersFileAdd(section.id, section.rows, blankCard);
+        const fileHere = offersFileAdd(section.id);
         const fresh = seedingThis && isExtraZoneId(section.id) && section.rows.length === 0;
         const bare = Boolean(section.hint) && !seedingThis;
         const zone = (
@@ -936,7 +948,7 @@ export const CardEditList = memo(function CardEditList({
                           ref={extraValueRef}
                           initial={section.hint?.includes("@") ? section.hint : ""}
                           label={ADD_PLACEHOLDER}
-                          placeholder={section.hint?.includes("@") ? undefined : section.hint || ADD_PLACEHOLDER}
+                          placeholder={seedPlaceholder(section)}
                           placeholderClassName="t-body text-[var(--placeholder)]"
                           multiline={section.id === "about"}
                           breakButton={false}

@@ -6,16 +6,55 @@ import { cn } from "@/lib/utils";
 /** One letter starts here. Longer lines step down. Two lines never leave the photo box. */
 const MAX_PX = 78;
 const MIN_PX = 16;
-/** Average Helvetica Neue 600 glyph, in em. Caps are wider than mixed case. */
-const K_CAPS = 0.58;
-const K_MIXED = 0.52;
+/** Measured once for this font. A 4% wider glyph keeps the line inside the box. */
+const GLYPH_SLACK = 1.04;
+let glyphCaps = 0.58 * GLYPH_SLACK;
+let glyphLower = 0.52 * GLYPH_SLACK;
+let glyphKnown = false;
+
+function rememberGlyphs() {
+  if (glyphKnown || typeof document === "undefined") return false;
+  const probe = document.createElement("span");
+  probe.setAttribute("aria-hidden", "true");
+  probe.style.cssText = [
+    "position:absolute",
+    "left:-9999px",
+    "top:0",
+    "visibility:hidden",
+    "white-space:nowrap",
+    "font-weight:600",
+    "font-size:100px",
+    "letter-spacing:-1px",
+    'font-family:"Helvetica Neue",Helvetica,Arial,sans-serif',
+  ].join(";");
+  document.body.appendChild(probe);
+  const widthOf = (text: string) => {
+    probe.textContent = text;
+    return probe.getBoundingClientRect().width / (text.length * 100);
+  };
+  const widest = (text: string) => {
+    let max = 0;
+    for (const glyph of text) {
+      probe.textContent = glyph;
+      max = Math.max(max, probe.getBoundingClientRect().width / 100);
+    }
+    return max;
+  };
+  const caps = Math.max(widthOf("ABCDEFGHIJKLMNOPQRSTUVWXYZ"), widest("ABCDEFGHIJKLMNOPQRSTUVWXYZШ"));
+  const lower = Math.max(widthOf("abcdefghijklmnopqrstuvwxyz"), widest("abcdefghijklmnopqrstuvwxyz"));
+  probe.remove();
+  if (caps > 0) glyphCaps = caps * GLYPH_SLACK;
+  if (lower > 0) glyphLower = lower * GLYPH_SLACK;
+  glyphKnown = true;
+  return true;
+}
 /** Ink of g/y/p below a line-height of 1. */
 const DESCENDER = 0.09;
 
 function glyphK(text: string) {
   const letters = text.replace(/\s/g, "");
-  if (!letters) return K_CAPS;
-  return letters === letters.toUpperCase() ? K_CAPS : K_MIXED;
+  if (!letters) return glyphCaps;
+  return letters === letters.toUpperCase() ? glyphCaps : glyphLower;
 }
 
 function clampLines(value: string, maxLines: number) {
@@ -31,7 +70,7 @@ function plan(text: string, width: number, height: number, maxLines: number) {
   const source = written.length > 0 ? written : [""];
   let count = Math.min(maxLines, Math.max(1, source.length));
   let longest = source.reduce((max, line) => Math.max(max, line.length), 1);
-  const k = source.reduce((max, line) => Math.max(max, glyphK(line)), K_MIXED);
+  const k = source.reduce((max, line) => Math.max(max, glyphK(line)), glyphLower);
   if (count === 1 && width > 0 && maxLines >= 2 && width / (longest * k) < MIN_PX) {
     count = 2;
     longest = Math.max(1, Math.ceil(longest / 2));
@@ -46,7 +85,7 @@ export function HeroName({
   value,
   onChange,
   pending = false,
-  placeholder = "NAME, COMPANY\nOR PORTFOLIO TITLE",
+  placeholder = "NAME, COMPANY,\nPORTFOLIO TITLE",
   maxLines = 2,
   align = "bottom",
   roleBelow: _roleBelow = false,
@@ -63,8 +102,11 @@ export function HeroName({
 }) {
   void _roleBelow;
   const [box, setBox] = useState({ w: 200, h: 128 });
+  const [glyphTick, setGlyphTick] = useState(0);
+  void glyphTick;
   const onBox = useCallback((node: HTMLDivElement | null) => {
     if (!node) return;
+    if (rememberGlyphs()) setGlyphTick(1);
     const measure = () => {
       const w = node.clientWidth;
       const h = node.clientHeight;
@@ -82,7 +124,7 @@ export function HeroName({
   const { count, fontSize } = plan(shown, box.w, box.h, maxLines);
   const height = count * fontSize + fontSize * DESCENDER;
   const lastPlaceholder = placeholder.split("\n").at(-1) ?? "";
-  const starAt = lastPlaceholder.length * fontSize * K_CAPS;
+  const starAt = lastPlaceholder.length * fontSize * glyphCaps;
 
   const typeStyle = {
     fontSize,
@@ -140,10 +182,10 @@ export function HeroName({
               />
               <span
                 aria-hidden
-                className="pointer-events-none absolute font-[inherit] leading-none text-[var(--placeholder)]"
+                className="pointer-events-none absolute leading-none text-[var(--placeholder)]"
                 style={{ left: starAt, bottom: fontSize * DESCENDER, fontSize, fontWeight: 400 }}
               >
-                <span className="relative -top-[0.35em] ml-[0.15em] text-[1em] leading-none">*</span>
+                <span className="relative -top-[0.35em] ml-[0.15em]">*</span>
               </span>
             </>
           ) : null}

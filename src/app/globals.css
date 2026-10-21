@@ -351,6 +351,12 @@ body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   scrollbar-width: none;
+  scroll-padding-top: 6.4px;
+  scroll-padding-bottom: 8px;
+}
+
+.compass-card-scroll:has(:focus) {
+  padding-bottom: 40vh;
 }
 
 .compass-preview-scroll {

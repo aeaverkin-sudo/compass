@@ -485,7 +485,7 @@ export const useAppStore = create<AppState>()(
       },
 
       recoverFileRows: () => {
-        if (fileRecoveryPaused()) return;
+        if (fileRecoveryPaused() || signupDrafting()) return;
         for (const item of get().contactItems) {
           if (!isAttachmentType(item.type) || item.attachmentId || item.url) continue;
           if (useUploadStatus.getState().byItem[item.id] || uploadRuns.has(item.id)) continue;
