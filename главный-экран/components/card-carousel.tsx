@@ -173,15 +173,6 @@ export const CardCarousel = memo(function CardCarousel({
     [sidePaddingPx, slideGapPx, slideWidthPx],
   );
 
-  const scrollToIndex = useCallback(
-    (index: number, behavior: ScrollBehavior = "smooth") => {
-      const node = scrollRef.current;
-      if (!node || !multiSlide || slideWidthPx === 0) return;
-      node.scrollTo({ left: scrollLeftForIndex(index), behavior });
-    },
-    [multiSlide, scrollLeftForIndex, slideWidthPx],
-  );
-
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
   const portfolioLimit = useAccountStatus()?.portfolioLimit ?? null;
   const sheetTotalCount =
@@ -239,22 +230,18 @@ export const CardCarousel = memo(function CardCarousel({
     if (!editing) topLeftCards();
   }, [activeIndex, editing, topLeftCards]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!multiSlide || slideWidthPx === 0) return;
+    const node = scrollRef.current;
+    if (!node) return;
+    const left = scrollLeftForIndex(activeIndex);
+    if (Math.abs(node.scrollLeft - left) < 1) return;
     syncingScroll.current = true;
-    scrollToIndex(activeIndex, "auto");
+    node.scrollLeft = left;
     requestAnimationFrame(() => {
       syncingScroll.current = false;
     });
-  }, [activeIndex, multiSlide, scrollToIndex, slideWidthPx]);
-
-  useEffect(() => {
-    if (!multiSlide) return;
-
-    const onResize = () => scrollToIndex(activeIndex, "auto");
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [activeIndex, multiSlide, scrollToIndex]);
+  }, [activeIndex, multiSlide, scrollLeftForIndex, slideWidthPx]);
 
   const lockedScroll = useRef<number | null>(null);
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
 import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
+import { cardHasPhoto } from "@/shared/services/card-photo";
 import { BottomNav } from "./bottom-nav";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
@@ -336,10 +337,20 @@ export function MainScreen() {
 
   const cardTopBrowse = layout?.cardTopBrowse;
   const browseCarousel = cardCount > 1 || showAddSlide;
+  // The plan limit arrives after the first paint. A filled card keeps the carousel
+  // column while that answer is still out, so the sheet does not slide into center.
+  const lastCard = useAppStore.getState().cards[cardCount - 1];
+  const holdCarouselFrame =
+    account === null && cardCount === 1 && Boolean(lastCard && (cardHasPhoto(lastCard) || lastCard.displayName.trim()));
   const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
+  const frameInset = browseCarousel
+    ? 0
+    : holdCarouselFrame
+      ? carouselSidePaddingPx(frameWidth || 1, true)
+      : edgeInsetBrowse;
   const sheetTotal = portfolioLimit !== null && portfolioLimit >= cardCount ? portfolioLimit : cardCount;
   const sheetIndex = Math.min(browseIndex, Math.max(cardCount - 1, 0)) + 1;
-  const sideInset = browseCarousel ? carouselSidePaddingPx(frameWidth, true) : edgeInsetBrowse;
+  const sideInset = browseCarousel || holdCarouselFrame ? carouselSidePaddingPx(frameWidth || 1, true) : edgeInsetBrowse;
   const counterRightCss = `calc(${sideInset}px + clamp(24px, 6.1vw, 28px) - 3mm)`;
 
   return (
@@ -410,8 +421,8 @@ export function MainScreen() {
         <div
           className="absolute overflow-hidden transition-[top] duration-[460ms] ease-out motion-reduce:transition-none"
           style={{
-            left: browseCarousel ? 0 : edgeInsetBrowse,
-            right: browseCarousel ? 0 : edgeInsetBrowse,
+            left: frameInset,
+            right: frameInset,
             top: layoutTop(editing && layout ? layout.qrTop : cardTopBrowse),
             zIndex: 20,
           }}
