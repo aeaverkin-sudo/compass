@@ -134,7 +134,13 @@ export function RegisterScreen() {
   const taken = params.get("taken") === "1";
   const [inApp, setInApp] = useState(false);
   const [accepted, setAccepted] = useState(false);
-  const [email, setEmail] = useState("");
+  const emailed = params.get("email")?.trim() ?? "";
+  const [email, setEmail] = useState(emailed);
+  const [emailLink, setEmailLink] = useState(emailed);
+  if (emailed !== emailLink) {
+    setEmailLink(emailed);
+    if (emailed) setEmail(emailed);
+  }
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -423,7 +429,7 @@ export function RegisterScreen() {
       const query = new URLSearchParams();
       if (keepsNext(nextPath)) query.set("next", nextPath);
       const text = query.toString();
-      return text ? `/register?${text}` : "/register";
+      return text ? `/register?${text}` : "/create";
     })();
     const eventPath = isEventInvitePath(nextPath) || isEventJoinPath(nextPath);
     return (
