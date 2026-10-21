@@ -87,7 +87,8 @@ body {
 
 .compass-main input,
 .compass-main textarea,
-.compass-main [contenteditable="true"] {
+.compass-main [contenteditable="true"],
+.compass-main [contenteditable="plaintext-only"] {
   -webkit-user-select: text;
   user-select: text;
 }

@@ -278,11 +278,10 @@ function SectionLabel({
         }
         finish(next);
       }}
-      className={
-        pill
-          ? "bg-transparent t-label text-[var(--grey)] caret-[var(--ink)]"
-          : "bg-transparent text-[16px] leading-normal text-[var(--ink)] caret-[var(--ink)]"
-      }
+      className={cn(
+        "bg-transparent t-label caret-[var(--ink)]",
+        pill || (included && title.trim()) ? "text-[var(--grey)]" : "text-[var(--placeholder)]",
+      )}
     />
   );
 
@@ -421,9 +420,13 @@ export const CardEditList = memo(function CardEditList({
         setSeedZoneId(id);
         setSectionEditId(id);
       });
-      const section = listRef.current?.querySelector(`[data-zone="${CSS.escape(id)}"]`);
-      section?.scrollIntoView({ block: "end", inline: "nearest" });
-      section?.querySelector<HTMLElement>("[contenteditable]")?.focus();
+      const section = listRef.current?.querySelector<HTMLElement>(`[data-zone="${CSS.escape(id)}"]`);
+      const scroller = listRef.current?.closest<HTMLElement>(".compass-card-scroll");
+      if (section && scroller) {
+        const top = section.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+        scroller.scrollTop += top;
+      }
+      section?.querySelector<HTMLElement>("[contenteditable]")?.focus({ preventScroll: true });
     };
     openNewZoneRef.current = openNewZone;
     openAddRef.current = openNewZone;
@@ -436,52 +439,59 @@ export const CardEditList = memo(function CardEditList({
     const list = listRef.current;
     const scroller = list?.closest<HTMLElement>(".compass-card-scroll");
     if (!list || !scroller) return;
+    const viewport = window.visualViewport;
+    let baseline = viewport?.height ?? window.innerHeight;
     let timer = 0;
-    let waiting = false;
-    const keyboard = () => {
-      const viewport = window.visualViewport;
-      if (!viewport) return 0;
-      return Math.max(0, window.innerHeight - viewport.offsetTop - viewport.height);
+    let pinning = false;
+    let seenShift = 0;
+    const inset = () => {
+      const next = window.visualViewport;
+      if (!next) return 0;
+      return Math.max(0, Math.round(baseline - next.height));
     };
-    const place = () => {
+    const place = (lift: boolean) => {
+      if (pinning) return;
+      const next = window.visualViewport;
       const field = document.activeElement;
       const mine = isLiftField(field) && list.contains(field);
-      const height = keyboard();
-      const open = mine && height > KEYBOARD_MIN_PX;
-      scroller.style.paddingBottom = open ? `${Math.round(height)}px` : "";
-      const viewport = window.visualViewport;
-      if (!mine || !viewport || !open) return;
-      const covered = field.getBoundingClientRect().bottom - (viewport.offsetTop + viewport.height - 8);
-      if (covered > 2) scroller.scrollBy({ top: covered, behavior: "smooth" });
-    };
-    const schedule = () => {
-      const viewport = window.visualViewport;
-      if (!viewport || waiting) {
-        window.clearTimeout(timer);
-        timer = window.setTimeout(place, 300);
+      const shift = next?.offsetTop ?? 0;
+      if (shift > 1 || window.scrollY > 0) {
+        const delta = shift - seenShift;
+        seenShift = shift;
+        pinning = true;
+        window.scrollTo(0, 0);
+        if (mine && delta > 1) scroller.scrollTop += delta;
+        pinning = false;
+      } else {
+        seenShift = 0;
+      }
+      const height = inset();
+      if (!mine || height < KEYBOARD_MIN_PX) {
+        if (next && height < KEYBOARD_MIN_PX) baseline = next.height;
+        scroller.style.paddingBottom = "";
         return;
       }
-      waiting = true;
-      const done = () => {
-        waiting = false;
-        viewport.removeEventListener("resize", done);
-        window.clearTimeout(timer);
-        place();
-      };
-      viewport.addEventListener("resize", done);
-      timer = window.setTimeout(done, 300);
+      scroller.style.paddingBottom = `${height}px`;
+      if (!lift || !next) return;
+      const covered = field.getBoundingClientRect().bottom - (next.height - 8);
+      if (covered > 2) scroller.scrollTop += covered;
     };
     const onFocus = (event: globalThis.FocusEvent) => {
       if (!isLiftField(event.target) || !list.contains(event.target)) return;
-      schedule();
+      const next = window.visualViewport;
+      if (next && inset() < KEYBOARD_MIN_PX) baseline = next.height;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => place(true), 300);
     };
     scroller.addEventListener("focusin", onFocus);
-    scroller.addEventListener("focusout", place);
-    window.visualViewport?.addEventListener("resize", place);
+    const onResize = () => place(true);
+    const onViewportScroll = () => place(false);
+    viewport?.addEventListener("resize", onResize);
+    viewport?.addEventListener("scroll", onViewportScroll);
     return () => {
       scroller.removeEventListener("focusin", onFocus);
-      scroller.removeEventListener("focusout", place);
-      window.visualViewport?.removeEventListener("resize", place);
+      viewport?.removeEventListener("resize", onResize);
+      viewport?.removeEventListener("scroll", onViewportScroll);
       window.clearTimeout(timer);
       scroller.style.paddingBottom = "";
     };
@@ -499,7 +509,7 @@ export const CardEditList = memo(function CardEditList({
 
   useLayoutEffect(() => {
     if (!seeding) return;
-    extraBlockRef.current?.querySelector<HTMLElement>("[contenteditable]")?.focus();
+    extraBlockRef.current?.querySelector<HTMLElement>("[contenteditable]")?.focus({ preventScroll: true });
   }, [seeding]);
 
   useEffect(() => {
@@ -794,8 +804,10 @@ export const CardEditList = memo(function CardEditList({
                       }}
                       onDone={(next) => seedItem(section.id, next)}
                       onEmptyDelete={() => {
-                        if (section.title.trim() || extraValueRef.current?.text().trim()) return;
-                        hideZone(card.id, section.id);
+                        if (extraValueRef.current?.text().trim()) return;
+                        if (isExtraZoneId(section.id) && !section.title.trim() && section.rows.length === 0) {
+                          hideZone(card.id, section.id);
+                        }
                         endSeed(section.id);
                       }}
                       onBlur={(next, event) => {
