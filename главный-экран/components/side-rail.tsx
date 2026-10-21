@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  memo,
   useEffect,
   useRef,
   useState,
@@ -150,29 +149,7 @@ function measureAnchors(rail: HTMLElement, fallbackQrTop: number): { qr: Anchor;
   };
 }
 
-function sameRailCard(a: Card, b: Card) {
-  return (
-    a.id === b.id &&
-    a.publicToken === b.publicToken &&
-    a.handle === b.handle &&
-    a.displayName === b.displayName &&
-    a.photoAttachmentId === b.photoAttachmentId &&
-    a.nextScanAddons === b.nextScanAddons
-  );
-}
-
-/** One rail is on screen. Keep the last card object when a tap only changes rows, so the rail does not redraw. */
-const railCardCache = new Map<string, Card>();
-
-function selectRailCard(cards: Card[], cardId: string, fallback: Card) {
-  const found = cards.find((entry) => entry.id === cardId) ?? fallback;
-  const cached = railCardCache.get(cardId);
-  if (cached && sameRailCard(cached, found)) return cached;
-  railCardCache.set(cardId, found);
-  return found;
-}
-
-export const SideRail = memo(function SideRail({
+export function SideRail({
   qrTop,
   counterRightCss,
   card,
@@ -191,15 +168,13 @@ export const SideRail = memo(function SideRail({
   frozen: boolean;
   editing?: boolean;
 }) {
-  const cardId = card.id;
-  const liveCard = useAppStore((state) => selectRailCard(state.cards, cardId, card));
   const updateCard = useAppStore((state) => state.updateCard);
   const setRailDock = useAppStore((state) => state.setRailDock);
   const railDock = useAppStore((state) => (state.user.railDock === "photo" ? "photo" : "qr"));
   const railLook = useAppStore((state) => (state.user.railLook === "shadow" ? "shadow" : undefined));
   const setRailLook = useAppStore((state) => state.setRailLook);
-  const share = useCardShare(liveCard);
-  const canShare = Boolean(liveCard.publicToken) && !frozen;
+  const share = useCardShare(card);
+  const canShare = Boolean(card.publicToken) && !frozen;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<RailDock>(railDock);
@@ -240,7 +215,7 @@ export const SideRail = memo(function SideRail({
       node.draggable = false;
       node.setAttribute("draggable", "false");
     }
-  }, [liveCard.id, showPlus, dragging]);
+  }, [card.id, showPlus, dragging]);
 
   const mountShield = () => {
     if (shieldRef.current || typeof document === "undefined") return;
@@ -393,7 +368,7 @@ export const SideRail = memo(function SideRail({
       if (node) node.style.transition = "none";
     }, 480);
     return () => window.clearTimeout(timer);
-  }, [railDock, qrTop, liveCard.id, editing]);
+  }, [railDock, qrTop, card.id, editing]);
 
   useEffect(() => {
     const onResize = () => syncAnchors();
@@ -405,7 +380,7 @@ export const SideRail = memo(function SideRail({
       window.removeEventListener("resize", onResize);
       window.visualViewport?.removeEventListener("resize", onResize);
     };
-  }, [qrTop, liveCard.id]);
+  }, [qrTop, card.id]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -415,19 +390,16 @@ export const SideRail = memo(function SideRail({
       if (document.visibilityState === "hidden") cancelGesture();
     };
     const onBlur = () => cancelGesture();
-    const onPageHide = () => cancelGesture();
     const scroller = document.querySelector(".compass-card-scroll");
     scroller?.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", onHide);
     window.addEventListener("blur", onBlur);
-    window.addEventListener("pagehide", onPageHide);
     return () => {
       scroller?.removeEventListener("scroll", onScroll);
       window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("blur", onBlur);
-      window.removeEventListener("pagehide", onPageHide);
       cancelGesture();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount/unmount only
@@ -485,16 +457,10 @@ export const SideRail = memo(function SideRail({
     startRef.current = { x: startX, y: startY, pointerId };
     clearHoldTimer();
     syncAnchors();
-    let ended = false;
-    try {
-      host.setPointerCapture(pointerId);
-    } catch {
-      // Capture fails if the pointer is already up.
-    }
 
     holdTimerRef.current = window.setTimeout(() => {
       holdTimerRef.current = null;
-      if (!pointerDownRef.current || ended) return;
+      if (!pointerDownRef.current) return;
       draggingRef.current = true;
       setDragging(true);
       setStyling(true);
@@ -513,8 +479,6 @@ export const SideRail = memo(function SideRail({
         touchBlockRef.current = blockTouchMove;
         document.addEventListener("touchmove", blockTouchMove, { passive: false });
       }
-      host.removeEventListener("pointermove", move);
-      host.addEventListener("pointermove", move, { passive: false });
       host.style.transition = "transform 120ms ease-out, box-shadow 120ms ease-out";
       host.style.willChange = "transform";
       host.style.boxShadow = "0 6px 18px rgba(0,0,0,.14)";
@@ -524,6 +488,8 @@ export const SideRail = memo(function SideRail({
         rootRef.current.style.transition = "none";
       });
     }, RAIL_HOLD_MS);
+
+    let ended = false;
 
     const move = (native: PointerEvent) => {
       if (native.pointerId !== pointerId) return;
@@ -544,9 +510,9 @@ export const SideRail = memo(function SideRail({
     };
 
     const detach = () => {
-      host.removeEventListener("pointermove", move);
-      host.removeEventListener("pointerup", up);
-      host.removeEventListener("pointercancel", cancel);
+      document.removeEventListener("pointermove", move, true);
+      document.removeEventListener("pointerup", up, true);
+      document.removeEventListener("pointercancel", cancel, true);
       if (detachRef.current === detach) detachRef.current = null;
     };
 
@@ -591,9 +557,9 @@ export const SideRail = memo(function SideRail({
     };
 
     detachRef.current = detach;
-    host.addEventListener("pointermove", move, { passive: true });
-    host.addEventListener("pointerup", up);
-    host.addEventListener("pointercancel", cancel);
+    document.addEventListener("pointermove", move, { passive: false, capture: true });
+    document.addEventListener("pointerup", up, true);
+    document.addEventListener("pointercancel", cancel, true);
   };
 
   const initial = anchorsRef.current[dockRef.current];
@@ -655,7 +621,7 @@ export const SideRail = memo(function SideRail({
       ) : null}
       <RailMark height={SHARE_SLOT_PX} inert={dragging}>
         <CardShareControl
-          card={liveCard}
+          card={card}
           onShare={canShare ? share.handleShare : undefined}
           onPrepareShare={canShare ? share.primeShare : undefined}
           size={MARK_PX}
@@ -674,8 +640,8 @@ export const SideRail = memo(function SideRail({
         {showPlus ? (
           <NextScanMenu
             bare
-            addons={getNextScanAddons(liveCard)}
-            onSetAddons={(addons) => updateCard(liveCard.id, { nextScanAddons: addons })}
+            addons={getNextScanAddons(card)}
+            onSetAddons={(addons) => updateCard(card.id, { nextScanAddons: addons })}
           />
         ) : null}
       </RailMark>
@@ -686,13 +652,4 @@ export const SideRail = memo(function SideRail({
       </RailMark>
     </div>
   );
-}, (prev, next) =>
-  prev.qrTop === next.qrTop &&
-  prev.counterRightCss === next.counterRightCss &&
-  prev.index === next.index &&
-  prev.total === next.total &&
-  prev.showPlus === next.showPlus &&
-  prev.frozen === next.frozen &&
-  prev.editing === next.editing &&
-  prev.card.id === next.card.id,
-);
+}
