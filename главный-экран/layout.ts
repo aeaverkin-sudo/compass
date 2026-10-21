@@ -170,6 +170,23 @@ function bandLiftPx(desktop: boolean, gap: number) {
   return Math.round(gap);
 }
 
+/** The installed app. A phone browser is not this, even in full screen. */
+export function standaloneApp() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone)
+  );
+}
+
+function readSafeTop() {
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top)";
+  document.documentElement.appendChild(probe);
+  const size = probe.getBoundingClientRect().height;
+  probe.remove();
+  return Math.round(size);
+}
+
 /** Writes `--app-h`, `--band-h` and `--vv-bottom` from the same rules as the head script. */
 export function writeScreenVars() {
   const root = document.documentElement;
@@ -184,6 +201,7 @@ export function writeScreenVars() {
   const vv = window.visualViewport;
   const gap = vv ? visible - vv.height : 0;
   root.style.setProperty("--vv-bottom", `${bandLiftPx(desktop, gap)}px`);
+  root.style.setProperty("--safe-top", `${readSafeTop()}px`);
   const scale = headerScaleFor(visible);
   root.style.setProperty("--hd", String(scale));
   root.dataset.density = scale < 1 ? "compact" : "comfortable";
@@ -202,13 +220,13 @@ export function browseCardHeight() {
   const fallback = browseBandHeightCss();
   // The band keeps its height. The card ends on the band, so nothing white sits between them.
   // `--app-h` is the measured small viewport, set before the first paint.
-  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1))`;
+  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - var(--safe-top, env(safe-area-inset-top)) - ${stackTopBelowSafe}px * var(--hd, 1))`;
 }
 
 /** Edit: the header sits on the QR slot, so the card is taller by that gap. */
 export function editCardHeight() {
   const fallback = browseBandHeightCss();
-  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${SCREEN_TOP_AXIS_PX}px * var(--hd, 1))`;
+  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - var(--safe-top, env(safe-area-inset-top)) - ${SCREEN_TOP_AXIS_PX}px * var(--hd, 1))`;
 }
 
 /**
@@ -248,6 +266,11 @@ if(!desktop){
 root.style.setProperty("--app-h",Math.round(visible)+"px");
 root.style.setProperty("--band-h",band+"px");
 root.style.setProperty("--vv-bottom",lift+"px");
+var safe=document.createElement("div");
+safe.style.cssText="position:fixed;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top)";
+root.appendChild(safe);
+root.style.setProperty("--safe-top",Math.round(safe.getBoundingClientRect().height)+"px");
+safe.remove();
 var compact=Math.round(visible)<${COMPACT_BELOW_PX};
 root.style.setProperty("--hd",compact?"${COMPACT_HEADER_SCALE}":"1");
 root.setAttribute("data-density",compact?"compact":"comfortable");

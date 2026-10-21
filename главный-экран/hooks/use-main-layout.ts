@@ -1,11 +1,13 @@
 "use client";
 
 import { useLayoutEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   libraryCardHeightPx,
   librarySheetTopPx,
   libraryStackTopPx,
   writeScreenVars,
+  standaloneApp,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
   SCREEN_TOP_AXIS_PX,
@@ -96,8 +98,10 @@ function headMeasure(): HeadMeasure | null {
 
 let startupLogged = false;
 
-/** A late viewport correction on launch must land before motion starts. Past this, motion is allowed anyway. */
-const STARTUP_CAP_MS = 400;
+/** Quiet time with no viewport event before the installed app is shown. */
+const STARTUP_QUIET_MS = 180;
+/** The card is shown by this point even if the viewport is still reporting events. */
+const STARTUP_CAP_MS = 1200;
 
 export function useMainLayout() {
   const [layout, setLayout] = useState<MainLayout | null>(null);
@@ -130,12 +134,18 @@ export function useMainLayout() {
     let timer = 0;
     let outer = 0;
     let inner = 0;
+    let widthAtShow = window.innerWidth;
     let onViewport: (() => void) | null = null;
+    let arm = () => {};
+    const standalone = standaloneApp();
+    const dropViewport = () => {
+      if (!onViewport) return;
+      window.visualViewport?.removeEventListener("resize", onViewport);
+      window.visualViewport?.removeEventListener("scroll", onViewport);
+      onViewport = null;
+    };
     if (cold) {
       const started = performance.now();
-      const standalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
       const clearArm = () => {
         if (timer) window.clearTimeout(timer);
         cancelAnimationFrame(outer);
@@ -144,8 +154,13 @@ export function useMainLayout() {
       };
       const finish = () => {
         clearArm();
+        flushSync(() => {
+          sync();
+        });
+        if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+        widthAtShow = window.innerWidth;
         root.classList.add("compass-settled");
-        if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
+        dropViewport();
       };
       const finishSoon = () => {
         clearArm();
@@ -154,34 +169,42 @@ export function useMainLayout() {
         });
       };
       // A browser viewport is already stable: two frames is enough.
-      // The installed app reports a viewport that moves for a few hundred milliseconds.
-      const arm = () => {
+      // The installed app keeps reporting a moving viewport, so wait until it is quiet.
+      arm = () => {
         clearArm();
         const remain = STARTUP_CAP_MS - (performance.now() - started);
         if (standalone && remain > 0) {
-          timer = window.setTimeout(finishSoon, remain);
+          timer = window.setTimeout(finishSoon, Math.min(STARTUP_QUIET_MS, remain));
           return;
         }
         finishSoon();
       };
       onViewport = () => {
         if (root.classList.contains("compass-settled")) return;
+        if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
         sync();
         arm();
       };
       window.visualViewport?.addEventListener("resize", onViewport);
+      window.visualViewport?.addEventListener("scroll", onViewport);
       arm();
     }
 
-    window.addEventListener("resize", sync);
+    const onResize = () => {
+      if (standalone && root.classList.contains("compass-settled") && window.innerWidth === widthAtShow) return;
+      if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+      sync();
+      if (standalone && !root.classList.contains("compass-settled")) arm();
+    };
+    window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", sync);
 
     return () => {
       if (timer) window.clearTimeout(timer);
       cancelAnimationFrame(outer);
       cancelAnimationFrame(inner);
-      if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
-      window.removeEventListener("resize", sync);
+      dropViewport();
+      window.removeEventListener("resize", onResize);
       window.removeEventListener("orientationchange", sync);
     };
   }, []);
