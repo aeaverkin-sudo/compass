@@ -48,13 +48,16 @@ export const BASE_EDIT_ZONES: readonly CardZoneId[] = [
   "about",
 ];
 
+export const SOCIAL_HINT = "Instagram, LinkedIn, etc.";
+export const FILES_HINT = "PDF, JPG, etc.";
+
 export const ZONE_HINTS: Partial<Record<CardZoneId, string>> = {
   position: "Role",
   location: "City, country",
   web: "Website",
-  social: "Instagram, etc.",
+  social: SOCIAL_HINT,
   contact: "Email, phone, messenger",
-  files: "PDF, JPG, …",
+  files: FILES_HINT,
   about: "Write about yourself",
 };
 

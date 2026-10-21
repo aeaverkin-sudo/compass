@@ -25,7 +25,7 @@ import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { clearRegisteredDevice, markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
-import { effectiveZone } from "@/shared/services/card-zones";
+import { effectiveZone, FILES_HINT, SOCIAL_HINT } from "@/shared/services/card-zones";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { pauseFileRecovery, takeZoneFiles, uploadHeldZoneFiles } from "@/shared/services/deferred-files";
 import { isAttachmentType } from "@/shared/services/portfolio-limits";
@@ -41,8 +41,8 @@ const CARD_PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const STARTERS: ScaffoldZone[] = [
   { id: "position", title: "Position", hint: "What you do" },
   { id: "web", title: "Web", hint: "Website" },
-  { id: "social", title: "Social", hint: "Instagram, LinkedIn…" },
-  { id: "files", title: "Files", hint: "PDF, JPG…" },
+  { id: "social", title: "Social", hint: SOCIAL_HINT },
+  { id: "files", title: "Files", hint: FILES_HINT },
   { id: "about", title: "About", hint: "A line about you" },
 ];
 const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -380,7 +380,7 @@ export function SignupScreen({
         <div className="bg-sky py-[18px]">
           <div style={{ paddingLeft: inset, paddingRight: inset }}>
             <div className={CARD_PAD}>
-              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px]">
+              <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
                 <span className="t-label">
                   Email
                   <span className="relative -top-[0.35em] ml-[0.15em] font-[inherit] text-[1em] leading-none">*</span>
@@ -397,14 +397,14 @@ export function SignupScreen({
                     setEmailPending(false);
                     setEmail(event.target.value);
                   }}
-                  className={`compass-input block w-full border-0 border-b border-[var(--rule)] bg-transparent px-0 py-1 t-body caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)] ${emailPending ? "text-[var(--placeholder)]" : "text-[var(--ink)]"}`}
+                  className={`compass-input block w-full border-0 bg-transparent px-0 py-1 t-body caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)] ${emailPending ? "text-[var(--placeholder)]" : "text-[var(--ink)]"}`}
                 />
               </div>
               {account ? null : (
-                <div className="mt-[18px] grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
-                  <span className="t-label pt-1">Password</span>
-                  <div>
-                    <div className="flex items-center gap-2 border-b border-[var(--rule)]">
+                <div className="mt-[18px]">
+                  <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)]">
+                    <span className="t-label pt-1">Password</span>
+                    <div className="flex items-center gap-2">
                       <input
                         type={passwordVisible ? "text" : "password"}
                         autoCapitalize="none"
@@ -423,8 +423,10 @@ export function SignupScreen({
                         {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
                       </button>
                     </div>
-                    <p className="mt-2 mb-0 t-meta text-[var(--grey)]">You can change it anytime in Profile.</p>
                   </div>
+                  <p className="mt-2 mb-0 t-meta text-[var(--grey)]" style={{ paddingLeft: VALUE_AXIS_PX }}>
+                    You can change it anytime in Profile.
+                  </p>
                 </div>
               )}
             </div>
