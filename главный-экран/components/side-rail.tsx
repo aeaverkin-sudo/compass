@@ -54,7 +54,7 @@ type RailDock = "qr" | "photo";
 type RailLook = "shadow";
 
 const LOOKS: { look: RailLook | null; label: string }[] = [
-  { look: null, label: "BASIC" },
+  { look: null, label: "FLAT" },
   { look: "shadow", label: "SHADOW" },
 ];
 type Anchor = { top: number; height: number };
@@ -595,7 +595,7 @@ export function SideRail({
       {styling ? (
         <div
           className={cn(
-            "absolute bottom-full left-1/2 flex size-11 -translate-x-1/2 items-center justify-center",
+            "absolute bottom-full left-1/2 flex size-11 translate-y-[2px] -translate-x-1/2 items-center justify-center",
             dragging ? "pointer-events-none" : "pointer-events-auto",
           )}
         >
