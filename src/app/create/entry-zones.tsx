@@ -27,18 +27,17 @@ export type EntryRow = {
 export type EntryZone = {
   id: string;
   title: string;
-  defaultTitle: string;
   custom: boolean;
   rows: EntryRow[];
 };
 
 const STARTERS: EntryZone[] = [
-  { id: "position", title: "Position", defaultTitle: "Position", custom: false, rows: [] },
-  { id: "company", title: "Company", defaultTitle: "Company", custom: false, rows: [] },
-  { id: "web", title: "Web", defaultTitle: "Web", custom: false, rows: [] },
-  { id: "social", title: "Social", defaultTitle: "Social", custom: false, rows: [] },
-  { id: "files", title: "Files", defaultTitle: "Files", custom: false, rows: [] },
-  { id: "about", title: "About", defaultTitle: "About", custom: false, rows: [] },
+  { id: "position", title: "Position", custom: false, rows: [] },
+  { id: "company", title: "Company", custom: false, rows: [] },
+  { id: "web", title: "Web", custom: false, rows: [] },
+  { id: "social", title: "Social", custom: false, rows: [] },
+  { id: "files", title: "Files", custom: false, rows: [] },
+  { id: "about", title: "About", custom: false, rows: [] },
 ];
 
 const HINTS: Record<string, string> = {
@@ -108,15 +107,31 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
     valueRef.current?.focusEnd();
   }, [seedId, zones]);
 
+  const discardEmpty = (zoneId: string) => {
+    setSeedId(null);
+    setSeedText("");
+    setZones((current) => current.filter((zone) => !(zone.id === zoneId && !zone.title.trim() && zone.rows.length === 0)));
+  };
+
+  const discardRow = (zoneId: string, key: string) => {
+    setEditKey(null);
+    setEditText("");
+    setZones((current) =>
+      current.flatMap((zone) => {
+        if (zone.id !== zoneId) return [zone];
+        const rows = zone.rows.filter((row) => row.key !== key);
+        if (!zone.title.trim() && rows.length === 0) return [];
+        return [{ ...zone, rows }];
+      }),
+    );
+  };
+
   const commitSeed = (zoneId: string, text: string) => {
     const typed = text.trim();
     const value = typed ? storedLine(typed) : "";
     setSeedId(null);
     setSeedText("");
-    if (!value) {
-      setZones((current) => dropEmptyCustom(current, zoneId));
-      return;
-    }
+    if (!value) return;
     setZones((current) =>
       current.map((zone) =>
         zone.id === zoneId ? { ...titled(zone, value), rows: [...zone.rows, { key: nanoid(), value }] } : zone,
@@ -145,16 +160,6 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
     setTitleId(null);
     if (!zone) return;
     const next = text.trim();
-    if (!next && !zone.custom) {
-      setZones((current) =>
-        current.map((entry) => (entry.id === zoneId ? { ...entry, title: entry.defaultTitle } : entry)),
-      );
-      return;
-    }
-    if (!next && zone.custom && zone.rows.length === 0 && seedId !== zoneId) {
-      setZones((current) => current.filter((entry) => entry.id !== zoneId));
-      return;
-    }
     setZones((current) => current.map((entry) => (entry.id === zoneId ? { ...entry, title: next } : entry)));
   };
 
@@ -170,7 +175,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
     const id = nextExtraZoneId(zonesRef.current.map((zone) => zone.id));
     setZones((current) => [
       ...current,
-      { id, title: "", defaultTitle: "", custom: true, rows: [] },
+      { id, title: "", custom: true, rows: [] },
     ]);
     setTitleId(id);
     setTitleText("");
@@ -215,16 +220,15 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     data-zone-title={zone.id}
                     value={titleText}
                     aria-label="Section title"
-                    placeholder={zone.custom ? "TITLE" : undefined}
+                    placeholder="TITLE"
                     className="t-label m-0 w-full border-0 bg-transparent p-0 text-[var(--grey)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
                     onChange={(event) => setTitleText(event.target.value)}
                     onKeyDown={(event) => {
                       if (
                         (event.key === "Backspace" || event.key === "Delete") &&
-                        zone.custom &&
                         !titleText &&
                         zone.rows.length === 0 &&
-                        !seedText
+                        (seedId !== zone.id || !seedText)
                       ) {
                         event.preventDefault();
                         setTitleId(null);
@@ -247,7 +251,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                 ) : (
                   <TitleButton
                     title={zone.title}
-                    placeholder={zone.custom && !zone.title.trim()}
+                    placeholder={!zone.title.trim()}
                     onEdit={() => {
                       setTitleId(zone.id);
                       setTitleText(zone.title);
@@ -282,6 +286,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     placeholder=""
                     onChange={setEditText}
                     onCommit={(text) => commitEdit(row.key, text)}
+                    onDiscardEmpty={() => discardRow(zone.id, row.key)}
                   />
                 ) : (
                   <RowButton
@@ -325,6 +330,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     inputRef={valueRef}
                     onChange={setSeedText}
                     onCommit={(text) => commitSeed(zone.id, text)}
+                    onDiscardEmpty={() => discardEmpty(zone.id)}
                   />
                 </div>
               ) : zone.rows.length === 0 ? (
@@ -367,16 +373,13 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
   );
 });
 
-function dropEmptyCustom(zones: EntryZone[], zoneId: string) {
-  return zones.filter((zone) => !(zone.id === zoneId && zone.custom && !zone.title.trim() && zone.rows.length === 0));
-}
-
 function Field({
   about,
   value,
   placeholder,
   onChange,
   onCommit,
+  onDiscardEmpty,
   inputRef,
 }: {
   about: boolean;
@@ -384,6 +387,7 @@ function Field({
   placeholder?: string;
   onChange: (value: string) => void;
   onCommit: (value: string) => void;
+  onDiscardEmpty?: () => void;
   inputRef?: RefObject<WrapFieldHandle | null>;
 }) {
   const done = useRef(false);
@@ -391,6 +395,12 @@ function Field({
     if (done.current) return;
     done.current = true;
     onCommit(text);
+  };
+  const discard = () => {
+    if (done.current) return;
+    done.current = true;
+    if (onDiscardEmpty) onDiscardEmpty();
+    else onCommit("");
   };
   return (
     <WrapField
@@ -402,7 +412,7 @@ function Field({
       breakButton={false}
       onTextChange={onChange}
       onDone={finish}
-      onEmptyDelete={() => finish("")}
+      onEmptyDelete={discard}
       onBlur={(text) => finish(text)}
       placeholderClassName="t-body text-[var(--placeholder)]"
       className="t-body bg-transparent text-[var(--ink)] caret-[var(--ink)]"

@@ -94,7 +94,7 @@ interface AppState {
   setCardRubricOrder: (cardId: string, orderedRubricKeys: string[]) => void;
   /** Append a named extra shelf. Returns its id. */
   addCustomZone: (cardId: string) => string | null;
-  /** Rename one section on this card. An empty title restores the built-in heading. */
+  /** Rename one section on this card. An empty title stays empty. */
   setRubricLabel: (cardId: string, zoneId: string, title?: string) => void;
   /** Hide an empty scaffold shelf on this card. A shelf with rows still shows. */
   hideZone: (cardId: string, zoneId: string) => void;
@@ -612,9 +612,7 @@ export const useAppStore = create<AppState>()(
         if (!current) return;
         const labels = { ...(current.rubricLabels ?? {}) };
         delete labels.additional;
-        const trimmed = title?.trim().slice(0, 80) ?? "";
-        if (trimmed) labels[id] = trimmed;
-        else delete labels[id];
+        labels[id] = title?.trim().slice(0, 80) ?? "";
         const rubricLabels = Object.keys(labels).length > 0 ? labels : undefined;
         const same = JSON.stringify(rubricLabels ?? null) === JSON.stringify(current.rubricLabels ?? null);
         if (same) return;
@@ -645,10 +643,31 @@ export const useAppStore = create<AppState>()(
           scheduleCardUpsert(next, { pulse: false });
           return;
         }
-        if ((current.hiddenZones ?? []).includes(id)) return;
-        const hiddenZones = [...(current.hiddenZones ?? []), id];
-        const next = { ...current, hiddenZones, updatedAt: new Date().toISOString() };
+        const filled = get().contactItems.some((item) => {
+          if (!isContactFilled(item) || !current.contactItemIds.includes(item.id)) return false;
+          const pinned = canonZoneId(current.itemZones?.[item.id]);
+          return (pinned ?? zoneForItem(item)) === id;
+        });
+        if (filled) {
+          if ((current.hiddenZones ?? []).includes(id)) return;
+          const hiddenZones = [...(current.hiddenZones ?? []), id];
+          const next = { ...current, hiddenZones, updatedAt: new Date().toISOString() };
+          set({ cards: get().cards.map((card) => (card.id === cardId ? next : card)) });
+          return;
+        }
+        const labels = { ...(current.rubricLabels ?? {}) };
+        delete labels[id];
+        if (id === "about") delete labels.additional;
+        const hiddenZones = [...new Set([...(current.hiddenZones ?? []), id])];
+        const next = {
+          ...current,
+          rubricLabels: Object.keys(labels).length > 0 ? labels : undefined,
+          hiddenZones,
+          updatedAt: new Date().toISOString(),
+        };
         set({ cards: get().cards.map((card) => (card.id === cardId ? next : card)) });
+        writeCardRubricLabels(cardId, next.rubricLabels ?? null);
+        scheduleCardUpsert(next, { pulse: false });
       },
 
       setItemZone: (cardId, itemId, zoneId) => {

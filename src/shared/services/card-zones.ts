@@ -86,11 +86,16 @@ export function isCardZoneId(value: string): value is CardZoneId {
   return ZONE_IDS.has(value) || isExtraZoneId(value);
 }
 
-/** Shown heading. An empty override falls back to the built-in title. */
+/** Shown heading. A stored empty title stays empty. A missing one uses the built-in name. */
 export function zoneTitle(card: CardZoneScope | null | undefined, zoneId: string, defaultTitle: string) {
   const id = canonZoneId(zoneId) ?? zoneId;
-  const custom = card?.rubricLabels?.[id]?.trim() || (id === "about" ? card?.rubricLabels?.additional?.trim() : undefined);
-  return custom || defaultTitle;
+  const labels = card?.rubricLabels;
+  if (labels && Object.hasOwn(labels, id)) return labels[id].trim();
+  if (id === "about") {
+    const additional = labels?.additional?.trim();
+    if (additional) return additional;
+  }
+  return defaultTitle;
 }
 
 /** This card's section for the row. The item's own type stays where it is. */
@@ -339,7 +344,7 @@ export function groupLibrary(
   return sectionsFrom(buckets, scope);
 }
 
-/** Edit list: filled shelves only, plus extra shelves from this card's order. */
+/** Edit list: shelves with rows, plus an emptied shelf whose title is still stored. */
 export function groupEditSections(
   items: ContactItem[],
   scope: CardZoneScope & Partial<CardZonePlacement>,
@@ -354,9 +359,15 @@ export function groupEditSections(
     }),
   );
   const ids: CardZoneId[] = [];
+  const labeled = new Set(
+    Object.keys(scope.rubricLabels ?? {}).flatMap((raw) => {
+      const id = canonZoneId(raw);
+      return id ? [id] : [];
+    }),
+  );
   for (const id of BASE_EDIT_ZONES) {
     const rows = byId.get(id)?.rows.length ?? 0;
-    if (rows === 0) continue;
+    if (rows === 0 && (hidden.has(id) || !labeled.has(id))) continue;
     ids.push(id);
   }
   for (const zone of CARD_ZONES) {
@@ -492,16 +503,14 @@ export function normalizeRubricOrder(value: unknown): string[] | undefined {
   return keys.length > 0 ? keys : undefined;
 }
 
-/** Keep known zone ids and a non-empty heading. */
+/** Keep known zone ids. An empty string is a title the user erased. */
 export function normalizeRubricLabels(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const labels: Record<string, string> = {};
   for (const [zoneId, title] of Object.entries(value)) {
     const id = canonZoneId(zoneId);
     if (!id || typeof title !== "string") continue;
-    const trimmed = title.trim();
-    if (!trimmed) continue;
-    labels[id] = trimmed;
+    labels[id] = title.trim().slice(0, 80);
   }
   return Object.keys(labels).length > 0 ? labels : undefined;
 }
