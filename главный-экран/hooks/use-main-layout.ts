@@ -130,6 +130,7 @@ export function useMainLayout() {
     let timer = 0;
     let outer = 0;
     let inner = 0;
+    let width = window.innerWidth;
     let onViewport: (() => void) | null = null;
     if (cold) {
       const started = performance.now();
@@ -144,6 +145,9 @@ export function useMainLayout() {
       };
       const finish = () => {
         clearArm();
+        // The installed app has finished opening to the full screen. Freeze that height.
+        sync();
+        width = window.innerWidth;
         root.classList.add("compass-settled");
         if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
       };
@@ -173,16 +177,28 @@ export function useMainLayout() {
       arm();
     }
 
-    window.addEventListener("resize", sync);
-    window.addEventListener("orientationchange", sync);
+    // Until the screen has settled, a height-only resize is the standalone app
+    // opening to full screen, so it still measures. After that, the keyboard
+    // changes height without changing width and must not move the plaque.
+    const onResize = () => {
+      if (root.classList.contains("compass-settled") && window.innerWidth === width) return;
+      width = window.innerWidth;
+      sync();
+    };
+    const onTurn = () => {
+      width = window.innerWidth;
+      sync();
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onTurn);
 
     return () => {
       if (timer) window.clearTimeout(timer);
       cancelAnimationFrame(outer);
       cancelAnimationFrame(inner);
       if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
-      window.removeEventListener("resize", sync);
-      window.removeEventListener("orientationchange", sync);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onTurn);
     };
   }, []);
 

@@ -19,10 +19,12 @@ export function VisualBottom() {
       root.classList.add("compass-settled");
     }
     let frame = 0;
+    let width = window.innerWidth;
 
     const write = () => {
       frame = 0;
       writeScreenVars();
+      width = window.innerWidth;
       root.classList.add("compass-band-ready");
     };
 
@@ -31,17 +33,24 @@ export function VisualBottom() {
       frame = requestAnimationFrame(write);
     };
 
+    // After the full-screen measure is frozen, a keyboard resize keeps the same
+    // width and must not write a shorter --app-h. A turn still measures.
+    const onViewport = () => {
+      if (root.classList.contains("compass-settled") && window.innerWidth === width) return;
+      schedule();
+    };
+
     write();
-    window.visualViewport?.addEventListener("resize", schedule);
-    window.visualViewport?.addEventListener("scroll", schedule);
+    window.visualViewport?.addEventListener("resize", onViewport);
+    window.visualViewport?.addEventListener("scroll", onViewport);
     window.addEventListener("orientationchange", schedule);
-    window.addEventListener("resize", schedule);
+    window.addEventListener("resize", onViewport);
     return () => {
       if (frame) cancelAnimationFrame(frame);
-      window.visualViewport?.removeEventListener("resize", schedule);
-      window.visualViewport?.removeEventListener("scroll", schedule);
+      window.visualViewport?.removeEventListener("resize", onViewport);
+      window.visualViewport?.removeEventListener("scroll", onViewport);
       window.removeEventListener("orientationchange", schedule);
-      window.removeEventListener("resize", schedule);
+      window.removeEventListener("resize", onViewport);
     };
   }, [pathname]);
 
