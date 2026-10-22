@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MainScreen } from "@main/components/main-screen";
+import { ViewportDebug } from "./viewport-debug";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
@@ -49,11 +50,17 @@ export default function MainPage() {
   }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, router]);
 
   if (!cached && (!hydrated || !sessionReady || needsSignIn || !cardsReady || !onboarded)) {
-    return <div className="compass-main fixed inset-y-0 bg-background" aria-hidden />;
+    return (
+      <>
+        <ViewportDebug />
+        <div className="compass-main fixed inset-y-0 bg-background" aria-hidden />
+      </>
+    );
   }
 
   return (
     <>
+      <ViewportDebug />
       <MainScreen />
       <ConsentRefresh />
     </>
