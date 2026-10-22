@@ -164,12 +164,6 @@ function visibleScreenPx(svh: number, innerH: number, desktop: boolean) {
   return Math.round(desktop ? Math.max(svh, innerH) : svh);
 }
 
-/** Lift the plaque only for a phone toolbar. On a desktop that lift is the white gap under the bar. */
-function bandLiftPx(desktop: boolean, gap: number) {
-  if (desktop || !(gap > 0 && gap < 120)) return 0;
-  return Math.round(gap);
-}
-
 /** Writes `--app-h`, `--band-h` and `--vv-bottom` from the same rules as the head script. */
 export function writeScreenVars() {
   const root = document.documentElement;
@@ -181,9 +175,9 @@ export function writeScreenVars() {
   const band = Math.round(browseBandHeightPx(full));
   root.style.setProperty("--app-h", `${visible}px`);
   root.style.setProperty("--band-h", `${band}px`);
-  const vv = window.visualViewport;
-  const gap = vv ? visible - vv.height : 0;
-  root.style.setProperty("--vv-bottom", `${bandLiftPx(desktop, gap)}px`);
+  // A resting gap between svh and the visual viewport is not the Safari toolbar.
+  // Lifting the plaque by it leaves white underneath. A keyboard must not lift it either.
+  root.style.setProperty("--vv-bottom", "0px");
   const scale = headerScaleFor(visible);
   root.style.setProperty("--hd", String(scale));
   root.dataset.density = scale < 1 ? "compact" : "comfortable";
@@ -237,17 +231,9 @@ var full=desktop?visible:lvh;
 var band=Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset}));
 if(band<0)band=0;
 if(band<${MIN_BAND_PX})band=${MIN_BAND_PX};
-var lift=0;
-if(!desktop){
-  var vv=window.visualViewport;
-  if(vv){
-    var gap=Math.round(visible-vv.height);
-    if(gap>0&&gap<120)lift=gap;
-  }
-}
 root.style.setProperty("--app-h",Math.round(visible)+"px");
 root.style.setProperty("--band-h",band+"px");
-root.style.setProperty("--vv-bottom",lift+"px");
+root.style.setProperty("--vv-bottom","0px");
 var compact=Math.round(visible)<${COMPACT_BELOW_PX};
 root.style.setProperty("--hd",compact?"${COMPACT_HEADER_SCALE}":"1");
 root.setAttribute("data-density",compact?"compact":"comfortable");
