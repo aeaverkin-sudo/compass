@@ -6,7 +6,7 @@ import { TabBand } from "@main/components/tab-band";
 import { TapButton } from "@/shared/components/tap-button";
 
 const ITEM =
-  "press touch-manipulation flex h-full w-full items-center border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
+  "press touch-manipulation flex h-full min-h-11 w-full items-center border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
 
 /** Clockwise: Network → Data → Event → Network. The right slot is the next stop. */
 const ORDER = ["network", "data", "event"] as const;
