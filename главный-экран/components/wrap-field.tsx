@@ -93,6 +93,7 @@ export function WrapField({
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const caretRef = useRef<Range | null>(null);
+  const openedAs = useRef(initial);
   const [empty, setEmpty] = useState(!initial.trim());
 
   const rememberCaret = () => {
@@ -196,7 +197,7 @@ export function WrapField({
             className,
           )}
         >
-          {initial}
+          {openedAs.current}
         </div>
       </div>
       {multiline && breakButton ? (

@@ -43,7 +43,7 @@ const STARTERS: EntryZone[] = [
 
 const HINTS: Record<string, string> = {
   position: "What you do",
-  company: "Where you work",
+  company: "Company. Business name",
   web: "Website",
   social: "Instagram, LinkedIn, etc.",
   files: "PDF, JPG, etc.",
