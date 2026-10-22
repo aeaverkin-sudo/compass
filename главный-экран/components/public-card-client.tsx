@@ -271,7 +271,7 @@ export function PublicCardClient({
       {pdfSheets}
       <div
         className="min-h-0 flex-1 overflow-hidden"
-        style={{ paddingBottom: `calc(var(--band-h, ${browseBandHeightCss()}) + var(--band-pad, 0px) + var(--vv-bottom, 0px))` }}
+        style={{ paddingBottom: `calc(var(--band-h, ${browseBandHeightCss()}) + var(--vv-bottom, 0px))` }}
       >
         {sheet}
       </div>

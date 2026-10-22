@@ -17,7 +17,6 @@ html:not(.compass-sized),html:not(.compass-sized) body{background:#fff!important
 html:not(.compass-sized) .compass-layer,html:not(.compass-sized) .compass-sky-band{visibility:hidden}
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
 main.compass-main.fixed.top-0{height:var(--app-h,100svh)}
-html.compass-installed,html.compass-installed main.compass-main{height:100lvh!important}
 div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100svh);bottom:auto;background:#fff}
 @media (hover:hover) and (pointer:fine){
   html{bottom:0!important;height:auto!important}
