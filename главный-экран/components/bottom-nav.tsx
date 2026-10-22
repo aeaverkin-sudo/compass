@@ -58,14 +58,14 @@ export const BottomNav = memo(function BottomNav({
       left={
         editing ? (
           <TapButton
-            className="flex h-full min-h-11 w-full items-center uppercase"
+            className="flex h-full w-full items-center uppercase"
             onTap={() => onRemove?.()}
           >
             {resetsCard ? "Reset" : "Delete"}
           </TapButton>
         ) : (
           <TapButton
-            className="flex h-full min-h-11 w-full items-center uppercase"
+            className="flex h-full w-full items-center uppercase"
             onTap={() => onProfile?.()}
           >
             Profile
@@ -76,7 +76,7 @@ export const BottomNav = memo(function BottomNav({
         editing ? (
           <TapButton
             aria-label="Add"
-            className="flex h-full min-h-11 w-full items-center justify-center"
+            className="flex h-full w-full items-center justify-center"
             onTap={() => {
               if (Date.now() - editedAt.current < EDIT_CLICK_GUARD_MS) return;
               onAdd?.();
@@ -87,7 +87,7 @@ export const BottomNav = memo(function BottomNav({
         ) : (
           <button
             type="button"
-            className="flex h-full min-h-11 w-full items-center justify-center uppercase"
+            className="flex h-full w-full items-center justify-center uppercase"
             onPointerDown={(event) => {
               event.preventDefault();
               window.getSelection()?.removeAllRanges();
@@ -105,14 +105,14 @@ export const BottomNav = memo(function BottomNav({
       right={
         editing ? (
           <TapButton
-            className="flex h-full min-h-11 w-full items-center justify-end"
+            className="flex h-full w-full items-center justify-end"
             onTap={() => onDone?.()}
           >
             OK
           </TapButton>
         ) : (
           <TapButton
-            className="flex h-full min-h-11 w-full items-center justify-end uppercase"
+            className="flex h-full w-full items-center justify-end uppercase"
             onTap={() => onNetwork?.()}
           >
             Network
