@@ -6,9 +6,6 @@ import {
   librarySheetTopPx,
   libraryStackTopPx,
   writeScreenVars,
-  rememberScreen,
-  resetScreen,
-  shouldRemeasure,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
   SCREEN_TOP_AXIS_PX,
@@ -99,11 +96,8 @@ function headMeasure(): HeadMeasure | null {
 
 let startupLogged = false;
 
-/**
- * How long the installed app may still be opening to the full screen.
- * 400ms cut the measure off while `svh` was still the short value.
- */
-const STARTUP_CAP_MS = 1200;
+/** A late viewport correction on launch must land before motion starts. Past this, motion is allowed anyway. */
+const STARTUP_CAP_MS = 400;
 
 export function useMainLayout() {
   const [layout, setLayout] = useState<MainLayout | null>(null);
@@ -129,21 +123,14 @@ export function useMainLayout() {
       setLayout(next);
     };
 
-    // Follow the screen while the installed app is still opening. After that,
-    // a taller screen is the full-screen expansion and a shorter one is the keyboard.
+    // Recompute only on real layout changes (orientation / window size), not on
+    // keyboard toggles — the visual viewport resize would shift the whole stack.
     sync();
-    rememberScreen();
 
     let timer = 0;
-    let watch = 0;
     let outer = 0;
     let inner = 0;
-    const follow = () => {
-      if (!shouldRemeasure(root.classList.contains("compass-settled"))) return;
-      sync();
-      rememberScreen();
-    };
-    let arm = () => {};
+    let onViewport: (() => void) | null = null;
     if (cold) {
       const started = performance.now();
       const standalone =
@@ -157,9 +144,8 @@ export function useMainLayout() {
       };
       const finish = () => {
         clearArm();
-        sync();
-        rememberScreen();
         root.classList.add("compass-settled");
+        if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
       };
       const finishSoon = () => {
         clearArm();
@@ -168,8 +154,8 @@ export function useMainLayout() {
         });
       };
       // A browser viewport is already stable: two frames is enough.
-      // The installed app can take longer than 400ms to open to the full screen.
-      arm = () => {
+      // The installed app reports a viewport that moves for a few hundred milliseconds.
+      const arm = () => {
         clearArm();
         const remain = STARTUP_CAP_MS - (performance.now() - started);
         if (standalone && remain > 0) {
@@ -178,39 +164,25 @@ export function useMainLayout() {
         }
         finishSoon();
       };
+      onViewport = () => {
+        if (root.classList.contains("compass-settled")) return;
+        sync();
+        arm();
+      };
+      window.visualViewport?.addEventListener("resize", onViewport);
       arm();
-      // The expansion often fires no resize. Keep reading the height for the first three seconds.
-      if (standalone) {
-        const sample = () => {
-          follow();
-          if (performance.now() - started < 3000) watch = window.setTimeout(sample, 200);
-        };
-        watch = window.setTimeout(sample, 200);
-      }
     }
 
-    const onViewport = () => {
-      const settled = root.classList.contains("compass-settled");
-      follow();
-      if (!settled) arm();
-    };
-    const onTurn = () => {
-      resetScreen();
-      sync();
-      rememberScreen();
-    };
-    window.visualViewport?.addEventListener("resize", onViewport);
-    window.addEventListener("resize", onViewport);
-    window.addEventListener("orientationchange", onTurn);
+    window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
 
     return () => {
       if (timer) window.clearTimeout(timer);
-      if (watch) window.clearTimeout(watch);
       cancelAnimationFrame(outer);
       cancelAnimationFrame(inner);
-      window.visualViewport?.removeEventListener("resize", onViewport);
-      window.removeEventListener("resize", onViewport);
-      window.removeEventListener("orientationchange", onTurn);
+      if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
     };
   }, []);
 

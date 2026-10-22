@@ -2,7 +2,7 @@
 
 import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
-import { rememberScreen, resetScreen, shouldRemeasure, writeScreenVars } from "@main/layout";
+import { writeScreenVars } from "@main/layout";
 
 /**
  * The head script has already sized the shell. This repeats that measure
@@ -23,7 +23,6 @@ export function VisualBottom() {
     const write = () => {
       frame = 0;
       writeScreenVars();
-      rememberScreen();
       root.classList.add("compass-band-ready");
     };
 
@@ -32,27 +31,17 @@ export function VisualBottom() {
       frame = requestAnimationFrame(write);
     };
 
-    // A shorter viewport is the keyboard. A taller one is the full screen, and it still counts.
-    const onViewport = () => {
-      if (!shouldRemeasure(root.classList.contains("compass-settled"))) return;
-      schedule();
-    };
-    const onTurn = () => {
-      resetScreen();
-      schedule();
-    };
-
     write();
-    window.visualViewport?.addEventListener("resize", onViewport);
-    window.visualViewport?.addEventListener("scroll", onViewport);
-    window.addEventListener("orientationchange", onTurn);
-    window.addEventListener("resize", onViewport);
+    window.visualViewport?.addEventListener("resize", schedule);
+    window.visualViewport?.addEventListener("scroll", schedule);
+    window.addEventListener("orientationchange", schedule);
+    window.addEventListener("resize", schedule);
     return () => {
       if (frame) cancelAnimationFrame(frame);
-      window.visualViewport?.removeEventListener("resize", onViewport);
-      window.visualViewport?.removeEventListener("scroll", onViewport);
-      window.removeEventListener("orientationchange", onTurn);
-      window.removeEventListener("resize", onViewport);
+      window.visualViewport?.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("scroll", schedule);
+      window.removeEventListener("orientationchange", schedule);
+      window.removeEventListener("resize", schedule);
     };
   }, [pathname]);
 
