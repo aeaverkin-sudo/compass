@@ -11,7 +11,6 @@ import {
 import { Ellipsis } from "lucide-react";
 import { ScanButton } from "@/shared/components/scan-icon";
 import { CardShareControl, useCardShare } from "@/shared/components/card-share-control";
-import { getNextScanAddons } from "@/shared/services/card-snapshot";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -169,6 +168,7 @@ export function SideRail({
   editing?: boolean;
 }) {
   const updateCard = useAppStore((state) => state.updateCard);
+  const noteAddons = useAppStore((state) => state.cards.find((entry) => entry.id === card.id)?.nextScanAddons);
   const setRailDock = useAppStore((state) => state.setRailDock);
   const railDock = useAppStore((state) => (state.user.railDock === "photo" ? "photo" : "qr"));
   const railLook = useAppStore((state) => (state.user.railLook === "shadow" ? "shadow" : undefined));
@@ -640,7 +640,7 @@ export function SideRail({
         {showPlus ? (
           <NextScanMenu
             bare
-            addons={getNextScanAddons(card)}
+            addons={noteAddons ?? []}
             onSetAddons={(addons) => updateCard(card.id, { nextScanAddons: addons })}
           />
         ) : null}

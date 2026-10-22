@@ -764,13 +764,13 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       </div>
       )}
 
-      {!compact && !editing && !readOnly && items.length > 0 ? <AddToWallet cardId={card.id} /> : null}
       {!compact && !editing ? (
         <NotesRubric
           ownerNotes={readOnly ? undefined : nextScanAddons}
           deliveredNotes={readOnly ? deliveredNotes : undefined}
         />
       ) : null}
+      {!compact && !editing && !readOnly && items.length > 0 ? <AddToWallet cardId={card.id} /> : null}
       {!compact && !editing && (showShareFooter || shareFootnote) ? (
         <div
           className="mt-auto shrink-0 t-meta"
