@@ -164,21 +164,9 @@ function visibleScreenPx(svh: number, innerH: number, desktop: boolean) {
   return Math.round(desktop ? Math.max(svh, innerH) : svh);
 }
 
-/** The home-screen app has no browser chrome under the plaque. */
-function installedApp() {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
-  );
-}
-
-/**
- * Space under the visible area, not the whole difference between the screen and that area.
- * A top toolbar must not become a white strip under the plaque.
- * The installed app and a desktop window sit on the screen bottom. A keyboard is not a toolbar.
- */
+/** Lift the plaque only for a phone toolbar. On a desktop that lift is the white gap under the bar. */
 function bandLiftPx(desktop: boolean, gap: number) {
-  if (desktop || installedApp() || !(gap > 0 && gap < 120)) return 0;
+  if (desktop || !(gap > 0 && gap < 120)) return 0;
   return Math.round(gap);
 }
 
@@ -194,7 +182,7 @@ export function writeScreenVars() {
   root.style.setProperty("--app-h", `${visible}px`);
   root.style.setProperty("--band-h", `${band}px`);
   const vv = window.visualViewport;
-  const gap = vv ? visible - vv.offsetTop - vv.height : 0;
+  const gap = vv ? visible - vv.height : 0;
   root.style.setProperty("--vv-bottom", `${bandLiftPx(desktop, gap)}px`);
   const scale = headerScaleFor(visible);
   root.style.setProperty("--hd", String(scale));
@@ -250,11 +238,10 @@ var band=Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset}));
 if(band<0)band=0;
 if(band<${MIN_BAND_PX})band=${MIN_BAND_PX};
 var lift=0;
-var standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
-if(!desktop&&!standalone){
+if(!desktop){
   var vv=window.visualViewport;
   if(vv){
-    var gap=Math.round(visible-vv.offsetTop-vv.height);
+    var gap=Math.round(visible-vv.height);
     if(gap>0&&gap<120)lift=gap;
   }
 }
