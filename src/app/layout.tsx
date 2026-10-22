@@ -80,7 +80,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icons/icon-180.png?v=2", sizes: "180x180" }],
   },
-  appleWebApp: { capable: true, title: "ADED", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "ADED", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
