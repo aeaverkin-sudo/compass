@@ -156,53 +156,34 @@ function probeViewport(unit: "svh" | "lvh") {
   return height || window.innerHeight;
 }
 
-/** The home-screen app. A phone browser is not this, even when its toolbar is hidden. */
-function installedApp() {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
-  );
+/**
+ * Phones keep `svh`, so the browser toolbar does not jump the stack.
+ * A desktop window uses the real window: `svh` there can stay short of a resized window.
+ */
+function visibleScreenPx(svh: number, innerH: number, desktop: boolean) {
+  return Math.round(desktop ? Math.max(svh, innerH) : svh);
 }
 
-/**
- * Height of the shell, and how far the plaque rises inside it.
- * A desktop window uses the real window. The installed app uses the full screen and does not rise:
- * `svh` there stops short of the physical bottom and leaves a white strip under the plaque.
- * A phone browser follows the visible bottom, so the plaque stays on the toolbar.
- * A keyboard is not that bottom.
- */
-function shellAndLift(
-  desktop: boolean,
-  installed: boolean,
-  svh: number,
-  lvh: number,
-  innerH: number,
-  vv: VisualViewport | null,
-) {
-  if (desktop) return { shell: Math.round(Math.max(svh, innerH)), lift: 0 };
-  if (installed) return { shell: Math.round(Math.max(svh, lvh, innerH)), lift: 0 };
-  if (!vv) return { shell: Math.round(svh), lift: 0 };
-  const bottom = vv.offsetTop + vv.height;
-  const keyboard = svh - vv.height >= 120;
-  const grown = !keyboard && bottom > svh ? bottom : svh;
-  const gap = grown - bottom;
-  const lift = gap > 0 && gap < 120 ? Math.round(gap) : 0;
-  return { shell: Math.round(grown), lift };
+/** Lift the plaque only for a phone toolbar. On a desktop that lift is the white gap under the bar. */
+function bandLiftPx(desktop: boolean, gap: number) {
+  if (desktop || !(gap > 0 && gap < 120)) return 0;
+  return Math.round(gap);
 }
 
 /** Writes `--app-h`, `--band-h` and `--vv-bottom` from the same rules as the head script. */
 export function writeScreenVars() {
   const root = document.documentElement;
   const desktop = desktopWindow();
-  const installed = installedApp();
   const svh = probeViewport("svh");
   const lvh = probeViewport("lvh");
-  const { shell: visible, lift } = shellAndLift(desktop, installed, svh, lvh, window.innerHeight, window.visualViewport);
+  const visible = visibleScreenPx(svh, window.innerHeight, desktop);
   const full = desktop ? visible : lvh;
   const band = Math.round(browseBandHeightPx(full));
   root.style.setProperty("--app-h", `${visible}px`);
   root.style.setProperty("--band-h", `${band}px`);
-  root.style.setProperty("--vv-bottom", `${lift}px`);
+  const vv = window.visualViewport;
+  const gap = vv ? visible - vv.height : 0;
+  root.style.setProperty("--vv-bottom", `${bandLiftPx(desktop, gap)}px`);
   const scale = headerScaleFor(visible);
   root.style.setProperty("--hd", String(scale));
   root.dataset.density = scale < 1 ? "compact" : "comfortable";
@@ -220,7 +201,7 @@ export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
   const fallback = browseBandHeightCss();
   // The band keeps its height. The card ends on the band, so nothing white sits between them.
-  // `--app-h` is the measured shell, set before the first paint.
+  // `--app-h` is the measured small viewport, set before the first paint.
   return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1))`;
 }
 
@@ -248,29 +229,22 @@ function probe(unit){
   return h||window.innerHeight;
 }
 var desktop=window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-var standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 var svh=probe("svh");
 var lvh=probe("lvh");
 var inner=window.innerHeight;
-var vv=window.visualViewport;
-var visible=svh;
-var lift=0;
-if(desktop){
-  visible=Math.max(svh,inner);
-}else if(standalone){
-  visible=Math.max(svh,lvh,inner);
-}else if(vv){
-  var bottom=vv.offsetTop+vv.height;
-  var keyboard=svh-vv.height>=120;
-  if(!keyboard&&bottom>svh)visible=bottom;
-  var gap=visible-bottom;
-  if(gap>0&&gap<120)lift=Math.round(gap);
-}
-visible=Math.round(visible);
+var visible=desktop?Math.max(svh,inner):svh;
 var full=desktop?visible:lvh;
 var band=Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset}));
 if(band<0)band=0;
 if(band<${MIN_BAND_PX})band=${MIN_BAND_PX};
+var lift=0;
+if(!desktop){
+  var vv=window.visualViewport;
+  if(vv){
+    var gap=Math.round(visible-vv.height);
+    if(gap>0&&gap<120)lift=gap;
+  }
+}
 root.style.setProperty("--app-h",Math.round(visible)+"px");
 root.style.setProperty("--band-h",band+"px");
 root.style.setProperty("--vv-bottom",lift+"px");
