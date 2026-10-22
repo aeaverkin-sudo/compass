@@ -18,6 +18,11 @@ html:not(.compass-sized) .compass-layer,html:not(.compass-sized) .compass-sky-ba
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
 main.compass-main.fixed.top-0{height:var(--app-h,100svh)}
 div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100svh);bottom:auto;background:#fff}
+@media (display-mode: standalone){
+  html{bottom:0!important;height:auto!important}
+  main.compass-main.fixed.top-0{bottom:0;height:auto}
+  div.compass-main.fixed.inset-y-0:not([class*="overflow"]){bottom:0!important;height:auto!important}
+}
 @media (hover:hover) and (pointer:fine){
   html{bottom:0!important;height:auto!important}
   main.compass-main.fixed.top-0{bottom:0;height:auto}
