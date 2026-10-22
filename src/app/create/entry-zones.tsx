@@ -38,6 +38,7 @@ const STARTERS: EntryZone[] = [
   { id: "social", title: "Social", custom: false, rows: [] },
   { id: "files", title: "Files", custom: false, rows: [] },
   { id: "about", title: "About", custom: false, rows: [] },
+  { id: "contact", title: "Contacts", custom: false, rows: [] },
 ];
 
 const HINTS: Record<string, string> = {
@@ -47,6 +48,7 @@ const HINTS: Record<string, string> = {
   social: "Instagram, LinkedIn, etc.",
   files: "PDF, JPG, etc.",
   about: "A line about you",
+  contact: "Phone, messenger, mail",
 };
 
 export type EntryZonesHandle = { snapshot: () => EntryZone[] };
