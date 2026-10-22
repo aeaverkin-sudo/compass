@@ -1,5 +1,8 @@
 export const WALLET_SOON = "Apple Wallet · coming soon";
 
+/** After the pass file is handed to Apple, the device registration arrives a few seconds later. */
+export const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
+
 /**
  * Whether this pass is in Wallet right now.
  * `true` / `false` come from the server. `null` means this read failed — keep the last label.

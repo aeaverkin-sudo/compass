@@ -10,7 +10,7 @@ import { BY_INVITATION, isPermanentAccount, PASSWORD_SET, type SessionUser } fro
 import { mailConfigured, sendEventSignIn, sendHtmlMail } from "@/shared/services/mail";
 import { publicCardPath } from "@/shared/services/public-card-url";
 import { clearTrialClock } from "@/shared/services/trial";
-import { walletLinkPath } from "@/shared/services/wallet-link";
+import { walletAddPath } from "@/shared/services/wallet-link";
 import { WELCOME_SUBJECT, welcomeMail } from "@/shared/mail/welcome-mail";
 
 export const MIN_PASSWORD = 8;
@@ -122,12 +122,13 @@ export async function sendWelcomeMail(userId: string, cardId: string, password: 
   if (!row || row.owner_id !== userId) return false;
 
   const site = siteOrigin(origin);
+  const walletUrl = `${site}${walletAddPath(cardId)}`;
   const mail = welcomeMail({
     logoSrc: `${site}/brand/aded-grid-mail.png`,
     password: password.trim(),
     profileUrl: `${site}${publicCardPath({ publicToken: row.public_token ?? "", handle: row.handle ?? undefined })}`,
-    walletSectionUrl: `${site}/profile#portfolios`,
-    walletPassUrl: `${site}${walletLinkPath(cardId)}`,
+    walletSectionUrl: walletUrl,
+    walletPassUrl: walletUrl,
     accountUrl: `${site}/profile`,
     siteLabel: site.replace(/^https?:\/\//, ""),
   });

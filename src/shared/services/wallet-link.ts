@@ -12,10 +12,14 @@ function sign(cardId: string, expires: number): string {
   return createHmac("sha256", key()).update(`${cardId}.${expires}`).digest("base64url");
 }
 
-/** The welcome mail's Add to Apple Wallet: the pass of this card, without a sign-in, for 30 days. */
-export function walletLinkPath(cardId: string, now = Date.now()): string {
+function signedQuery(cardId: string, now: number) {
   const expires = now + LINK_TTL_MS;
-  return `/api/cards/${encodeURIComponent(cardId)}/pass?e=${expires}&s=${sign(cardId, expires)}`;
+  return `e=${expires}&s=${sign(cardId, expires)}`;
+}
+
+/** The page the mail opens. It checks the live Wallet status, then offers the same signed pass. */
+export function walletAddPath(cardId: string, now = Date.now()): string {
+  return `/wallet/add?card=${encodeURIComponent(cardId)}&${signedQuery(cardId, now)}`;
 }
 
 export function walletLinkValid(cardId: string, rawExpires: string | null, signature: string | null): boolean {

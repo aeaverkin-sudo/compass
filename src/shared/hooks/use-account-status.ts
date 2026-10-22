@@ -7,8 +7,9 @@ import { recallAnswer, rememberAnswer } from "@/shared/lib/last-answer";
 
 const STATUS_KEY = "account-status";
 
-export function useAccountStatus() {
+export function useAccountRead() {
   const [status, setStatus] = useState<AccountStatus | null>(() => recallAnswer<AccountStatus>(STATUS_KEY));
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (status) rememberAnswer(STATUS_KEY, status);
@@ -24,7 +25,10 @@ export function useAccountStatus() {
       .then((next) => {
         if (!cancelled && next) setStatus(next);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
     const onAccepted = (event: Event) => {
       const version = (event as CustomEvent<string>).detail;
       if (typeof version !== "string") return;
@@ -37,5 +41,9 @@ export function useAccountStatus() {
     };
   }, []);
 
-  return status;
+  return { status, ready };
+}
+
+export function useAccountStatus() {
+  return useAccountRead().status;
 }

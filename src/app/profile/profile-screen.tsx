@@ -9,9 +9,9 @@ import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { cardInWallet, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { cardInWallet, openWalletPass, WALLET_RECHECK_MS, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { Switch } from "@/shared/components/ui/switch";
-import { useAccountStatus } from "@/shared/hooks/use-account-status";
+import { useAccountRead } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { APP_VERSION, SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { deletionLine } from "@/shared/lib/deletion-date";
@@ -29,8 +29,6 @@ const ZONE_VALUE =
 const PAID_TIER_ENABLED = false;
 
 const PORTFOLIOS_OPEN_KEY = "aded:profile-portfolios-open";
-/** Same catch-up as the card, after the pass file is handed to Apple. */
-const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
 function formatBytes(bytes: number) {
   if (bytes <= 0) return "0 MB";
@@ -122,7 +120,7 @@ function ProfileShell({ children }: { children: ReactNode }) {
 
 export function ProfileScreen() {
   const router = useRouter();
-  const account = useAccountStatus();
+  const { status: account, ready } = useAccountRead();
   const cards = useAppStore((state) => state.cards);
   const setCardListed = useAppStore((state) => state.setCardListed);
   const setMonochrome = useAppStore((state) => state.setMonochrome);
@@ -278,7 +276,19 @@ export function ProfileScreen() {
     return (
       <ProfileShell>
         {!account ? (
-          <p className={cn("py-[18px]", ZONE_VALUE)}>…</p>
+          ready ? (
+            <div className="py-[18px]">
+              <p className={ZONE_VALUE}>Sign in to open your profile.</p>
+              <Link
+                href={`/register?signin=1&next=${encodeURIComponent("/profile")}`}
+                className="mt-6 inline-block border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)]"
+              >
+                Sign in
+              </Link>
+            </div>
+          ) : (
+            <p className={cn("py-[18px]", ZONE_VALUE)}>…</p>
+          )
         ) : (
           <div className="py-[18px]">
             <p className={ZONE_VALUE}>{trialLine(account.hoursLeft)}</p>

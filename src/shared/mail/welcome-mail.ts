@@ -22,9 +22,9 @@ export type WelcomeMailInput = {
   password: string;
   /** `https://adedme.com/@handle` */
   profileUrl: string;
-  /** Profile, the Portfolios section open. */
+  /** The signed Wallet page: it checks whether the card is already in Wallet. */
   walletSectionUrl: string;
-  /** The signed `.pkpass` link. */
+  /** Same page as the Wallet line. The button label stays Add. */
   walletPassUrl: string;
   /** Profile itself. */
   accountUrl: string;
