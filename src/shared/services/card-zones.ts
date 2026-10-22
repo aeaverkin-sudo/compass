@@ -117,15 +117,13 @@ export function zoneFromPlacements(
   return undefined;
 }
 
-/** Store a per-card section only when it differs from the row's natural type. */
+/** The section the user put this row in. It stays, even when the text would guess the same shelf. */
 export function withItemZone(
   card: CardZoneScope,
   item: ContactItem,
   zoneId: CardZoneId,
 ): Record<string, string> | undefined {
-  const zones = { ...(card.itemZones ?? {}) };
-  if (zoneId === zoneForItem(item)) delete zones[item.id];
-  else zones[item.id] = zoneId;
+  const zones = { ...(card.itemZones ?? {}), [item.id]: zoneId };
   return Object.keys(zones).length > 0 ? zones : undefined;
 }
 

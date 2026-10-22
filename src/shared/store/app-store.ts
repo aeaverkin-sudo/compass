@@ -381,6 +381,17 @@ export const useAppStore = create<AppState>()(
       },
 
       updateContactItem: (itemId, data) => {
+        if (data.value !== undefined) {
+          const current = get().contactItems.find((item) => item.id === itemId);
+          if (current) {
+            const home = zoneForItem(current);
+            for (const card of get().cards) {
+              if (!card.contactItemIds.includes(itemId)) continue;
+              if (canonZoneId(card.itemZones?.[itemId])) continue;
+              get().setItemZone(card.id, itemId, home);
+            }
+          }
+        }
         const nextItems = get().contactItems.map((item) => {
           if (item.id !== itemId) return item;
           if (data.value === undefined) return { ...item, ...data };
@@ -647,8 +658,7 @@ export const useAppStore = create<AppState>()(
         const pinned = zoneId ? canonZoneId(zoneId) : undefined;
         if (zoneId && !pinned) return;
         const zones = { ...(current.itemZones ?? {}) };
-        const natural = zoneForItem(item);
-        if (!pinned || pinned === natural) delete zones[itemId];
+        if (!pinned) delete zones[itemId];
         else zones[itemId] = pinned;
         const itemZones = Object.keys(zones).length > 0 ? zones : undefined;
         const same = JSON.stringify(itemZones ?? null) === JSON.stringify(current.itemZones ?? null);
