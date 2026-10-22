@@ -147,6 +147,38 @@ function desktopWindow() {
   return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
+let seenInner = 0;
+let seenVv = 0;
+
+function screenEdges() {
+  const inner = window.innerHeight;
+  const vv = Math.round(window.visualViewport?.height ?? inner);
+  return { inner, vv };
+}
+
+/** Taller than any height already kept. The keyboard makes the screen shorter and does not count. */
+export function screenGrew() {
+  const { inner, vv } = screenEdges();
+  return inner > seenInner + 1 || vv > seenVv + 1;
+}
+
+export function rememberScreen() {
+  const { inner, vv } = screenEdges();
+  seenInner = Math.max(seenInner, inner);
+  seenVv = Math.max(seenVv, vv);
+}
+
+export function resetScreen() {
+  seenInner = 0;
+  seenVv = 0;
+}
+
+/** Before the full-screen measure, every resize counts. After it, only a taller screen does. A desktop window always does. */
+export function shouldRemeasure(settled: boolean) {
+  if (!settled || desktopWindow()) return true;
+  return screenGrew();
+}
+
 function probeViewport(unit: "svh" | "lvh") {
   const probe = document.createElement("div");
   probe.style.cssText = `position:fixed;top:0;height:100${unit};visibility:hidden;pointer-events:none`;

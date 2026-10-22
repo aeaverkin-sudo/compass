@@ -2,7 +2,7 @@
 
 import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
-import { writeScreenVars } from "@main/layout";
+import { rememberScreen, resetScreen, shouldRemeasure, writeScreenVars } from "@main/layout";
 
 /**
  * The head script has already sized the shell. This repeats that measure
@@ -19,12 +19,11 @@ export function VisualBottom() {
       root.classList.add("compass-settled");
     }
     let frame = 0;
-    let width = window.innerWidth;
 
     const write = () => {
       frame = 0;
       writeScreenVars();
-      width = window.innerWidth;
+      rememberScreen();
       root.classList.add("compass-band-ready");
     };
 
@@ -33,23 +32,26 @@ export function VisualBottom() {
       frame = requestAnimationFrame(write);
     };
 
-    // After the full-screen measure is frozen, a keyboard resize keeps the same
-    // width and must not write a shorter --app-h. A turn still measures.
+    // A shorter viewport is the keyboard. A taller one is the full screen, and it still counts.
     const onViewport = () => {
-      if (root.classList.contains("compass-settled") && window.innerWidth === width) return;
+      if (!shouldRemeasure(root.classList.contains("compass-settled"))) return;
+      schedule();
+    };
+    const onTurn = () => {
+      resetScreen();
       schedule();
     };
 
     write();
     window.visualViewport?.addEventListener("resize", onViewport);
     window.visualViewport?.addEventListener("scroll", onViewport);
-    window.addEventListener("orientationchange", schedule);
+    window.addEventListener("orientationchange", onTurn);
     window.addEventListener("resize", onViewport);
     return () => {
       if (frame) cancelAnimationFrame(frame);
       window.visualViewport?.removeEventListener("resize", onViewport);
       window.visualViewport?.removeEventListener("scroll", onViewport);
-      window.removeEventListener("orientationchange", schedule);
+      window.removeEventListener("orientationchange", onTurn);
       window.removeEventListener("resize", onViewport);
     };
   }, [pathname]);
