@@ -3,30 +3,34 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { HeroName } from "@/shared/components/hero-name";
 
-const HINT_ONE = "NAME, COMPANY,";
+const HINT_ONE = "NAME OR";
 const HINT_TWO = "PORTFOLIO TITLE";
 const HINT_MAX_PX = 19;
 const HINT_MIN_PX = 8;
 
-function textWidth(text: string, size: number) {
+function textWidth(sample: HTMLElement, text: string, size: number) {
+  const font = getComputedStyle(sample);
   const probe = document.createElement("span");
   probe.textContent = text;
-  probe.style.cssText = `position:absolute;left:-9999px;white-space:nowrap;font-family:${getComputedStyle(document.body).fontFamily};font-weight:400;font-size:${size}px;line-height:1`;
+  probe.style.cssText = `position:absolute;left:-9999px;white-space:nowrap;font-family:${font.fontFamily};font-weight:${font.fontWeight};font-size:${size}px;line-height:1;letter-spacing:${font.letterSpacing}`;
   document.body.appendChild(probe);
   const width = probe.getBoundingClientRect().width;
   probe.remove();
   return width;
 }
 
-/** One size for both hint lines, so neither wraps. */
-function fitHint(width: number) {
+/** Largest size at which both nowrap lines sit inside the column. The star sits 0.15em after the title. */
+function fitHint(width: number, sample: HTMLElement) {
   if (!width) return HINT_MIN_PX;
+  const limit = width - 1;
   let lo = HINT_MIN_PX;
   let hi = HINT_MAX_PX;
+  const fits = (size: number) =>
+    textWidth(sample, HINT_ONE, size) <= limit &&
+    textWidth(sample, HINT_TWO, size) + textWidth(sample, "*", size) + size * 0.15 <= limit;
   for (let step = 0; step < 12; step += 1) {
     const mid = (lo + hi) / 2;
-    const fits = textWidth(HINT_ONE, mid) <= width && textWidth(`${HINT_TWO} *`, mid) <= width;
-    if (fits) lo = mid;
+    if (fits(mid)) lo = mid;
     else hi = mid;
   }
   return lo;
@@ -45,19 +49,32 @@ export function EntryName({
   onTouch: () => void;
 }) {
   const columnRef = useRef<HTMLDivElement>(null);
+  const hintRef = useRef<HTMLSpanElement>(null);
   const [hintSize, setHintSize] = useState(HINT_MAX_PX);
   const shown = live ? value : "";
   const suggested = Boolean(value.trim() && !live);
+  const hint = shown.length === 0 && !suggested;
 
   useLayoutEffect(() => {
     const column = columnRef.current;
-    if (!column || suggested) return;
-    const fit = () => setHintSize(fitHint(column.clientWidth));
+    const sample = hintRef.current;
+    if (!column || !sample || !hint) return;
+    const fit = () => {
+      const next = fitHint(column.clientWidth, sample);
+      setHintSize((current) => (Math.abs(current - next) < 0.05 ? current : next));
+    };
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(column);
-    return () => observer.disconnect();
-  }, [suggested]);
+    let cancel = false;
+    void document.fonts?.ready.then(() => {
+      if (!cancel) fit();
+    });
+    return () => {
+      cancel = true;
+      observer.disconnect();
+    };
+  }, [hint]);
 
   return (
     <div
@@ -76,7 +93,8 @@ export function EntryName({
       <HeroName value={shown} onChange={onChange} placeholder="" />
       {shown.length === 0 ? (
         <span
-          className="pointer-events-none absolute bottom-0 left-0 font-normal leading-none text-[var(--placeholder)]"
+          ref={hintRef}
+          className="pointer-events-none absolute inset-x-0 bottom-0 font-normal leading-none text-[var(--placeholder)]"
           style={{ fontSize: hintSize }}
         >
           {suggested ? (
