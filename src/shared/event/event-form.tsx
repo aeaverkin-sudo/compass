@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type 
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Zone } from "@/shared/components/zone";
+import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { TapButton } from "@/shared/components/tap-button";
 import { CoverButton } from "@/shared/event/cover-button";
@@ -367,6 +368,9 @@ export function EventForm({
     onRemoveLogo?.();
   };
 
+  const formRef = useRef<HTMLDivElement>(null);
+  useKeyboardLift(formRef);
+
   const cover = {
     name: values.layout === "card" ? values.name.trim() : values.name.trim() || "Event name",
     description: values.about.trim() || null,
@@ -381,7 +385,7 @@ export function EventForm({
   };
 
   return (
-    <>
+    <div ref={formRef} className="contents">
       <Zone label={label("name")} rule onClick={(event) => focusField(event, nameRef.current)}>
         <GrowField
           inputRef={nameRef}
@@ -609,6 +613,6 @@ export function EventForm({
           <CoverButton event={cover} layout={values.layout} themeId={values.theme} variant="card" />
         </div>
       </div>
-    </>
+    </div>
   );
 }

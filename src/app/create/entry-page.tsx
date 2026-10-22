@@ -18,12 +18,12 @@ import { ensureCardIdentity, hydrateCardsFromServer } from "@/shared/services/ca
 import type { Card } from "@/shared/types";
 import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
+import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { EntryName } from "./entry-name";
 import { EntryZones, type EntryZonesHandle } from "./entry-zones";
 
 const PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-const KEYBOARD_MIN_PX = 80;
 const PASSWORD_MIN = 8;
 
 function emailOk(value: string) {
@@ -69,10 +69,6 @@ function signInHref(email: string | undefined, input: EntryInput) {
   return `/register?${query.toString()}`;
 }
 
-function isField(node: EventTarget | null): node is HTMLElement {
-  return node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement;
-}
-
 export function EntryPage({ input }: { input: EntryInput }) {
   const router = useRouter();
   const offeredName = input.name?.trim() ?? "";
@@ -105,56 +101,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
     return () => window.removeEventListener("orientationchange", measure);
   }, []);
 
-  useEffect(() => {
-    const main = mainRef.current;
-    if (!main) return;
-    let timer = 0;
-    let waiting = false;
-    const keyboard = () => {
-      const viewport = window.visualViewport;
-      if (!viewport) return 0;
-      return Math.max(0, window.innerHeight - viewport.offsetTop - viewport.height);
-    };
-    const place = () => {
-      const open = keyboard() > KEYBOARD_MIN_PX;
-      main.style.paddingBottom = open ? `${Math.round(keyboard())}px` : "";
-      const field = document.activeElement;
-      if (!isField(field) || !main.contains(field) || field.closest("[data-entry-name]")) return;
-      const viewport = window.visualViewport;
-      if (!viewport || !open) return;
-      const covered = field.getBoundingClientRect().bottom - (viewport.offsetTop + viewport.height - 8);
-      if (covered > 2) main.scrollBy({ top: covered, behavior: "smooth" });
-    };
-    const schedule = () => {
-      const viewport = window.visualViewport;
-      if (!viewport || waiting) {
-        window.clearTimeout(timer);
-        timer = window.setTimeout(place, 300);
-        return;
-      }
-      waiting = true;
-      const done = () => {
-        waiting = false;
-        viewport.removeEventListener("resize", done);
-        window.clearTimeout(timer);
-        place();
-      };
-      viewport.addEventListener("resize", done);
-      timer = window.setTimeout(done, 300);
-    };
-    const onFocus = (event: FocusEvent) => {
-      if (!isField(event.target)) return;
-      schedule();
-    };
-    main.addEventListener("focusin", onFocus);
-    window.visualViewport?.addEventListener("resize", place);
-    return () => {
-      main.removeEventListener("focusin", onFocus);
-      window.visualViewport?.removeEventListener("resize", place);
-      window.clearTimeout(timer);
-      main.style.paddingBottom = "";
-    };
-  }, []);
+  useKeyboardLift(mainRef);
 
   const submit = async () => {
     if (busy || !ready) return;
