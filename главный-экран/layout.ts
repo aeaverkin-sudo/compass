@@ -157,11 +157,11 @@ function probeViewport(unit: "svh" | "lvh") {
 }
 
 /**
- * The shell fills the screen. `svh` on a phone can stop short and leave the plaque above the bottom.
+ * Phones keep `svh`, so the browser toolbar does not jump the stack.
  * A desktop window uses the real window: `svh` there can stay short of a resized window.
  */
-function visibleScreenPx(svh: number, lvh: number, innerH: number, desktop: boolean) {
-  return Math.round(desktop ? Math.max(svh, innerH) : Math.max(svh, lvh, innerH));
+function visibleScreenPx(svh: number, innerH: number, desktop: boolean) {
+  return Math.round(desktop ? Math.max(svh, innerH) : svh);
 }
 
 /** Writes `--app-h`, `--band-h` and `--vv-bottom` from the same rules as the head script. */
@@ -170,7 +170,7 @@ export function writeScreenVars() {
   const desktop = desktopWindow();
   const svh = probeViewport("svh");
   const lvh = probeViewport("lvh");
-  const visible = visibleScreenPx(svh, lvh, window.innerHeight, desktop);
+  const visible = visibleScreenPx(svh, window.innerHeight, desktop);
   const full = desktop ? visible : lvh;
   const band = Math.round(browseBandHeightPx(full));
   root.style.setProperty("--app-h", `${visible}px`);
@@ -226,7 +226,7 @@ var desktop=window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 var svh=probe("svh");
 var lvh=probe("lvh");
 var inner=window.innerHeight;
-var visible=desktop?Math.max(svh,inner):Math.max(svh,lvh,inner);
+var visible=desktop?Math.max(svh,inner):svh;
 var full=desktop?visible:lvh;
 var band=Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset}));
 if(band<0)band=0;

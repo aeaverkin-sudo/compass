@@ -12,12 +12,12 @@ import "./globals.css";
 
 /** White until the head script has measured. Nothing moves until the portfolio measure has landed. */
 const MEASURE_CSS = `
-html{top:0!important;bottom:0!important;height:auto!important}
+html{height:var(--app-h,100svh)!important;bottom:auto!important}
 html:not(.compass-sized),html:not(.compass-sized) body{background:#fff!important}
 html:not(.compass-sized) .compass-layer,html:not(.compass-sized) .compass-sky-band{visibility:hidden}
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
-main.compass-main.fixed.top-0,div.compass-main.fixed.top-0{bottom:0;height:auto}
-div.compass-main.fixed.inset-y-0:not([class*="overflow"]){bottom:0!important;height:auto!important;background:#fff}
+main.compass-main.fixed.top-0{height:var(--app-h,100svh)}
+div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100svh);bottom:auto;background:#fff}
 @media (hover:hover) and (pointer:fine){
   html{bottom:0!important;height:auto!important}
   main.compass-main.fixed.top-0{bottom:0;height:auto}
@@ -80,7 +80,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icons/icon-180.png?v=2", sizes: "180x180" }],
   },
-  appleWebApp: { capable: true, title: "ADED", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "ADED", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
