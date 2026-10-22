@@ -3,7 +3,6 @@ import { screenMeasureScript } from "@main/layout";
 import { AppResetGate } from "@/shared/components/app-reset-gate";
 import { MonochromeSync } from "@/shared/components/monochrome-sync";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
-import { ResumeRoute } from "@/shared/components/resume-route";
 import { ServiceWorker } from "@/shared/components/service-worker";
 import { SupabaseSession } from "@/shared/components/supabase-session";
 import { TabPrefetch } from "@/shared/components/tab-prefetch";
@@ -34,6 +33,7 @@ div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100
  * Every other first paint is settled immediately, or the kill-switch would freeze that screen.
  */
 const RELEASE_MOTION_SCRIPT = `(function(){
+try{localStorage.removeItem("compass.resume-route")}catch(e){}
 var root=document.documentElement;
 var read=function(name){return root.style.getPropertyValue(name).trim()};
 window.__compassHeadMeasure={appH:read("--app-h"),bandH:read("--band-h"),vvBottom:read("--vv-bottom"),hd:read("--hd")};
@@ -110,7 +110,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PdfPreviewHost />
         <TabPrefetch />
         <ServiceWorker />
-        <ResumeRoute />
         {children}
         <TrialLock />
       </body>

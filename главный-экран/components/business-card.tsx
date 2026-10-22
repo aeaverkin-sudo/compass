@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
 import { Plus, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
@@ -8,7 +8,7 @@ import type { DeliveredNote } from "@/shared/services/notes-types";
 import { AccountBand } from "@/shared/components/account-band";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { TapButton } from "@/shared/components/tap-button";
-import { cardInWallet, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { cachedWalletStatus, cardInWallet, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
@@ -50,14 +50,17 @@ const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 /** Under the last line, on the value column. The tab bar stays below the card. */
 function AddToWallet({ cardId }: { cardId: string }) {
   const [toast, setToast] = useState(false);
-  const [markedId, setMarkedId] = useState<string | null>(null);
-  const inWallet = markedId === cardId;
+  const [status, setStatus] = useState<"unknown" | "add" | "in">("unknown");
   const read = useRef(0);
   const pollGen = useRef(0);
   const polls = useRef<number[]>([]);
   const apply = useCallback((added: boolean | null) => {
-    if (added === true) setMarkedId(cardId);
-    else if (added === false) setMarkedId((current) => (current === cardId ? null : current));
+    if (added === true) setStatus("in");
+    else if (added === false) setStatus("add");
+  }, []);
+  useLayoutEffect(() => {
+    const known = cachedWalletStatus(cardId);
+    setStatus(known === true ? "in" : known === false ? "add" : "unknown");
   }, [cardId]);
   const refresh = useCallback(() => {
     const ticket = ++read.current;
@@ -102,7 +105,11 @@ function AddToWallet({ cardId }: { cardId: string }) {
       <section className="border-t border-[var(--rule)] py-[18px]">
         <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
           <span />
-          {inWallet ? (
+          {status === "unknown" ? (
+            <p aria-hidden className="invisible inline-flex items-center py-[10.8px] t-caps">
+              IN WALLET
+            </p>
+          ) : status === "in" ? (
             <p className="inline-flex items-center py-[10.8px] t-caps text-[var(--grey)]">IN WALLET</p>
           ) : (
             <TapButton

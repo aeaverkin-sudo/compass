@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { cardInWallet, openWalletPass, WALLET_RECHECK_MS, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { cachedWalletStatus, cardInWallet, forgetWalletStatus, openWalletPass, WALLET_RECHECK_MS, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountRead } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
@@ -153,6 +153,7 @@ export function ProfileScreen() {
       currentCardIndex: 0,
       user: { ...user, onboarded: false },
     });
+    forgetWalletStatus();
     try {
       window.localStorage.removeItem("aded:wallet-hint");
     } catch {
@@ -178,6 +179,16 @@ export function ProfileScreen() {
       /* private mode: open again on the next visit */
     }
   };
+
+  useLayoutEffect(() => {
+    const seed: Record<string, boolean> = {};
+    for (const card of useAppStore.getState().cards) {
+      const known = cachedWalletStatus(card.id);
+      if (typeof known === "boolean") seed[card.id] = known;
+    }
+    if (Object.keys(seed).length === 0) return;
+    setInWallet((current) => ({ ...seed, ...current }));
+  }, []);
 
   const markWallet = useCallback((cardId: string, added: boolean) => {
     setInWallet((current) => (current[cardId] === added ? current : { ...current, [cardId]: added }));
@@ -415,9 +426,9 @@ export function ProfileScreen() {
                     {card.displayName.trim() || "Untitled"}
                   </p>
                   {ready ? (
-                    inWallet[card.id] ? (
+                    inWallet[card.id] === true ? (
                       <p className="mt-1 t-label">IN WALLET</p>
-                    ) : (
+                    ) : inWallet[card.id] === false ? (
                       <button
                         type="button"
                         onClick={() => putInWallet(card.id)}
@@ -425,6 +436,10 @@ export function ProfileScreen() {
                       >
                         PUT IN WALLET
                       </button>
+                    ) : (
+                      <p aria-hidden className="invisible mt-1 t-label">
+                        IN WALLET
+                      </p>
                     )
                   ) : null}
                   <div className="mt-2 flex items-center gap-3">
@@ -466,7 +481,8 @@ export function ProfileScreen() {
         <button
           type="button"
           disabled={atCardLimit || portfolioLimit === null}
-          className="border-0 bg-sky px-[21.6px] py-[10.8px] t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:opacity-40"
+          className="border-0 bg-sky px-[21.6px] py-[10.8px] t-label text-[var(--ink)] disabled:opacity-40"
+          style={{ color: "var(--ink)" }}
           onClick={() => {
             if (portfolioLimit === null) return;
             updateSecondCardDraft({ displayName: "" }, portfolioLimit);
