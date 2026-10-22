@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
 import { nanoid } from "nanoid";
 import { X } from "lucide-react";
 import { MarkPlus } from "@/shared/components/mark-plus";
@@ -301,6 +301,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     about={about}
                     value={editText}
                     placeholder=""
+                    revealStart
                     onChange={setEditText}
                     onCommit={() => commitEdit(row.key, editText)}
                   />
@@ -399,6 +400,7 @@ function Field({
   onChange,
   onCommit,
   inputRef,
+  revealStart = false,
 }: {
   about: boolean;
   value: string;
@@ -406,7 +408,12 @@ function Field({
   onChange: (value: string) => void;
   onCommit: () => void;
   inputRef?: RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
+  /** Opening a saved row: show the start of the line, caret included. */
+  revealStart?: boolean;
 }) {
+  const nodeRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const previous = useRef(value);
+  const placed = useRef(false);
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if ((event.key === "Backspace" || event.key === "Delete") && !value) {
       event.preventDefault();
@@ -417,16 +424,44 @@ function Field({
     event.preventDefault();
     onCommit();
   };
+  const setNode = (node: HTMLInputElement | HTMLTextAreaElement | null) => {
+    nodeRef.current = node;
+    if (inputRef) inputRef.current = node;
+  };
+  useLayoutEffect(() => {
+    const node = nodeRef.current;
+    const before = previous.current;
+    previous.current = value;
+    if (!(node instanceof HTMLInputElement)) return;
+    const showStart = (moveCaret: boolean) => {
+      if (moveCaret) node.setSelectionRange(0, 0);
+      node.scrollLeft = 0;
+    };
+    if (revealStart && !placed.current) {
+      placed.current = true;
+      node.focus({ preventScroll: true });
+      showStart(true);
+      requestAnimationFrame(() => {
+        if (nodeRef.current === node) showStart(true);
+      });
+      return;
+    }
+    if (value.length <= before.length + 1) return;
+    showStart(false);
+    requestAnimationFrame(() => {
+      if (nodeRef.current === node) node.scrollLeft = 0;
+    });
+  }, [value, revealStart]);
   const className = "t-body m-0 w-full min-w-0 border-0 bg-transparent p-0 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
   if (about) {
     return (
       <textarea
-        ref={inputRef as RefObject<HTMLTextAreaElement>}
+        ref={setNode}
         value={value}
         rows={1}
         placeholder={placeholder}
         aria-label={placeholder || "About"}
-        className={`${className} resize-none`}
+        className={`${className} resize-none [overflow-wrap:anywhere] break-words whitespace-pre-wrap`}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
         onBlur={onCommit}
@@ -435,7 +470,7 @@ function Field({
   }
   return (
     <input
-      ref={inputRef as RefObject<HTMLInputElement>}
+      ref={setNode}
       value={value}
       placeholder={placeholder}
       aria-label={placeholder || "Value"}
@@ -492,7 +527,7 @@ function RowButton({
     <div className="flex min-w-0 items-start gap-2">
       <button
         type="button"
-        className="t-body min-w-0 flex-1 border-0 bg-transparent p-0 text-left text-[var(--ink)]"
+        className="t-body min-w-0 flex-1 border-0 bg-transparent p-0 text-left text-[var(--ink)] [overflow-wrap:anywhere] break-words whitespace-pre-wrap"
         {...press}
         onClick={(event) => {
           press.onClick(event);
