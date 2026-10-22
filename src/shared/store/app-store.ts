@@ -25,6 +25,7 @@ import {
   isExtraZoneId,
   nextExtraZoneId,
   normalizeRubricOrder,
+  suggestedSectionTitle,
   withItemZone,
   zoneForItem,
 } from "@/shared/services/card-zones";
@@ -388,6 +389,14 @@ export const useAppStore = create<AppState>()(
         set({ contactItems: nextItems });
         const next = nextItems.find((item) => item.id === itemId);
         if (next) scheduleItemUpsert(next);
+        if (!next || data.value === undefined) return;
+        const title = suggestedSectionTitle(next.value, isAttachmentType(next.type) ? next.type : null);
+        if (!title) return;
+        for (const card of get().cards) {
+          const zoneId = card.itemZones?.[itemId];
+          if (!zoneId || !isExtraZoneId(zoneId) || card.rubricLabels?.[zoneId]?.trim()) continue;
+          get().setRubricLabel(card.id, zoneId, title);
+        }
       },
 
       updateContactItemAttachment: (cardId, itemId, file, dataUrl) => {
@@ -496,6 +505,10 @@ export const useAppStore = create<AppState>()(
           cards: get().cards.map((card) => (card.id === cardId ? next : card)),
         });
         void syncItemOnCard(next, item);
+        if (isExtraZoneId(zone) && !current.rubricLabels?.[zone]?.trim()) {
+          const title = suggestedSectionTitle(item.value, isAttachmentType(item.type) ? item.type : null);
+          if (title) get().setRubricLabel(cardId, zone, title);
+        }
       },
 
       removeItemFromCard: (cardId, itemId) => {

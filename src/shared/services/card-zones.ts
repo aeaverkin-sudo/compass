@@ -1,5 +1,5 @@
 import type { ContactItem, ContactType } from "@/shared/types";
-import { itemDisplayValue } from "./contact-item";
+import { createEmptyContactItem, detectContactType, itemDisplayValue, normalizeContactItem } from "./contact-item";
 import { isAttachmentType } from "./portfolio-limits";
 import { typeLabel } from "./portfolio-catalog";
 
@@ -413,15 +413,40 @@ function pushDisplayed(
   buckets.set(zone, rows);
 }
 
+function rowAxis(item: ContactItem): string {
+  const zone = zoneForItem(item);
+  if (zone === "social" || zone === "lifestyle" || MESSENGER_TYPES.has(item.type)) return typeLabel(item.type);
+  if (zone === "files") return FILE_AXIS[item.type] ?? "FILE";
+  return "";
+}
+
 function splitPresentation(item: ContactItem): { axis: string; value: string } | null {
   const display = itemDisplayValue(item).trim();
   if (!display || display === "+") return null;
-  const zone = zoneForItem(item);
-  if (zone === "social" || zone === "lifestyle" || MESSENGER_TYPES.has(item.type)) {
-    return { axis: typeLabel(item.type), value: display };
-  }
-  if (zone === "files") return { axis: FILE_AXIS[item.type] ?? "FILE", value: display };
-  return { axis: "", value: display };
+  return { axis: rowAxis(item), value: display };
+}
+
+const YEARS_OLD = /^\d+\s+years\s+old$/i;
+
+/** A blank section title. Age is only the whole line, like `32 years old`. */
+export function suggestedSectionTitle(value: string, fileType?: ContactType | null): string | null {
+  const line = value.trim();
+  if (!fileType && YEARS_OLD.test(line)) return "Age";
+  const type = fileType ?? (line ? detectContactType(line) : null);
+  if (!type || type === "text") return null;
+  return typeLabel(type);
+}
+
+/** The same row text the portfolio prints: an axis only where the portfolio prints one. */
+export function labeledEntryLine(value: string, fileType?: ContactType | null): string {
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  if (fileType && isAttachmentType(fileType)) return `${FILE_AXIS[fileType] ?? "FILE"} / ${trimmed}`;
+  const item = normalizeContactItem(createEmptyContactItem(0), trimmed);
+  const display = itemDisplayValue(item).trim();
+  if (!display || display === "+") return trimmed;
+  const axis = rowAxis(item);
+  return axis ? `${axis} / ${display}` : display;
 }
 
 function sectionsFrom(buckets: Map<CardZoneId, CardDisplayRow[]>, scope?: CardZoneScope) {

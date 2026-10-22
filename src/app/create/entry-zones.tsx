@@ -1,18 +1,17 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
 import { nanoid } from "nanoid";
 import { X } from "lucide-react";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
-import { nextExtraZoneId, zoneForItem } from "@/shared/services/card-zones";
+import { labeledEntryLine, nextExtraZoneId, suggestedSectionTitle } from "@/shared/services/card-zones";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
-import { linkDisplay } from "@/shared/services/link-display";
-import { detectAttachmentType, typeLabel } from "@/shared/services/portfolio-catalog";
+import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import type { AttachmentContactType } from "@/shared/services/portfolio-limits";
-import type { ContactType } from "@/shared/types";
+import { WrapField, type WrapFieldHandle } from "@main/components/wrap-field";
 
 const DELETE_RED = "#E23B2F";
 const HOLD_MS = 900;
@@ -51,25 +50,7 @@ const HINTS: Record<string, string> = {
   about: "A line about you",
 };
 
-/** Same shelf names the portfolio prints. A file row keeps its own mark. */
-const MESSENGERS = new Set<ContactType>(["whatsapp", "telegram", "viber", "signal"]);
-const FILE_AXIS: Partial<Record<ContactType, string>> = {
-  pdf: "PDF",
-  photo: "IMG",
-  presentation: "PPT",
-  document: "DOC",
-  spreadsheet: "XLS",
-  audio: "AUD",
-  video: "VID",
-};
-
 export type EntryZonesHandle = { snapshot: () => EntryZone[] };
-
-function fileMark(type: AttachmentContactType | undefined) {
-  if (type === "photo") return "IMG";
-  if (type === "pdf") return "PDF";
-  return type ? typeLabel(type) : "File";
-}
 
 function blankCustom(zones: EntryZone[]) {
   return zones.find((zone) => zone.custom && !zone.title.trim() && zone.rows.length === 0) ?? null;
@@ -79,20 +60,14 @@ function storedLine(value: string) {
   return normalizeContactItem(createEmptyContactItem(0), value).value;
 }
 
-/** Saved text, labelled the way the portfolio labels it. The field itself keeps `row.value`. */
 function lineOf(row: EntryRow) {
-  if (row.type) return `${fileMark(row.type)} / ${row.value}`;
-  const item = normalizeContactItem(createEmptyContactItem(0), row.value);
-  const shown = linkDisplay(item);
-  if (!shown) return row.value;
-  const zone = zoneForItem(item);
-  const axis =
-    zone === "social" || zone === "lifestyle" || MESSENGERS.has(item.type)
-      ? typeLabel(item.type)
-      : zone === "files"
-        ? (FILE_AXIS[item.type] ?? "FILE")
-        : "";
-  return axis ? `${axis} / ${shown}` : shown;
+  return labeledEntryLine(row.value, row.type);
+}
+
+function titled(zone: EntryZone, value: string, fileType?: AttachmentContactType | null): EntryZone {
+  if (zone.title.trim()) return zone;
+  const title = suggestedSectionTitle(value, fileType);
+  return title ? { ...zone, title } : zone;
 }
 
 export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, ref) {
@@ -106,7 +81,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
   const [armed, setArmed] = useState<string | null>(null);
   const zonesRef = useRef(zones);
   const titleRef = useRef<HTMLInputElement>(null);
-  const valueRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const valueRef = useRef<WrapFieldHandle>(null);
   const focusValue = useRef(false);
   zonesRef.current = zones;
 
@@ -130,7 +105,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
   useEffect(() => {
     if (!focusValue.current) return;
     focusValue.current = false;
-    valueRef.current?.focus();
+    valueRef.current?.focusEnd();
   }, [seedId, zones]);
 
   const commitSeed = (zoneId: string, text: string) => {
@@ -144,7 +119,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
     }
     setZones((current) =>
       current.map((zone) =>
-        zone.id === zoneId ? { ...zone, rows: [...zone.rows, { key: nanoid(), value }] } : zone,
+        zone.id === zoneId ? { ...titled(zone, value), rows: [...zone.rows, { key: nanoid(), value }] } : zone,
       ),
     );
   };
@@ -155,12 +130,13 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
     setEditKey(null);
     setEditText("");
     setZones((current) =>
-      current.map((zone) => ({
-        ...zone,
-        rows: value
+      current.map((zone) => {
+        const rows = value
           ? zone.rows.map((row) => (row.key === key ? { ...row, value } : row))
-          : zone.rows.filter((row) => row.key !== key),
-      })),
+          : zone.rows.filter((row) => row.key !== key);
+        const next = value && rows.some((row) => row.key === key) ? titled({ ...zone, rows }, value) : { ...zone, rows };
+        return next;
+      }),
     );
   };
 
@@ -209,7 +185,10 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
       setZones((current) =>
         current.map((zone) =>
           zone.id === zoneId
-            ? { ...zone, rows: [...zone.rows, { key: nanoid(), value: file.name, file, type }] }
+            ? {
+                ...titled(zone, file.name, type),
+                rows: [...zone.rows, { key: nanoid(), value: file.name, file, type }],
+              }
             : zone,
         ),
       );
@@ -301,9 +280,8 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     about={about}
                     value={editText}
                     placeholder=""
-                    revealStart
                     onChange={setEditText}
-                    onCommit={() => commitEdit(row.key, editText)}
+                    onCommit={(text) => commitEdit(row.key, text)}
                   />
                 ) : (
                   <RowButton
@@ -346,7 +324,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     placeholder={zone.rows.length === 0 ? hint : ""}
                     inputRef={valueRef}
                     onChange={setSeedText}
-                    onCommit={() => commitSeed(zone.id, seedText)}
+                    onCommit={(text) => commitSeed(zone.id, text)}
                   />
                 </div>
               ) : zone.rows.length === 0 ? (
@@ -400,84 +378,34 @@ function Field({
   onChange,
   onCommit,
   inputRef,
-  revealStart = false,
 }: {
   about: boolean;
   value: string;
   placeholder?: string;
   onChange: (value: string) => void;
-  onCommit: () => void;
-  inputRef?: RefObject<HTMLInputElement | HTMLTextAreaElement | null>;
-  /** Opening a saved row: show the start of the line, caret included. */
-  revealStart?: boolean;
+  onCommit: (value: string) => void;
+  inputRef?: RefObject<WrapFieldHandle | null>;
 }) {
-  const nodeRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
-  const previous = useRef(value);
-  const placed = useRef(false);
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if ((event.key === "Backspace" || event.key === "Delete") && !value) {
-      event.preventDefault();
-      onCommit();
-      return;
-    }
-    if (about || event.key !== "Enter") return;
-    event.preventDefault();
-    onCommit();
+  const done = useRef(false);
+  const finish = (text: string) => {
+    if (done.current) return;
+    done.current = true;
+    onCommit(text);
   };
-  const setNode = (node: HTMLInputElement | HTMLTextAreaElement | null) => {
-    nodeRef.current = node;
-    if (inputRef) inputRef.current = node;
-  };
-  useLayoutEffect(() => {
-    const node = nodeRef.current;
-    const before = previous.current;
-    previous.current = value;
-    if (!(node instanceof HTMLInputElement)) return;
-    const showStart = (moveCaret: boolean) => {
-      if (moveCaret) node.setSelectionRange(0, 0);
-      node.scrollLeft = 0;
-    };
-    if (revealStart && !placed.current) {
-      placed.current = true;
-      node.focus({ preventScroll: true });
-      showStart(true);
-      requestAnimationFrame(() => {
-        if (nodeRef.current === node) showStart(true);
-      });
-      return;
-    }
-    if (value.length <= before.length + 1) return;
-    showStart(false);
-    requestAnimationFrame(() => {
-      if (nodeRef.current === node) node.scrollLeft = 0;
-    });
-  }, [value, revealStart]);
-  const className = "t-body m-0 w-full min-w-0 border-0 bg-transparent p-0 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]";
-  if (about) {
-    return (
-      <textarea
-        ref={setNode}
-        value={value}
-        rows={1}
-        placeholder={placeholder}
-        aria-label={placeholder || "About"}
-        className={`${className} resize-none [overflow-wrap:anywhere] break-words whitespace-pre-wrap`}
-        onChange={(event) => onChange(event.target.value)}
-        onKeyDown={onKeyDown}
-        onBlur={onCommit}
-      />
-    );
-  }
   return (
-    <input
-      ref={setNode}
-      value={value}
+    <WrapField
+      ref={inputRef}
+      initial={value}
+      label={placeholder || (about ? "About" : "Value")}
       placeholder={placeholder}
-      aria-label={placeholder || "Value"}
-      className={className}
-      onChange={(event) => onChange(event.target.value)}
-      onKeyDown={onKeyDown}
-      onBlur={onCommit}
+      multiline={about}
+      breakButton={false}
+      onTextChange={onChange}
+      onDone={finish}
+      onEmptyDelete={() => finish("")}
+      onBlur={(text) => finish(text)}
+      placeholderClassName="t-body text-[var(--placeholder)]"
+      className="t-body bg-transparent text-[var(--ink)] caret-[var(--ink)]"
     />
   );
 }
@@ -527,7 +455,7 @@ function RowButton({
     <div className="flex min-w-0 items-start gap-2">
       <button
         type="button"
-        className="t-body min-w-0 flex-1 border-0 bg-transparent p-0 text-left text-[var(--ink)] [overflow-wrap:anywhere] break-words whitespace-pre-wrap"
+        className="t-body min-w-0 flex-1 border-0 bg-transparent p-0 text-left text-[var(--ink)] whitespace-pre-wrap break-words"
         {...press}
         onClick={(event) => {
           press.onClick(event);
