@@ -7,6 +7,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
+import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { DELETE_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import { tick } from "@/shared/lib/haptic";
@@ -46,17 +47,11 @@ const LOOKING_FOR = "Looking for";
 const LOOKING_FOR_ZONE = "background";
 const BLUR_GUARD_MS = 300;
 const OPEN_GUARD_MS = 450;
-const KEYBOARD_MIN_PX = 80;
 const DUPLICATE_NOTICE = "Already in your library";
 
 /** A docked line grows with its text up to the screen above the keyboard; only past that it scrolls. */
 function dockReach(keyboard: number) {
   return `calc(100dvh - ${keyboard}px - 56px)`;
-}
-
-function isLiftField(node: EventTarget | null): node is HTMLElement {
-  if (!(node instanceof HTMLElement)) return false;
-  return node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node.isContentEditable;
 }
 
 type EditSection = {
@@ -420,13 +415,9 @@ export const CardEditList = memo(function CardEditList({
         setSeedZoneId(id);
         setSectionEditId(id);
       });
-      const section = listRef.current?.querySelector<HTMLElement>(`[data-zone="${CSS.escape(id)}"]`);
-      const scroller = listRef.current?.closest<HTMLElement>(".compass-card-scroll");
-      if (section && scroller) {
-        const top = section.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-        scroller.scrollTop += top;
-      }
-      section?.querySelector<HTMLElement>("[contenteditable]")?.focus({ preventScroll: true });
+      listRef.current
+        ?.querySelector<HTMLElement>(`[data-zone="${CSS.escape(id)}"] [contenteditable]`)
+        ?.focus({ preventScroll: true });
     };
     openNewZoneRef.current = openNewZone;
     openAddRef.current = openNewZone;
@@ -435,67 +426,7 @@ export const CardEditList = memo(function CardEditList({
     };
   });
 
-  useEffect(() => {
-    const list = listRef.current;
-    const scroller = list?.closest<HTMLElement>(".compass-card-scroll");
-    if (!list || !scroller) return;
-    const viewport = window.visualViewport;
-    let baseline = viewport?.height ?? window.innerHeight;
-    let timer = 0;
-    let pinning = false;
-    let seenShift = 0;
-    const inset = () => {
-      const next = window.visualViewport;
-      if (!next) return 0;
-      return Math.max(0, Math.round(baseline - next.height));
-    };
-    const place = (lift: boolean) => {
-      if (pinning) return;
-      const next = window.visualViewport;
-      const field = document.activeElement;
-      const mine = isLiftField(field) && list.contains(field);
-      const shift = next?.offsetTop ?? 0;
-      if (shift > 1 || window.scrollY > 0) {
-        const delta = shift - seenShift;
-        seenShift = shift;
-        pinning = true;
-        window.scrollTo(0, 0);
-        if (mine && delta > 1) scroller.scrollTop += delta;
-        pinning = false;
-      } else {
-        seenShift = 0;
-      }
-      const height = inset();
-      if (!mine || height < KEYBOARD_MIN_PX) {
-        if (next && height < KEYBOARD_MIN_PX) baseline = next.height;
-        scroller.style.paddingBottom = "";
-        return;
-      }
-      scroller.style.paddingBottom = `${height}px`;
-      if (!lift || !next) return;
-      const covered = field.getBoundingClientRect().bottom - (next.height - 8);
-      if (covered > 2) scroller.scrollTop += covered;
-    };
-    const onFocus = (event: globalThis.FocusEvent) => {
-      if (!isLiftField(event.target) || !list.contains(event.target)) return;
-      const next = window.visualViewport;
-      if (next && inset() < KEYBOARD_MIN_PX) baseline = next.height;
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => place(true), 300);
-    };
-    scroller.addEventListener("focusin", onFocus);
-    const onResize = () => place(true);
-    const onViewportScroll = () => place(false);
-    viewport?.addEventListener("resize", onResize);
-    viewport?.addEventListener("scroll", onViewportScroll);
-    return () => {
-      scroller.removeEventListener("focusin", onFocus);
-      viewport?.removeEventListener("resize", onResize);
-      viewport?.removeEventListener("scroll", onViewportScroll);
-      window.clearTimeout(timer);
-      scroller.style.paddingBottom = "";
-    };
-  }, []);
+  useKeyboardLift(listRef);
 
   useEffect(() => {
     if (composeOnMount) openNewZoneRef.current();
