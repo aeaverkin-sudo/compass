@@ -6,8 +6,7 @@ import { useMainLayout } from "../hooks/use-main-layout";
 import { browseBandHeightCss } from "../layout";
 
 /**
- * The sky plaque under the card. Profile and Network on the card, Event and Data
- * on the contact list: one height, one type, one gutter, one lift above the toolbar.
+ * The sky plaque under the card. Pinned, it is fixed to the screen bottom.
  */
 export function TabBand({
   left,
@@ -33,11 +32,11 @@ export function TabBand({
       aria-label={label}
       className={cn(
         "compass-sky-band shrink-0 bg-sky t-band text-[var(--ink)] select-none [-webkit-touch-callout:none]",
-        pin && "pointer-events-auto absolute inset-x-0 z-30",
+        pin && "pointer-events-auto fixed inset-x-0 bottom-0 z-30",
       )}
       style={{
         height: band,
-        bottom: pin ? "var(--vv-bottom, 0px)" : undefined,
+        bottom: pin ? 0 : undefined,
         WebkitUserSelect: "none",
         userSelect: "none",
       }}
