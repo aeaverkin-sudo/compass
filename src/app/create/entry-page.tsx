@@ -292,7 +292,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
               className={photo ? undefined : "[&_button_svg]:invisible"}
             />
             {photo ? null : (
-              <span className="t-caps pointer-events-none absolute inset-0 flex items-center justify-center px-1 text-center leading-[1.15] text-[var(--grey)]">
+              <span className="t-label pointer-events-none absolute inset-0 flex items-center justify-center px-1 text-center leading-[1.15] text-[var(--grey)]">
                 Add
                 <br />
                 photo
