@@ -22,13 +22,15 @@ const SKY =
 
 export const PAY_PENDING = "Payment pending — the organiser will confirm it";
 
-type EventJoinProps = {
+type EventPassProps = {
   lookup: string;
   event: EventInvite;
   portfolios: PortfolioChoice[];
   registration: EventRegistration | null;
   pay: EventPay;
 };
+
+type EventJoinProps = { mode: "poster"; event: EventInvite; price: string | null } | ({ mode?: "pass" } & EventPassProps);
 
 /** A card with a name. Untitled and Inactive cards are not offered as a badge. */
 function isActive(portfolio: PortfolioChoice): boolean {
@@ -150,15 +152,8 @@ export function PaymentBlock({
   );
 }
 
-/** The event page of a registered account: poster, payment, the badge card. */
-export function EventJoin({ lookup, event, portfolios, registration, pay }: EventJoinProps) {
-  const router = useRouter();
-  const [selectedId, setSelectedId] = useState<string | null>(registration?.cardId ?? null);
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const price = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
-  const poster = {
+function posterOf(event: EventInvite, price: string | null) {
+  return {
     name: event.name,
     description: event.description,
     date: event.date,
@@ -171,6 +166,34 @@ export function EventJoin({ lookup, event, portfolios, registration, pay }: Even
     inviteRows: event.inviteRows,
     logoLook: event.logoLook,
   };
+}
+
+/** Open link: the poster already carries the name, date, place, description, and extra rows. */
+function EventPoster({ event, price }: { event: EventInvite; price: string | null }) {
+  return (
+    <ManageFrame title={eventTitleLine(event.name)} fallbackHref="/network/event">
+      <div className="pt-[18px] pb-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
+        <CoverButton variant="card" layout={event.layout} themeId={event.theme} event={posterOf(event, price)} />
+      </div>
+    </ManageFrame>
+  );
+}
+
+/** Open link is the poster. A named invitation keeps the pass, the badge, and payment. */
+export function EventJoin(props: EventJoinProps) {
+  if (props.mode === "poster") return <EventPoster event={props.event} price={props.price} />;
+  return <EventPass lookup={props.lookup} event={props.event} portfolios={props.portfolios} registration={props.registration} pay={props.pay} />;
+}
+
+/** The event page of a named guest: poster, payment, the badge card. */
+function EventPass({ lookup, event, portfolios, registration, pay }: EventPassProps) {
+  const router = useRouter();
+  const [selectedId, setSelectedId] = useState<string | null>(registration?.cardId ?? null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const price = pay.isPaid ? priceLabel(pay.price, pay.currency) : null;
+  const poster = posterOf(event, price);
 
   const current = portfolios.find((portfolio) => portfolio.id === selectedId) ?? null;
   const choices = portfolios.filter(isActive);

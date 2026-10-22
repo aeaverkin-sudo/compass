@@ -275,7 +275,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
       for (const item of files) {
         useUploadStatus.getState().setStatus(item.itemId, { state: "uploading", percent: null });
       }
-      if (reply.joined && reply.eventLookup) {
+      if (reply.joined && reply.eventLookup && input.event?.guestToken) {
         const screen = reply.pay ? "pay" : "join";
         router.replace(`/e/${encodeURIComponent(reply.eventLookup)}/${screen}`);
       } else if (input.sourceToken && reply.saved && !reply.warning) {

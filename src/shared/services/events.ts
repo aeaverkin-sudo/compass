@@ -1,5 +1,6 @@
 import { customAlphabet, nanoid } from "nanoid";
 import { fileTypeFromBuffer } from "file-type/core";
+import { namedPassIds } from "@/shared/services/event-open-link";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import {
   deleteAttachment,
@@ -278,9 +279,11 @@ export async function listMyEvents(userId: string, now = Date.now()): Promise<Li
     : ownedSelect;
   if (owned.error) throw new Error(owned.error.message);
 
-  const regs = await admin.from("event_registrations").select("event_id, card_id").eq("user_id", userId);
+  const regs = await admin.from("event_registrations").select("id, event_id, card_id").eq("user_id", userId);
   if (regs.error) throw new Error(regs.error.message);
-  const passes = await passCards((regs.data ?? []) as { event_id: string; card_id: string | null }[]);
+  const registrations = (regs.data ?? []) as { id: string; event_id: string; card_id: string | null }[];
+  const named = await namedPassIds(registrations.map((row) => row.id));
+  const passes = await passCards(registrations.filter((row) => named.has(row.id)));
 
   const team = await admin.from("event_team").select("event_id").eq("user_id", userId);
   if (team.error && !missingTable(team.error.message, "event_team")) throw new Error(team.error.message);

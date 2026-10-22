@@ -59,6 +59,60 @@ export async function systemListId(eventId: string, kind: Exclude<GuestListKind,
 }
 
 /**
+ * A registration wears a pass when its guest sits on a list other than Open link,
+ * or has a guest row and no list. Open link has none, and so does a registration with no guest.
+ * If the lists cannot be read, every id stays a pass.
+ */
+export async function namedPassIds(registrationIds: string[]): Promise<Set<string>> {
+  const ids = [...new Set(registrationIds.filter(Boolean))];
+  if (ids.length === 0) return new Set();
+  const all = () => new Set(ids);
+  const admin = createAdminSupabaseClient();
+  const guests = await admin.from("event_guests").select("id, registration_id").in("registration_id", ids);
+  if (guests.error) {
+    if (/event_guests|registration_id|relation|schema/i.test(guests.error.message)) return all();
+    throw new Error(guests.error.message);
+  }
+  const guestRows = (guests.data ?? []) as { id: string; registration_id: string }[];
+  if (guestRows.length === 0) return new Set();
+  const members = await admin
+    .from("event_guest_list_members")
+    .select("guest_id, list_id")
+    .in(
+      "guest_id",
+      guestRows.map((guest) => guest.id),
+    );
+  if (members.error) {
+    if (/event_guest_list_members|relation|schema/i.test(members.error.message)) return all();
+    throw new Error(members.error.message);
+  }
+  const memberRows = (members.data ?? []) as { guest_id: string; list_id: string }[];
+  const listedGuests = new Set(memberRows.map((member) => member.guest_id));
+  let namedGuests = new Set<string>();
+  if (memberRows.length > 0) {
+    const lists = await admin
+      .from("event_guest_lists")
+      .select("id, kind")
+      .in("id", [...new Set(memberRows.map((member) => member.list_id))]);
+    if (lists.error) {
+      if (/kind|event_guest_lists|relation|schema/i.test(lists.error.message)) return all();
+      throw new Error(lists.error.message);
+    }
+    const namedLists = new Set(
+      ((lists.data ?? []) as { id: string; kind: string | null }[])
+        .filter((list) => list.kind !== "open")
+        .map((list) => list.id),
+    );
+    namedGuests = new Set(memberRows.filter((member) => namedLists.has(member.list_id)).map((member) => member.guest_id));
+  }
+  const named = new Set<string>();
+  for (const guest of guestRows) {
+    if (!listedGuests.has(guest.id) || namedGuests.has(guest.id)) named.add(guest.registration_id);
+  }
+  return named;
+}
+
+/**
  * A registration from the open link that found no list guest by its contact
  * becomes one, in the Open link list. A registration already on a list keeps it.
  */
