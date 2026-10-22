@@ -391,6 +391,10 @@ export function ProfileScreen() {
         align="start"
         rule
       >
+        <p className="text-right t-label text-[var(--grey)]">
+          <span className="text-[var(--ink)]">{cards.length}</span>
+          {` / ${portfolioLimit ?? "…"}`}
+        </p>
         {portfoliosOpen ? (
         <ul className="mb-6 space-y-6">
           {cards.map((card) => {
@@ -469,7 +473,7 @@ export function ProfileScreen() {
             router.push("/main");
           }}
         >
-          Create portfolio
+          Create New Portfolio
         </button>
       </Zone>
 
