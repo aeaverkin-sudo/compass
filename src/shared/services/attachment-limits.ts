@@ -34,8 +34,10 @@ export function transferMimeAllowed(kind: "selfie" | "voice", mime: string): boo
   return (VOICE_NOTE_MIMES as readonly string[]).includes(base);
 }
 
-/** Owner-only redirect lifetime for `/f/{id}`. */
+/** Owner-only redirect lifetime for `/f/{id}`. A delivered note file must outlive this. */
 export const SIGNED_READ_SECONDS = 600;
+/** Selfie and voice bytes stay this long after handoff, then the purge cron removes them. */
+export const NOTE_FILE_GRACE_MS = 60 * 60 * 1000;
 
 export const IMAGE_MIMES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const DOCUMENT_MIMES = [

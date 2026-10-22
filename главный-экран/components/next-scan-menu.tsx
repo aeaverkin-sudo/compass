@@ -9,6 +9,7 @@ import { MarkPlus } from "@/shared/components/mark-plus";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
 import { MAX_NEXT_SCAN_NOTES, type NextScanAddon } from "@/shared/types";
 import { openSelfiePicker } from "@landing/components/photo-input-utils";
+import { QR_COLOR } from "../layout";
 
 const RAIL_POPUP_GAP_PX = 8;
 
@@ -336,12 +337,24 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
           open && "z-[60]",
         )}
       >
-        {bare ? <MarkPlus /> : <Plus className="size-4 text-[var(--grey)]" strokeWidth={1} aria-hidden />}
-        {notes.length > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-none text-white">
-            {notes.length}
-          </span>
-        ) : null}
+        {bare ? (
+          notes.length > 0 ? (
+            <span className="text-center text-[16px] font-semibold leading-none" style={{ color: QR_COLOR }}>
+              {notes.length}
+            </span>
+          ) : (
+            <MarkPlus />
+          )
+        ) : (
+          <>
+            <Plus className="size-4 text-[var(--grey)]" strokeWidth={1} aria-hidden />
+            {notes.length > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-medium leading-none text-white">
+                {notes.length}
+              </span>
+            ) : null}
+          </>
+        )}
       </button>
 
       {flyout}

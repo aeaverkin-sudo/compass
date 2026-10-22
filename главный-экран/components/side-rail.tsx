@@ -215,7 +215,7 @@ export function SideRail({
       node.draggable = false;
       node.setAttribute("draggable", "false");
     }
-  }, [card.id, showPlus, dragging]);
+  }, [card.id, card.nextScanAddons, showPlus, dragging]);
 
   const mountShield = () => {
     if (shieldRef.current || typeof document === "undefined") return;
