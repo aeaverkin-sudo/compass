@@ -36,7 +36,8 @@ export function TabBand({
         pin && "pointer-events-auto absolute inset-x-0 z-30",
       )}
       style={{
-        height: band,
+        height: pin ? `calc(${band} + var(--band-pad, 0px))` : band,
+        paddingBottom: pin ? "var(--band-pad, 0px)" : undefined,
         bottom: pin ? "var(--vv-bottom, 0px)" : undefined,
         WebkitUserSelect: "none",
         userSelect: "none",

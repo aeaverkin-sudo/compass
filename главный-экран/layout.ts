@@ -156,28 +156,51 @@ function probeViewport(unit: "svh" | "lvh") {
   return height || window.innerHeight;
 }
 
+/** The home-screen app. The phone browser is not this. */
+function installedApp() {
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  return window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
+}
+
+function safeAreaBottomPx() {
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;padding-bottom:env(safe-area-inset-bottom)";
+  document.documentElement.appendChild(probe);
+  const height = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
+  probe.remove();
+  return height;
+}
+
 /**
- * Phones keep `svh`, so the browser toolbar does not jump the stack.
+ * A browser phone keeps `svh`, so the plaque sits on the browser chrome.
+ * The installed app is shorter than the screen on `svh`, so the page uses the full screen (`lvh`)
+ * and the plaque covers the strip that would otherwise stay white.
  * A desktop window uses the real window: `svh` there can stay short of a resized window.
  */
-function visibleScreenPx(svh: number, innerH: number, desktop: boolean) {
-  return Math.round(desktop ? Math.max(svh, innerH) : svh);
+function visibleScreenPx(svh: number, lvh: number, innerH: number, desktop: boolean, installed: boolean) {
+  if (desktop) return Math.round(Math.max(svh, innerH));
+  if (installed) return Math.round(lvh);
+  return Math.round(svh);
 }
 
 /** Writes `--app-h`, `--band-h` and `--vv-bottom` from the same rules as the head script. */
 export function writeScreenVars() {
   const root = document.documentElement;
   const desktop = desktopWindow();
+  const installed = !desktop && installedApp();
   const svh = probeViewport("svh");
   const lvh = probeViewport("lvh");
-  const visible = visibleScreenPx(svh, window.innerHeight, desktop);
+  const visible = visibleScreenPx(svh, lvh, window.innerHeight, desktop, installed);
   const full = desktop ? visible : lvh;
   const band = Math.round(browseBandHeightPx(full));
+  const pad = installed ? Math.round(safeAreaBottomPx()) : 0;
   root.style.setProperty("--app-h", `${visible}px`);
   root.style.setProperty("--band-h", `${band}px`);
-  // A resting gap between svh and the visual viewport is not the Safari toolbar.
-  // Lifting the plaque by it leaves white underneath. A keyboard must not lift it either.
+  // The plaque stays on the bottom. In the installed app its blue continues through the home indicator.
   root.style.setProperty("--vv-bottom", "0px");
+  root.style.setProperty("--band-pad", `${pad}px`);
+  root.classList.toggle("compass-installed", installed);
   const scale = headerScaleFor(visible);
   root.style.setProperty("--hd", String(scale));
   root.dataset.density = scale < 1 ? "compact" : "comfortable";
@@ -196,13 +219,13 @@ export function browseCardHeight() {
   const fallback = browseBandHeightCss();
   // The band keeps its height. The card ends on the band, so nothing white sits between them.
   // `--app-h` is the measured small viewport, set before the first paint.
-  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1))`;
+  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - var(--band-pad, 0px) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1))`;
 }
 
 /** Edit: the header sits on the QR slot, so the card is taller by that gap. */
 export function editCardHeight() {
   const fallback = browseBandHeightCss();
-  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${SCREEN_TOP_AXIS_PX}px * var(--hd, 1))`;
+  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - var(--band-pad, 0px) - env(safe-area-inset-top) - ${SCREEN_TOP_AXIS_PX}px * var(--hd, 1))`;
 }
 
 /**
@@ -222,18 +245,31 @@ function probe(unit){
   el.remove();
   return h||window.innerHeight;
 }
+function safeBottom(){
+  var el=document.createElement("div");
+  el.style.cssText="position:fixed;visibility:hidden;pointer-events:none;padding-bottom:env(safe-area-inset-bottom)";
+  root.appendChild(el);
+  var h=parseFloat(getComputedStyle(el).paddingBottom)||0;
+  el.remove();
+  return h;
+}
 var desktop=window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+var installed=!desktop&&(window.matchMedia("(display-mode: standalone)").matches||navigator.standalone===true);
 var svh=probe("svh");
 var lvh=probe("lvh");
 var inner=window.innerHeight;
-var visible=desktop?Math.max(svh,inner):svh;
+var visible=desktop?Math.max(svh,inner):(installed?lvh:svh);
 var full=desktop?visible:lvh;
 var band=Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset}));
 if(band<0)band=0;
 if(band<${MIN_BAND_PX})band=${MIN_BAND_PX};
+var pad=installed?Math.round(safeBottom()):0;
+if(installed)root.classList.add("compass-installed");
+else root.classList.remove("compass-installed");
 root.style.setProperty("--app-h",Math.round(visible)+"px");
 root.style.setProperty("--band-h",band+"px");
 root.style.setProperty("--vv-bottom","0px");
+root.style.setProperty("--band-pad",pad+"px");
 var compact=Math.round(visible)<${COMPACT_BELOW_PX};
 root.style.setProperty("--hd",compact?"${COMPACT_HEADER_SCALE}":"1");
 root.setAttribute("data-density",compact?"compact":"comfortable");
