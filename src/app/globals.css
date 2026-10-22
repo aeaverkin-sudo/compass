@@ -354,6 +354,16 @@ body {
   scrollbar-width: none;
 }
 
+/* Room below a focused row. Padding on the scrolling box itself does not scroll on iPhone. */
+[data-keyboard-lift]::after {
+  content: "";
+  display: block;
+  width: 100%;
+  flex: 0 0 var(--keyboard-lift, 0px);
+  height: var(--keyboard-lift, 0px);
+  pointer-events: none;
+}
+
 .compass-preview-scroll {
   scrollbar-width: none;
 }

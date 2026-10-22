@@ -26,19 +26,50 @@ function scrollerOf(node: HTMLElement): HTMLElement {
  * Keep the focused row just above the keyboard and leave the sheet scrollable.
  * The same rule for the questionnaire, the portfolio, and the poster form.
  * Field rectangles are visual-viewport relative, so the visible bottom is `visualViewport.height`.
+ * Safari does not include padding-bottom of the scrolling box in the scroll range,
+ * so the extra room sits on the content inside it.
  */
 export function bindKeyboardLift(anchor: HTMLElement): () => void {
   const scroller = scrollerOf(anchor);
+  const padTarget = anchor !== scroller && getComputedStyle(anchor).display !== "contents" ? anchor : null;
   const viewport = window.visualViewport;
   let baseline = viewport?.height ?? window.innerHeight;
   let timer = 0;
+  let follow = 0;
   let pinning = false;
-  let seenShift = 0;
+  let retries = 0;
+  let open = 0;
 
-  const inset = () => {
+  const keyboardHeight = () => {
     const next = window.visualViewport;
     if (!next) return 0;
-    return Math.max(0, Math.round(baseline - next.height));
+    const gap = Math.max(0, Math.round(baseline - next.height));
+    const field = document.activeElement;
+    const focused = isTextField(field) && scroller.contains(field);
+    // A short change is the browser chrome. Keep the baseline through a focus blip
+    // while the keyboard is opening, or the row never gets the full lift.
+    if (gap < KEYBOARD_MIN_PX) {
+      if (!focused) baseline = next.height;
+      open = 0;
+      return 0;
+    }
+    if (focused) open = gap;
+    return open;
+  };
+
+  const applyRoom = (room: number) => {
+    const px = room > 0 ? `${room}px` : "";
+    if (padTarget) {
+      padTarget.style.paddingBottom = px;
+      return;
+    }
+    if (room > 0) {
+      scroller.dataset.keyboardLift = "";
+      scroller.style.setProperty("--keyboard-lift", px);
+    } else {
+      delete scroller.dataset.keyboardLift;
+      scroller.style.removeProperty("--keyboard-lift");
+    }
   };
 
   const place = (lift: boolean) => {
@@ -46,48 +77,57 @@ export function bindKeyboardLift(anchor: HTMLElement): () => void {
     const next = window.visualViewport;
     const field = document.activeElement;
     const mine = isTextField(field) && scroller.contains(field);
-    const shift = next?.offsetTop ?? 0;
-    if (shift > 1 || window.scrollY > 0) {
-      const delta = shift - seenShift;
-      seenShift = shift;
+    if (window.scrollY > 0) {
       pinning = true;
       window.scrollTo(0, 0);
-      if (mine && delta > 1) scroller.scrollTop += delta;
       pinning = false;
-    } else {
-      seenShift = 0;
     }
-    const height = inset();
-    if (!mine || height < KEYBOARD_MIN_PX) {
-      if (next && height < KEYBOARD_MIN_PX) baseline = next.height;
-      scroller.style.paddingBottom = "";
+    const height = keyboardHeight();
+    const room = height >= KEYBOARD_MIN_PX ? height : 0;
+    applyRoom(room);
+    if (!room || !lift || !next || !mine) {
+      retries = 0;
       return;
     }
-    scroller.style.paddingBottom = `${height}px`;
-    if (!lift || !next) return;
+    void scroller.scrollHeight;
     const covered = field.getBoundingClientRect().bottom - (next.height - KEYBOARD_GAP_PX);
-    if (covered > 2) scroller.scrollTop += covered;
+    if (covered <= 2) {
+      retries = 0;
+      return;
+    }
+    const top = scroller.scrollTop;
+    scroller.scrollTop = top + covered;
+    if (scroller.scrollTop < top + covered - 1 && retries < 3) {
+      retries += 1;
+      requestAnimationFrame(() => place(true));
+    } else {
+      retries = 0;
+    }
   };
 
   const onFocus = (event: FocusEvent) => {
     if (!isTextField(event.target) || !scroller.contains(event.target as Node)) return;
-    if (inset() < KEYBOARD_MIN_PX) baseline = window.visualViewport?.height ?? baseline;
+    const next = window.visualViewport;
+    if (next && baseline - next.height < 24) baseline = next.height;
     window.clearTimeout(timer);
+    window.clearTimeout(follow);
     place(true);
     timer = window.setTimeout(() => place(true), 320);
+    follow = window.setTimeout(() => place(true), 700);
   };
 
   scroller.addEventListener("focusin", onFocus);
-  const onResize = () => place(true);
-  const onViewportScroll = () => place(false);
-  viewport?.addEventListener("resize", onResize);
-  viewport?.addEventListener("scroll", onViewportScroll);
+  const onViewport = () => place(true);
+  viewport?.addEventListener("resize", onViewport);
+  viewport?.addEventListener("scroll", onViewport);
 
   return () => {
     scroller.removeEventListener("focusin", onFocus);
-    viewport?.removeEventListener("resize", onResize);
-    viewport?.removeEventListener("scroll", onViewportScroll);
+    viewport?.removeEventListener("resize", onViewport);
+    viewport?.removeEventListener("scroll", onViewport);
     window.clearTimeout(timer);
+    window.clearTimeout(follow);
+    applyRoom(0);
     scroller.style.paddingBottom = "";
   };
 }
