@@ -24,9 +24,7 @@ div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100
   main.compass-main:not(.fixed){height:var(--app-h,100dvh)}
   div.compass-main.fixed.inset-y-0:not([class*="overflow"]){bottom:0!important;height:auto!important}
 }
-html.compass-main-standalone{height:100lvh!important;bottom:0!important;background:#fff!important}
-html.compass-main-standalone main.compass-main.fixed.top-0{height:100lvh!important;bottom:0}
-html.compass-main-standalone main.compass-main.fixed.top-0::after{content:"";position:absolute;z-index:25;left:0;right:0;bottom:calc(var(--band-h, 53px) + var(--vv-bottom, 0px));height:calc(100lvh - var(--app-h, 100svh));background:#ff0000;pointer-events:none}
+html.compass-main-standalone{height:100lvh!important;bottom:0!important;background:#ff0000!important}
 `;
 
 /**
