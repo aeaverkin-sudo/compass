@@ -24,8 +24,6 @@ div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100
   main.compass-main:not(.fixed){height:var(--app-h,100dvh)}
   div.compass-main.fixed.inset-y-0:not([class*="overflow"]){bottom:0!important;height:auto!important}
 }
-/* Temporary. Installed app only: drop the fixed 793px clip on html. */
-html.compass-standalone{position:static!important;height:auto!important;overflow:visible!important;bottom:auto!important}
 `;
 
 /**
@@ -42,7 +40,6 @@ window.__compassHeadMeasure={appH:read("--app-h"),bandH:read("--band-h"),vvBotto
 var path=location.pathname;
 var standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 if(standalone){
-  root.classList.add("compass-standalone");
   var pin=function(){if(window.scrollX||window.scrollY)window.scrollTo(0,0)};
   pin();
   window.addEventListener("scroll",pin);
