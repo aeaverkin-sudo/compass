@@ -90,7 +90,7 @@ export function ConnectionsScreen() {
 
       {asked && !composing ? <PinnedQuery text={asked} onEdit={edit} /> : null}
 
-      <div className={`min-h-0 flex-1 overflow-y-auto ${composing ? "" : "compass-under-band"}`}>
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {asked && matches && !composing ? (
           matches.length === 0 ? (
             <EmptyResults />

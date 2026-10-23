@@ -354,7 +354,8 @@ export function MainScreen() {
   const counterRightCss = `calc(${sideInset}px + clamp(24px, 6.1vw, 28px) - 3mm)`;
 
   return (
-    <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 h-svh overflow-hidden bg-background">
+    <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-background">
+      <div className="relative min-h-0 flex-1">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
         {layout ? (
             <QrZone url={cardUrl} visible={cardReady && !editing} topOffsetPx={layout.qrTop} scale={layout.headerScale} />
@@ -377,7 +378,7 @@ export function MainScreen() {
       {frozen && !composing && !eventPass ? (
         <p
           className="absolute inset-x-6 z-30 text-center t-meta text-[var(--ink)]"
-          style={{ bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)) + 52px)" }}
+          style={{ bottom: "1.5rem" }}
         >
           Frozen.{" "}
           <Link href="/register" className="underline">
@@ -403,19 +404,6 @@ export function MainScreen() {
       {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}
 
       <UploadNotice />
-
-      {layout && !composing && (editing || !hideNav) ? (
-        <BottomNav
-          editing={editing}
-          resetsCard={editedIsFirst}
-          onRemove={onRemove}
-          onProfile={onProfile}
-          onNetwork={onNetwork}
-          onEdit={onEdit}
-          onAdd={onAdd}
-          onDone={onDone}
-        />
-      ) : null}
 
       {layout && cardTopBrowse !== undefined ? (
         <div
@@ -467,6 +455,19 @@ export function MainScreen() {
             onUpdateCard={updateCard}
           />
         </div>
+      ) : null}
+      </div>
+      {layout && !composing && (editing || !hideNav) ? (
+        <BottomNav
+          editing={editing}
+          resetsCard={editedIsFirst}
+          onRemove={onRemove}
+          onProfile={onProfile}
+          onNetwork={onNetwork}
+          onEdit={onEdit}
+          onAdd={onAdd}
+          onDone={onDone}
+        />
       ) : null}
     </main>
   );

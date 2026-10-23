@@ -15,7 +15,6 @@ import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { ShareBackOffer } from "@/shared/components/share-back";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { BusinessCard } from "@main/components/business-card";
-import { bandReserveCss } from "@main/layout";
 import type { Card, ContactItem } from "@/shared/types";
 
 type PublicCardClientProps = {
@@ -275,10 +274,7 @@ export function PublicCardClient({
         </div>
       ) : null}
       {pdfSheets}
-      <div
-        className="min-h-0 flex-1 overflow-hidden"
-        style={{ paddingBottom: bandReserveCss() }}
-      >
+      <div className="min-h-0 flex-1 overflow-hidden">
         {sheet}
       </div>
       <AccountBand

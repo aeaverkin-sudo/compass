@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { screenMeasureScript } from "@main/layout";
+import { COMPACT_BELOW_PX, COMPACT_HEADER_SCALE } from "@main/layout";
 import { AppResetGate } from "@/shared/components/app-reset-gate";
 import { MonochromeSync } from "@/shared/components/monochrome-sync";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
@@ -10,17 +10,22 @@ import { TrialLock } from "@/shared/components/trial-lock";
 import { VisualBottom } from "@/shared/components/visual-bottom";
 import "./globals.css";
 
-/** The page box is the visible viewport. The installed app uses the full glass. */
+/**
+ * One page box. A browser uses the small viewport, so the bar sits above Safari or Chrome.
+ * The installed app uses the large viewport. html is the same height: it is position:fixed
+ * and overflow:hidden, and a shorter html would clip the bottom of the page off the glass.
+ */
 const MEASURE_CSS = `
-html{--band-row:48px;--screen:100dvh;height:var(--screen)!important;bottom:auto!important}
+html{--shell:100svh;--band-row:48px;height:var(--shell)!important;bottom:auto!important}
 html:not(.compass-sized),html:not(.compass-sized) body{background:#fff!important}
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
-main.compass-main,div.compass-main.fixed{height:var(--screen,100dvh)}
-.compass-under-band{padding-bottom:calc(var(--band-row, 48px) + env(safe-area-inset-bottom))}
+main.compass-main,div.compass-main.fixed{height:var(--shell,100svh)}
 @media (display-mode:standalone){
-  html{--screen:100lvh;bottom:0!important}
+  html{--shell:100lvh;bottom:0!important}
+  main.compass-main,div.compass-main.fixed{height:100lvh}
 }
-html.compass-standalone{--screen:100lvh;bottom:0!important}
+html.compass-standalone{--shell:100lvh;bottom:0!important}
+html.compass-standalone main.compass-main,html.compass-standalone div.compass-main.fixed{height:100lvh}
 `;
 
 /**
@@ -32,6 +37,10 @@ html.compass-standalone{--screen:100lvh;bottom:0!important}
 const RELEASE_MOTION_SCRIPT = `(function(){
 try{localStorage.removeItem("compass.resume-route")}catch(e){}
 var root=document.documentElement;
+var compact=window.innerHeight<${COMPACT_BELOW_PX};
+root.style.setProperty("--hd",compact?"${COMPACT_HEADER_SCALE}":"1");
+root.setAttribute("data-density",compact?"compact":"comfortable");
+root.classList.add("compass-sized");
 var path=location.pathname;
 var standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 if(standalone){
@@ -93,7 +102,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" className="h-full">
       <head>
-        <script dangerouslySetInnerHTML={{ __html: screenMeasureScript() }} />
         <script dangerouslySetInnerHTML={{ __html: RELEASE_MOTION_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: TOUCH_ACTIVE_SCRIPT }} />
         <style dangerouslySetInnerHTML={{ __html: MEASURE_CSS }} />

@@ -2,7 +2,7 @@
 
 import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
-import { writeScreenVars } from "@main/layout";
+import { writeHeaderScale } from "@main/layout";
 
 /**
  * Header scale after navigation and when the window changes.
@@ -21,7 +21,7 @@ export function VisualBottom() {
 
     const write = () => {
       frame = 0;
-      writeScreenVars();
+      writeHeaderScale();
     };
 
     const schedule = () => {

@@ -116,8 +116,8 @@ export function layoutTop(offsetPx: number) {
   return `${offsetPx}px`;
 }
 
-/** Header scale for a short window. The plaque height is not measured. */
-export function writeScreenVars() {
+/** Compact header on a short window. Does not size the page. */
+export function writeHeaderScale() {
   const root = document.documentElement;
   const visible = Math.round(root.clientHeight || window.innerHeight);
   const scale = headerScaleFor(visible);
@@ -129,23 +129,12 @@ export function writeScreenVars() {
 
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
-  return `calc(var(--screen, 100dvh) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1) - ${bandReserveCss()})`;
+  return `calc(var(--shell, 100svh) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1) - ${bandReserveCss()})`;
 }
 
 /** Edit: the header sits on the QR slot, so the card is taller by that gap. */
 export function editCardHeight() {
-  return `calc(var(--screen, 100dvh) - env(safe-area-inset-top) - ${SCREEN_TOP_AXIS_PX}px * var(--hd, 1) - ${bandReserveCss()})`;
-}
-
-/** Header scale before paint. The screen box itself is CSS (`--screen`), not a probe. */
-export function screenMeasureScript() {
-  return `(function(){
-var root=document.documentElement;
-var compact=window.innerHeight<${COMPACT_BELOW_PX};
-root.style.setProperty("--hd",compact?"${COMPACT_HEADER_SCALE}":"1");
-root.setAttribute("data-density",compact?"compact":"comfortable");
-root.classList.add("compass-sized");
-})();`;
+  return `calc(var(--shell, 100svh) - env(safe-area-inset-top) - ${SCREEN_TOP_AXIS_PX}px * var(--hd, 1) - ${bandReserveCss()})`;
 }
 
 export function libraryStackTopPx(safeTop: number) {

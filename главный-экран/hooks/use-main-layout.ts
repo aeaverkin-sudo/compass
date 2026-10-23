@@ -6,7 +6,7 @@ import {
   libraryCardHeightPx,
   librarySheetTopPx,
   libraryStackTopPx,
-  writeScreenVars,
+  writeHeaderScale,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
   SCREEN_TOP_AXIS_PX,
@@ -48,7 +48,7 @@ function readSafeAreaInset(edge: "top" | "bottom") {
 function computeLayout(): MainLayout | null {
   if (typeof window === "undefined") return null;
 
-  const { visible: visibleH, scale } = writeScreenVars();
+  const { visible: visibleH, scale } = writeHeaderScale();
   const safeTop = readSafeAreaInset("top");
   const bandH = BAND_ROW_PX + readSafeAreaInset("bottom");
   const qrTop = safeTop + SCREEN_TOP_AXIS_PX * scale;

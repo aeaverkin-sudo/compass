@@ -24,7 +24,7 @@ export function ManageFrame({
         centered && "mx-auto max-w-[430px]",
       )}
     >
-      <div className="compass-under-band min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
         <ScreenHeader title={title} fallbackHref={fallbackHref} onBack={onBack} />
         {children}
       </div>

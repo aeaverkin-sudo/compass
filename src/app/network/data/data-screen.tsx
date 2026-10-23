@@ -217,7 +217,7 @@ export function DataScreen() {
               {cards.map((card) => (
                 <div
                   key={card.id}
-                  className="compass-under-band h-full shrink-0 snap-start overflow-y-auto px-[var(--gutter)]"
+                  className="h-full shrink-0 snap-start overflow-y-auto px-[var(--gutter)]"
                   style={{ width, touchAction: "pan-x pan-y" }}
                 >
                   {slide(card)}
@@ -227,7 +227,7 @@ export function DataScreen() {
           ) : null}
         </div>
       ) : (
-        <div className="compass-under-band min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
           {slide(cards[0] ?? null)}
         </div>
       )}

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { BAND_ROW_PX } from "../layout";
 
 /**
- * The sky bar on the glass. One row, one height, on every screen that has it.
+ * The sky bar. Last child of the page column, one row, one height.
  * The home indicator is padding under the row, so the sky continues to the glass.
  */
 export function BottomBand({
@@ -22,7 +22,7 @@ export function BottomBand({
   return (
     <nav
       aria-label={label}
-      className="compass-sky-band pointer-events-auto absolute inset-x-0 bottom-0 z-30 bg-sky t-band text-[var(--ink)] select-none [-webkit-touch-callout:none]"
+      className="compass-sky-band pointer-events-auto relative z-30 w-full shrink-0 bg-sky t-band text-[var(--ink)] select-none [-webkit-touch-callout:none]"
       style={{
         paddingBottom: "env(safe-area-inset-bottom)",
         WebkitUserSelect: "none",
