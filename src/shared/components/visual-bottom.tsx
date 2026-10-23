@@ -14,6 +14,12 @@ export function VisualBottom() {
 
   useLayoutEffect(() => {
     const root = document.documentElement;
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    const portfolio = pathname === "/" || pathname === "/main" || pathname.startsWith("/main/");
+    if (standalone && portfolio) root.classList.add("compass-main-standalone");
+    else root.classList.remove("compass-main-standalone");
     // / and /main stay unsettled until the portfolio measures. Any other arrival releases motion.
     if (pathname !== "/" && pathname !== "/main" && !pathname.startsWith("/main/")) {
       root.classList.add("compass-settled");

@@ -24,7 +24,9 @@ div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100
   main.compass-main:not(.fixed){height:var(--app-h,100dvh)}
   div.compass-main.fixed.inset-y-0:not([class*="overflow"]){bottom:0!important;height:auto!important}
 }
-html.compass-main-standalone{height:100lvh!important;bottom:0!important;background:#ff0000!important}
+html.compass-main-standalone{height:100lvh!important;bottom:0!important;background:#c5e8f7!important}
+html.compass-main-standalone main.compass-main.fixed.top-0{height:100lvh!important;bottom:0}
+html.compass-main-standalone main.compass-main.fixed.top-0>nav.compass-sky-band{height:calc(var(--band-h, 53px) + (100lvh - var(--app-h, 100svh)))!important;padding-top:calc((100lvh - var(--app-h, 100svh)) - min(env(safe-area-inset-bottom), 100lvh - var(--app-h, 100svh)))!important;padding-bottom:min(env(safe-area-inset-bottom), 100lvh - var(--app-h, 100svh))!important}
 `;
 
 /**
