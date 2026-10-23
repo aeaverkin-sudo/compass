@@ -16,7 +16,6 @@ import "./globals.css";
  * so bottom:0 would pin it to the short viewport and leave a strip under the bar.
  * bottom:auto lets the page reach the glass. The button bar is the last row of that page.
  * The lime on the root is a marker for the strip that still shows under the page.
- * On /main in the installed app the page is shifted down 120px so that marker shows at the top.
  */
 const MEASURE_CSS = `
 html{--shell:100svh}
@@ -29,7 +28,6 @@ main.compass-main,div.compass-main.fixed{height:var(--shell,100svh)}
 }
 html.compass-standalone{--shell:100lvh;height:100lvh!important;bottom:auto!important;background:#C6FF4A!important}
 html.compass-standalone main.compass-main,html.compass-standalone div.compass-main.fixed{height:100lvh}
-html.compass-main-shift main.compass-main{margin-top:120px}
 `;
 
 /**
@@ -49,7 +47,6 @@ var path=location.pathname;
 var standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 if(standalone){
   root.classList.add("compass-standalone");
-  if(path==="/main"||path.indexOf("/main/")===0)root.classList.add("compass-main-shift");
   var pin=function(){if(window.scrollX||window.scrollY)window.scrollTo(0,0)};
   pin();
   window.addEventListener("scroll",pin);

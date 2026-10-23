@@ -13,13 +13,6 @@ export function VisualBottom() {
 
   useLayoutEffect(() => {
     const root = document.documentElement;
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true;
-    root.classList.toggle(
-      "compass-main-shift",
-      standalone && (pathname === "/main" || pathname.startsWith("/main/")),
-    );
     // / and /main stay unsettled until the portfolio measures. Any other arrival releases motion.
     if (pathname !== "/" && pathname !== "/main" && !pathname.startsWith("/main/")) {
       root.classList.add("compass-settled");
