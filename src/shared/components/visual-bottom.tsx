@@ -32,11 +32,16 @@ export function VisualBottom() {
     };
 
     write();
+    const installed =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    const later = installed ? [window.setTimeout(write, 500), window.setTimeout(write, 2000)] : [];
     window.visualViewport?.addEventListener("resize", schedule);
     window.visualViewport?.addEventListener("scroll", schedule);
     window.addEventListener("orientationchange", schedule);
     window.addEventListener("resize", schedule);
     return () => {
+      later.forEach((timer) => window.clearTimeout(timer));
       if (frame) cancelAnimationFrame(frame);
       window.visualViewport?.removeEventListener("resize", schedule);
       window.visualViewport?.removeEventListener("scroll", schedule);
