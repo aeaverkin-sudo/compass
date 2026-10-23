@@ -112,12 +112,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ServiceWorker />
         {children}
         <TrialLock />
-        {/* Temporary. A pink veil over the whole large screen, to see if it covers the white strip. */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed top-0 left-0 z-[200] h-[100lvh] w-[100lvw]"
-          style={{ background: "rgba(255, 70, 150, 0.45)" }}
-        />
       </body>
     </html>
   );
