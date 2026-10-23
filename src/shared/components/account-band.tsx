@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { TabBand } from "@main/components/tab-band";
+import { BottomBand } from "@main/components/tab-band";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { TapButton } from "@/shared/components/tap-button";
 import { cn } from "@/lib/utils";
@@ -50,8 +50,7 @@ export function AccountBand({
   const saveHref = `${origin}/save/${encodeURIComponent(token)}`;
   if (!pdf) {
     return (
-      <TabBand
-        pin
+      <BottomBand
         inset="calc(clamp(24px, 6.1vw, 28px) - 3mm)"
         label="Account"
         left={

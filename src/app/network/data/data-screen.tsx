@@ -197,7 +197,7 @@ export function DataScreen() {
   );
 
   return (
-    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
+    <main className="compass-main relative flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
       <div className="shrink-0 px-[var(--gutter)]">
         <ScreenHeader
           title="Data"
@@ -217,7 +217,7 @@ export function DataScreen() {
               {cards.map((card) => (
                 <div
                   key={card.id}
-                  className="h-full shrink-0 snap-start overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]"
+                  className="compass-under-band h-full shrink-0 snap-start overflow-y-auto px-[var(--gutter)]"
                   style={{ width, touchAction: "pan-x pan-y" }}
                 >
                   {slide(card)}
@@ -227,7 +227,7 @@ export function DataScreen() {
           ) : null}
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+        <div className="compass-under-band min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
           {slide(cards[0] ?? null)}
         </div>
       )}

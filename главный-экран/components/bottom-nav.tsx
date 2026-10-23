@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useRef, type ComponentProps } from "react";
 import { MarkPlus } from "@/shared/components/mark-plus";
-import { TabBand } from "./tab-band";
+import { BottomBand } from "./tab-band";
 
 const EDIT_CLICK_GUARD_MS = 400;
 
@@ -53,8 +53,7 @@ export const BottomNav = memo(function BottomNav({
   }, [editing]);
 
   return (
-    <TabBand
-      pin
+    <BottomBand
       left={
         editing ? (
           <TapButton

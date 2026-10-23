@@ -386,11 +386,9 @@ export function EventEntryScreen() {
   };
 
   return (
-    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
+    <main className="compass-main relative flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
       <div
-        className={`flex min-h-0 flex-1 flex-col overflow-y-auto px-[var(--gutter)] ${
-          step === "create" ? "" : "pb-[max(2.5rem,env(safe-area-inset-bottom))]"
-        }`}
+        className="compass-under-band flex min-h-0 flex-1 flex-col overflow-y-auto px-[var(--gutter)]"
       >
         <div className={step === "create" ? "flex min-h-full flex-1 flex-col" : undefined}>
           <ScreenHeader

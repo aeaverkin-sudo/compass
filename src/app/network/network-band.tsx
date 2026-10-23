@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { TabBand } from "@main/components/tab-band";
+import { BottomBand } from "@main/components/tab-band";
 import { TapButton } from "@/shared/components/tap-button";
 
 const ITEM =
@@ -44,7 +44,7 @@ export function NetworkBand({ current }: { current: NetworkSection }) {
   });
 
   return (
-    <TabBand
+    <BottomBand
       label="Network"
       left={
         <TapButton className={ITEM} {...go(ROUTE[left])}>
