@@ -24,7 +24,6 @@ div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100
   main.compass-main:not(.fixed){height:var(--app-h,100dvh)}
   div.compass-main.fixed.inset-y-0:not([class*="overflow"]){bottom:0!important;height:auto!important}
 }
-html.compass-main-standalone{height:100lvh!important;bottom:0!important;background:#ff0000!important}
 `;
 
 /**
@@ -58,7 +57,6 @@ if(!portfolio&&path==="/"){
   }catch(e){}
 }
 if(portfolio&&standalone){
-  root.classList.add("compass-main-standalone");
   var meta=document.querySelector('meta[name="theme-color"]');
   if(meta)meta.setAttribute("content","#c5e8f7");
 }
