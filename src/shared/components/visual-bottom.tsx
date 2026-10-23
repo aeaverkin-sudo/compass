@@ -2,12 +2,11 @@
 
 import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
-import { writeScreenVars } from "@main/layout";
+import { writeHeaderScale } from "@main/layout";
 
 /**
- * The head script has already sized the shell. This repeats that measure
- * after navigation and when the visible viewport moves.
- * The band stays hidden until this runs, which is before the first paint.
+ * Header scale after navigation and when the window changes.
+ * The bar itself is a fixed row; it does not wait on a measurement.
  */
 export function VisualBottom() {
   const pathname = usePathname();
@@ -22,8 +21,7 @@ export function VisualBottom() {
 
     const write = () => {
       frame = 0;
-      writeScreenVars();
-      root.classList.add("compass-band-ready");
+      writeHeaderScale();
     };
 
     const schedule = () => {
@@ -45,10 +43,5 @@ export function VisualBottom() {
     };
   }, [pathname]);
 
-  return (
-    <style>{`
-      .compass-sky-band { visibility: hidden; transition: none; }
-      html.compass-band-ready .compass-sky-band { visibility: visible; }
-    `}</style>
-  );
+  return null;
 }

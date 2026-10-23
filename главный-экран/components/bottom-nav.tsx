@@ -54,7 +54,6 @@ export const BottomNav = memo(function BottomNav({
 
   return (
     <TabBand
-      pin
       left={
         editing ? (
           <TapButton
