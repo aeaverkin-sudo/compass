@@ -67,80 +67,6 @@ document.documentElement.classList.add("compass-settled");
 /** iOS Safari draws `:active` only on a page with a touchstart listener; without it a tap shows nothing. */
 const TOUCH_ACTIVE_SCRIPT = `document.addEventListener("touchstart",function(){},{passive:true});`;
 
-/**
- * Temporary. Records the standalone viewport at cold launch, then after 500ms,
- * 2s, landscape, and the return to portrait. The /main panel only reads this log.
- */
-const VIEWPORT_SNAPSHOT_SCRIPT = `(function(){
-var root=document.documentElement;
-function n(v){return v==null||v!==v?"-":String(Math.round(v))}
-function probe(unit){
-  var el=document.createElement("div");
-  el.style.cssText="position:fixed;top:0;height:100"+unit+";visibility:hidden;pointer-events:none";
-  root.appendChild(el);
-  var h=el.getBoundingClientRect().height;
-  el.remove();
-  return h;
-}
-function envPx(name){
-  var el=document.createElement("div");
-  el.style.cssText="position:fixed;left:0;visibility:hidden;pointer-events:none;width:0;height:env("+name+")";
-  root.appendChild(el);
-  var h=el.getBoundingClientRect().height;
-  el.remove();
-  return h;
-}
-function box(el){
-  if(!el||!el.getBoundingClientRect)return "missing";
-  var r=el.getBoundingClientRect();
-  var c=getComputedStyle(el);
-  return "rect "+n(r.top)+".."+n(r.bottom)+" h"+n(r.height)
-    +"\\noff "+el.offsetHeight+" client "+el.clientHeight+" scroll "+el.scrollHeight
-    +"\\nh "+c.height+" min "+c.minHeight+" max "+c.maxHeight
-    +"\\npos "+c.position+" top "+c.top+" bot "+c.bottom
-    +"\\nov "+c.overflow+" bg "+c.backgroundColor;
-}
-function sample(label){
-  var vv=window.visualViewport;
-  var standalone=window.matchMedia("(display-mode: standalone)").matches;
-  var lines=[
-    label+" "+location.pathname+" orient "+(window.matchMedia("(orientation: landscape)").matches?"land":"port"),
-    "inner "+n(window.innerHeight)+" outer "+n(window.outerHeight)+" screen "+n(screen.height)+" avail "+n(screen.availHeight),
-    "vh "+n(probe("vh"))+" svh "+n(probe("svh"))+" dvh "+n(probe("dvh"))+" lvh "+n(probe("lvh")),
-    "vv "+n(vv&&vv.height)+" offTop "+n(vv&&vv.offsetTop)+" pageTop "+n(vv&&vv.pageTop),
-    "docClient "+n(root.clientHeight)+" docScroll "+n(root.scrollHeight)+" bodyClient "+n(document.body&&document.body.clientHeight)+" bodyScroll "+n(document.body&&document.body.scrollHeight),
-    "safeT "+n(envPx("safe-area-inset-top"))+" safeB "+n(envPx("safe-area-inset-bottom")),
-    "display "+standalone+" navStandalone "+(navigator.standalone===true),
-    "vars app "+(root.style.getPropertyValue("--app-h").trim()||"-")+" band "+(root.style.getPropertyValue("--band-h").trim()||"-")+" vvb "+(root.style.getPropertyValue("--vv-bottom").trim()||"-"),
-    "HTML\\n"+box(root),
-    "BODY\\n"+box(document.body),
-    "MAIN\\n"+box(document.querySelector("main.compass-main")),
-    "BAND\\n"+box(document.querySelector(".compass-sky-band"))
-  ];
-  return lines.join("\\n");
-}
-function put(label){
-  var log=window.__compassViewportLog||(window.__compassViewportLog=[]);
-  var row={label:label,text:sample(label)};
-  var i=-1;
-  for(var k=0;k<log.length;k++)if(log[k].label===label)i=k;
-  if(i>=0)log[i]=row;else log.push(row);
-  try{window.dispatchEvent(new Event("compass-viewport-snap"))}catch(e){}
-}
-put("A");
-setTimeout(function(){put("B")},500);
-setTimeout(function(){put("C")},2000);
-var seenLand=false;
-function turned(){
-  var land=window.matchMedia("(orientation: landscape)").matches;
-  setTimeout(function(){
-    if(land){seenLand=true;put("D")}
-    else if(seenLand)put("E");
-  },500);
-}
-window.addEventListener("orientationchange",turned);
-})();`;
-
 export const metadata: Metadata = {
   metadataBase: new URL("https://adedme.com"),
   title: "ADED",
@@ -159,7 +85,6 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   width: "device-width",
-  height: "device-height",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
@@ -175,7 +100,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: screenMeasureScript() }} />
         <script dangerouslySetInnerHTML={{ __html: RELEASE_MOTION_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: TOUCH_ACTIVE_SCRIPT }} />
-        <script dangerouslySetInnerHTML={{ __html: VIEWPORT_SNAPSHOT_SCRIPT }} />
         <style dangerouslySetInnerHTML={{ __html: MEASURE_CSS }} />
       </head>
       <body className="min-h-full font-sans antialiased">
