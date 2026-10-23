@@ -23,12 +23,12 @@ html:not(.compass-sized),html:not(.compass-sized) body{background:#fff!important
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
 main.compass-main,div.compass-main.fixed{height:var(--shell,100svh)}
 @media (display-mode:standalone){
-  html{--shell:100lvh;height:100lvh!important;bottom:0!important;background:#c5e8f7!important}
+  html{--shell:100lvh;height:100lvh!important;bottom:auto!important;background:#c5e8f7!important}
   main.compass-main,div.compass-main.fixed{height:100lvh;background:transparent}
   main.compass-main:not(:has(.compass-sky-band)),div.compass-main.fixed:not(:has(.compass-sky-band)){background:#fff}
   main.compass-main:has(.compass-sky-band)>:not(.compass-sky-band),div.compass-main.fixed:has(.compass-sky-band)>:not(.compass-sky-band){background:#fff}
 }
-html.compass-standalone{--shell:100lvh;height:100lvh!important;bottom:0!important;background:#c5e8f7!important}
+html.compass-standalone{--shell:100lvh;height:100lvh!important;bottom:auto!important;background:#c5e8f7!important}
 html.compass-standalone main.compass-main,html.compass-standalone div.compass-main.fixed{height:100lvh;background:transparent}
 html.compass-standalone main.compass-main:not(:has(.compass-sky-band)),html.compass-standalone div.compass-main.fixed:not(:has(.compass-sky-band)){background:#fff}
 html.compass-standalone main.compass-main:has(.compass-sky-band)>:not(.compass-sky-band),html.compass-standalone div.compass-main.fixed:has(.compass-sky-band)>:not(.compass-sky-band){background:#fff}
