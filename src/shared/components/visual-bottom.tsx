@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
 import { writeHeaderScale } from "@main/layout";
 
@@ -10,14 +10,9 @@ import { writeHeaderScale } from "@main/layout";
  */
 export function VisualBottom() {
   const pathname = usePathname();
-  const [square, setSquare] = useState(false);
 
   useLayoutEffect(() => {
     const root = document.documentElement;
-    const standalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true;
-    setSquare(standalone && (pathname === "/main" || pathname.startsWith("/main/")));
     // / and /main stay unsettled until the portfolio measures. Any other arrival releases motion.
     if (pathname !== "/" && pathname !== "/main" && !pathname.startsWith("/main/")) {
       root.classList.add("compass-settled");
@@ -48,13 +43,5 @@ export function VisualBottom() {
     };
   }, [pathname]);
 
-  if (!square) return null;
-
-  return (
-    <button
-      type="button"
-      aria-label="Square"
-      className="fixed bottom-[6px] left-1/2 z-50 size-11 -translate-x-1/2 border-0 bg-sky p-0"
-    />
-  );
+  return null;
 }
