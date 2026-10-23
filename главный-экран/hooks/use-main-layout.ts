@@ -45,21 +45,21 @@ function readSafeAreaInset(edge: "top" | "bottom") {
   return size;
 }
 
-function computeLayout(): MainLayout | null {
+function computeLayout(columnH: number): MainLayout | null {
   if (typeof window === "undefined") return null;
 
-  const { visible: visibleH, scale } = writeHeaderScale();
+  const { scale } = writeHeaderScale();
   const safeTop = readSafeAreaInset("top");
   const bandH = BAND_ROW_PX + readSafeAreaInset("bottom");
   const qrTop = safeTop + SCREEN_TOP_AXIS_PX * scale;
   const cardTopBrowse = safeTop + (HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX) * scale;
-  const cardBottomBrowse = visibleH - bandH;
+  const cardBottomBrowse = columnH;
   const browseHeight = cardBottomBrowse - cardTopBrowse;
-  const libraryHeight = libraryCardHeightPx(visibleH, safeTop);
+  const libraryHeight = libraryCardHeightPx(columnH, safeTop);
   const browseMenuCenterY = cardBottomBrowse + bandH / 2;
   const sheetTopBrowse = cardBottomBrowse - SHEET_INSET.browse.overlap;
   const cardTopLibrary = libraryStackTopPx(safeTop);
-  const sheetTopLibrary = librarySheetTopPx(visibleH, safeTop);
+  const sheetTopLibrary = librarySheetTopPx(columnH, safeTop);
 
   return {
     qrTop,
@@ -78,82 +78,46 @@ function computeLayout(): MainLayout | null {
   };
 }
 
-/** A late viewport correction on launch must land before motion starts. Past this, motion is allowed anyway. */
-const STARTUP_CAP_MS = 400;
-
-export function useMainLayout() {
+/**
+ * Card geometry.
+ * A positive column height is the content column above the bar (the shell
+ * already sized it). Null means that column is not measured yet.
+ * Omitted: screens without that column keep the header scale from the root.
+ * The keyboard is not a source — visual viewport stays out of this hook.
+ */
+export function useMainLayout(columnHeight?: number | null) {
   const [layout, setLayout] = useState<MainLayout | null>(null);
 
   useLayoutEffect(() => {
+    if (columnHeight === null) return;
     const root = document.documentElement;
-    const cold = !root.classList.contains("compass-settled");
+    let stamp = "";
 
-    const sync = () => {
-      setLayout(computeLayout());
+    const apply = (height: number) => {
+      const next = computeLayout(height);
+      if (!next) return;
+      const nextStamp = `${height}:${next.headerScale}:${next.cardTopBrowse}:${next.cardBottomBrowse}`;
+      if (nextStamp !== stamp) {
+        stamp = nextStamp;
+        setLayout(next);
+      }
+      root.classList.add("compass-settled");
     };
 
-    // Recompute only on real layout changes (orientation / window size), not on
-    // keyboard toggles — the visual viewport resize would shift the whole stack.
-    sync();
-
-    let timer = 0;
-    let outer = 0;
-    let inner = 0;
-    let onViewport: (() => void) | null = null;
-    if (cold) {
-      const started = performance.now();
-      const standalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
-      const clearArm = () => {
-        if (timer) window.clearTimeout(timer);
-        cancelAnimationFrame(outer);
-        cancelAnimationFrame(inner);
-        timer = 0;
-      };
-      const finish = () => {
-        clearArm();
-        root.classList.add("compass-settled");
-        if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
-      };
-      const finishSoon = () => {
-        clearArm();
-        outer = requestAnimationFrame(() => {
-          inner = requestAnimationFrame(finish);
-        });
-      };
-      // A browser viewport is already stable: two frames is enough.
-      // The installed app reports a viewport that moves for a few hundred milliseconds.
-      const arm = () => {
-        clearArm();
-        const remain = STARTUP_CAP_MS - (performance.now() - started);
-        if (standalone && remain > 0) {
-          timer = window.setTimeout(finishSoon, remain);
-          return;
-        }
-        finishSoon();
-      };
-      onViewport = () => {
-        if (root.classList.contains("compass-settled")) return;
-        sync();
-        arm();
-      };
-      window.visualViewport?.addEventListener("resize", onViewport);
-      arm();
+    if (typeof columnHeight === "number") {
+      if (columnHeight > 0) apply(columnHeight);
+      return;
     }
 
+    const sync = () => apply(writeHeaderScale().visible);
+    sync();
     window.addEventListener("resize", sync);
     window.addEventListener("orientationchange", sync);
-
     return () => {
-      if (timer) window.clearTimeout(timer);
-      cancelAnimationFrame(outer);
-      cancelAnimationFrame(inner);
-      if (onViewport) window.visualViewport?.removeEventListener("resize", onViewport);
       window.removeEventListener("resize", sync);
       window.removeEventListener("orientationchange", sync);
     };
-  }, []);
+  }, [columnHeight]);
 
   return layout;
 }

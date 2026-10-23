@@ -312,7 +312,9 @@ export function MainScreen() {
     if (index < useAppStore.getState().cards.length) setCurrentCardIndex(index);
   }, [setCurrentCardIndex]);
 
-  const layout = useMainLayout();
+  const columnRef = useRef<HTMLDivElement>(null);
+  const [columnH, setColumnH] = useState(0);
+  const layout = useMainLayout(cardCount === 0 ? undefined : columnH > 0 ? columnH : null);
 
   useLayoutEffect(() => {
     const node = frameRef.current;
@@ -322,6 +324,23 @@ export function MainScreen() {
     const observer = new ResizeObserver(sync);
     observer.observe(node);
     return () => observer.disconnect();
+  }, [cardCount]);
+
+  useLayoutEffect(() => {
+    const node = columnRef.current;
+    if (!node) return;
+    const sync = () => {
+      const next = node.clientHeight;
+      setColumnH((prev) => (prev === next ? prev : next));
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(node);
+    window.addEventListener("orientationchange", sync);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("orientationchange", sync);
+    };
   }, [cardCount]);
 
   if (cardCount === 0) {
@@ -355,7 +374,7 @@ export function MainScreen() {
 
   return (
     <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-background">
-      <div className="relative min-h-0 flex-1">
+      <div ref={columnRef} className="relative min-h-0 flex-1">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
         {layout ? (
             <QrZone url={cardUrl} visible={cardReady && !editing} topOffsetPx={layout.qrTop} scale={layout.headerScale} />
