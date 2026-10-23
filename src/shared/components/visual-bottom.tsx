@@ -21,6 +21,10 @@ export function VisualBottom() {
 
     const write = () => {
       frame = 0;
+      const standalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true;
+      if (standalone) root.style.setProperty("--glass", `${screen.height}px`);
       writeHeaderScale();
     };
 

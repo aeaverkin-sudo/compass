@@ -12,10 +12,9 @@ import "./globals.css";
 
 /**
  * One page height. A browser uses the small viewport, so the bar sits above Safari or Chrome.
- * The installed app uses the large viewport, the full glass. The root is position:fixed,
- * so bottom:0 would pin it to the short viewport and leave a strip under the bar.
- * bottom:auto lets the page reach the glass. The button bar is the last row of that page.
- * On a page with the bar, the root behind it is the same sky, so a shortfall stays sky.
+ * The installed app uses the device screen in pixels. lvh on this phone is the short
+ * window, so the bar stayed above the glass. screen.height is the glass. The bar is
+ * the last row of that page. Behind it the root is the same sky.
  */
 const MEASURE_CSS = `
 html{--shell:100svh}
@@ -23,14 +22,14 @@ html:not(.compass-sized),html:not(.compass-sized) body{background:#fff!important
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
 main.compass-main,div.compass-main.fixed{height:var(--shell,100svh)}
 @media (display-mode:standalone){
-  html{--shell:100lvh;height:100lvh!important;bottom:auto!important}
+  html{--shell:var(--glass,100lvh);height:var(--glass,100lvh)!important;bottom:auto!important}
   html:has(.compass-sky-band){background:#c5e8f7!important}
-  main.compass-main,div.compass-main.fixed{height:100lvh}
+  main.compass-main,div.compass-main.fixed{height:var(--glass,100lvh)}
   main.compass-main{bottom:auto}
 }
-html.compass-standalone{--shell:100lvh;height:100lvh!important;bottom:auto!important}
+html.compass-standalone{--shell:var(--glass,100lvh);height:var(--glass,100lvh)!important;bottom:auto!important}
 html.compass-standalone:has(.compass-sky-band){background:#c5e8f7!important}
-html.compass-standalone main.compass-main,html.compass-standalone div.compass-main.fixed{height:100lvh}
+html.compass-standalone main.compass-main,html.compass-standalone div.compass-main.fixed{height:var(--glass,100lvh)}
 html.compass-standalone main.compass-main{bottom:auto}
 `;
 
@@ -51,6 +50,9 @@ var path=location.pathname;
 var standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 if(standalone){
   root.classList.add("compass-standalone");
+  var fitGlass=function(){root.style.setProperty("--glass",screen.height+"px")};
+  fitGlass();
+  window.addEventListener("orientationchange",fitGlass);
   var pin=function(){if(window.scrollX||window.scrollY)window.scrollTo(0,0)};
   pin();
   window.addEventListener("scroll",pin);
