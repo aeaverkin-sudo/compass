@@ -15,6 +15,7 @@ import "./globals.css";
  * The installed app uses the large viewport, the full glass. The root is position:fixed,
  * so bottom:0 would pin it to the short viewport and leave a strip under the bar.
  * bottom:auto lets the page reach the glass. The button bar is the last row of that page.
+ * The lime on the root is a marker for the strip that still shows under the page.
  */
 const MEASURE_CSS = `
 html{--shell:100svh}
@@ -22,13 +23,11 @@ html:not(.compass-sized),html:not(.compass-sized) body{background:#fff!important
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
 main.compass-main,div.compass-main.fixed{height:var(--shell,100svh)}
 @media (display-mode:standalone){
-  html{--shell:100lvh;height:100lvh!important;bottom:auto!important;background:transparent!important}
+  html{--shell:100lvh;height:100lvh!important;bottom:auto!important;background:#C6FF4A!important}
   main.compass-main,div.compass-main.fixed{height:100lvh}
-  .h-dvh,.h-svh{height:100lvh!important}
 }
-html.compass-standalone{--shell:100lvh;height:100lvh!important;bottom:auto!important;background:transparent!important}
+html.compass-standalone{--shell:100lvh;height:100lvh!important;bottom:auto!important;background:#C6FF4A!important}
 html.compass-standalone main.compass-main,html.compass-standalone div.compass-main.fixed{height:100lvh}
-html.compass-standalone .h-dvh,html.compass-standalone .h-svh{height:100lvh!important}
 `;
 
 /**
