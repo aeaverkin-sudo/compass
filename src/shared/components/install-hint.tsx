@@ -86,7 +86,7 @@ export function InstallHint({ paused }: { paused: boolean }) {
     <div
       data-no-swipe
       className="fixed left-1/2 z-40 flex w-max max-w-[min(100%-48px,300px)] -translate-x-1/2 items-start gap-2 bg-sky py-2.5 pr-2 pl-3 t-meta text-[var(--ink)]"
-      style={{ bottom: "calc(var(--band-row, 48px) + env(safe-area-inset-bottom) + 12px)" }}
+      style={{ bottom: "calc(var(--band-h, 64px) + var(--vv-bottom, 0px) + 12px)" }}
     >
       {mode === "ios" ? (
         <p className="m-0 min-w-0">

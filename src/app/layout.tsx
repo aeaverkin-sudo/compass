@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { COMPACT_BELOW_PX, COMPACT_HEADER_SCALE } from "@main/layout";
+import { screenMeasureScript } from "@main/layout";
 import { AppResetGate } from "@/shared/components/app-reset-gate";
 import { MonochromeSync } from "@/shared/components/monochrome-sync";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
@@ -10,22 +10,21 @@ import { TrialLock } from "@/shared/components/trial-lock";
 import { VisualBottom } from "@/shared/components/visual-bottom";
 import "./globals.css";
 
-/**
- * One page box. A browser uses the small viewport, so the bar sits above Safari or Chrome.
- * The installed app uses the large viewport. html is the same height: it is position:fixed
- * and overflow:hidden, and a shorter html would clip the bottom of the page off the glass.
- */
+/** White until the head script has measured. Nothing moves until the portfolio measure has landed. */
 const MEASURE_CSS = `
-html{--shell:100svh;--band-row:48px;height:var(--shell)!important;bottom:auto!important}
+html{height:var(--app-h,100svh)!important;bottom:auto!important}
 html:not(.compass-sized),html:not(.compass-sized) body{background:#fff!important}
+html:not(.compass-sized) .compass-layer,html:not(.compass-sized) .compass-sky-band{visibility:hidden}
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
-main.compass-main,div.compass-main.fixed{height:var(--shell,100svh)}
-@media (display-mode:standalone){
-  html{--shell:100lvh;bottom:0!important}
-  main.compass-main,div.compass-main.fixed{height:100lvh}
+main.compass-main.fixed.top-0{height:var(--app-h,100svh)}
+div.compass-main.fixed.inset-y-0:not([class*="overflow"]){height:var(--app-h,100svh);bottom:auto;background:#fff}
+@media (hover:hover) and (pointer:fine){
+  html{bottom:0!important;height:auto!important}
+  main.compass-main.fixed.top-0{bottom:0;height:auto}
+  main.compass-main:not(.fixed){height:var(--app-h,100dvh)}
+  div.compass-main.fixed.inset-y-0:not([class*="overflow"]){bottom:0!important;height:auto!important}
 }
-html.compass-standalone{--shell:100lvh;bottom:0!important}
-html.compass-standalone main.compass-main,html.compass-standalone div.compass-main.fixed{height:100lvh}
+html.compass-main-standalone{height:100lvh!important;bottom:0!important;background:#ff0000!important}
 `;
 
 /**
@@ -37,14 +36,11 @@ html.compass-standalone main.compass-main,html.compass-standalone div.compass-ma
 const RELEASE_MOTION_SCRIPT = `(function(){
 try{localStorage.removeItem("compass.resume-route")}catch(e){}
 var root=document.documentElement;
-var compact=window.innerHeight<${COMPACT_BELOW_PX};
-root.style.setProperty("--hd",compact?"${COMPACT_HEADER_SCALE}":"1");
-root.setAttribute("data-density",compact?"compact":"comfortable");
-root.classList.add("compass-sized");
+var read=function(name){return root.style.getPropertyValue(name).trim()};
+window.__compassHeadMeasure={appH:read("--app-h"),bandH:read("--band-h"),vvBottom:read("--vv-bottom"),hd:read("--hd")};
 var path=location.pathname;
 var standalone=window.matchMedia("(display-mode: standalone)").matches||navigator.standalone;
 if(standalone){
-  root.classList.add("compass-standalone");
   var pin=function(){if(window.scrollX||window.scrollY)window.scrollTo(0,0)};
   pin();
   window.addEventListener("scroll",pin);
@@ -62,6 +58,7 @@ if(!portfolio&&path==="/"){
   }catch(e){}
 }
 if(portfolio&&standalone){
+  root.classList.add("compass-main-standalone");
   var meta=document.querySelector('meta[name="theme-color"]');
   if(meta)meta.setAttribute("content","#c5e8f7");
 }
@@ -102,6 +99,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" className="h-full">
       <head>
+        <script dangerouslySetInnerHTML={{ __html: screenMeasureScript() }} />
         <script dangerouslySetInnerHTML={{ __html: RELEASE_MOTION_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: TOUCH_ACTIVE_SCRIPT }} />
         <style dangerouslySetInnerHTML={{ __html: MEASURE_CSS }} />

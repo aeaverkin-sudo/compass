@@ -2,11 +2,10 @@
 
 import { useLayoutEffect, useState } from "react";
 import {
-  BAND_ROW_PX,
   libraryCardHeightPx,
   librarySheetTopPx,
   libraryStackTopPx,
-  writeHeaderScale,
+  writeScreenVars,
   BROWSE_QR_SIZE,
   HEADER_RHYTHM_PX,
   SCREEN_TOP_AXIS_PX,
@@ -48,9 +47,8 @@ function readSafeAreaInset(edge: "top" | "bottom") {
 function computeLayout(): MainLayout | null {
   if (typeof window === "undefined") return null;
 
-  const { visible: visibleH, scale } = writeHeaderScale();
+  const { visible: visibleH, band: bandH, scale } = writeScreenVars();
   const safeTop = readSafeAreaInset("top");
-  const bandH = BAND_ROW_PX + readSafeAreaInset("bottom");
   const qrTop = safeTop + SCREEN_TOP_AXIS_PX * scale;
   const cardTopBrowse = safeTop + (HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX) * scale;
   const cardBottomBrowse = visibleH - bandH;
@@ -78,6 +76,26 @@ function computeLayout(): MainLayout | null {
   };
 }
 
+type HeadMeasure = { appH: string; bandH: string; vvBottom: string; hd: string };
+
+function readScreenSnapshot(): HeadMeasure {
+  const root = document.documentElement;
+  const read = (name: string) => root.style.getPropertyValue(name).trim();
+  return {
+    appH: read("--app-h"),
+    bandH: read("--band-h"),
+    vvBottom: read("--vv-bottom"),
+    hd: read("--hd"),
+  };
+}
+
+function headMeasure(): HeadMeasure | null {
+  const stored = (window as Window & { __compassHeadMeasure?: HeadMeasure }).__compassHeadMeasure;
+  return stored ?? null;
+}
+
+let startupLogged = false;
+
 /** A late viewport correction on launch must land before motion starts. Past this, motion is allowed anyway. */
 const STARTUP_CAP_MS = 400;
 
@@ -89,7 +107,20 @@ export function useMainLayout() {
     const cold = !root.classList.contains("compass-settled");
 
     const sync = () => {
-      setLayout(computeLayout());
+      const head = cold ? headMeasure() : null;
+      const next = computeLayout();
+      if (head && !startupLogged && process.env.NODE_ENV !== "production") {
+        startupLogged = true;
+        const after = readScreenSnapshot();
+        console.info("[layout] head vs mount", {
+          appH: head.appH,
+          after: after.appH,
+          bandH: { head: head.bandH, after: after.bandH },
+          vvBottom: { head: head.vvBottom, after: after.vvBottom },
+          hd: { head: head.hd, after: after.hd },
+        });
+      }
+      setLayout(next);
     };
 
     // Recompute only on real layout changes (orientation / window size), not on

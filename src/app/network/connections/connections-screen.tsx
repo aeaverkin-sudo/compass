@@ -77,7 +77,7 @@ export function ConnectionsScreen() {
   };
 
   return (
-    <main className="compass-main relative flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
+    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
       <div className="shrink-0 px-8">
         <BackButton fallbackHref="/network" />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">

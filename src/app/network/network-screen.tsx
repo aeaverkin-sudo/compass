@@ -159,6 +159,7 @@ export function NetworkScreen({
   return (
     <main
       className="compass-main relative flex h-dvh flex-col overflow-hidden bg-white text-[#111]"
+      style={{ paddingBottom: "var(--vv-bottom, 0px)" }}
     >
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">

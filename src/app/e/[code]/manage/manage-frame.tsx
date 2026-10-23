@@ -20,11 +20,11 @@ export function ManageFrame({
   return (
     <main
       className={cn(
-        "compass-main relative flex h-dvh w-full flex-col overflow-hidden bg-white text-[var(--ink)]",
+        "compass-main flex h-dvh w-full flex-col overflow-hidden bg-white text-[var(--ink)]",
         centered && "mx-auto max-w-[430px]",
       )}
     >
-      <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-8">
         <ScreenHeader title={title} fallbackHref={fallbackHref} onBack={onBack} />
         {children}
       </div>

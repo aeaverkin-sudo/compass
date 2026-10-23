@@ -20,13 +20,10 @@ export async function POST(request: Request, context: RouteProps) {
   const { publicToken } = await context.params;
 
   let consumeOnShare = false;
-  let viaQr = false;
   try {
     const body = await request.json();
-    if (body && typeof body === "object") {
-      const record = body as { action?: unknown; via?: unknown };
-      if (record.action === "consume") consumeOnShare = true;
-      if (record.via === "qr") viaQr = true;
+    if (body && typeof body === "object" && (body as { action?: unknown }).action === "consume") {
+      consumeOnShare = true;
     }
   } catch {
     // Visitors post with no body.
@@ -50,15 +47,6 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   if (userId && userId === loaded.ownerId) {
-    if (viaQr) {
-      try {
-        const notes = await consumePendingNotes(loaded.card.id, "qr");
-        return noStore({ notes, owner: true });
-      } catch (error) {
-        console.error("[notes] scan consume failed", error);
-        return noStore({ error: "Could not close notes" }, 500);
-      }
-    }
     if (!consumeOnShare) {
       try {
         const notes = await previewPendingNotes(loaded.card.id);
@@ -78,7 +66,7 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   try {
-    const notes = await consumePendingNotes(loaded.card.id, viaQr ? "qr" : undefined);
+    const notes = await consumePendingNotes(loaded.card.id);
     return noStore({ notes, owner: false });
   } catch (error) {
     console.error("[notes] consume failed", error);

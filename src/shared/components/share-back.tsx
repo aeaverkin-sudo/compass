@@ -122,7 +122,7 @@ function ShareBackPanel({
     <div
       ref={panelRef}
       className="fixed inset-x-0 bottom-0 z-30 bg-white px-[var(--gutter)] pt-3"
-      style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+      style={{ paddingBottom: "max(12px, var(--vv-bottom, env(safe-area-inset-bottom)))" }}
     >
       {cards.length > 1 ? (
         <div className="mb-3 flex flex-col gap-3">

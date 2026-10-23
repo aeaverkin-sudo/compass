@@ -66,13 +66,17 @@ export const HEADER_RHYTHM_PX = (HEADER_SLOT_PX - BROWSE_QR_SIZE) / 2;
 /** Top edge of the QR, below the safe area. Screen headers share this axis. */
 export const SCREEN_TOP_AXIS_PX = HEADER_RHYTHM_PX + QR_DROP_PX;
 
-/** The sky row. The home indicator sits in the padding under it, not in this number. */
-export const BAND_ROW_PX = 48;
+/** Browse card bottom ≈ this % of viewport (green mockup outline). */
+const CARD_BOTTOM_TARGET_LVH = 73;
 
-/** Row plus the home indicator. The card and the scrolling pages end on this line. */
-export function bandReserveCss() {
-  return `calc(${BAND_ROW_PX}px + env(safe-area-inset-bottom))`;
-}
+/** Trim browse card bottom edge (px; negative extends downward). −84, then 4mm lower so the sky band is 2mm shorter. */
+const CARD_BOTTOM_RAISE_PX = -84 - (96 / 25.4) * 4;
+
+/** The sky plate starts this far below the card edge. */
+const BOTTOM_PLATE_LOWER_PX = (96 / 25.4) * 2;
+
+/** Retired veil's share of the band offset. The live figure, so the plaque height stays. */
+const VEIL_EDGE_PX = (96 / 25.4) * 7;
 
 /** Base overlap of the library preview onto the QR zone. */
 const QR_OVERLAP_LIBRARY_BASE_PX = 112;
@@ -116,25 +120,139 @@ export function layoutTop(offsetPx: number) {
   return `${offsetPx}px`;
 }
 
-/** Compact header on a short window. Does not size the page. */
-export function writeHeaderScale() {
+/** Slimmer than the full-screen remainder: 55% of (0.27 × screen − 118px). */
+const BAND_HEIGHT_SCALE = 0.55;
+
+/** Shortest sky plaque anywhere — one tap row. */
+const MIN_BAND_PX = 44;
+
+/** Pixels trimmed off the band so the card and the sky plate share one edge. */
+function bandHeightOffsetPx() {
+  return -CARD_BOTTOM_RAISE_PX + BOTTOM_PLATE_LOWER_PX + VEIL_EDGE_PX;
+}
+
+/**
+ * Declared band height from the stable full screen (`lvh` on a phone, the window on a desktop).
+ * Same number on one phone in the home-screen app, Safari and Chrome.
+ * A desktop window never goes under one label row: a short window would otherwise collapse the plaque.
+ */
+function browseBandHeightPx(fullH: number) {
+  const share = (100 - CARD_BOTTOM_TARGET_LVH) / 100;
+  const raw = BAND_HEIGHT_SCALE * (fullH * share - bandHeightOffsetPx());
+  return Math.max(MIN_BAND_PX, raw);
+}
+
+/** A phone has a collapsing toolbar. A desktop window does not, even when `svh` is short of it. */
+function desktopWindow() {
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
+function probeViewport(unit: "svh" | "lvh") {
+  const probe = document.createElement("div");
+  probe.style.cssText = `position:fixed;top:0;height:100${unit};visibility:hidden;pointer-events:none`;
+  document.documentElement.appendChild(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height || window.innerHeight;
+}
+
+/**
+ * Phones keep `svh`, so the browser toolbar does not jump the stack.
+ * A desktop window uses the real window: `svh` there can stay short of a resized window.
+ */
+function visibleScreenPx(svh: number, innerH: number, desktop: boolean) {
+  return Math.round(desktop ? Math.max(svh, innerH) : svh);
+}
+
+/** Lift the plaque only for a phone toolbar. On a desktop that lift is the white gap under the bar. */
+function bandLiftPx(desktop: boolean, gap: number) {
+  if (desktop || !(gap > 0 && gap < 120)) return 0;
+  return Math.round(gap);
+}
+
+/** Writes `--app-h`, `--band-h` and `--vv-bottom` from the same rules as the head script. */
+export function writeScreenVars() {
   const root = document.documentElement;
-  const visible = Math.round(root.clientHeight || window.innerHeight);
+  const desktop = desktopWindow();
+  const svh = probeViewport("svh");
+  const lvh = probeViewport("lvh");
+  const visible = visibleScreenPx(svh, window.innerHeight, desktop);
+  const full = desktop ? visible : lvh;
+  const band = Math.round(browseBandHeightPx(full));
+  root.style.setProperty("--app-h", `${visible}px`);
+  root.style.setProperty("--band-h", `${band}px`);
+  const vv = window.visualViewport;
+  const gap = vv ? visible - vv.height : 0;
+  root.style.setProperty("--vv-bottom", `${bandLiftPx(desktop, gap)}px`);
   const scale = headerScaleFor(visible);
   root.style.setProperty("--hd", String(scale));
   root.dataset.density = scale < 1 ? "compact" : "comfortable";
   root.classList.add("compass-sized");
-  return { visible, scale };
+  return { visible, band, desktop, scale };
+}
+
+/** Same height as `browseBandHeightPx`, for the plaque before the layout hook measures the screen. */
+export function browseBandHeightCss() {
+  const offset = bandHeightOffsetPx();
+  return `max(${MIN_BAND_PX}px, calc(${BAND_HEIGHT_SCALE} * (${100 - CARD_BOTTOM_TARGET_LVH}lvh - ${offset}px)))`;
 }
 
 export function browseCardHeight() {
   const stackTopBelowSafe = HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX;
-  return `calc(var(--shell, 100svh) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1) - ${bandReserveCss()})`;
+  const fallback = browseBandHeightCss();
+  // The band keeps its height. The card ends on the band, so nothing white sits between them.
+  // `--app-h` is the measured small viewport, set before the first paint.
+  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${stackTopBelowSafe}px * var(--hd, 1))`;
 }
 
 /** Edit: the header sits on the QR slot, so the card is taller by that gap. */
 export function editCardHeight() {
-  return `calc(var(--shell, 100svh) - env(safe-area-inset-top) - ${SCREEN_TOP_AXIS_PX}px * var(--hd, 1) - ${bandReserveCss()})`;
+  const fallback = browseBandHeightCss();
+  return `calc(var(--app-h, 100svh) - var(--vv-bottom, 0px) - var(--band-h, ${fallback}) - env(safe-area-inset-top) - ${SCREEN_TOP_AXIS_PX}px * var(--hd, 1))`;
+}
+
+/**
+ * Blocking head script. Same probes and the same band formula as the layout hook,
+ * so the first paint is already the measured size.
+ */
+export function screenMeasureScript() {
+  const share = (100 - CARD_BOTTOM_TARGET_LVH) / 100;
+  const offset = bandHeightOffsetPx();
+  return `(function(){
+var root=document.documentElement;
+function probe(unit){
+  var el=document.createElement("div");
+  el.style.cssText="position:fixed;top:0;height:100"+unit+";visibility:hidden;pointer-events:none";
+  root.appendChild(el);
+  var h=el.getBoundingClientRect().height;
+  el.remove();
+  return h||window.innerHeight;
+}
+var desktop=window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+var svh=probe("svh");
+var lvh=probe("lvh");
+var inner=window.innerHeight;
+var visible=desktop?Math.max(svh,inner):svh;
+var full=desktop?visible:lvh;
+var band=Math.round(${BAND_HEIGHT_SCALE}*(full*${share}-${offset}));
+if(band<0)band=0;
+if(band<${MIN_BAND_PX})band=${MIN_BAND_PX};
+var lift=0;
+if(!desktop){
+  var vv=window.visualViewport;
+  if(vv){
+    var gap=Math.round(visible-vv.height);
+    if(gap>0&&gap<120)lift=gap;
+  }
+}
+root.style.setProperty("--app-h",Math.round(visible)+"px");
+root.style.setProperty("--band-h",band+"px");
+root.style.setProperty("--vv-bottom",lift+"px");
+var compact=Math.round(visible)<${COMPACT_BELOW_PX};
+root.style.setProperty("--hd",compact?"${COMPACT_HEADER_SCALE}":"1");
+root.setAttribute("data-density",compact?"compact":"comfortable");
+root.classList.add("compass-sized");
+})();`;
 }
 
 export function libraryStackTopPx(safeTop: number) {

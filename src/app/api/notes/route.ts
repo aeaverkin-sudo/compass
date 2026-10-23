@@ -39,8 +39,8 @@ export async function GET(request: Request) {
   if (!owned.ok) return owned.response;
 
   try {
-    const pending = await readPendingNotes(owned.cardId);
-    return noStore({ notes: pending.notes, held: pending.held });
+    const notes = await readPendingNotes(owned.cardId);
+    return noStore({ notes });
   } catch {
     return jsonFail(500, "Could not read notes");
   }

@@ -15,6 +15,7 @@ import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { ShareBackOffer } from "@/shared/components/share-back";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { BusinessCard } from "@main/components/business-card";
+import { browseBandHeightCss } from "@main/layout";
 import type { Card, ContactItem } from "@/shared/types";
 
 type PublicCardClientProps = {
@@ -73,14 +74,8 @@ export function PublicCardClient({
   useEffect(() => {
     if (deleted) return;
     let cancelled = false;
-    const scanned = new URLSearchParams(window.location.search).get("src") === "qr"
-      || new URLSearchParams(window.location.search).get("via") === "qr";
     void Promise.all([
-      fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, {
-        method: "POST",
-        headers: scanned ? { "Content-Type": "application/json" } : undefined,
-        body: scanned ? JSON.stringify({ action: "consume", via: "qr" }) : undefined,
-      }),
+      fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, { method: "POST" }),
       save ? fetch("/api/connections", { cache: "no-store" }) : Promise.resolve(null),
     ])
       .then(async ([notesResponse, bookResponse]) => {
@@ -274,7 +269,10 @@ export function PublicCardClient({
         </div>
       ) : null}
       {pdfSheets}
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div
+        className="min-h-0 flex-1 overflow-hidden"
+        style={{ paddingBottom: `calc(var(--band-h, ${browseBandHeightCss()}) + var(--vv-bottom, 0px))` }}
+      >
         {sheet}
       </div>
       <AccountBand
@@ -290,7 +288,7 @@ function SaveBar({ state, onSave }: { state: SaveState | "deleted"; onSave: () =
   return (
     <div
       className="fixed inset-x-0 bottom-0 z-30 px-[var(--gutter)]"
-      style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+      style={{ paddingBottom: "max(12px, var(--vv-bottom, env(safe-area-inset-bottom)))" }}
     >
       {state === "deleted" ? (
         <p className="mb-0 text-center t-body text-[var(--grey)]">Profile deleted</p>
