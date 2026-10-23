@@ -80,7 +80,7 @@ export function PublicCardClient({
       fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, {
         method: "POST",
         headers: scanned ? { "Content-Type": "application/json" } : undefined,
-        body: scanned ? JSON.stringify({ action: "consume" }) : undefined,
+        body: scanned ? JSON.stringify({ action: "consume", via: "qr" }) : undefined,
       }),
       save ? fetch("/api/connections", { cache: "no-store" }) : Promise.resolve(null),
     ])
