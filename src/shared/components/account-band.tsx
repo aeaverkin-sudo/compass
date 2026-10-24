@@ -64,7 +64,7 @@ export function AccountBand({
             onTap={() => onPdf?.()}
             className={cn(DOOR, "justify-end border-0 bg-transparent")}
           >
-            <span data-pdf-link="">Get PDF file</span>
+            <span data-pdf-link="">Get PDF</span>
           </TapButton>
         }
       />
