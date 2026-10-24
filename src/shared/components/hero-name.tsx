@@ -100,8 +100,26 @@ export function HeroName({
       );
       const gap = roleBelow ? HERO_ROLE_GAP_PX : 0;
       const heightSize = Math.max(8, (box.clientHeight - gap) / (count + HERO_DESCENDER_OVERFLOW));
+      let next = Math.min(HERO_NAME_MAX_PX, widthSize, heightSize);
+      // The span measure stops a hair inside the column. The textarea still paints about half a glyph past it.
+      if (ruled && box.clientHeight > 40) {
+        const area = box.querySelector("textarea");
+        if (area instanceof HTMLTextAreaElement && width > 0) {
+          area.style.fontWeight = "600";
+          area.style.letterSpacing = "-1px";
+          area.style.lineHeight = "1";
+          area.style.fontSize = `${next}px`;
+          const column = box.closest("[data-entry-name]");
+          const limit = column instanceof HTMLElement ? column.clientWidth : area.clientWidth;
+          const used = area.scrollWidth;
+          if (limit > 8 && used > limit + 0.5) {
+            const ratio = (limit - 1) / used;
+            if (ratio > 0.75) next = Math.max(8, next * ratio);
+          }
+        }
+      }
       setWrapWord(false);
-      setSize(Math.min(HERO_NAME_MAX_PX, widthSize, heightSize));
+      setSize(next);
       const area = box.querySelector("textarea");
       if (area) {
         area.scrollTop = 0;
@@ -118,7 +136,7 @@ export function HeroName({
       observer.disconnect();
       window.removeEventListener("orientationchange", onTurn);
     };
-  }, [maxLines, placeholder, roleBelow, value]);
+  }, [maxLines, placeholder, roleBelow, ruled, value]);
 
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
