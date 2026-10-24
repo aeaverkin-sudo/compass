@@ -122,16 +122,28 @@ export function HeroName({
 
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
-  const lineStyle = {
-    fontSize: size,
-    lineHeight: 1,
-    fontWeight: empty ? 400 : 600,
-    letterSpacing: empty ? "0px" : "-1px",
-    boxSizing: "border-box" as const,
-    height: size * (ruled && empty ? 2 : empty ? 1 : lineCount) + rolePad,
-    paddingBottom: rolePad,
-    ...(centered ? { marginBottom: -rolePad } : {}),
-  };
+  /** Empty questionnaire: the caret uses the hint's own line, not the hero size. */
+  const hintLine = ruled && empty;
+  const lineStyle = hintLine
+    ? {
+        fontSize: 11,
+        lineHeight: 1.45,
+        fontWeight: 400,
+        letterSpacing: "0.1em",
+        boxSizing: "border-box" as const,
+        height: 11 * 1.45,
+        padding: 0,
+      }
+    : {
+        fontSize: size,
+        lineHeight: 1,
+        fontWeight: empty ? 400 : 600,
+        letterSpacing: empty ? "0px" : "-1px",
+        boxSizing: "border-box" as const,
+        height: size * (empty ? 1 : lineCount) + rolePad,
+        paddingBottom: rolePad,
+        ...(centered ? { marginBottom: -rolePad } : {}),
+      };
 
   const holdScroll = (node: HTMLTextAreaElement) => {
     const scroller = node.closest<HTMLElement>(".compass-card-scroll");
@@ -194,7 +206,10 @@ export function HeroName({
             event.currentTarget.scrollLeft = 0;
             onChange(clamp(event.target.value));
           }}
-          onFocus={(event) => holdScroll(event.currentTarget)}
+          onFocus={(event) => {
+            if (ruled) return;
+            holdScroll(event.currentTarget);
+          }}
           onPointerDown={(event) => event.stopPropagation()}
           onBeforeInput={(event) => {
             const native = event.nativeEvent;

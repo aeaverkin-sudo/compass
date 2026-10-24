@@ -19,43 +19,37 @@ export function EntryName({
 }) {
   const shown = live ? value : "";
   const suggested = Boolean(value.trim() && !live);
+  const hint = shown.length === 0 && !suggested;
 
   return (
     <div
       data-entry-name=""
-      className="relative flex h-full min-w-0 flex-1 flex-col"
+      className="relative flex h-full min-w-0 flex-1 flex-col justify-end"
       onFocusCapture={onTouch}
       onPointerDown={(event) => {
         const area = event.currentTarget.querySelector("textarea");
         if (!(area instanceof HTMLTextAreaElement)) return;
         if (event.target instanceof Node && area.contains(event.target)) return;
-        event.preventDefault();
         area.focus();
       }}
     >
-      <HeroName value={shown} onChange={onChange} placeholder="" ruled />
-      {shown.length === 0 ? (
-        <span
-          className={
-            suggested
-              ? "pointer-events-none absolute inset-x-0 bottom-0 t-body text-[var(--placeholder)]"
-              : "pointer-events-none absolute inset-x-0 bottom-0 t-label"
-          }
-          style={suggested ? undefined : { color: "var(--placeholder)" }}
-        >
-          {suggested ? (
-            value
-          ) : (
-            <>
-              <span className="block whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">{HINT_ONE}</span>
-              <span className="mt-[14px] block whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">
-                {HINT_TWO}
-                <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
-              </span>
-            </>
-          )}
-        </span>
-      ) : null}
+      <div className="relative w-full">
+        {hint ? (
+          <div aria-hidden className="pointer-events-none t-label" style={{ color: "var(--placeholder)" }}>
+            <div className="whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">{HINT_ONE}</div>
+            <div className="mt-[14px] whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">
+              {HINT_TWO}
+              <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
+            </div>
+          </div>
+        ) : null}
+        <div className={hint ? "absolute inset-x-0 top-0 h-[15.95px]" : "relative min-h-0"}>
+          <HeroName value={shown} onChange={onChange} placeholder="" ruled />
+        </div>
+        {suggested ? (
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 t-body text-[var(--placeholder)]">{value}</span>
+        ) : null}
+      </div>
     </div>
   );
 }
