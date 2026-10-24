@@ -79,7 +79,10 @@ export async function GET() {
       const openIds = [
         ...new Set(
           rows
-            .filter((row) => faces.get(row.saved_card_id)?.searchable !== false)
+            .filter((row) => {
+              const face = faces.get(row.saved_card_id);
+              return face != null && face.searchable !== false;
+            })
             .map((row) => row.saved_card_id),
         ),
       ];
@@ -113,22 +116,23 @@ export async function GET() {
     }
 
     return noStore({
-      connections: rows.map((row) => {
+      connections: rows.flatMap((row) => {
         const face = faces.get(row.saved_card_id);
-        const kept = typeof row.snapshot?.title === "string" ? row.snapshot.title.trim() : "";
-        const role = face?.title?.trim() || kept;
-        const deep = face?.searchable !== false;
-        return {
+        // The card left with the account. The book does not keep a deleted profile.
+        if (!face) return [];
+        const role = face.title?.trim() || "";
+        const deep = face.searchable !== false;
+        return [{
           id: row.id,
           displayName: row.display_name,
-          state: "active",
+          state: "active" as const,
           savedCardToken: row.saved_card_token,
           sourceEventId: row.source_event_id,
           createdAt: row.created_at,
           role,
-          photoUrl: face?.photo_attachment_id ? `/f/${face.photo_attachment_id}` : null,
-          searchText: joinSearch(row.display_name, role, deep ? face?.display_name : "", deep ? lines.get(row.saved_card_id) : ""),
-        };
+          photoUrl: face.photo_attachment_id ? `/f/${face.photo_attachment_id}` : null,
+          searchText: joinSearch(row.display_name, role, deep ? face.display_name : "", deep ? lines.get(row.saved_card_id) : ""),
+        }];
       }),
     });
   } catch (error) {
