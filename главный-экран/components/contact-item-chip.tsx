@@ -476,7 +476,7 @@ export function ContactItemChipList({
       if (edgeLoop.current) cancelAnimationFrame(edgeLoop.current);
       detachGesture.current?.();
       const block = dragBlockEl.current;
-      if (block) block.removeEventListener("touchmove", blockTouchMove, true);
+      if (block) block.removeEventListener("touchmove", blockTouchMove, DRAG_TOUCH_BLOCK);
       document.removeEventListener("touchmove", blockTouchMove, true);
     };
   }, []);
@@ -516,7 +516,7 @@ export function ContactItemChipList({
 
   const stopDragBlock = () => {
     const el = dragBlockEl.current;
-    if (el) el.removeEventListener("touchmove", blockTouchMove, true);
+    if (el) el.removeEventListener("touchmove", blockTouchMove, DRAG_TOUCH_BLOCK);
     dragBlockEl.current = null;
     document.removeEventListener("touchmove", blockTouchMove, true);
   };
@@ -790,7 +790,7 @@ export function ContactItemChipList({
           const scroller = listRef.current.closest(".compass-card-scroll");
           const blockOn = scroller instanceof HTMLElement ? scroller : listRef.current;
           stopDragBlock();
-          blockOn.addEventListener("touchmove", blockTouchMove, { passive: false });
+          blockOn.addEventListener("touchmove", blockTouchMove, DRAG_TOUCH_BLOCK);
           dragBlockEl.current = blockOn;
           reorderHaptic();
           const nextHold: ArrangeDrag = {
@@ -1290,6 +1290,9 @@ function NextSection({ number, onAdd }: { number: string; onAdd: () => void }) {
 }
 
 const NEXT_SECTION_HINT = "Links, role, socials, a file…";
+
+/** Bubble phase, not capture. Add and remove must use this same object or the block never comes off. */
+const DRAG_TOUCH_BLOCK: AddEventListenerOptions = { passive: false };
 
 function blockTouchMove(event: TouchEvent) {
   event.preventDefault();
