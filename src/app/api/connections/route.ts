@@ -18,6 +18,7 @@ type ConnectionRow = {
   saved_card_token: string;
   source_event_id: string | null;
   created_at: string;
+  state?: string | null;
   snapshot?: { title?: unknown } | null;
 };
 
@@ -54,7 +55,7 @@ export async function GET() {
     const supabase = await createServerSupabaseClient();
     const read = (columns: string) =>
       supabase.from("connections").select(columns).eq("owner_id", owner.id).order("created_at", { ascending: true });
-    const base = "id, display_name, saved_card_id, saved_card_token, source_event_id, created_at";
+    const base = "id, display_name, saved_card_id, saved_card_token, source_event_id, created_at, state";
     const withSnapshot = await read(`${base}, snapshot`);
     const loaded = withSnapshot.error && /snapshot/i.test(withSnapshot.error.message) ? await read(base) : withSnapshot;
     if (loaded.error) throw new Error(loaded.error.message);
@@ -125,7 +126,7 @@ export async function GET() {
         return [{
           id: row.id,
           displayName: row.display_name,
-          state: "active" as const,
+          state: row.state === "pending" ? ("pending" as const) : ("active" as const),
           savedCardToken: row.saved_card_token,
           sourceEventId: row.source_event_id,
           createdAt: row.created_at,

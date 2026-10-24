@@ -10,6 +10,8 @@ export type SaveConnectionResult = { ok: true } | { ok: false; own: boolean; mes
 export async function saveConnection(input: {
   ownerId: string;
   cardId: string;
+  /** A card the person saved themselves stays active. Share-back passes pending. */
+  state?: "active" | "pending";
 }): Promise<SaveConnectionResult> {
   let sourceEventId: string | null = null;
   try {
@@ -22,7 +24,7 @@ export async function saveConnection(input: {
     {
       owner_id: input.ownerId,
       saved_card_id: input.cardId,
-      state: "active",
+      state: input.state === "pending" ? "pending" : "active",
       ...(sourceEventId ? { source_event_id: sourceEventId } : {}),
     },
     { onConflict: "owner_id,saved_card_id", ignoreDuplicates: true },

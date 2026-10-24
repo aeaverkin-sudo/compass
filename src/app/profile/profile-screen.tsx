@@ -108,6 +108,58 @@ function SharingSettings({ initial }: { initial: Sharing }) {
   );
 }
 
+/** On: a card shared back arrives pending. Off: share-back writes nothing. */
+function ShareBackSetting() {
+  const [accept, setAccept] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/account/share-back", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok || cancelled) return;
+        const body = (await response.json()) as { accept?: boolean };
+        if (!cancelled && typeof body.accept === "boolean") setAccept(body.accept);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const save = (next: boolean) => {
+    const previous = accept;
+    setAccept(next);
+    void fetch("/api/account/share-back", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accept: next }),
+    })
+      .then((response) => {
+        if (!response.ok) setAccept(previous);
+      })
+      .catch(() => setAccept(previous));
+  };
+
+  return (
+    <div className="flex items-start gap-3">
+      <Switch
+        checked={accept}
+        onCheckedChange={(checked) => save(checked === true)}
+        aria-labelledby="profile-share-back"
+        className="mt-[2px] shrink-0"
+      />
+      <span className="min-w-0">
+        <span id="profile-share-back" className="block t-body text-[var(--ink)]">
+          Cards shared back to you
+        </span>
+        <span className="mt-1 block t-meta text-[var(--grey)]">
+          On — arrive as pending, you say Yes/No. Off — nobody can send their card back.
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function ProfileShell({ children }: { children: ReactNode }) {
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
@@ -524,6 +576,10 @@ export function ProfileScreen() {
 
       <Zone label="Sharing" align="start" rule>
         <SharingSettings initial={account.sharing ?? { analytics: true, connections: true }} />
+      </Zone>
+
+      <Zone label="Network" align="start" rule>
+        <ShareBackSetting />
       </Zone>
 
       <Zone label="Manage" rule>
