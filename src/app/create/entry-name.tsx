@@ -36,8 +36,8 @@ export function EntryName({
       <div className={hint ? "relative w-full min-w-0 max-w-full" : "absolute inset-0 min-w-0 overflow-x-hidden"}>
         {hint ? (
           <div aria-hidden className="pointer-events-none t-label" style={{ color: "var(--placeholder)" }}>
-            <div className="whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">{HINT_ONE}</div>
-            <div className="mt-[14px] whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">
+            <div className="whitespace-nowrap border-b border-[var(--ink)] pb-[3px]">{HINT_ONE}</div>
+            <div className="mt-[14px] whitespace-nowrap border-b border-[var(--ink)] pb-[3px]">
               {HINT_TWO}
               <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
             </div>
