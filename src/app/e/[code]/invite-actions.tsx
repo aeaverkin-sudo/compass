@@ -10,7 +10,7 @@ import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
-import { COLUMN_GAP_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { COLUMN_GAP_PX } from "@/shared/layout/axes";
 import type { PortfolioChoice } from "@/shared/services/event-registration";
 import { PortfolioFace } from "@/shared/components/portfolio-face";
 import { TapButton } from "@/shared/components/tap-button";
@@ -328,9 +328,9 @@ export function InviteActions({
             </TapButton>
           </>
         ) : createFlow ? (
-          <div className="self-stretch" style={{ paddingLeft: VALUE_AXIS_PX }}>
+          <div className="flex flex-col items-center text-center">
             <Link href={createHref} className={SKY}>
-              Create
+              Create Portfolio
             </Link>
             {placesLeft != null ? (
               <p className="mt-3 mb-0 t-meta text-[var(--grey)]">{`${placesLeft} ${placesLeft === 1 ? "place" : "places"} left`}</p>
