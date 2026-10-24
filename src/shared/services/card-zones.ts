@@ -354,9 +354,10 @@ export function groupLibrary(
   const exceptId = scope && "id" in scope ? scope.id : undefined;
   for (const item of items) {
     const onCard = onThis?.has(item.id) ?? true;
+    const filedHere = canonZoneId(scope?.itemZones?.[item.id]);
     const zone = onCard
       ? effectiveZone(scope, item)
-      : (zoneFromPlacements(item, placements, exceptId) ?? zoneForItem(item));
+      : (filedHere ?? zoneFromPlacements(item, placements, exceptId) ?? zoneForItem(item));
     pushDisplayed(buckets, item, undefined, scope, zone);
   }
   return sectionsFrom(buckets, scope);
