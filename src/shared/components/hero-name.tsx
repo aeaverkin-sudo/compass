@@ -128,7 +128,7 @@ export function HeroName({
     fontWeight: empty ? 400 : 600,
     letterSpacing: empty ? "0px" : "-1px",
     boxSizing: "border-box" as const,
-    height: size * (ruled ? Math.max(lineCount, 2) : empty ? 1 : lineCount) + rolePad,
+    height: size * (ruled && empty ? 2 : empty ? 1 : lineCount) + rolePad,
     paddingBottom: rolePad,
     ...(centered ? { marginBottom: -rolePad } : {}),
   };
@@ -167,12 +167,6 @@ export function HeroName({
     >
       {onChange ? (
         <>
-        {ruled && !empty ? (
-          <>
-            <span aria-hidden className="pointer-events-none absolute inset-x-0 border-b-[0.5px] border-[var(--ink)]" style={{ bottom: rolePad + size }} />
-            <span aria-hidden className="pointer-events-none absolute inset-x-0 border-b-[0.5px] border-[var(--ink)]" style={{ bottom: rolePad }} />
-          </>
-        ) : null}
         {empty && !ruled ? (
           <span
             aria-hidden
