@@ -322,7 +322,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
       <div className="bg-sky py-[18px]">
         <div style={frame}>
         <div className={`${PAD} flex flex-col gap-[14px]`}>
-          <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--ink)]">
+          <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
             <span className="t-label">
               Email
               <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
@@ -343,7 +343,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
               className={`t-body m-0 w-full border-0 bg-transparent p-0 outline-none placeholder:text-[var(--placeholder)] ${emailLive ? "text-[var(--ink)]" : "text-[var(--placeholder)]"}`}
             />
           </label>
-          <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--ink)]">
+          <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
             <span className="t-label">Password</span>
             <span className="flex min-w-0 items-center gap-2">
               <input
