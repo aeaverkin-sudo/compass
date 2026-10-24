@@ -11,27 +11,14 @@ import { VisualBottom } from "@/shared/components/visual-bottom";
 import "./globals.css";
 
 /**
- * One page height. A browser uses the small viewport, so the bar sits above Safari or Chrome.
- * The installed app uses the large viewport, the full glass. The root is position:fixed,
- * so bottom:0 would pin it to the short viewport and leave a strip under the bar.
- * bottom:auto lets the page reach the glass. The button bar is the last row of that page.
- * On a page with the bar, the root behind it is the same sky, so a shortfall stays sky.
+ * One page height, the small viewport. The status bar is opaque, so the window
+ * already ends at the glass and the button bar is the last row of that window.
  */
 const MEASURE_CSS = `
 html{--shell:100svh}
 html:not(.compass-sized),html:not(.compass-sized) body{background:#fff!important}
 html:not(.compass-settled),html:not(.compass-settled) *,html:not(.compass-settled) *::before,html:not(.compass-settled) *::after{transition:none!important;animation:none!important}
 main.compass-main,div.compass-main.fixed{height:var(--shell,100svh)}
-@media (display-mode:standalone){
-  html{--shell:100lvh;height:100lvh!important;bottom:auto!important}
-  html:has(.compass-sky-band){background:#c5e8f7!important}
-  main.compass-main,div.compass-main.fixed{height:100lvh}
-  main.compass-main{bottom:auto}
-}
-html.compass-standalone{--shell:100lvh;height:100lvh!important;bottom:auto!important}
-html.compass-standalone:has(.compass-sky-band){background:#c5e8f7!important}
-html.compass-standalone main.compass-main,html.compass-standalone div.compass-main.fixed{height:100lvh}
-html.compass-standalone main.compass-main{bottom:auto}
 `;
 
 /**
@@ -66,10 +53,6 @@ if(!portfolio&&path==="/"){
       else if(state.cards&&state.cards.length)portfolio=true;
     }
   }catch(e){}
-}
-if(portfolio&&standalone){
-  var meta=document.querySelector('meta[name="theme-color"]');
-  if(meta)meta.setAttribute("content","#c5e8f7");
 }
 if(portfolio)return;
 document.documentElement.classList.add("compass-settled");
