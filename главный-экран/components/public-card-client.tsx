@@ -305,7 +305,7 @@ function SaveBar({ state, onSave }: { state: SaveState | "deleted"; onSave: () =
           onClick={onSave}
           className="press w-full border-0 bg-sky py-3 t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
         >
-          Save to your network
+          Connect
         </button>
       )}
     </div>
