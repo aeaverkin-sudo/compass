@@ -412,6 +412,7 @@ export function ContactItemChipList({
   const edgeX = useRef(0);
   const edgeY = useRef(0);
   const edgeLoop = useRef(0);
+  const edgeOpen = useRef(false);
   const zonesRef = useRef<CardZoneSection[]>([]);
   const holdRef = useRef<ArrangeDrag | null>(null);
   const settleTimer = useRef<number | null>(null);
@@ -473,10 +474,11 @@ export function ContactItemChipList({
     return () => {
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
       if (settleTimer.current) window.clearTimeout(settleTimer.current);
+      edgeOpen.current = false;
       if (edgeLoop.current) cancelAnimationFrame(edgeLoop.current);
       detachGesture.current?.();
       const block = dragBlockEl.current;
-      if (block) block.removeEventListener("touchmove", blockTouchMove, DRAG_TOUCH_BLOCK);
+      if (block) block.removeEventListener("touchmove", blockTouchMove, false);
       document.removeEventListener("touchmove", blockTouchMove, true);
     };
   }, []);
@@ -510,13 +512,14 @@ export function ContactItemChipList({
   };
 
   const stopEdgeScroll = () => {
+    edgeOpen.current = false;
     if (edgeLoop.current) cancelAnimationFrame(edgeLoop.current);
     edgeLoop.current = 0;
   };
 
   const stopDragBlock = () => {
     const el = dragBlockEl.current;
-    if (el) el.removeEventListener("touchmove", blockTouchMove, DRAG_TOUCH_BLOCK);
+    if (el) el.removeEventListener("touchmove", blockTouchMove, false);
     dragBlockEl.current = null;
     document.removeEventListener("touchmove", blockTouchMove, true);
   };
@@ -554,6 +557,7 @@ export function ContactItemChipList({
   };
 
   const pumpEdgeScroll = () => {
+    if (!edgeOpen.current) return;
     const scroller = listRef.current?.closest(".compass-card-scroll");
     const layout = dragLayout.current;
     if (scroller instanceof HTMLElement) {
@@ -574,6 +578,7 @@ export function ContactItemChipList({
     if (current?.active && !current.settling) {
       if (dropFromCache(current, edgeY.current)) publishHold(current);
     }
+    if (!edgeOpen.current) return;
     edgeLoop.current = requestAnimationFrame(pumpEdgeScroll);
   };
 
@@ -814,6 +819,7 @@ export function ContactItemChipList({
           publishHold(nextHold);
           captureLayout(nextHold);
           stopEdgeScroll();
+          edgeOpen.current = true;
           edgeX.current = startX;
           edgeY.current = startY;
           edgeLoop.current = requestAnimationFrame(pumpEdgeScroll);
@@ -857,6 +863,8 @@ export function ContactItemChipList({
       host.removeEventListener("pointermove", move);
       host.removeEventListener("pointerup", up);
       host.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", cancel, true);
       window.removeEventListener("keydown", onKey);
       host.removeEventListener("lostpointercapture", lost);
       if (detachGesture.current === detach) detachGesture.current = null;
@@ -907,6 +915,8 @@ export function ContactItemChipList({
     host.addEventListener("pointermove", move, dragging() ? { passive: false } : { passive: true });
     host.addEventListener("pointerup", up);
     host.addEventListener("pointercancel", cancel);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", cancel, true);
     window.addEventListener("keydown", onKey);
     host.addEventListener("lostpointercapture", lost);
   };
@@ -1291,7 +1301,7 @@ function NextSection({ number, onAdd }: { number: string; onAdd: () => void }) {
 
 const NEXT_SECTION_HINT = "Links, role, socials, a file…";
 
-/** Bubble phase, not capture. Add and remove must use this same object or the block never comes off. */
+/** Bubble phase. Removal must pass `false`, not capture `true`, or the block stays on the card. */
 const DRAG_TOUCH_BLOCK: AddEventListenerOptions = { passive: false };
 
 function blockTouchMove(event: TouchEvent) {
