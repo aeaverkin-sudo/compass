@@ -23,7 +23,7 @@ export function EntryName({
   return (
     <div
       data-entry-name=""
-      className="relative flex h-full min-w-0 flex-1 flex-col border-b border-[var(--rule)]"
+      className="relative flex h-full min-w-0 flex-1 flex-col"
       onFocusCapture={onTouch}
       onPointerDown={(event) => {
         const area = event.currentTarget.querySelector("textarea");
@@ -33,7 +33,7 @@ export function EntryName({
         area.focus();
       }}
     >
-      <HeroName value={shown} onChange={onChange} placeholder="" />
+      <HeroName value={shown} onChange={onChange} placeholder="" ruled />
       {shown.length === 0 ? (
         <span
           className={
@@ -47,8 +47,8 @@ export function EntryName({
             value
           ) : (
             <>
-              <span className="block whitespace-nowrap">{HINT_ONE}</span>
-              <span className="block whitespace-nowrap">
+              <span className="block whitespace-nowrap border-b-[0.5px] border-[var(--ink)]">{HINT_ONE}</span>
+              <span className="block whitespace-nowrap border-b-[0.5px] border-[var(--ink)]">
                 {HINT_TWO}
                 <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
               </span>

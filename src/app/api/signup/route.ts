@@ -25,6 +25,7 @@ export async function POST(request: Request) {
       fileItems: result.fileItems,
       itemIds: result.itemIds,
       itemZones: result.itemZones,
+      ...(result.headerItemId ? { headerItemId: result.headerItemId, title: result.headerTitle ?? "" } : {}),
       ...(result.saved ? { saved: true, savedName: result.savedName } : {}),
       ...(result.joined ? { joined: true, pay: result.pay === true, eventLookup: result.eventLookup } : {}),
       ...(result.warning ? { warning: result.warning } : {}),

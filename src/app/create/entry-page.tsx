@@ -129,6 +129,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
             displayName: titleValue,
             rubricOrder: zones.map((zone) => zone.id),
             rubricLabels: Object.fromEntries(zones.flatMap((zone) => (zone.title.trim() ? [[zone.id, zone.title.trim()]] : []))),
+            ...(zonesRef.current?.headerKey() ? { headerKey: zonesRef.current.headerKey() } : {}),
             zones: zones.map((zone) => ({
               id: zone.id,
               title: zone.title.trim(),
@@ -147,6 +148,8 @@ export function EntryPage({ input }: { input: EntryInput }) {
         fileItems?: { key: string; itemId: string }[];
         itemIds?: string[];
         itemZones?: Record<string, string>;
+        headerItemId?: string;
+        title?: string;
         saved?: boolean;
         savedName?: string;
         joined?: boolean;
@@ -192,7 +195,8 @@ export function EntryPage({ input }: { input: EntryInput }) {
           displayName: titleValue,
           photo: photo?.dataUrl,
           photoLook: photo ? "shadow" : undefined,
-          title: "",
+          title: reply.title?.trim() ?? "",
+          ...(reply.headerItemId ? { headerItemId: reply.headerItemId } : {}),
           status: "published",
           publicToken: reply.publicToken ?? "",
           qrVersion: 1,

@@ -529,7 +529,6 @@ export const useAppStore = create<AppState>()(
           return {
             ...card,
             contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
-            headerItemId: card.headerItemId === itemId ? undefined : card.headerItemId,
             updatedAt: now,
           };
         });
@@ -712,6 +711,7 @@ export const useAppStore = create<AppState>()(
               contactItemIds: card.contactItemIds.filter((id) => id !== itemId),
               itemZones: zones && Object.keys(zones).length > 0 ? zones : undefined,
               headerItemId: card.headerItemId === itemId ? undefined : card.headerItemId,
+              title: card.headerItemId === itemId ? "" : card.title,
               updatedAt: now,
             };
           }),

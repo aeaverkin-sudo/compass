@@ -1,13 +1,15 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 import { X } from "lucide-react";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
-import { labeledEntryLine, nextExtraZoneId, suggestedSectionTitle } from "@/shared/services/card-zones";
+import { PromoteArrow } from "@/shared/components/promote-arrow";
+import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import type { AttachmentContactType } from "@/shared/services/portfolio-limits";
@@ -15,7 +17,7 @@ import { WrapField, type WrapFieldHandle } from "@main/components/wrap-field";
 
 const DELETE_RED = "#E23B2F";
 const HOLD_MS = 900;
-const NEW_HINT = "Contacts, location, etc.";
+const NEW_HINT = "Skills, projects, experience, etc.";
 
 export type EntryRow = {
   key: string;
@@ -51,7 +53,10 @@ const HINTS: Record<string, string> = {
   contact: "Phone, messenger, mail",
 };
 
-export type EntryZonesHandle = { snapshot: () => EntryZone[] };
+export type EntryZonesHandle = {
+  snapshot: () => EntryZone[];
+  headerKey: () => string | null;
+};
 
 function blankCustom(zones: EntryZone[]) {
   return zones.find((zone) => zone.custom && !zone.title.trim() && zone.rows.length === 0) ?? null;
@@ -80,13 +85,20 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
   const [titleId, setTitleId] = useState<string | null>(null);
   const [titleText, setTitleText] = useState("");
   const [armed, setArmed] = useState<string | null>(null);
+  const [headerKey, setHeaderKey] = useState<string | null>(null);
   const zonesRef = useRef(zones);
+  const headerRef = useRef<string | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef<WrapFieldHandle>(null);
   const focusValue = useRef(false);
   zonesRef.current = zones;
 
-  useImperativeHandle(ref, () => ({ snapshot: () => zonesRef.current }), []);
+  const rememberHeader = (key: string | null) => {
+    headerRef.current = key;
+    setHeaderKey(key);
+  };
+
+  useImperativeHandle(ref, () => ({ snapshot: () => zonesRef.current, headerKey: () => headerRef.current }), []);
 
   useEffect(() => {
     if (!armed) return;
@@ -119,7 +131,13 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
     setZones((current) => current.filter((zone) => !(zone.id === zoneId && !zone.title.trim() && zone.rows.length === 0)));
   };
 
+  const releaseHeader = (key: string) => {
+    if (headerRef.current !== key) return;
+    rememberHeader(null);
+  };
+
   const discardRow = (zoneId: string, key: string) => {
+    releaseHeader(key);
     setEditKey(null);
     setEditText("");
     setZones((current) =>
@@ -148,6 +166,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
   const commitEdit = (key: string, text: string) => {
     const typed = text.trim();
     const value = typed ? storedLine(typed) : "";
+    if (!value) releaseHeader(key);
     setEditKey(null);
     setEditText("");
     setZones((current) =>
@@ -208,6 +227,13 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
     });
   };
 
+  const cycleZone = (zone: EntryZone) => {
+    const rows = zone.rows.flatMap((row) =>
+      row.value.trim() && !isProseValue(row.value) ? [{ id: row.key, value: row.value }] : [],
+    );
+    rememberHeader(nextHeaderChoice(headerRef.current ?? undefined, rows).id ?? null);
+  };
+
   return (
     <div className="mt-[18px]">
       {zones.map((zone, index) => {
@@ -215,12 +241,23 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
         const about = zone.id === "about";
         const files = zone.id === "files" || zone.custom;
         const seeding = seedId === zone.id;
+        const promotable = zone.id === "position" || zone.id === "company";
         return (
           <section key={zone.id} className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
             <div className="min-w-0">
-              <SectionNumber value={sectionNumberLabel(index)} />
+              <ZoneDigit
+                index={index}
+                custom={zone.custom}
+                armed={armed === `digit:${zone.id}`}
+                onArm={() => setArmed(`digit:${zone.id}`)}
+                onDelete={() => {
+                  if (zone.rows.some((row) => row.key === headerRef.current)) rememberHeader(null);
+                  setZones((current) => current.filter((entry) => entry.id !== zone.id));
+                  setArmed(null);
+                }}
+              />
               <div className="mt-[6px] flex min-w-0 items-start gap-2">
-                {titleId === zone.id ? (
+                {titleId === zone.id && zone.custom ? (
                   <textarea
                     ref={titleRef}
                     data-zone-title={zone.id}
@@ -228,8 +265,8 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     rows={1}
                     wrap="soft"
                     aria-label="Section title"
-                    placeholder="TITLE"
-                    className="t-label m-0 min-w-0 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 whitespace-pre-wrap break-normal text-[var(--grey)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
+                    placeholder="Section name"
+                    className="t-label m-0 min-w-0 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 whitespace-pre-wrap break-normal text-[var(--grey)] caret-[var(--ink)] outline-none placeholder:text-[var(--grey)]"
                     onChange={(event) => setTitleText(event.target.value.replace(/[ \t]*\n[ \t]*/g, " "))}
                     onKeyDown={(event) => {
                       if (
@@ -256,7 +293,16 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                       commitTitle(zone.id, titleText);
                     }}
                   />
-                ) : (
+                ) : promotable ? (
+                  <button
+                    type="button"
+                    className="t-label block min-w-0 flex-1 border-0 bg-transparent p-0 text-left whitespace-normal break-normal text-[var(--grey)]"
+                    onClick={() => cycleZone(zone)}
+                  >
+                    {zone.title}
+                    <PromoteArrow />
+                  </button>
+                ) : zone.custom ? (
                   <TitleButton
                     title={zone.title}
                     placeholder={!zone.title.trim()}
@@ -265,23 +311,10 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                       setTitleText(zone.title);
                       setArmed(null);
                     }}
-                    onArm={() => setArmed(`title:${zone.id}`)}
                   />
+                ) : (
+                  <span className="t-label block min-w-0 flex-1 text-left whitespace-normal break-normal text-[var(--grey)]">{zone.title}</span>
                 )}
-                {armed === `title:${zone.id}` ? (
-                  <button
-                    type="button"
-                    data-entry-delete=""
-                    aria-label="Delete section"
-                    className="border-0 bg-transparent p-0"
-                    onClick={() => {
-                      setZones((current) => current.filter((entry) => entry.id !== zone.id));
-                      setArmed(null);
-                    }}
-                  >
-                    <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
-                  </button>
-                ) : null}
               </div>
             </div>
             <div className="flex min-w-0 flex-col gap-[10px]">
@@ -301,6 +334,11 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     key={row.key}
                     text={lineOf(row)}
                     armed={armed === row.key}
+                    onPick={
+                      promotable && !isProseValue(row.value)
+                        ? () => rememberHeader(headerKey === row.key ? null : row.key)
+                        : undefined
+                    }
                     onEdit={() => {
                       setEditKey(row.key);
                       setEditText(row.value);
@@ -308,6 +346,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     }}
                     onArm={() => setArmed(row.key)}
                     onDelete={() => {
+                      releaseHeader(row.key);
                       setZones((current) =>
                         current.map((entry) =>
                           entry.id === zone.id ? { ...entry, rows: entry.rows.filter((item) => item.key !== row.key) } : entry,
@@ -335,6 +374,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     about={about}
                     value={seedText}
                     placeholder={zone.rows.length === 0 ? hint : ""}
+                    roomy={zone.rows.length === 0}
                     inputRef={valueRef}
                     onChange={setSeedText}
                     onCommit={(text) => commitSeed(zone.id, text)}
@@ -344,7 +384,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
               ) : zone.rows.length === 0 ? (
                 <button
                   type="button"
-                  className="t-body border-0 bg-transparent p-0 text-left text-[var(--placeholder)]"
+                  className="t-body min-h-11 w-full border-0 bg-transparent p-0 text-left text-[var(--placeholder)]"
                   onClick={() => {
                     focusValue.current = true;
                     setSeedId(zone.id);
@@ -385,6 +425,7 @@ function Field({
   about,
   value,
   placeholder,
+  roomy = false,
   onChange,
   onCommit,
   onDiscardEmpty,
@@ -393,6 +434,7 @@ function Field({
   about: boolean;
   value: string;
   placeholder?: string;
+  roomy?: boolean;
   onChange: (value: string) => void;
   onCommit: (value: string) => void;
   onDiscardEmpty?: () => void;
@@ -423,8 +465,37 @@ function Field({
       onEmptyDelete={discard}
       onBlur={(text) => finish(text)}
       placeholderClassName="t-body text-[var(--placeholder)]"
-      className="t-body bg-transparent text-[var(--ink)] caret-[var(--ink)]"
+      className={cn("t-body bg-transparent text-[var(--ink)] caret-[var(--ink)]", roomy && "min-h-11")}
     />
+  );
+}
+
+function ZoneDigit({
+  index,
+  custom,
+  armed,
+  onArm,
+  onDelete,
+}: {
+  index: number;
+  custom: boolean;
+  armed: boolean;
+  onArm: () => void;
+  onDelete: () => void;
+}) {
+  const press = useLongPress(onArm, HOLD_MS);
+  if (!custom) return <SectionNumber value={sectionNumberLabel(index)} />;
+  return (
+    <div className="flex items-start gap-1">
+      <button type="button" className="border-0 bg-transparent p-0" {...press}>
+        <SectionNumber value={sectionNumberLabel(index)} />
+      </button>
+      {armed ? (
+        <button type="button" data-entry-delete="" aria-label="Delete section" className="border-0 bg-transparent p-0" onClick={onDelete}>
+          <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -432,25 +503,18 @@ function TitleButton({
   title,
   placeholder,
   onEdit,
-  onArm,
 }: {
   title: string;
   placeholder: boolean;
   onEdit: () => void;
-  onArm: () => void;
 }) {
-  const press = useLongPress(onArm, HOLD_MS);
   return (
     <button
       type="button"
       className="t-label block min-w-0 flex-1 border-0 bg-transparent p-0 text-left whitespace-normal break-normal text-[var(--grey)]"
-      {...press}
-      onClick={(event) => {
-        press.onClick(event);
-        if (!event.defaultPrevented) onEdit();
-      }}
+      onClick={onEdit}
     >
-      {placeholder ? <span className="text-[var(--placeholder)]">TITLE</span> : title}
+      {placeholder ? "Section name" : title}
     </button>
   );
 }
@@ -458,12 +522,14 @@ function TitleButton({
 function RowButton({
   text,
   armed,
+  onPick,
   onEdit,
   onArm,
   onDelete,
 }: {
   text: string;
   armed: boolean;
+  onPick?: () => void;
   onEdit: () => void;
   onArm: () => void;
   onDelete: () => void;
@@ -477,7 +543,9 @@ function RowButton({
         {...press}
         onClick={(event) => {
           press.onClick(event);
-          if (!event.defaultPrevented) onEdit();
+          if (event.defaultPrevented) return;
+          onPick?.();
+          onEdit();
         }}
       >
         {text}

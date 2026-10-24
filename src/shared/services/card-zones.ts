@@ -280,11 +280,29 @@ export function zoneForItem(item: ContactItem): CardZoneId {
   return "about";
 }
 
-/** Position, name, or company row. A tap places that one line under the portfolio title. */
+/** A short Position or Company row. A tap places that one line under the portfolio title. */
 export function isChoosableHeader(item: ContactItem, zoneId?: CardZoneId) {
   if (isProseValue(item.value)) return false;
   const zone = zoneId ?? zoneForItem(item);
-  return zone === "position" || zone === "name" || zone === "company";
+  return zone === "position" || zone === "company";
+}
+
+/** One row toggles. Several rows step forward, then clear, then start again. */
+export function nextHeaderChoice(
+  currentId: string | undefined,
+  rows: { id: string; value: string }[],
+): { id?: string; title: string } {
+  const list = rows.filter((row) => row.value.trim() && !isProseValue(row.value));
+  if (list.length === 0) return { title: "" };
+  const titleOf = (row: { value: string }) => row.value.trim();
+  if (list.length === 1) {
+    if (currentId === list[0].id) return { title: "" };
+    return { id: list[0].id, title: titleOf(list[0]) };
+  }
+  const index = list.findIndex((row) => row.id === currentId);
+  const next = index < 0 ? list[0] : list[index + 1];
+  if (!next) return { title: "" };
+  return { id: next.id, title: titleOf(next) };
 }
 
 export function parseDescription(text: string): { position: PositionLine | null; remainders: string[] } {

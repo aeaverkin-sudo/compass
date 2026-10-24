@@ -56,6 +56,7 @@ export function HeroName({
   placeholder = "Name or portfolio title",
   maxLines = 2,
   align = "bottom",
+  ruled = false,
 }: {
   value: string;
   onChange?: (displayName: string) => void;
@@ -65,6 +66,8 @@ export function HeroName({
   maxLines?: number;
   /** Center puts the lines themselves, without the descender pad, on the middle of the photo. */
   align?: "bottom" | "center";
+  /** Questionnaire only: two writing lines, each with a thin black rule. */
+  ruled?: boolean;
 }) {
   const centered = align === "center";
   const boxRef = useRef<HTMLDivElement>(null);
@@ -125,7 +128,7 @@ export function HeroName({
     fontWeight: empty ? 400 : 600,
     letterSpacing: empty ? "0px" : "-1px",
     boxSizing: "border-box" as const,
-    height: size * (empty ? 1 : lineCount) + rolePad,
+    height: size * (ruled ? Math.max(lineCount, 2) : empty ? 1 : lineCount) + rolePad,
     paddingBottom: rolePad,
     ...(centered ? { marginBottom: -rolePad } : {}),
   };
@@ -164,7 +167,13 @@ export function HeroName({
     >
       {onChange ? (
         <>
-        {empty ? (
+        {ruled && !empty ? (
+          <>
+            <span aria-hidden className="pointer-events-none absolute inset-x-0 border-b-[0.5px] border-[var(--ink)]" style={{ bottom: rolePad + size }} />
+            <span aria-hidden className="pointer-events-none absolute inset-x-0 border-b-[0.5px] border-[var(--ink)]" style={{ bottom: rolePad }} />
+          </>
+        ) : null}
+        {empty && !ruled ? (
           <span
             aria-hidden
             className={cn(

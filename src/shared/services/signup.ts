@@ -11,6 +11,7 @@ import { joinWithOwnCard, PASSWORD_SET } from "@/shared/services/guest-accept";
 import { ATTACHMENT_TYPES, type AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { saveConnection } from "@/shared/services/save-connection";
 import { sendWelcomeMail } from "@/shared/services/cold-entry";
+import { isProseValue } from "@/shared/services/card-zones";
 
 export const MIN_PASSWORD = 8;
 
@@ -33,6 +34,8 @@ export type SignupBody = {
     rubricOrder?: unknown;
     rubricLabels?: unknown;
     zones?: unknown;
+    /** Entry row key lifted under the name. Position or Company only. */
+    headerKey?: unknown;
   };
 };
 
@@ -48,6 +51,9 @@ export type SignupResult =
       /** Every saved row, in card order. The new portfolio places them before the first hydrate. */
       itemIds: string[];
       itemZones: Record<string, string>;
+      /** The lifted row, so the new portfolio opens with it under the name. */
+      headerItemId?: string;
+      headerTitle?: string;
       /** The other person's card is in this account's book. */
       saved?: boolean;
       savedName?: string;
@@ -166,6 +172,13 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
 
   const zones = readZones(body.card?.zones);
   if (!zones) return { ok: false, status: 400, error: "Could not create your profile." };
+  const headerKey = typeof body.card?.headerKey === "string" ? body.card.headerKey.trim() : "";
+  const headerRow = headerKey
+    ? zones
+        .filter((zone) => zone.id === "position" || zone.id === "company")
+        .flatMap((zone) => zone.rows)
+        .find((row) => row.key === headerKey && !isProseValue(row.value))
+    : undefined;
 
   const admin = createAdminSupabaseClient();
   if (await userIdForEmail(email)) {
@@ -229,6 +242,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
     const itemZones: Record<string, string> = {};
     const itemIds: string[] = [];
     const fileItems: SignupFileItem[] = [];
+    let headerItemId = "";
     let sort = 0;
     for (const zone of zones) {
       for (const row of zone.rows) {
@@ -244,6 +258,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
           });
           if (saved.error) throw new Error(saved.error.message);
           fileItems.push({ key: row.key, itemId: id });
+          if (headerRow && row.key === headerRow.key) headerItemId = id;
         } else {
           const normalized = normalizeContactItem(createEmptyContactItem(sort), row.value);
           const saved = await admin.from("items").insert({
@@ -257,6 +272,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
           if (saved.error) throw new Error(saved.error.message);
           itemZones[normalized.id] = zone.id;
           itemIds.push(normalized.id);
+          if (headerRow && row.key === headerRow.key) headerItemId = normalized.id;
           const link = await admin.from("card_items").insert({
             card_id: cardId,
             item_id: normalized.id,
@@ -283,6 +299,10 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
       const zoned = await admin.from("cards").update({ item_zones: itemZones }).eq("id", cardId);
       if (zoned.error && !/item_zones/i.test(zoned.error.message)) throw new Error(zoned.error.message);
     }
+    if (headerItemId && headerRow) {
+      const titled = await admin.from("cards").update({ title: headerRow.value }).eq("id", cardId);
+      if (titled.error) throw new Error(titled.error.message);
+    }
 
     const door = await keepSourceCard(admin, userId, body.sourceToken);
     const eventDoor = await joinEvent(userId, cardId, body.event);
@@ -291,7 +311,18 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
         console.error("[mail] welcome", error instanceof Error ? error.message : error);
       });
     }
-    return { ok: true, status: 201, cardId, publicToken, fileItems, itemIds, itemZones, ...door, ...eventDoor };
+    return {
+      ok: true,
+      status: 201,
+      cardId,
+      publicToken,
+      fileItems,
+      itemIds,
+      itemZones,
+      ...(headerItemId && headerRow ? { headerItemId, headerTitle: headerRow.value } : {}),
+      ...door,
+      ...eventDoor,
+    };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);
     console.error("[signup]", error instanceof Error ? error.message : error);
