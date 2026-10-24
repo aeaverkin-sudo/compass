@@ -6,6 +6,7 @@ import { createPortal, flushSync } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/shared/components/ui/checkbox";
+import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { useLongPress } from "@/shared/hooks/use-long-press";
@@ -14,8 +15,10 @@ import { tick } from "@/shared/lib/haptic";
 import { flashRow } from "@/shared/lib/row-flash";
 import {
   groupEditSections,
+  isChoosableHeader,
   isExtraZoneId,
   isProseValue,
+  nextHeaderChoice,
   ZONE_HINTS,
   type CardDisplayRow,
   type CardZoneId,
@@ -41,7 +44,7 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-const NEW_ZONE_TITLE = "TITLE";
+const NEW_ZONE_TITLE = "Section name";
 const LOOKING_FOR = "Looking for";
 /** An event pass keeps Event on About, so Looking for takes a section the pass never fills. */
 const LOOKING_FOR_ZONE = "background";
@@ -185,29 +188,66 @@ function HeadingCompose({
   return <div className="flex flex-col justify-end border-b border-[var(--rule)]">{field}</div>;
 }
 
+function SectionDigit({
+  index,
+  custom,
+  armed,
+  onArm,
+  onDelete,
+}: {
+  index: number;
+  custom: boolean;
+  armed: boolean;
+  onArm: () => void;
+  onDelete: () => void;
+}) {
+  const press = useLongPress(() => {
+    if (!custom) return;
+    tick();
+    onArm();
+  }, DELETE_HOLD_MS);
+  if (!custom) return <SectionNumber value={sectionNumberLabel(index)} />;
+  return (
+    <div className="flex items-start gap-1">
+      <button type="button" className="border-0 bg-transparent p-0" {...press}>
+        <SectionNumber value={sectionNumberLabel(index)} />
+      </button>
+      {armed ? (
+        <button
+          type="button"
+          data-delete-marker
+          aria-label="Delete section"
+          className="border-0 bg-transparent p-0"
+          onClick={onDelete}
+        >
+          <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function SectionLabel({
   title,
-  included,
   editing,
-  hideReady,
   pill,
   seed,
+  renamable,
+  onPromote,
   onEdit,
   onCommit,
   onAdvance,
   onStay,
   advancing,
-  onArmHide,
-  onHide,
 }: {
   title: string;
-  included: boolean;
   editing: boolean;
-  hideReady: boolean;
-  /** New extra shelf: the label slot shows TITLE until a name is typed. */
+  /** New extra shelf: the label slot shows the section-name placeholder until a name is typed. */
   pill?: boolean;
   /** Parent docks the whole new zone; this heading stays in that block. */
   seed?: boolean;
+  renamable: boolean;
+  onPromote?: () => void;
   onEdit: () => void;
   onCommit: (next: string) => void;
   /** Enter on a new zone title moves the caret to the value line. */
@@ -215,18 +255,10 @@ function SectionLabel({
   onStay?: (event: FocusEvent<HTMLDivElement>) => boolean;
   /** Set when Enter or the value row asked to leave the title, so a fast blur still commits. */
   advancing?: RefObject<boolean>;
-  onArmHide: () => void;
-  onHide: () => void;
 }) {
   const dockRef = useRef<WrapFieldHandle>(null);
   const desktop = useFinePointer();
   const openedAt = useRef(0);
-  const pressedLong = useRef(false);
-  const longPress = useLongPress(() => {
-    pressedLong.current = true;
-    tick();
-    onArmHide();
-  }, DELETE_HOLD_MS);
   const shown = title.trim() || (pill ? NEW_ZONE_TITLE : title);
 
   const begin = () => {
@@ -256,7 +288,7 @@ function SectionLabel({
       initial={title}
       label="Section name"
       placeholder={pill ? NEW_ZONE_TITLE : undefined}
-      placeholderClassName="t-label text-[var(--placeholder)]"
+      placeholderClassName="t-label text-[var(--grey)]"
       autoFocus={pill}
       onEmptyDelete={pill ? () => onCommit("") : undefined}
       onDone={(next) => {
@@ -273,10 +305,7 @@ function SectionLabel({
         }
         finish(next);
       }}
-      className={cn(
-        "bg-transparent t-label caret-[var(--ink)]",
-        pill || (included && title.trim()) ? "text-[var(--grey)]" : "text-[var(--placeholder)]",
-      )}
+      className="bg-transparent t-label caret-[var(--ink)] text-[var(--grey)]"
     />
   );
 
@@ -285,44 +314,26 @@ function SectionLabel({
       <div className="relative min-w-0">
         {editing ? (
           <HeadingCompose field={field} />
-        ) : (
+        ) : renamable || onPromote ? (
           <button
             type="button"
             data-no-swipe
-            className={cn(
-              "t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left",
-              hideReady && "opacity-40",
-            )}
-            style={{ color: included && title.trim() ? "var(--grey)" : OFF_CARD }}
-            onPointerDown={(event) => {
-              if (editing || hideReady) return;
-              pressedLong.current = false;
-              longPress.onPointerDown(event);
+            className="t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left text-[var(--grey)]"
+            onClick={() => {
+              if (editing) return;
+              if (onPromote && !renamable) {
+                onPromote();
+                return;
+              }
+              if (renamable) begin();
             }}
-            onPointerMove={longPress.onPointerMove}
-            onPointerUp={() => {
-              longPress.onPointerUp();
-              if (editing || pressedLong.current || hideReady) return;
-              begin();
-            }}
-            onPointerCancel={longPress.onPointerUp}
-            onContextMenu={longPress.onContextMenu}
           >
             {shown}
+            {onPromote ? <PromoteArrow /> : null}
           </button>
+        ) : (
+          <span className="t-label block w-full whitespace-normal line-clamp-3 text-left text-[var(--grey)]">{shown}</span>
         )}
-        {hideReady && !(editing && pill) ? (
-          <button
-            type="button"
-            data-delete-marker
-            aria-label="Hide section"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={onHide}
-            className="absolute -right-2 top-0 z-10 -m-2.5 flex size-10 items-center justify-center"
-          >
-            <X className="pointer-events-none size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
-          </button>
-        ) : null}
       </div>
     </>
   );
@@ -352,6 +363,7 @@ export const CardEditList = memo(function CardEditList({
   const setRubricLabel = useAppStore((state) => state.setRubricLabel);
   const addCustomZone = useAppStore((state) => state.addCustomZone);
   const hideZone = useAppStore((state) => state.hideZone);
+  const setItemZone = useAppStore((state) => state.setItemZone);
   const addContactItem = useAppStore((state) => state.addContactItem);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
   const openNewZoneRef = useRef<() => void>(() => {});
@@ -584,11 +596,43 @@ export const CardEditList = memo(function CardEditList({
   const stayInSeed = (event: FocusEvent<HTMLDivElement>) =>
     Boolean(extraBlockRef.current?.contains(event.relatedTarget as Node | null));
 
+  const cycleSection = (section: EditSection) => {
+    const rows = section.rows.flatMap(({ row }) =>
+      row.item && isChoosableHeader(row.item, section.id) ? [{ id: row.item.id, value: row.item.value }] : [],
+    );
+    const next = nextHeaderChoice(card.headerItemId, rows);
+    updateCard(card.id, { headerItemId: next.id, title: next.title });
+  };
+
+  const pickHeader = (itemId: string, value: string) => {
+    if (card.headerItemId === itemId) {
+      updateCard(card.id, { headerItemId: undefined, title: "" });
+      return;
+    }
+    updateCard(card.id, { headerItemId: itemId, title: value.trim() });
+  };
+
+  const removeCustomSection = (sectionId: CardZoneId) => {
+    if (!isExtraZoneId(sectionId)) return;
+    const section = sections.find((entry) => entry.id === sectionId);
+    for (const { row, onCard } of section?.rows ?? []) {
+      const id = row.item?.id;
+      if (!id) continue;
+      if (onCard) removeItemFromCard(card.id, id);
+      setItemZone(card.id, id);
+    }
+    hideZone(card.id, sectionId);
+    endSeed(sectionId);
+    setHideReadyId(null);
+  };
+
   return (
     <div ref={listRef} data-card-chip-list={card.id} data-card-content>
       {sections.map((section, index) => {
         const seedingThis = seedZoneId === section.id;
-        const zoneHint = isExtraZoneId(section.id) ? "Contacts, location, etc." : (ZONE_HINTS[section.id] ?? "");
+        const zoneHint = isExtraZoneId(section.id) ? "Skills, projects, experience, etc." : (ZONE_HINTS[section.id] ?? "");
+        const promotable = section.id === "position" || section.id === "company";
+        const custom = isExtraZoneId(section.id);
         const files = section.id === "files" || isExtraZoneId(section.id);
         const startSeed = () => {
           setTextEditId(null);
@@ -608,14 +652,26 @@ export const CardEditList = memo(function CardEditList({
               className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]"
             >
               <div className="min-w-0">
-                <SectionNumber value={sectionNumberLabel(index)} />
+                <SectionDigit
+                  index={index}
+                  custom={custom}
+                  armed={hideReadyId === section.id}
+                  onArm={() => {
+                    setTextEditId(null);
+                    setSeedZoneId(null);
+                    setSectionEditId(null);
+                    setDeleteReadyId(null);
+                    setHideReadyId(section.id);
+                  }}
+                  onDelete={() => removeCustomSection(section.id)}
+                />
                 <div className="mt-[6px]">
                   <SectionLabel
                     title={section.title}
-                    included={section.included}
-                    editing={sectionEditId === section.id}
-                    hideReady={hideReadyId === section.id}
-                    pill={isExtraZoneId(section.id)}
+                    editing={sectionEditId === section.id && custom}
+                    pill={custom}
+                    renamable={custom}
+                    onPromote={promotable ? () => cycleSection(section) : undefined}
                     seed={seedingThis}
                     onStay={seedingThis ? stayInSeed : undefined}
                     advancing={seedingThis ? advanceSeedRef : undefined}
@@ -669,18 +725,6 @@ export const CardEditList = memo(function CardEditList({
                       }
                       setSectionEditId(null);
                     }}
-                    onArmHide={() => {
-                      setTextEditId(null);
-                      setSeedZoneId(null);
-                      setSectionEditId(null);
-                      setDeleteReadyId(null);
-                      setHideReadyId(section.id);
-                    }}
-                    onHide={() => {
-                      hideZone(card.id, section.id);
-                      endSeed(section.id);
-                      setHideReadyId(null);
-                    }}
                   />
                 </div>
               </div>
@@ -706,6 +750,11 @@ export const CardEditList = memo(function CardEditList({
                       onArmDelete={setDeleteReadyId}
                       onDelete={askDelete}
                       onToggle={toggleOnCard}
+                      onPick={
+                        promotable && isChoosableHeader(item, section.id)
+                          ? () => pickHeader(item.id, item.value)
+                          : undefined
+                      }
                       onEdit={startRowEdit}
                       onConfirm={confirmRow}
                       onErase={eraseRow}
@@ -750,7 +799,10 @@ export const CardEditList = memo(function CardEditList({
                         }
                         seedItem(section.id, next);
                       }}
-                      className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"
+                      className={cn(
+                        "bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]",
+                        section.rows.length === 0 && "min-h-11",
+                      )}
                     />
                     <div className="pointer-events-none">
                       <LibraryCheck onCard={false} onToggle={() => undefined} />
@@ -760,7 +812,7 @@ export const CardEditList = memo(function CardEditList({
                   <button
                     type="button"
                     data-no-swipe
-                    className="t-body w-full bg-transparent text-left"
+                    className="t-body min-h-11 w-full bg-transparent text-left"
                     style={{ color: OFF_CARD }}
                     onClick={startSeed}
                   >
@@ -1222,6 +1274,7 @@ const EditRow = memo(function EditRow({
   onArmDelete,
   onDelete,
   onToggle,
+  onPick,
   onEdit,
   onConfirm,
   onErase,
@@ -1240,6 +1293,7 @@ const EditRow = memo(function EditRow({
   onArmDelete: (itemId: string) => void;
   onDelete: (itemId: string) => void;
   onToggle: (itemId: string, zoneId: CardZoneId) => void;
+  onPick?: () => void;
   onEdit: (itemId: string) => void;
   onConfirm: (itemId: string, shown: string, next: string) => void;
   onErase: (itemId: string) => void;
@@ -1320,6 +1374,7 @@ const EditRow = memo(function EditRow({
           release();
           if (editing || pressedLong.current || deleteReady) return;
           if (!(event.target instanceof Node) || !fieldRef.current?.contains(event.target)) return;
+          onPick?.();
           beginEdit();
         }}
         onPointerCancel={release}

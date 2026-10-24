@@ -9,7 +9,7 @@ import { AccountBand } from "@/shared/components/account-band";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { TapButton } from "@/shared/components/tap-button";
 import { cachedWalletStatus, cardInWallet, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
-import { composeCard, orderCardZones } from "@/shared/services/card-zones";
+import { composeCard, isChoosableHeader, nextHeaderChoice, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
@@ -465,7 +465,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const setCardRubricOrder = useAppStore((state) => state.setCardRubricOrder);
   const setItemZone = useAppStore((state) => state.setItemZone);
   const items = getCardItems(card, library);
-  const chosen = items.find((item) => item.id === card.headerItemId);
+  const chosen = library.find((item) => item.id === card.headerItemId);
   const positionTitle = chosen?.value.trim() || card.title.trim() || undefined;
   const compact = mode === "library";
   const nextScanAddons = getNextScanAddons(card);
@@ -747,9 +747,22 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
                   onCardUpdate({ headerItemId: undefined, title: "" });
                   return;
                 }
-                const item = items.find((entry) => entry.id === itemId);
+                const item = library.find((entry) => entry.id === itemId);
                 if (!item) return;
                 onCardUpdate({ headerItemId: itemId, title: item.value.trim() });
+              }
+            : undefined
+        }
+        onCycleHeader={
+          !compact && onCardUpdate
+            ? (zoneId) => {
+                const zone = composeCard(items, undefined, card).zones.find((entry) => entry.id === zoneId);
+                if (!zone) return;
+                const rows = zone.rows.flatMap((row) =>
+                  row.item && isChoosableHeader(row.item, zone.id) ? [{ id: row.item.id, value: row.item.value }] : [],
+                );
+                const next = nextHeaderChoice(card.headerItemId, rows);
+                onCardUpdate({ headerItemId: next.id, title: next.title });
               }
             : undefined
         }
