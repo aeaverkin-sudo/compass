@@ -13,7 +13,6 @@ import {
 import { createPortal } from "react-dom";
 import { GripHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { openHomeScreenAttachmentPdf } from "@/shared/components/pdf-preview-host";
 import { ARRANGE_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
@@ -369,7 +368,6 @@ export function ContactItemChipList({
   itemZones,
   canReorder = false,
   onChooseHeader,
-  onCycleHeader,
   underlineLinks = false,
   publicToken,
   pdfZoneIds = null,
@@ -392,8 +390,6 @@ export function ContactItemChipList({
   /** Owner card: a hold turns on arrange mode. Handles then drag at once. */
   canReorder?: boolean;
   onChooseHeader?: (itemId: string) => void;
-  /** Tap the Position or Company word: step the line under the name. */
-  onCycleHeader?: (zoneId: string) => void;
   /** Public read-only card. The owner card keeps plain values. */
   underlineLinks?: boolean;
   /** Public token: link taps go through /r so a distributed card still counts. */
@@ -1125,25 +1121,9 @@ export function ContactItemChipList({
               <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
                 <div className="min-w-0">
                   <SectionNumber value={sectionNumberLabel(numberIndex)} />
-                  {(zone.id === "position" || zone.id === "company") && onCycleHeader && !arranging ? (
-                    <button
-                      type="button"
-                      data-no-swipe
-                      className="t-label mt-[6px] block min-w-0 border-0 bg-transparent p-0 text-left whitespace-normal line-clamp-3 text-[var(--grey)]"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (suppressClick.current) return;
-                        onCycleHeader(zone.id);
-                      }}
-                    >
-                      {zone.title}
-                      <PromoteArrow />
-                    </button>
-                  ) : (
-                    <span className={cn("t-label mt-[6px] block min-w-0 whitespace-normal line-clamp-3", arranging && "pr-6")}>
-                      {zone.title}
-                    </span>
-                  )}
+                  <span className={cn("t-label mt-[6px] block min-w-0 whitespace-normal line-clamp-3", arranging && "pr-6")}>
+                    {zone.title}
+                  </span>
                 </div>
                 <ValueCap className={cn("flex min-w-0 flex-col gap-[6px]", rubricLifted && "hidden")}>
                   {zone.rows.map((row, rowIndex) => {

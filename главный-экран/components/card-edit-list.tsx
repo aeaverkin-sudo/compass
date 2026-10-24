@@ -318,7 +318,7 @@ function SectionLabel({
           <button
             type="button"
             data-no-swipe
-            className="t-label block w-full whitespace-normal line-clamp-3 bg-transparent text-left text-[var(--grey)]"
+            className="t-label flex w-full items-center bg-transparent text-left text-[var(--grey)]"
             onClick={() => {
               if (editing) return;
               if (onPromote && !renamable) {
@@ -328,7 +328,7 @@ function SectionLabel({
               if (renamable) begin();
             }}
           >
-            {shown}
+            <span className="min-w-0 whitespace-normal line-clamp-3">{shown}</span>
             {onPromote ? <PromoteArrow /> : null}
           </button>
         ) : (
