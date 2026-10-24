@@ -351,14 +351,14 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                 <button
                   type="button"
                   aria-label="Add row"
-                  className="border-0 bg-transparent p-0 text-left text-[var(--placeholder)]"
+                  className="border-0 bg-transparent p-0 text-left text-[var(--ink)]"
                   onClick={() => {
                     focusValue.current = true;
                     setSeedId(zone.id);
                     setSeedText("");
                   }}
                 >
-                  <MarkPlus className="text-[var(--placeholder)]" />
+                  <MarkPlus className="text-[var(--ink)]" />
                 </button>
               )}
             </div>
