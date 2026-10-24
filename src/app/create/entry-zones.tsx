@@ -8,7 +8,6 @@ import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
-import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
@@ -300,7 +299,6 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
                     onClick={() => cycleZone(zone)}
                   >
                     {zone.title}
-                    <PromoteArrow />
                   </button>
                 ) : zone.custom ? (
                   <TitleButton

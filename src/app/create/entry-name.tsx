@@ -47,8 +47,8 @@ export function EntryName({
             value
           ) : (
             <>
-              <span className="block whitespace-nowrap border-b-[0.5px] border-[var(--ink)]">{HINT_ONE}</span>
-              <span className="block whitespace-nowrap border-b-[0.5px] border-[var(--ink)]">
+              <span className="block whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">{HINT_ONE}</span>
+              <span className="mt-[14px] block whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">
                 {HINT_TWO}
                 <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
               </span>
