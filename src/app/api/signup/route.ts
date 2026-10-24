@@ -23,6 +23,8 @@ export async function POST(request: Request) {
       cardId: result.cardId,
       publicToken: result.publicToken,
       fileItems: result.fileItems,
+      itemIds: result.itemIds,
+      itemZones: result.itemZones,
       ...(result.saved ? { saved: true, savedName: result.savedName } : {}),
       ...(result.joined ? { joined: true, pay: result.pay === true, eventLookup: result.eventLookup } : {}),
       ...(result.warning ? { warning: result.warning } : {}),

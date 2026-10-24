@@ -145,6 +145,8 @@ export function EntryPage({ input }: { input: EntryInput }) {
         kind?: string;
         error?: string;
         fileItems?: { key: string; itemId: string }[];
+        itemIds?: string[];
+        itemZones?: Record<string, string>;
         saved?: boolean;
         savedName?: string;
         joined?: boolean;
@@ -194,9 +196,10 @@ export function EntryPage({ input }: { input: EntryInput }) {
           status: "published",
           publicToken: reply.publicToken ?? "",
           qrVersion: 1,
-          contactItemIds: [],
+          contactItemIds: reply.itemIds ?? [],
           rubricOrder: zones.map((zone) => zone.id),
           rubricLabels: Object.fromEntries(zones.flatMap((zone) => (zone.title.trim() ? [[zone.id, zone.title.trim()]] : []))),
+          itemZones: reply.itemZones,
           listed: true,
           nextScanAddons: [],
           createdAt: now,

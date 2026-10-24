@@ -90,6 +90,12 @@ function keptText(local: string, remote: string | null | undefined): string {
   return fromServer;
 }
 
+/** A newer local card keeps its value only when it has one. A missing local value must not erase the server. */
+function keptField<T>(localNewer: boolean, local: T | undefined, remote: T | undefined): T | undefined {
+  if (localNewer) return local ?? remote;
+  return remote ?? local;
+}
+
 function overlayScalars(local: Card, row: CardRow): Card {
   const remotePhotoId = row.photo_attachment_id ?? undefined;
   const displayName = keptText(local.displayName, row.display_name);
@@ -108,18 +114,21 @@ function overlayScalars(local: Card, row: CardRow): Card {
     photo: remotePhotoId ? undefined : local.photo,
     listed: row.listed ?? local.listed,
     searchable: row.searchable ?? local.searchable ?? true,
-    rubricOrder:
-      local.updatedAt > row.updated_at
-        ? local.rubricOrder
-        : (normalizeRubricOrder(row.rubric_order) ?? local.rubricOrder),
-    rubricLabels:
-      local.updatedAt > row.updated_at
-        ? local.rubricLabels
-        : (normalizeRubricLabels(row.rubric_labels) ?? local.rubricLabels),
-    itemZones:
-      local.updatedAt > row.updated_at
-        ? local.itemZones
-        : (normalizeItemZones(row.item_zones) ?? local.itemZones),
+    rubricOrder: keptField(
+      local.updatedAt > row.updated_at,
+      local.rubricOrder,
+      normalizeRubricOrder(row.rubric_order),
+    ),
+    rubricLabels: keptField(
+      local.updatedAt > row.updated_at,
+      local.rubricLabels,
+      normalizeRubricLabels(row.rubric_labels),
+    ),
+    itemZones: keptField(
+      local.updatedAt > row.updated_at,
+      local.itemZones,
+      normalizeItemZones(row.item_zones),
+    ),
     hiddenZones: local.hiddenZones,
     photoLook:
       local.updatedAt > row.updated_at

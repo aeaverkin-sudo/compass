@@ -45,6 +45,9 @@ export type SignupResult =
       cardId: string;
       publicToken: string;
       fileItems: SignupFileItem[];
+      /** Every saved row, in card order. The new portfolio places them before the first hydrate. */
+      itemIds: string[];
+      itemZones: Record<string, string>;
       /** The other person's card is in this account's book. */
       saved?: boolean;
       savedName?: string;
@@ -224,6 +227,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
     if (card.error) throw new Error(card.error.message);
 
     const itemZones: Record<string, string> = {};
+    const itemIds: string[] = [];
     const fileItems: SignupFileItem[] = [];
     let sort = 0;
     for (const zone of zones) {
@@ -252,6 +256,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
           });
           if (saved.error) throw new Error(saved.error.message);
           itemZones[normalized.id] = zone.id;
+          itemIds.push(normalized.id);
           const link = await admin.from("card_items").insert({
             card_id: cardId,
             item_id: normalized.id,
@@ -270,6 +275,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
         });
         if (link.error) throw new Error(link.error.message);
         itemZones[id] = zone.id;
+        itemIds.push(id);
         sort += 1;
       }
     }
@@ -285,7 +291,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
         console.error("[mail] welcome", error instanceof Error ? error.message : error);
       });
     }
-    return { ok: true, status: 201, cardId, publicToken, fileItems, ...door, ...eventDoor };
+    return { ok: true, status: 201, cardId, publicToken, fileItems, itemIds, itemZones, ...door, ...eventDoor };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);
     console.error("[signup]", error instanceof Error ? error.message : error);
