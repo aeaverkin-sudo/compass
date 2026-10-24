@@ -26,7 +26,10 @@ type TransferRow = {
   id: string;
   status: string;
   expires_at: string;
+  created_at: string;
 };
+
+const NOTES_ARMED = "notes_armed";
 
 function admin() {
   return createAdminSupabaseClient();
@@ -42,7 +45,7 @@ export async function cardOwnedBy(cardId: string, ownerId: string): Promise<bool
 async function pendingTransfer(cardId: string): Promise<TransferRow | null> {
   const { data, error } = await admin()
     .from("card_transfers")
-    .select("id, status, expires_at")
+    .select("id, status, expires_at, created_at")
     .eq("card_id", cardId)
     .eq("status", "pending")
     .maybeSingle();
@@ -133,9 +136,34 @@ async function assertTransferFile(ownerId: string, transferId: string, attachmen
   }
 }
 
-export async function readPendingNotes(cardId: string): Promise<NextScanAddon[]> {
+/** The share tap already gave this batch to one link. A scan must not take it too. */
+async function notesHeldForLink(cardId: string): Promise<boolean> {
   const existing = await pendingTransfer(cardId);
-  if (!existing || !stillWaiting(existing)) return [];
+  if (!existing || !stillWaiting(existing)) return false;
+  const { data, error } = await admin()
+    .from("card_events")
+    .select("id")
+    .eq("card_id", cardId)
+    .eq("type", NOTES_ARMED)
+    .gte("created_at", existing.created_at)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
+/** Share was pressed. The notes stay for one link open and leave the owner's list. */
+export async function armPendingNotes(cardId: string): Promise<void> {
+  const existing = await pendingTransfer(cardId);
+  if (!existing || !stillWaiting(existing)) return;
+  if (await notesHeldForLink(cardId)) return;
+  const { error } = await admin().from("card_events").insert({ card_id: cardId, type: NOTES_ARMED });
+  if (error) throw new Error(error.message);
+}
+
+export async function readPendingNotes(cardId: string): Promise<{ notes: NextScanAddon[]; held: boolean }> {
+  const existing = await pendingTransfer(cardId);
+  if (!existing || !stillWaiting(existing)) return { notes: [], held: false };
+  if (await notesHeldForLink(cardId)) return { notes: [], held: true };
 
   const { data, error } = await admin()
     .from("transfer_items")
@@ -156,10 +184,12 @@ export async function readPendingNotes(cardId: string): Promise<NextScanAddon[]>
       createdAt: row.created_at as string,
     });
   }
-  return orderNextScanAddons(notes);
+  return { notes: orderNextScanAddons(notes), held: false };
 }
 
 export async function writePendingNotes(cardId: string, ownerId: string, input: NoteWrite[]): Promise<void> {
+  // This batch was already handed to one link. Do not replace it and do not delete it.
+  if (await notesHeldForLink(cardId)) return;
   const ordered = orderNextScanAddons(
     input.map((note) => ({
       id: note.attachmentId || note.type,
@@ -309,8 +339,9 @@ export async function previewPendingNotes(cardId: string): Promise<DeliveredNote
   return notesOnTransfer(existing.id);
 }
 
-/** First handoff wins. Returns notes once; a second call gets []. `via` marks a share, not a scan. */
-export async function consumePendingNotes(cardId: string, via?: "share"): Promise<DeliveredNote[]> {
+/** First handoff wins. Returns notes once; a second call gets []. A scan after Share gets nothing. */
+export async function consumePendingNotes(cardId: string, via?: "share" | "qr"): Promise<DeliveredNote[]> {
+  if (via === "qr" && (await notesHeldForLink(cardId))) return [];
   const { data: transferId, error } = await admin().rpc("consume_pending_transfer", {
     p_card_id: cardId,
   });

@@ -73,8 +73,14 @@ export function PublicCardClient({
   useEffect(() => {
     if (deleted) return;
     let cancelled = false;
+    const params = new URLSearchParams(window.location.search);
+    const scanned = params.get("src") === "qr" || params.get("via") === "qr";
     void Promise.all([
-      fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, { method: "POST" }),
+      fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, {
+        method: "POST",
+        headers: scanned ? { "Content-Type": "application/json" } : undefined,
+        body: scanned ? JSON.stringify({ action: "consume", via: "qr" }) : undefined,
+      }),
       save ? fetch("/api/connections", { cache: "no-store" }) : Promise.resolve(null),
     ])
       .then(async ([notesResponse, bookResponse]) => {

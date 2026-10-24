@@ -8,6 +8,7 @@ import { flushNotesSync, releaseOwnerNotes } from "@/shared/services/notes-sync"
 import { getNextScanAddons } from "@/shared/services/card-snapshot";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import { shareCardChoice, type CardShareChoice } from "@/shared/services/save-public-card-pdf";
+import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
 
 const SHARE_CHOICES: { choice: CardShareChoice; label: string }[] = [
@@ -18,29 +19,25 @@ const RAIL_POPUP_GAP_PX = 8;
 
 /** Owner share from the rail. The public card has no share control. */
 export function useCardShare(card: Card) {
-  const ownerNotesKey = getNextScanAddons(card)
-    .map((note) => `${note.id}:${note.type}:${note.attachmentId ?? ""}:${note.content}`)
-    .join("|");
-
   const primeShare = () => {
     flushNotesSync(card.id);
   };
 
   const handleShare = () => {
-    const token = card.publicToken;
+    const live = useAppStore.getState().cards.find((entry) => entry.id === card.id) ?? card;
+    const token = live.publicToken;
     if (!token) return;
-    const title = card.displayName.trim() || "Portfolio";
-    const hadNotes = ownerNotesKey.length > 0;
-    void shareCardChoice({ title, url: publicCardUrl(card) }).then((sent) => {
-      if (sent) {
-        void fetch("/api/network/share", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cardId: card.id }),
-        });
-      }
-      if (!sent || !hadNotes) return;
-      releaseOwnerNotes(card.id, "link", token);
+    const title = live.displayName.trim() || "Portfolio";
+    // The tap is the send. iOS often reports a Telegram or AirDrop handoff as cancelled,
+    // so the note leaves the card before the sheet answers. Closing the sheet does the same.
+    if (getNextScanAddons(live).length > 0) releaseOwnerNotes(live.id, "link", token);
+    void shareCardChoice({ title, url: publicCardUrl(live) }).then((sent) => {
+      if (!sent) return;
+      void fetch("/api/network/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId: live.id }),
+      });
     });
   };
 

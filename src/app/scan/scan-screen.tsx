@@ -62,7 +62,8 @@ export function ScanScreen() {
       left = true;
       stop();
       const query = "token" in link ? `token=${encodeURIComponent(link.token)}` : `handle=${encodeURIComponent(link.handle)}`;
-      router.push(`/scan/card?${query}`);
+      const fromQr = /(?:\?|&)(?:src|via)=qr(?:&|$)/.test(raw);
+      router.push(`/scan/card?${query}${fromQr ? "&src=qr" : ""}`);
     };
 
     const read = async () => {
