@@ -104,7 +104,7 @@ export const BottomNav = memo(function BottomNav({
       right={
         editing ? (
           <TapButton
-            className="flex h-full min-h-11 w-full items-center justify-end"
+            className="flex h-full min-h-11 w-full items-center justify-end uppercase"
             onTap={() => onDone?.()}
           >
             Save
