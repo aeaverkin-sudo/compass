@@ -24,7 +24,7 @@ export function EntryName({
   return (
     <div
       data-entry-name=""
-      className="relative flex h-full min-w-0 flex-1 flex-col justify-end"
+      className="relative flex h-full min-w-0 max-w-full flex-1 flex-col justify-end overflow-x-hidden"
       onFocusCapture={onTouch}
       onPointerDown={(event) => {
         const area = event.currentTarget.querySelector("textarea");
@@ -33,7 +33,7 @@ export function EntryName({
         area.focus();
       }}
     >
-      <div className="relative w-full">
+      <div className="relative w-full min-w-0 max-w-full overflow-x-hidden">
         {hint ? (
           <div aria-hidden className="pointer-events-none t-label" style={{ color: "var(--placeholder)" }}>
             <div className="whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">{HINT_ONE}</div>
@@ -43,7 +43,7 @@ export function EntryName({
             </div>
           </div>
         ) : null}
-        <div className={hint ? "absolute inset-x-0 top-0 h-[15.95px]" : "relative min-h-0"}>
+        <div className={hint ? "absolute inset-x-0 top-0 h-[15.95px]" : "relative min-h-0 min-w-0 max-w-full overflow-x-hidden"}>
           <HeroName value={shown} onChange={onChange} placeholder="" ruled />
         </div>
         {suggested ? (

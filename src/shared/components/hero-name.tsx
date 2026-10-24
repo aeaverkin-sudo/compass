@@ -100,8 +100,21 @@ export function HeroName({
       );
       const gap = roleBelow ? HERO_ROLE_GAP_PX : 0;
       const heightSize = Math.max(8, (box.clientHeight - gap) / (count + HERO_DESCENDER_OVERFLOW));
+      let next = Math.min(HERO_NAME_MAX_PX, widthSize, heightSize);
+      if (ruled) {
+        const area = box.querySelector("textarea");
+        if (area) {
+          area.style.fontWeight = "600";
+          area.style.letterSpacing = "-1px";
+          area.style.fontSize = `${next}px`;
+          while (next > 8 && area.scrollWidth > width) {
+            next = Math.max(8, next - 0.5);
+            area.style.fontSize = `${next}px`;
+          }
+        }
+      }
       setWrapWord(false);
-      setSize(Math.min(HERO_NAME_MAX_PX, widthSize, heightSize));
+      setSize(next);
       const area = box.querySelector("textarea");
       if (area) {
         area.scrollTop = 0;
@@ -118,7 +131,7 @@ export function HeroName({
       observer.disconnect();
       window.removeEventListener("orientationchange", onTurn);
     };
-  }, [maxLines, placeholder, roleBelow, value]);
+  }, [maxLines, placeholder, roleBelow, ruled, value]);
 
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
@@ -232,7 +245,10 @@ export function HeroName({
             onChange(clamp(`${value.slice(0, start)}\n${value.slice(end)}`));
           }}
           onClick={(event) => event.stopPropagation()}
-          className="compass-input m-0 block w-full max-h-full min-h-0 resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre text-[var(--ink)] outline-none"
+          className={cn(
+            "compass-input m-0 block w-full max-h-full min-h-0 max-w-full resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre text-[var(--ink)] outline-none",
+            ruled && "min-w-0",
+          )}
           style={empty ? { ...lineStyle, color: "transparent", caretColor: "var(--ink)" } : lineStyle}
         />
         </>
