@@ -167,9 +167,9 @@ function FileAddButton({
       onMouseDown={(event) => event.preventDefault()}
       onPointerDown={onPointerDown}
       onClick={onClick}
-      className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[#111]"
+      className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[var(--ink)]"
     >
-      <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
+      <Plus className="size-7 text-[var(--ink)]" strokeWidth={1} aria-hidden />
     </button>
   );
 }
@@ -772,7 +772,7 @@ export const CardEditList = memo(function CardEditList({
                     data-no-swipe
                     data-zone-add=""
                     aria-label="Add to section"
-                    className="t-body w-full border-0 bg-transparent p-0 text-left text-[var(--placeholder)]"
+                    className="t-body w-full border-0 bg-transparent p-0 text-left text-[var(--ink)]"
                     onClick={startSeed}
                   >
                     +

@@ -24,7 +24,7 @@ function TapButton({ onTap, ...props }: Omit<ComponentProps<"button">, "onClick"
 }
 
 type BottomNavProps = {
-  /** Edit mode: Reset or Delete on the left, + in the centre opens the writing line, OK on the right leaves editing. */
+  /** Edit mode: Reset or Delete on the left, + in the centre opens the writing line, Save on the right leaves editing. */
   editing?: boolean;
   /** The edited portfolio is the first one: the left word reads Reset, else Delete. */
   resetsCard?: boolean;
@@ -107,7 +107,7 @@ export const BottomNav = memo(function BottomNav({
             className="flex h-full min-h-11 w-full items-center justify-end"
             onTap={() => onDone?.()}
           >
-            OK
+            Save
           </TapButton>
         ) : (
           <TapButton
