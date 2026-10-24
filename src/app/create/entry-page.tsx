@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { carouselSidePaddingPx, SCREEN_TOP_AXIS_PX } from "@main/layout";
+import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
 import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
@@ -19,6 +20,7 @@ import type { Card } from "@/shared/types";
 import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
+import { signInHref, type EntryInput } from "./door";
 import { EntryName } from "./entry-name";
 import { EntryZones, type EntryZonesHandle } from "./entry-zones";
 
@@ -30,13 +32,7 @@ function emailOk(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
-export type EntryInput = {
-  name?: string;
-  email?: string;
-  event?: { lookup: string; guestToken?: string };
-  sourceToken?: string;
-  next?: string;
-};
+export type { EntryInput };
 
 let issuedPassword = "";
 
@@ -53,22 +49,6 @@ function passwordNow() {
   return issuedPassword;
 }
 
-/** An existing account signs in and finishes the door there. The questionnaire is not shown again. */
-function signInHref(email: string | undefined, input: EntryInput) {
-  const query = new URLSearchParams();
-  query.set("signin", "1");
-  if (email) query.set("email", email);
-  if (input.event) {
-    const next = input.event.guestToken
-      ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
-      : `/e/${encodeURIComponent(input.event.lookup)}`;
-    query.set("next", next);
-  } else if (input.sourceToken) {
-    query.set("next", `/save/${input.sourceToken}`);
-  }
-  return `/register?${query.toString()}`;
-}
-
 export function EntryPage({ input }: { input: EntryInput }) {
   const router = useRouter();
   const offeredName = input.name?.trim() ?? "";
@@ -81,7 +61,6 @@ export function EntryPage({ input }: { input: EntryInput }) {
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [taken, setTaken] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const zonesRef = useRef<EntryZonesHandle>(null);
   const [sidePad, setSidePad] = useState(() => carouselSidePaddingPx(0, true));
@@ -111,7 +90,6 @@ export function EntryPage({ input }: { input: EntryInput }) {
     const secret = passwordShown;
     setBusy(true);
     setError(null);
-    setTaken(false);
     let created = false;
     try {
       const response = await fetch("/api/signup", {
@@ -158,7 +136,6 @@ export function EntryPage({ input }: { input: EntryInput }) {
         warning?: string;
       };
       if (response.status === 409 || reply.kind === "login") {
-        setTaken(true);
         setError("This email already has an account.");
         setBusy(false);
         return;
@@ -184,7 +161,6 @@ export function EntryPage({ input }: { input: EntryInput }) {
       ]);
       if (signed.error || !signed.data.session) {
         setError("Account created, but sign-in failed — tap Sign in.");
-        setTaken(true);
         setBusy(false);
         return;
       }
@@ -270,7 +246,6 @@ export function EntryPage({ input }: { input: EntryInput }) {
     } catch {
       if (created) {
         setError("Account created, but sign-in failed — tap Sign in.");
-        setTaken(true);
       } else {
         setError("Could not create your profile.");
       }
@@ -284,6 +259,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
       className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]"
     >
       <BackButton fallbackHref="/" />
+      <AuthModeToggle mode="up" signUpHref="/create" signInHref={signInHref(undefined, input)} />
       <div style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - 11px + 22px + 18px)` }} />
       <div style={frame}>
       <div className={PAD}>
@@ -378,15 +354,6 @@ export function EntryPage({ input }: { input: EntryInput }) {
       <div style={frame}>
       <div className={`${PAD} flex flex-col gap-4 pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]`}>
         {error ? <p className="m-0 t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>{error}</p> : null}
-        {taken ? (
-          <a
-            href={signInHref(email.trim().toLowerCase(), input)}
-            className="t-meta text-[var(--ink)] underline"
-            style={{ marginLeft: VALUE_AXIS_PX }}
-          >
-            Sign in
-          </a>
-        ) : null}
         <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]">
           <span />
           <TapButton
@@ -397,12 +364,6 @@ export function EntryPage({ input }: { input: EntryInput }) {
             {busy ? "Creating…" : "Create portfolio"}
           </TapButton>
         </div>
-        <p className="m-0 t-meta text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
-          Already have an account?{" "}
-          <a href={signInHref(undefined, input)} className="underline">
-            Sign in
-          </a>
-        </p>
       </div>
       </div>
     </main>

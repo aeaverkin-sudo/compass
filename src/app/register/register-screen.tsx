@@ -4,10 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
+import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
+import { BackButton } from "@/shared/components/back-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Rule } from "@/shared/components/rule";
 import { Zone } from "@/shared/components/zone";
-import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { SCREEN_TOP_AXIS_PX } from "@main/layout";
+import { questionnaireHref } from "@/app/create/door";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
@@ -289,16 +293,19 @@ export function RegisterScreen() {
   };
 
   if (signinOnly) {
-    const signUpHref = (() => {
-      const query = new URLSearchParams();
-      if (keepsNext(nextPath)) query.set("next", nextPath);
-      const text = query.toString();
-      return text ? `/register?${text}` : "/create";
-    })();
-    const eventPath = isEventInvitePath(nextPath) || isEventJoinPath(nextPath);
     return (
       <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-        <ScreenHeader title="Sign in" fallbackHref="/" />
+        <BackButton fallbackHref="/" />
+        <AuthModeToggle
+          mode="in"
+          signUpHref={questionnaireHref(params.get("next"), params.get("email"))}
+          signInHref="/register?signin=1"
+        />
+        <div
+          aria-hidden
+          className="mb-[18px] shrink-0"
+          style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px)` }}
+        />
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -369,14 +376,6 @@ export function RegisterScreen() {
             </p>
           </Zone>
         </form>
-        {eventPath ? null : (
-          <p className="m-0 t-meta text-[var(--grey)]" style={{ marginLeft: VALUE_AXIS_PX }}>
-            No account?{" "}
-            <Link href={signUpHref} className="text-[var(--ink)] underline">
-              Sign up
-            </Link>
-          </p>
-        )}
         <Message text={message} />
       </main>
     );
