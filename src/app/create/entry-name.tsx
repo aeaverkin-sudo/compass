@@ -33,7 +33,7 @@ export function EntryName({
         area.focus();
       }}
     >
-      <div className="relative w-full min-w-0 max-w-full overflow-x-hidden">
+      <div className={hint ? "relative w-full min-w-0 max-w-full" : "absolute inset-0 min-w-0 overflow-x-hidden"}>
         {hint ? (
           <div aria-hidden className="pointer-events-none t-label" style={{ color: "var(--placeholder)" }}>
             <div className="whitespace-nowrap border-b-[0.5px] border-[var(--ink)] pb-[3px]">{HINT_ONE}</div>
@@ -43,7 +43,7 @@ export function EntryName({
             </div>
           </div>
         ) : null}
-        <div className={hint ? "absolute inset-x-0 top-0 h-[15.95px]" : "relative min-h-0 min-w-0 max-w-full overflow-x-hidden"}>
+        <div className={hint ? "absolute inset-x-0 top-0 h-[15.95px]" : "flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden"}>
           <HeroName value={shown} onChange={onChange} placeholder="" ruled />
         </div>
         {suggested ? (

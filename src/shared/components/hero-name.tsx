@@ -100,21 +100,8 @@ export function HeroName({
       );
       const gap = roleBelow ? HERO_ROLE_GAP_PX : 0;
       const heightSize = Math.max(8, (box.clientHeight - gap) / (count + HERO_DESCENDER_OVERFLOW));
-      let next = Math.min(HERO_NAME_MAX_PX, widthSize, heightSize);
-      if (ruled) {
-        const area = box.querySelector("textarea");
-        if (area) {
-          area.style.fontWeight = "600";
-          area.style.letterSpacing = "-1px";
-          area.style.fontSize = `${next}px`;
-          while (next > 8 && area.scrollWidth > width) {
-            next = Math.max(8, next - 0.5);
-            area.style.fontSize = `${next}px`;
-          }
-        }
-      }
       setWrapWord(false);
-      setSize(next);
+      setSize(Math.min(HERO_NAME_MAX_PX, widthSize, heightSize));
       const area = box.querySelector("textarea");
       if (area) {
         area.scrollTop = 0;
@@ -131,7 +118,7 @@ export function HeroName({
       observer.disconnect();
       window.removeEventListener("orientationchange", onTurn);
     };
-  }, [maxLines, placeholder, roleBelow, ruled, value]);
+  }, [maxLines, placeholder, roleBelow, value]);
 
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
