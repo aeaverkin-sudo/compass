@@ -259,10 +259,10 @@ export function EntryPage({ input }: { input: EntryInput }) {
       className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]"
     >
       <BackButton fallbackHref="/" />
-      <AuthModeToggle mode="up" signUpHref="/create" signInHref={signInHref(undefined, input)} />
       <div style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - 11px + 22px + 18px)` }} />
       <div style={frame}>
       <div className={PAD}>
+        <AuthModeToggle mode="up" pinned={false} signUpHref="/create" signInHref={signInHref(undefined, input)} className="mb-[18px]" />
         <div className="flex items-stretch gap-3" style={{ height: 128 }}>
           <div className="relative shrink-0">
             <PhotoSlotPicker
