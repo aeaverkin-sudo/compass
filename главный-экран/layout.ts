@@ -69,6 +69,9 @@ export const SCREEN_TOP_AXIS_PX = HEADER_RHYTHM_PX + QR_DROP_PX;
 /** The sky row. The home indicator sits in the padding under it, not in this number. */
 export const BAND_ROW_PX = 48;
 
+/** The old plate was this much shorter than a 48px row plus the home-indicator inset. */
+export const BAND_DROP_PX = 29;
+
 /** Base overlap of the library preview onto the QR zone. */
 const QR_OVERLAP_LIBRARY_BASE_PX = 112;
 

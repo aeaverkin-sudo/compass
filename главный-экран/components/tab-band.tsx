@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { BAND_ROW_PX } from "../layout";
+import { BAND_DROP_PX, BAND_ROW_PX } from "../layout";
 
 /**
  * The sky bar. Last child of the page column, one row, one height.
- * The home indicator is padding under the row, so the sky continues to the glass.
+ * Padding under the row is the home indicator minus the 29px the old plate did not carry.
  */
 export function TabBand({
   left,
@@ -24,7 +24,7 @@ export function TabBand({
       aria-label={label}
       className="compass-sky-band pointer-events-auto relative z-30 w-full shrink-0 bg-sky t-band text-[var(--ink)] select-none [-webkit-touch-callout:none]"
       style={{
-        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingBottom: `max(0px, calc(env(safe-area-inset-bottom) - ${BAND_DROP_PX}px))`,
         WebkitUserSelect: "none",
         userSelect: "none",
       }}

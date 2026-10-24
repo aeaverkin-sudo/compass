@@ -5,6 +5,7 @@ import {
   libraryCardHeightPx,
   librarySheetTopPx,
   libraryStackTopPx,
+  BAND_DROP_PX,
   BAND_ROW_PX,
   writeHeaderScale,
   BROWSE_QR_SIZE,
@@ -50,7 +51,7 @@ function computeLayout(columnH: number): MainLayout | null {
 
   const { scale } = writeHeaderScale();
   const safeTop = readSafeAreaInset("top");
-  const bandH = BAND_ROW_PX + readSafeAreaInset("bottom");
+  const bandH = BAND_ROW_PX + Math.max(0, readSafeAreaInset("bottom") - BAND_DROP_PX);
   const qrTop = safeTop + SCREEN_TOP_AXIS_PX * scale;
   const cardTopBrowse = safeTop + (HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX) * scale;
   const cardBottomBrowse = columnH;

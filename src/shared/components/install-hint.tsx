@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Share, X } from "lucide-react";
+import { BAND_DROP_PX } from "@main/layout";
 import { isHomeScreenApp } from "@/shared/services/save-public-card-pdf";
 
 const SEEN_KEY = "aded:install-hint";
@@ -86,7 +87,7 @@ export function InstallHint({ paused }: { paused: boolean }) {
     <div
       data-no-swipe
       className="fixed left-1/2 z-40 flex w-max max-w-[min(100%-48px,300px)] -translate-x-1/2 items-start gap-2 bg-sky py-2.5 pr-2 pl-3 t-meta text-[var(--ink)]"
-      style={{ bottom: "calc(48px + env(safe-area-inset-bottom) + 12px)" }}
+      style={{ bottom: `calc(48px + max(0px, env(safe-area-inset-bottom) - ${BAND_DROP_PX}px) + 12px)` }}
     >
       {mode === "ios" ? (
         <p className="m-0 min-w-0">
