@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type RefObject } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { nanoid } from "nanoid";
 import { X } from "lucide-react";
 import { MarkPlus } from "@/shared/components/mark-plus";
@@ -81,7 +81,7 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
   const [titleText, setTitleText] = useState("");
   const [armed, setArmed] = useState<string | null>(null);
   const zonesRef = useRef(zones);
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef<WrapFieldHandle>(null);
   const focusValue = useRef(false);
   zonesRef.current = zones;
@@ -99,9 +99,13 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
     return () => document.removeEventListener("pointerdown", down);
   }, [armed]);
 
-  useEffect(() => {
-    if (titleId) titleRef.current?.focus();
-  }, [titleId]);
+  useLayoutEffect(() => {
+    const node = titleRef.current;
+    if (!titleId || !node) return;
+    node.style.height = "0px";
+    node.style.height = `${node.scrollHeight}px`;
+    node.focus();
+  }, [titleId, titleText]);
 
   useEffect(() => {
     if (!focusValue.current) return;
@@ -215,16 +219,18 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
           <section key={zone.id} className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
             <div className="min-w-0">
               <SectionNumber value={sectionNumberLabel(index)} />
-              <div className="mt-[6px] flex items-start gap-2">
+              <div className="mt-[6px] flex min-w-0 items-start gap-2">
                 {titleId === zone.id ? (
-                  <input
+                  <textarea
                     ref={titleRef}
                     data-zone-title={zone.id}
                     value={titleText}
+                    rows={1}
+                    wrap="soft"
                     aria-label="Section title"
                     placeholder="TITLE"
-                    className="t-label m-0 w-full border-0 bg-transparent p-0 text-[var(--grey)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
-                    onChange={(event) => setTitleText(event.target.value)}
+                    className="t-label m-0 min-w-0 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 whitespace-pre-wrap break-normal text-[var(--grey)] caret-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
+                    onChange={(event) => setTitleText(event.target.value.replace(/[ \t]*\n[ \t]*/g, " "))}
                     onKeyDown={(event) => {
                       if (
                         (event.key === "Backspace" || event.key === "Delete") &&
@@ -437,7 +443,7 @@ function TitleButton({
   return (
     <button
       type="button"
-      className="t-label border-0 bg-transparent p-0 text-left text-[var(--grey)]"
+      className="t-label block min-w-0 flex-1 border-0 bg-transparent p-0 text-left whitespace-normal break-normal text-[var(--grey)]"
       {...press}
       onClick={(event) => {
         press.onClick(event);
