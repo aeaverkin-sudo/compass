@@ -227,6 +227,28 @@ export function PosterWallLanding() {
       }
     }
 
+    function hit(axis: "x" | "y", atStart: boolean) {
+      if (axis === "x") tx = atStart ? 0 : minX;
+      else ty = atStart ? 0 : minY;
+      const speed = Math.hypot(vx, vy);
+      const away = atStart ? -1 : 1;
+      if (speed > base * 1.6) {
+        if (axis === "x") vx = away * Math.abs(vx || 1);
+        else vy = away * Math.abs(vy || 1);
+        const next = Math.hypot(vx, vy) || 1;
+        vx = (vx / next) * base;
+        vy = (vy / next) * base;
+        return;
+      }
+      if (axis === "x") {
+        vx = -vx;
+        vy += (Math.random() - 0.5) * 0.35;
+      } else {
+        vy = -vy;
+        vx += (Math.random() - 0.5) * 0.35;
+      }
+    }
+
     let frameId = 0;
     function frame() {
       if (!sized) measure();
@@ -255,24 +277,10 @@ export function PosterWallLanding() {
         if (Math.hypot(vx, vy) <= base * 1.6) keepDiagonal();
         tx += vx;
         ty += vy;
-        if (tx > 0) {
-          tx = 0;
-          vx = -vx;
-          vy += (Math.random() - 0.5) * 0.35;
-        } else if (tx < minX) {
-          tx = minX;
-          vx = -vx;
-          vy += (Math.random() - 0.5) * 0.35;
-        }
-        if (ty > 0) {
-          ty = 0;
-          vy = -vy;
-          vx += (Math.random() - 0.5) * 0.35;
-        } else if (ty < minY) {
-          ty = minY;
-          vy = -vy;
-          vx += (Math.random() - 0.5) * 0.35;
-        }
+        if (tx > 0) hit("x", true);
+        else if (tx < minX) hit("x", false);
+        if (ty > 0) hit("y", true);
+        else if (ty < minY) hit("y", false);
         paint();
       }
       frameId = window.requestAnimationFrame(frame);
