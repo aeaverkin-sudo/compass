@@ -8,7 +8,7 @@ const CSS = `
 .pw-root{position:fixed;inset:0;z-index:1;color:#141210;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;background:#bdbab4;-webkit-font-smoothing:antialiased;}
 .pw-root,.pw-root *{box-sizing:border-box;}
 .pw-view{position:absolute;inset:0;overflow:hidden;touch-action:none;overscroll-behavior:none;}
-.pw-concrete{position:relative;width:max-content;min-height:100%;background-color:#c9c6c0;background-image:url(/landing/concrete.png);background-size:54vw auto;background-repeat:repeat;}
+.pw-concrete{position:relative;display:inline-block;width:max-content;min-width:max-content;background-color:#c9c6c0;background-image:url(/landing/concrete.png);background-size:54vw auto;background-repeat:repeat;}
 .pw-concrete::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background-image:
   repeating-linear-gradient(90deg, transparent 0 108.6vw, rgba(0,0,0,.16) 108.6vw 108.9vw, rgba(255,255,255,.14) 108.9vw 109.4vw, transparent 109.4vw 110vw),
   repeating-linear-gradient(0deg, transparent 0 128.6vw, rgba(0,0,0,.16) 128.6vw 128.9vw, rgba(255,255,255,.14) 128.9vw 129.4vw, transparent 129.4vw 130vw);}
@@ -112,22 +112,31 @@ function Icon({ children }: { children: ReactNode }) {
 export function PosterWallLanding() {
   const view = useRef<HTMLDivElement>(null);
   const concrete = useRef<HTMLDivElement>(null);
+  const wall = useRef<HTMLDivElement>(null);
   const hint = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const content = concrete.current;
+    const sheet = wall.current;
     const vp = view.current;
     const hintNode = hint.current;
-    if (!content || !vp) return;
+    if (!content || !sheet || !vp) return;
     content.style.willChange = "transform";
 
     let vw = window.innerWidth;
     let vh = window.innerHeight;
     let minX = 0;
     let minY = 0;
+    let sized = false;
     function measure() {
-      minX = Math.min(0, vw - content.offsetWidth);
-      minY = Math.min(0, vh - content.offsetHeight);
+      vw = window.innerWidth;
+      vh = window.innerHeight;
+      const width = sheet.offsetWidth;
+      const height = sheet.offsetHeight;
+      if (width < 1 || height < 1) return;
+      minX = Math.min(0, vw - width);
+      minY = Math.min(0, vh - height);
+      sized = width > vw + 1 || height > vh + 1;
     }
     measure();
 
@@ -229,7 +238,7 @@ export function PosterWallLanding() {
 
     let frameId = 0;
     function frame() {
-      if (minX === 0 && minY === 0) measure();
+      if (!sized) measure();
       if (!dragging) {
         const turn = (Math.random() - 0.5) * 0.045;
         const c = Math.cos(turn);
@@ -301,7 +310,7 @@ export function PosterWallLanding() {
       <style>{CSS}</style>
       <div ref={view} className="pw-view">
         <div className="pw-concrete" ref={concrete}>
-          <div className="pw-wall">
+          <div className="pw-wall" ref={wall}>
             <Poster>
               <div className="pw-row">
                 <Mark />
