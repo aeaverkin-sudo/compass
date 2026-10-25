@@ -65,8 +65,6 @@ const CSS = `
   radial-gradient(55% 42% at 50% 30%, rgba(255,246,232,.20) 0%, rgba(255,246,232,0) 60%),
   radial-gradient(135% 105% at 50% 46%, rgba(0,0,0,0) 38%, rgba(22,16,11,.34) 100%),
   linear-gradient(rgba(0,0,0,.26), rgba(0,0,0,0) 14%);}
-.pw-hint{position:fixed;left:0;right:0;bottom:26vw;text-align:center;font-size:3vw;letter-spacing:.14em;text-transform:uppercase;color:#fff;z-index:49;opacity:.9;transition:opacity .4s;pointer-events:none;text-shadow:0 .3vw 1.6vw rgba(0,0,0,.7);}
-.pw-hint.is-gone{opacity:0;}
 .pw-cta{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;justify-content:center;padding:4vw 0 calc(5vw + env(safe-area-inset-bottom));background:linear-gradient(rgba(183,180,174,0), rgba(183,180,174,.55));pointer-events:none;}
 .pw-go{position:fixed;left:8vw;bottom:calc(5vw + env(safe-area-inset-bottom));z-index:51;box-sizing:border-box;pointer-events:auto;display:block;width:84vw;background:#8ecae6;color:#fff;text-align:center;padding:4.6vw;font-size:4.4vw;font-weight:800;letter-spacing:.03em;text-decoration:none;box-shadow:0 1vw 3vw -.5vw rgba(0,0,0,.3);}
 `;
@@ -113,13 +111,11 @@ export function PosterWallLanding() {
   const view = useRef<HTMLDivElement>(null);
   const concrete = useRef<HTMLDivElement>(null);
   const wall = useRef<HTMLDivElement>(null);
-  const hint = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     const content = concrete.current;
     const sheet = wall.current;
     const vp = view.current;
-    const hintNode = hint.current;
     if (!content || !sheet || !vp) return;
     const node = content;
     const sheetNode = sheet;
@@ -167,13 +163,6 @@ export function PosterWallLanding() {
     let lastY = 0;
     let dvx = 0;
     let dvy = 0;
-    let hinted = false;
-    function hide() {
-      if (hinted) return;
-      hinted = true;
-      hintNode?.classList.add("is-gone");
-    }
-    const hintTimer = window.setTimeout(hide, 3800);
 
     function paint() {
       node.style.transform = `translate3d(${tx.toFixed(2)}px,${ty.toFixed(2)}px,0)`;
@@ -193,7 +182,6 @@ export function PosterWallLanding() {
       lastY = event.clientY;
       dvx = 0;
       dvy = 0;
-      hide();
       try {
         viewNode.setPointerCapture(event.pointerId);
       } catch {
@@ -298,7 +286,6 @@ export function PosterWallLanding() {
     frameId = window.requestAnimationFrame(frame);
 
     return () => {
-      window.clearTimeout(hintTimer);
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("resize", onResize);
       viewNode.removeEventListener("pointerdown", onDown);
@@ -633,9 +620,6 @@ export function PosterWallLanding() {
         </div>
       </div>
       <div className="pw-lighting" />
-      <p ref={hint} className="pw-hint">
-        Drag to explore the wall
-      </p>
       <div className="pw-cta">
         <Link href="/create" className="pw-go">
           GET YOUR PORTFOLIO
