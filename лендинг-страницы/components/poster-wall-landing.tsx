@@ -121,7 +121,10 @@ export function PosterWallLanding() {
     const vp = view.current;
     const hintNode = hint.current;
     if (!content || !sheet || !vp) return;
-    content.style.willChange = "transform";
+    const node = content;
+    const sheetNode = sheet;
+    const viewNode = vp;
+    node.style.willChange = "transform";
 
     let vw = window.innerWidth;
     let vh = window.innerHeight;
@@ -131,8 +134,8 @@ export function PosterWallLanding() {
     function measure() {
       vw = window.innerWidth;
       vh = window.innerHeight;
-      const width = sheet.offsetWidth;
-      const height = sheet.offsetHeight;
+      const width = sheetNode.offsetWidth;
+      const height = sheetNode.offsetHeight;
       if (width < 1 || height < 1) return;
       minX = Math.min(0, vw - width);
       minY = Math.min(0, vh - height);
@@ -173,7 +176,7 @@ export function PosterWallLanding() {
     const hintTimer = window.setTimeout(hide, 3800);
 
     function paint() {
-      content.style.transform = `translate3d(${tx.toFixed(2)}px,${ty.toFixed(2)}px,0)`;
+      node.style.transform = `translate3d(${tx.toFixed(2)}px,${ty.toFixed(2)}px,0)`;
     }
 
     function onResize() {
@@ -192,7 +195,7 @@ export function PosterWallLanding() {
       dvy = 0;
       hide();
       try {
-        vp.setPointerCapture(event.pointerId);
+        viewNode.setPointerCapture(event.pointerId);
       } catch {
         /* the pointer may already be gone */
       }
@@ -288,7 +291,7 @@ export function PosterWallLanding() {
     }
 
     window.addEventListener("resize", onResize);
-    vp.addEventListener("pointerdown", onDown);
+    viewNode.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", release);
     window.addEventListener("pointercancel", release);
@@ -298,7 +301,7 @@ export function PosterWallLanding() {
       window.clearTimeout(hintTimer);
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("resize", onResize);
-      vp.removeEventListener("pointerdown", onDown);
+      viewNode.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", release);
       window.removeEventListener("pointercancel", release);
