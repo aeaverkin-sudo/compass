@@ -479,7 +479,7 @@ export function PosterWallLanding() {
       <p className={hintOn ? "pw-hint" : "pw-hint is-gone"}>Drag to explore the wall</p>
       <div className="pw-cta">
         <Link href="/create" className="pw-go">
-          GET YOURS NOW
+          GET YOUR PORTFOLIO
         </Link>
       </div>
     </div>
