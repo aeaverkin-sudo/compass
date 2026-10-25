@@ -1,14 +1,13 @@
 "use client";
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 
 const CSS = `
 .pw-root{position:fixed;inset:0;z-index:1;color:#141210;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;background:#bdbab4;-webkit-font-smoothing:antialiased;}
 .pw-root,.pw-root *{box-sizing:border-box;}
-.pw-view{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;touch-action:pan-x pan-y;scrollbar-width:none;}
-.pw-view::-webkit-scrollbar{display:none;}
+.pw-view{position:absolute;inset:0;overflow:hidden;touch-action:none;overscroll-behavior:none;}
 .pw-concrete{position:relative;width:max-content;min-height:100%;background-color:#c9c6c0;background-image:url(/landing/concrete.png);background-size:54vw auto;background-repeat:repeat;}
 .pw-concrete::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background-image:
   repeating-linear-gradient(90deg, transparent 0 108.6vw, rgba(0,0,0,.16) 108.6vw 108.9vw, rgba(255,255,255,.14) 108.9vw 109.4vw, transparent 109.4vw 110vw),
@@ -112,50 +111,196 @@ function Icon({ children }: { children: ReactNode }) {
 
 export function PosterWallLanding() {
   const view = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
-  const [hintOn, setHintOn] = useState(true);
-  const hintOnRef = useRef(true);
+  const concrete = useRef<HTMLDivElement>(null);
+  const hint = useRef<HTMLParagraphElement>(null);
 
-  function hideHint() {
-    if (!hintOnRef.current) return;
-    hintOnRef.current = false;
-    setHintOn(false);
-  }
+  useEffect(() => {
+    const content = concrete.current;
+    const vp = view.current;
+    const hintNode = hint.current;
+    if (!content || !vp) return;
+    content.style.willChange = "transform";
 
-  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    hideHint();
-    if (event.pointerType !== "mouse" || event.button !== 0) return;
-    const node = view.current;
-    if (!node) return;
-    drag.current = { x: event.clientX, y: event.clientY, left: node.scrollLeft, top: node.scrollTop };
-    node.setPointerCapture(event.pointerId);
-  }
+    let vw = window.innerWidth;
+    let vh = window.innerHeight;
+    let minX = 0;
+    let minY = 0;
+    function measure() {
+      minX = Math.min(0, vw - content.offsetWidth);
+      minY = Math.min(0, vh - content.offsetHeight);
+    }
+    measure();
 
-  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    const start = drag.current;
-    const node = view.current;
-    if (!start || !node) return;
-    node.scrollLeft = start.left - (event.clientX - start.x);
-    node.scrollTop = start.top - (event.clientY - start.y);
-  }
+    const base = 0.55;
+    let tx = 0;
+    let ty = 0;
+    const a0 = Math.PI / 4 + (Math.random() - 0.5) * (Math.PI * 0.28);
+    let vx = Math.cos(a0) * base * (Math.random() < 0.5 ? -1 : 1);
+    let vy = Math.sin(a0) * base * (Math.random() < 0.5 ? -1 : 1);
+    function keepDiagonal() {
+      const speed = Math.hypot(vx, vy);
+      if (speed < 0.001) return;
+      let ux = vx / speed;
+      let uy = vy / speed;
+      const min = 0.42;
+      if (Math.abs(ux) < min) ux = (ux < 0 ? -1 : 1) * min;
+      if (Math.abs(uy) < min) uy = (uy < 0 ? -1 : 1) * min;
+      const unit = Math.hypot(ux, uy);
+      vx = (ux / unit) * speed;
+      vy = (uy / unit) * speed;
+    }
 
-  function onPointerUp() {
-    drag.current = null;
-  }
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+    let dvx = 0;
+    let dvy = 0;
+    let hinted = false;
+    function hide() {
+      if (hinted) return;
+      hinted = true;
+      hintNode?.classList.add("is-gone");
+    }
+    const hintTimer = window.setTimeout(hide, 3800);
+
+    function paint() {
+      content.style.transform = `translate3d(${tx.toFixed(2)}px,${ty.toFixed(2)}px,0)`;
+    }
+
+    function onResize() {
+      vw = window.innerWidth;
+      vh = window.innerHeight;
+      measure();
+      if (tx < minX) tx = minX;
+      if (ty < minY) ty = minY;
+    }
+
+    function onDown(event: PointerEvent) {
+      dragging = true;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      dvx = 0;
+      dvy = 0;
+      hide();
+      try {
+        vp.setPointerCapture(event.pointerId);
+      } catch {
+        /* the pointer may already be gone */
+      }
+    }
+
+    function onMove(event: PointerEvent) {
+      if (!dragging) return;
+      const dx = event.clientX - lastX;
+      const dy = event.clientY - lastY;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      tx += dx;
+      ty += dy;
+      dvx = dx;
+      dvy = dy;
+      if (tx > 0) tx = 0;
+      if (tx < minX) tx = minX;
+      if (ty > 0) ty = 0;
+      if (ty < minY) ty = minY;
+      paint();
+    }
+
+    function release() {
+      if (!dragging) return;
+      dragging = false;
+      const flung = Math.hypot(dvx, dvy);
+      if (flung > 0.6) {
+        vx = dvx;
+        vy = dvy;
+      }
+      const speed = Math.hypot(vx, vy);
+      const cap = 46;
+      if (speed > cap) {
+        vx *= cap / speed;
+        vy *= cap / speed;
+      }
+      if (Math.hypot(vx, vy) < 0.01) {
+        const angle = Math.random() * 6.283;
+        vx = Math.cos(angle) * base;
+        vy = Math.sin(angle) * base;
+      }
+    }
+
+    let frameId = 0;
+    function frame() {
+      if (minX === 0 && minY === 0) measure();
+      if (!dragging) {
+        const turn = (Math.random() - 0.5) * 0.045;
+        const c = Math.cos(turn);
+        const s = Math.sin(turn);
+        const nx = vx * c - vy * s;
+        const ny = vx * s + vy * c;
+        vx = nx;
+        vy = ny;
+        const speed = Math.hypot(vx, vy);
+        if (speed > base) {
+          const k = Math.max(base, speed * 0.965) / speed;
+          vx *= k;
+          vy *= k;
+        } else if (speed < 0.01) {
+          const angle = Math.random() * 6.283;
+          vx = Math.cos(angle) * base;
+          vy = Math.sin(angle) * base;
+        } else {
+          const k = base / speed;
+          vx *= k;
+          vy *= k;
+        }
+        if (Math.hypot(vx, vy) <= base * 1.6) keepDiagonal();
+        tx += vx;
+        ty += vy;
+        if (tx > 0) {
+          tx = 0;
+          vx = -vx;
+          vy += (Math.random() - 0.5) * 0.35;
+        } else if (tx < minX) {
+          tx = minX;
+          vx = -vx;
+          vy += (Math.random() - 0.5) * 0.35;
+        }
+        if (ty > 0) {
+          ty = 0;
+          vy = -vy;
+          vx += (Math.random() - 0.5) * 0.35;
+        } else if (ty < minY) {
+          ty = minY;
+          vy = -vy;
+          vx += (Math.random() - 0.5) * 0.35;
+        }
+        paint();
+      }
+      frameId = window.requestAnimationFrame(frame);
+    }
+
+    window.addEventListener("resize", onResize);
+    vp.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    frameId = window.requestAnimationFrame(frame);
+
+    return () => {
+      window.clearTimeout(hintTimer);
+      window.cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", onResize);
+      vp.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
+    };
+  }, []);
 
   return (
     <div className="pw-root">
       <style>{CSS}</style>
-      <div
-        ref={view}
-        className="pw-view"
-        onScroll={hideHint}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
-        <div className="pw-concrete">
+      <div ref={view} className="pw-view">
+        <div className="pw-concrete" ref={concrete}>
           <div className="pw-wall">
             <Poster>
               <div className="pw-row">
@@ -476,7 +621,9 @@ export function PosterWallLanding() {
         </div>
       </div>
       <div className="pw-lighting" />
-      <p className={hintOn ? "pw-hint" : "pw-hint is-gone"}>Drag to explore the wall</p>
+      <p ref={hint} className="pw-hint">
+        Drag to explore the wall
+      </p>
       <div className="pw-cta">
         <Link href="/create" className="pw-go">
           GET YOUR PORTFOLIO
