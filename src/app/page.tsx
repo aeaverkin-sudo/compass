@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { LiveCardLanding } from "@landing/components/live-card-landing";
+import { PosterWallLanding } from "@landing/components/poster-wall-landing";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
@@ -49,6 +49,6 @@ export default function Home() {
     }
   }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, cards, router]);
 
-  if (landing) return <LiveCardLanding />;
+  if (landing) return <PosterWallLanding />;
   return <div className="fixed inset-0 bg-white" aria-hidden />;
 }

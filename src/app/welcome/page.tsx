@@ -1,5 +1,5 @@
-import { LiveCardLanding } from "@landing/components/live-card-landing";
+import { PosterWallLanding } from "@landing/components/poster-wall-landing";
 
 export default function WelcomePage() {
-  return <LiveCardLanding />;
+  return <PosterWallLanding />;
 }
