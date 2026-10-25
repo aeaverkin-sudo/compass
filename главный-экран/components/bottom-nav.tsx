@@ -1,7 +1,8 @@
 "use client";
 
-import { memo, useEffect, useRef, type ComponentProps } from "react";
+import { memo, useEffect, useRef, type ComponentProps, type PointerEvent } from "react";
 import { MarkPlus } from "@/shared/components/mark-plus";
+import { REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import { TabBand } from "./tab-band";
 
 const EDIT_CLICK_GUARD_MS = 400;
@@ -48,9 +49,27 @@ export const BottomNav = memo(function BottomNav({
 }: BottomNavProps) {
   // Edit fires on the finger lifting; the click after it lands on the + that takes its place.
   const editedAt = useRef(0);
+  const editOrigin = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     if (editing) editedAt.current = Date.now();
   }, [editing]);
+
+  const onEditPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    editOrigin.current = { x: event.clientX, y: event.clientY };
+    window.getSelection()?.removeAllRanges();
+  };
+
+  const onEditPointerUp = (event: PointerEvent<HTMLButtonElement>) => {
+    const start = editOrigin.current;
+    editOrigin.current = null;
+    if (!start) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (dx * dx + dy * dy > REORDER_SLOP_PX * REORDER_SLOP_PX) return;
+    onEdit();
+  };
 
   return (
     <TabBand
@@ -87,13 +106,13 @@ export const BottomNav = memo(function BottomNav({
           <button
             type="button"
             className="flex h-full min-h-11 w-full items-center justify-center uppercase"
-            onPointerDown={(event) => {
-              event.preventDefault();
-              window.getSelection()?.removeAllRanges();
+            onPointerDown={onEditPointerDown}
+            onPointerUp={onEditPointerUp}
+            onPointerCancel={() => {
+              editOrigin.current = null;
             }}
-            onPointerUp={(event) => {
-              if (event.pointerType === "mouse" && event.button !== 0) return;
-              onEdit();
+            onClick={(event) => {
+              if (event.detail === 0) onEdit();
             }}
             onContextMenu={(event) => event.preventDefault()}
           >

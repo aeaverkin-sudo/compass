@@ -22,6 +22,7 @@ import { PortfolioDeleteDialog, useIsFirstCard } from "./portfolio-delete";
 import { SideRail } from "./side-rail";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
+import { cardShareHoldsPlace, editTapBlocked } from "@/shared/lib/card-share-guard";
 import { UploadNotice } from "@/shared/components/upload-notice";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { InstallHint } from "@/shared/components/install-hint";
@@ -228,6 +229,23 @@ export function MainScreen() {
   }, [router]);
 
   useEffect(() => {
+    const leave = () => {
+      setComposeOnMount(false);
+      setEditing(false);
+      if (!cardShareHoldsPlace()) setBrowseIndex(0);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") leave();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, []);
+
+  useEffect(() => {
     const blockSelection = (event: Event) => {
       const node = event.target;
       const el = node instanceof Element ? node : node instanceof Node ? node.parentElement : null;
@@ -278,7 +296,7 @@ export function MainScreen() {
     setEditing(false);
   }, []);
   const onEdit = useCallback(() => {
-    if (frozen) return;
+    if (frozen || editTapBlocked()) return;
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
     if (needsAccount && !liveCards[index]) {
       showGate();

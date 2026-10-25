@@ -5,6 +5,7 @@ import { MonochromeSync } from "@/shared/components/monochrome-sync";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
 import { ServiceWorker } from "@/shared/components/service-worker";
 import { SupabaseSession } from "@/shared/components/supabase-session";
+import { ReturnHome } from "@/shared/components/return-home";
 import { TabPrefetch } from "@/shared/components/tab-prefetch";
 import { TrialLock } from "@/shared/components/trial-lock";
 import { VisualBottom } from "@/shared/components/visual-bottom";
@@ -102,6 +103,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <VisualBottom />
         <PdfPreviewHost />
         <TabPrefetch />
+        <ReturnHome />
         <ServiceWorker />
         {children}
         <TrialLock />

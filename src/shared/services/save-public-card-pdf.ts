@@ -1,4 +1,5 @@
 import type { DeliveredNote } from "@/shared/services/notes-types";
+import { beginCardShare, endCardShare } from "@/shared/lib/card-share-guard";
 import { subscribeLiveQrPulse } from "@/shared/lib/live-qr-pulse";
 
 export type CardPdfInput = {
@@ -154,14 +155,17 @@ export function shareCardChoice(link: { title: string; url: string }): Promise<b
   const title = link.title.trim() || "Portfolio";
   const url = link.url;
   const data: ShareData = { title, url };
-  if (!canSend(data)) return copyLink(url);
-  return navigator.share(data).then(
-    () => true,
-    (error: unknown) => {
-      if (error instanceof DOMException && error.name === "AbortError") return false;
-      return copyLink(url);
-    },
-  );
+  beginCardShare();
+  const sent = !canSend(data)
+    ? copyLink(url)
+    : navigator.share(data).then(
+        () => true,
+        (error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") return false;
+          return copyLink(url);
+        },
+      );
+  return sent.finally(endCardShare);
 }
 
 function canSend(data: ShareData): boolean {
