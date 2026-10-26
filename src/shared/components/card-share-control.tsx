@@ -27,11 +27,10 @@ export function useCardShare(card: Card) {
     const live = useAppStore.getState().cards.find((entry) => entry.id === card.id) ?? card;
     const token = live.publicToken;
     if (!token) return;
-    const title = live.displayName.trim() || "Portfolio";
     // The tap is the send. iOS often reports a Telegram or AirDrop handoff as cancelled,
     // so the note leaves the card before the sheet answers. Closing the sheet does the same.
     if (getNextScanAddons(live).length > 0) releaseOwnerNotes(live.id, "link", token);
-    void shareCardChoice({ title, url: publicCardUrl(live) }).then((sent) => {
+    void shareCardChoice({ url: publicCardUrl(live) }).then((sent) => {
       if (!sent) return;
       void fetch("/api/network/share", {
         method: "POST",

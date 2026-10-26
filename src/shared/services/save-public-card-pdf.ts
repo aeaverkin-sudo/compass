@@ -151,10 +151,12 @@ export type CardShareChoice = "link";
  * The sheet carries the live link.
  * Resolves true when the link was handed off. Cancel resolves false.
  */
-export function shareCardChoice(link: { title: string; url: string }): Promise<boolean> {
-  const title = link.title.trim() || "Portfolio";
+export function shareCardChoice(link: { url: string }): Promise<boolean> {
   const url = link.url;
-  const data: ShareData = { title, url };
+  // The preview is the page itself. A title next to the url is a caption, and Telegram
+  // then keeps the link in Saved Messages but does not place it in a chat.
+  const asText: ShareData = { text: url };
+  const data: ShareData = canSend(asText) ? asText : { url };
   beginCardShare();
   const sent = !canSend(data)
     ? copyLink(url)
