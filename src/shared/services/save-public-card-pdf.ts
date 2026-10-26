@@ -153,10 +153,12 @@ export type CardShareChoice = "link";
  */
 export function shareCardChoice(link: { url: string }): Promise<boolean> {
   const url = link.url;
-  // The preview is the page itself. A title next to the url is a caption, and Telegram
-  // then keeps the link in Saved Messages but does not place it in a chat.
+  // AirDrop gives the other phone this url and that phone opens the card. The address
+  // stays the whole message, with no name beside it, so it is not printed twice and a
+  // Telegram chat is not handed an empty caption. The preview is the page itself.
+  const asLink: ShareData = { url };
   const asText: ShareData = { text: url };
-  const data: ShareData = canSend(asText) ? asText : { url };
+  const data: ShareData = canSend(asLink) ? asLink : asText;
   beginCardShare();
   const sent = !canSend(data)
     ? copyLink(url)
