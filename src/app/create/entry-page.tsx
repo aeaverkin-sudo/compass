@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
@@ -354,13 +355,20 @@ export function EntryPage({ input }: { input: EntryInput }) {
             <span />
             <span className="flex min-w-0 items-center gap-2">
               <label htmlFor="create-terms" className="t-meta min-w-0 text-[var(--ink)]">
-                I agree with terms and conditions
+                I agree with{" "}
+                <Link href="/terms" className="underline">
+                  terms
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="underline">
+                  privacy
+                </Link>
               </label>
               <Checkbox
                 id="create-terms"
                 checked={agreed}
                 onCheckedChange={(value) => setAgreed(value === true)}
-                aria-label="I agree with terms and conditions"
+                aria-label="I agree with terms and privacy"
                 className="ml-auto size-4 shrink-0 rounded-none border border-[var(--rule)] bg-white"
               />
             </span>
