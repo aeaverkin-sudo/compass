@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { flushNotesSync, releaseOwnerNotes } from "@/shared/services/notes-sync";
 import { getNextScanAddons } from "@/shared/services/card-snapshot";
 import { publicCardUrl } from "@/shared/services/public-card-url";
+import { shareInFlight } from "@/shared/lib/card-share-guard";
 import { shareCardChoice, type CardShareChoice } from "@/shared/services/save-public-card-pdf";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
@@ -26,11 +27,11 @@ export function useCardShare(card: Card) {
   const handleShare = () => {
     const live = useAppStore.getState().cards.find((entry) => entry.id === card.id) ?? card;
     const token = live.publicToken;
-    if (!token) return;
-    // The tap is the send. iOS often reports a Telegram or AirDrop handoff as cancelled,
-    // so the note leaves the card before the sheet answers. Closing the sheet does the same.
+    if (!token || shareInFlight()) return;
+    // The system sheet is the first call in this tap. Notes and the counter follow it.
+    const pending = shareCardChoice({ url: publicCardUrl(live) });
     if (getNextScanAddons(live).length > 0) releaseOwnerNotes(live.id, "link", token);
-    void shareCardChoice({ url: publicCardUrl(live) }).then((sent) => {
+    void pending.then((sent) => {
       if (!sent) return;
       void fetch("/api/network/share", {
         method: "POST",

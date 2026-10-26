@@ -4,6 +4,7 @@ import { AppResetGate } from "@/shared/components/app-reset-gate";
 import { MonochromeSync } from "@/shared/components/monochrome-sync";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
 import { ServiceWorker } from "@/shared/components/service-worker";
+import { ShareNotice } from "@/shared/components/share-notice";
 import { SupabaseSession } from "@/shared/components/supabase-session";
 import { ReturnHome } from "@/shared/components/return-home";
 import { TabPrefetch } from "@/shared/components/tab-prefetch";
@@ -105,6 +106,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <TabPrefetch />
         <ReturnHome />
         <ServiceWorker />
+        <ShareNotice />
         {children}
         <TrialLock />
       </body>

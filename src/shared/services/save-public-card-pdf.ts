@@ -1,5 +1,5 @@
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { beginCardShare, endCardShare } from "@/shared/lib/card-share-guard";
+import { presentShare } from "@/shared/lib/card-share-guard";
 import { subscribeLiveQrPulse } from "@/shared/lib/live-qr-pulse";
 
 export type CardPdfInput = {
@@ -159,17 +159,8 @@ export function shareCardChoice(link: { url: string }): Promise<boolean> {
   const asLink: ShareData = { url };
   const asText: ShareData = { text: url };
   const data: ShareData = canSend(asLink) ? asLink : asText;
-  beginCardShare();
-  const sent = !canSend(data)
-    ? copyLink(url)
-    : navigator.share(data).then(
-        () => true,
-        (error: unknown) => {
-          if (error instanceof DOMException && error.name === "AbortError") return false;
-          return copyLink(url);
-        },
-      );
-  return sent.finally(endCardShare);
+  if (!canSend(data)) return copyLink(url);
+  return presentShare(data, url).then((result) => result.sent);
 }
 
 function canSend(data: ShareData): boolean {
@@ -198,7 +189,7 @@ function copyLink(url: string): Promise<boolean> {
 /**
  * Hand the ready PDF from a user gesture. Must run in the same turn as the tap —
  * never after `await`. Returns false when the cache is still empty.
- * AbortError (user closed the sheet) is silent; any other share failure calls `onShareFailed`.
+ * AbortError still skips the save door. The error name is shown on the plaque.
  */
 export function shareCardPdfIfReady(
   input: CardPdfInput,
@@ -212,17 +203,11 @@ export function shareCardPdfIfReady(
     handFile(file);
     return true;
   }
-  try {
-    void navigator.share(shareData).then(
-      () => undefined,
-      (error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        opts?.onShareFailed?.();
-      },
-    );
-  } catch {
-    opts?.onShareFailed?.();
-  }
+  void presentShare(shareData).then((result) => {
+    if (result.errorName && result.errorName !== "AbortError" && result.errorName !== "timeout") {
+      opts?.onShareFailed?.();
+    }
+  });
   return true;
 }
 
