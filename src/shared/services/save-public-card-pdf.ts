@@ -1,5 +1,5 @@
 import type { DeliveredNote } from "@/shared/services/notes-types";
-import { presentShare } from "@/shared/lib/card-share-guard";
+import { beginCardShare, endCardShare } from "@/shared/lib/card-share-guard";
 import { subscribeLiveQrPulse } from "@/shared/lib/live-qr-pulse";
 
 export type CardPdfInput = {
@@ -151,16 +151,21 @@ export type CardShareChoice = "link";
  * The sheet carries the live link.
  * Resolves true when the link was handed off. Cancel resolves false.
  */
-export function shareCardChoice(link: { url: string }): Promise<boolean> {
+export function shareCardChoice(link: { title: string; url: string }): Promise<boolean> {
+  const title = link.title.trim() || "Portfolio";
   const url = link.url;
-  // AirDrop gives the other phone this url and that phone opens the card. The address
-  // stays the whole message, with no name beside it, so it is not printed twice and a
-  // Telegram chat is not handed an empty caption. The preview is the page itself.
-  const asLink: ShareData = { url };
-  const asText: ShareData = { text: url };
-  const data: ShareData = canSend(asLink) ? asLink : asText;
-  if (!canSend(data)) return copyLink(url);
-  return presentShare(data, url).then((result) => result.sent);
+  const data: ShareData = { title, url };
+  beginCardShare();
+  const sent = !canSend(data)
+    ? copyLink(url)
+    : navigator.share(data).then(
+        () => true,
+        (error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") return false;
+          return copyLink(url);
+        },
+      );
+  return sent.finally(endCardShare);
 }
 
 function canSend(data: ShareData): boolean {
@@ -189,7 +194,7 @@ function copyLink(url: string): Promise<boolean> {
 /**
  * Hand the ready PDF from a user gesture. Must run in the same turn as the tap —
  * never after `await`. Returns false when the cache is still empty.
- * AbortError still skips the save door. The error name is shown on the plaque.
+ * AbortError (user closed the sheet) is silent; any other share failure calls `onShareFailed`.
  */
 export function shareCardPdfIfReady(
   input: CardPdfInput,
@@ -203,11 +208,17 @@ export function shareCardPdfIfReady(
     handFile(file);
     return true;
   }
-  void presentShare(shareData).then((result) => {
-    if (result.errorName && result.errorName !== "AbortError" && result.errorName !== "timeout") {
-      opts?.onShareFailed?.();
-    }
-  });
+  try {
+    void navigator.share(shareData).then(
+      () => undefined,
+      (error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        opts?.onShareFailed?.();
+      },
+    );
+  } catch {
+    opts?.onShareFailed?.();
+  }
   return true;
 }
 

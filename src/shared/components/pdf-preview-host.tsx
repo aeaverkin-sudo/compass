@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { presentShare } from "@/shared/lib/card-share-guard";
 import { isHomeScreenApp } from "@/shared/services/save-public-card-pdf";
 
 type PreviewFile = { id?: number; blob: Blob | null; name: string };
@@ -119,7 +118,7 @@ export function PdfPreviewHost() {
     if (!file.blob) return;
     const pdf = new File([file.blob], file.name, { type: "application/pdf" });
     if (typeof navigator.share !== "function") return;
-    void presentShare({ files: [pdf] });
+    void navigator.share({ files: [pdf] }).catch(() => undefined);
   };
 
   return (

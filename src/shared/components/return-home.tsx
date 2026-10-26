@@ -7,16 +7,9 @@ import { useAppStore } from "@/shared/store/app-store";
 
 const HOME_KEY = "aded-open-main";
 
-/** A link someone received. Coming back must leave them on that card, not on the owner's home. */
-function isSharedCard(path: string) {
-  const pathname = path.split("?")[0]?.split("#")[0] ?? path;
-  if (pathname.startsWith("/@")) return true;
-  return /^\/c\/[^/]+/.test(pathname);
-}
-
 /**
  * Leaving the app from any screen comes back to the first card.
- * A card share keeps that card. An opened portfolio link stays where it was opened.
+ * A card share keeps that card.
  */
 export function ReturnHome() {
   const router = useRouter();
@@ -43,7 +36,6 @@ export function ReturnHome() {
     };
 
     const home = () => {
-      if (isSharedCard(window.location.pathname)) return;
       if (cardShareHoldsPlace()) {
         clearLeft();
         return;
@@ -65,7 +57,7 @@ export function ReturnHome() {
     };
 
     const onHide = () => {
-      if (cardShareHoldsPlace() || isSharedCard(window.location.pathname)) return;
+      if (cardShareHoldsPlace()) return;
       markLeft();
     };
 
