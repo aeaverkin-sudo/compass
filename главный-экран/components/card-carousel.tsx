@@ -133,6 +133,7 @@ export const CardCarousel = memo(function CardCarousel({
   }, [cards, canAddCard]);
 
   const slideGapPx = CARD_CAROUSEL_GAP_PX;
+  const awaitingWidth = containerWidth === 0;
   const slideWidthPx = useMemo(() => {
     if (!multiSlide || containerWidth === 0) return 0;
     return carouselSlideWidthPx(containerWidth, true, SHEET_INSET.browse.horizontal);
@@ -144,15 +145,19 @@ export const CardCarousel = memo(function CardCarousel({
   }, [containerWidth, multiSlide, slideWidthPx]);
 
   useLayoutEffect(() => {
-    const node = scrollRef.current;
-    if (!node || !multiSlide) return;
+    if (!multiSlide) return;
 
     const sync = () => {
+      const node = scrollRef.current;
+      if (!node) return;
       const width = isBrowse ? node.clientWidth : document.documentElement.clientWidth;
-      setContainerWidth(width);
+      if (width <= 0) return;
+      setContainerWidth((prev) => (prev === width ? prev : width));
     };
     sync();
 
+    const node = scrollRef.current;
+    if (!node) return;
     const observer = new ResizeObserver(sync);
     observer.observe(node);
     window.addEventListener("resize", sync);
@@ -161,7 +166,8 @@ export const CardCarousel = memo(function CardCarousel({
       observer.disconnect();
       window.removeEventListener("resize", sync);
     };
-  }, [multiSlide, isBrowse]);
+    // Re-bind when the empty measurer is replaced by the live carousel. The first node is gone after that.
+  }, [multiSlide, isBrowse, awaitingWidth]);
 
   const scrollLeftForIndex = useCallback(
     (index: number) => {
