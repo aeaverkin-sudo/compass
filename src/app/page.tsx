@@ -25,23 +25,18 @@ export default function Home() {
   const onboarded = useAppStore((state) => state.user.onboarded);
   const cards = useAppStore((state) => state.cards);
   const landing =
-    hydrated && sessionReady && !needsSignIn && cardsReady && !onboarded && !trialCardStarted(cards);
+    hydrated &&
+    sessionReady &&
+    cardsReady &&
+    (needsSignIn || (!onboarded && !trialCardStarted(cards)));
 
   useEffect(() => {
-    if (hydrated && onboarded && !needsSignIn) {
-      router.replace("/main");
-      return;
-    }
-    if (!hydrated || !sessionReady) return;
-    if (needsSignIn) {
-      router.replace("/register?signin=1&expired=1");
-      return;
-    }
-    if (!cardsReady) return;
+    if (!hydrated || !sessionReady || needsSignIn) return;
     if (onboarded) {
       router.replace("/main");
       return;
     }
+    if (!cardsReady) return;
     if (trialCardStarted(cards)) {
       const user = useAppStore.getState().user;
       useAppStore.setState({ user: { ...user, onboarded: true } });
