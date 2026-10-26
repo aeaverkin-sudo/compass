@@ -1,13 +1,26 @@
 import { cn } from "@/lib/utils";
 
 export type PhotoLook = "frame" | "shadow";
+/** `plain` is the flat square. Absent is not flat: the card still paints the default shadow. */
+export type StoredPhotoLook = PhotoLook | "plain";
 
-export function photoLookValue(value: unknown): PhotoLook | undefined {
-  return value === "frame" || value === "shadow" ? value : undefined;
+export function photoLookValue(value: unknown): StoredPhotoLook | undefined {
+  return value === "frame" || value === "shadow" || value === "plain" ? value : undefined;
 }
 
-/** Outline or soft shadow. Absent is the plain square. */
-export function photoSlotLookClass(look?: PhotoLook) {
+/**
+ * The look the photo square paints on the portfolio, the web card, and the PDF.
+ * Unset stays the default shadow, so a card that shows a shadow keeps it after send.
+ * `plain` is the only flat square.
+ */
+export function shownPhotoLook(look?: StoredPhotoLook | null): PhotoLook | undefined {
+  if (look === "plain") return undefined;
+  if (look === "frame" || look === "shadow") return look;
+  return "shadow";
+}
+
+/** Outline or soft shadow. `plain` and absent paint no chrome. The card default lives in `shownPhotoLook`. */
+export function photoSlotLookClass(look?: StoredPhotoLook | null) {
   return cn(
     look === "frame" && "border border-[#d4d4d4]",
     look === "shadow" && "shadow-[0_2px_8px_rgba(17,17,17,0.16)]",

@@ -130,12 +130,11 @@ function overlayScalars(local: Card, row: CardRow): Card {
       normalizeItemZones(row.item_zones),
     ),
     hiddenZones: local.hiddenZones,
-    photoLook:
-      local.updatedAt > row.updated_at
-        ? local.photoLook
-        : "photo_look" in row
-          ? photoLookValue(row.photo_look)
-          : local.photoLook,
+    photoLook: keptField(
+      local.updatedAt > row.updated_at,
+      local.photoLook,
+      "photo_look" in row ? photoLookValue(row.photo_look) : undefined,
+    ),
     createdAt: row.created_at,
     updatedAt: keptLocalText && local.updatedAt > row.updated_at ? local.updatedAt : row.updated_at,
   };
@@ -277,7 +276,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
         rubric_order: card.rubricOrder ?? null,
         rubric_labels: card.rubricLabels ?? null,
         item_zones: card.itemZones ?? null,
-        photo_look: card.photoLook ?? null,
+        photo_look: card.photoLook ?? (card.photoAttachmentId || card.photo ? "shadow" : null),
         photo_attachment_id: card.photoAttachmentId ?? null,
         created_at: card.createdAt,
         updated_at: card.updatedAt,

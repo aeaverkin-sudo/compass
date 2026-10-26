@@ -76,8 +76,8 @@ export interface Card {
   photo?: string;
   /** Card avatar in Storage. The picture is served from `/f/{id}`. */
   photoAttachmentId?: string;
-  /** Outline or shadow of the photo slot. Absent means the plain square. */
-  photoLook?: "frame" | "shadow";
+  /** Outline, shadow, or `plain` for the flat square. Absent paints the default shadow. */
+  photoLook?: "frame" | "shadow" | "plain";
   title: string;
   status: CardStatus;
   /** Public QR token (`cards.public_token`). Not the legacy `User.shareToken`. */

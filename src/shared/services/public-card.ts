@@ -4,7 +4,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { HANDLE_RE } from "@/shared/services/card-handle";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
-import { photoLookValue } from "@/shared/lib/photo-look";
+import { shownPhotoLook, photoLookValue } from "@/shared/lib/photo-look";
 import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from "@/shared/services/card-zones";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
@@ -137,7 +137,7 @@ export const loadPublicCard = cache(async (token: string): Promise<PublicCard | 
     rubricOrder: normalizeRubricOrder(row.rubric_order),
     rubricLabels: normalizeRubricLabels(row.rubric_labels),
     itemZones: normalizeItemZones(row.item_zones),
-    photoLook: photoLookValue(row.photo_look),
+    photoLook: photoLookValue(row.photo_look) ?? (photoReady ? shownPhotoLook(undefined) : undefined),
     nextScanAddons: [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,

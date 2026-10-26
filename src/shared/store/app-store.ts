@@ -318,8 +318,10 @@ export const useAppStore = create<AppState>()(
         if (!current) return;
 
         const nameChanged = data.displayName !== undefined && data.displayName.trim() !== current.displayName.trim();
+        const patch: Partial<Card> =
+          "photoLook" in data && data.photoLook == null ? { ...data, photoLook: "plain" } : data;
         const next = assignHandle(
-          ensureCardIdentity({ ...current, ...data, updatedAt: now }),
+          ensureCardIdentity({ ...current, ...patch, updatedAt: now }),
           get().cards,
           nameChanged || !current.handle?.trim(),
         );
@@ -816,7 +818,7 @@ export const useAppStore = create<AppState>()(
     {
       name: "compass-storage-v4",
       storage: idlePersistStorage(),
-      version: 10,
+      version: 11,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 5) {
@@ -853,6 +855,11 @@ export const useAppStore = create<AppState>()(
         }
         if (version < 10) {
           state.cards = handlesForCards((state.cards as Card[] | undefined) ?? []);
+        }
+        if (version < 11) {
+          state.cards = ((state.cards as Card[] | undefined) ?? []).map((card) =>
+            card.photoLook || (!card.photo && !card.photoAttachmentId) ? card : { ...card, photoLook: "shadow" },
+          );
         }
         return state as unknown as AppState;
       },

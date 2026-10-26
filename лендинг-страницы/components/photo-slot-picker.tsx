@@ -3,7 +3,7 @@
 import { Ellipsis, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { hasLightEdges, photoSlotLookClass, type PhotoLook } from "@/shared/lib/photo-look";
+import { hasLightEdges, photoSlotLookClass, type PhotoLook, type StoredPhotoLook } from "@/shared/lib/photo-look";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,8 +33,8 @@ type PhotoSlotPickerProps = {
   surfaceClassName?: string;
   /** When set, the picker does not open and this runs instead. */
   onPickBlocked?: () => void;
-  /** Frame or shadow of the slot. Absent is the plain square. */
-  photoLook?: PhotoLook;
+  /** Frame, shadow, or `plain` for the flat square. Absent paints no chrome. */
+  photoLook?: StoredPhotoLook;
   /** Long-press then offers FRAME and SHADOW. Omitted on the landing page. */
   onPhotoLook?: (look: PhotoLook | null) => void;
   /** The «···» menu, in order. Plain is the slot without a look. Default FRAME and SHADOW, each tapped off again. */
