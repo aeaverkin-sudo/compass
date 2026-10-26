@@ -8,6 +8,7 @@ import { carouselSidePaddingPx, SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
 import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
@@ -59,6 +60,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
   const [emailLive, setEmailLive] = useState(!offeredEmail);
   const [passwordVisible, setPasswordVisible] = useState(true);
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
+  const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
@@ -66,7 +68,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
   const [sidePad, setSidePad] = useState(() => carouselSidePaddingPx(0, true));
   const [passwordValue, setPasswordValue] = useState<string | null>(null);
   const passwordShown = passwordValue ?? "";
-  const ready = Boolean(name.trim() && emailOk(email) && passwordShown.length >= PASSWORD_MIN);
+  const ready = Boolean(agreed && name.trim() && emailOk(email) && passwordShown.length >= PASSWORD_MIN);
   const frame = { paddingLeft: sidePad, paddingRight: sidePad };
 
   useEffect(() => {
@@ -348,6 +350,21 @@ export function EntryPage({ input }: { input: EntryInput }) {
           <p className="m-0 t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>
             You can change it anytime in Profile.
           </p>
+          <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px]">
+            <span />
+            <span className="flex min-w-0 items-center gap-2">
+              <label htmlFor="create-terms" className="t-meta min-w-0 text-[var(--ink)]">
+                I agree with terms and conditions
+              </label>
+              <Checkbox
+                id="create-terms"
+                checked={agreed}
+                onCheckedChange={(value) => setAgreed(value === true)}
+                aria-label="I agree with terms and conditions"
+                className="ml-auto size-4 shrink-0 rounded-none border border-[var(--rule)] bg-white"
+              />
+            </span>
+          </div>
         </div>
         </div>
       </div>
