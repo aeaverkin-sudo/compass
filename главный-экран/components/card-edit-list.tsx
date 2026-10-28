@@ -12,6 +12,7 @@ import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { DELETE_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import { tick } from "@/shared/lib/haptic";
+import { readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
 import { flashRow } from "@/shared/lib/row-flash";
 import {
   groupEditSections,
@@ -378,6 +379,7 @@ export const CardEditList = memo(function CardEditList({
   const [libraryHint, setLibraryHint] = useState<"add" | "first" | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const placeSkip = useRef(true);
   const extraBlockRef = useRef<HTMLDivElement>(null);
   const extraValueRef = useRef<WrapFieldHandle>(null);
   const keepExtraRef = useRef(false);
@@ -387,6 +389,22 @@ export const CardEditList = memo(function CardEditList({
     flashRow(listRef.current?.querySelector<HTMLElement>(`[data-item-row="${CSS.escape(twinId)}"]`));
     setDuplicateNotice((count) => count + 1);
   }, []);
+
+  useEffect(() => {
+    if (placeSkip.current) {
+      placeSkip.current = false;
+      const place = readPortfolio();
+      if (place?.cardId === card.id) {
+        if (place.sectionId) setSectionEditId(place.sectionId);
+        if (place.rowId) setTextEditId(place.rowId);
+      }
+      return;
+    }
+    const place = readPortfolio();
+    if (!place || place.cardId !== card.id) return;
+    if (place.rowId === textEditId && place.sectionId === sectionEditId) return;
+    writePortfolio({ cardId: card.id, rowId: textEditId, sectionId: sectionEditId });
+  }, [textEditId, sectionEditId, card.id]);
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 

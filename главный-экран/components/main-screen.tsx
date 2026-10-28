@@ -23,6 +23,7 @@ import { SideRail } from "./side-rail";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { cardShareHoldsPlace, editTapBlocked } from "@/shared/lib/card-share-guard";
+import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
 import { UploadNotice } from "@/shared/components/upload-notice";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { InstallHint } from "@/shared/components/install-hint";
@@ -120,6 +121,7 @@ export function MainScreen() {
   const passAddHintSeen = useAppStore((state) => state.user.passAddHintSeen);
   const markPassAddHintSeen = useAppStore((state) => state.markPassAddHintSeen);
   const [editing, setEditing] = useState(false);
+  const editingRef = useRef(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const openAddRef = useRef<(() => void) | null>(null);
@@ -135,6 +137,17 @@ export function MainScreen() {
   const dismissPasswordHint = useCallback(() => setPasswordHint(false), []);
   const showGate = useCallback(() => setGateNonce(Date.now()), []);
   const onComposingChange = useCallback((open: boolean) => setComposing(open), []);
+  editingRef.current = editing;
+
+  const rememberEdit = useCallback((cardId: string) => {
+    if (!cardId) return;
+    const current = readPortfolio();
+    writePortfolio({
+      cardId,
+      rowId: current?.cardId === cardId ? current.rowId : null,
+      sectionId: current?.cardId === cardId ? current.sectionId : null,
+    });
+  }, []);
 
   const frameRef = useRef<HTMLElement>(null);
   const [frameWidth, setFrameWidth] = useState(0);
@@ -205,11 +218,32 @@ export function MainScreen() {
   }, [cardsHydrated, cardCount, portfolioLimit, updateSecondCardDraft]);
 
   useEffect(() => {
-    if (!activeId || frozen) {
+    if (!cardsHydrated || frozen) return;
+    const place = readPortfolio();
+    if (!place) return;
+    const index = useAppStore.getState().cards.findIndex((card) => card.id === place.cardId);
+    if (index < 0) {
+      clearFillPlace();
+      return;
+    }
+    setCurrentCardIndex(index);
+    setBrowseIndex(index);
+    setEditing(true);
+  }, [cardsHydrated, frozen, setCurrentCardIndex]);
+
+  useEffect(() => {
+    if (!cardsHydrated) return;
+    if (frozen) {
+      setEditing(false);
+      setComposeOnMount(false);
+      if (readPortfolio()) clearFillPlace();
+      return;
+    }
+    if (!activeId) {
       setEditing(false);
       setComposeOnMount(false);
     }
-  }, [activeId, frozen]);
+  }, [activeId, frozen, cardsHydrated]);
 
   useEffect(() => {
     if (composing || passwordHintSeen || passwordHint) return;
@@ -230,6 +264,19 @@ export function MainScreen() {
 
   useEffect(() => {
     const leave = () => {
+      if (editingRef.current) {
+        const { cards, currentCardIndex: index } = useAppStore.getState();
+        const cardId = cards[index]?.id;
+        if (cardId) {
+          const current = readPortfolio();
+          writePortfolio({
+            cardId,
+            rowId: current?.cardId === cardId ? current.rowId : null,
+            sectionId: current?.cardId === cardId ? current.sectionId : null,
+          });
+        }
+        return;
+      }
       setComposeOnMount(false);
       setEditing(false);
       if (!cardShareHoldsPlace()) setBrowseIndex(0);
@@ -281,8 +328,9 @@ export function MainScreen() {
       setComposeOnMount(false);
       setEditing(true);
     });
+    rememberEdit(cardId);
     setComposeOnMount(true);
-  }, [markPassAddHintSeen, setCurrentCardIndex]);
+  }, [markPassAddHintSeen, rememberEdit, setCurrentCardIndex]);
 
   const onProfile = useCallback(() => {
     startTransition(() => router.push("/profile"));
@@ -294,6 +342,7 @@ export function MainScreen() {
   const onDone = useCallback(() => {
     setComposeOnMount(false);
     setEditing(false);
+    clearFillPlace();
   }, []);
   const onEdit = useCallback(() => {
     if (frozen || editTapBlocked()) return;
@@ -305,9 +354,11 @@ export function MainScreen() {
     if (!liveCards[index] && portfolioLimit !== null) {
       updateSecondCardDraft({ displayName: "" }, portfolioLimit);
     }
+    const cardId = useAppStore.getState().cards[useAppStore.getState().currentCardIndex]?.id;
     setComposeOnMount(false);
     setEditing(true);
-  }, [frozen, needsAccount, portfolioLimit, showGate, updateSecondCardDraft]);
+    if (cardId) rememberEdit(cardId);
+  }, [frozen, needsAccount, portfolioLimit, rememberEdit, showGate, updateSecondCardDraft]);
   const onAdd = useCallback(() => {
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
     if (needsAccount && !liveCards[index]) {
@@ -324,7 +375,8 @@ export function MainScreen() {
     if (index > 0) setCurrentCardIndex(index);
     setComposeOnMount(!liveItems.some(isContactFilled));
     setEditing(true);
-  }, [frozen, markEmptyFillHintSeen, setCurrentCardIndex]);
+    rememberEdit(cardId);
+  }, [frozen, markEmptyFillHintSeen, rememberEdit, setCurrentCardIndex]);
   const onActiveIndexChange = useCallback((index: number) => {
     setBrowseIndex(index);
     if (index < useAppStore.getState().cards.length) setCurrentCardIndex(index);
