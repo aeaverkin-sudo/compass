@@ -10,7 +10,7 @@ import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
 import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { clearFillPlace, readQuestionnaire, writeQuestionnaire } from "@/shared/lib/fill-place";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
@@ -314,10 +314,14 @@ export function EntryPage({ input }: { input: EntryInput }) {
       className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]"
     >
       <BackButton fallbackHref="/" />
-      <div style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - 11px + 22px + 18px)` }} />
+      <AuthModeToggle mode="up" signUpHref="/create" signInHref={signInHref(undefined, input)} />
+      <div
+        aria-hidden
+        className="mb-[18px] shrink-0"
+        style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px)` }}
+      />
       <div style={frame}>
       <div className={PAD}>
-        <AuthModeToggle mode="up" pinned={false} signUpHref="/create" signInHref={signInHref(undefined, input)} className="mb-[18px]" />
         <div className="flex items-stretch gap-3" style={{ height: 128 }}>
           <div className="relative shrink-0">
             <PhotoSlotPicker
