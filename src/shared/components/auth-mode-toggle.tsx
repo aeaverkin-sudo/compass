@@ -42,7 +42,7 @@ function Segment({
   );
 }
 
-/** Sign up / Sign in. Pinned sits on the chevron row. Loose is a line in the scroll. */
+/** Sign up / Sign in. Pinned stays on the screen. Loose sits on the chevron row and scrolls away. */
 export function AuthModeToggle({
   mode,
   signUpHref,
@@ -53,14 +53,14 @@ export function AuthModeToggle({
   mode: "up" | "in";
   signUpHref: string;
   signInHref: string;
-  /** Stays on the chevron row. The questionnaire turns this off so the line scrolls away. */
+  /** Stays on the screen. The questionnaire turns this off so the row scrolls away. */
   pinned?: boolean;
   className?: string;
 }) {
   return (
     <nav
       aria-label="Account"
-      className={cn("flex", photoSlotLookClass("shadow"), pinned ? "fixed z-[31]" : "w-full", className)}
+      className={cn("flex", photoSlotLookClass("shadow"), pinned && "fixed z-[31]", className)}
       style={
         pinned
           ? {
@@ -69,7 +69,12 @@ export function AuthModeToggle({
               right: "var(--gutter)",
               height: HEADER_ROW_PX,
             }
-          : { height: HEADER_ROW_PX }
+          : {
+              marginTop: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
+              marginLeft: `calc(var(--gutter) - ${ARROW_TIP_INSET_PX}px + ${CHEVRON_PX}px + ${COLUMN_GAP_PX}px)`,
+              marginRight: "var(--gutter)",
+              height: HEADER_ROW_PX,
+            }
       }
     >
       <Segment href={signUpHref} on={mode === "up"} label="Sign up" />

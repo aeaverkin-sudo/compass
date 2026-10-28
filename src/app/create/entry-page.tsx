@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
-import { carouselSidePaddingPx, SCREEN_TOP_AXIS_PX } from "@main/layout";
+import { carouselSidePaddingPx } from "@main/layout";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
 import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { clearFillPlace, readQuestionnaire, writeQuestionnaire } from "@/shared/lib/fill-place";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
@@ -314,11 +314,12 @@ export function EntryPage({ input }: { input: EntryInput }) {
       className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]"
     >
       <BackButton fallbackHref="/" />
-      <AuthModeToggle mode="up" signUpHref="/create" signInHref={signInHref(undefined, input)} />
-      <div
-        aria-hidden
-        className="mb-[18px] shrink-0"
-        style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px)` }}
+      <AuthModeToggle
+        mode="up"
+        pinned={false}
+        signUpHref="/create"
+        signInHref={signInHref(undefined, input)}
+        className="mb-[18px]"
       />
       <div style={frame}>
       <div className={PAD}>
