@@ -11,6 +11,7 @@ import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { clearFillPlace, readQuestionnaire, writeQuestionnaire } from "@/shared/lib/fill-place";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -66,15 +67,64 @@ export function EntryPage({ input }: { input: EntryInput }) {
   const [error, setError] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const zonesRef = useRef<EntryZonesHandle>(null);
+  const keepPlace = useRef(false);
+  const [placeReady, setPlaceReady] = useState(false);
   const [sidePad, setSidePad] = useState(() => carouselSidePaddingPx(0, true));
   const [passwordValue, setPasswordValue] = useState<string | null>(null);
   const passwordShown = passwordValue ?? "";
   const ready = Boolean(agreed && name.trim() && emailOk(email) && passwordShown.length >= PASSWORD_MIN);
   const frame = { paddingLeft: sidePad, paddingRight: sidePad };
 
+  const fields = useRef({ name, email, password: passwordShown, agreed });
+  fields.current = { name, email, password: passwordShown, agreed };
+
+  const flushPlace = () => {
+    if (!keepPlace.current || passwordValue === null) return;
+    const place = zonesRef.current?.place();
+    if (!place) return;
+    writeQuestionnaire({
+      href: window.location.pathname + window.location.search,
+      ...fields.current,
+      ...place,
+    });
+  };
+
   useEffect(() => {
-    setPasswordValue((current) => current ?? passwordNow());
+    const saved = readQuestionnaire();
+    const here = window.location.pathname + window.location.search;
+    if (saved && saved.href === here) {
+      setName(saved.name);
+      setNameLive(true);
+      setEmail(saved.email);
+      setEmailLive(true);
+      issuedPassword = saved.password;
+      setPasswordValue(saved.password);
+      setAgreed(saved.agreed);
+      zonesRef.current?.restore(saved);
+    } else {
+      setPasswordValue((current) => current ?? passwordNow());
+    }
+    setPlaceReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!placeReady) return;
+    keepPlace.current = true;
+    flushPlace();
+  }, [placeReady, name, email, passwordShown, agreed]);
+
+  useEffect(() => {
+    const leave = () => flushPlace();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") leave();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [passwordValue]);
 
   useEffect(() => {
     const measure = () => setSidePad(carouselSidePaddingPx(window.innerWidth, true));
@@ -150,6 +200,8 @@ export function EntryPage({ input }: { input: EntryInput }) {
       }
       const cardId = reply.cardId;
       created = true;
+      keepPlace.current = false;
+      clearFillPlace();
       (document.activeElement as HTMLElement | null)?.blur();
       const supabase = createBrowserSupabaseClient();
       const signed = await Promise.race([
@@ -295,7 +347,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
             onTouch={() => setNameLive(true)}
           />
         </div>
-        <EntryZones ref={zonesRef} />
+        <EntryZones ref={zonesRef} onChange={flushPlace} />
       </div>
       </div>
       <div className="bg-sky py-[18px]">

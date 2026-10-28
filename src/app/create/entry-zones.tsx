@@ -10,6 +10,7 @@ import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
+import type { QuestionnaireZone } from "@/shared/lib/fill-place";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import type { AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { WrapField, type WrapFieldHandle } from "@main/components/wrap-field";
@@ -55,6 +56,26 @@ const HINTS: Record<string, string> = {
 export type EntryZonesHandle = {
   snapshot: () => EntryZone[];
   headerKey: () => string | null;
+  place: () => {
+    zones: QuestionnaireZone[];
+    headerKey: string | null;
+    editKey: string | null;
+    editText: string;
+    seedId: string | null;
+    seedText: string;
+  };
+  restore: (place: {
+    zones: QuestionnaireZone[];
+    headerKey: string | null;
+    editKey: string | null;
+    editText: string;
+    seedId: string | null;
+    seedText: string;
+  }) => void;
+};
+
+type EntryZonesProps = {
+  onChange?: () => void;
 };
 
 function blankCustom(zones: EntryZone[]) {
@@ -75,7 +96,7 @@ function titled(zone: EntryZone, value: string, fileType?: AttachmentContactType
   return title ? { ...zone, title } : zone;
 }
 
-export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, ref) {
+export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function EntryZones({ onChange }, ref) {
   const [zones, setZones] = useState<EntryZone[]>(STARTERS);
   const [seedId, setSeedId] = useState<string | null>(null);
   const [seedText, setSeedText] = useState("");
@@ -87,17 +108,71 @@ export const EntryZones = forwardRef<EntryZonesHandle>(function EntryZones(_, re
   const [headerKey, setHeaderKey] = useState<string | null>(null);
   const zonesRef = useRef(zones);
   const headerRef = useRef<string | null>(null);
+  const editKeyRef = useRef<string | null>(null);
+  const editTextRef = useRef("");
+  const seedIdRef = useRef<string | null>(null);
+  const seedTextRef = useRef("");
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef<WrapFieldHandle>(null);
   const focusValue = useRef(false);
+  const onChangeRef = useRef(onChange);
   zonesRef.current = zones;
+  editKeyRef.current = editKey;
+  editTextRef.current = editText;
+  seedIdRef.current = seedId;
+  seedTextRef.current = seedText;
+  onChangeRef.current = onChange;
 
   const rememberHeader = (key: string | null) => {
     headerRef.current = key;
     setHeaderKey(key);
   };
 
-  useImperativeHandle(ref, () => ({ snapshot: () => zonesRef.current, headerKey: () => headerRef.current }), []);
+  useImperativeHandle(
+    ref,
+    () => ({
+      snapshot: () => zonesRef.current,
+      headerKey: () => headerRef.current,
+      place: () => ({
+        zones: zonesRef.current.map((zone) => ({
+          id: zone.id,
+          title: zone.title,
+          custom: zone.custom,
+          rows: zone.rows.map((row) => ({ key: row.key, value: row.value, ...(row.type ? { type: row.type } : {}) })),
+        })),
+        headerKey: headerRef.current,
+        editKey: editKeyRef.current,
+        editText: editTextRef.current,
+        seedId: seedIdRef.current,
+        seedText: seedTextRef.current,
+      }),
+      restore: (place) => {
+        const zones = place.zones.map((zone) => ({
+          id: zone.id,
+          title: zone.title,
+          custom: zone.custom,
+          rows: zone.rows.map((row) => ({
+            key: row.key,
+            value: row.value,
+            ...(row.type ? { type: row.type as AttachmentContactType } : {}),
+          })),
+        }));
+        zonesRef.current = zones;
+        setZones(zones);
+        rememberHeader(place.headerKey);
+        setEditKey(place.editKey);
+        setEditText(place.editText);
+        setSeedId(place.seedId);
+        setSeedText(place.seedText);
+        if (place.editKey || place.seedId) focusValue.current = true;
+      },
+    }),
+    [],
+  );
+
+  useEffect(() => {
+    onChangeRef.current?.();
+  }, [zones, editKey, editText, seedId, seedText, headerKey]);
 
   useEffect(() => {
     if (!armed) return;

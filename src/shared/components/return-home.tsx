@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { blockEditBriefly, cardShareHoldsPlace } from "@/shared/lib/card-share-guard";
+import { readPortfolio, readQuestionnaire } from "@/shared/lib/fill-place";
 import { useAppStore } from "@/shared/store/app-store";
 
 const HOME_KEY = "aded-open-main";
@@ -37,6 +38,15 @@ export function ReturnHome() {
 
     const home = () => {
       if (cardShareHoldsPlace()) {
+        clearLeft();
+        return;
+      }
+      const path = window.location.pathname;
+      if ((path === "/" || path === "/create") && readQuestionnaire()) {
+        clearLeft();
+        return;
+      }
+      if ((path === "/" || path === "/main") && readPortfolio()) {
         clearLeft();
         return;
       }
