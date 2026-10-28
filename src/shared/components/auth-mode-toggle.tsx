@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import { COLUMN_GAP_PX, HEADER_ROW_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
@@ -13,16 +14,13 @@ function Segment({
   href,
   on,
   label,
-  split,
 }: {
   href: string;
   on: boolean;
   label: string;
-  split?: boolean;
 }) {
   const className = cn(
     "flex min-w-0 flex-1 items-center justify-center t-label no-underline",
-    split && "border-l border-[#d8d8d8]",
     on ? "bg-sky" : "bg-white",
   );
   const style = {
@@ -62,7 +60,7 @@ export function AuthModeToggle({
   return (
     <nav
       aria-label="Account"
-      className={cn("box-border flex border border-[#d8d8d8]", pinned ? "fixed z-[31]" : "w-full", className)}
+      className={cn("flex", photoSlotLookClass("shadow"), pinned ? "fixed z-[31]" : "w-full", className)}
       style={
         pinned
           ? {
@@ -75,7 +73,7 @@ export function AuthModeToggle({
       }
     >
       <Segment href={signUpHref} on={mode === "up"} label="Sign up" />
-      <Segment href={signInHref} on={mode === "in"} label="Sign in" split />
+      <Segment href={signInHref} on={mode === "in"} label="Sign in" />
     </nav>
   );
 }
