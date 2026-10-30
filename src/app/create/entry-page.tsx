@@ -12,6 +12,7 @@ import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { clearFillPlace, readQuestionnaire, writeQuestionnaire } from "@/shared/lib/fill-place";
+import { rememberOpenProfile } from "@/shared/lib/open-profile-return";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -267,6 +268,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
         const added = reply.savedName?.trim() || "Untitled";
         router.replace(`/network?added=${encodeURIComponent(added)}&from=${encodeURIComponent(input.sourceToken)}`);
       } else {
+        if (input.event?.lookup) rememberOpenProfile(input.event.lookup);
         router.replace("/main");
       }
       void (async () => {

@@ -14,6 +14,7 @@ import { COLUMN_GAP_PX } from "@/shared/layout/axes";
 import type { PortfolioChoice } from "@/shared/services/event-registration";
 import { PortfolioFace } from "@/shared/components/portfolio-face";
 import { TapButton } from "@/shared/components/tap-button";
+import { openProfileThisSession } from "@/shared/lib/open-profile-return";
 import { openWalletPass } from "@/shared/lib/wallet-client";
 
 const SKY =
@@ -211,7 +212,7 @@ export function InviteActions({
         const body = (await response.json().catch(() => ({}))) as { error?: string };
         return fail(body.error ?? "Could not join.");
       }
-      router.push(joinPath);
+      router.push(openProfileThisSession(lookup) ? "/main" : joinPath);
     } catch {
       fail("Could not join.");
     }
