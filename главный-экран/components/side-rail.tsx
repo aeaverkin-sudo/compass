@@ -157,6 +157,7 @@ export function SideRail({
   showPlus,
   frozen,
   editing = false,
+  onCount,
 }: {
   qrTop: number;
   counterRightCss: string;
@@ -166,6 +167,7 @@ export function SideRail({
   showPlus: boolean;
   frozen: boolean;
   editing?: boolean;
+  onCount?: () => void;
 }) {
   const updateCard = useAppStore((state) => state.updateCard);
   const noteAddons = useAppStore((state) => state.cards.find((entry) => entry.id === card.id)?.nextScanAddons);
@@ -646,9 +648,13 @@ export function SideRail({
         ) : null}
       </RailMark>
       <RailMark height={COUNT_SLOT_PX} inert={dragging}>
-        <p className="text-center t-caps font-light leading-none text-[var(--ink)]">
+        <button
+          type="button"
+          onClick={onCount}
+          className="flex size-full items-center justify-center border-0 bg-transparent p-0 text-center t-caps font-light leading-none text-[var(--ink)]"
+        >
           {index}/{total}
-        </p>
+        </button>
       </RailMark>
     </div>
   );

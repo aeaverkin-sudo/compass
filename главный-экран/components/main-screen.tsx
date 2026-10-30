@@ -381,6 +381,13 @@ export function MainScreen() {
     setBrowseIndex(index);
     if (index < useAppStore.getState().cards.length) setCurrentCardIndex(index);
   }, [setCurrentCardIndex]);
+  const onSheetCount = useCallback(() => {
+    if (editing) return;
+    const count = useAppStore.getState().cards.length;
+    const last = showAddSlide ? count : Math.max(count - 1, 0);
+    const next = browseIndex >= last ? 0 : browseIndex + 1;
+    onActiveIndexChange(next);
+  }, [browseIndex, editing, onActiveIndexChange, showAddSlide]);
 
   const columnRef = useRef<HTMLDivElement>(null);
   const [columnH, setColumnH] = useState(0);
@@ -461,6 +468,7 @@ export function MainScreen() {
           showPlus={shownHasBody}
           frozen={frozen}
           editing={editing}
+          onCount={onSheetCount}
         />
       ) : null}
 
