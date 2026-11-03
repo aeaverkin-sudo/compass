@@ -22,16 +22,10 @@ export function EntryName({
   const hint = shown.length === 0 && !suggested;
 
   return (
-    <div
+    <label
       data-entry-name=""
       className="relative flex h-full min-w-0 max-w-full flex-1 flex-col justify-end overflow-x-hidden"
       onFocusCapture={onTouch}
-      onPointerDown={(event) => {
-        const area = event.currentTarget.querySelector("textarea");
-        if (!(area instanceof HTMLTextAreaElement)) return;
-        if (event.target instanceof Node && area.contains(event.target)) return;
-        area.focus();
-      }}
     >
       <div className={hint ? "relative w-full min-w-0 max-w-full" : "absolute inset-0 min-w-0 overflow-x-hidden"}>
         {hint ? (
@@ -50,6 +44,6 @@ export function EntryName({
           <span className="pointer-events-none absolute inset-x-0 bottom-0 t-body text-[var(--placeholder)]">{value}</span>
         ) : null}
       </div>
-    </div>
+    </label>
   );
 }
