@@ -52,7 +52,7 @@ export const ZONE_HINTS: Partial<Record<CardZoneId, string>> = {
   position: "Role",
   location: "City, country",
   web: "Website",
-  social: "Instagram, etc.",
+  social: "link-instagram, linkedin, etc.",
   contact: "Email, phone, messenger",
   files: "PDF, JPG, …",
   about: "Write about yourself",

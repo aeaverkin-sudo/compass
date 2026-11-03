@@ -47,7 +47,7 @@ const HINTS: Record<string, string> = {
   position: "What you do",
   company: "Company. Business name",
   web: "Website",
-  social: "Instagram, LinkedIn, etc.",
+  social: "link-instagram, linkedin, etc.",
   files: "PDF, JPG, etc.",
   about: "A line about you",
   contact: "Phone, messenger, mail",
