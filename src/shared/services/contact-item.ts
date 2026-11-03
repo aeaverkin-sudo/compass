@@ -77,7 +77,7 @@ export function messengerCountryHint(raw: string): string | null {
   return MESSENGER_COUNTRY_HINT;
 }
 
-function parseTypedShortcut(raw: string): { type: ContactType; handle: string } | null {
+function parseTypedShortcut(raw: string, zone?: string): { type: ContactType; handle: string } | null {
   const messenger = splitMessengerInput(raw);
   if (messenger) {
     if (!profileUrlForType(messenger.type, messenger.handle)) return null;
@@ -92,12 +92,19 @@ function parseTypedShortcut(raw: string): { type: ContactType; handle: string } 
   }
 
   const bare = raw.match(BARE_HANDLE);
-  if (bare?.[1]) return { type: "instagram", handle: bare[1] };
+  if (bare?.[1]) {
+    if (zone === "contact") {
+      const nick = messengerUsername(bare[0]);
+      if (!nick || !profileUrlForType("telegram", nick)) return null;
+      return { type: "telegram", handle: nick };
+    }
+    return { type: "instagram", handle: bare[1] };
+  }
 
   return null;
 }
 
-export function detectContactType(raw: string): ContactType {
+export function detectContactType(raw: string, zone?: string): ContactType {
   const value = raw.trim();
   if (!value) return "text";
 
@@ -107,7 +114,7 @@ export function detectContactType(raw: string): ContactType {
   if (EMAIL.test(value)) return "email";
   if (PHONE.test(value)) return "phone";
 
-  const shortcut = parseTypedShortcut(value);
+  const shortcut = parseTypedShortcut(value, zone);
   if (shortcut) return shortcut.type;
 
   const namedFile = attachmentTypeForName(value);
@@ -201,11 +208,11 @@ function storedContactValue(type: ContactType, value: string): string {
   return value;
 }
 
-export function normalizeContactItem(item: ContactItem, value: string): ContactItem {
+export function normalizeContactItem(item: ContactItem, value: string, zone?: string): ContactItem {
   const trimmed = value.slice(0, 2000);
-  const type = detectContactType(trimmed);
+  const type = detectContactType(trimmed, zone);
   const stored = storedContactValue(type, trimmed);
-  const shortcut = parseTypedShortcut(trimmed);
+  const shortcut = parseTypedShortcut(trimmed, zone);
   let url = stored;
 
   const keptKind = item.type === "position" && type === "text";

@@ -260,7 +260,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
           fileItems.push({ key: row.key, itemId: id });
           if (headerRow && row.key === headerRow.key) headerItemId = id;
         } else {
-          const normalized = normalizeContactItem(createEmptyContactItem(sort), row.value);
+          const normalized = normalizeContactItem(createEmptyContactItem(sort), row.value, zone.id);
           const saved = await admin.from("items").insert({
             id: normalized.id,
             owner_id: userId,

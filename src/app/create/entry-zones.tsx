@@ -82,12 +82,12 @@ function blankCustom(zones: EntryZone[]) {
   return zones.find((zone) => zone.custom && !zone.title.trim() && zone.rows.length === 0) ?? null;
 }
 
-function storedLine(value: string) {
-  return normalizeContactItem(createEmptyContactItem(0), value).value;
+function storedLine(value: string, zoneId?: string) {
+  return normalizeContactItem(createEmptyContactItem(0), value, zoneId).value;
 }
 
-function lineOf(row: EntryRow) {
-  return labeledEntryLine(row.value, row.type);
+function lineOf(row: EntryRow, zoneId: string) {
+  return labeledEntryLine(row.value, row.type, zoneId);
 }
 
 function titled(zone: EntryZone, value: string, fileType?: AttachmentContactType | null): EntryZone {
@@ -226,7 +226,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
 
   const commitSeed = (zoneId: string, text: string) => {
     const typed = text.trim();
-    const value = typed ? storedLine(typed) : "";
+    const value = typed ? storedLine(typed, zoneId) : "";
     setSeedId(null);
     setSeedText("");
     if (!value) return;
@@ -239,7 +239,8 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
 
   const commitEdit = (key: string, text: string) => {
     const typed = text.trim();
-    const value = typed ? storedLine(typed) : "";
+    const zoneId = zonesRef.current.find((zone) => zone.rows.some((row) => row.key === key))?.id;
+    const value = typed ? storedLine(typed, zoneId) : "";
     if (!value) releaseHeader(key);
     setEditKey(null);
     setEditText("");
@@ -405,7 +406,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                 ) : (
                   <RowButton
                     key={row.key}
-                    text={lineOf(row)}
+                    text={lineOf(row, zone.id)}
                     armed={armed === row.key}
                     onPick={
                       promotable && !isProseValue(row.value)

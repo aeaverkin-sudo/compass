@@ -411,7 +411,11 @@ export const useAppStore = create<AppState>()(
         const nextItems = get().contactItems.map((item) => {
           if (item.id !== itemId) return item;
           if (data.value === undefined) return { ...item, ...data };
-          return normalizeContactItem(item, data.value);
+          const placed = get().cards.reduce<string | undefined>((zone, card) => {
+            if (!card.contactItemIds.includes(item.id)) return zone;
+            return canonZoneId(card.itemZones?.[item.id]) ?? zone;
+          }, undefined);
+          return normalizeContactItem(item, data.value, placed === "contact" ? "contact" : undefined);
         });
         set({ contactItems: nextItems });
         const next = nextItems.find((item) => item.id === itemId);
@@ -514,11 +518,21 @@ export const useAppStore = create<AppState>()(
 
       addItemToCard: (cardId, itemId, zoneId) => {
         const now = new Date().toISOString();
-        const item = get().contactItems.find((entry) => entry.id === itemId);
+        let item = get().contactItems.find((entry) => entry.id === itemId);
         if (!item) return;
         const current = get().cards.find((card) => card.id === cardId);
         if (!current || current.contactItemIds.includes(itemId)) return;
         const zone = canonZoneId(zoneId) ?? zoneForItem(item);
+        if (zone === "contact") {
+          const next = normalizeContactItem(item, item.value, "contact");
+          if (next.type !== item.type || next.url !== item.url || next.value !== item.value) {
+            set({
+              contactItems: get().contactItems.map((entry) => (entry.id === itemId ? next : entry)),
+            });
+            scheduleItemUpsert(next);
+            item = next;
+          }
+        }
         const itemZones = withItemZone(current, item, zone);
         const hiddenZones = (current.hiddenZones ?? []).filter((id) => canonZoneId(id) !== zone);
         const next = {

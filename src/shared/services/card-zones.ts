@@ -466,11 +466,11 @@ export function suggestedSectionTitle(value: string, fileType?: ContactType | nu
 }
 
 /** The same row text the portfolio prints: an axis only where the portfolio prints one. */
-export function labeledEntryLine(value: string, fileType?: ContactType | null): string {
+export function labeledEntryLine(value: string, fileType?: ContactType | null, zone?: string): string {
   const trimmed = value.trim();
   if (!trimmed) return value;
   if (fileType && isAttachmentType(fileType)) return `${FILE_AXIS[fileType] ?? "FILE"} / ${trimmed}`;
-  const item = normalizeContactItem(createEmptyContactItem(0), trimmed);
+  const item = normalizeContactItem(createEmptyContactItem(0), trimmed, zone);
   const display = itemDisplayValue(item).trim();
   if (!display || display === "+") return trimmed;
   const axis = rowAxis(item);
