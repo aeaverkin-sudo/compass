@@ -37,25 +37,26 @@ export function nextExtraZoneId(order: string[]): `extra-${number}` {
   return `extra-${max + 1}`;
 }
 
-/** The seven library shelves. Empty ones stay off the edit list until they have a row. */
+/** The questionnaire shelves, in that order. An empty one stays in Edit unless it was hidden. */
 export const BASE_EDIT_ZONES: readonly CardZoneId[] = [
   "position",
-  "location",
+  "company",
   "web",
   "social",
-  "contact",
   "files",
   "about",
+  "contact",
 ];
 
 export const ZONE_HINTS: Partial<Record<CardZoneId, string>> = {
-  position: "Role",
+  position: "What you do",
+  company: "Company. Business name",
   location: "City, country",
   web: "Website",
   social: "Link — Instagram, LinkedIn, etc.",
-  contact: "Email, phone, messenger",
-  files: "PDF, JPG, …",
-  about: "Write about yourself",
+  files: "PDF, JPG, etc.",
+  about: "A line about you",
+  contact: "Phone, messenger, mail",
 };
 
 const ZONE_IDS = new Set<string>(CARD_ZONES.map((zone) => zone.id));
@@ -363,7 +364,16 @@ export function groupLibrary(
   return sectionsFrom(buckets, scope);
 }
 
-/** Edit list: shelves with rows, plus an emptied shelf whose title is still stored. */
+/** Company follows Position when an older card never stored that shelf. */
+function editShelfOrder(rubricOrder?: string[]): string[] | undefined {
+  const stored = normalizeRubricOrder(rubricOrder);
+  if (!stored || stored.includes("company")) return stored;
+  const after = stored.indexOf("position");
+  if (after < 0) return ["company", ...stored];
+  return [...stored.slice(0, after + 1), "company", ...stored.slice(after + 1)];
+}
+
+/** Edit list: the questionnaire shelves, plus any other shelf that already has a row. */
 export function groupEditSections(
   items: ContactItem[],
   scope: CardZoneScope & Partial<CardZonePlacement>,
@@ -378,15 +388,9 @@ export function groupEditSections(
     }),
   );
   const ids: CardZoneId[] = [];
-  const labeled = new Set(
-    Object.keys(scope.rubricLabels ?? {}).flatMap((raw) => {
-      const id = canonZoneId(raw);
-      return id ? [id] : [];
-    }),
-  );
   for (const id of BASE_EDIT_ZONES) {
     const rows = byId.get(id)?.rows.length ?? 0;
-    if (rows === 0 && (hidden.has(id) || !labeled.has(id))) continue;
+    if (rows === 0 && hidden.has(id)) continue;
     ids.push(id);
   }
   for (const zone of CARD_ZONES) {
@@ -406,7 +410,7 @@ export function groupEditSections(
   }
   const ordered = orderCardZones(
     ids.map((id) => ({ id })),
-    scope.rubricOrder,
+    editShelfOrder(scope.rubricOrder),
   ).map((zone) => zone.id as CardZoneId);
   return ordered.map((id) => {
     const meta = CARD_ZONES.find((zone) => zone.id === id);
