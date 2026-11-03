@@ -795,6 +795,7 @@ export const CardEditList = memo(function CardEditList({
                       ref={extraValueRef}
                       label={section.rows.length === 0 ? zoneHint : "Value"}
                       placeholder={section.rows.length === 0 ? zoneHint : ""}
+                      wrapPlaceholder={section.rows.length === 0}
                       placeholderClassName="t-body text-[var(--placeholder)]"
                       autoFocus={!isExtraZoneId(section.id) || Boolean(section.title.trim())}
                       onPointerDown={() => {

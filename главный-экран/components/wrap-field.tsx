@@ -61,6 +61,7 @@ export function WrapField({
   grow = true,
   className,
   placeholderClassName,
+  wrapPlaceholder = false,
   multiline = false,
   breakButton = true,
   onTextChange,
@@ -83,6 +84,8 @@ export function WrapField({
   breakButton?: boolean;
   className?: string;
   placeholderClassName?: string;
+  /** An empty-section hint may take a second line. Other placeholders stay one line. */
+  wrapPlaceholder?: boolean;
   onTextChange?: (text: string) => void;
   onDone: (text: string) => void;
   /** Backspace on an empty field. New-zone Title… and an empty add line use this. */
@@ -95,6 +98,7 @@ export function WrapField({
   const caretRef = useRef<Range | null>(null);
   const openedAs = useRef(initial);
   const [empty, setEmpty] = useState(!initial.trim());
+  const wrapHint = wrapPlaceholder && empty && Boolean(placeholder);
 
   const rememberCaret = () => {
     const editor = editorRef.current;
@@ -154,7 +158,14 @@ export function WrapField({
     <div className={cn("flex min-w-0 items-end gap-2", grow ? "flex-1" : "w-auto")}>
       <div className={cn("relative min-w-0", grow && "flex-1")}>
         {empty && placeholder ? (
-          <span aria-hidden className={cn("pointer-events-none absolute inset-x-0 top-0 truncate", placeholderClassName)}>
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none",
+              wrapHint ? "block whitespace-normal break-words" : "absolute inset-x-0 top-0 truncate",
+              placeholderClassName,
+            )}
+          >
             {placeholder}
           </span>
         ) : null}
@@ -194,6 +205,7 @@ export function WrapField({
           className={cn(
             "compass-input min-w-0 break-words text-[#111] caret-[#111] outline-none select-text",
             "whitespace-pre-wrap",
+            wrapHint && "absolute inset-0",
             className,
           )}
         >
