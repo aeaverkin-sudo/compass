@@ -11,7 +11,7 @@ import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { clearFillPlace, readQuestionnaire, writeQuestionnaire } from "@/shared/lib/fill-place";
+import { clearFillPlace, photoFileFromDraft, readQuestionnaire, readQuestionnairePhoto, writeQuestionnaire, writeQuestionnairePhoto } from "@/shared/lib/fill-place";
 import { rememberOpenProfile } from "@/shared/lib/open-profile-return";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
@@ -78,16 +78,20 @@ export function EntryPage({ input }: { input: EntryInput }) {
 
   const fields = useRef({ name, email, password: passwordShown, agreed });
   fields.current = { name, email, password: passwordShown, agreed };
+  const photoRef = useRef(photo);
+  photoRef.current = photo;
 
   const flushPlace = () => {
     if (!keepPlace.current || passwordValue === null) return;
     const place = zonesRef.current?.place();
     if (!place) return;
+    const href = window.location.pathname + window.location.search;
     writeQuestionnaire({
-      href: window.location.pathname + window.location.search,
+      href,
       ...fields.current,
       ...place,
     });
+    writeQuestionnairePhoto(href, photoRef.current?.dataUrl ?? null);
   };
 
   useEffect(() => {
@@ -102,6 +106,9 @@ export function EntryPage({ input }: { input: EntryInput }) {
       setPasswordValue(saved.password);
       setAgreed(saved.agreed);
       zonesRef.current?.restore(saved);
+      const dataUrl = readQuestionnairePhoto(here);
+      const file = dataUrl ? photoFileFromDraft(dataUrl) : null;
+      if (dataUrl && file) setPhoto({ file, dataUrl });
     } else {
       setPasswordValue((current) => current ?? passwordNow());
     }
@@ -112,7 +119,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
     if (!placeReady) return;
     keepPlace.current = true;
     flushPlace();
-  }, [placeReady, name, email, passwordShown, agreed]);
+  }, [placeReady, name, email, passwordShown, agreed, photo]);
 
   useEffect(() => {
     const leave = () => flushPlace();
