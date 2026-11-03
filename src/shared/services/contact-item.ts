@@ -34,6 +34,11 @@ export const EMPTY_CONTACT_PLACEHOLDER = "add contact, link, file etc.";
 
 const DOMAIN = /^(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?$/i;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
+
+/** The account mailbox. A portfolio line uses detectContactType instead. */
+export function isAccountEmail(value: string) {
+  return EMAIL.test(value.trim());
+}
 const PHONE = /^\+?[\d\s()-]{7,}$/;
 const PREFIX = /^([a-z][a-z0-9]*):(.+)$/i;
 const BARE_HANDLE = /^@([a-z0-9._]{1,30})$/i;

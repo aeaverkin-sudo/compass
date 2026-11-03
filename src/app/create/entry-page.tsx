@@ -16,6 +16,7 @@ import { rememberOpenProfile } from "@/shared/lib/open-profile-return";
 import { markRegisteredDevice } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { isAccountEmail } from "@/shared/services/contact-item";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { scheduleItemUpsert } from "@/shared/services/card-items-sync";
 import { assignHandle } from "@/shared/services/card-handle";
@@ -26,15 +27,12 @@ import { useUploadStatus } from "@/shared/store/upload-status";
 import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { signInHref, type EntryInput } from "./door";
 import { EntryName } from "./entry-name";
-import { EntryZones, type EntryZonesHandle } from "./entry-zones";
+import { ENTRY_MARK, EntryZones, type EntryZonesHandle } from "./entry-zones";
 
 const PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const PASSWORD_MIN = 8;
-
-function emailOk(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
+const CHECK_NOTICE = "Please check the fields in red";
 
 export type { EntryInput };
 
@@ -66,14 +64,16 @@ export function EntryPage({ input }: { input: EntryInput }) {
   const [agreed, setAgreed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailMarked, setEmailMarked] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
+  const emailRef = useRef<HTMLLabelElement>(null);
   const zonesRef = useRef<EntryZonesHandle>(null);
   const keepPlace = useRef(false);
   const [placeReady, setPlaceReady] = useState(false);
   const [sidePad, setSidePad] = useState(() => carouselSidePaddingPx(0, true));
   const [passwordValue, setPasswordValue] = useState<string | null>(null);
   const passwordShown = passwordValue ?? "";
-  const ready = Boolean(agreed && name.trim() && emailOk(email) && passwordShown.length >= PASSWORD_MIN);
+  const ready = Boolean(agreed && name.trim() && email.trim() && passwordShown.length >= PASSWORD_MIN);
   const frame = { paddingLeft: sidePad, paddingRight: sidePad };
 
   const fields = useRef({ name, email, password: passwordShown, agreed });
@@ -145,6 +145,22 @@ export function EntryPage({ input }: { input: EntryInput }) {
 
   const submit = async () => {
     if (busy || !ready) return;
+    const first = zonesRef.current?.markProblems() ?? null;
+    const emailBad = !isAccountEmail(email);
+    setEmailMarked(emailBad);
+    if (first || emailBad) {
+      setError(CHECK_NOTICE);
+      const root = mainRef.current;
+      const target = !root
+        ? null
+        : first?.startsWith("seed:")
+          ? root.querySelector(`[data-entry-seed="${CSS.escape(first.slice(5))}"]`)
+          : first
+            ? root.querySelector(`[data-entry-row="${CSS.escape(first)}"]`)
+            : emailRef.current;
+      target?.scrollIntoView({ block: "center" });
+      return;
+    }
     const zones = zonesRef.current?.snapshot() ?? [];
     const emailValue = email.trim().toLowerCase();
     const titleValue = name.trim();
@@ -367,7 +383,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
       <div className="bg-sky py-[18px]">
         <div style={frame}>
         <div className={`${PAD} flex flex-col gap-[14px]`}>
-          <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
+          <label ref={emailRef} className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
             <span className="t-label">
               Email
               <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
@@ -385,7 +401,8 @@ export function EntryPage({ input }: { input: EntryInput }) {
                 setEmailLive(true);
                 setEmail(event.target.value);
               }}
-              className={`t-body m-0 w-full border-0 bg-transparent p-0 outline-none placeholder:text-[var(--placeholder)] ${emailLive ? "text-[var(--ink)]" : "text-[var(--placeholder)]"}`}
+              className="t-body m-0 w-full border-0 bg-transparent p-0 outline-none placeholder:text-[var(--placeholder)]"
+              style={{ color: emailMarked ? ENTRY_MARK : emailLive ? "var(--ink)" : "var(--placeholder)" }}
             />
           </label>
           <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">

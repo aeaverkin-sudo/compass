@@ -9,13 +9,16 @@ import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-n
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
-import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { createEmptyContactItem, detectContactType, normalizeContactItem } from "@/shared/services/contact-item";
 import type { QuestionnaireZone } from "@/shared/lib/fill-place";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import type { AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { WrapField, type WrapFieldHandle } from "@main/components/wrap-field";
 
 const DELETE_RED = "#E23B2F";
+/** A value Create refused. Same red as the row delete mark. */
+export const ENTRY_MARK = DELETE_RED;
+const LINK_WORD = /^(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?$/i;
 const HOLD_MS = 900;
 const NEW_HINT = "Skills, projects, experience, etc.";
 
@@ -72,6 +75,8 @@ export type EntryZonesHandle = {
     seedId: string | null;
     seedText: string;
   }) => void;
+  /** Paints refused values and returns the first one. `seed:` is an open line. */
+  markProblems: () => string | null;
 };
 
 type EntryZonesProps = {
@@ -90,6 +95,17 @@ function lineOf(row: EntryRow, zoneId: string) {
   return labeledEntryLine(row.value, row.type, zoneId);
 }
 
+/** Social and Web: a line that stayed plain text. Contacts: a broken mail or a link split by a space. */
+function entryLineIsRed(zoneId: string, raw: string) {
+  const line = raw.trim();
+  if (!line) return false;
+  if (zoneId !== "social" && zoneId !== "web" && zoneId !== "contact") return false;
+  if (zoneId === "social" || zoneId === "web") return detectContactType(line, zoneId) === "text";
+  if (detectContactType(line, "contact") !== "text") return false;
+  if (line.includes("@")) return true;
+  return line.split(/\s+/).some((part) => LINK_WORD.test(part.replace(/^[("']+|[),"'.:]+$/g, "")));
+}
+
 function titled(zone: EntryZone, value: string, fileType?: AttachmentContactType | null): EntryZone {
   if (zone.title.trim()) return zone;
   const title = suggestedSectionTitle(value, fileType);
@@ -106,6 +122,8 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const [titleText, setTitleText] = useState("");
   const [armed, setArmed] = useState<string | null>(null);
   const [headerKey, setHeaderKey] = useState<string | null>(null);
+  const [marked, setMarked] = useState<ReadonlySet<string>>(() => new Set());
+  const [seedMarked, setSeedMarked] = useState(false);
   const zonesRef = useRef(zones);
   const headerRef = useRef<string | null>(null);
   const editKeyRef = useRef<string | null>(null);
@@ -165,6 +183,25 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         setSeedId(place.seedId);
         setSeedText(place.seedText);
         if (place.editKey || place.seedId) focusValue.current = true;
+      },
+      markProblems: () => {
+        const bad: string[] = [];
+        let first: string | null = null;
+        for (const zone of zonesRef.current) {
+          for (const row of zone.rows) {
+            if (row.type) continue;
+            const value = editKeyRef.current === row.key ? editTextRef.current : row.value;
+            if (!entryLineIsRed(zone.id, value)) continue;
+            bad.push(row.key);
+            if (!first) first = row.key;
+          }
+        }
+        const seedZone = seedIdRef.current;
+        const seedBad = Boolean(seedZone && entryLineIsRed(seedZone, seedTextRef.current));
+        if (seedBad && seedZone && !first) first = `seed:${seedZone}`;
+        setMarked(new Set(bad));
+        setSeedMarked(seedBad);
+        return first;
       },
     }),
     [],
@@ -394,19 +431,23 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
             <div className="flex min-w-0 flex-col gap-[10px]">
               {zone.rows.map((row) =>
                 editKey === row.key ? (
-                  <Field
-                    key={row.key}
-                    about={about}
-                    value={editText}
-                    placeholder=""
-                    onChange={setEditText}
-                    onCommit={(text) => commitEdit(row.key, text)}
-                    onDiscardEmpty={() => discardRow(zone.id, row.key)}
-                  />
+                  <div key={row.key} data-entry-row={row.key} className="min-w-0">
+                    <Field
+                      about={about}
+                      value={editText}
+                      placeholder=""
+                      marked={marked.has(row.key)}
+                      onChange={setEditText}
+                      onCommit={(text) => commitEdit(row.key, text)}
+                      onDiscardEmpty={() => discardRow(zone.id, row.key)}
+                    />
+                  </div>
                 ) : (
                   <RowButton
                     key={row.key}
+                    rowKey={row.key}
                     text={lineOf(row, zone.id)}
+                    marked={marked.has(row.key)}
                     armed={armed === row.key}
                     onPick={
                       promotable && !isProseValue(row.value)
@@ -432,7 +473,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                 ),
               )}
               {seeding ? (
-                <div className="flex min-w-0 items-start gap-[11px]">
+                <div data-entry-seed={zone.id} className="flex min-w-0 items-start gap-[11px]">
                   {files ? (
                     <button
                       type="button"
@@ -449,6 +490,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                     value={seedText}
                     placeholder={zone.rows.length === 0 ? hint : ""}
                     roomy={zone.rows.length === 0}
+                    marked={seedMarked}
                     inputRef={valueRef}
                     onChange={setSeedText}
                     onCommit={(text) => commitSeed(zone.id, text)}
@@ -500,6 +542,7 @@ function Field({
   value,
   placeholder,
   roomy = false,
+  marked = false,
   onChange,
   onCommit,
   onDiscardEmpty,
@@ -509,6 +552,7 @@ function Field({
   value: string;
   placeholder?: string;
   roomy?: boolean;
+  marked?: boolean;
   onChange: (value: string) => void;
   onCommit: (value: string) => void;
   onDiscardEmpty?: () => void;
@@ -539,7 +583,11 @@ function Field({
       onEmptyDelete={discard}
       onBlur={(text) => finish(text)}
       placeholderClassName="t-body text-[var(--placeholder)]"
-      className={cn("t-body bg-transparent text-[var(--ink)] caret-[var(--ink)]", roomy && "min-h-11")}
+      className={cn(
+        "t-body bg-transparent caret-[var(--ink)]",
+        marked ? "text-[#E23B2F]" : "text-[var(--ink)]",
+        roomy && "min-h-11",
+      )}
     />
   );
 }
@@ -594,14 +642,18 @@ function TitleButton({
 }
 
 function RowButton({
+  rowKey,
   text,
+  marked,
   armed,
   onPick,
   onEdit,
   onArm,
   onDelete,
 }: {
+  rowKey: string;
   text: string;
+  marked: boolean;
   armed: boolean;
   onPick?: () => void;
   onEdit: () => void;
@@ -610,10 +662,13 @@ function RowButton({
 }) {
   const press = useLongPress(onArm, HOLD_MS);
   return (
-    <div className="flex min-w-0 items-start gap-2">
+    <div data-entry-row={rowKey} className="flex min-w-0 items-start gap-2">
       <button
         type="button"
-        className="t-body min-w-0 flex-1 border-0 bg-transparent p-0 text-left text-[var(--ink)] whitespace-pre-wrap break-words"
+        className={cn(
+          "t-body min-w-0 flex-1 border-0 bg-transparent p-0 text-left whitespace-pre-wrap break-words",
+          marked ? "text-[#E23B2F]" : "text-[var(--ink)]",
+        )}
         {...press}
         onClick={(event) => {
           press.onClick(event);
