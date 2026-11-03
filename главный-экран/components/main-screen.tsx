@@ -7,6 +7,7 @@ import { flushSync } from "react-dom";
 import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
 import { cardHasPhoto } from "@/shared/services/card-photo";
 import { BottomNav } from "./bottom-nav";
+import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { publicCardUrl } from "@/shared/services/public-card-url";
@@ -127,6 +128,7 @@ export function MainScreen() {
   const openAddRef = useRef<(() => void) | null>(null);
   const draftStarted = useRef(false);
   const [composing, setComposing] = useState(false);
+  const keyboardUp = useKeyboardVisible();
   const account = useAccountStatus();
   const cardsHydrated = useCardsHydrated();
   const frozen = account?.frozen === true;
@@ -555,7 +557,7 @@ export function MainScreen() {
         </div>
       ) : null}
       </div>
-      {layout && !composing && (editing || !hideNav) ? (
+      {layout && !composing && !keyboardUp && (editing || !hideNav) ? (
         <BottomNav
           editing={editing}
           resetsCard={editedIsFirst}

@@ -70,3 +70,26 @@ export function useKeyboardDock(active: boolean, followOffset = false) {
 
   return inset;
 }
+
+/** True while the software keyboard covers the bottom of the page. */
+export function useKeyboardVisible() {
+  const [up, setUp] = useState(false);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const sync = () => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      const overlap = Math.max(0, window.innerHeight - Math.max(0, vv.offsetTop) - vv.height);
+      setUp(overlap > KEYBOARD_MIN_PX);
+    };
+    sync();
+    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("scroll", sync);
+    return () => {
+      viewport.removeEventListener("resize", sync);
+      viewport.removeEventListener("scroll", sync);
+    };
+  }, []);
+  return up;
+}
