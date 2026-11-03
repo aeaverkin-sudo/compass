@@ -609,7 +609,7 @@ export function CreatePortfolio({
               <NumberedRow index={2} label="Social">
                 <div className="flex flex-col gap-[6px]">
                   <p className="m-0 t-body" style={{ color: HINT }}>
-                    link-instagram, linkedin, etc.
+                    Link — Instagram, LinkedIn, etc.
                   </p>
                   {draft.rows.length === 0 ? <AddPlus onTap={addRow} disabled={atRowLimit} /> : null}
                 </div>
