@@ -36,7 +36,21 @@ export function ReturnHome() {
       }
     };
 
-    const home = () => {
+    const cameFromHere = () => {
+      const nav = performance.getEntriesByType("navigation")[0];
+      if (!nav || nav.type !== "navigate") return false;
+      try {
+        return new URL(document.referrer).origin === window.location.origin;
+      } catch {
+        return false;
+      }
+    };
+
+    const home = (resume: boolean) => {
+      if (!resume && cameFromHere()) {
+        clearLeft();
+        return;
+      }
       if (cardShareHoldsPlace()) {
         clearLeft();
         return;
@@ -73,14 +87,14 @@ export function ReturnHome() {
 
     const onVisibility = () => {
       if (document.visibilityState === "hidden") onHide();
-      else home();
+      else home(true);
     };
 
     const onPageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) home();
+      if (event.persisted) home(true);
     };
 
-    home();
+    home(false);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", onHide);
     window.addEventListener("pageshow", onPageShow);
