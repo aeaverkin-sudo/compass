@@ -14,7 +14,21 @@ import { BackButton } from "@/shared/components/back-button";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { BusinessCard } from "@main/components/business-card";
+import { CARD_TOP_TRIM_PX, RULE_GAP_PX, SCREEN_TOP_AXIS_PX } from "@main/layout";
+import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import type { Card, ContactItem } from "@/shared/types";
+
+/** One body line. The chevron ink ends 2.3px above its 22px box. */
+const BODY_LINE_PX = 15.5 * 1.45;
+const CHEVRON_INK_ABOVE_BOX_PX = 2.3;
+/** Card top so the photo sits one line under the back chevron, in a tab and in the installed app. */
+const CONTACT_CARD_TOP_PX =
+  SCREEN_TOP_AXIS_PX +
+  HEADER_ROW_PX / 2 -
+  CHEVRON_INK_ABOVE_BOX_PX +
+  BODY_LINE_PX -
+  (RULE_GAP_PX - CARD_TOP_TRIM_PX);
+const CONTACT_CARD_TOP = `calc(env(safe-area-inset-top) + ${CONTACT_CARD_TOP_PX}px)`;
 
 type PublicCardClientProps = {
   card: Card;
@@ -233,13 +247,13 @@ export function PublicCardClient({
 
   if (inside && !save) {
     return (
-      <div className="relative h-full min-h-0 bg-white" style={{ "--card-frame-top": "84px" } as CSSProperties}>
+      <div className="relative h-full min-h-0 bg-white" style={{ "--card-frame-top": CONTACT_CARD_TOP } as CSSProperties}>
         {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
         <BackButton
           fallbackHref={backHref ?? "/network"}
           onBack={() => router.push(backHref ?? "/network")}
         />
-        <div className="absolute inset-x-0 top-[84px]" style={{ bottom: deleted ? 48 : 0 }}>
+        <div className="absolute inset-x-0" style={{ top: CONTACT_CARD_TOP, bottom: deleted ? 48 : 0 }}>
           {sheet}
         </div>
         {deleted ? (
