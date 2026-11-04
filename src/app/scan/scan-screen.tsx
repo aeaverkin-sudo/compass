@@ -10,22 +10,11 @@ type Detector = {
   detect: (source: CanvasImageSource) => Promise<{ rawValue?: string }[]>;
 };
 
-const REAR_TRIES: MediaStreamConstraints[] = [
-  { video: { facingMode: { exact: "environment" } }, audio: false },
-  { video: { facingMode: "environment" }, audio: false },
-  { video: true, audio: false },
-];
-
-async function openRearCamera() {
-  let lastError: unknown;
-  for (const constraints of REAR_TRIES) {
-    try {
-      return await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError;
+function openRearCamera() {
+  return navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { exact: "environment" } },
+    audio: false,
+  });
 }
 
 function detectorOrNull(): Detector | null {
