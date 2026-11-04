@@ -82,9 +82,20 @@ async function openAnonymous(supabase: SupabaseClient) {
   acceptUser(data.user);
 }
 
+/** A card opened by the phone camera. The Safari or Chrome tab already holds the login. This page must not refresh it, sign it out, or replace it with a trial. */
+function isCameraCard(path: string) {
+  const pathname = path.split("?")[0]?.split("#")[0] ?? path;
+  return pathname.startsWith("/c/") || pathname.startsWith("/@");
+}
+
 /** Opens an anonymous Supabase session on a new device. Renders nothing. */
 export function SupabaseSession() {
   useEffect(() => {
+    if (isCameraCard(window.location.pathname)) {
+      markSessionBootstrapComplete();
+      return;
+    }
+
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !anonKey) {

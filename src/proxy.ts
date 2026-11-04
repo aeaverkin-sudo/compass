@@ -8,6 +8,11 @@ function isPublicCard(pathname: string) {
   return pathname.startsWith("/c/") || pathname.startsWith("/@");
 }
 
+/** The phone camera opens this page in a new tab. Refreshing here races the tab that is already signed in and Supabase revokes both. */
+function leavesSessionAlone(pathname: string) {
+  return isPublicCard(pathname) || pathname.startsWith("/api/c/");
+}
+
 function viewerFor(request: NextRequest) {
   if (!isPublicCard(request.nextUrl.pathname)) return { id: undefined as string | undefined, fresh: false };
   const existing = viewerId(request.cookies.get(VIEWER_COOKIE)?.value);
@@ -49,28 +54,30 @@ export async function proxy(request: NextRequest) {
 
   let supabaseResponse = forward(request, viewer.id);
 
-  const supabase = createServerClient(url, anonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
+  if (!leavesSessionAlone(request.nextUrl.pathname)) {
+    const supabase = createServerClient(url, anonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet, headers) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+          supabaseResponse = forward(request, viewer.id);
+          cookiesToSet.forEach(({ name, value, options }) => {
+            supabaseResponse.cookies.set(name, value, options);
+          });
+          Object.entries(headers).forEach(([key, value]) => {
+            supabaseResponse.headers.set(key, value);
+          });
+        },
       },
-      setAll(cookiesToSet, headers) {
-        cookiesToSet.forEach(({ name, value }) => {
-          request.cookies.set(name, value);
-        });
-        supabaseResponse = forward(request, viewer.id);
-        cookiesToSet.forEach(({ name, value, options }) => {
-          supabaseResponse.cookies.set(name, value, options);
-        });
-        Object.entries(headers).forEach(([key, value]) => {
-          supabaseResponse.headers.set(key, value);
-        });
-      },
-    },
-  });
+    });
 
-  // Server refresh lives here. The browser refreshes only while its tab is visible.
-  await supabase.auth.getUser();
+    // Server refresh lives here. The browser refreshes only while its tab is visible.
+    await supabase.auth.getUser();
+  }
 
   rememberViewer(supabaseResponse, request, viewer.id, viewer.fresh);
   return supabaseResponse;
