@@ -73,11 +73,20 @@ function useUnseenIncoming() {
       }
     };
     void pull();
+    const tick = window.setInterval(() => {
+      if (document.visibilityState === "visible") void pull();
+    }, 2000);
     const onFocus = () => void pull();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void pull();
+    };
     window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancel = true;
+      window.clearInterval(tick);
       window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
