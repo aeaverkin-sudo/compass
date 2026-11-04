@@ -278,7 +278,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
             <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Shared their card with you</p>
             <ul>
               {requests.map((contact) => (
-                <ContactRow key={contact.id} contact={contact} onHold={(box) => openMenu(contact, box)} />
+                <ContactRow key={contact.id} contact={contact} veiled onHold={(box) => openMenu(contact, box)} />
               ))}
             </ul>
           </section>
@@ -442,7 +442,15 @@ function FlatList({
   );
 }
 
-function ContactRow({ contact, onHold }: { contact: Contact; onHold: (box: DOMRect) => void }) {
+function ContactRow({
+  contact,
+  onHold,
+  veiled = false,
+}: {
+  contact: Contact;
+  onHold: (box: DOMRect) => void;
+  veiled?: boolean;
+}) {
   const decisions = useConnectionDecisions();
   const removing = decisions.removing.has(contact.id);
   const box = useRef<DOMRect | null>(null);
@@ -458,7 +466,7 @@ function ContactRow({ contact, onHold }: { contact: Contact; onHold: (box: DOMRe
   }
   const line = metaLine(contact);
   return (
-    <li className="border-b border-[var(--rule)]">
+    <li className={`border-b border-[var(--rule)]${veiled ? " opacity-60" : ""}`}>
       <Link
         href={`/network/c/${contact.savedCardToken}`}
         className="press flex min-w-0 flex-1 items-center gap-3 py-3 text-inherit no-underline select-none [-webkit-touch-callout:none]"
