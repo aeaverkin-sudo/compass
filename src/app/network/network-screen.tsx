@@ -29,7 +29,7 @@ import { foldSearch } from "@/shared/lib/search-fold";
 import { cn } from "@/lib/utils";
 import { NetworkBand } from "./network-band";
 
-type SortMode = "recent" | "alphabet" | "event";
+type SortMode = "recent" | "alphabet";
 
 type Contact = {
   id: string;
@@ -51,7 +51,6 @@ const ZONE_LABEL = "t-label whitespace-nowrap";
 const SORTS: { id: SortMode; label: string }[] = [
   { id: "recent", label: "Recently added" },
   { id: "alphabet", label: "Alphabet" },
-  { id: "event", label: "by Event" },
 ];
 
 function letterOf(name: string) {
@@ -243,7 +242,7 @@ export function NetworkScreen({
               />
             ) : (
               <FlatList
-                contacts={groupAccepted(accepted, sort)}
+                contacts={groupAccepted(accepted)}
                 armedId={armedId}
                 onArm={setArmedId}
                 onRemove={(id) => void remove(id)}
@@ -259,21 +258,7 @@ export function NetworkScreen({
   );
 }
 
-function groupAccepted(contacts: Contact[], sort: SortMode) {
-  if (sort === "event") {
-    const groups = new Map<string, Contact[]>();
-    for (const contact of contacts) {
-      const key = contact.sourceEventId ?? "";
-      const list = groups.get(key) ?? [];
-      list.push(contact);
-      groups.set(key, list);
-    }
-    return [...groups.entries()].map(([key, list]) => ({
-      key,
-      label: key ? "Event" : "",
-      contacts: list.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    }));
-  }
+function groupAccepted(contacts: Contact[]) {
   return [
     {
       key: "recent",
