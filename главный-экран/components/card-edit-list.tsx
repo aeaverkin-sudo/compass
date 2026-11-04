@@ -46,7 +46,7 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 const OFF_CARD = "var(--placeholder)";
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
-const NEW_ZONE_TITLE = "Section name";
+const NEW_ZONE_TITLE = "Title";
 const LOOKING_FOR = "Looking for";
 /** An event pass keeps Event on About, so Looking for takes a section the pass never fills. */
 const LOOKING_FOR_ZONE = "background";
@@ -288,7 +288,7 @@ function SectionLabel({
     <WrapField
       ref={dockRef}
       initial={title}
-      label="Section name"
+      label="Title"
       placeholder={pill ? NEW_ZONE_TITLE : undefined}
       placeholderClassName="t-label text-[var(--grey)]"
       autoFocus={pill}
