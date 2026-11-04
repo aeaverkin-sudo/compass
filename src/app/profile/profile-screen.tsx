@@ -52,58 +52,40 @@ function trialLine(hoursLeft: number | null) {
 
 type Sharing = { analytics: boolean; connections: boolean };
 
-/** What every event registration shares. Moved here from the event page. */
+/** Anonymous analytics for every event registration. Allow connections stays stored, without a switch. */
 function SharingSettings({ initial }: { initial: Sharing }) {
-  const [sharing, setSharing] = useState(initial);
+  const [analytics, setAnalytics] = useState(initial.analytics);
 
-  const save = (next: Sharing) => {
-    const previous = sharing;
-    setSharing(next);
+  const save = (next: boolean) => {
+    const previous = analytics;
+    setAnalytics(next);
     void fetch("/api/account/sharing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(next),
+      body: JSON.stringify({ analytics: next, connections: initial.connections }),
     })
       .then((response) => {
-        if (!response.ok) setSharing(previous);
+        if (!response.ok) setAnalytics(previous);
       })
-      .catch(() => setSharing(previous));
+      .catch(() => setAnalytics(previous));
   };
 
   return (
-    <div className="flex min-w-0 flex-col gap-5">
-      <div className="flex items-start gap-3">
-        <Switch
-          checked={sharing.analytics}
-          onCheckedChange={(checked) => save({ ...sharing, analytics: checked === true })}
-          aria-labelledby="profile-sharing-analytics"
-          className="mt-[2px] shrink-0"
-        />
-        <span className="min-w-0">
-          <span id="profile-sharing-analytics" className="block t-body text-[var(--ink)]">
-            Share anonymous analytics
-          </span>
-          <span className="mt-1 block t-meta text-[var(--grey)]">
-            Nobody sees your personal details — only an anonymous business summary.
-          </span>
+    <div className="flex items-start gap-3">
+      <Switch
+        checked={analytics}
+        onCheckedChange={(checked) => save(checked === true)}
+        aria-labelledby="profile-sharing-analytics"
+        className="mt-[2px] shrink-0"
+      />
+      <span className="min-w-0">
+        <span id="profile-sharing-analytics" className="block t-body text-[var(--ink)]">
+          Share anonymous analytics
         </span>
-      </div>
-      <div className="flex items-start gap-3">
-        <Switch
-          checked={sharing.connections}
-          onCheckedChange={(checked) => save({ ...sharing, connections: checked === true })}
-          aria-labelledby="profile-sharing-connections"
-          className="mt-[2px] shrink-0"
-        />
-        <span className="min-w-0">
-          <span id="profile-sharing-connections" className="block t-body text-[var(--ink)]">
-            Allow connections
-          </span>
-          <span className="mt-1 block t-meta text-[var(--grey)]">
-            Your summary can be matched to the right people — say, an investor you&apos;re looking for.
-          </span>
+        <span className="mt-1 block t-meta text-[var(--grey)]">
+          Nobody sees your personal details — only an anonymous business summary.
         </span>
-      </div>
+      </span>
     </div>
   );
 }
