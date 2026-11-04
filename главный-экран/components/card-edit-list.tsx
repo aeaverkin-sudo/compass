@@ -32,6 +32,7 @@ import {
 } from "@/shared/services/contact-item";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { customDisplayName } from "@/shared/services/link-display";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useAppStore } from "@/shared/store/app-store";
@@ -854,6 +855,18 @@ export const CardEditList = memo(function CardEditList({
           </section>
         );
       })}
+      <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] border-t border-[var(--rule)] py-[18px]">
+        <span />
+        <button
+          type="button"
+          data-no-swipe
+          aria-label="Add section"
+          className="border-0 bg-transparent p-0 text-left text-[var(--ink)]"
+          onClick={() => openNewZoneRef.current()}
+        >
+          <MarkPlus />
+        </button>
+      </div>
       <AddLine
         cardId={card.id}
         openOnMount={false}
