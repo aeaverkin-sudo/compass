@@ -140,16 +140,16 @@ export function HeroName({
 
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
-  /** Empty questionnaire: the caret uses the hint's own line, not the hero size. */
+  /** Empty questionnaire: the caret uses the t-body hint, not the hero size. */
   const hintLine = ruled && empty;
   const lineStyle = hintLine
     ? {
-        fontSize: 11,
+        fontSize: 15.5,
         lineHeight: 1.45,
         fontWeight: 400,
-        letterSpacing: "0.1em",
+        letterSpacing: "-0.015em",
         boxSizing: "border-box" as const,
-        height: 11 * 1.45,
+        height: 15.5 * 1.45,
         padding: 0,
       }
     : {

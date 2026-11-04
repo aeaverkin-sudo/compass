@@ -1,9 +1,12 @@
 "use client";
 
 import { HeroName } from "@/shared/components/hero-name";
+import { RequiredStar } from "./entry-zones";
 
-const HINT_ONE = "NAME OR";
-const HINT_TWO = "PORTFOLIO TITLE";
+const HINT_ONE = "Name or";
+const HINT_TWO = "portfolio title";
+/** One `t-body` line. The caret sits on the first hint line. */
+const HINT_LINE_PX = 15.5 * 1.45;
 
 export function EntryName({
   value,
@@ -29,15 +32,18 @@ export function EntryName({
     >
       <div className={hint ? "relative w-full min-w-0 max-w-full" : "absolute inset-0 min-w-0 overflow-x-hidden"}>
         {hint ? (
-          <div aria-hidden className="pointer-events-none t-label" style={{ color: "var(--placeholder)" }}>
+          <div aria-hidden className="pointer-events-none t-body text-[var(--placeholder)]">
             <div className="whitespace-nowrap border-b border-[var(--rule)] pb-[3px]">{HINT_ONE}</div>
             <div className="mt-[14px] whitespace-nowrap border-b border-[var(--rule)] pb-[3px]">
               {HINT_TWO}
-              <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
+              <RequiredStar />
             </div>
           </div>
         ) : null}
-        <div className={hint ? "absolute inset-x-0 top-0 h-[15.95px]" : "flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden"}>
+        <div
+          className={hint ? "absolute inset-x-0 top-0" : "flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden"}
+          style={hint ? { height: HINT_LINE_PX } : undefined}
+        >
           <HeroName value={shown} onChange={onChange} placeholder="" ruled />
         </div>
         {suggested ? (

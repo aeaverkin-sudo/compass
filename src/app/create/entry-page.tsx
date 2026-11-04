@@ -28,7 +28,7 @@ import { useUploadStatus } from "@/shared/store/upload-status";
 import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { signInHref, type EntryInput } from "./door";
 import { EntryName } from "./entry-name";
-import { ENTRY_MARK, EntryZones, type EntryZonesHandle } from "./entry-zones";
+import { ENTRY_MARK, EntryZones, RequiredStar, type EntryZonesHandle } from "./entry-zones";
 
 const PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -367,10 +367,8 @@ export function EntryPage({ input }: { input: EntryInput }) {
               className={photo ? undefined : "[&_button_svg]:invisible"}
             />
             {photo ? null : (
-              <span className="t-label pointer-events-none absolute inset-0 flex items-center justify-center px-1 text-center leading-[1.15] text-[var(--grey)]">
-                Add
-                <br />
-                photo
+              <span className="t-label pointer-events-none absolute inset-0 flex items-center justify-center text-center text-[var(--grey)]">
+                Photo
               </span>
             )}
           </div>
@@ -400,7 +398,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
           <label ref={emailRef} className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
             <span className="t-label whitespace-normal">
               Profile email
-              <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
+              <RequiredStar />
             </span>
             <input
               type="email"

@@ -590,41 +590,44 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   );
 });
 
+/** One star for every required field. Size is the hint (`t-body`), never the caps label. */
+export function RequiredStar() {
+  return (
+    <span className="t-body relative -top-[0.35em] ml-[0.15em] inline-block leading-none! text-[var(--ink)] normal-case">
+      *
+    </span>
+  );
+}
+
 function HintLine({ text, star }: { text: string; star: boolean }) {
   return (
     <>
       {text}
-      {star ? <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span> : null}
+      {star ? <RequiredStar /> : null}
     </>
   );
 }
 
 function MoreRow({ open, onToggle }: { open: boolean; onToggle: () => void }) {
-  const label = open ? "More" : "More — Web · Social · Files · About";
-  const chevron = (
-    <ChevronDown
-      className={cn("size-4 shrink-0 text-[var(--ink)]", open && "rotate-180")}
-      strokeWidth={1.5}
-      aria-hidden
-    />
-  );
-  const button = (
+  return (
     <button
       type="button"
       aria-expanded={open}
-      className="flex w-full min-w-0 items-center justify-between gap-3 border-0 bg-transparent p-0"
+      className="grid w-full grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-0 bg-transparent p-0 py-[18px] text-left"
       onClick={onToggle}
     >
-      <span className="t-label min-w-0 whitespace-nowrap">{label}</span>
-      {chevron}
+      <span className="t-label">More</span>
+      <span className="flex min-w-0 items-center gap-3">
+        {open ? <span className="min-w-0 flex-1" /> : (
+          <span className="t-body min-w-0 flex-1 text-[var(--placeholder)]">Web, Social, Files, About</span>
+        )}
+        <ChevronDown
+          className={cn("size-4 shrink-0 text-[var(--ink)]", open && "rotate-180")}
+          strokeWidth={1.5}
+          aria-hidden
+        />
+      </span>
     </button>
-  );
-  if (!open) return <div className="py-[18px]">{button}</div>;
-  return (
-    <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] py-[18px]">
-      <span />
-      {button}
-    </div>
   );
 }
 
