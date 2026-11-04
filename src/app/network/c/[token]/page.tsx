@@ -6,6 +6,7 @@ import { loadDeletedCard } from "@/shared/services/connection-snapshot";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { ContactActions } from "./contact-actions";
 import { PendingShare } from "./pending-share";
+import { reverseShareFor } from "@/shared/services/reverse-share";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function NetworkCardPage({ params }: PageProps) {
 
   const link = await ownConnection(token);
   const pending = link?.state === "pending";
+  const reverse = link ? await reverseShareFor(link.userId, loaded.ownerId) : "none";
 
   return (
     <main className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-white">
@@ -45,7 +47,14 @@ export default async function NetworkCardPage({ params }: PageProps) {
         <PublicCardClient inside card={loaded.card} items={loaded.items} publicToken={loaded.card.publicToken} />
       </div>
       {link && pending ? <PendingShare id={link.id} /> : null}
-      {link && !pending ? <ContactActions id={link.id} token={loaded.card.publicToken} /> : null}
+      {link && !pending ? (
+        <ContactActions
+          id={link.id}
+          token={loaded.card.publicToken}
+          theyHaveMe={reverse === "active"}
+          shareBackPending={reverse === "pending"}
+        />
+      ) : null}
     </main>
   );
 }
@@ -61,6 +70,6 @@ async function ownConnection(token: string) {
     .eq("saved_card_token", token)
     .maybeSingle();
   if (row.error || !row.data) return null;
-  return { id: String(row.data.id), state: row.data.state === "pending" ? "pending" : "active" };
+  return { id: String(row.data.id), userId: data.user.id, state: row.data.state === "pending" ? "pending" : "active" };
 }
 

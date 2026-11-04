@@ -4,14 +4,24 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TabBand } from "@main/components/tab-band";
 import { TapButton } from "@/shared/components/tap-button";
-import { sendShareBack, undoShareBack, useShareBack } from "@/shared/lib/share-back-send";
+import { forgetShareBack, sendShareBack, undoShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 const ITEM =
   "press touch-manipulation flex h-full min-h-11 w-full items-center whitespace-nowrap border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
 
-/** Delete and Share back on an opened contact. Same sky row and the same three columns as Profile / Home / Network. */
-export function ContactActions({ id, token }: { id: string; token: string }) {
+/** Delete and Share back on an opened contact. Share back stays only while they do not have my card. */
+export function ContactActions({
+  id,
+  token,
+  theyHaveMe = false,
+  shareBackPending = false,
+}: {
+  id: string;
+  token: string;
+  theyHaveMe?: boolean;
+  shareBackPending?: boolean;
+}) {
   const router = useRouter();
   const phase = useShareBack(token);
   const [armed, setArmed] = useState(false);
@@ -53,10 +63,12 @@ export function ContactActions({ id, token }: { id: string; token: string }) {
       setArmed(false);
       return;
     }
+    forgetShareBack(token);
     router.push("/network");
   };
 
-  const shareLabel = phase === "undo" ? "Undo" : phase === "sent" ? "Shared back" : "Share back";
+  const shareShown = theyHaveMe ? null : shareBackPending && phase === "idle" ? "sent" : phase;
+  const shareLabel = shareShown === "undo" ? "Undo" : shareShown === "sent" ? "Shared back" : "Share back";
 
   return (
     <TabBand
@@ -80,20 +92,24 @@ export function ContactActions({ id, token }: { id: string; token: string }) {
       }
       center={<span className="min-h-11 w-full" />}
       right={
-        <TapButton
-          className={`${ITEM} justify-end disabled:text-[var(--grey)]`}
-          disabled={phase === "sent" || busy}
-          onTap={() => {
-            if (cancelTap.current) return;
-            if (phase === "undo") {
-              void undoShareBack(token);
-              return;
-            }
-            if (phase === "idle") void sendShareBack(token);
-          }}
-        >
-          {shareLabel}
-        </TapButton>
+        shareShown ? (
+          <TapButton
+            className={`${ITEM} justify-end disabled:text-[var(--grey)]`}
+            disabled={shareShown === "sent" || busy}
+            onTap={() => {
+              if (cancelTap.current) return;
+              if (shareShown === "undo") {
+                void undoShareBack(token);
+                return;
+              }
+              if (shareShown === "idle") void sendShareBack(token);
+            }}
+          >
+            {shareLabel}
+          </TapButton>
+        ) : (
+          <span className="min-h-11 w-full" />
+        )
       }
     />
   );

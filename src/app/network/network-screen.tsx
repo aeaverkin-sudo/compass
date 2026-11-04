@@ -28,7 +28,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { clearNewContact } from "@/shared/lib/new-contact";
 import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
-import { sendShareBack, undoShareBack, useShareBack } from "@/shared/lib/share-back-send";
+import { forgetShareBack, sendShareBack, undoShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { NetworkBand } from "./network-band";
 
 type SortMode = "recent" | "alphabet";
@@ -43,6 +43,10 @@ type Contact = {
   role: string;
   photoUrl: string | null;
   searchText: string;
+  /** Their book already holds my primary card. */
+  theyHaveMe?: boolean;
+  /** My share back is still a request in their book. */
+  shareBackPending?: boolean;
 };
 
 const HOLD_MS = 500;
@@ -184,6 +188,13 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const people = shown.filter((contact) => !isRequest(contact, decisions.accepting));
   const menuContact = menu ? book.find((contact) => contact.id === menu.id) ?? null : null;
   const sharePhase = useShareBack(menuContact?.savedCardToken ?? "");
+  const shareShown =
+    menuContact && !menuContact.theyHaveMe
+      ? menuContact.shareBackPending && sharePhase === "idle"
+        ? "sent"
+        : sharePhase
+      : null;
+  const shareLabel = shareShown === "undo" ? "Undo" : shareShown === "sent" ? "Shared back" : "Share back";
 
   const readyOwnerId = async () => {
     if (ownerId.current) return ownerId.current;
@@ -211,6 +222,8 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           next.splice(Math.min(index, next.length), 0, before);
           return next;
         });
+      } else {
+        forgetShareBack(before.savedCardToken);
       }
     } finally {
       inFlight.current.delete(id);
@@ -229,7 +242,6 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     run();
   };
 
-  const shareLabel = sharePhase === "undo" ? "Undo" : sharePhase === "sent" ? "Shared back" : "Share back";
   const requestMenu = menuContact ? isRequest(menuContact, decisions.accepting) : false;
 
   return (
@@ -346,20 +358,24 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                     });
                   },
                 },
-                {
-                  label: shareLabel,
-                  tone: sharePhase === "sent" ? "grey" : "ink",
-                  disabled: sharePhase === "sent",
-                  onPress: () => {
-                    pressMenu(() => {
-                      if (sharePhase === "undo") {
-                        void undoShareBack(menuContact.savedCardToken);
-                        return;
-                      }
-                      if (sharePhase === "idle") void sendShareBack(menuContact.savedCardToken);
-                    });
-                  },
-                },
+                ...(shareShown
+                  ? [
+                      {
+                        label: shareLabel,
+                        tone: shareShown === "sent" ? ("grey" as const) : ("ink" as const),
+                        disabled: shareShown === "sent",
+                        onPress: () => {
+                          pressMenu(() => {
+                            if (shareShown === "undo") {
+                              void undoShareBack(menuContact.savedCardToken);
+                              return;
+                            }
+                            if (shareShown === "idle") void sendShareBack(menuContact.savedCardToken);
+                          });
+                        },
+                      },
+                    ]
+                  : []),
               ]}
             />
           )}

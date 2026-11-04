@@ -39,9 +39,7 @@ function subscribe(listener: () => void) {
 }
 
 export function shareBackPhase(token: string): Phase {
-  const row = live.get(token);
-  if (row) return row.phase;
-  return readDone().includes(token) ? "sent" : "idle";
+  return live.get(token)?.phase ?? "idle";
 }
 
 export function useShareBack(token: string) {
@@ -52,9 +50,16 @@ function commit(token: string) {
   const row = live.get(token);
   if (!row || row.phase !== "undo") return;
   if (row.timer != null) window.clearTimeout(row.timer);
-  const done = readDone();
-  if (!done.includes(token)) writeDone([...done, token]);
   live.set(token, { phase: "sent", pendingId: null, timer: null });
+  publish();
+}
+
+/** Delete drops the old send. A later add of the same card can share back again. */
+export function forgetShareBack(token: string) {
+  const row = live.get(token);
+  if (row?.timer != null) window.clearTimeout(row.timer);
+  live.delete(token);
+  writeDone(readDone().filter((entry) => entry !== token));
   publish();
 }
 

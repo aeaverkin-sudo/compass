@@ -3,6 +3,7 @@ import { requireOwnerId } from "@/shared/services/attachment-api";
 import { foldSearch } from "@/shared/lib/search-fold";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { primaryCardId } from "@/shared/services/primary-card";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ type ConnectionRow = {
 
 type CardFace = {
   id: string;
+  owner_id: string;
   title: string | null;
   display_name: string | null;
   photo_attachment_id: string | null;
@@ -64,18 +66,33 @@ export async function GET() {
     const ids = [...new Set(rows.flatMap((row) => (row.saved_card_id ? [row.saved_card_id] : [])))];
     const faces = new Map<string, CardFace>();
     const lines = new Map<string, string>();
+    const reverse = new Map<string, "pending" | "active">();
     if (ids.length > 0) {
       const admin = createAdminSupabaseClient();
       const withFlag = await admin
         .from("cards")
-        .select("id, title, display_name, photo_attachment_id, searchable")
+        .select("id, owner_id, title, display_name, photo_attachment_id, searchable")
         .in("id", ids);
       const cards =
         withFlag.error && /searchable/i.test(withFlag.error.message)
-          ? await admin.from("cards").select("id, title, display_name, photo_attachment_id").in("id", ids)
+          ? await admin.from("cards").select("id, owner_id, title, display_name, photo_attachment_id").in("id", ids)
           : withFlag;
       if (cards.error) throw new Error(cards.error.message);
       for (const card of (cards.data ?? []) as CardFace[]) faces.set(card.id, card);
+
+      const mine = await primaryCardId(owner.id);
+      const theirOwners = [...new Set([...faces.values()].map((face) => face.owner_id).filter(Boolean))];
+      if (mine && theirOwners.length > 0) {
+        const held = await admin
+          .from("connections")
+          .select("owner_id, state")
+          .eq("saved_card_id", mine)
+          .in("owner_id", theirOwners);
+        if (held.error) throw new Error(held.error.message);
+        for (const row of held.data ?? []) {
+          reverse.set(String(row.owner_id), row.state === "pending" ? "pending" : "active");
+        }
+      }
 
       const openIds = [
         ...new Set(
@@ -123,6 +140,7 @@ export async function GET() {
         if (!face) return [];
         const role = face.title?.trim() || "";
         const deep = face.searchable !== false;
+        const held = reverse.get(face.owner_id);
         return [{
           id: row.id,
           displayName: row.display_name,
@@ -133,6 +151,8 @@ export async function GET() {
           role,
           photoUrl: face.photo_attachment_id ? `/f/${face.photo_attachment_id}` : null,
           searchText: joinSearch(row.display_name, role, deep ? face.display_name : "", deep ? lines.get(row.saved_card_id) : ""),
+          theyHaveMe: held === "active",
+          shareBackPending: held === "pending",
         }];
       }),
     });
