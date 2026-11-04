@@ -306,7 +306,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
               actions={[
                 {
                   label: "Skip",
-                  tone: "grey",
+                  tone: "ink",
                   onPress: () => {
                     pressMenu(() => {
                       declineConnection(menuContact.id);

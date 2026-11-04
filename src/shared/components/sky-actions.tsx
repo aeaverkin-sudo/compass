@@ -9,10 +9,10 @@ export type SkyAction = {
   disabled?: boolean;
 };
 
-/** The sky bar for a hold and for a docked row. Two words, each centered in its half. */
-export function SkyActions({ actions, dock = false }: { actions: SkyAction[]; dock?: boolean }) {
+/** The sky bar for a hold. Two words, each centered in its half. A bottom band is TabBand. */
+export function SkyActions({ actions }: { actions: SkyAction[] }) {
   return (
-    <div className="flex bg-sky" style={dock ? { paddingBottom: "env(safe-area-inset-bottom)" } : undefined}>
+    <div className="flex bg-sky">
       {actions.map((action) => (
         <button
           key={action.label}
