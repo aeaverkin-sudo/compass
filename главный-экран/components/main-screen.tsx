@@ -25,6 +25,7 @@ import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { cardShareHoldsPlace, editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
+import { BackButton } from "@/shared/components/back-button";
 import { UploadNotice } from "@/shared/components/upload-notice";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { InstallHint } from "@/shared/components/install-hint";
@@ -453,6 +454,12 @@ export function MainScreen() {
 
   return (
     <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-background">
+      {viewingAddSlide ? (
+        <BackButton
+          fallbackHref="/main"
+          onBack={() => onActiveIndexChange(Math.max(cardCount - 1, 0))}
+        />
+      ) : null}
       <div ref={columnRef} className="relative min-h-0 flex-1">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">
         {layout ? (
