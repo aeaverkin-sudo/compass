@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
+import { SkyActions } from "@/shared/components/sky-actions";
 import { Zone } from "@/shared/components/zone";
-import { ShareBackOffer } from "@/shared/components/share-back";
 import { SkyToast } from "@/shared/components/sky-toast";
-import { NoButton, UndoRow, YesButton } from "@/shared/components/pending-decision";
+import { UndoRow } from "@/shared/components/pending-decision";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,8 +25,9 @@ import {
   useConnectionDecisions,
 } from "@/shared/lib/connection-decision";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { clearNewContact } from "@/shared/lib/new-contact";
 import { foldSearch } from "@/shared/lib/search-fold";
-import { cn } from "@/lib/utils";
+import { sendShareBack, undoShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { NetworkBand } from "./network-band";
 
 type SortMode = "recent" | "alphabet";
@@ -65,11 +66,14 @@ function whenLabel(iso: string) {
   return new Intl.DateTimeFormat("en", { day: "numeric", month: "short" }).format(date);
 }
 
-function metaLine(contact: Contact, pending: boolean) {
+function metaLine(contact: Contact) {
   const when = whenLabel(contact.createdAt);
-  if (pending) return when ? `Shared their card with you · ${when}` : "Shared their card with you";
   if (contact.role && when) return `${contact.role} · ${when}`;
   return contact.role || when;
+}
+
+function isRequest(contact: Contact, accepting: ReadonlySet<string>) {
+  return contact.state === "pending" && !accepting.has(contact.id);
 }
 
 function matchesQuery(contact: Contact, query: string) {
@@ -77,23 +81,22 @@ function matchesQuery(contact: Contact, query: string) {
   return contact.searchText.includes(query);
 }
 
-export function NetworkScreen({
-  addedName = null,
-  addedToken = null,
-}: {
-  addedName?: string | null;
-  addedToken?: string | null;
-}) {
+type HoldMenu = { id: string; top: number; left: number; width: number; confirmDelete: boolean };
+
+export function NetworkScreen({ addedName = null }: { addedName?: string | null }) {
   const router = useRouter();
   const [contacts, setContacts] = useState<Contact[] | null>(() => recallAnswer<Contact[]>(CONTACTS_KEY));
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
-  const [armedId, setArmedId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<HoldMenu | null>(null);
   const [notice, setNotice] = useState<string | null>(
     addedName ? `${addedName} — just added to your contacts` : null,
   );
   const ownerId = useRef<string | null>(null);
   const inFlight = useRef(new Set<string>());
+  const plaqueRef = useRef<HTMLDivElement>(null);
+  const arming = useRef(false);
+  const swallowClick = useRef(false);
   const decisions = useConnectionDecisions();
 
   const load = async () => {
@@ -117,11 +120,36 @@ export function NetworkScreen({
   };
 
   useEffect(() => {
+    clearNewContact();
     void load();
     void createBrowserSupabaseClient().auth.getSession().then(({ data }) => {
       ownerId.current = data.session?.user.id ?? null;
     });
   }, []);
+
+  useEffect(() => {
+    const lift = () => {
+      if (!arming.current) return;
+      arming.current = false;
+      swallowClick.current = true;
+      window.setTimeout(() => {
+        swallowClick.current = false;
+      }, 0);
+    };
+    document.addEventListener("pointerup", lift);
+    return () => document.removeEventListener("pointerup", lift);
+  }, []);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = (event: PointerEvent) => {
+      const node = plaqueRef.current;
+      if (node && event.target instanceof Node && node.contains(event.target)) return;
+      setMenu(null);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [menu]);
 
   useEffect(() => {
     if (contacts) {
@@ -146,10 +174,14 @@ export function NetworkScreen({
     [contacts, decisions],
   );
 
-  const accepted = useMemo(() => {
+  const shown = useMemo(() => {
     const needle = foldSearch(query.trim());
     return book.filter((contact) => matchesQuery(contact, needle));
   }, [book, query]);
+  const requests = shown.filter((contact) => isRequest(contact, decisions.accepting));
+  const people = shown.filter((contact) => !isRequest(contact, decisions.accepting));
+  const menuContact = menu ? book.find((contact) => contact.id === menu.id) ?? null : null;
+  const sharePhase = useShareBack(menuContact?.savedCardToken ?? "");
 
   const readyOwnerId = async () => {
     if (ownerId.current) return ownerId.current;
@@ -163,7 +195,7 @@ export function NetworkScreen({
     const before = index >= 0 ? contacts?.[index] : undefined;
     if (!before || inFlight.current.has(id)) return;
     inFlight.current.add(id);
-    setArmedId(null);
+    setMenu(null);
     setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
     try {
       const userId = await readyOwnerId();
@@ -183,7 +215,20 @@ export function NetworkScreen({
     }
   };
 
-  const empty = contacts !== null && book.length === 0;
+  const empty = contacts !== null && people.length === 0 && requests.length === 0;
+
+  const openMenu = (contact: Contact, box: DOMRect) => {
+    arming.current = true;
+    setMenu({ id: contact.id, top: box.top, left: box.left, width: box.width, confirmDelete: false });
+  };
+
+  const pressMenu = (run: () => void) => {
+    if (swallowClick.current) return;
+    run();
+  };
+
+  const shareLabel = sharePhase === "undo" ? "Undo" : sharePhase === "sent" ? "Shared back" : "Share back";
+  const requestMenu = menuContact ? isRequest(menuContact, decisions.accepting) : false;
 
   return (
     <main
@@ -226,34 +271,96 @@ export function NetworkScreen({
             </DropdownMenu>
           </div>
         </Zone>
+        {requests.length > 0 ? (
+          <Zone label="Shared their card with you" align="start" rule>
+            <ul>
+              {requests.map((contact) => (
+                <ContactRow key={contact.id} contact={contact} onHold={(box) => openMenu(contact, box)} />
+              ))}
+            </ul>
+          </Zone>
+        ) : null}
         {empty ? (
           <Zone label="Contacts">
             <p className="t-body text-[var(--grey)]">No contacts yet.</p>
             <p className="mt-1 t-meta text-[var(--grey)]">Exchange a card and your first contact appears here.</p>
           </Zone>
-        ) : (
-          <>
-            {sort === "alphabet" ? (
-              <AlphabetList
-                contacts={accepted}
-                armedId={armedId}
-                onArm={setArmedId}
-                onRemove={(id) => void remove(id)}
-              />
-            ) : (
-              <FlatList
-                contacts={groupAccepted(accepted)}
-                armedId={armedId}
-                onArm={setArmedId}
-                onRemove={(id) => void remove(id)}
-              />
-            )}
-          </>
-        )}
+        ) : people.length > 0 ? (
+          sort === "alphabet" ? (
+            <AlphabetList contacts={people} onHold={openMenu} />
+          ) : (
+            <FlatList contacts={groupAccepted(people)} onHold={openMenu} />
+          )
+        ) : null}
       </div>
 
       <NetworkBand current="network" />
-      {addedToken ? <ShareBackOffer token={addedToken} /> : null}
+      {menu && menuContact ? (
+        <div
+          ref={plaqueRef}
+          className="fixed z-40"
+          style={{ top: menu.top, left: menu.left, width: menu.width }}
+        >
+          {requestMenu ? (
+            <SkyActions
+              actions={[
+                {
+                  label: "Skip",
+                  tone: "grey",
+                  onPress: () => {
+                    pressMenu(() => {
+                      declineConnection(menuContact.id);
+                      setMenu(null);
+                    });
+                  },
+                },
+                {
+                  label: "Confirm",
+                  tone: "ink",
+                  onPress: () => {
+                    pressMenu(() => {
+                      acceptConnection(menuContact.id);
+                      setMenu(null);
+                    });
+                  },
+                },
+              ]}
+            />
+          ) : (
+            <SkyActions
+              actions={[
+                {
+                  label: menu.confirmDelete ? "Yes, delete" : "Delete",
+                  tone: "danger",
+                  onPress: () => {
+                    pressMenu(() => {
+                      if (!menu.confirmDelete) {
+                        setMenu({ ...menu, confirmDelete: true });
+                        return;
+                      }
+                      void remove(menu.id);
+                    });
+                  },
+                },
+                {
+                  label: shareLabel,
+                  tone: sharePhase === "sent" ? "grey" : "ink",
+                  disabled: sharePhase === "sent",
+                  onPress: () => {
+                    pressMenu(() => {
+                      if (sharePhase === "undo") {
+                        void undoShareBack(menuContact.savedCardToken);
+                        return;
+                      }
+                      if (sharePhase === "idle") void sendShareBack(menuContact.savedCardToken);
+                    });
+                  },
+                },
+              ]}
+            />
+          )}
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -270,14 +377,10 @@ function groupAccepted(contacts: Contact[]) {
 
 function AlphabetList({
   contacts,
-  armedId,
-  onArm,
-  onRemove,
+  onHold,
 }: {
   contacts: Contact[];
-  armedId: string | null;
-  onArm: (id: string | null) => void;
-  onRemove: (id: string) => void;
+  onHold: (contact: Contact, box: DOMRect) => void;
 }) {
   const groups = new Map<string, Contact[]>();
   for (const contact of contacts) {
@@ -299,13 +402,7 @@ function AlphabetList({
               .slice()
               .sort((a, b) => a.displayName.localeCompare(b.displayName))
               .map((contact) => (
-                <ContactRow
-                  key={contact.id}
-                  contact={contact}
-                  armed={armedId === contact.id}
-                  onArm={() => onArm(contact.id)}
-                  onRemove={() => onRemove(contact.id)}
-                />
+                <ContactRow key={contact.id} contact={contact} onHold={(box) => onHold(contact, box)} />
               ))}
           </ul>
         </section>
@@ -316,14 +413,10 @@ function AlphabetList({
 
 function FlatList({
   contacts,
-  armedId,
-  onArm,
-  onRemove,
+  onHold,
 }: {
   contacts: { key: string; label: string; contacts: Contact[] }[];
-  armedId: string | null;
-  onArm: (id: string | null) => void;
-  onRemove: (id: string) => void;
+  onHold: (contact: Contact, box: DOMRect) => void;
 }) {
   return (
     <>
@@ -336,13 +429,7 @@ function FlatList({
           ) : null}
           <ul>
             {group.contacts.map((contact) => (
-              <ContactRow
-                key={contact.id}
-                contact={contact}
-                armed={armedId === contact.id}
-                onArm={() => onArm(contact.id)}
-                onRemove={() => onRemove(contact.id)}
-              />
+              <ContactRow key={contact.id} contact={contact} onHold={(box) => onHold(contact, box)} />
             ))}
           </ul>
         </section>
@@ -351,21 +438,13 @@ function FlatList({
   );
 }
 
-function ContactRow({
-  contact,
-  armed,
-  onArm,
-  onRemove,
-}: {
-  contact: Contact;
-  armed: boolean;
-  onArm: () => void;
-  onRemove: () => void;
-}) {
+function ContactRow({ contact, onHold }: { contact: Contact; onHold: (box: DOMRect) => void }) {
   const decisions = useConnectionDecisions();
   const removing = decisions.removing.has(contact.id);
-  const pending = contact.state === "pending" && !decisions.accepting.has(contact.id);
-  const longPress = useLongPress(onArm, HOLD_MS);
+  const box = useRef<DOMRect | null>(null);
+  const longPress = useLongPress(() => {
+    if (box.current) onHold(box.current);
+  }, HOLD_MS);
   if (removing) {
     return (
       <li className="border-b border-[var(--rule)] py-3">
@@ -373,42 +452,32 @@ function ContactRow({
       </li>
     );
   }
+  const line = metaLine(contact);
   return (
-    <li className="flex items-center gap-3 border-b border-[var(--rule)]">
+    <li className="border-b border-[var(--rule)]">
       <Link
         href={`/network/c/${contact.savedCardToken}`}
         className="press flex min-w-0 flex-1 items-center gap-3 py-3 text-inherit no-underline select-none [-webkit-touch-callout:none]"
         draggable={false}
-        {...(pending ? {} : longPress)}
+        {...longPress}
+        onPointerDown={(event) => {
+          box.current = event.currentTarget.getBoundingClientRect();
+          longPress.onPointerDown(event);
+        }}
       >
-        <Face photoUrl={contact.photoUrl} dim={pending} />
+        <Face photoUrl={contact.photoUrl} />
         <div className="min-w-0 flex-1">
-          <p className={cn("m-0 truncate t-body", pending ? "text-[var(--grey)]" : "text-[var(--ink)]")}>
-            {contact.displayName.trim() || "Untitled"}
-          </p>
-          {metaLine(contact, pending) ? (
-            <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{metaLine(contact, pending)}</p>
-          ) : null}
+          <p className="m-0 truncate t-body text-[var(--ink)]">{contact.displayName.trim() || "Untitled"}</p>
+          {line ? <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{line}</p> : null}
         </div>
       </Link>
-      {pending ? (
-        <div className="flex shrink-0 items-center gap-2 py-3">
-          <YesButton onClick={() => acceptConnection(contact.id)} />
-          <NoButton onClick={() => declineConnection(contact.id)} />
-        </div>
-      ) : null}
-      {armed && !pending ? (
-        <button type="button" aria-label="Delete" onClick={onRemove} className="inline-flex size-8 items-center justify-center border-0 bg-transparent text-[#111]">
-          <X className="size-4" strokeWidth={1.5} />
-        </button>
-      ) : null}
     </li>
   );
 }
 
-function Face({ photoUrl, dim = false }: { photoUrl: string | null; dim?: boolean }) {
+function Face({ photoUrl }: { photoUrl: string | null }) {
   return (
-    <span className={cn("size-11 shrink-0 bg-[#f3f3f3]", dim && "opacity-40")}>
+    <span className="size-11 shrink-0 bg-[#f3f3f3]">
       {photoUrl ? <img src={photoUrl} alt="" className="size-full object-cover" /> : null}
     </span>
   );
