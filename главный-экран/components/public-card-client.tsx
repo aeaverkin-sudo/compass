@@ -233,14 +233,29 @@ export function PublicCardClient({
   ) : null;
 
   if (inside) {
+    const scanned = save && !deleted;
     return (
-      <div className="bg-white pt-[84px]" style={{ "--card-frame-top": "84px" } as CSSProperties}>
+      <div
+        className={scanned ? "flex h-full min-h-0 flex-col bg-white" : "bg-white pt-[84px]"}
+        style={
+          {
+            "--card-frame-top": "84px",
+            ...(scanned ? { paddingBottom: "calc(72px + env(safe-area-inset-bottom))" } : {}),
+          } as CSSProperties
+        }
+      >
         {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
         <BackButton
           fallbackHref={backHref ?? "/network"}
           onBack={() => router.push(backHref ?? "/network")}
         />
-        {sheet}
+        {scanned ? (
+          <div className="relative min-h-0 flex-1">
+            <div className="absolute inset-x-0 top-[84px] bottom-0">{sheet}</div>
+          </div>
+        ) : (
+          sheet
+        )}
         {deleted ? <SaveBar state="deleted" onSave={() => undefined} /> : null}
         {save && !deleted && saveState === "saved" ? (
           <ShareBackOffer token={publicToken} fallback={<SaveBar state={saveState} onSave={() => undefined} />} />
