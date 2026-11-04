@@ -10,7 +10,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 const ITEM =
   "press touch-manipulation flex h-full min-h-11 w-full items-center whitespace-nowrap border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
 
-/** Delete and Share back on an opened contact. Share back stays only while they do not have my card. */
+/** Delete, Share back, and Home on an opened contact. Share back stays only while they do not have my card. */
 export function ContactActions({
   id,
   token,
@@ -28,6 +28,10 @@ export function ContactActions({
   const [busy, setBusy] = useState(false);
   const deleteRef = useRef<HTMLSpanElement>(null);
   const cancelTap = useRef(false);
+
+  useEffect(() => {
+    router.prefetch("/main");
+  }, [router]);
 
   useEffect(() => {
     if (!armed) return;
@@ -90,11 +94,10 @@ export function ContactActions({
           </TapButton>
         </span>
       }
-      center={<span className="min-h-11 w-full" />}
-      right={
+      center={
         shareShown ? (
           <TapButton
-            className={`${ITEM} justify-end disabled:text-[var(--grey)]`}
+            className={`${ITEM} justify-center disabled:text-[var(--grey)]`}
             disabled={shareShown === "sent" || busy}
             onTap={() => {
               if (cancelTap.current) return;
@@ -110,6 +113,15 @@ export function ContactActions({
         ) : (
           <span className="min-h-11 w-full" />
         )
+      }
+      right={
+        <TapButton
+          className={`${ITEM} justify-end`}
+          onPrepare={() => router.prefetch("/main")}
+          onTap={() => router.push("/main")}
+        >
+          Home
+        </TapButton>
       }
     />
   );
