@@ -412,21 +412,26 @@ function AlphabetList({
   const letters = [...groups.keys()].sort((a, b) => a.localeCompare(b));
   return (
     <>
-      {letters.map((letter) => (
-        <section key={letter} className="mt-6">
-          <div className="border-t border-[var(--rule)] pt-2">
-            <p className={`m-0 ${ZONE_LABEL}`}>{letter}</p>
-          </div>
-          <ul>
-            {(groups.get(letter) ?? [])
-              .slice()
-              .sort((a, b) => a.displayName.localeCompare(b.displayName))
-              .map((contact) => (
-                <ContactRow key={contact.id} contact={contact} onHold={(box) => onHold(contact, box)} />
+      {letters.map((letter, index) => {
+        const rows = (groups.get(letter) ?? []).slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
+        return (
+          <section key={letter} className={index === 0 ? "mt-6" : undefined}>
+            <div className="border-t border-[var(--rule)] pt-2">
+              <p className={`m-0 ${ZONE_LABEL}`}>{letter}</p>
+            </div>
+            <ul>
+              {rows.map((contact, row) => (
+                <ContactRow
+                  key={contact.id}
+                  contact={contact}
+                  divider={row < rows.length - 1}
+                  onHold={(box) => onHold(contact, box)}
+                />
               ))}
-          </ul>
-        </section>
-      ))}
+            </ul>
+          </section>
+        );
+      })}
     </>
   );
 }
@@ -462,10 +467,13 @@ function ContactRow({
   contact,
   onHold,
   veiled = false,
+  divider = true,
 }: {
   contact: Contact;
   onHold: (box: DOMRect) => void;
   veiled?: boolean;
+  /** Alphabet hides this on the last row of a letter. The next letter's line is the divider. */
+  divider?: boolean;
 }) {
   const decisions = useConnectionDecisions();
   const removing = decisions.removing.has(contact.id);
@@ -473,16 +481,17 @@ function ContactRow({
   const longPress = useLongPress(() => {
     if (box.current) onHold(box.current);
   }, HOLD_MS);
+  const rule = divider ? "border-b border-[var(--rule)]" : "";
   if (removing) {
     return (
-      <li className="border-b border-[var(--rule)] py-3">
+      <li className={`py-3 ${rule}`}>
         <UndoRow onUndo={() => undoDecline(contact.id)} />
       </li>
     );
   }
   const line = metaLine(contact);
   return (
-    <li className={`border-b border-[var(--rule)]${veiled ? " opacity-60" : ""}`}>
+    <li className={`${rule}${veiled ? " opacity-60" : ""}`}>
       <Link
         href={`/network/c/${contact.savedCardToken}`}
         className="press flex min-w-0 flex-1 items-center gap-3 py-3 text-inherit no-underline select-none [-webkit-touch-callout:none]"
