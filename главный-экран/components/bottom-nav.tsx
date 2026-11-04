@@ -126,7 +126,7 @@ export const BottomNav = memo(function BottomNav({
                   style={{
                     width: "calc(0.375rem * 0.95)",
                     height: "calc(0.375rem * 0.95)",
-                    transform: "translate(50%, calc(-50% - 6px))",
+                    transform: "translate(50%, calc(-50% - 4px))",
                   }}
                 />
               ) : null}
