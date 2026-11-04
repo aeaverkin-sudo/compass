@@ -10,6 +10,24 @@ type Detector = {
   detect: (source: CanvasImageSource) => Promise<{ rawValue?: string }[]>;
 };
 
+const REAR_TRIES: MediaStreamConstraints[] = [
+  { video: { facingMode: { exact: "environment" } }, audio: false },
+  { video: { facingMode: "environment" }, audio: false },
+  { video: true, audio: false },
+];
+
+async function openRearCamera() {
+  let lastError: unknown;
+  for (const constraints of REAR_TRIES) {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
 function detectorOrNull(): Detector | null {
   const ctor = (window as unknown as { BarcodeDetector?: new (options: { formats: string[] }) => Detector })
     .BarcodeDetector;
@@ -32,6 +50,7 @@ export function ScanScreen() {
     if (!video) return;
     let stopped = false;
     let left = false;
+    let starting = false;
     let stream: MediaStream | null = null;
     let timer = 0;
     let foreignAt = 0;
@@ -43,12 +62,16 @@ export function ScanScreen() {
       jsQR = module.default;
     });
 
-    const stop = () => {
-      stopped = true;
+    const stopTracks = () => {
       window.clearTimeout(timer);
       stream?.getTracks().forEach((track) => track.stop());
       stream = null;
       video.srcObject = null;
+    };
+
+    const stop = () => {
+      stopped = true;
+      stopTracks();
     };
 
     const open = (raw: string) => {
@@ -99,29 +122,58 @@ export function ScanScreen() {
       }
     };
 
-    void (async () => {
+    const pageHidden = () => document.visibilityState === "hidden";
+
+    const start = async () => {
+      if (stopped || left || starting || stream) return;
       if (!navigator.mediaDevices?.getUserMedia) {
         setCameraOff(true);
         return;
       }
+      starting = true;
+      let hiddenAfterOpen = false;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
-          audio: false,
-        });
-        if (stopped) {
-          stream.getTracks().forEach((track) => track.stop());
+        const next = await openRearCamera();
+        if (stopped || left || pageHidden()) {
+          next.getTracks().forEach((track) => track.stop());
+          hiddenAfterOpen = !stopped && !left && pageHidden();
           return;
         }
+        stream = next;
         video.srcObject = stream;
         await video.play();
+        if (stopped || left || pageHidden()) {
+          stopTracks();
+          hiddenAfterOpen = !stopped && !left && pageHidden();
+          return;
+        }
+        setCameraOff(false);
         void read();
       } catch {
         if (!stopped) setCameraOff(true);
+      } finally {
+        starting = false;
+        if (hiddenAfterOpen && !pageHidden() && !stream && !stopped && !left) {
+          void start();
+        }
       }
-    })();
+    };
 
-    return () => stop();
+    const onVisibility = () => {
+      if (pageHidden()) {
+        stopTracks();
+        return;
+      }
+      void start();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    void start();
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      stop();
+    };
   }, [router]);
 
   return (
