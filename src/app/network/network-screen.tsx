@@ -415,8 +415,8 @@ function AlphabetList({
       {letters.map((letter, index) => {
         const rows = (groups.get(letter) ?? []).slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
         return (
-          <section key={letter} className={index === 0 ? "mt-6" : undefined}>
-            <div className="border-t border-[var(--rule)] pt-2">
+          <section key={letter}>
+            <div className={index === 0 ? "pt-2" : "border-t border-[var(--rule)] pt-2"}>
               <p className={`m-0 ${ZONE_LABEL}`}>{letter}</p>
             </div>
             <ul>
