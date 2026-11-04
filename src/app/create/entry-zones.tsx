@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
-import { X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
@@ -46,6 +46,10 @@ const STARTERS: EntryZone[] = [
   { id: "contact", title: "Contacts", custom: false, rows: [] },
 ];
 
+const FIRST = ["position", "company", "contact"] as const;
+const FOLDED = ["web", "social", "files", "about"] as const;
+const REQUIRED = new Set<string>(["position", "company", "contact"]);
+
 const HINTS: Record<string, string> = {
   position: "What you do",
   company: "Company. Business name",
@@ -77,6 +81,8 @@ export type EntryZonesHandle = {
   }) => void;
   /** Paints refused values and returns the first one. `seed:` is an open line. */
   markProblems: () => string | null;
+  /** Position, Company, and Contacts each have something typed. */
+  requiredFilled: () => boolean;
 };
 
 type EntryZonesProps = {
@@ -96,6 +102,17 @@ function lineOf(row: EntryRow, zoneId: string) {
 }
 
 /** Social and Web: a line that stayed plain text. Contacts: a broken mail or a link split by a space. */
+function zoneHasText(
+  zone: EntryZone,
+  seedZone: string | null,
+  seedText: string,
+  editKey: string | null,
+  editText: string,
+) {
+  if (seedZone === zone.id && seedText.trim()) return true;
+  return zone.rows.some((row) => (editKey === row.key ? editText : row.value).trim().length > 0);
+}
+
 function entryLineIsRed(zoneId: string, raw: string) {
   const line = raw.trim();
   if (!line) return false;
@@ -124,12 +141,14 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const [headerKey, setHeaderKey] = useState<string | null>(null);
   const [marked, setMarked] = useState<ReadonlySet<string>>(() => new Set());
   const [seedMarked, setSeedMarked] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const zonesRef = useRef(zones);
   const headerRef = useRef<string | null>(null);
   const editKeyRef = useRef<string | null>(null);
   const editTextRef = useRef("");
   const seedIdRef = useRef<string | null>(null);
   const seedTextRef = useRef("");
+  const moreOpenRef = useRef(false);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef<WrapFieldHandle>(null);
   const focusValue = useRef(false);
@@ -139,6 +158,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   editTextRef.current = editText;
   seedIdRef.current = seedId;
   seedTextRef.current = seedText;
+  moreOpenRef.current = moreOpen;
   onChangeRef.current = onChange;
 
   const rememberHeader = (key: string | null) => {
@@ -201,8 +221,21 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         if (seedBad && seedZone && !first) first = `seed:${seedZone}`;
         setMarked(new Set(bad));
         setSeedMarked(seedBad);
+        if (first && !moreOpenRef.current) {
+          const zoneId = first.startsWith("seed:")
+            ? first.slice(5)
+            : zonesRef.current.find((zone) => zone.rows.some((row) => row.key === first))?.id;
+          const zone = zonesRef.current.find((entry) => entry.id === zoneId);
+          if (zone && (zone.custom || (FOLDED as readonly string[]).includes(zone.id))) setMoreOpen(true);
+        }
         return first;
       },
+      requiredFilled: () =>
+        FIRST.every((id) => {
+          const zone = zonesRef.current.find((entry) => entry.id === id);
+          if (!zone) return false;
+          return zoneHasText(zone, seedIdRef.current, seedTextRef.current, editKeyRef.current, editTextRef.current);
+        }),
     }),
     [],
   );
@@ -346,9 +379,14 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
     rememberHeader(nextHeaderChoice(headerRef.current ?? undefined, rows).id ?? null);
   };
 
-  return (
-    <div className="mt-[18px]">
-      {zones.map((zone, index) => {
+  const pick = (ids: readonly string[]) =>
+    ids.flatMap((id) => {
+      const zone = zones.find((entry) => entry.id === id);
+      return zone ? [zone] : [];
+    });
+  const head = pick(FIRST);
+  const tail = [...pick(FOLDED), ...zones.filter((zone) => zone.custom)];
+  const section = (zone: EntryZone, index: number) => {
         const hint = zone.custom ? NEW_HINT : HINTS[zone.id];
         const about = zone.id === "about";
         const files = zone.id === "files" || zone.custom;
@@ -485,17 +523,24 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                       <MarkPlus className="text-[var(--ink)]" />
                     </button>
                   ) : null}
-                  <Field
-                    about={about}
-                    value={seedText}
-                    placeholder={zone.rows.length === 0 ? hint : ""}
-                    roomy={zone.rows.length === 0}
-                    marked={seedMarked}
-                    inputRef={valueRef}
-                    onChange={setSeedText}
-                    onCommit={(text) => commitSeed(zone.id, text)}
-                    onDiscardEmpty={() => discardEmpty(zone.id)}
-                  />
+                  <div className="relative min-w-0 flex-1">
+                    {zone.rows.length === 0 && !seedText.trim() ? (
+                      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 t-body text-[var(--placeholder)]">
+                        <HintLine text={hint} star={REQUIRED.has(zone.id)} />
+                      </span>
+                    ) : null}
+                    <Field
+                      about={about}
+                      value={seedText}
+                      placeholder=""
+                      roomy={zone.rows.length === 0}
+                      marked={seedMarked}
+                      inputRef={valueRef}
+                      onChange={setSeedText}
+                      onCommit={(text) => commitSeed(zone.id, text)}
+                      onDiscardEmpty={() => discardEmpty(zone.id)}
+                    />
+                  </div>
                 </div>
               ) : zone.rows.length === 0 ? (
                 <button
@@ -507,7 +552,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                     setSeedText("");
                   }}
                 >
-                  {hint}
+                  <HintLine text={hint} star={REQUIRED.has(zone.id)} />
                 </button>
               ) : (
                 <button
@@ -526,16 +571,62 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
             </div>
           </section>
         );
-      })}
-      <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] py-[18px]">
-        <span />
-        <button type="button" aria-label="Add section" className="border-0 bg-transparent p-0 text-left text-[var(--ink)]" onClick={addZone}>
-          <MarkPlus />
-        </button>
-      </div>
+  };
+
+  return (
+    <div className="mt-[18px]">
+      {head.map(section)}
+      <MoreRow open={moreOpen} onToggle={() => setMoreOpen((current) => !current)} />
+      {moreOpen ? tail.map((zone, index) => section(zone, head.length + index)) : null}
+      {moreOpen ? (
+        <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] py-[18px]">
+          <span />
+          <button type="button" aria-label="Add section" className="border-0 bg-transparent p-0 text-left text-[var(--ink)]" onClick={addZone}>
+            <MarkPlus />
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 });
+
+function HintLine({ text, star }: { text: string; star: boolean }) {
+  return (
+    <>
+      {text}
+      {star ? <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span> : null}
+    </>
+  );
+}
+
+function MoreRow({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  const label = open ? "More" : "More — Web · Social · Files · About";
+  const chevron = (
+    <ChevronDown
+      className={cn("size-4 shrink-0 text-[var(--ink)]", open && "rotate-180")}
+      strokeWidth={1.5}
+      aria-hidden
+    />
+  );
+  const button = (
+    <button
+      type="button"
+      aria-expanded={open}
+      className="flex w-full min-w-0 items-center justify-between gap-3 border-0 bg-transparent p-0"
+      onClick={onToggle}
+    >
+      <span className="t-label min-w-0 whitespace-nowrap">{label}</span>
+      {chevron}
+    </button>
+  );
+  if (!open) return <div className="py-[18px]">{button}</div>;
+  return (
+    <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] py-[18px]">
+      <span />
+      {button}
+    </div>
+  );
+}
 
 function Field({
   about,

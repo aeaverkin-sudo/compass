@@ -65,6 +65,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailMarked, setEmailMarked] = useState(false);
+  const [zonesReady, setZonesReady] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const emailRef = useRef<HTMLLabelElement>(null);
   const zonesRef = useRef<EntryZonesHandle>(null);
@@ -73,7 +74,9 @@ export function EntryPage({ input }: { input: EntryInput }) {
   const [sidePad, setSidePad] = useState(() => carouselSidePaddingPx(0, true));
   const [passwordValue, setPasswordValue] = useState<string | null>(null);
   const passwordShown = passwordValue ?? "";
-  const ready = Boolean(agreed && name.trim() && email.trim() && passwordShown.length >= PASSWORD_MIN);
+  const ready = Boolean(
+    agreed && name.trim() && isAccountEmail(email) && passwordShown.length >= PASSWORD_MIN && zonesReady,
+  );
   const frame = { paddingLeft: sidePad, paddingRight: sidePad };
 
   const fields = useRef({ name, email, password: passwordShown, agreed });
@@ -150,15 +153,18 @@ export function EntryPage({ input }: { input: EntryInput }) {
     setEmailMarked(emailBad);
     if (first || emailBad) {
       setError(CHECK_NOTICE);
-      const root = mainRef.current;
-      const target = !root
-        ? null
-        : first?.startsWith("seed:")
-          ? root.querySelector(`[data-entry-seed="${CSS.escape(first.slice(5))}"]`)
-          : first
-            ? root.querySelector(`[data-entry-row="${CSS.escape(first)}"]`)
-            : emailRef.current;
-      target?.scrollIntoView({ block: "center" });
+      const mark = first;
+      requestAnimationFrame(() => {
+        const root = mainRef.current;
+        const target = !root
+          ? null
+          : mark?.startsWith("seed:")
+            ? root.querySelector(`[data-entry-seed="${CSS.escape(mark.slice(5))}"]`)
+            : mark
+              ? root.querySelector(`[data-entry-row="${CSS.escape(mark)}"]`)
+              : emailRef.current;
+        target?.scrollIntoView({ block: "center" });
+      });
       return;
     }
     const zones = zonesRef.current?.snapshot() ?? [];
@@ -377,15 +383,22 @@ export function EntryPage({ input }: { input: EntryInput }) {
             onTouch={() => setNameLive(true)}
           />
         </div>
-        <EntryZones ref={zonesRef} onChange={flushPlace} />
+        <EntryZones
+          ref={zonesRef}
+          onChange={() => {
+            flushPlace();
+            const next = zonesRef.current?.requiredFilled() ?? false;
+            setZonesReady((current) => (current === next ? current : next));
+          }}
+        />
       </div>
       </div>
       <div className="bg-sky py-[18px]">
         <div style={frame}>
         <div className={`${PAD} flex flex-col gap-[14px]`}>
           <label ref={emailRef} className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
-            <span className="t-label">
-              Email
+            <span className="t-label whitespace-normal">
+              Profile email
               <span className="relative -top-[0.35em] ml-[0.15em] leading-none text-[var(--ink)]">*</span>
             </span>
             <input
@@ -393,7 +406,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
               inputMode="email"
               autoCapitalize="none"
               autoComplete="off"
-              aria-label="Email"
+              aria-label="Profile email"
               placeholder="name@mail.com"
               value={email}
               onFocus={() => setEmailLive(true)}
