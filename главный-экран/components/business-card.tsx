@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactNode, type RefObject } from "react";
 import { Plus, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
@@ -46,8 +46,19 @@ const HERO_PHOTO_PX = 128;
 /** Apple's registration arrives after the file opens. A few reads, then stop. */
 const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
+/** A Chrome tab, not the installed app and not Edge or Samsung. */
+function chromeTab() {
+  const ua = navigator.userAgent;
+  const nav = navigator as Navigator & { standalone?: boolean };
+  if (window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true) return false;
+  if (/CriOS/.test(ua)) return true;
+  if (/Edg|OPR|SamsungBrowser|FxiOS|EdgiOS/.test(ua)) return false;
+  return /Chrome\//.test(ua);
+}
+
 /** Under the last line, on the value column. The tab bar stays below the card. */
 function AddToWallet({ cardId }: { cardId: string }) {
+  const chrome = useSyncExternalStore(() => () => {}, chromeTab, () => false);
   const [toast, setToast] = useState(false);
   const [status, setStatus] = useState<"unknown" | "add" | "in">("unknown");
   const read = useRef(0);
@@ -123,7 +134,10 @@ function AddToWallet({ cardId }: { cardId: string }) {
                   watchRegistration();
                 });
               }}
-              className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
+              className={cn(
+                "press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]",
+                chrome && "translate-y-[60%]",
+              )}
             >
               <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
               Add to Wallet
