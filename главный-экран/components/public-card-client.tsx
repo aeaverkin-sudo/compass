@@ -247,7 +247,7 @@ export function PublicCardClient({
 
   if (inside && !save) {
     return (
-      <div className="relative h-full min-h-0 bg-white" style={{ "--card-frame-top": CONTACT_CARD_TOP } as CSSProperties}>
+      <div className="contact-card relative h-full min-h-0 bg-white" style={{ "--card-frame-top": CONTACT_CARD_TOP } as CSSProperties}>
         {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
         <BackButton
           fallbackHref={backHref ?? "/network"}

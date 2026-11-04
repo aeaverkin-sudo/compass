@@ -354,6 +354,12 @@ body {
   scrollbar-width: none;
 }
 
+/* A short opened contact is one pixel past the body, so the pull can spring back. */
+.contact-card .compass-card-scroll > div {
+  min-height: calc(100% + 1px);
+  flex-shrink: 0;
+}
+
 /* Room below a focused row. Padding on the scrolling box itself does not scroll on iPhone. */
 [data-keyboard-lift]::after {
   content: "";
