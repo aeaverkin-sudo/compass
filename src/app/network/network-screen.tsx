@@ -272,19 +272,21 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           </div>
         </Zone>
         {requests.length > 0 ? (
-          <Zone label="Shared their card with you" align="start" rule>
+          <section className="pt-4">
+            <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Shared their card with you</p>
             <ul>
               {requests.map((contact) => (
                 <ContactRow key={contact.id} contact={contact} onHold={(box) => openMenu(contact, box)} />
               ))}
             </ul>
-          </Zone>
+          </section>
         ) : null}
         {empty ? (
-          <Zone label="Contacts">
+          <section className="pt-4">
+            <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Contacts</p>
             <p className="t-body text-[var(--grey)]">No contacts yet.</p>
             <p className="mt-1 t-meta text-[var(--grey)]">Exchange a card and your first contact appears here.</p>
-          </Zone>
+          </section>
         ) : people.length > 0 ? (
           sort === "alphabet" ? (
             <AlphabetList contacts={people} onHold={openMenu} />
@@ -331,7 +333,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
               actions={[
                 {
                   label: menu.confirmDelete ? "Yes, delete" : "Delete",
-                  tone: "danger",
+                  tone: "ink",
                   onPress: () => {
                     pressMenu(() => {
                       if (!menu.confirmDelete) {
