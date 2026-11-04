@@ -2,6 +2,7 @@
 
 import { memo, useRef, type ComponentProps, type PointerEvent } from "react";
 import { REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
+import { useNetworkDot } from "@/shared/lib/network-dot";
 import { TabBand } from "./tab-band";
 
 /** Fires on the finger lifting; the click Safari sends after it is dropped, keyboard clicks still work. */
@@ -44,6 +45,7 @@ export const BottomNav = memo(function BottomNav({
   onProfile,
 }: BottomNavProps) {
   const editOrigin = useRef<{ x: number; y: number } | null>(null);
+  const networkDot = useNetworkDot();
 
   const onEditPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -115,7 +117,15 @@ export const BottomNav = memo(function BottomNav({
             className="flex h-full min-h-11 w-full items-center justify-end uppercase"
             onTap={() => onNetwork?.()}
           >
-            Network
+            <span className="relative">
+              Network
+              {networkDot ? (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute top-0 right-0 size-1.5 translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--event-theme-orange)]"
+                />
+              ) : null}
+            </span>
           </TapButton>
         )
       }

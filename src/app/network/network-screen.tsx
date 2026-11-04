@@ -26,6 +26,7 @@ import {
 } from "@/shared/lib/connection-decision";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { clearNewContact } from "@/shared/lib/new-contact";
+import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
 import { sendShareBack, undoShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { NetworkBand } from "./network-band";
@@ -117,6 +118,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
       })),
     );
+    markIncomingSeen(connections.filter((contact) => contact.state === "pending").map((contact) => contact.id));
   };
 
   useEffect(() => {
