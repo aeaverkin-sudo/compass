@@ -122,7 +122,12 @@ export const BottomNav = memo(function BottomNav({
               {networkDot ? (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute top-0 right-0 size-1.5 translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--event-theme-orange)]"
+                  className="pointer-events-none absolute top-0 right-0 rounded-full bg-[var(--event-theme-orange)]"
+                  style={{
+                    width: "calc(0.375rem * 0.95)",
+                    height: "calc(0.375rem * 0.95)",
+                    transform: "translate(50%, calc(-50% - 6px))",
+                  }}
                 />
               ) : null}
             </span>
