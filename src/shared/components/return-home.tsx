@@ -37,7 +37,7 @@ export function ReturnHome() {
     };
 
     const cameFromHere = () => {
-      const nav = performance.getEntriesByType("navigation")[0];
+      const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
       if (!nav || nav.type !== "navigate") return false;
       try {
         return new URL(document.referrer).origin === window.location.origin;
