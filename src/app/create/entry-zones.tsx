@@ -581,7 +581,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
       {moreOpen ? (
         <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] py-[18px]">
           <span />
-          <button type="button" aria-label="Add section" className="border-0 bg-transparent p-0 text-left text-[var(--ink)]" onClick={addZone}>
+          <button type="button" aria-label="Add section" className="-translate-x-[18.75%] border-0 bg-transparent p-0 text-left text-[var(--ink)]" onClick={addZone}>
             <MarkPlus />
           </button>
         </div>
