@@ -57,5 +57,5 @@ export default async function SaveCardPage({ params }: PageProps) {
   }
 
   const name = card.data.display_name.trim() || "Untitled";
-  redirect(`/network?added=${encodeURIComponent(name)}&from=${encodeURIComponent(token)}`);
+  redirect(`/network?added=${encodeURIComponent(name)}`);
 }

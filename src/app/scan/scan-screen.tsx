@@ -2,9 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Scan } from "lucide-react";
+import { Check, Scan } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
 import { cardLinkFromScan } from "@/shared/lib/card-scan";
+import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+
+const FLASH_MS = 800;
+
+const SCAN_LINE = {
+  new: "Added",
+  existing: "Already in your network",
+  own: "This is your card",
+} as const;
 
 type Detector = {
   detect: (source: CanvasImageSource) => Promise<{ rawValue?: string }[]>;
@@ -33,12 +42,36 @@ export function ScanScreen() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hint, setHint] = useState("Point at a QR");
   const [cameraOff, setCameraOff] = useState(false);
+  const [live, setLive] = useState(false);
+  const [flash, setFlash] = useState<{ name: string; line: string } | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    void createBrowserSupabaseClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (!data.user || data.user.is_anonymous) {
+          router.replace("/main");
+          return;
+        }
+        setLive(true);
+      })
+      .catch(() => {
+        if (!cancelled) router.replace("/main");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (!live) return;
     const video = videoRef.current;
     if (!video) return;
     let stopped = false;
     let left = false;
+    let holding = false;
     let starting = false;
     let stream: MediaStream | null = null;
     let timer = 0;
@@ -64,18 +97,62 @@ export function ScanScreen() {
     };
 
     const open = (raw: string) => {
-      if (left || stopped) return;
+      if (left || stopped || holding) return;
       const link = cardLinkFromScan(raw, window.location.origin);
       if (!link) {
         foreignAt = Date.now();
         setHint("Not an ADED card");
         return;
       }
-      left = true;
-      stop();
-      const query = "token" in link ? `token=${encodeURIComponent(link.token)}` : `handle=${encodeURIComponent(link.handle)}`;
-      const fromQr = /(?:\?|&)(?:src|via)=qr(?:&|$)/.test(raw);
-      router.push(`/scan/card?${query}${fromQr ? "&src=qr" : ""}`);
+      holding = true;
+      stopTracks();
+      void (async () => {
+        try {
+          const response = await fetch("/api/scan/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(link),
+          });
+          if (stopped) return;
+          if (response.status === 401) {
+            router.replace("/main");
+            return;
+          }
+          if (!response.ok) {
+            holding = false;
+            foreignAt = Date.now();
+            setHint("Not an ADED card");
+            void start();
+            return;
+          }
+          const body = (await response.json()) as { outcome?: keyof typeof SCAN_LINE; name?: string };
+          const outcome = body.outcome && body.outcome in SCAN_LINE ? body.outcome : null;
+          if (!outcome) {
+            holding = false;
+            void start();
+            return;
+          }
+          left = true;
+          stop();
+          setFlash({ name: body.name?.trim() || "Untitled", line: SCAN_LINE[outcome] });
+          window.setTimeout(() => {
+            if (outcome === "own") {
+              setFlash(null);
+              left = false;
+              holding = false;
+              stopped = false;
+              void start();
+              return;
+            }
+            router.push("/network");
+          }, FLASH_MS);
+        } catch {
+          if (stopped) return;
+          holding = false;
+          setHint("Not an ADED card");
+          void start();
+        }
+      })();
     };
 
     const read = async () => {
@@ -114,7 +191,7 @@ export function ScanScreen() {
     const pageHidden = () => document.visibilityState === "hidden";
 
     const start = async () => {
-      if (stopped || left || starting || stream) return;
+      if (stopped || left || holding || starting || stream) return;
       if (!navigator.mediaDevices?.getUserMedia) {
         setCameraOff(true);
         return;
@@ -163,11 +240,20 @@ export function ScanScreen() {
       document.removeEventListener("visibilitychange", onVisibility);
       stop();
     };
-  }, [router]);
+  }, [live, router]);
 
   return (
     <main className="fixed inset-0 bg-[var(--ink)]">
       <video ref={videoRef} className="h-full w-full object-cover" muted playsInline autoPlay />
+      {flash ? (
+        <div className="absolute inset-0 z-10 flex items-center justify-center px-8">
+          <div className="flex max-w-[280px] flex-col items-center bg-white px-5 py-4 text-center">
+            <Check className="size-8 text-[var(--sky)]" strokeWidth={1.5} aria-hidden />
+            <p className="mt-3 mb-0 t-body text-[var(--ink)]">{flash.name}</p>
+            <p className="mt-1 mb-0 t-meta text-[var(--grey)]">{flash.line}</p>
+          </div>
+        </div>
+      ) : null}
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <Scan className="size-[220px] text-white" strokeWidth={1.25} aria-hidden />
       </div>

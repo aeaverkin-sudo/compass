@@ -12,7 +12,6 @@ import {
 import { AccountBand } from "@/shared/components/account-band";
 import { BackButton } from "@/shared/components/back-button";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
-import { ShareBackOffer } from "@/shared/components/share-back";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { BusinessCard } from "@main/components/business-card";
 import type { Card, ContactItem } from "@/shared/types";
@@ -21,7 +20,7 @@ type PublicCardClientProps = {
   card: Card;
   items: ContactItem[];
   publicToken: string;
-  /** Opened from Network. Same card, back to the list, no sky plaque. */
+  /** Opened from Network. Same card, back to the list. The sky row sits on the page. */
   inside?: boolean;
   /** In-app scan. One Save, then the person stays on this card. */
   save?: boolean;
@@ -232,17 +231,34 @@ export function PublicCardClient({
     </CardPdfSource>
   ) : null;
 
+  if (inside && !save) {
+    return (
+      <div className="relative h-full min-h-0 bg-white" style={{ "--card-frame-top": "84px" } as CSSProperties}>
+        {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
+        <BackButton
+          fallbackHref={backHref ?? "/network"}
+          onBack={() => router.push(backHref ?? "/network")}
+        />
+        <div className="absolute inset-x-0 top-[84px]" style={{ bottom: deleted ? 48 : 0 }}>
+          {sheet}
+        </div>
+        {deleted ? (
+          <div className="absolute inset-x-0 bottom-0 px-[var(--gutter)] pb-[max(12px,env(safe-area-inset-bottom))]">
+            <p className="mb-0 text-center t-body text-[var(--grey)]">Profile deleted</p>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   if (inside) {
-    const scanned = save && !deleted;
     return (
       <div
         className="flex h-full min-h-0 flex-col bg-white"
         style={
           {
             "--card-frame-top": "84px",
-            ...(scanned || deleted
-              ? { paddingBottom: "calc(72px + env(safe-area-inset-bottom))" }
-              : {}),
+            paddingBottom: "calc(72px + env(safe-area-inset-bottom))",
           } as CSSProperties
         }
       >
@@ -254,12 +270,7 @@ export function PublicCardClient({
         <div className="relative min-h-0 flex-1">
           <div className="absolute inset-x-0 top-[84px] bottom-0">{sheet}</div>
         </div>
-        {deleted ? <SaveBar state="deleted" onSave={() => undefined} /> : null}
-        {save && !deleted && saveState === "saved" ? (
-          <ShareBackOffer token={publicToken} fallback={<SaveBar state={saveState} onSave={() => undefined} />} />
-        ) : save && !deleted ? (
-          <SaveBar state={saveState} onSave={() => void keep()} />
-        ) : null}
+        <SaveBar state={saveState} onSave={() => void keep()} />
       </div>
     );
   }
