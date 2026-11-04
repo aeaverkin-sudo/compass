@@ -415,7 +415,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                     rows={1}
                     wrap="soft"
                     aria-label="Section title"
-                    placeholder="Section name"
+                    placeholder="Title"
                     className="t-label m-0 min-w-0 flex-1 resize-none overflow-hidden border-0 bg-transparent p-0 whitespace-pre-wrap break-normal text-[var(--grey)] caret-[var(--ink)] outline-none placeholder:text-[var(--grey)]"
                     onChange={(event) => setTitleText(event.target.value.replace(/[ \t]*\n[ \t]*/g, " "))}
                     onKeyDown={(event) => {
@@ -727,7 +727,7 @@ function TitleButton({
       className="t-label block min-w-0 flex-1 border-0 bg-transparent p-0 text-left whitespace-normal break-normal text-[var(--grey)]"
       onClick={onEdit}
     >
-      {placeholder ? "Section name" : title}
+      {placeholder ? "Title" : title}
     </button>
   );
 }
