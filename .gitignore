@@ -54,6 +54,10 @@ next-env.d.ts
 /claude/refs/
 /landing-tz/
 
+# Unused wallet drafts. The pass reads aded-grid-orange and aded-grid-icon, which stay tracked.
+public/brand/wallet/aded-grid-white@*
+public/brand/wallet/aded-logo-*
+
 # iCloud / Finder duplicate copies
 * 2.*
 * 3.*
