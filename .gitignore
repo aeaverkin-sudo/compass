@@ -49,6 +49,11 @@ next-env.d.ts
 # Local files for manual upload checks. Not committed.
 /test-files/
 
+# Local dumps. Not the app.
+/Claude outputs/
+/claude/refs/
+/landing-tz/
+
 # iCloud / Finder duplicate copies
 * 2.*
 * 3.*
