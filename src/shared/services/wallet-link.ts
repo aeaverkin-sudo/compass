@@ -17,9 +17,14 @@ function signedQuery(cardId: string, now: number) {
   return `e=${expires}&s=${sign(cardId, expires)}`;
 }
 
-/** The page the mail opens. It checks the live Wallet status, then offers the same signed pass. */
+/** The page other places open. It checks the live Wallet status, then offers the same signed pass. */
 export function walletAddPath(cardId: string, now = Date.now()): string {
   return `/wallet/add?card=${encodeURIComponent(cardId)}&${signedQuery(cardId, now)}`;
+}
+
+/** The pass file itself. The welcome letter opens this, and iOS shows Add at once. */
+export function walletPassPath(cardId: string, now = Date.now()): string {
+  return `/api/cards/${encodeURIComponent(cardId)}/pass?${signedQuery(cardId, now)}`;
 }
 
 export function walletLinkValid(cardId: string, rawExpires: string | null, signature: string | null): boolean {

@@ -10,7 +10,7 @@ import { BY_INVITATION, isPermanentAccount, PASSWORD_SET, type SessionUser } fro
 import { mailConfigured, sendEventSignIn, sendHtmlMail } from "@/shared/services/mail";
 import { publicCardPath } from "@/shared/services/public-card-url";
 import { clearTrialClock } from "@/shared/services/trial";
-import { walletAddPath } from "@/shared/services/wallet-link";
+import { walletPassPath } from "@/shared/services/wallet-link";
 import { WELCOME_SUBJECT, welcomeMail } from "@/shared/mail/welcome-mail";
 import { mintWelcomeToken, saveWelcomeToken } from "@/shared/services/welcome-token";
 
@@ -123,7 +123,7 @@ export async function sendWelcomeMail(userId: string, cardId: string, password: 
   if (!row || row.owner_id !== userId) return false;
 
   const site = siteOrigin(origin);
-  const walletUrl = `${site}${walletAddPath(cardId)}`;
+  const walletUrl = `${site}${walletPassPath(cardId)}`;
   const token = mintWelcomeToken();
   const mail = welcomeMail({
     logoSrc: `${site}/brand/aded-grid-mail.png`,
