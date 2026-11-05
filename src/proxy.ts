@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { storedSessionNeedsRefresh } from "@/shared/lib/supabase/access-token";
 import { VIEWER_COOKIE, VIEWER_HEADER, viewerId } from "@/shared/lib/viewer";
 
 const YEAR_SECONDS = 60 * 60 * 24 * 400;
@@ -9,22 +8,9 @@ function isPublicCard(pathname: string) {
   return pathname.startsWith("/c/") || pathname.startsWith("/@");
 }
 
-/**
- * These requests must not rotate the refresh token.
- * The phone camera opens the card in a new tab. Connect and the scanner
- * run while another tab is already signed in. A second refresh revokes both.
- */
+/** The phone camera opens this page in a new tab. Refreshing here races the tab that is already signed in and Supabase revokes both. */
 function leavesSessionAlone(pathname: string) {
-  return (
-    isPublicCard(pathname) ||
-    pathname.startsWith("/api/c/") ||
-    pathname === "/save" ||
-    pathname.startsWith("/save/") ||
-    pathname.startsWith("/api/network/save") ||
-    pathname.startsWith("/api/scan") ||
-    pathname === "/scan" ||
-    pathname.startsWith("/scan/")
-  );
+  return isPublicCard(pathname) || pathname.startsWith("/api/c/");
 }
 
 function viewerFor(request: NextRequest) {
@@ -67,11 +53,8 @@ export async function proxy(request: NextRequest) {
   }
 
   let supabaseResponse = forward(request, viewer.id);
-  const pathname = request.nextUrl.pathname;
 
-  // The visible tab owns a fresh token. Rotate here only inside the expiry
-  // margin, where this proxy can write the new cookie before the page reads it.
-  if (!leavesSessionAlone(pathname) && (await storedSessionNeedsRefresh(request.cookies.getAll()))) {
+  if (!leavesSessionAlone(request.nextUrl.pathname)) {
     const supabase = createServerClient(url, anonKey, {
       cookies: {
         getAll() {
@@ -92,6 +75,7 @@ export async function proxy(request: NextRequest) {
       },
     });
 
+    // Server refresh lives here. The browser refreshes only while its tab is visible.
     await supabase.auth.getUser();
   }
 

@@ -203,6 +203,8 @@ export function PublicCardClient({
         body: JSON.stringify({ token: publicToken }),
       });
       if (response.status === 401) {
+        const next = `/scan/card?token=${encodeURIComponent(publicToken)}`;
+        router.push(`/register?signin=1&next=${encodeURIComponent(next)}`);
         setSaveState("ready");
         return;
       }

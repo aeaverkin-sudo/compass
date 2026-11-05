@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { sessionUser } from "@/shared/lib/supabase/session-user";
+import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { saveConnection } from "@/shared/services/save-connection";
 
 export const runtime = "nodejs";
@@ -17,7 +17,9 @@ function noStore(body: unknown, status = 200) {
  * Same upsert as `/save/{token}`, without leaving the card.
  */
 export async function POST(request: Request) {
-  const user = await sessionUser();
+  const supabase = await createServerSupabaseClient();
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
   if (!user) return noStore({ error: "Sign in" }, 401);
 
   let token = "";

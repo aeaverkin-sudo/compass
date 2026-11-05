@@ -131,8 +131,20 @@ export function SupabaseSession() {
           console.error("[supabase] session check failed", existingError.message);
         }
 
-        // Do not call refreshSession() here. getUser already refreshes inside
-        // the expiry margin, and a second rotation revokes the login.
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+        if (isDeadAuthSession(refreshError)) {
+          console.info("[supabase] dead refresh");
+          await startFreshAnonymous(supabase);
+          return;
+        }
+        if (refreshed.user) {
+          acceptUser(refreshed.user);
+          return;
+        }
+        if (refreshError && refreshError.name !== "AuthSessionMissingError") {
+          console.error("[supabase] refresh failed", refreshError.message);
+        }
+
         if (deviceWasRegistered()) {
           console.info("[supabase] registered device, session missing");
           sendRegisteredDeviceToSignIn();
