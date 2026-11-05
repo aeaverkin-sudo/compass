@@ -14,3 +14,16 @@ create unique index if not exists profiles_welcome_token_hash_idx
 
 revoke update (welcome_token_hash, welcome_token_active)
   on table public.profiles from anon, authenticated;
+
+-- A second door from Telegram into Safari or Chrome. It does not replace the letter.
+-- Re-run this file if the letter columns are already there. Safe to run again.
+
+alter table public.profiles
+  add column if not exists handoff_token_hash text;
+
+create unique index if not exists profiles_handoff_token_hash_idx
+  on public.profiles (handoff_token_hash)
+  where handoff_token_hash is not null;
+
+revoke update (handoff_token_hash)
+  on table public.profiles from anon, authenticated;

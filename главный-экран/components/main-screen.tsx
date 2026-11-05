@@ -28,6 +28,7 @@ import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill
 import { BackButton } from "@/shared/components/back-button";
 import { UploadNotice } from "@/shared/components/upload-notice";
 import { SkyHint } from "@/shared/components/sky-hint";
+import { BrowserHandoff } from "@/shared/components/browser-handoff";
 import { InstallHint } from "@/shared/components/install-hint";
 import type { Card } from "@/shared/types";
 
@@ -502,6 +503,10 @@ export function MainScreen() {
       {cardReady && shownHasBody ? (
         <InstallHint paused={editing || composing || passAddHint || passwordHint || gateNonce !== null} />
       ) : null}
+      <BrowserHandoff
+        paused={editing || composing || passAddHint || passwordHint || gateNonce !== null}
+        registered={account?.registered === true}
+      />
 
       {editing && activeId ? (
         <DeleteSlot cardId={activeId} open={removeOpen} onOpenChange={setRemoveOpen} />

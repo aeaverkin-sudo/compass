@@ -42,6 +42,15 @@ export async function closeWelcomeToken(userId: string): Promise<void> {
   const admin = createAdminSupabaseClient();
   const saved = await admin.from("profiles").update({ welcome_token_active: false }).eq("id", userId);
   if (saved.error) throw new Error(saved.error.message);
+  const handoff = await admin.from("profiles").update({ handoff_token_hash: null }).eq("id", userId);
+  if (handoff.error && !/handoff_token_hash/i.test(handoff.error.message)) throw new Error(handoff.error.message);
+}
+
+/** A one-browser handoff. Replaces the previous handoff only, never the letter. */
+export async function saveHandoffToken(userId: string, token: string): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const saved = await admin.from("profiles").update({ handoff_token_hash: welcomeTokenHash(token) }).eq("id", userId);
+  if (saved.error) throw new Error(saved.error.message);
 }
 
 export type WelcomeDoor =
@@ -63,12 +72,29 @@ export async function resolveWelcomeToken(token: string): Promise<WelcomeDoor> {
     .maybeSingle();
   if (row.error) throw new Error(row.error.message);
   const data = row.data as { id: string; welcome_token_hash: string | null; welcome_token_active: boolean } | null;
-  if (!data?.welcome_token_hash || !sameHash(data.welcome_token_hash, token)) {
+  if (data?.welcome_token_hash && sameHash(data.welcome_token_hash, token)) {
+    const user = (await admin.auth.admin.getUserById(data.id)).data.user;
+    const email = user?.email?.trim().toLowerCase() || undefined;
+    if (!data.welcome_token_active || !email) return { kind: "signin", email };
+    return { kind: "open", email };
+  }
+
+  const handoff = await admin
+    .from("profiles")
+    .select("id, handoff_token_hash")
+    .eq("handoff_token_hash", hash)
+    .maybeSingle();
+  if (handoff.error) {
+    if (/handoff_token_hash/i.test(handoff.error.message)) return { kind: "signin" };
+    throw new Error(handoff.error.message);
+  }
+  const moved = handoff.data as { id: string; handoff_token_hash: string | null } | null;
+  if (!moved?.handoff_token_hash || !sameHash(moved.handoff_token_hash, token)) {
     timingSafeEqual(digest(token), DUMMY);
     return { kind: "signin" };
   }
-  const user = (await admin.auth.admin.getUserById(data.id)).data.user;
+  const user = (await admin.auth.admin.getUserById(moved.id)).data.user;
   const email = user?.email?.trim().toLowerCase() || undefined;
-  if (!data.welcome_token_active || !email) return { kind: "signin", email };
+  if (!email) return { kind: "signin" };
   return { kind: "open", email };
 }
