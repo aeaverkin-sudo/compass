@@ -314,8 +314,7 @@ export function EntryPage({
         router.replace("/main");
       } else if (input.sourceToken && reply.saved && !reply.warning) {
         markNewContact();
-        const savedName = reply.savedName?.trim() || "Untitled";
-        router.replace(`/network?added=${encodeURIComponent(savedName)}`);
+        router.replace("/main");
       } else {
         if (input.event?.lookup) rememberOpenProfile(input.event.lookup);
         router.replace("/main");
