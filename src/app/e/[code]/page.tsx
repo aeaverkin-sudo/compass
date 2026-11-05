@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CoverButton } from "@/shared/event/cover-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
@@ -143,6 +144,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
   const counts = await loadOwnerEventCounts(event.id, viewerId);
   const seats = await loadEventSeats(event.id);
   const registered = Boolean(user && (await loadOwnRegistration(event.id, user.id)));
+  if (registered) redirect("/main");
   const soldOut = seats.soldOut && !registered;
   const byLink = !guest && !holdsPass && !registered;
   const mayJoin = user && permanent ? await mayJoinWithoutLink(event.id, user.id) : (await loadOpenLink(event.id)).open;

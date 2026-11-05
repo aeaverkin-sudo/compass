@@ -56,7 +56,16 @@ function subscribeDevice() {
   return () => {};
 }
 
-export function EntryPage({ input, pick = false }: { input: EntryInput; pick?: boolean }) {
+export function EntryPage({
+  input,
+  pick = false,
+  telegram = false,
+}: {
+  input: EntryInput;
+  pick?: boolean;
+  /** First open of an invitation inside Telegram. */
+  telegram?: boolean;
+}) {
   const router = useRouter();
   const knownDevice = useSyncExternalStore(subscribeDevice, deviceWasRegistered, () => false);
   useLayoutEffect(() => {
@@ -301,9 +310,8 @@ export function EntryPage({ input, pick = false }: { input: EntryInput; pick?: b
       for (const item of files) {
         useUploadStatus.getState().setStatus(item.itemId, { state: "uploading", percent: null });
       }
-      if (reply.joined && reply.eventLookup && input.event?.guestToken) {
-        const screen = reply.pay ? "pay" : "join";
-        router.replace(`/e/${encodeURIComponent(reply.eventLookup)}/${screen}`);
+      if (reply.joined && input.event) {
+        router.replace("/main");
       } else if (input.sourceToken && reply.saved && !reply.warning) {
         markNewContact();
         const savedName = reply.savedName?.trim() || "Untitled";
@@ -368,6 +376,11 @@ export function EntryPage({ input, pick = false }: { input: EntryInput; pick?: b
       />
       <div style={frame}>
       <div className={PAD}>
+        {telegram ? (
+          <p className="mb-[18px] t-meta text-[var(--grey)]">
+            Откройте в браузере: ••• → Open in Safari — так карточка останется у вас
+          </p>
+        ) : null}
         <div className="flex items-stretch gap-3" style={{ height: 128 }}>
           <div className="relative shrink-0">
             <PhotoSlotPicker

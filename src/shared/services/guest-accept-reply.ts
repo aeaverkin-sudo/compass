@@ -20,6 +20,6 @@ export function acceptReply(result: GuestAcceptResult) {
     });
   }
   if (result.kind === "notice") return noStore({ kind: "notice", text: result.text });
-  if (result.kind === "going") return noStore({ kind: "going", badge: result.badge, change: result.change });
+  if (result.kind === "going") return noStore({ kind: "going" });
   return noStore({ kind: "other-device" });
 }

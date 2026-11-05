@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { isEventLookup } from "@/shared/event/lookup";
 import { findPassGuest, isGuestToken } from "@/shared/services/event-guest-pass";
 import { loadEventInvite } from "@/shared/services/event-invite";
@@ -38,9 +39,12 @@ export default async function CreatePage({ searchParams }: PageProps) {
       if (!email) email = person.email?.trim().toLowerCase() || undefined;
     }
   }
+  const telegram =
+    Boolean(event) && /Telegram/i.test((await headers()).get("user-agent") ?? "");
   return (
     <EntryPage
       pick={one(query.pick) === "1"}
+      telegram={telegram}
       input={{
         name,
         email,

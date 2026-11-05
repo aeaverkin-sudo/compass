@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { findPassGuest } from "@/shared/services/event-guest-pass";
 import { loadEventInvite } from "@/shared/services/event-invite";
+import { loadOwnRegistration } from "@/shared/services/event-registration";
 import { eventHasEnded } from "@/shared/services/events";
 import { isPermanentAccount } from "@/shared/services/guest-accept";
 import { InviteActions } from "../invite-actions";
@@ -43,6 +44,7 @@ export default async function GoFromMailPage({ params, searchParams }: PageProps
   const user = data.user ?? null;
   const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
   const permanent = await isPermanentAccount(session);
+  if (permanent && user && (await loadOwnRegistration(event.id, user.id))) redirect("/main");
   if (!permanent) redirect(`/create?event=${encodeURIComponent(lookup)}&g=${encodeURIComponent(guest.token)}`);
 
   return (

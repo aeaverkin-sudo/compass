@@ -10,19 +10,13 @@ import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
-import { COLUMN_GAP_PX } from "@/shared/layout/axes";
-import type { PortfolioChoice } from "@/shared/services/event-registration";
-import { PortfolioFace } from "@/shared/components/portfolio-face";
 import { TapButton } from "@/shared/components/tap-button";
-import { openProfileThisSession } from "@/shared/lib/open-profile-return";
 import { openWalletPass } from "@/shared/lib/wallet-client";
 
 const SKY =
   "press inline-block border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)] no-underline disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 type AcceptReply = {
   kind?: "go" | "here" | "signin" | "other-device" | "notice" | "going";
-  badge?: PortfolioChoice | null;
-  change?: string;
   text?: string;
   next?: string;
   notice?: string | null;
@@ -114,12 +108,10 @@ export function InviteActions({
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ text: string; next: string } | null>(null);
-  const [going, setGoing] = useState<{ badge: PortfolioChoice | null; change: string } | null>(null);
   const [signInOffer, setSignInOffer] = useState(false);
   const opened = useRef(false);
   const autoRan = useRef(false);
   const base = `/api/events/${encodeURIComponent(lookup)}`;
-  const joinPath = `/e/${encodeURIComponent(lookup)}/join`;
 
   useEffect(() => {
     if (!token || opened.current) return;
@@ -161,8 +153,7 @@ export function InviteActions({
     }
     if (reply.kind === "notice") return fail(reply.text ?? "");
     if (reply.kind === "going") {
-      setGoing({ badge: reply.badge ?? null, change: reply.change ?? joinPath });
-      setBusy(false);
+      router.replace("/main");
       return;
     }
     if (reply.kind === "go" && reply.next) {
@@ -212,7 +203,7 @@ export function InviteActions({
         const body = (await response.json().catch(() => ({}))) as { error?: string };
         return fail(body.error ?? "Could not join.");
       }
-      router.push(openProfileThisSession(lookup) ? "/main" : joinPath);
+      router.push("/main");
     } catch {
       fail("Could not join.");
     }
@@ -254,26 +245,6 @@ export function InviteActions({
       Sign in
     </Link>
   ) : null;
-
-  if (going) {
-    return (
-      <>
-        {poster}
-        <div className="mt-8 flex flex-col items-center">
-          <p className="m-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)]">You&apos;re going ✓</p>
-          <div className="mt-6 flex w-full max-w-[280px] min-w-0 items-center" style={{ gap: COLUMN_GAP_PX }}>
-            {going.badge ? <PortfolioFace portfolio={going.badge} selected /> : <span className="min-w-0 flex-1" />}
-            <Link
-              href={going.change}
-              className="press shrink-0 t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
-            >
-              Change ›
-            </Link>
-          </div>
-        </div>
-      </>
-    );
-  }
 
   if (ended || (auto && token)) {
     return (
