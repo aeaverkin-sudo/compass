@@ -10,20 +10,15 @@ function isPublicCard(pathname: string) {
 }
 
 /**
- * These requests must not rotate the refresh token.
- * The phone camera opens the card in a new tab. Connect and the scanner
- * run while another tab is already signed in. A second refresh revokes both.
+ * These pages do not need the signed-in user, so they never rotate.
+ * The camera opens the card without a client session. Connect and the
+ * scanner stay out of this list: an expired access token refreshes here,
+ * and the new cookie is on the request before the page reads it.
  */
 function leavesSessionAlone(pathname: string) {
   return (
     isPublicCard(pathname) ||
     pathname.startsWith("/api/c/") ||
-    pathname === "/save" ||
-    pathname.startsWith("/save/") ||
-    pathname.startsWith("/api/network/save") ||
-    pathname.startsWith("/api/scan") ||
-    pathname === "/scan" ||
-    pathname.startsWith("/scan/") ||
     pathname === "/open" ||
     pathname === "/auth/confirm"
   );
