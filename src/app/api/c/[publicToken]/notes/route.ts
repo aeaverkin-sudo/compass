@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { loadPublicCard } from "@/shared/services/public-card";
 import { consumePendingNotes, previewPendingNotes } from "@/shared/services/notes-server";
 
@@ -40,14 +40,7 @@ export async function POST(request: Request, context: RouteProps) {
   }
   if (!loaded) return noStore({ error: "Not found" }, 404);
 
-  let userId: string | null = null;
-  try {
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    userId = data.user?.id ?? null;
-  } catch {
-    userId = null;
-  }
+  const userId = (await sessionUser())?.id ?? null;
 
   if (userId && userId === loaded.ownerId) {
     if (viaQr) {

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { saveConnection } from "@/shared/services/save-connection";
 import { SAVE_SIGNUP } from "@/shared/services/save-link";
 import { clearTrialClock } from "@/shared/services/trial";
@@ -22,18 +22,17 @@ function ownCard(token: string) {
 }
 
 /**
- * Saves someone else's public card into the book of whoever holds a session, then opens Network.
- * No account, including an anonymous session, opens the portfolio questionnaire with this card attached.
+ * Saves someone else's public card into the book of a signed-in person, then opens Network.
+ * No live login — the phone camera, a lost session, a trial — opens the card.
+ * A scan must not land on registration.
  */
 export default async function SaveCardPage({ params }: PageProps) {
   const { token } = await params;
   if (!TOKEN_RE.test(token)) notFound();
 
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
+  const user = await sessionUser();
   if (!user || user.is_anonymous) {
-    redirect(`/create?card=${encodeURIComponent(token)}`);
+    redirect(`/c/${token}`);
   }
 
   const admin = createAdminSupabaseClient();

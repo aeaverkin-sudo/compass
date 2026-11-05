@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Check, Scan } from "lucide-react";
 import { BackButton } from "@/shared/components/back-button";
 import { cardLinkFromScan } from "@/shared/lib/card-scan";
-import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 const FLASH_MS = 800;
 
@@ -42,31 +41,9 @@ export function ScanScreen() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hint, setHint] = useState("Point at a QR");
   const [cameraOff, setCameraOff] = useState(false);
-  const [live, setLive] = useState(false);
   const [flash, setFlash] = useState<{ name: string; line: string } | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    void createBrowserSupabaseClient()
-      .auth.getUser()
-      .then(({ data }) => {
-        if (cancelled) return;
-        if (!data.user || data.user.is_anonymous) {
-          router.replace("/main");
-          return;
-        }
-        setLive(true);
-      })
-      .catch(() => {
-        if (!cancelled) router.replace("/main");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
-
-  useEffect(() => {
-    if (!live) return;
     const video = videoRef.current;
     if (!video) return;
     let stopped = false;
@@ -115,7 +92,7 @@ export function ScanScreen() {
           });
           if (stopped) return;
           if (response.status === 401) {
-            router.replace("/main");
+            router.replace("token" in link ? `/c/${encodeURIComponent(link.token)}` : `/@${encodeURIComponent(link.handle)}`);
             return;
           }
           if (!response.ok) {
@@ -240,7 +217,7 @@ export function ScanScreen() {
       document.removeEventListener("visibilitychange", onVisibility);
       stop();
     };
-  }, [live, router]);
+  }, [router]);
 
   return (
     <main className="fixed inset-0 bg-[var(--ink)]">

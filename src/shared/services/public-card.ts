@@ -7,7 +7,7 @@ import { asCardStatus } from "@/shared/lib/card-status";
 import { shownPhotoLook, photoLookValue } from "@/shared/lib/photo-look";
 import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from "@/shared/services/card-zones";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { VIEWER_HEADER, viewerId } from "@/shared/lib/viewer";
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
 const CARD_PUBLIC_COLUMNS =
@@ -313,14 +313,8 @@ export async function logPublicCardOpen(
   const headerStore = await headers();
   if (isPreviewBot(headerStore.get("user-agent"))) return;
 
-  let sessionIsOwner = false;
-  try {
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    sessionIsOwner = data.user?.id === ownerId;
-  } catch {
-    sessionIsOwner = false;
-  }
+  const user = await sessionUser();
+  const sessionIsOwner = user?.id === ownerId;
 
   if (sessionIsOwner) {
     if (viewer) await markOwnerViewer(cardId, viewer).catch(() => undefined);
