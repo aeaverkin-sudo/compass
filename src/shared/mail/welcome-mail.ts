@@ -10,11 +10,11 @@ const GREY = "#999999";
 const RULE = "#999999";
 const SKY = "#c5e8f7";
 const WIDTH = 480;
-const LABEL = 72;
+const LABEL = 76;
 const GAP = 12;
 const AXIS = LABEL + GAP;
-const TILE = 88;
-const LOGO_W = 68;
+const TILE = 96;
+const LOGO_W = 74;
 const LOGO_H = Math.round((LOGO_W * 80) / 254);
 
 export type WelcomeMailInput = {
@@ -55,19 +55,19 @@ function partText(part: Part): string {
 
 function rowHtml(row: Row, index: number): string {
   const number = String(index + 1).padStart(2, "0");
-  return `<tr><td style="border-top:1px solid ${RULE};padding:12px 0 13px;">
+  return `<tr><td style="border-top:1px solid ${RULE};padding:14px 0 15px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td width="${LABEL}" valign="top" style="width:${LABEL}px;">
-<div style="font-family:${FONT};font-size:24px;line-height:1;letter-spacing:-0.03em;color:${INK};">${number}</div>
+<div style="font-family:${FONT};font-size:26px;line-height:1;letter-spacing:-0.03em;color:${INK};">${number}</div>
 <div style="margin-top:4px;font-family:${FONT};font-size:11px;line-height:1.35;letter-spacing:0.1em;text-transform:uppercase;color:${GREY};">${escape(row.label)}</div>
 </td>
-<td valign="top" style="padding-left:${GAP}px;font-family:${FONT};font-size:14.5px;line-height:1.4;color:${INK};">${row.value.map(partHtml).join("")}</td>
+<td valign="top" style="padding-left:${GAP}px;font-family:${FONT};font-size:15.5px;line-height:1.4;color:${INK};">${row.value.map(partHtml).join("")}</td>
 </tr></table></td></tr>`;
 }
 
 function skyButton(button: { label: string; href: string }, top: number): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:${top}px;"><tr><td bgcolor="${SKY}" style="background:${SKY};">
-<a href="${escape(button.href)}" style="display:inline-block;padding:10px 18px;font-family:${FONT};font-size:12px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase;color:${INK};text-decoration:none;">${escape(button.label)}</a>
+<a href="${escape(button.href)}" style="display:inline-block;padding:11px 20px;font-family:${FONT};font-size:13px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase;color:${INK};text-decoration:none;">${escape(button.label)}</a>
 </td></tr></table>`;
 }
 
@@ -88,19 +88,19 @@ export function welcomeMail(input: WelcomeMailInput): { html: string; text: stri
   ];
   const footer = `ADED · ${input.siteLabel}`;
 
-  const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background:#ffffff;"><tr><td align="center" style="padding:20px 16px 32px;">
+  const body = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background:#ffffff;"><tr><td align="center" style="padding:24px 16px 32px;">
 <table role="presentation" width="${WIDTH}" cellpadding="0" cellspacing="0" border="0" style="width:${WIDTH}px;max-width:100%;">
-<tr><td style="padding:0 0 16px;">
+<tr><td style="padding:0 0 18px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
 <td width="${TILE}" height="${TILE}" align="center" valign="middle" bgcolor="#ffffff" style="width:${TILE}px;height:${TILE}px;background:#ffffff;box-shadow:0 4px 18px rgba(0,0,0,.14);"><img src="${escape(input.logoSrc)}" width="${LOGO_W}" height="${LOGO_H}" alt="ADED" style="display:block;width:${LOGO_W}px;height:${LOGO_H}px;border:0;outline:none;" /></td>
-<td valign="middle" style="padding-left:20px;font-family:${FONT};font-size:21px;line-height:1.15;font-weight:600;letter-spacing:-0.5px;color:${INK};">Thank you —<br />your portfolio is ready.</td>
+<td valign="middle" style="padding-left:20px;font-family:${FONT};font-size:23px;line-height:1.15;font-weight:600;letter-spacing:-0.5px;color:${INK};">Thank you —<br />your portfolio is ready.</td>
 </tr></table>
 </td></tr>
 ${rows.map((row, index) => rowHtml(row, index)).join("\n")}
-<tr><td style="border-top:1px solid ${RULE};padding:16px 0 18px ${AXIS}px;">
+<tr><td style="border-top:1px solid ${RULE};padding:18px 0 20px ${AXIS}px;">
 ${buttons.map((button, index) => skyButton(button, index === 0 ? 0 : 8)).join("\n")}
 </td></tr>
-<tr><td style="border-top:1px solid ${RULE};padding:12px 0 0 ${AXIS}px;font-family:${FONT};font-size:11px;line-height:1.45;color:${GREY};">${escape(footer)}</td></tr>
+<tr><td style="border-top:1px solid ${RULE};padding:12px 0 0 ${AXIS}px;font-family:${FONT};font-size:12px;line-height:1.45;color:${GREY};">${escape(footer)}</td></tr>
 </table></td></tr></table>`;
 
   const html = `<!doctype html>
