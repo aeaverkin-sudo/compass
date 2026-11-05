@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { saveConnection } from "@/shared/services/save-connection";
 
 export const runtime = "nodejs";
@@ -13,14 +13,12 @@ function noStore(body: unknown, status = 200) {
 }
 
 /**
- * Saves a public card into the session's book, a trial or anonymous pass account included.
- * Same upsert as `/save/{token}`, without leaving the card.
+ * Saves a public card into a signed-in book, without leaving the card.
+ * An anonymous session is not signed in: the button opens the account door.
  */
 export async function POST(request: Request) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
-  if (!user) return noStore({ error: "Sign in" }, 401);
+  const user = await sessionUser();
+  if (!user || user.is_anonymous) return noStore({ error: "Sign in" }, 401);
 
   let token = "";
   try {

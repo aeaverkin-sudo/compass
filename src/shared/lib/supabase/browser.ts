@@ -21,7 +21,7 @@ export function createBrowserSupabaseClient() {
 /**
  * One tab refreshes the cookie session. A hidden tab must not refresh the same
  * token later — Supabase treats that as reuse and revokes the whole chain.
- * Document requests still refresh in src/proxy.ts.
+ * src/proxy.ts rotates only inside the expiry margin, and never on a card, Connect, or scan.
  */
 function bindRefreshToVisibleTab(client: SupabaseClient) {
   const sync = () => {

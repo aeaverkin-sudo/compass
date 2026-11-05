@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { saveConnection } from "@/shared/services/save-connection";
 import { SAVE_SIGNUP } from "@/shared/services/save-link";
 import { clearTrialClock } from "@/shared/services/trial";
@@ -29,11 +29,9 @@ export default async function SaveCardPage({ params }: PageProps) {
   const { token } = await params;
   if (!TOKEN_RE.test(token)) notFound();
 
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
+  const user = await sessionUser();
   if (!user || user.is_anonymous) {
-    redirect(`/create?card=${encodeURIComponent(token)}`);
+    redirect(`/create?card=${encodeURIComponent(token)}&pick=1`);
   }
 
   const admin = createAdminSupabaseClient();

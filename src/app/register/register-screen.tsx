@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -14,7 +14,7 @@ import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { questionnaireHref } from "@/app/create/door";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { markRegisteredDevice } from "@/shared/lib/registered-device";
+import { markRegisteredDevice, rememberAccountEmail, rememberedEmail } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
@@ -72,6 +72,10 @@ async function enterExistingAccount(signIn: () => Promise<string | null>) {
   return null;
 }
 
+function subscribeDevice() {
+  return () => {};
+}
+
 const FORGOT_EMAIL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Can't find my ADED email")}`;
 const LINK_LINE = {
   textDecoration: "underline",
@@ -113,7 +117,10 @@ export function RegisterScreen() {
   const signinOnly = params.get("signin") === "1";
   const [accepted, setAccepted] = useState(false);
   const emailed = params.get("email")?.trim() ?? "";
+  const storedEmail = useSyncExternalStore(subscribeDevice, rememberedEmail, () => "");
   const [email, setEmail] = useState(emailed);
+  const [emailEdited, setEmailEdited] = useState(false);
+  const signInEmail = emailEdited ? email : emailed || storedEmail || email;
   const [emailLink, setEmailLink] = useState(emailed);
   if (emailed !== emailLink) {
     setEmailLink(emailed);
@@ -138,9 +145,9 @@ export function RegisterScreen() {
 
   useEffect(() => {
     if (!signinOnly) return;
-    if (emailed) passwordRef.current?.focus();
+    if (emailed || storedEmail) passwordRef.current?.focus();
     else emailRef.current?.focus();
-  }, [signinOnly, emailed]);
+  }, [signinOnly, emailed, storedEmail]);
 
   const blinkConsent = () => {
     blinkTimers.current.forEach((id) => window.clearTimeout(id));
@@ -238,6 +245,7 @@ export function RegisterScreen() {
         return;
       }
       markRegisteredDevice();
+      rememberAccountEmail(email);
       clearRegistrationRequired();
       router.push(nextPath);
     } catch (error) {
@@ -256,7 +264,7 @@ export function RegisterScreen() {
       ignoreNextSignedOut();
       await supabase.auth.signOut({ scope: "local" });
       const { error: signError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: signInEmail.trim(),
         password: password,
       });
       return signError?.message ?? null;
@@ -266,6 +274,7 @@ export function RegisterScreen() {
       setMessage(error);
       return;
     }
+    rememberAccountEmail(signInEmail);
     router.push(nextPath);
   };
 
@@ -321,8 +330,11 @@ export function RegisterScreen() {
               autoComplete="email"
               aria-label="Email"
               placeholder="name@mail.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              value={signInEmail}
+              onChange={(event) => {
+                setEmailEdited(true);
+                setEmail(event.target.value);
+              }}
               className={FIELD}
             />
           </Zone>

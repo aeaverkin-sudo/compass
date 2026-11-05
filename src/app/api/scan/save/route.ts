@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { saveScannedCard } from "@/shared/services/scan-save";
 
 export const runtime = "nodejs";
@@ -11,9 +11,7 @@ function noStore(body: unknown, status = 200) {
 
 /** The in-app scanner. Returns new, existing, or own before the screen moves. */
 export async function POST(request: Request) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
+  const user = await sessionUser();
   if (!user || user.is_anonymous) return noStore({ error: "Unauthorized" }, 401);
 
   let token = "";

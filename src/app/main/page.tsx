@@ -7,6 +7,7 @@ import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
+import { signInPath } from "@/shared/lib/registered-device";
 import { useAppStore } from "@/shared/store/app-store";
 
 function applyMainChrome() {
@@ -41,7 +42,7 @@ export default function MainPage() {
   useEffect(() => {
     if (!hydrated || !sessionReady) return;
     if (needsSignIn) {
-      router.replace("/register?signin=1&expired=1");
+      router.replace(signInPath({ expired: true }));
       return;
     }
     if (!cardsReady) return;

@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Create a portfolio", robots: { index
 const CARD_TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
 
 type PageProps = {
-  searchParams: Promise<{ name?: string | string[]; email?: string | string[]; card?: string | string[]; event?: string | string[]; g?: string | string[]; next?: string | string[] }>;
+  searchParams: Promise<{ name?: string | string[]; email?: string | string[]; card?: string | string[]; event?: string | string[]; g?: string | string[]; next?: string | string[]; pick?: string | string[] }>;
 };
 
 function one(value: string | string[] | undefined) {
@@ -40,6 +40,7 @@ export default async function CreatePage({ searchParams }: PageProps) {
   }
   return (
     <EntryPage
+      pick={one(query.pick) === "1"}
       input={{
         name,
         email,

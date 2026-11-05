@@ -53,21 +53,16 @@ export function consumeSignedOutIgnore() {
   return true;
 }
 
-/** A stored login whose user is gone. A missing session is not dead: that phone may still need Sign in. */
+/**
+ * The account itself is gone.
+ * A reused or invalid refresh token is not this. That cookie may still belong
+ * to a registered browser, and wiping it turns a scan into a new registration.
+ */
 export function isDeadAuthSession(error: { name?: string; message?: string; code?: string } | null): boolean {
   if (!error || error.name === "AuthSessionMissingError" || error.name === "AuthRetryableFetchError") return false;
   const text = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
   if (text.includes("fetch") || text.includes("network") || text.includes("timeout")) return false;
-  return (
-    text.includes("does not exist") ||
-    text.includes("user not found") ||
-    text.includes("user_not_found") ||
-    text.includes("invalid") ||
-    text.includes("refresh") ||
-    text.includes("jwt") ||
-    text.includes("session_not_found") ||
-    text.includes("bad_jwt")
-  );
+  return text.includes("does not exist") || text.includes("user not found") || text.includes("user_not_found");
 }
 
 /** Drop a Supabase auth blob left behind by a deleted user. */

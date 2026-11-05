@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -14,7 +14,7 @@ import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { clearFillPlace, photoFileFromDraft, readQuestionnaire, readQuestionnairePhoto, writeQuestionnaire, writeQuestionnairePhoto } from "@/shared/lib/fill-place";
 import { markNewContact } from "@/shared/lib/new-contact";
 import { rememberOpenProfile } from "@/shared/lib/open-profile-return";
-import { markRegisteredDevice } from "@/shared/lib/registered-device";
+import { deviceWasRegistered, markRegisteredDevice, rememberAccountEmail, rememberedEmail } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { isAccountEmail } from "@/shared/services/contact-item";
@@ -52,8 +52,17 @@ function passwordNow() {
   return issuedPassword;
 }
 
-export function EntryPage({ input }: { input: EntryInput }) {
+function subscribeDevice() {
+  return () => {};
+}
+
+export function EntryPage({ input, pick = false }: { input: EntryInput; pick?: boolean }) {
   const router = useRouter();
+  const knownDevice = useSyncExternalStore(subscribeDevice, deviceWasRegistered, () => false);
+  useLayoutEffect(() => {
+    if (!pick || !knownDevice || !input.sourceToken) return;
+    router.replace(signInHref(rememberedEmail() || undefined, input));
+  }, [pick, knownDevice, input, router]);
   const offeredName = input.name?.trim() ?? "";
   const offeredEmail = input.email?.trim().toLowerCase() ?? "";
   const [name, setName] = useState(offeredName);
@@ -276,6 +285,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
       );
       useAppStore.getState().resetApp();
       markRegisteredDevice();
+      rememberAccountEmail(email);
       clearRegistrationRequired();
       useAppStore.setState({
         user: { ...useAppStore.getState().user, onboarded: true },
@@ -296,7 +306,8 @@ export function EntryPage({ input }: { input: EntryInput }) {
         router.replace(`/e/${encodeURIComponent(reply.eventLookup)}/${screen}`);
       } else if (input.sourceToken && reply.saved && !reply.warning) {
         markNewContact();
-        router.replace("/main");
+        const savedName = reply.savedName?.trim() || "Untitled";
+        router.replace(`/network?added=${encodeURIComponent(savedName)}`);
       } else {
         if (input.event?.lookup) rememberOpenProfile(input.event.lookup);
         router.replace("/main");
@@ -339,6 +350,8 @@ export function EntryPage({ input }: { input: EntryInput }) {
       setBusy(false);
     }
   };
+
+  if (pick && knownDevice) return <div className="fixed inset-0 bg-white" aria-hidden />;
 
   return (
     <main

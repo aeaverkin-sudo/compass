@@ -3,7 +3,13 @@
 import { useEffect } from "react";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { clearRegisteredDevice, deviceWasRegistered, markRegisteredDevice } from "@/shared/lib/registered-device";
+import {
+  clearRegisteredDevice,
+  deviceWasRegistered,
+  markRegisteredDevice,
+  rememberAccountEmail,
+  signInPath,
+} from "@/shared/lib/registered-device";
 import {
   clearRegistrationRequired,
   clearStoredAuthTokens,
@@ -37,6 +43,7 @@ function acceptUser(user: User) {
   }
   if (!user.is_anonymous) {
     if (user.app_metadata?.event_trial !== true) markRegisteredDevice();
+    if (user.email) rememberAccountEmail(user.email);
     clearRegistrationRequired();
   }
   restoreRegisteredOnboarding(Boolean(user.is_anonymous));
@@ -59,7 +66,7 @@ function isOwnerRoute(path: string) {
 function sendRegisteredDeviceToSignIn() {
   markRegistrationRequired();
   if (!isOwnerRoute(window.location.pathname)) return;
-  window.location.replace("/register?signin=1&expired=1");
+  window.location.replace(signInPath({ expired: true }));
 }
 
 /** The stored user is gone. A fresh trial must not be treated as a lost login. */
@@ -131,20 +138,8 @@ export function SupabaseSession() {
           console.error("[supabase] session check failed", existingError.message);
         }
 
-        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
-        if (isDeadAuthSession(refreshError)) {
-          console.info("[supabase] dead refresh");
-          await startFreshAnonymous(supabase);
-          return;
-        }
-        if (refreshed.user) {
-          acceptUser(refreshed.user);
-          return;
-        }
-        if (refreshError && refreshError.name !== "AuthSessionMissingError") {
-          console.error("[supabase] refresh failed", refreshError.message);
-        }
-
+        // Do not call refreshSession() here. getUser already refreshes inside
+        // the expiry margin, and a second rotation revokes the login.
         if (deviceWasRegistered()) {
           console.info("[supabase] registered device, session missing");
           sendRegisteredDeviceToSignIn();

@@ -6,6 +6,7 @@ import { PosterWallLanding } from "@landing/components/poster-wall-landing";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
+import { deviceWasRegistered, signInPath } from "@/shared/lib/registered-device";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
 
@@ -28,10 +29,16 @@ export default function Home() {
     hydrated &&
     sessionReady &&
     cardsReady &&
-    (needsSignIn || (!onboarded && !trialCardStarted(cards)));
+    !needsSignIn &&
+    !onboarded &&
+    !trialCardStarted(cards);
 
   useEffect(() => {
-    if (!hydrated || !sessionReady || needsSignIn) return;
+    if (!hydrated || !sessionReady) return;
+    if (needsSignIn) {
+      router.replace(signInPath());
+      return;
+    }
     if (onboarded) {
       router.replace("/main");
       return;
@@ -41,7 +48,9 @@ export default function Home() {
       const user = useAppStore.getState().user;
       useAppStore.setState({ user: { ...user, onboarded: true } });
       router.replace("/main");
+      return;
     }
+    if (deviceWasRegistered()) router.replace(signInPath());
   }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, cards, router]);
 
   if (landing) return <PosterWallLanding />;
