@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal } from "lucide-react";
@@ -28,7 +28,8 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { clearNewContact } from "@/shared/lib/new-contact";
 import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
-import { forgetShareBack, sendShareBack, undoShareBack, useShareBack } from "@/shared/lib/share-back-send";
+import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
+import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
 import { NetworkBand } from "./network-band";
 
 type SortMode = "recent" | "alphabet";
@@ -86,7 +87,7 @@ function matchesQuery(contact: Contact, query: string) {
   return contact.searchText.includes(query);
 }
 
-type HoldMenu = { id: string; top: number; left: number; width: number; confirmDelete: boolean };
+type HoldMenu = { id: string; top: number; left: number; width: number; confirmDelete: boolean; picking: boolean };
 
 export function NetworkScreen({ addedName = null }: { addedName?: string | null }) {
   const router = useRouter();
@@ -94,6 +95,8 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("recent");
   const [menu, setMenu] = useState<HoldMenu | null>(null);
+  const [pickUp, setPickUp] = useState(false);
+  const shareCards = useNamedShareCards();
   const [notice, setNotice] = useState<string | null>(
     addedName ? `${addedName} — just added to your contacts` : null,
   );
@@ -146,6 +149,16 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     return () => document.removeEventListener("pointerup", lift);
   }, []);
 
+  useLayoutEffect(() => {
+    if (!menu?.picking) return;
+    const node = plaqueRef.current;
+    const band = node?.ownerDocument.querySelector("nav.compass-sky-band");
+    const list = node?.querySelector("[data-share-pick]");
+    if (!band || !list) return;
+    const overflows = list.getBoundingClientRect().bottom > band.getBoundingClientRect().top - 4;
+    if (overflows) setPickUp(true);
+  }, [menu]);
+
   useEffect(() => {
     if (!menu) return;
     const close = (event: PointerEvent) => {
@@ -194,7 +207,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         ? "sent"
         : sharePhase
       : null;
-  const shareLabel = shareShown === "undo" ? "Undo" : shareShown === "sent" ? "Shared back" : "Share back";
+  const shareLabel = shareShown === "sent" ? "Shared back" : "Share back";
 
   const readyOwnerId = async () => {
     if (ownerId.current) return ownerId.current;
@@ -234,7 +247,17 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   const openMenu = (contact: Contact, box: DOMRect) => {
     arming.current = true;
-    setMenu({ id: contact.id, top: box.top, left: box.left, width: box.width, confirmDelete: false });
+    setPickUp(false);
+    setMenu({ id: contact.id, top: box.top, left: box.left, width: box.width, confirmDelete: false, picking: false });
+  };
+
+  const shareCard = async (card: SharePickCard, close: boolean) => {
+    const contact = menuContact;
+    if (!contact) return;
+    const sent = await sendShareBack(contact.savedCardToken, card.id);
+    if (!sent) return;
+    if (close) setMenu((current) => (current?.id === contact.id ? null : current));
+    setNotice(`${card.name} shared back`);
   };
 
   const pressMenu = (run: () => void) => {
@@ -343,41 +366,63 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
               ]}
             />
           ) : (
-            <SkyActions
-              actions={[
-                {
-                  label: menu.confirmDelete ? "Yes, delete" : "Delete",
-                  tone: "ink",
-                  onPress: () => {
-                    pressMenu(() => {
-                      if (!menu.confirmDelete) {
-                        setMenu({ ...menu, confirmDelete: true });
-                        return;
-                      }
-                      void remove(menu.id);
-                    });
-                  },
-                },
-                ...(shareShown
-                  ? [
-                      {
-                        label: shareLabel,
-                        tone: shareShown === "sent" ? ("grey" as const) : ("ink" as const),
-                        disabled: shareShown === "sent",
-                        onPress: () => {
-                          pressMenu(() => {
-                            if (shareShown === "undo") {
-                              void undoShareBack(menuContact.savedCardToken);
-                              return;
-                            }
-                            if (shareShown === "idle") void sendShareBack(menuContact.savedCardToken);
-                          });
-                        },
+            <div className="relative bg-sky">
+              {menu.picking && pickUp ? (
+                <div data-share-pick className="absolute right-0 bottom-full left-0 bg-sky px-4 pt-3 pb-2">
+                  <SharePick cards={shareCards} size="menu" onPick={(card) => void shareCard(card, true)} />
+                </div>
+              ) : null}
+              <div data-share-actions>
+                <SkyActions
+                  actions={[
+                    {
+                      label: menu.confirmDelete ? "Yes, delete" : "Delete",
+                      tone: menu.picking ? "grey" : "ink",
+                      onPress: () => {
+                        pressMenu(() => {
+                          if (menu.picking) {
+                            setPickUp(false);
+                            setMenu({ ...menu, picking: false });
+                            return;
+                          }
+                          if (!menu.confirmDelete) {
+                            setMenu({ ...menu, confirmDelete: true });
+                            return;
+                          }
+                          void remove(menu.id);
+                        });
                       },
-                    ]
-                  : []),
-              ]}
-            />
+                    },
+                    ...(shareShown
+                      ? [
+                          {
+                            label: shareLabel,
+                            tone: shareShown === "sent" ? ("grey" as const) : ("ink" as const),
+                            disabled: shareShown === "sent",
+                            onPress: () => {
+                              pressMenu(() => {
+                                if (shareShown !== "idle" || menu.picking) return;
+                                if (shareCards.length === 1) {
+                                  void shareCard(shareCards[0]!, false);
+                                  return;
+                                }
+                                if (shareCards.length < 2) return;
+                                setPickUp(false);
+                                setMenu({ ...menu, picking: true, confirmDelete: false });
+                              });
+                            },
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              </div>
+              {menu.picking && !pickUp ? (
+                <div data-share-pick className="bg-sky px-4 pt-2 pb-3">
+                  <SharePick cards={shareCards} size="menu" onPick={(card) => void shareCard(card, true)} />
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
       ) : null}

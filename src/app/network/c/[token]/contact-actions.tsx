@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TabBand } from "@main/components/tab-band";
 import { TapButton } from "@/shared/components/tap-button";
-import { forgetShareBack, sendShareBack, undoShareBack, useShareBack } from "@/shared/lib/share-back-send";
+import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
+import { SkyToast } from "@/shared/components/sky-toast";
+import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 const ITEM =
@@ -24,14 +26,29 @@ export function ContactActions({
 }) {
   const router = useRouter();
   const phase = useShareBack(token);
+  const shareCards = useNamedShareCards();
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [bandHeight, setBandHeight] = useState(0);
   const deleteRef = useRef<HTMLSpanElement>(null);
+  const bandRef = useRef<HTMLDivElement>(null);
   const cancelTap = useRef(false);
 
   useEffect(() => {
     router.prefetch("/main");
   }, [router]);
+
+  useLayoutEffect(() => {
+    const node = bandRef.current;
+    if (!node) return;
+    const measure = () => setBandHeight(node.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!armed) return;
@@ -72,57 +89,93 @@ export function ContactActions({
   };
 
   const shareShown = theyHaveMe ? null : shareBackPending && phase === "idle" ? "sent" : phase;
-  const shareLabel = shareShown === "undo" ? "Undo" : shareShown === "sent" ? "Shared back" : "Share back";
+  const shareLabel = shareShown === "sent" ? "Shared back" : "Share back";
+
+  const shareCard = async (card: SharePickCard) => {
+    const sent = await sendShareBack(token, card.id);
+    if (!sent) return;
+    setPicking(false);
+    setNotice(`${card.name} shared back`);
+  };
 
   return (
-    <TabBand
-      label="Contact"
-      left={
-        <span ref={deleteRef} className="flex h-full w-full">
-          <TapButton
-            className={ITEM}
-            disabled={busy}
-            onTap={() => {
-              if (!armed) {
-                setArmed(true);
-                return;
-              }
-              void remove();
-            }}
-          >
-            {armed ? "Yes, delete" : "Delete"}
-          </TapButton>
-        </span>
-      }
-      center={
-        shareShown ? (
-          <TapButton
-            className={`${ITEM} justify-center disabled:text-[var(--grey)]`}
-            disabled={shareShown === "sent" || busy}
-            onTap={() => {
-              if (cancelTap.current) return;
-              if (shareShown === "undo") {
-                void undoShareBack(token);
-                return;
-              }
-              if (shareShown === "idle") void sendShareBack(token);
-            }}
-          >
-            {shareLabel}
-          </TapButton>
-        ) : (
-          <span className="min-h-11 w-full" />
-        )
-      }
-      right={
-        <TapButton
-          className={`${ITEM} justify-end`}
-          onPrepare={() => router.prefetch("/main")}
-          onTap={() => router.push("/main")}
-        >
-          Home
-        </TapButton>
-      }
-    />
+    <>
+      {picking ? (
+        <button
+          type="button"
+          aria-label="Close"
+          className="fixed inset-0 z-20 border-0 bg-white/55 p-0"
+          onClick={() => setPicking(false)}
+        />
+      ) : null}
+      {picking ? (
+        <div className="fixed inset-x-0 z-40 bg-sky px-[var(--gutter)] py-3" style={{ bottom: bandHeight }}>
+          <SharePick cards={shareCards} size="plaque" onPick={(card) => void shareCard(card)} />
+        </div>
+      ) : null}
+      {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
+      <div ref={bandRef}>
+        <TabBand
+          label="Contact"
+          left={
+            <span ref={deleteRef} className="flex h-full w-full">
+              <TapButton
+                className={ITEM}
+                disabled={busy}
+                onTap={() => {
+                  if (picking) {
+                    setPicking(false);
+                    return;
+                  }
+                  if (!armed) {
+                    setArmed(true);
+                    return;
+                  }
+                  void remove();
+                }}
+              >
+                {armed ? "Yes, delete" : "Delete"}
+              </TapButton>
+            </span>
+          }
+          center={
+            shareShown ? (
+              <TapButton
+                className={`${ITEM} justify-center disabled:text-[var(--grey)]`}
+                disabled={shareShown === "sent" || busy}
+                onTap={() => {
+                  if (cancelTap.current) return;
+                  if (shareShown !== "idle") return;
+                  if (picking) {
+                    setPicking(false);
+                    return;
+                  }
+                  if (shareCards.length === 1) {
+                    void shareCard(shareCards[0]!);
+                    return;
+                  }
+                  if (shareCards.length < 2) return;
+                  setArmed(false);
+                  setPicking(true);
+                }}
+              >
+                {shareLabel}
+              </TapButton>
+            ) : (
+              <span className="min-h-11 w-full" />
+            )
+          }
+          right={
+            <TapButton
+              className={`${ITEM} justify-end`}
+              onPrepare={() => router.prefetch("/main")}
+              onTap={() => router.push("/main")}
+            >
+              Home
+            </TapButton>
+          }
+        />
+      </div>
+    </>
   );
 }
