@@ -66,10 +66,24 @@ export async function proxy(request: NextRequest) {
 
   let supabaseResponse = forward(request, viewer.id);
   const pathname = request.nextUrl.pathname;
+  const h = request.headers;
+  const isDocument = h.get("sec-fetch-dest") === "document" || (h.get("accept") ?? "").includes("text/html");
+  const isPrefetch =
+    h.get("next-router-prefetch") === "1" ||
+    h.get("purpose") === "prefetch" ||
+    (h.get("sec-purpose") ?? "").includes("prefetch");
+  const isRsc = h.get("rsc") === "1";
 
-  // The visible tab owns a fresh token. Rotate here only inside the expiry
-  // margin, where this proxy can write the new cookie before the page reads it.
-  if (!leavesSessionAlone(pathname) && (await storedSessionNeedsRefresh(request.cookies.getAll()))) {
+  // A full document load is the only server rotation. Prefetch, RSC and API
+  // reads must not rotate: the visible tab refreshes, or the next real
+  // navigation does. /save stays a document load (2e5bc9e).
+  if (
+    !leavesSessionAlone(pathname) &&
+    isDocument &&
+    !isPrefetch &&
+    !isRsc &&
+    (await storedSessionNeedsRefresh(request.cookies.getAll()))
+  ) {
     const supabase = createServerClient(url, anonKey, {
       cookies: {
         getAll() {

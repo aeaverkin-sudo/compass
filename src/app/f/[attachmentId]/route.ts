@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { publicOrigin } from "@/shared/lib/public-origin";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { isUuid, loadAttachment, safeOriginalName, type AttachmentRow } from "@/shared/services/attachment-api";
 import {
   CARD_ATTACHMENTS_BUCKET,
@@ -40,9 +40,7 @@ function downloadName(originalName: string | null, id: string): string {
 
 async function viewerId(): Promise<string | null> {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    return data.user?.id ?? null;
+    return (await sessionUser())?.id ?? null;
   } catch {
     return null;
   }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { acceptManagerInvite } from "@/shared/services/event-manage";
 
 export const runtime = "nodejs";
@@ -12,9 +12,8 @@ function noStore(body: unknown, status = 200) {
 }
 
 export async function POST(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user || data.user.is_anonymous) return noStore({ error: "Sign in to accept." }, 401);
+  const user = await sessionUser();
+  if (!user || user.is_anonymous) return noStore({ error: "Sign in to accept." }, 401);
 
   const { code } = await context.params;
   let token = "";
@@ -27,7 +26,7 @@ export async function POST(request: Request, context: RouteProps) {
   if (!token) return noStore({ error: "This link has already been used." }, 404);
 
   try {
-    const result = await acceptManagerInvite(code, data.user.id, token);
+    const result = await acceptManagerInvite(code, user.id, token);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     return noStore({ ok: true });
   } catch (error) {

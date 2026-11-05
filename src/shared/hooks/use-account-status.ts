@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { CONSENT_ACCEPTED_EVENT } from "@/shared/services/consent";
+import { isCameraCardPath } from "@/shared/lib/supabase/browser";
 import type { AccountStatus } from "@/shared/services/trial";
 import { recallAnswer, rememberAnswer } from "@/shared/lib/last-answer";
 
 const STATUS_KEY = "account-status";
 
 export function useAccountRead() {
+  const pathname = usePathname();
+  const onCameraCard = isCameraCardPath(pathname);
   const [status, setStatus] = useState<AccountStatus | null>(() => recallAnswer<AccountStatus>(STATUS_KEY));
   const [ready, setReady] = useState(false);
 
@@ -16,6 +20,7 @@ export function useAccountRead() {
   }, [status]);
 
   useEffect(() => {
+    if (onCameraCard) return;
     let cancelled = false;
     void fetch("/api/account/status", { cache: "no-store" })
       .then(async (response) => {
@@ -39,7 +44,7 @@ export function useAccountRead() {
       cancelled = true;
       window.removeEventListener(CONSENT_ACCEPTED_EVENT, onAccepted);
     };
-  }, []);
+  }, [onCameraCard]);
 
   return { status, ready };
 }

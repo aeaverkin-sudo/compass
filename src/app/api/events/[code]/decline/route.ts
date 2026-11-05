@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { declineInvitation } from "@/shared/services/event-invite-inbox";
 import { loadEventInvite } from "@/shared/services/event-invite";
 
@@ -24,10 +24,9 @@ export async function POST(request: Request, context: RouteProps) {
   }
   const event = await loadEventInvite(code);
   if (!event) return noStore({ error: "Event not found" }, 404);
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
+  const user = await sessionUser();
   try {
-    const result = await declineInvitation(event.id, data.user?.id ?? null, token);
+    const result = await declineInvitation(event.id, user?.id ?? null, token);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     return noStore({ ok: true });
   } catch (error) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { readSheet } from "read-excel-file/node";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { GUEST_FILE_MAX_BYTES, readGuestTable } from "@/shared/event/guest-import";
 import { importGuestList } from "@/shared/services/event-guest-lists";
 import { tableFrom } from "@/shared/services/event-payment";
@@ -32,9 +32,8 @@ function cellText(value: unknown): string {
 }
 
 export async function POST(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return noStore({ error: "Sign in to upload a list." }, 401);
+  const user = await sessionUser();
+  if (!user) return noStore({ error: "Sign in to upload a list." }, 401);
   const { code } = await context.params;
 
   let table: string[][] = [];
@@ -64,7 +63,7 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   try {
-    const result = await importGuestList(code, data.user.id, fileName, parsed);
+    const result = await importGuestList(code, user.id, fileName, parsed);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     return noStore({ report: result.report });
   } catch (error) {

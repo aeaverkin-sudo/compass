@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { markGuestPaid } from "@/shared/services/event-payment";
 
 export const runtime = "nodejs";
@@ -12,9 +12,8 @@ function noStore(body: unknown, status = 200) {
 }
 
 export async function PATCH(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return noStore({ error: "Sign in to mark a guest." }, 401);
+  const user = await sessionUser();
+  if (!user) return noStore({ error: "Sign in to mark a guest." }, 401);
   const { code, userId } = await context.params;
 
   let paid = false;
@@ -26,7 +25,7 @@ export async function PATCH(request: Request, context: RouteProps) {
   }
 
   try {
-    const result = await markGuestPaid(code, data.user.id, userId, paid);
+    const result = await markGuestPaid(code, user.id, userId, paid);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     return noStore({ ok: true });
   } catch (error) {

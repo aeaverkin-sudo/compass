@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { PublicCardClient } from "@main/components/public-card-client";
 import { loadPublicCard } from "@/shared/services/public-card";
 import { loadDeletedCard } from "@/shared/services/connection-snapshot";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { ContactActions } from "./contact-actions";
 import { PendingShare } from "./pending-share";
 import { reverseShareFor } from "@/shared/services/reverse-share";
@@ -24,9 +25,8 @@ export default async function NetworkCardPage({ params }: PageProps) {
   const { token } = await params;
   const loaded = await loadPublicCard(token);
   if (!loaded) {
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    const kept = data.user ? await loadDeletedCard(data.user.id, token) : null;
+    const user = await sessionUser();
+    const kept = user ? await loadDeletedCard(user.id, token) : null;
     if (!kept) notFound();
     return (
       <main className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-white">
@@ -60,16 +60,15 @@ export default async function NetworkCardPage({ params }: PageProps) {
 }
 
 async function ownConnection(token: string) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  const row = await supabase
+  const user = await sessionUser();
+  if (!user) return null;
+  const row = await createAdminSupabaseClient()
     .from("connections")
     .select("id, state")
-    .eq("owner_id", data.user.id)
+    .eq("owner_id", user.id)
     .eq("saved_card_token", token)
     .maybeSingle();
   if (row.error || !row.data) return null;
-  return { id: String(row.data.id), userId: data.user.id, state: row.data.state === "pending" ? "pending" : "active" };
+  return { id: String(row.data.id), userId: user.id, state: row.data.state === "pending" ? "pending" : "active" };
 }
 

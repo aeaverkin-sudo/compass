@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 import { foldSearch } from "@/shared/lib/search-fold";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { primaryCardId } from "@/shared/services/primary-card";
 
 export const runtime = "nodejs";
@@ -46,7 +45,8 @@ function joinSearch(...parts: Array<string | null | undefined>) {
 }
 
 /**
- * The signed-in person's book only. RLS reads the rows.
+ * The signed-in person's book only. The owner id is already known, so the
+ * service role reads those rows and does not rotate the login.
  * Photo and role come from the saved card, which the book itself cannot see.
  */
 export async function GET() {
@@ -54,9 +54,9 @@ export async function GET() {
   if (!owner.ok) return noStore({ error: owner.error }, owner.status);
 
   try {
-    const supabase = await createServerSupabaseClient();
+    const admin = createAdminSupabaseClient();
     const read = (columns: string) =>
-      supabase.from("connections").select(columns).eq("owner_id", owner.id).order("created_at", { ascending: true });
+      admin.from("connections").select(columns).eq("owner_id", owner.id).order("created_at", { ascending: true });
     const base = "id, display_name, saved_card_id, saved_card_token, source_event_id, created_at, state";
     const withSnapshot = await read(`${base}, snapshot`);
     const loaded = withSnapshot.error && /snapshot/i.test(withSnapshot.error.message) ? await read(base) : withSnapshot;
@@ -68,7 +68,6 @@ export async function GET() {
     const lines = new Map<string, string>();
     const reverse = new Map<string, "pending" | "active">();
     if (ids.length > 0) {
-      const admin = createAdminSupabaseClient();
       const withFlag = await admin
         .from("cards")
         .select("id, owner_id, title, display_name, photo_attachment_id, searchable")

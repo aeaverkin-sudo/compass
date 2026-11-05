@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { normalizeEmail, normalizePhone, pastedTable, readGuestTable, type GuestImport } from "@/shared/event/guest-import";
 import { addGuestsByHand } from "@/shared/services/event-guest-lists";
 
@@ -16,9 +16,8 @@ function noStore(body: unknown, status = 200) {
 
 /** One guest typed in, or pasted lines. Both go to Added by hand. */
 export async function POST(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user || data.user.is_anonymous) return noStore({ error: "Sign in." }, 401);
+  const user = await sessionUser();
+  if (!user || user.is_anonymous) return noStore({ error: "Sign in." }, 401);
   const { code } = await context.params;
   let body: { name?: unknown; contact?: unknown; text?: unknown } = {};
   try {
@@ -47,7 +46,7 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   try {
-    const result = await addGuestsByHand(code, data.user.id, parsed);
+    const result = await addGuestsByHand(code, user.id, parsed);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     return noStore({ report: result.report });
   } catch (error) {

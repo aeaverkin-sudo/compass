@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { extractText, getDocumentProxy } from "unpdf";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { importPaymentStatement, statementLinesFromCsv } from "@/shared/services/event-payment";
 
 export const runtime = "nodejs";
@@ -23,9 +23,8 @@ function isCsv(file: File): boolean {
 }
 
 export async function POST(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return noStore({ error: "Sign in to import a statement." }, 401);
+  const user = await sessionUser();
+  if (!user) return noStore({ error: "Sign in to import a statement." }, 401);
   const { code } = await context.params;
 
   let lines: string[] = [];
@@ -50,7 +49,7 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   try {
-    const result = await importPaymentStatement(code, data.user.id, lines);
+    const result = await importPaymentStatement(code, user.id, lines);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     if (!("report" in result)) return noStore({ error: "Could not read the statement." }, 500);
     return noStore({ report: result.report });

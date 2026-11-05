@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { createColdEntryAccount } from "@/shared/services/cold-entry";
 import { noStore } from "@/shared/services/guest-accept-reply";
 import { requestIp } from "@/shared/services/event-pass-guard";
@@ -19,9 +19,8 @@ export async function POST(request: Request, context: RouteProps) {
     return noStore({ error: "Add your email." }, 400);
   }
 
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  const session = data.user ? { id: data.user.id, anonymous: Boolean(data.user.is_anonymous) } : null;
+  const user = await sessionUser();
+  const session = user ? { id: user.id, anonymous: Boolean(user.is_anonymous) } : null;
   const trap = typeof body.website === "string" && body.website.trim() !== "";
 
   try {

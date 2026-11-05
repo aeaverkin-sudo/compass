@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isUuid } from "@/shared/services/attachment-api";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { permissionsOf, removeManager, updateManagerPermissions } from "@/shared/services/event-manage";
 
 export const runtime = "nodejs";
@@ -13,10 +13,9 @@ function noStore(body: unknown, status = 200) {
 }
 
 async function actorId(): Promise<string | null> {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  return data.user.id;
+  const user = await sessionUser();
+  if (!user) return null;
+  return user.id;
 }
 
 export async function PATCH(request: Request, context: RouteProps) {

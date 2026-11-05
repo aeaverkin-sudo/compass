@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { resolveNamePair } from "@/shared/services/event-guest-lists";
 
 export const runtime = "nodejs";
@@ -12,9 +12,8 @@ function noStore(body: unknown, status = 200) {
 }
 
 export async function POST(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return noStore({ error: "Sign in first." }, 401);
+  const user = await sessionUser();
+  if (!user) return noStore({ error: "Sign in first." }, 401);
   const { code } = await context.params;
   let body: { a?: unknown; b?: unknown; action?: unknown };
   try {
@@ -26,7 +25,7 @@ export async function POST(request: Request, context: RouteProps) {
     return noStore({ error: "Bad request" }, 400);
   }
   try {
-    const result = await resolveNamePair(code, data.user.id, body.a, body.b, body.action);
+    const result = await resolveNamePair(code, user.id, body.a, body.b, body.action);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     return noStore({ ok: true });
   } catch (error) {

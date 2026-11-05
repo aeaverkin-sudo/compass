@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { clearTrialClock, readAccountStatus } from "@/shared/services/trial";
 
 export const runtime = "nodejs";
@@ -12,9 +12,7 @@ function noStore(body: unknown, status = 200) {
 
 /** Keep my profile. A confirmed email keeps it with this tap. A phone guest registers first. */
 export async function POST() {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
+  const user = await sessionUser();
   if (!user) return noStore({ error: "Sign in first." }, 401);
   if (user.is_anonymous || !user.email || !user.email_confirmed_at) return noStore({ next: "/register" });
 

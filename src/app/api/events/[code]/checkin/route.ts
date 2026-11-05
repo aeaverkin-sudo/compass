@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { checkInByCard, checkInGuest } from "@/shared/services/event-manage";
 
 export const runtime = "nodejs";
@@ -16,9 +16,8 @@ function text(value: unknown): string {
 }
 
 export async function POST(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return noStore({ error: "Sign in to check in." }, 401);
+  const user = await sessionUser();
+  if (!user) return noStore({ error: "Sign in to check in." }, 401);
 
   const { code } = await context.params;
   let regToken = "";
@@ -38,8 +37,8 @@ export async function POST(request: Request, context: RouteProps) {
 
   try {
     const result = regToken
-      ? await checkInGuest(code, data.user.id, regToken, confirm)
-      : await checkInByCard(code, data.user.id, cardToken ? { token: cardToken } : { handle }, confirm);
+      ? await checkInGuest(code, user.id, regToken, confirm)
+      : await checkInByCard(code, user.id, cardToken ? { token: cardToken } : { handle }, confirm);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     if (result.status === "pending") return noStore({ status: "pending", name: result.name, payCode: result.payCode });
     return noStore({ status: result.status, name: result.name, at: result.at });

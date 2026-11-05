@@ -1,5 +1,5 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { CARD_ATTACHMENTS_BUCKET } from "@/shared/services/attachment-limits";
 import { readAccountStatus } from "@/shared/services/trial";
 
@@ -41,11 +41,11 @@ export function storagePath(ownerId: string, cardId: string | null, attachmentId
   return `${ownerId}/${folder}/${attachmentId}`;
 }
 
+/** Who is signed in, including a trial. Reading the access token does not rotate the refresh token. */
 export async function requireOwnerId(): Promise<{ ok: true; id: string } | ApiFail> {
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return fail(401, "Unauthorized");
-  return { ok: true, id: data.user.id };
+  const user = await sessionUser();
+  if (!user) return fail(401, "Unauthorized");
+  return { ok: true, id: user.id };
 }
 
 export async function readyByteTotal(ownerId: string): Promise<number> {

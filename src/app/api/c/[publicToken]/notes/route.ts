@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { loadPublicCard } from "@/shared/services/public-card";
 import { consumePendingNotes, previewPendingNotes } from "@/shared/services/notes-server";
 
@@ -42,9 +42,7 @@ export async function POST(request: Request, context: RouteProps) {
 
   let userId: string | null = null;
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    userId = data.user?.id ?? null;
+    userId = (await sessionUser())?.id ?? null;
   } catch {
     userId = null;
   }

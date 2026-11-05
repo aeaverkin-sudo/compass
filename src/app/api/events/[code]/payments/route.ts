@@ -1,5 +1,5 @@
 import { after, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { saveEventPay } from "@/shared/services/event-payment";
 import { queuePosterSnapshot } from "@/shared/services/poster-snapshot";
 
@@ -13,9 +13,8 @@ function noStore(body: unknown, status = 200) {
 }
 
 export async function PATCH(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return noStore({ error: "Sign in to edit payment." }, 401);
+  const user = await sessionUser();
+  if (!user) return noStore({ error: "Sign in to edit payment." }, 401);
   const { code } = await context.params;
 
   let body: {
@@ -31,7 +30,7 @@ export async function PATCH(request: Request, context: RouteProps) {
   }
 
   try {
-    const result = await saveEventPay(code, data.user.id, body);
+    const result = await saveEventPay(code, user.id, body);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     after(() => queuePosterSnapshot(code));
     return noStore({ ok: true });

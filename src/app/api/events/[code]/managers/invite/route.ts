@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { createManagerInvite, permissionsOf } from "@/shared/services/event-manage";
 
 export const runtime = "nodejs";
@@ -12,9 +12,8 @@ function noStore(body: unknown, status = 200) {
 }
 
 export async function POST(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return noStore({ error: "Sign in to assign a manager." }, 401);
+  const user = await sessionUser();
+  if (!user) return noStore({ error: "Sign in to assign a manager." }, 401);
 
   const { code } = await context.params;
   let permissions = permissionsOf(null);
@@ -26,7 +25,7 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   try {
-    const result = await createManagerInvite(code, data.user.id, permissions);
+    const result = await createManagerInvite(code, user.id, permissions);
     if (!result.ok) return noStore({ error: result.error }, result.status);
     if (!("token" in result)) return noStore({ error: "Could not create the link." }, 500);
     return noStore({ token: result.token, publicToken: result.publicToken });

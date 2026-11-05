@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { mailOrigin } from "@/shared/lib/public-origin";
 import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { noStore } from "@/shared/services/guest-accept-reply";
@@ -20,12 +20,11 @@ export async function POST(request: Request) {
   const password = typeof body.password === "string" ? body.password.slice(0, 128) : "";
   if (!UUID.test(cardId) || !password.trim()) return noStore({ error: "Bad request" }, 400);
 
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user || data.user.is_anonymous) return noStore({ error: "Sign in first." }, 401);
+  const user = await sessionUser();
+  if (!user || user.is_anonymous) return noStore({ error: "Sign in first." }, 401);
 
   try {
-    return noStore({ sent: await sendWelcomeMail(data.user.id, cardId, password, mailOrigin(request)) });
+    return noStore({ sent: await sendWelcomeMail(user.id, cardId, password, mailOrigin(request)) });
   } catch (error) {
     console.error("[mail] welcome", error instanceof Error ? error.message : error);
     return noStore({ sent: false }, 500);

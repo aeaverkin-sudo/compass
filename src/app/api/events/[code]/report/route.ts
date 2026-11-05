@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { loadManageEvent } from "@/shared/services/event-manage";
 import { loadGuestBook } from "@/shared/services/event-guest-lists";
 import { countCardsExchanged, csvFileName, eventReportFigures, reportCsv } from "@/shared/services/event-export";
@@ -12,11 +12,10 @@ export const dynamic = "force-dynamic";
 type RouteProps = { params: Promise<{ code: string }> };
 
 export async function GET(_request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user || data.user.is_anonymous) return NextResponse.json({ error: "Sign in." }, { status: 401 });
+  const user = await sessionUser();
+  if (!user || user.is_anonymous) return NextResponse.json({ error: "Sign in." }, { status: 401 });
   const { code } = await context.params;
-  const loaded = await loadManageEvent(code, data.user.id, "analytics");
+  const loaded = await loadManageEvent(code, user.id, "analytics");
   if (loaded.kind === "missing") return NextResponse.json({ error: "Event not found" }, { status: 404 });
   if (loaded.kind !== "ok") return NextResponse.json({ error: "Not allowed." }, { status: 403 });
   const event = loaded.event;

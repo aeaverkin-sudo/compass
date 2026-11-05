@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { readyByteTotal, requireOwnerId } from "@/shared/services/attachment-api";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { readEventPass } from "@/shared/services/event-pass-status";
 import { readAccountStatus, type AccountProvider, type AccountStatus } from "@/shared/services/trial";
 
@@ -22,13 +23,13 @@ export async function GET() {
 
   try {
     const clock = await readAccountStatus(owner.id);
-    const supabase = await createServerSupabaseClient();
-    const { data } = await supabase.auth.getUser();
-    const user = data.user;
+    const user = await sessionUser();
     let consentVersion: string | null = null;
-    const { data: consent, error: consentError } = await supabase
+    const admin = createAdminSupabaseClient();
+    const { data: consent, error: consentError } = await admin
       .from("consents")
       .select("document_version")
+      .eq("user_id", owner.id)
       .order("accepted_at", { ascending: false })
       .limit(1)
       .maybeSingle();

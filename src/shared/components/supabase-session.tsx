@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
-import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { createBrowserSupabaseClient, isCameraCardPath, syncBrowserRefresh } from "@/shared/lib/supabase/browser";
 import {
   clearRegisteredDevice,
   deviceWasRegistered,
@@ -91,12 +92,17 @@ async function openAnonymous(supabase: SupabaseClient) {
 
 /** A card opened by the phone camera. The Safari or Chrome tab already holds the login. This page must not refresh it, sign it out, or replace it with a trial. */
 function isCameraCard(path: string) {
-  const pathname = path.split("?")[0]?.split("#")[0] ?? path;
-  return pathname.startsWith("/c/") || pathname.startsWith("/@");
+  return isCameraCardPath(path);
 }
 
 /** Opens an anonymous Supabase session on a new device. Renders nothing. */
 export function SupabaseSession() {
+  const pathname = usePathname();
+
+  useEffect(() => {
+    syncBrowserRefresh();
+  }, [pathname]);
+
   useEffect(() => {
     if (isCameraCard(window.location.pathname)) {
       markSessionBootstrapComplete();

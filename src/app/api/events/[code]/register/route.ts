@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { GUEST_COOKIE, isGuestToken } from "@/shared/services/event-guest-pass";
 import { moveRegistrationCard } from "@/shared/services/event-registration";
 import { loadEventInvite } from "@/shared/services/event-invite";
@@ -18,10 +18,9 @@ function noStore(body: unknown, status = 200) {
 
 /** Only a registered account joins with its own card. A pass is made on the invite. */
 async function permanentId(): Promise<string | null> {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return null;
-  const session = { id: data.user.id, anonymous: Boolean(data.user.is_anonymous) };
+  const user = await sessionUser();
+  if (!user) return null;
+  const session = { id: user.id, anonymous: Boolean(user.is_anonymous) };
   return (await isPermanentAccount(session)) ? session.id : null;
 }
 

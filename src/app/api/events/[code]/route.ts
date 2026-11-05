@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { readEventForm } from "@/shared/event/read-event-form";
 import { queuePosterSnapshot } from "@/shared/services/poster-snapshot";
-import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadManageEvent } from "@/shared/services/event-manage";
 import { deleteEvent, updateEvent } from "@/shared/services/events";
@@ -25,13 +25,12 @@ function once(value: string): string {
 
 /** Updates the invite. The public token and the short code stay. */
 export async function PATCH(request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return noStore({ error: "Sign in to edit the event." }, 401);
+  const user = await sessionUser();
+  if (!user) return noStore({ error: "Sign in to edit the event." }, 401);
 
   const { code } = await context.params;
   const lookup = once(code);
-  const access = await loadManageEvent(lookup, data.user.id, "edit");
+  const access = await loadManageEvent(lookup, user.id, "edit");
   if (access.kind !== "ok") return noStore({ error: "Not allowed." }, access.kind === "missing" ? 404 : 403);
 
   let form: FormData;
@@ -49,7 +48,7 @@ export async function PATCH(request: Request, context: RouteProps) {
   try {
     await updateEvent({
       eventId: access.event.id,
-      actorId: data.user.id,
+      actorId: user.id,
       previousLogoId: invite?.logoAttachmentId ?? null,
       name: fields.name,
       description: fields.description,
@@ -77,19 +76,18 @@ export async function PATCH(request: Request, context: RouteProps) {
 
 /** Removes the event. Only the owner may do this. */
 export async function DELETE(_request: Request, context: RouteProps) {
-  const supabase = await createServerSupabaseClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) return noStore({ error: "Sign in to delete the event." }, 401);
+  const user = await sessionUser();
+  if (!user) return noStore({ error: "Sign in to delete the event." }, 401);
 
   const { code } = await context.params;
   const lookup = once(code);
-  const access = await loadManageEvent(lookup, data.user.id);
+  const access = await loadManageEvent(lookup, user.id);
   if (access.kind !== "ok" || access.event.role !== "owner") {
     return noStore({ error: "Not allowed." }, access.kind === "missing" ? 404 : 403);
   }
 
   try {
-    await deleteEvent(lookup, data.user.id);
+    await deleteEvent(lookup, user.id);
     return noStore({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
