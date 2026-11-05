@@ -591,9 +591,14 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
 });
 
 /** One star for every required field. Size is the hint (`t-body`), never the caps label. */
-export function RequiredStar() {
+export function RequiredStar({ className }: { className?: string }) {
   return (
-    <span className="t-body relative -top-[0.35em] ml-[0.15em] inline-block leading-none! text-[var(--ink)] normal-case">
+    <span
+      className={cn(
+        "t-body relative -top-[0.35em] ml-[0.15em] inline-block leading-none! text-[var(--ink)] normal-case",
+        className,
+      )}
+    >
       *
     </span>
   );

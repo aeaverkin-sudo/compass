@@ -398,7 +398,7 @@ export function EntryPage({ input }: { input: EntryInput }) {
           <label ref={emailRef} className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
             <span className="t-label whitespace-normal">
               Profile email
-              <RequiredStar />
+              <RequiredStar className="top-[calc(-0.35em+3px)] ml-[calc(0.15em-3px)]" />
             </span>
             <input
               type="email"
