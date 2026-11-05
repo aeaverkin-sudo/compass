@@ -8,9 +8,14 @@ function isPublicCard(pathname: string) {
   return pathname.startsWith("/c/") || pathname.startsWith("/@");
 }
 
-/** The phone camera opens this page in a new tab. Refreshing here races the tab that is already signed in and Supabase revokes both. */
+/** The phone camera opens this page in a new tab. Refreshing here races the tab that is already signed in and Supabase revokes both. The welcome letter signs in on its own route and must not rotate either. */
 function leavesSessionAlone(pathname: string) {
-  return isPublicCard(pathname) || pathname.startsWith("/api/c/");
+  return (
+    isPublicCard(pathname) ||
+    pathname.startsWith("/api/c/") ||
+    pathname === "/open" ||
+    pathname === "/auth/confirm"
+  );
 }
 
 function viewerFor(request: NextRequest) {

@@ -12,6 +12,7 @@ import { publicCardPath } from "@/shared/services/public-card-url";
 import { clearTrialClock } from "@/shared/services/trial";
 import { walletAddPath } from "@/shared/services/wallet-link";
 import { WELCOME_SUBJECT, welcomeMail } from "@/shared/mail/welcome-mail";
+import { mintWelcomeToken, saveWelcomeToken } from "@/shared/services/welcome-token";
 
 export const MIN_PASSWORD = 8;
 
@@ -123,15 +124,17 @@ export async function sendWelcomeMail(userId: string, cardId: string, password: 
 
   const site = siteOrigin(origin);
   const walletUrl = `${site}${walletAddPath(cardId)}`;
+  const token = mintWelcomeToken();
   const mail = welcomeMail({
     logoSrc: `${site}/brand/aded-grid-mail.png`,
     password: password.trim(),
     profileUrl: `${site}${publicCardPath({ publicToken: row.public_token ?? "", handle: row.handle ?? undefined })}`,
+    accessUrl: `${site}/open?t=${encodeURIComponent(token)}`,
     walletSectionUrl: walletUrl,
     walletPassUrl: walletUrl,
-    accountUrl: `${site}/profile`,
     siteLabel: site.replace(/^https?:\/\//, ""),
   });
+  await saveWelcomeToken(userId, token);
   await sendHtmlMail({ to: email, subject: WELCOME_SUBJECT, html: mail.html, text: mail.text });
   const marked = await admin.auth.admin.updateUserById(userId, {
     app_metadata: { ...user.app_metadata, [WELCOME_SENT]: new Date().toISOString() },

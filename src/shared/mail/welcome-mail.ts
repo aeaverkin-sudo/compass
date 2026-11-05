@@ -20,14 +20,14 @@ const LOGO_H = Math.round((LOGO_W * 80) / 254);
 export type WelcomeMailInput = {
   logoSrc: string;
   password: string;
-  /** `https://adedme.com/@handle` */
+  /** `https://adedme.com/@handle`. The visible words of the access line. Typing it does not sign in. */
   profileUrl: string;
+  /** `/open?t=…`. The hidden door. The access line and the portfolio button both use it. */
+  accessUrl: string;
   /** The signed Wallet page: it checks whether the card is already in Wallet. */
   walletSectionUrl: string;
   /** Same page as the Wallet line. The button label stays Add. */
   walletPassUrl: string;
-  /** Profile itself. */
-  accountUrl: string;
   /** `adedme.com` */
   siteLabel: string;
 };
@@ -53,9 +53,10 @@ function partText(part: Part): string {
   return typeof part === "string" ? part : `${part.text} (${part.href})`;
 }
 
-function rowHtml(row: Row, index: number): string {
+function rowHtml(row: Row, index: number, sky = false): string {
   const number = String(index + 1).padStart(2, "0");
-  return `<tr><td style="border-top:1px solid ${RULE};padding:22px 0 24px;">
+  const plate = sky ? ` bgcolor="${SKY}" style="background:${SKY};` : ` style="`;
+  return `<tr><td${plate}border-top:1px solid ${RULE};padding:22px 0 24px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td width="${LABEL}" valign="top" style="width:${LABEL}px;">
 <div style="font-family:${FONT};font-size:32px;line-height:1;letter-spacing:-0.03em;color:${INK};">${number}</div>
@@ -71,19 +72,21 @@ function skyButton(button: { label: string; href: string }, top: number): string
 </td></tr></table>`;
 }
 
-export const WELCOME_SUBJECT = "Your portfolio is ready";
+export const WELCOME_SUBJECT = "Your portfolio is ready — access here";
+
+const SETUP = "To finish setting up, open your portfolio in your browser.";
 
 export function welcomeMail(input: WelcomeMailInput): { html: string; text: string } {
   const profileLabel = input.profileUrl.replace(/^https?:\/\//, "");
   const rows: Row[] = [
+    { label: "Access", value: [{ text: profileLabel, href: input.accessUrl }] },
     { label: "Password", value: [`${input.password} — change it anytime in Profile.`] },
-    { label: "Profile", value: [{ text: profileLabel, href: input.profileUrl }] },
     { label: "Wallet", value: ["Add your card to ", { text: "Apple Wallet", href: input.walletSectionUrl }, "."] },
     { label: "Portfolio", value: ["Share it with everyone you meet. Build up to 3 portfolios from one library."] },
     { label: "App", value: ["Save it as an app — open the link in Safari, tap Share, then “Add to Home Screen”."] },
   ];
   const buttons = [
-    { label: "Open my profile", href: input.accountUrl },
+    { label: "Open my portfolio", href: input.accessUrl },
     { label: "Add to Apple Wallet", href: input.walletPassUrl },
   ];
   const footer = `ADED · ${input.siteLabel}`;
@@ -94,8 +97,10 @@ export function welcomeMail(input: WelcomeMailInput): { html: string; text: stri
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
 <td width="${TILE}" height="${TILE}" align="center" valign="middle" bgcolor="#ffffff" style="width:${TILE}px;height:${TILE}px;background:#ffffff;box-shadow:0 4px 18px rgba(0,0,0,.14);"><img src="${escape(input.logoSrc)}" width="${LOGO_W}" height="${LOGO_H}" alt="ADED" style="display:block;width:${LOGO_W}px;height:${LOGO_H}px;border:0;outline:none;" /></td>
 <td valign="middle" style="padding-left:20px;font-family:${FONT};font-size:26px;line-height:1.15;font-weight:600;letter-spacing:-0.5px;color:${INK};">Thank you —<br />your portfolio<br />is ready.</td>
-</tr></table></td></tr>
-${rows.map(rowHtml).join("\n")}
+</tr></table>
+<p style="margin:22px 0 0;font-family:${FONT};font-size:15.5px;line-height:1.45;color:${INK};">${escape(SETUP)}</p>
+</td></tr>
+${rows.map((row, index) => rowHtml(row, index, index === 0)).join("\n")}
 <tr><td style="border-top:1px solid ${RULE};padding:26px 0 30px ${AXIS}px;">
 ${buttons.map((button, index) => skyButton(button, index === 0 ? 0 : 10)).join("\n")}
 </td></tr>
@@ -108,7 +113,7 @@ ${buttons.map((button, index) => skyButton(button, index === 0 ? 0 : 10)).join("
 ${body}
 </body></html>`;
 
-  const lines = ["Thank you — your portfolio is ready.", ""];
+  const lines = ["Thank you — your portfolio is ready.", SETUP, ""];
   rows.forEach((row, index) => {
     lines.push(`${String(index + 1).padStart(2, "0")} ${row.label}: ${row.value.map(partText).join("")}`);
   });
