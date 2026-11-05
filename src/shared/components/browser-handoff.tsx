@@ -34,31 +34,36 @@ export function BrowserHandoff({ paused, registered }: { paused: boolean; regist
 
   if (!show || paused || !registered) return null;
 
-  const copy = async () => {
+  const copy = () => {
     if (busy) return;
     setBusy(true);
-    try {
-      const response = await fetch("/api/account/browser-link", { method: "POST" });
+    const urlPromise = fetch("/api/account/browser-link", { method: "POST" }).then(async (response) => {
       const body = (await response.json().catch(() => ({}))) as { url?: string };
-      if (!response.ok || !body.url) {
-        setLine({ kind: "error" });
-        return;
-      }
-      if (!navigator.clipboard?.writeText) {
-        setLine({ kind: "hold", url: body.url });
-        return;
-      }
+      if (!response.ok || !body.url) throw new Error("no url");
+      return body.url;
+    });
+    const plain = urlPromise.then((url) => new Blob([url], { type: "text/plain" }));
+    // Safari allows a clipboard write only in the tap. The URL arrives later, as a promise.
+    let write: Promise<void>;
+    if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
       try {
-        await navigator.clipboard.writeText(body.url);
-        setLine({ kind: "copied" });
+        write = navigator.clipboard.write([new ClipboardItem({ "text/plain": plain })]);
       } catch {
-        setLine({ kind: "hold", url: body.url });
+        write = urlPromise.then((url) => navigator.clipboard.writeText(url));
       }
-    } catch {
-      setLine({ kind: "error" });
-    } finally {
-      setBusy(false);
+    } else {
+      write = urlPromise.then((url) => navigator.clipboard.writeText(url));
     }
+    write
+      .then(() => setLine({ kind: "copied" }))
+      .catch(async () => {
+        try {
+          setLine({ kind: "hold", url: await urlPromise });
+        } catch {
+          setLine({ kind: "error" });
+        }
+      })
+      .finally(() => setBusy(false));
   };
 
   const second =
