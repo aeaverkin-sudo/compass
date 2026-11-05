@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publicOrigin } from "@/shared/lib/public-origin";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { saveBrowserLink } from "@/shared/services/browser-link";
 import { mintWelcomeToken } from "@/shared/services/welcome-token";
@@ -8,12 +9,6 @@ export const dynamic = "force-dynamic";
 
 function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
-}
-
-function publicOrigin(request: Request): string {
-  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
-  if (site && /^https?:\/\//i.test(site)) return site;
-  return new URL(request.url).origin;
 }
 
 /** A signed-in in-app tab asks for a link the person pastes into Safari or Chrome. */

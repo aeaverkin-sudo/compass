@@ -8,6 +8,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NEXT_PUBLIC_SITE_URL
+        value: https://adedme.com
       - key: NODE_OPTIONS
         value: --max-old-space-size=384
       - key: HOSTNAME
