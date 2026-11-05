@@ -89,6 +89,7 @@ export function EntryPage({
   const emailRef = useRef<HTMLLabelElement>(null);
   const zonesRef = useRef<EntryZonesHandle>(null);
   const keepPlace = useRef(false);
+  const submitLock = useRef(false);
   const [placeReady, setPlaceReady] = useState(false);
   const [sidePad, setSidePad] = useState(() => carouselSidePaddingPx(0, true));
   const [passwordValue, setPasswordValue] = useState<string | null>(null);
@@ -166,7 +167,7 @@ export function EntryPage({
   useKeyboardLift(mainRef);
 
   const submit = async () => {
-    if (busy || !ready) return;
+    if (busy || !ready || submitLock.current) return;
     const first = zonesRef.current?.markProblems() ?? null;
     const emailBad = !isAccountEmail(email);
     setEmailMarked(emailBad);
@@ -190,6 +191,7 @@ export function EntryPage({
     const emailValue = email.trim().toLowerCase();
     const titleValue = name.trim();
     const secret = passwordShown;
+    submitLock.current = true;
     setBusy(true);
     setError(null);
     let created = false;
@@ -239,11 +241,13 @@ export function EntryPage({
       };
       if (response.status === 409 || reply.kind === "login") {
         setError("This email already has an account.");
+        submitLock.current = false;
         setBusy(false);
         return;
       }
       if (!response.ok || !reply.cardId) {
         setError("Could not create your profile.");
+        submitLock.current = false;
         setBusy(false);
         return;
       }
@@ -265,6 +269,7 @@ export function EntryPage({
       ]);
       if (signed.error || !signed.data.session) {
         setError("Account created, but sign-in failed — tap Sign in.");
+        submitLock.current = false;
         setBusy(false);
         return;
       }
@@ -354,6 +359,7 @@ export function EntryPage({
       } else {
         setError("Could not create your profile.");
       }
+      submitLock.current = false;
       setBusy(false);
     }
   };
@@ -417,6 +423,12 @@ export function EntryPage({
         />
       </div>
       </div>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+      >
       <div className="bg-sky py-[18px]">
         <div style={frame}>
         <div className={`${PAD} flex flex-col gap-[14px]`}>
@@ -429,7 +441,8 @@ export function EntryPage({
               type="email"
               inputMode="email"
               autoCapitalize="none"
-              autoComplete="off"
+              autoComplete="username"
+              name="username"
               aria-label="Profile email"
               placeholder="name@mail.com"
               value={email}
@@ -447,7 +460,8 @@ export function EntryPage({
             <span className="flex min-w-0 items-center gap-2">
               <input
                 type={passwordVisible ? "text" : "password"}
-                autoComplete="off"
+                autoComplete="new-password"
+                name="password"
                 aria-label="Password"
                 value={passwordShown}
                 onChange={(event) => setPasswordValue(event.target.value)}
@@ -502,6 +516,7 @@ export function EntryPage({
         <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]">
           <span />
           <TapButton
+            type="submit"
             onTap={() => void submit()}
             disabled={!ready || busy}
             className="w-full bg-sky px-[21.6px] py-[10.8px] text-center t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:text-[var(--grey)]"
@@ -511,6 +526,7 @@ export function EntryPage({
         </div>
       </div>
       </div>
+      </form>
     </main>
   );
 }

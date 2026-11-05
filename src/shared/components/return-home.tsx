@@ -14,6 +14,23 @@ function isPublicCard(path: string) {
   return pathname.startsWith("/c/") || pathname.startsWith("/@");
 }
 
+/** Doors and forms. A reload here is the person staying, not leaving the app. */
+function isDoor(path: string) {
+  const pathname = path.split("?")[0]?.split("#")[0] ?? path;
+  if (pathname === "/register" || pathname.startsWith("/register/")) return true;
+  if (pathname === "/create" || pathname.startsWith("/create/")) return true;
+  if (pathname === "/open" || pathname === "/handoff") return true;
+  if (pathname === "/auth" || pathname.startsWith("/auth/")) return true;
+  if (pathname === "/save" || pathname.startsWith("/save/")) return true;
+  if (pathname === "/wallet/add" || pathname.startsWith("/wallet/add/")) return true;
+  return false;
+}
+
+function navigationType() {
+  const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  return nav?.type;
+}
+
 /**
  * Leaving the app from the owner's own screen comes back to the first card.
  * A card share keeps that card. A scanned card is left where it was opened.
@@ -43,8 +60,8 @@ export function ReturnHome() {
     };
 
     const cameFromHere = () => {
-      const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-      if (!nav || nav.type !== "navigate") return false;
+      const kind = navigationType();
+      if (kind !== "navigate" && kind !== "reload" && kind !== "back_forward") return false;
       try {
         return new URL(document.referrer).origin === window.location.origin;
       } catch {
@@ -53,13 +70,18 @@ export function ReturnHome() {
     };
 
     const home = (resume: boolean) => {
-      if (isPublicCard(window.location.pathname)) {
+      if (isPublicCard(window.location.pathname) || isDoor(window.location.pathname)) {
         clearLeft();
         return;
       }
-      if (!resume && cameFromHere()) {
-        clearLeft();
-        return;
+      if (!resume) {
+        const kind = navigationType();
+        // A reload or the back button is not leaving the app. Coming back
+        // from the background still is, and that path passes resume.
+        if (kind === "reload" || kind === "back_forward" || cameFromHere()) {
+          clearLeft();
+          return;
+        }
       }
       if (cardShareHoldsPlace()) {
         clearLeft();
@@ -91,7 +113,7 @@ export function ReturnHome() {
     };
 
     const onHide = () => {
-      if (cardShareHoldsPlace() || isPublicCard(window.location.pathname)) return;
+      if (cardShareHoldsPlace() || isPublicCard(window.location.pathname) || isDoor(window.location.pathname)) return;
       markLeft();
     };
 

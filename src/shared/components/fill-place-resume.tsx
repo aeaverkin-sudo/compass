@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
+import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { readPortfolio, readQuestionnaire } from "@/shared/lib/fill-place";
 import { useAppStore } from "@/shared/store/app-store";
@@ -10,14 +12,22 @@ import { useAppStore } from "@/shared/store/app-store";
 export function FillPlaceResume() {
   const router = useRouter();
   const hydrated = useStoreHydrated();
+  const sessionReady = useSessionBootstrap();
+  const cardsReady = useCardsHydrated();
 
   useEffect(() => {
     if (!hydrated) return;
     const form = readQuestionnaire();
     const path = window.location.pathname;
     if (form && (path === "/" || path === "/main")) {
-      router.replace(form.href);
-      return;
+      if (!sessionReady || !cardsReady) return;
+      const state = useAppStore.getState();
+      const registered =
+        state.user.onboarded || state.cards.some((card) => card.displayName.trim().length > 0);
+      if (!registered) {
+        router.replace(form.href);
+        return;
+      }
     }
     const edit = readPortfolio();
     if (!edit) return;
@@ -27,7 +37,7 @@ export function FillPlaceResume() {
       useAppStore.getState().setCurrentCardIndex(index);
     }
     if (path === "/") router.replace("/main");
-  }, [hydrated, router]);
+  }, [hydrated, sessionReady, cardsReady, router]);
 
   return null;
 }

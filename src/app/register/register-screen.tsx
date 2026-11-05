@@ -14,6 +14,8 @@ import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { questionnaireHref } from "@/app/create/door";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
+import { clearFillPlace } from "@/shared/lib/fill-place";
 import { markRegisteredDevice, rememberAccountEmail, rememberedEmail } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
@@ -67,6 +69,7 @@ async function enterExistingAccount(signIn: () => Promise<string | null>) {
     return error;
   }
   markRegisteredDevice();
+  clearFillPlace();
   clearRegistrationRequired();
   await hydrateCardsFromServer();
   return null;
@@ -142,6 +145,27 @@ export function RegisterScreen() {
   const blinkTimers = useRef<number[]>([]);
 
   const nextPath = afterAuthPath(params.get("next"));
+  const sessionExpired = params.get("expired") === "1";
+  const nextRaw = params.get("next");
+  const sessionReady = useSessionBootstrap();
+
+  useEffect(() => {
+    if (!signinOnly || sessionExpired || !sessionReady) return;
+    let cancelled = false;
+    // The page load already checked the session once. Reading it here does not
+    // refresh the token a second time.
+    void createBrowserSupabaseClient()
+      .auth.getSession()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const signedIn = data.session?.user;
+        if (!signedIn || signedIn.is_anonymous) return;
+        router.replace(afterAuthPath(nextRaw));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [signinOnly, sessionExpired, sessionReady, nextRaw, router]);
 
   useEffect(() => {
     if (!signinOnly) return;
@@ -245,6 +269,7 @@ export function RegisterScreen() {
         return;
       }
       markRegisteredDevice();
+      clearFillPlace();
       rememberAccountEmail(email);
       clearRegistrationRequired();
       router.push(nextPath);
@@ -275,6 +300,7 @@ export function RegisterScreen() {
       return;
     }
     rememberAccountEmail(signInEmail);
+    clearFillPlace();
     router.push(nextPath);
   };
 
@@ -327,7 +353,8 @@ export function RegisterScreen() {
               ref={emailRef}
               type="email"
               autoCapitalize="none"
-              autoComplete="email"
+              autoComplete="username"
+              name="username"
               aria-label="Email"
               placeholder="name@mail.com"
               value={signInEmail}
@@ -347,6 +374,7 @@ export function RegisterScreen() {
                 type={passwordVisible ? "text" : "password"}
                 autoCapitalize="none"
                 autoComplete="current-password"
+                name="password"
                 aria-label="Password"
                 placeholder="Password"
                 value={password}
