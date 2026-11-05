@@ -53,10 +53,9 @@ function partText(part: Part): string {
   return typeof part === "string" ? part : `${part.text} (${part.href})`;
 }
 
-function rowHtml(row: Row, index: number, sky = false): string {
+function rowHtml(row: Row, index: number): string {
   const number = String(index + 1).padStart(2, "0");
-  const plate = sky ? ` bgcolor="${SKY}" style="background:${SKY};` : ` style="`;
-  return `<tr><td${plate}border-top:1px solid ${RULE};padding:22px 0 24px;">
+  return `<tr><td style="border-top:1px solid ${RULE};padding:22px 0 24px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td width="${LABEL}" valign="top" style="width:${LABEL}px;">
 <div style="font-family:${FONT};font-size:32px;line-height:1;letter-spacing:-0.03em;color:${INK};">${number}</div>
@@ -73,8 +72,6 @@ function skyButton(button: { label: string; href: string }, top: number): string
 }
 
 export const WELCOME_SUBJECT = "Your portfolio is ready — access here";
-
-const SETUP = "To finish setting up, open your portfolio in your browser.";
 
 export function welcomeMail(input: WelcomeMailInput): { html: string; text: string } {
   const profileLabel = input.profileUrl.replace(/^https?:\/\//, "");
@@ -98,9 +95,8 @@ export function welcomeMail(input: WelcomeMailInput): { html: string; text: stri
 <td width="${TILE}" height="${TILE}" align="center" valign="middle" bgcolor="#ffffff" style="width:${TILE}px;height:${TILE}px;background:#ffffff;box-shadow:0 4px 18px rgba(0,0,0,.14);"><img src="${escape(input.logoSrc)}" width="${LOGO_W}" height="${LOGO_H}" alt="ADED" style="display:block;width:${LOGO_W}px;height:${LOGO_H}px;border:0;outline:none;" /></td>
 <td valign="middle" style="padding-left:20px;font-family:${FONT};font-size:26px;line-height:1.15;font-weight:600;letter-spacing:-0.5px;color:${INK};">Thank you —<br />your portfolio<br />is ready.</td>
 </tr></table>
-<p style="margin:22px 0 0;font-family:${FONT};font-size:15.5px;line-height:1.45;color:${INK};">${escape(SETUP)}</p>
 </td></tr>
-${rows.map((row, index) => rowHtml(row, index, index === 0)).join("\n")}
+${rows.map((row, index) => rowHtml(row, index)).join("\n")}
 <tr><td style="border-top:1px solid ${RULE};padding:26px 0 30px ${AXIS}px;">
 ${buttons.map((button, index) => skyButton(button, index === 0 ? 0 : 10)).join("\n")}
 </td></tr>
@@ -113,7 +109,7 @@ ${buttons.map((button, index) => skyButton(button, index === 0 ? 0 : 10)).join("
 ${body}
 </body></html>`;
 
-  const lines = ["Thank you — your portfolio is ready.", SETUP, ""];
+  const lines = ["Thank you — your portfolio is ready.", ""];
   rows.forEach((row, index) => {
     lines.push(`${String(index + 1).padStart(2, "0")} ${row.label}: ${row.value.map(partText).join("")}`);
   });
