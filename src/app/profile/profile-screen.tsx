@@ -20,7 +20,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
-import { isCardReady, isSolePublic, useAppStore } from "@/shared/store/app-store";
+import { isCardReady, useAppStore } from "@/shared/store/app-store";
 import { cn } from "@/lib/utils";
 
 const ZONE_VALUE =
@@ -156,7 +156,6 @@ export function ProfileScreen() {
   const router = useRouter();
   const { status: account, ready } = useAccountRead();
   const cards = useAppStore((state) => state.cards);
-  const setCardListed = useAppStore((state) => state.setCardListed);
   const setMonochrome = useAppStore((state) => state.setMonochrome);
   const monochrome = useAppStore((state) => state.user.monochrome);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
@@ -444,8 +443,6 @@ export function ProfileScreen() {
         <ul className="mb-6 space-y-6">
           {cards.map((card) => {
             const ready = isCardReady(card);
-            const isPublic = ready && card.listed !== false;
-            const locked = ready && isSolePublic(cards, card.id);
             const photo = cardPhotoSrc(card);
             return (
               <li key={card.id} className="flex gap-4">
@@ -475,36 +472,8 @@ export function ProfileScreen() {
                         IN WALLET
                       </p>
                     )
-                  ) : null}
-                  <div className="mt-2 flex items-center gap-3">
-                    <span className="t-label">
-                      {isPublic ? "Public" : "Private"}
-                    </span>
-                    <Switch
-                      checked={isPublic}
-                      disabled={!ready || locked}
-                      onCheckedChange={(checked) => setCardListed(card.id, checked === true)}
-                      aria-label={isPublic ? "Public" : "Private"}
-                      className="disabled:opacity-100"
-                    />
-                  </div>
-                  {ready ? (
-                    <>
-                      {locked ? (
-                        <p className="mt-2 t-meta text-[var(--ink)]">
-                          Your main portfolio is always public — it&apos;s how people find you.
-                        </p>
-                      ) : null}
-                      <p className="mt-2 t-meta text-[var(--ink)]">
-                        {isPublic
-                          ? "Public — people you've connected with can see this portfolio behind your others, and find it in search."
-                          : "Private — reachable only by its direct link or QR. Kept off your profile and out of search."}
-                      </p>
-                    </>
                   ) : (
-                    <p className="mt-2 t-meta text-[var(--ink)]">
-                      Inactive until you add a name.
-                    </p>
+                    <p className="mt-1 t-meta text-[var(--ink)]">Inactive until you add a name.</p>
                   )}
                 </div>
               </li>

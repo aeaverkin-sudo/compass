@@ -20,7 +20,7 @@ import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-upload";
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
-import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardListed, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
+import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
 import {
   BASE_EDIT_ZONES,
   canonZoneId,
@@ -71,8 +71,6 @@ interface AppState {
   resetCard: (id: string) => void;
   /** Any other portfolio, once the server has deleted it. The library stays. */
   removeCard: (id: string) => void;
-  /** Public/Private. The first card stays public. A new second card is created private. */
-  setCardListed: (id: string, listed: boolean) => void;
   /** Whether connections may search this card's visible fields. The name stays findable. */
   setCardSearchable: (id: string, searchable: boolean) => void;
   updateSecondCardDraft: (
@@ -361,18 +359,6 @@ export const useAppStore = create<AppState>()(
         }
         const shown = currentCardIndex >= index ? Math.max(0, currentCardIndex - 1) : currentCardIndex;
         set({ cards: next, currentCardIndex: Math.min(shown, next.length - 1) });
-      },
-
-      setCardListed: (id, listed) => {
-        const cards = get().cards;
-        const current = cards.find((card) => card.id === id);
-        if (!current || current.listed === listed) return;
-        if (listed && !isCardReady(current)) return;
-        if (!listed && isSolePublic(cards, id)) return;
-        set({
-          cards: cards.map((card) => (card.id === id ? { ...card, listed } : card)),
-        });
-        writeCardListed(id, listed);
       },
 
       setCardSearchable: (id, searchable) => {
@@ -899,13 +885,6 @@ export function canAddMoreCards(cards: Card[], portfolioLimit: number | null): b
   const last = cards[cards.length - 1];
   if (!last || (!cardHasPhoto(last) && !last.displayName.trim())) return false;
   return cards.length < portfolioLimit;
-}
-
-/** True when this portfolio is public and no other portfolio is. */
-export function isSolePublic(cards: Card[], id: string): boolean {
-  const card = cards.find((entry) => entry.id === id);
-  if (!card || card.listed === false) return false;
-  return cards.filter((entry) => entry.listed !== false).length === 1;
 }
 
 export function isCardReady(card: Card | null): card is Card {
