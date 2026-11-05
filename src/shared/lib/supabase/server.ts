@@ -16,6 +16,7 @@ export async function createServerSupabaseClient() {
       getAll() {
         return cookieStore.getAll();
       },
+      // В Server Component этот клиент не должен вызывать getUser() без аргумента — используй sessionUser().
       setAll(cookiesToSet) {
         try {
           cookiesToSet.forEach(({ name, value, options }) => {
