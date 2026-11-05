@@ -517,7 +517,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                       type="button"
                       aria-label="Add file"
                       className="shrink-0 border-0 bg-transparent p-0 text-[var(--ink)]"
-                      onPointerDown={(event) => event.preventDefault()}
+                      onMouseDown={(event) => event.preventDefault()}
                       onClick={() => addFile(zone.id)}
                     >
                       <MarkPlus className="text-[var(--ink)]" />
