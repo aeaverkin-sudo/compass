@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
-import { mintWelcomeToken, saveHandoffToken } from "@/shared/services/welcome-token";
+import { saveBrowserLink } from "@/shared/services/browser-link";
+import { mintWelcomeToken } from "@/shared/services/welcome-token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,18 +16,18 @@ function publicOrigin(request: Request): string {
   return new URL(request.url).origin;
 }
 
-/** A signed-in Telegram tab asks for a link that signs the same person into Safari or Chrome. */
+/** A signed-in in-app tab asks for a link the person pastes into Safari or Chrome. */
 export async function POST(request: Request) {
   const user = await sessionUser();
   if (!user || user.is_anonymous || !user.email) return noStore({ error: "Sign in." }, 401);
   const token = mintWelcomeToken();
   try {
-    await saveHandoffToken(user.id, token);
+    await saveBrowserLink(user.id, token);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (/handoff_token_hash/i.test(message)) return noStore({ error: "Not ready." }, 503);
-    return noStore({ error: "Could not open the browser." }, 500);
+    if (/browser_link_/i.test(message)) return noStore({ error: "Not ready." }, 503);
+    return noStore({ error: "Could not copy." }, 500);
   }
-  const url = `${publicOrigin(request)}/open?t=${encodeURIComponent(token)}`;
+  const url = `${publicOrigin(request)}/handoff?t=${encodeURIComponent(token)}`;
   return noStore({ url });
 }

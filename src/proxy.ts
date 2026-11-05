@@ -20,6 +20,7 @@ function leavesSessionAlone(pathname: string) {
     isPublicCard(pathname) ||
     pathname.startsWith("/api/c/") ||
     pathname === "/open" ||
+    pathname === "/handoff" ||
     pathname === "/auth/confirm"
   );
 }

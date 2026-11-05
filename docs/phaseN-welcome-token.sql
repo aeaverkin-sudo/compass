@@ -27,3 +27,18 @@ create unique index if not exists profiles_handoff_token_hash_idx
 
 revoke update (handoff_token_hash)
   on table public.profiles from anon, authenticated;
+
+-- The in-app "Copy link" button. Ten minutes, one opening. It does not replace the letter.
+-- Re-run this file if the columns above are already there. Safe to run again.
+
+alter table public.profiles
+  add column if not exists browser_link_hash text,
+  add column if not exists browser_link_expires_at timestamptz,
+  add column if not exists browser_link_used_at timestamptz;
+
+create unique index if not exists profiles_browser_link_hash_idx
+  on public.profiles (browser_link_hash)
+  where browser_link_hash is not null;
+
+revoke update (browser_link_hash, browser_link_expires_at, browser_link_used_at)
+  on table public.profiles from anon, authenticated;
