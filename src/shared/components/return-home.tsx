@@ -8,9 +8,15 @@ import { useAppStore } from "@/shared/store/app-store";
 
 const HOME_KEY = "aded-open-main";
 
+/** A scanned card stays in its tab. Sleep and another tab must not replace it. */
+function isPublicCard(path: string) {
+  const pathname = path.split("?")[0]?.split("#")[0] ?? path;
+  return pathname.startsWith("/c/") || pathname.startsWith("/@");
+}
+
 /**
- * Leaving the app from any screen comes back to the first card.
- * A card share keeps that card.
+ * Leaving the app from the owner's own screen comes back to the first card.
+ * A card share keeps that card. A scanned card is left where it was opened.
  */
 export function ReturnHome() {
   const router = useRouter();
@@ -47,6 +53,10 @@ export function ReturnHome() {
     };
 
     const home = (resume: boolean) => {
+      if (isPublicCard(window.location.pathname)) {
+        clearLeft();
+        return;
+      }
       if (!resume && cameFromHere()) {
         clearLeft();
         return;
@@ -81,7 +91,7 @@ export function ReturnHome() {
     };
 
     const onHide = () => {
-      if (cardShareHoldsPlace()) return;
+      if (cardShareHoldsPlace() || isPublicCard(window.location.pathname)) return;
       markLeft();
     };
 
