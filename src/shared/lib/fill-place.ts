@@ -33,6 +33,8 @@ export type PortfolioPlace = {
   cardId: string;
   rowId: string | null;
   sectionId: string | null;
+  /** Text still in the row. Null once the row has been saved. */
+  rowText: string | null;
 };
 
 export type FillPlace = QuestionnairePlace | PortfolioPlace;
@@ -68,7 +70,13 @@ function readRaw(): FillPlace | null {
     if (place.kind === "questionnaire" && createHref(place.href)) return place;
     if (place.kind === "portfolio" && place.cardId) {
       dropPhoto();
-      return place;
+      const row = place as PortfolioPlace;
+      return {
+        ...row,
+        rowId: typeof row.rowId === "string" ? row.rowId : null,
+        sectionId: typeof row.sectionId === "string" ? row.sectionId : null,
+        rowText: typeof row.rowText === "string" ? row.rowText : null,
+      };
     }
     window.localStorage.removeItem(KEY);
     dropPhoto();
@@ -159,6 +167,45 @@ export function photoFileFromDraft(dataUrl: string): File | null {
     return new File([bytes], "photo.jpg", { type: mime });
   } catch {
     return null;
+  }
+}
+
+const SIGNIN_KEY = "aded-signin-email";
+
+type SignInEmailPlace = { email: string; at: number };
+
+/** Half-typed Sign in email. Not the questionnaire, and never the password. */
+export function readSignInEmail(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SIGNIN_KEY);
+    if (!raw) return null;
+    const place = JSON.parse(raw) as SignInEmailPlace;
+    if (!place || typeof place.at !== "number" || !fresh(place.at) || typeof place.email !== "string") {
+      window.localStorage.removeItem(SIGNIN_KEY);
+      return null;
+    }
+    return place.email;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSignInEmail(email: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SIGNIN_KEY, JSON.stringify({ email, at: Date.now() }));
+  } catch {
+    // The field stays on this page.
+  }
+}
+
+export function clearSignInEmail() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(SIGNIN_KEY);
+  } catch {
+    // It expires on its own.
   }
 }
 

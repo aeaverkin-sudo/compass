@@ -15,7 +15,7 @@ import { questionnaireHref } from "@/app/create/door";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
-import { clearFillPlace } from "@/shared/lib/fill-place";
+import { clearFillPlace, clearSignInEmail, readSignInEmail, writeSignInEmail } from "@/shared/lib/fill-place";
 import { markRegisteredDevice, rememberAccountEmail, rememberedEmail } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
@@ -70,12 +70,17 @@ async function enterExistingAccount(signIn: () => Promise<string | null>) {
   }
   markRegisteredDevice();
   clearFillPlace();
+  clearSignInEmail();
   clearRegistrationRequired();
   await hydrateCardsFromServer();
   return null;
 }
 
 function subscribeDevice() {
+  return () => {};
+}
+
+function subscribeSignInEmail() {
   return () => {};
 }
 
@@ -121,9 +126,10 @@ export function RegisterScreen() {
   const [accepted, setAccepted] = useState(false);
   const emailed = params.get("email")?.trim() ?? "";
   const storedEmail = useSyncExternalStore(subscribeDevice, rememberedEmail, () => "");
+  const draftedEmail = useSyncExternalStore(subscribeSignInEmail, readSignInEmail, () => null);
   const [email, setEmail] = useState(emailed);
   const [emailEdited, setEmailEdited] = useState(false);
-  const signInEmail = emailEdited ? email : emailed || storedEmail || email;
+  const signInEmail = emailEdited ? email : emailed || (draftedEmail !== null ? draftedEmail : storedEmail || email);
   const [emailLink, setEmailLink] = useState(emailed);
   if (emailed !== emailLink) {
     setEmailLink(emailed);
@@ -168,10 +174,17 @@ export function RegisterScreen() {
   }, [signinOnly, sessionExpired, sessionReady, nextRaw, router]);
 
   useEffect(() => {
+    if (!emailed) return;
+    const draft = readSignInEmail();
+    if (draft !== null && draft !== emailed) clearSignInEmail();
+  }, [emailed]);
+
+  useEffect(() => {
     if (!signinOnly) return;
-    if (emailed || storedEmail) passwordRef.current?.focus();
+    if (!emailed && draftedEmail !== null) emailRef.current?.focus();
+    else if (emailed || storedEmail) passwordRef.current?.focus();
     else emailRef.current?.focus();
-  }, [signinOnly, emailed, storedEmail]);
+  }, [signinOnly, emailed, draftedEmail, storedEmail]);
 
   const blinkConsent = () => {
     blinkTimers.current.forEach((id) => window.clearTimeout(id));
@@ -270,6 +283,7 @@ export function RegisterScreen() {
       }
       markRegisteredDevice();
       clearFillPlace();
+      clearSignInEmail();
       rememberAccountEmail(email);
       clearRegistrationRequired();
       router.push(nextPath);
@@ -361,6 +375,7 @@ export function RegisterScreen() {
               onChange={(event) => {
                 setEmailEdited(true);
                 setEmail(event.target.value);
+                writeSignInEmail(event.target.value);
               }}
               className={FIELD}
             />

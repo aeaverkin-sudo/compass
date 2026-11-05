@@ -384,6 +384,30 @@ export const CardEditList = memo(function CardEditList({
   const extraBlockRef = useRef<HTMLDivElement>(null);
   const extraValueRef = useRef<WrapFieldHandle>(null);
   const keepExtraRef = useRef(false);
+  const pendingDraft = useRef<{ rowId: string | null; sectionId: string | null; rowText: string | null } | null>(null);
+  const draftTimer = useRef<number | null>(null);
+  const [seedText, setSeedText] = useState("");
+
+  const writeRow = useCallback((rowId: string | null, sectionId: string | null, rowText: string | null) => {
+    if (draftTimer.current !== null) {
+      window.clearTimeout(draftTimer.current);
+      draftTimer.current = null;
+    }
+    pendingDraft.current = null;
+    writePortfolio({ cardId: card.id, rowId, sectionId, rowText });
+  }, [card.id]);
+
+  const queueRow = useCallback((rowId: string | null, sectionId: string | null, rowText: string) => {
+    pendingDraft.current = { rowId, sectionId, rowText };
+    if (draftTimer.current !== null) window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      draftTimer.current = null;
+      const pending = pendingDraft.current;
+      pendingDraft.current = null;
+      if (!pending) return;
+      writePortfolio({ cardId: card.id, ...pending });
+    }, 300);
+  }, [card.id]);
 
   const refuseDuplicate = useCallback((twinId: string) => {
     tick();
@@ -392,19 +416,67 @@ export const CardEditList = memo(function CardEditList({
   }, []);
 
   useEffect(() => {
+    const flush = () => {
+      const pending = pendingDraft.current;
+      if (!pending) return;
+      if (draftTimer.current !== null) {
+        window.clearTimeout(draftTimer.current);
+        draftTimer.current = null;
+      }
+      pendingDraft.current = null;
+      writePortfolio({ cardId: card.id, ...pending });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+      // Done already erased the record. Putting the pending line back would reopen Edit.
+      if (!readPortfolio()) {
+        if (draftTimer.current !== null) {
+          window.clearTimeout(draftTimer.current);
+          draftTimer.current = null;
+        }
+        pendingDraft.current = null;
+        return;
+      }
+      flush();
+    };
+  }, [card.id]);
+
+  useEffect(() => {
     if (placeSkip.current) {
       placeSkip.current = false;
       const place = readPortfolio();
-      if (place?.cardId === card.id) {
-        if (place.sectionId) setSectionEditId(place.sectionId);
-        if (place.rowId) setTextEditId(place.rowId);
+      if (!place || place.cardId !== card.id) return;
+      if (place.rowId) {
+        const item = useAppStore.getState().contactItems.find((row) => row.id === place.rowId);
+        if (!item) {
+          writePortfolio({ cardId: card.id, rowId: null, sectionId: null, rowText: null });
+          return;
+        }
+        setTextEditId(place.rowId);
+        return;
       }
+      if (place.sectionId && place.rowText !== null) {
+        setSeedText(place.rowText);
+        setSeedZoneId(place.sectionId);
+        return;
+      }
+      if (place.sectionId) setSectionEditId(place.sectionId);
       return;
     }
+    if (pendingDraft.current) return;
     const place = readPortfolio();
     if (!place || place.cardId !== card.id) return;
-    if (place.rowId === textEditId && place.sectionId === sectionEditId) return;
-    writePortfolio({ cardId: card.id, rowId: textEditId, sectionId: sectionEditId });
+    if (!textEditId && !sectionEditId && place.rowId === null && place.sectionId && place.rowText !== null) return;
+    const sectionId = sectionEditId ?? (textEditId ? place.sectionId : null);
+    const rowText = textEditId ? place.rowText : null;
+    if (place.rowId === textEditId && place.sectionId === sectionId && place.rowText === rowText) return;
+    writePortfolio({ cardId: card.id, rowId: textEditId, sectionId, rowText });
   }, [textEditId, sectionEditId, card.id]);
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
@@ -443,6 +515,7 @@ export const CardEditList = memo(function CardEditList({
         setTextEditId(null);
         setDeleteReadyId(null);
         setHideReadyId(null);
+        setSeedText("");
         setSeedZoneId(id);
         setSectionEditId(id);
       });
@@ -471,8 +544,9 @@ export const CardEditList = memo(function CardEditList({
 
   useLayoutEffect(() => {
     if (!seeding) return;
-    extraBlockRef.current?.querySelector<HTMLElement>("[contenteditable]")?.focus({ preventScroll: true });
-  }, [seeding]);
+    if (sectionEditId && sectionEditId === seedZoneId) return;
+    extraValueRef.current?.focusEnd();
+  }, [seeding, sectionEditId, seedZoneId]);
 
   useEffect(() => {
     if (!deleteReadyId && !hideReadyId) return;
@@ -509,6 +583,22 @@ export const CardEditList = memo(function CardEditList({
     setSectionEditId(null);
     setTextEditId(itemId);
   }, []);
+
+  const focusDraft = useCallback((rowId: string, sectionId: string, text: string) => {
+    writeRow(rowId, sectionId, text);
+  }, [writeRow]);
+
+  const typeDraft = useCallback((rowId: string, sectionId: string, text: string) => {
+    if (!text.trim()) {
+      writeRow(null, null, null);
+      return;
+    }
+    queueRow(rowId, sectionId, text);
+  }, [queueRow, writeRow]);
+
+  const saveDraft = useCallback((rowId: string, sectionId: string) => {
+    writeRow(rowId, sectionId, null);
+  }, [writeRow]);
 
   const saveRowText = useCallback((item: ContactItem, shown: string, next: string) => {
     const trimmed = next.trim();
@@ -573,6 +663,7 @@ export const CardEditList = memo(function CardEditList({
   const seedItem = (zoneId: string, raw: string) => {
     const value = raw.trim();
     if (!value) {
+      writeRow(null, null, null);
       endSeed(zoneId);
       return;
     }
@@ -595,6 +686,7 @@ export const CardEditList = memo(function CardEditList({
     }
     addItemToCard(card.id, id, zoneId);
     endSeed(zoneId);
+    writeRow(null, null, null);
   };
 
   const addSeedFile = (zoneId: string) => {
@@ -645,6 +737,9 @@ export const CardEditList = memo(function CardEditList({
     setHideReadyId(null);
   };
 
+  const keptPlace = readPortfolio();
+  const keptHere = keptPlace?.cardId === card.id ? keptPlace : null;
+
   return (
     <div ref={listRef} data-card-chip-list={card.id} data-card-content>
       {sections.map((section, index) => {
@@ -658,6 +753,7 @@ export const CardEditList = memo(function CardEditList({
           setSectionEditId(null);
           setDeleteReadyId(null);
           setHideReadyId(null);
+          setSeedText("");
           setSeedZoneId(section.id);
         };
         return (
@@ -775,6 +871,17 @@ export const CardEditList = memo(function CardEditList({
                           : undefined
                       }
                       onEdit={startRowEdit}
+                      draft={
+                        keptHere?.rowId === item.id &&
+                        keptHere.rowText &&
+                        keptHere.rowText.trim() &&
+                        keptHere.rowText !== row.value
+                          ? keptHere.rowText
+                          : undefined
+                      }
+                      onDraftFocus={focusDraft}
+                      onDraftText={typeDraft}
+                      onDraftSave={saveDraft}
                       onConfirm={confirmRow}
                       onErase={eraseRow}
                       fileUrl={isAttachmentType(item.type) ? row.url : undefined}
@@ -794,6 +901,7 @@ export const CardEditList = memo(function CardEditList({
                     ) : null}
                     <WrapField
                       ref={extraValueRef}
+                      initial={seedText}
                       label={section.rows.length === 0 ? zoneHint : "Value"}
                       placeholder={section.rows.length === 0 ? zoneHint : ""}
                       wrapPlaceholder={section.rows.length === 0}
@@ -802,18 +910,25 @@ export const CardEditList = memo(function CardEditList({
                       onPointerDown={() => {
                         advanceSeedRef.current = true;
                       }}
+                      onFocus={() => {
+                        const live = extraValueRef.current?.text();
+                        writeRow(null, section.id, live ?? seedText);
+                      }}
+                      onTextChange={(next) => queueRow(null, section.id, next)}
                       onDone={(next) => seedItem(section.id, next)}
                       onEmptyDelete={() => {
                         if (extraValueRef.current?.text().trim()) return;
                         if (isExtraZoneId(section.id) && !section.title.trim() && section.rows.length === 0) {
                           hideZone(card.id, section.id);
                         }
+                        writeRow(null, null, null);
                         endSeed(section.id);
                       }}
                       onBlur={(next, event) => {
                         if (stayInSeed(event)) return;
                         if (!next.trim()) {
                           if (!section.title.trim()) hideZone(card.id, section.id);
+                          writeRow(null, null, null);
                           endSeed(section.id);
                           return;
                         }
@@ -1308,6 +1423,10 @@ const EditRow = memo(function EditRow({
   onToggle,
   onPick,
   onEdit,
+  draft,
+  onDraftFocus,
+  onDraftText,
+  onDraftSave,
   onConfirm,
   onErase,
   fileUrl,
@@ -1327,6 +1446,10 @@ const EditRow = memo(function EditRow({
   onToggle: (itemId: string, zoneId: CardZoneId) => void;
   onPick?: () => void;
   onEdit: (itemId: string) => void;
+  draft?: string;
+  onDraftFocus: (itemId: string, zoneId: CardZoneId, text: string) => void;
+  onDraftText: (itemId: string, zoneId: CardZoneId, text: string) => void;
+  onDraftSave: (itemId: string, zoneId: CardZoneId) => void;
   onConfirm: (itemId: string, shown: string, next: string) => void;
   onErase: (itemId: string) => void;
   /** Set on file rows: the row shows its upload state under the name. */
@@ -1425,20 +1548,32 @@ const EditRow = memo(function EditRow({
           {editing ? (
             <WrapField
               ref={dockRef}
-              initial={value}
+              initial={draft ?? value}
               label="Edit row"
               multiline={multiline}
+              onFocus={() => {
+                const live = dockRef.current?.text();
+                onDraftFocus(itemId, zoneId, live ?? draft ?? value);
+              }}
               onTextChange={(next) => {
+                onDraftText(itemId, zoneId, next);
                 if (!next.trim()) onErase(itemId);
               }}
               breakButton={false}
-              onDone={(next) => onConfirm(itemId, value, next)}
+              onDone={(next) => {
+                onDraftSave(itemId, zoneId);
+                onConfirm(itemId, value, next);
+              }}
               onBlur={(next) => {
-                if (!next.trim()) return;
+                if (!next.trim()) {
+                  onDraftSave(itemId, zoneId);
+                  return;
+                }
                 if (Date.now() - openedAt.current < 700) {
                   dockRef.current?.focusEnd();
                   return;
                 }
+                onDraftSave(itemId, zoneId);
                 onConfirm(itemId, value, next);
               }}
               className="bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]"

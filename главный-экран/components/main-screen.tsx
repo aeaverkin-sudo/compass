@@ -10,6 +10,7 @@ import { BottomNav } from "./bottom-nav";
 import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
+import { groupEditSections } from "@/shared/services/card-zones";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import {
   canAddMoreCards,
@@ -146,10 +147,12 @@ export function MainScreen() {
   const rememberEdit = useCallback((cardId: string) => {
     if (!cardId) return;
     const current = readPortfolio();
+    const same = current?.cardId === cardId ? current : null;
     writePortfolio({
       cardId,
-      rowId: current?.cardId === cardId ? current.rowId : null,
-      sectionId: current?.cardId === cardId ? current.sectionId : null,
+      rowId: same?.rowId ?? null,
+      sectionId: same?.sectionId ?? null,
+      rowText: same?.rowText ?? null,
     });
   }, []);
 
@@ -225,10 +228,24 @@ export function MainScreen() {
     if (!cardsHydrated || frozen) return;
     const place = readPortfolio();
     if (!place) return;
-    const index = useAppStore.getState().cards.findIndex((card) => card.id === place.cardId);
+    const state = useAppStore.getState();
+    const index = state.cards.findIndex((card) => card.id === place.cardId);
     if (index < 0) {
       clearFillPlace();
       return;
+    }
+    const card = state.cards[index];
+    const rowGone = Boolean(place.rowId) && !state.contactItems.some((item) => item.id === place.rowId);
+    const sectionGone = Boolean(
+      card &&
+        !place.rowId &&
+        place.sectionId &&
+        !groupEditSections(state.contactItems.filter(isContactFilled), card, state.cards).some(
+          (section) => section.id === place.sectionId,
+        ),
+    );
+    if (card && (rowGone || sectionGone)) {
+      writePortfolio({ cardId: place.cardId, rowId: null, sectionId: null, rowText: null });
     }
     setCurrentCardIndex(index);
     setBrowseIndex(index);
@@ -273,10 +290,12 @@ export function MainScreen() {
         const cardId = cards[index]?.id;
         if (cardId) {
           const current = readPortfolio();
+          const same = current?.cardId === cardId ? current : null;
           writePortfolio({
             cardId,
-            rowId: current?.cardId === cardId ? current.rowId : null,
-            sectionId: current?.cardId === cardId ? current.sectionId : null,
+            rowId: same?.rowId ?? null,
+            sectionId: same?.sectionId ?? null,
+            rowText: same?.rowText ?? null,
           });
         }
         return;
@@ -345,8 +364,8 @@ export function MainScreen() {
   const onRemove = useCallback(() => setRemoveOpen(true), []);
   const onDone = useCallback(() => {
     setComposeOnMount(false);
-    setEditing(false);
     clearFillPlace();
+    setEditing(false);
   }, []);
   const onEdit = useCallback(() => {
     if (frozen || editTapBlocked()) return;
