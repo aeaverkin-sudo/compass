@@ -281,6 +281,7 @@ export function MainScreen() {
   useEffect(() => {
     router.prefetch("/profile");
     router.prefetch("/network");
+    router.prefetch("/manual");
   }, [router]);
 
   useEffect(() => {
@@ -486,6 +487,23 @@ export function MainScreen() {
             <QrZone url={cardUrl} visible={cardReady && !editing} topOffsetPx={layout.qrTop} scale={layout.headerScale} />
         ) : null}
       </div>
+      {layout && cardReady && !editing ? (
+        <button
+          type="button"
+          aria-label="Manual"
+          onClick={() => router.push("/manual")}
+          className="absolute left-0 z-30 border-0 bg-transparent p-0 text-[var(--ink)]"
+          style={{ top: layoutTop(layout.qrTop), width: counterRightCss }}
+        >
+          <span
+            className="block text-center leading-none"
+            style={{ fontSize: 16, fontWeight: 400, textTransform: "none" }}
+          >
+            i
+          </span>
+          <span aria-hidden className="absolute top-1/2 left-1/2 size-11 -translate-x-1/2 -translate-y-1/2" />
+        </button>
+      ) : null}
 
       {layout && cardReady && railCard ? (
         <SideRail
