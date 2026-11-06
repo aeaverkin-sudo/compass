@@ -15,7 +15,7 @@ const TOC = [
   ["portfolios", "Portfolios"],
   ["edit", "Edit"],
   ["network", "Network"],
-  ["hold", "Hold"],
+  ["hold", "Tap & hold"],
   ["profile", "Profile"],
   ["data", "Data"],
   ["events", "Events"],
@@ -44,7 +44,9 @@ const SECTIONS: Section[] = [
   {
     id: "toolbar",
     title: "Toolbar",
-    lines: ["··· above the bar — Flat or Shadow."],
+    lines: [
+      "Tap and hold the toolbar to move it — next to the QR or next to your photo — and to change its style: Flat or Shadow.",
+    ],
   },
   {
     id: "portfolios",
@@ -60,7 +62,7 @@ const SECTIONS: Section[] = [
     lines: [
       "Edit on the bar opens the editor.",
       "Small + in a section — add a row: link, file, text, contact.",
-      "Big + — a new section with any name.",
+      "Big + under the portfolio — add a new section with any name.",
       "Library — everything you add is kept and can be used in other portfolios.",
       "Save when done. Delete removes a portfolio.",
     ],
@@ -79,15 +81,20 @@ const SECTIONS: Section[] = [
   },
   {
     id: "hold",
-    title: "Hold",
-    lines: ["Hold a contact: Delete or Swap.", "Hold a request: Skip or Confirm."],
+    title: "Tap and hold",
+    lines: [
+      "Tap and hold a contact: Delete or Swap.",
+      "Tap and hold a request: Skip or Confirm.",
+      "Tap and hold the toolbar: move it or change its style.",
+      "Tap and hold your photo: change it, remove it, or choose Frame or Shadow.",
+    ],
   },
   {
     id: "profile",
     title: "Profile",
     lines: [
+      "Your photo — tap and hold it to change it, remove it, or choose Frame or Shadow.",
       "BW / C mode — black-and-white or colour.",
-      "Event pass — your pass for an event.",
       "Share anonymous analytics — only an anonymous summary.",
       "Cards shared back to you — accept cards in return or not.",
       "Plan and usage.",
