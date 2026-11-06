@@ -375,6 +375,7 @@ export function MainScreen() {
     setComposeOnMount(false);
     setComposing(false);
     setRemoveOpen(false);
+    clearFillPlace();
     setEditing(false);
   }, []);
   const onEdit = useCallback(() => {
