@@ -513,7 +513,6 @@ export function MainScreen() {
               fontSize: (MARK_VISIBLE_PX * RAIL_ICON_SCALE) / 0.714,
               fontWeight: 400,
               textTransform: "none",
-              WebkitTextStroke: "0.1px currentColor",
             }}
           >
             i
