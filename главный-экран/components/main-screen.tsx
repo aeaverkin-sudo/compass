@@ -282,7 +282,7 @@ export function MainScreen() {
   useEffect(() => {
     router.prefetch("/profile");
     router.prefetch("/network");
-    router.prefetch("/manual");
+    router.prefetch("/info");
   }, [router]);
 
   useEffect(() => {
@@ -491,14 +491,19 @@ export function MainScreen() {
       {layout && cardReady && !editing ? (
         <button
           type="button"
-          aria-label="Manual"
-          onClick={() => router.push("/manual")}
+          aria-label="Info"
+          onClick={() => router.push("/info")}
           className="absolute z-30 -translate-x-1/2 border-0 bg-transparent p-0 text-[var(--ink)]"
           style={{ top: layoutTop(layout.qrTop), left: counterRightCss }}
         >
           <span
             className="block text-center leading-none"
-            style={{ fontSize: MARK_VISIBLE_PX * RAIL_ICON_SCALE, fontWeight: 400, textTransform: "none" }}
+            style={{
+              fontSize: (MARK_VISIBLE_PX * RAIL_ICON_SCALE) / 0.714,
+              fontWeight: 400,
+              textTransform: "none",
+              WebkitTextStroke: "0.1px currentColor",
+            }}
           >
             i
           </span>
