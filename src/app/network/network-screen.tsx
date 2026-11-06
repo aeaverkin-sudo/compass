@@ -201,13 +201,9 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const people = shown.filter((contact) => !isRequest(contact, decisions.accepting));
   const menuContact = menu ? book.find((contact) => contact.id === menu.id) ?? null : null;
   const sharePhase = useShareBack(menuContact?.savedCardToken ?? "");
-  const shareShown =
-    menuContact && !menuContact.theyHaveMe
-      ? menuContact.shareBackPending && sharePhase === "idle"
-        ? "sent"
-        : sharePhase
-      : null;
-  const shareLabel = shareShown === "sent" ? "Shared" : "Share back";
+  const canSwap = Boolean(
+    menuContact && !menuContact.theyHaveMe && !menuContact.shareBackPending && sharePhase === "idle",
+  );
 
   const readyOwnerId = async () => {
     if (ownerId.current) return ownerId.current;
@@ -251,12 +247,13 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     setMenu({ id: contact.id, top: box.top, left: box.left, width: box.width, confirmDelete: false, picking: false });
   };
 
-  const shareCard = async (card: SharePickCard, close: boolean) => {
+  const shareCard = async (card: SharePickCard) => {
     const contact = menuContact;
     if (!contact) return;
     const sent = await sendShareBack(contact.savedCardToken, card.id);
     if (!sent) return;
-    if (close) setMenu((current) => (current?.id === contact.id ? null : current));
+    setPickUp(false);
+    setMenu((current) => (current?.id === contact.id ? { ...current, picking: false } : current));
     setNotice(`${card.name} shared back`);
   };
 
@@ -369,7 +366,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
             <div className="relative bg-sky">
               {menu.picking && pickUp ? (
                 <div data-share-pick className="absolute right-0 bottom-full left-0 bg-sky px-4 pt-3 pb-2">
-                  <SharePick cards={shareCards} size="menu" onPick={(card) => void shareCard(card, true)} />
+                  <SharePick cards={shareCards} size="menu" onPick={(card) => void shareCard(card)} />
                 </div>
               ) : null}
               <div data-share-actions>
@@ -393,17 +390,16 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                         });
                       },
                     },
-                    ...(shareShown
+                    ...(canSwap
                       ? [
                           {
-                            label: shareLabel,
-                            tone: shareShown === "sent" ? ("grey" as const) : ("ink" as const),
-                            disabled: shareShown === "sent",
+                            label: "Swap",
+                            tone: "ink" as const,
                             onPress: () => {
                               pressMenu(() => {
-                                if (shareShown !== "idle" || menu.picking) return;
+                                if (menu.picking) return;
                                 if (shareCards.length === 1) {
-                                  void shareCard(shareCards[0]!, false);
+                                  void shareCard(shareCards[0]!);
                                   return;
                                 }
                                 if (shareCards.length < 2) return;
@@ -419,7 +415,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
               </div>
               {menu.picking && !pickUp ? (
                 <div data-share-pick className="bg-sky px-4 pt-2 pb-3">
-                  <SharePick cards={shareCards} size="menu" onPick={(card) => void shareCard(card, true)} />
+                  <SharePick cards={shareCards} size="menu" onPick={(card) => void shareCard(card)} />
                 </div>
               ) : null}
             </div>
