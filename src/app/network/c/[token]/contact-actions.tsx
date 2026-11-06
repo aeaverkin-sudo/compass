@@ -12,7 +12,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 const ITEM =
   "press touch-manipulation flex h-full min-h-11 w-full items-center whitespace-nowrap border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
 
-/** Delete, Home in the middle, and Swap or Back on the right. */
+/** Delete, Home, and Swap until they have my card, then Back. */
 export function ContactActions({
   id,
   token,
@@ -151,7 +151,6 @@ export function ContactActions({
             canSwap ? (
               <TapButton
                 className={`${ITEM} justify-end`}
-                disabled={busy}
                 onTap={() => {
                   if (cancelTap.current) return;
                   if (picking) {
