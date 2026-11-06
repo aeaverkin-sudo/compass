@@ -5,7 +5,7 @@ import { nanoid } from "nanoid";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { MarkPlus, RAIL_PLUS_PX } from "@/shared/components/mark-plus";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
 import { MAX_NEXT_SCAN_NOTES, type NextScanAddon } from "@/shared/types";
 import { openSelfiePicker } from "@landing/components/photo-input-utils";
@@ -343,7 +343,7 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
               {notes.length}
             </span>
           ) : (
-            <MarkPlus size={RAIL_PLUS_PX} />
+            <MarkPlus />
           )
         ) : (
           <>

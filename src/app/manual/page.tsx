@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Scan, Share } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
-import { MarkPlus, MARK_PX, RAIL_PLUS_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
+import { MarkPlus, MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX, carouselSidePaddingPx } from "@main/layout";
 
@@ -148,7 +148,7 @@ function ToolbarFigure() {
           <Scan size={MARK_PX} strokeWidth={RAIL_STROKE_PX} aria-hidden />
         </span>
         <span className={glyph}>
-          <MarkPlus size={RAIL_PLUS_PX} />
+          <MarkPlus />
         </span>
         <span className={`${glyph} t-caps font-light leading-none`}>1/3</span>
       </div>
