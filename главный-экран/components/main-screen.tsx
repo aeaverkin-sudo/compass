@@ -21,7 +21,8 @@ import { CardCarousel } from "./card-carousel";
 import { EventPassFooter } from "./event-pass-footer";
 import { QrZone } from "./qr-zone";
 import { PortfolioDeleteDialog, useIsFirstCard } from "./portfolio-delete";
-import { SideRail } from "./side-rail";
+import { RAIL_ICON_SCALE, SideRail } from "./side-rail";
+import { MARK_VISIBLE_PX } from "@/shared/components/mark-plus";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { cardShareHoldsPlace, editTapBlocked } from "@/shared/lib/card-share-guard";
@@ -497,7 +498,7 @@ export function MainScreen() {
         >
           <span
             className="block text-center leading-none"
-            style={{ fontSize: 16, fontWeight: 400, textTransform: "none" }}
+            style={{ fontSize: MARK_VISIBLE_PX * RAIL_ICON_SCALE, fontWeight: 400, textTransform: "none" }}
           >
             i
           </span>

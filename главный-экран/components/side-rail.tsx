@@ -36,11 +36,13 @@ const SHIELD_EVENTS = [
   "contextmenu",
 ] as const;
 
+/** Glyphs and slots, 15% above the cap-matched marks. The column, the docks, and the size-11 taps stay. */
+export const RAIL_ICON_SCALE = 1.15;
 /** Slot heights in the rail column. The size-11 tap sits on each slot and does not enter the column. */
-const SHARE_SLOT_PX = 16.1;
-const SCAN_SLOT_PX = 16.1;
-const PLUS_SLOT_PX = 18;
-const COUNT_SLOT_PX = 11;
+const SHARE_SLOT_PX = 18.5;
+const SCAN_SLOT_PX = 18.5;
+const PLUS_SLOT_PX = 20.7;
+const COUNT_SLOT_PX = 12.7;
 /** Micro sky inset so Share and the sheet count sit just inside the plate edges. */
 const EDGE_INSET_PX = 2;
 /** Share and Scan keep RAIL_STROKE_PX on screen at any svg size. The plus keeps its own stroke. */
@@ -626,14 +628,14 @@ export function SideRail({
           card={card}
           onShare={canShare ? share.handleShare : undefined}
           onPrepareShare={canShare ? share.primeShare : undefined}
-          size={MARK_PX}
+          size={MARK_PX * RAIL_ICON_SCALE}
           stroke={RAIL_STROKE_PX}
           className={cn("justify-center text-current", SCREEN_STROKE_CLASS, FREEZE_CLASS)}
         />
       </RailMark>
       <RailMark height={SCAN_SLOT_PX} inert={dragging}>
         <ScanButton
-          size={MARK_PX}
+          size={MARK_PX * RAIL_ICON_SCALE}
           stroke={RAIL_STROKE_PX}
           className={cn("justify-center text-current", SCREEN_STROKE_CLASS, FREEZE_CLASS)}
         />
@@ -642,6 +644,8 @@ export function SideRail({
         {showPlus ? (
           <NextScanMenu
             bare
+            markPx={20 * RAIL_ICON_SCALE}
+            notePx={18}
             addons={noteAddons ?? []}
             onSetAddons={(addons) => updateCard(card.id, { nextScanAddons: addons })}
           />
@@ -652,6 +656,7 @@ export function SideRail({
           type="button"
           onClick={onCount}
           className="flex size-full items-center justify-center border-0 bg-transparent p-0 text-center t-caps font-light leading-none text-[var(--ink)]"
+          style={{ fontSize: 15 }}
         >
           {index}/{total}
         </button>

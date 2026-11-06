@@ -18,6 +18,10 @@ type NextScanMenuProps = {
   onSetAddons: (addons: NextScanAddon[]) => void;
   compact?: boolean;
   bare?: boolean;
+  /** Toolbar plus. Omitted everywhere else, so MarkPlus stays 20. */
+  markPx?: number;
+  /** Toolbar note count. Omitted everywhere else, so the digit stays 16. */
+  notePx?: number;
 };
 
 /** Voice is parked in the schema for later; the UI only offers text and selfie. */
@@ -43,7 +47,7 @@ function addonPreview(addon: NextScanAddon): string {
   return addon.content.slice(0, 48) + (addon.content.length > 48 ? "…" : "");
 }
 
-export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMenuProps) {
+export function NextScanMenu({ addons, onSetAddons, compact, bare, markPx, notePx }: NextScanMenuProps) {
   const [open, setOpen] = useState(false);
   const [textMode, setTextMode] = useState(false);
   const [text, setText] = useState("");
@@ -339,11 +343,14 @@ export function NextScanMenu({ addons, onSetAddons, compact, bare }: NextScanMen
       >
         {bare ? (
           notes.length > 0 ? (
-            <span className="text-center text-[16px] font-semibold leading-none" style={{ color: QR_COLOR }}>
+            <span
+              className="text-center font-semibold leading-none"
+              style={{ color: QR_COLOR, fontSize: notePx ?? 16 }}
+            >
               {notes.length}
             </span>
           ) : (
-            <MarkPlus />
+            <MarkPlus size={markPx} />
           )
         ) : (
           <>
