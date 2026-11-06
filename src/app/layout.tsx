@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { COMPACT_BELOW_PX, COMPACT_HEADER_SCALE } from "@main/layout";
 import { AppResetGate } from "@/shared/components/app-reset-gate";
 import { MonochromeSync } from "@/shared/components/monochrome-sync";
+import { ImagePreviewHost } from "@/shared/components/image-preview-host";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
 import { ServiceWorker } from "@/shared/components/service-worker";
 import { SupabaseSession } from "@/shared/components/supabase-session";
@@ -103,6 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SupabaseSession />
         <VisualBottom />
         <PdfPreviewHost />
+        <ImagePreviewHost />
         <TabPrefetch />
         <ReturnHome />
         <FillPlaceResume />

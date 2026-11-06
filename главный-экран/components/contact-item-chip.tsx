@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import { GripHorizontal, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
+import { openAttachmentImage } from "@/shared/components/image-preview-host";
 import { openHomeScreenAttachmentPdf } from "@/shared/components/pdf-preview-host";
 import { ARRANGE_HOLD_MS, REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
 import { tick } from "@/shared/lib/haptic";
@@ -172,6 +173,22 @@ function liftNode(list: HTMLElement, current: ArrangeDrag) {
   );
 }
 
+/** Pictures and PDFs stay on top of the card. A new tab of the raw file has no way back. */
+function holdFileInApp(event: MouseEvent, row: CardDisplayRow) {
+  event.stopPropagation();
+  const url = row.url;
+  const item = row.item;
+  if (!url || !item) return;
+  if (item.type === "photo") {
+    event.preventDefault();
+    openAttachmentImage(url, row.value || "Image");
+    return;
+  }
+  if (item.type === "pdf" && openHomeScreenAttachmentPdf(url, row.value || "PDF")) {
+    event.preventDefault();
+  }
+}
+
 function ContactItemChipRow({
   row,
   size,
@@ -210,12 +227,7 @@ function ContactItemChipRow({
         href={row.url}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={(event: MouseEvent) => {
-          event.stopPropagation();
-          if (row.item?.type === "pdf" && openHomeScreenAttachmentPdf(row.url, row.value || "PDF")) {
-            event.preventDefault();
-          }
-        }}
+        onClick={(event: MouseEvent) => holdFileInApp(event, row)}
         className={classNames}
         style={style}
       >
@@ -325,12 +337,7 @@ function EditorialValue({
         href={row.url}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={(event) => {
-          event.stopPropagation();
-          if (row.item?.type === "pdf" && openHomeScreenAttachmentPdf(row.url, row.value || "PDF")) {
-            event.preventDefault();
-          }
-        }}
+        onClick={(event) => holdFileInApp(event, row)}
         className="block min-w-0 no-underline"
       >
         {body}

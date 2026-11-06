@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { isHomeScreenApp } from "@/shared/services/save-public-card-pdf";
+import { BackButton } from "@/shared/components/back-button";
+import { HEADER_ROW_PX } from "@/shared/layout/axes";
+import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
 type PreviewFile = { id?: number; blob: Blob | null; name: string };
 
 let ticket = 0;
 
-/** Open a stored PDF inside the home-screen app. Returns false when the link should open normally. */
+/** Open a stored PDF on top of the card, in the browser and in the installed app. */
 export function openHomeScreenAttachmentPdf(url: string, name: string) {
-  if (typeof window === "undefined" || !isHomeScreenApp()) return false;
+  if (typeof window === "undefined") return false;
   const id = ++ticket;
   const label = name.trim() || "PDF";
   window.dispatchEvent(new CustomEvent("compass-pdf-preview", { detail: { id, name: label, blob: null } }));
@@ -37,7 +39,7 @@ export function openHomeScreenAttachmentPdf(url: string, name: string) {
 
 const TAP_PX = 10;
 
-/** PDF opened from the home-screen icon. The pages stay in the app, so Close returns to the card. */
+/** The pages stay on top of the card. The chevron and Close both return to it. */
 export function PdfPreviewHost() {
   const pagesRef = useRef<HTMLDivElement>(null);
   const point = useRef<{ x: number; y: number } | null>(null);
@@ -123,7 +125,11 @@ export function PdfPreviewHost() {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white">
-      <div className="flex items-center justify-between gap-4 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3">
+      <BackButton fallbackHref="/" onBack={close} />
+      <div
+        className="flex items-center justify-between gap-4 px-5 pb-3"
+        style={{ paddingTop: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX + HEADER_ROW_PX / 2}px)` }}
+      >
         <p className="min-w-0 truncate t-meta text-[var(--ink)]">{file.name}</p>
         <div className="flex shrink-0 items-center gap-5">
           {file.blob && typeof navigator.share === "function" ? (
