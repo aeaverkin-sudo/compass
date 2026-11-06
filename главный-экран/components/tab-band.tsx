@@ -29,16 +29,35 @@ export function TabBand({
         userSelect: "none",
       }}
     >
-      <div
-        className="flex items-stretch"
-        style={{ height: BAND_ROW_PX, paddingLeft: inset, paddingRight: inset }}
-      >
-        <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{left}</div>
-        {center != null ? (
-          <div className="flex min-h-11 min-w-0 flex-1 items-stretch justify-center">{center}</div>
-        ) : null}
-        <div className="flex min-h-11 min-w-0 flex-1 items-stretch justify-end">{right}</div>
-      </div>
+      {center != null ? (
+        <div
+          className="grid items-stretch"
+          style={{
+            height: BAND_ROW_PX,
+            paddingLeft: inset,
+            paddingRight: inset,
+            gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
+          }}
+        >
+          <div className="flex min-h-11 w-max items-stretch justify-self-start [&>*]:!w-max [&_a]:!w-max [&_button]:!w-max">
+            {left}
+          </div>
+          <div className="flex min-h-11 w-max items-stretch justify-self-center [&>*]:!w-max [&_a]:!w-max [&_button]:!w-max">
+            {center}
+          </div>
+          <div className="flex min-h-11 w-max items-stretch justify-self-end [&>*]:!w-max [&_a]:!w-max [&_button]:!w-max">
+            {right}
+          </div>
+        </div>
+      ) : (
+        <div
+          className="flex items-stretch"
+          style={{ height: BAND_ROW_PX, paddingLeft: inset, paddingRight: inset }}
+        >
+          <div className="flex min-h-11 min-w-0 flex-1 items-stretch">{left}</div>
+          <div className="flex min-h-11 min-w-0 flex-1 items-stretch justify-end">{right}</div>
+        </div>
+      )}
     </nav>
   );
 }

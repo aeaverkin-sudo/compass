@@ -89,7 +89,7 @@ export function ContactActions({
   };
 
   const shareShown = theyHaveMe ? null : shareBackPending && phase === "idle" ? "sent" : phase;
-  const shareLabel = shareShown === "sent" ? "Shared back" : "Share back";
+  const shareLabel = shareShown === "sent" ? "Shared" : "Share back";
 
   const shareCard = async (card: SharePickCard) => {
     const sent = await sendShareBack(token, card.id);
@@ -134,7 +134,7 @@ export function ContactActions({
                   void remove();
                 }}
               >
-                {armed ? "Yes, delete" : "Delete"}
+                {armed ? "Delete?" : "Delete"}
               </TapButton>
             </span>
           }

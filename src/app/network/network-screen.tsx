@@ -207,7 +207,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         ? "sent"
         : sharePhase
       : null;
-  const shareLabel = shareShown === "sent" ? "Shared back" : "Share back";
+  const shareLabel = shareShown === "sent" ? "Shared" : "Share back";
 
   const readyOwnerId = async () => {
     if (ownerId.current) return ownerId.current;
@@ -376,7 +376,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                 <SkyActions
                   actions={[
                     {
-                      label: menu.confirmDelete ? "Yes, delete" : "Delete",
+                      label: menu.confirmDelete ? "Delete?" : "Delete",
                       tone: menu.picking ? "grey" : "ink",
                       onPress: () => {
                         pressMenu(() => {
