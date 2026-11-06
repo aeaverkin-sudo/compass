@@ -6,7 +6,8 @@ const WORD = "[&>*]:!w-max [&_a]:!w-max [&_button]:!w-max [&_a]:-mr-[0.14em] [&_
 /**
  * The sky bar. Last child of the page column, one row, one height.
  * Padding under the row is the home indicator minus the 29px the old plate did not carry.
- * Three words each sit in the middle of an equal third. Two words stay at the side fields.
+ * Three words: the side ones sit on the fields, the middle one on the screen center.
+ * Two words stay at the side fields.
  */
 export function TabBand({
   left,
@@ -33,10 +34,18 @@ export function TabBand({
       }}
     >
       {center != null ? (
-        <div className="grid items-stretch" style={{ height: BAND_ROW_PX, gridTemplateColumns: "1fr 1fr 1fr" }}>
-          <div className={`flex min-h-11 w-max items-stretch justify-self-center ${WORD}`}>{left}</div>
+        <div
+          className="grid items-stretch"
+          style={{
+            height: BAND_ROW_PX,
+            paddingLeft: inset,
+            paddingRight: inset,
+            gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
+          }}
+        >
+          <div className={`flex min-h-11 w-max items-stretch justify-self-start ${WORD}`}>{left}</div>
           <div className={`flex min-h-11 w-max items-stretch justify-self-center ${WORD}`}>{center}</div>
-          <div className={`flex min-h-11 w-max items-stretch justify-self-center ${WORD}`}>{right}</div>
+          <div className={`flex min-h-11 w-max items-stretch justify-self-end ${WORD}`}>{right}</div>
         </div>
       ) : (
         <div

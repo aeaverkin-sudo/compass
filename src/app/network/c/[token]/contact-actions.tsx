@@ -12,7 +12,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 const ITEM =
   "press touch-manipulation flex h-full min-h-11 w-full items-center whitespace-nowrap border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
 
-/** Delete, and either Share back with Home, or Home with Back once they already have my card. */
+/** Delete, Home in the middle, and Swap or Back on the right. */
 export function ContactActions({
   id,
   token,
@@ -89,8 +89,7 @@ export function ContactActions({
     router.push("/network");
   };
 
-  const shareShown = theyHaveMe ? null : shareBackPending && phase === "idle" ? "sent" : phase;
-  const shareLabel = shareShown === "sent" ? "Shared" : "Share back";
+  const canSwap = !theyHaveMe && !shareBackPending && phase === "idle";
 
   const shareCard = async (card: SharePickCard) => {
     const sent = await sendShareBack(token, card.id);
@@ -140,21 +139,21 @@ export function ContactActions({
             </span>
           }
           center={
-            theyHaveMe ? (
+            <TapButton
+              className={`${ITEM} justify-center`}
+              onPrepare={() => router.prefetch("/main")}
+              onTap={() => router.push("/main")}
+            >
+              Home
+            </TapButton>
+          }
+          right={
+            canSwap ? (
               <TapButton
-                className={`${ITEM} justify-center`}
-                onPrepare={() => router.prefetch("/main")}
-                onTap={() => router.push("/main")}
-              >
-                Home
-              </TapButton>
-            ) : (
-              <TapButton
-                className={`${ITEM} justify-center disabled:text-[var(--grey)]`}
-                disabled={shareShown === "sent" || busy}
+                className={`${ITEM} justify-end`}
+                disabled={busy}
                 onTap={() => {
                   if (cancelTap.current) return;
-                  if (shareShown !== "idle") return;
                   if (picking) {
                     setPicking(false);
                     return;
@@ -168,26 +167,15 @@ export function ContactActions({
                   setPicking(true);
                 }}
               >
-                {shareLabel}
+                Swap
               </TapButton>
-            )
-          }
-          right={
-            theyHaveMe ? (
+            ) : (
               <TapButton
-                className={`${ITEM} justify-center`}
+                className={`${ITEM} justify-end`}
                 onPrepare={() => router.prefetch("/network")}
                 onTap={() => router.push("/network")}
               >
                 Back
-              </TapButton>
-            ) : (
-              <TapButton
-                className={`${ITEM} justify-center`}
-                onPrepare={() => router.prefetch("/main")}
-                onTap={() => router.push("/main")}
-              >
-                Home
               </TapButton>
             )
           }
