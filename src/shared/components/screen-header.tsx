@@ -43,7 +43,7 @@ export function ScreenHeader({
             : { top, left: `calc(var(--gutter) + ${VALUE_AXIS_PX}px)`, height: HEADER_ROW_PX }
         }
       >
-        {center ? <span className="-mr-[0.14em]">{title}</span> : title}
+        {center ? <span className="-mr-[0.12em]">{title}</span> : title}
       </h1>
       {trailing ? (
         <div

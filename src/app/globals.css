@@ -129,9 +129,9 @@ body {
 }
 
 @utility t-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   line-height: 1.45;
   text-transform: uppercase;
   color: var(--grey);
@@ -150,18 +150,18 @@ body {
   line-height: 1.45;
 }
 
-/* Caps off the plaques: plus-menu buttons, screen headers, the rail sheet count. */
+/* Caps off the plaques: screen headers, room entries, sky buttons. The rail count stays 15. */
 @utility t-caps {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 400;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   line-height: 1.45;
   text-transform: uppercase;
 }
 
 /* Caps on the sky plaques: TabBand, the PDF door, Create portfolio, the /c save offer. */
 @utility t-band {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 400;
   letter-spacing: 0.14em;
   line-height: 1;
@@ -395,14 +395,6 @@ body {
 .compass-preview-scroll::-webkit-scrollbar,
 .compass-card-scroll::-webkit-scrollbar {
   display: none;
-}
-
-.compass-caption {
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--grey);
 }
 
 @keyframes compass-qr-breathe {

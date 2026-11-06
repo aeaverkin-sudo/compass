@@ -656,7 +656,7 @@ export function SideRail({
           type="button"
           onClick={onCount}
           className="flex size-full items-center justify-center border-0 bg-transparent p-0 text-center t-caps font-light leading-none text-[var(--ink)]"
-          style={{ fontSize: 15 }}
+          style={{ fontSize: 15, letterSpacing: "0.14em" }}
         >
           {index}/{total}
         </button>
