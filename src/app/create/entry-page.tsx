@@ -441,7 +441,7 @@ export function EntryPage({
               type="email"
               inputMode="email"
               autoCapitalize="none"
-              autoComplete="username"
+              autoComplete="email"
               name="username"
               aria-label="Profile email"
               placeholder="name@mail.com"
