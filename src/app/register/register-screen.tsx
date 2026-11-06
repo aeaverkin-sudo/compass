@@ -23,7 +23,6 @@ import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/service
 import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isEventInvitePath, isEventJoinPath, isEventTeamPath } from "@/shared/event/lookup";
-import { SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { useAppStore } from "@/shared/store/app-store";
 
 /** A card save, an event invite or join, or a manager invite may pull the person back. Anything else opens the main screen. */
@@ -84,7 +83,6 @@ function subscribeSignInEmail() {
   return () => {};
 }
 
-const FORGOT_EMAIL = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Can't find my ADED email")}`;
 const LINK_LINE = {
   textDecoration: "underline",
   textDecorationColor: "rgba(17,17,17,0.45)",
@@ -424,10 +422,6 @@ export function RegisterScreen() {
               >
                 Forgot password
               </button>
-              <span className="text-[#c2c2c2]"> / </span>
-              <a href={FORGOT_EMAIL} className={UNDERLINE} style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}>
-                Forgot email
-              </a>
             </p>
           </Zone>
         </form>

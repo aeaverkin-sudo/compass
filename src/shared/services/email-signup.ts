@@ -235,13 +235,10 @@ export async function sendResetLink(rawEmail: string, origin: string) {
   if (!existing) return;
 
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin.auth.admin.generateLink({
-    type: "recovery",
-    email,
-    options: { redirectTo: `${origin}/auth/reset` },
-  });
+  const { data, error } = await admin.auth.admin.generateLink({ type: "recovery", email });
   if (error) throw new Error(error.message);
-  const link = data.properties?.action_link;
-  if (!link) throw new Error("No reset link");
+  const hashed = data.properties?.hashed_token;
+  if (!hashed) throw new Error("No reset link");
+  const link = `${origin}/auth/reset?token_hash=${encodeURIComponent(hashed)}`;
   await sendPasswordReset(email, link);
 }

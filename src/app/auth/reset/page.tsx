@@ -8,7 +8,7 @@ export default function ResetPasswordPage() {
       title="New password"
       hint="Choose a password to replace the one from the email."
       fallbackHref="/"
-      exchangeCode
+      recovery
     />
   );
 }

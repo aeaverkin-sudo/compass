@@ -1,30 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
+const EXPIRED = "This link has expired. Ask for a new one.";
+
 type PasswordFormProps = {
   title: string;
   hint: string;
   fallbackHref: string;
-  exchangeCode?: boolean;
+  /** The reset letter. The link is checked on Save, not when the page opens. */
+  recovery?: boolean;
 };
 
-export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }: PasswordFormProps) {
+export function PasswordForm({ title, hint, fallbackHref, recovery = false }: PasswordFormProps) {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!exchangeCode) return;
-    const code = new URLSearchParams(window.location.search).get("code");
-    if (!code) return;
-    void createBrowserSupabaseClient().auth.exchangeCodeForSession(code);
-  }, [exchangeCode]);
 
   const save = async () => {
     if (busy) return;
@@ -34,10 +32,41 @@ export function PasswordForm({ title, hint, fallbackHref, exchangeCode = false }
     }
     setBusy(true);
     setMessage(null);
-    const { error } = await createBrowserSupabaseClient().auth.updateUser({ password: password.trim() });
+    const supabase = createBrowserSupabaseClient();
+    if (recovery) {
+      const tokenHash = new URLSearchParams(window.location.search).get("token_hash") ?? "";
+      if (tokenHash) {
+        const verified = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+        if (verified.error) {
+          setBusy(false);
+          setMessage(EXPIRED);
+          return;
+        }
+      } else {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          setBusy(false);
+          setMessage(EXPIRED);
+          return;
+        }
+      }
+    }
+    const { error } = await supabase.auth.updateUser({ password: password.trim() });
     if (!error) await fetch("/api/account/password-set", { method: "POST" }).catch(() => undefined);
     setBusy(false);
-    setMessage(error ? error.message : "Password saved.");
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    if (recovery) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("token_hash");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+      setMessage("Password saved.");
+      window.setTimeout(() => router.push("/main"), 1000);
+      return;
+    }
+    setMessage("Password saved.");
   };
 
   return (
