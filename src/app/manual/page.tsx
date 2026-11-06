@@ -119,8 +119,8 @@ const SECTIONS: Section[] = [
 
 function Line({ text }: { text: string }) {
   return (
-    <li className="text-center t-body text-[var(--ink)]">
-      <span className="text-[var(--grey)]">— </span>
+    <li className="flex gap-2 t-body text-[var(--ink)]">
+      <span className="shrink-0 text-[var(--grey)]">—</span>
       <span>{text}</span>
     </li>
   );
@@ -129,10 +129,7 @@ function Line({ text }: { text: string }) {
 function ToolbarFigure() {
   const glyph = "flex h-7 items-center justify-center";
   return (
-    <div
-      className="mx-auto grid w-max max-w-full items-center gap-x-3"
-      style={{ gridTemplateColumns: `${RAIL_W} minmax(0, 1fr)` }}
-    >
+    <div className="grid items-center gap-x-3" style={{ gridTemplateColumns: `${RAIL_W} minmax(0, 1fr)` }}>
       <div
         className="pointer-events-none col-start-1 row-span-4 row-start-1 flex h-full flex-col justify-around bg-sky py-1 text-[var(--ink)]"
         style={{ width: RAIL_W }}
@@ -169,7 +166,7 @@ export default function ManualPage() {
 
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[var(--ink)]">
-      <ScreenHeader title="Manual" fallbackHref="/main" />
+      <ScreenHeader title="Manual" fallbackHref="/main" center />
       <div className="grid grid-cols-3 gap-1.5">
         {TOC.map(([id, label]) => {
           const on = open === id;
@@ -202,9 +199,8 @@ export default function ManualPage() {
           className={index === 0 ? "mt-8" : "mt-8 border-t border-[var(--rule)] pt-4"}
           style={{ scrollMarginTop: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX + HEADER_ROW_PX + 12}px)` }}
         >
-          <p className="t-label text-center">{String(index + 1).padStart(2, "0")}</p>
           <h2
-            className="mt-1 text-center font-bold text-[var(--ink)]"
+            className="text-center font-bold text-[var(--ink)]"
             style={{ fontSize: 22, lineHeight: 1.15, letterSpacing: "-0.02em" }}
           >
             {section.title}
