@@ -28,6 +28,8 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { cardShareHoldsPlace, editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
 import { BackButton } from "@/shared/components/back-button";
+import { ScreenHeader } from "@/shared/components/screen-header";
+import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { UploadNotice } from "@/shared/components/upload-notice";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { BrowserHandoff } from "@/shared/components/browser-handoff";
@@ -369,6 +371,12 @@ export function MainScreen() {
     clearFillPlace();
     setEditing(false);
   }, []);
+  const leaveEdit = useCallback(() => {
+    setComposeOnMount(false);
+    setComposing(false);
+    setRemoveOpen(false);
+    setEditing(false);
+  }, []);
   const onEdit = useCallback(() => {
     if (frozen || editTapBlocked()) return;
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
@@ -476,7 +484,9 @@ export function MainScreen() {
 
   return (
     <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-background">
-      {viewingAddSlide ? (
+      {editing ? (
+        <ScreenHeader title="Edit" fallbackHref="/main" onBack={leaveEdit} spacer={false} />
+      ) : viewingAddSlide ? (
         <BackButton
           fallbackHref="/main"
           onBack={() => onActiveIndexChange(Math.max(cardCount - 1, 0))}
@@ -565,7 +575,7 @@ export function MainScreen() {
           style={{
             left: frameInset,
             right: frameInset,
-            top: layoutTop(editing && layout ? layout.qrTop : cardTopBrowse),
+            top: layoutTop(editing && layout ? layout.qrTop + HEADER_ROW_PX / 2 + 18 : cardTopBrowse),
             bottom: 0,
             zIndex: 20,
           }}
