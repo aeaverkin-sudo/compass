@@ -492,8 +492,8 @@ export function MainScreen() {
           type="button"
           aria-label="Manual"
           onClick={() => router.push("/manual")}
-          className="absolute left-0 z-30 border-0 bg-transparent p-0 text-[var(--ink)]"
-          style={{ top: layoutTop(layout.qrTop), width: counterRightCss }}
+          className="absolute z-30 -translate-x-1/2 border-0 bg-transparent p-0 text-[var(--ink)]"
+          style={{ top: layoutTop(layout.qrTop), left: counterRightCss }}
         >
           <span
             className="block text-center leading-none"

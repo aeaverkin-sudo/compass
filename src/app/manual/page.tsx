@@ -119,8 +119,8 @@ const SECTIONS: Section[] = [
 
 function Line({ text }: { text: string }) {
   return (
-    <li className="flex gap-2 t-body text-[var(--ink)]">
-      <span className="shrink-0 text-[var(--grey)]">—</span>
+    <li className="text-center t-body text-[var(--ink)]">
+      <span className="text-[var(--grey)]">— </span>
       <span>{text}</span>
     </li>
   );
@@ -129,7 +129,10 @@ function Line({ text }: { text: string }) {
 function ToolbarFigure() {
   const glyph = "flex h-7 items-center justify-center";
   return (
-    <div className="grid items-center gap-x-3" style={{ gridTemplateColumns: `${RAIL_W} minmax(0, 1fr)` }}>
+    <div
+      className="mx-auto grid w-max max-w-full items-center gap-x-3"
+      style={{ gridTemplateColumns: `${RAIL_W} minmax(0, 1fr)` }}
+    >
       <div
         className="pointer-events-none col-start-1 row-span-4 row-start-1 flex h-full flex-col justify-around bg-sky py-1 text-[var(--ink)]"
         style={{ width: RAIL_W }}
@@ -175,11 +178,12 @@ export default function ManualPage() {
               key={id}
               type="button"
               onClick={() => go(id)}
-              className="flex h-[38px] items-center justify-center border-0 px-1 text-center"
+              className="flex items-center justify-center border-0 px-1 text-center"
               style={{
+                height: 34.2,
                 background: on ? "var(--ink)" : "var(--sky)",
                 color: on ? "#fff" : "var(--ink)",
-                fontSize: 10.5,
+                fontSize: 9.45,
                 fontWeight: 400,
                 letterSpacing: "0.12em",
                 lineHeight: 1.1,
@@ -195,11 +199,14 @@ export default function ManualPage() {
         <section
           key={section.id}
           id={section.id}
-          className="mt-8 border-t border-[var(--rule)] pt-4"
+          className={index === 0 ? "mt-8" : "mt-8 border-t border-[var(--rule)] pt-4"}
           style={{ scrollMarginTop: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX + HEADER_ROW_PX + 12}px)` }}
         >
-          <p className="t-label">{String(index + 1).padStart(2, "0")}</p>
-          <h2 className="mt-1 font-bold text-[var(--ink)]" style={{ fontSize: 22, lineHeight: 1.15, letterSpacing: "-0.02em" }}>
+          <p className="t-label text-center">{String(index + 1).padStart(2, "0")}</p>
+          <h2
+            className="mt-1 text-center font-bold text-[var(--ink)]"
+            style={{ fontSize: 22, lineHeight: 1.15, letterSpacing: "-0.02em" }}
+          >
             {section.title}
           </h2>
           {section.id === "toolbar" ? (
