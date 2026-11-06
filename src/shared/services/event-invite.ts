@@ -46,7 +46,7 @@ type InviteRow = {
   slug?: string | null;
 };
 
-/** One invite, by short code or public token. Missing and unknown lookups are the same. */
+/** One invite, by short code or public token. Missing and unknown lookups are the same. A failed request is tried twice more; a miss is not. */
 export async function loadEventInvite(lookup: string): Promise<EventInvite | null> {
   let key = lookup.trim();
   try {
@@ -57,9 +57,15 @@ export async function loadEventInvite(lookup: string): Promise<EventInvite | nul
   if (!isEventLookup(key)) return null;
 
   const admin = createAdminSupabaseClient();
-  const loaded = await admin.rpc("event_invite", { lookup: key });
+  const pauses = [300, 800];
+  let loaded = await admin.rpc("event_invite", { lookup: key });
+  for (let attempt = 1; loaded.error && attempt < 3; attempt += 1) {
+    console.error("[events] invite", attempt, loaded.error.message);
+    await new Promise((resolve) => setTimeout(resolve, pauses[attempt - 1]));
+    loaded = await admin.rpc("event_invite", { lookup: key });
+  }
   if (loaded.error) {
-    console.error("[events] invite", loaded.error.message);
+    console.error("[events] invite", 3, loaded.error.message);
     return null;
   }
 
