@@ -187,7 +187,7 @@ export default function InfoPage() {
                 height: 34.2,
                 background: on ? "var(--ink)" : "var(--sky)",
                 color: on ? "#fff" : "var(--ink)",
-                fontSize: 12,
+                fontSize: 13,
                 whiteSpace: "normal",
                 fontWeight: 400,
                 letterSpacing: "0.12em",

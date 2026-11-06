@@ -129,7 +129,7 @@ body {
 }
 
 @utility t-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.12em;
   line-height: 1.45;
@@ -152,7 +152,7 @@ body {
 
 /* Caps off the plaques: screen headers, room entries, sky buttons. The rail count stays 15. */
 @utility t-caps {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
   letter-spacing: 0.12em;
   line-height: 1.45;
@@ -161,7 +161,7 @@ body {
 
 /* Caps on the sky plaques: TabBand, the PDF door, Create portfolio, the /c save offer. */
 @utility t-band {
-  font-size: 15.5px;
+  font-size: 15px;
   font-weight: 400;
   letter-spacing: 0.14em;
   line-height: 1;
