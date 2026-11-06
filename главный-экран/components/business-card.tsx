@@ -10,7 +10,7 @@ import { SkyToast } from "@/shared/components/sky-toast";
 import { TapButton } from "@/shared/components/tap-button";
 import { cachedWalletStatus, cardInWallet, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
-import { PDF_PAD, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
+import { PDF_SIDE, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
@@ -355,7 +355,7 @@ function PdfCard({
   const zoneFilter = shown.flatMap((block) => (block.kind === "zone" ? [block.id] : []));
   return (
     <article data-pdf-card className="w-full shrink-0 bg-white text-[var(--ink)]">
-      <div style={{ paddingLeft: PDF_PAD, paddingRight: PDF_PAD }}>
+      <div style={{ paddingLeft: PDF_SIDE, paddingRight: PDF_SIDE }}>
         {shown.some((block) => block.kind === "header") ? (
           <div data-pdf-block="">
             <EditorialHeader card={card} positionTitle={positionTitle} />
@@ -383,8 +383,8 @@ function PdfCard({
         ) : null}
         {shown.some((block) => block.kind === "footer") ? (
           <div data-pdf-block="">
-            <div className="mt-4" style={{ marginLeft: -PDF_PAD, marginRight: -PDF_PAD }}>
-              <AccountBand token={card.publicToken} inset={PDF_PAD} pdf />
+            <div className="mt-4" style={{ marginLeft: -PDF_SIDE, marginRight: -PDF_SIDE }}>
+              <AccountBand token={card.publicToken} inset={PDF_SIDE} pdf />
             </div>
           </div>
         ) : null}

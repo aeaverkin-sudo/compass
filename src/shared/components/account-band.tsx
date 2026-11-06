@@ -51,7 +51,7 @@ export function AccountBand({
   if (!pdf) {
     return (
       <TabBand
-        inset="calc(clamp(24px, 6.1vw, 28px) - 3mm)"
+        inset="var(--gutter)"
         label="Account"
         left={
           <TapButton

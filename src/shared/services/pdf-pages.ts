@@ -1,8 +1,10 @@
 /** Phone sheet. Matches a 390×844 viewport, not A4. */
 export const PDF_PAGE_W = 390;
 export const PDF_PAGE_H = 844;
-/** `/c/` inset on a 390px phone: clamp(24px, 6.1vw, 28px) − 3mm. */
+/** Sheet inset on a 390px phone: clamp(24px, 6.1vw, 28px) − 3mm. */
 export const PDF_PAD = 24 - (3 * 96) / 25.4;
+/** The app sheet sits 28px in. Text starts one sheet inset further, on the gutter. */
+export const PDF_SIDE = 28 + PDF_PAD;
 
 export type PdfBlock =
   | { kind: "header" }

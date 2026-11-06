@@ -308,6 +308,7 @@ export function PublicCardClient({
     );
   }
 
+  const webSheetSide = carouselSidePaddingPx(1, true);
   return (
     <div
       className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-white"
@@ -331,7 +332,10 @@ export function PublicCardClient({
         </div>
       ) : null}
       {pdfSheets}
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div
+        className="min-h-0 flex-1 overflow-hidden"
+        style={{ paddingLeft: webSheetSide, paddingRight: webSheetSide }}
+      >
         {sheet}
       </div>
       <AccountBand
