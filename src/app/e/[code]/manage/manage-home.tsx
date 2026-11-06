@@ -133,9 +133,9 @@ export function ManageHome({
     list.push({
       key: "stats",
       label: "Statistics",
-      entry: "Statistics",
+      entry: after ? "Statistics" : "After the event",
       path: "/manage/stats",
-      state: after ? `${after.came} came of ${after.total}` : <span className="text-[var(--grey)]">After the event</span>,
+      state: after ? `${after.came} came of ${after.total}` : null,
     });
   }
 
