@@ -21,7 +21,7 @@ import {
   markSessionBootstrapComplete,
 } from "@/shared/lib/session-bootstrap";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
-import { clearFillPlace } from "@/shared/lib/fill-place";
+import { clearFillPlace, readQuestionnaire } from "@/shared/lib/fill-place";
 import { useAppStore } from "@/shared/store/app-store";
 
 function restoreRegisteredOnboarding(isAnonymous: boolean) {
@@ -35,7 +35,14 @@ function restoreRegisteredOnboarding(isAnonymous: boolean) {
   useAppStore.setState({ user: { ...state.user, onboarded: true } });
 }
 
-async function acceptUser(user: User) {
+/** A named card means the questionnaire is finished. The portfolio draft stays. */
+function dropFinishedQuestionnaire() {
+  const hasCard = useAppStore.getState().cards.some((card) => card.displayName.trim().length > 0);
+  if (!hasCard || !readQuestionnaire()) return;
+  clearFillPlace();
+}
+
+function acceptUser(user: User) {
   if (user.is_anonymous && deviceWasRegistered()) {
     console.info("[supabase] anonymous session on a registered device");
     ignoreNextSignedOut();
@@ -50,10 +57,11 @@ async function acceptUser(user: User) {
   }
   restoreRegisteredOnboarding(Boolean(user.is_anonymous));
   console.info("[supabase] session", user.id, user.is_anonymous ? "trial" : "registered");
-  await hydrateCardsFromServer();
-  if (user.is_anonymous) return;
-  const hasCard = useAppStore.getState().cards.some((card) => card.displayName.trim().length > 0);
-  if (hasCard) clearFillPlace();
+  if (!user.is_anonymous) dropFinishedQuestionnaire();
+  // The portfolio paints from the cards already on the phone. The pull catches up after.
+  void hydrateCardsFromServer().then(() => {
+    if (!user.is_anonymous) dropFinishedQuestionnaire();
+  });
 }
 
 /** A dead session sends the owner to sign-in only from a working screen. A public card stays open. */
@@ -91,7 +99,7 @@ async function openAnonymous(supabase: SupabaseClient) {
     void hydrateCardsFromServer();
     return;
   }
-  await acceptUser(data.user);
+  acceptUser(data.user);
 }
 
 /** A card opened by the phone camera. The Safari or Chrome tab already holds the login. This page must not refresh it, sign it out, or replace it with a trial. */
@@ -140,7 +148,7 @@ export function SupabaseSession() {
           return;
         }
         if (existing.user) {
-          await acceptUser(existing.user);
+          acceptUser(existing.user);
           return;
         }
 
