@@ -12,7 +12,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 const ITEM =
   "press touch-manipulation flex h-full min-h-11 w-full items-center whitespace-nowrap border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
 
-/** Delete, Share back, and Home on an opened contact. Share back stays only while they do not have my card. */
+/** Delete, and either Share back with Home, or Home with Back once they already have my card. */
 export function ContactActions({
   id,
   token,
@@ -38,6 +38,7 @@ export function ContactActions({
 
   useEffect(() => {
     router.prefetch("/main");
+    router.prefetch("/network");
   }, [router]);
 
   useLayoutEffect(() => {
@@ -139,7 +140,15 @@ export function ContactActions({
             </span>
           }
           center={
-            shareShown ? (
+            theyHaveMe ? (
+              <TapButton
+                className={`${ITEM} justify-center`}
+                onPrepare={() => router.prefetch("/main")}
+                onTap={() => router.push("/main")}
+              >
+                Home
+              </TapButton>
+            ) : (
               <TapButton
                 className={`${ITEM} justify-center disabled:text-[var(--grey)]`}
                 disabled={shareShown === "sent" || busy}
@@ -161,18 +170,26 @@ export function ContactActions({
               >
                 {shareLabel}
               </TapButton>
-            ) : (
-              <span className="min-h-11 w-full" />
             )
           }
           right={
-            <TapButton
-              className={`${ITEM} justify-end`}
-              onPrepare={() => router.prefetch("/main")}
-              onTap={() => router.push("/main")}
-            >
-              Home
-            </TapButton>
+            theyHaveMe ? (
+              <TapButton
+                className={`${ITEM} justify-center`}
+                onPrepare={() => router.prefetch("/network")}
+                onTap={() => router.push("/network")}
+              >
+                Back
+              </TapButton>
+            ) : (
+              <TapButton
+                className={`${ITEM} justify-center`}
+                onPrepare={() => router.prefetch("/main")}
+                onTap={() => router.push("/main")}
+              >
+                Home
+              </TapButton>
+            )
           }
         />
       </div>

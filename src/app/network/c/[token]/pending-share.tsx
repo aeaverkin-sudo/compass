@@ -18,7 +18,6 @@ export function PendingShare({ id }: { id: string }) {
       <TabBand
         label="Request"
         left={<span className="min-h-11 w-full" />}
-        center={<span className="min-h-11 w-full" />}
         right={
           <TapButton className={`${ITEM} justify-end`} onTap={() => undoDecline(id)}>
             Undo
@@ -36,7 +35,6 @@ export function PendingShare({ id }: { id: string }) {
           Skip
         </TapButton>
       }
-      center={<span className="min-h-11 w-full" />}
       right={
         <TapButton className={`${ITEM} justify-end`} onTap={() => acceptConnection(id)}>
           Confirm

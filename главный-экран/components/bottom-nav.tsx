@@ -84,9 +84,7 @@ export const BottomNav = memo(function BottomNav({
         )
       }
       center={
-        editing ? (
-          <span className="min-h-11 w-full" />
-        ) : (
+        editing ? undefined : (
           <button
             type="button"
             className="flex h-full min-h-11 w-full items-center justify-center uppercase"
