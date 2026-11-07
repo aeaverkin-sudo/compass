@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 
 const CSS = `
@@ -67,6 +68,18 @@ const CSS = `
   linear-gradient(rgba(0,0,0,.26), rgba(0,0,0,0) 14%);}
 .pw-cta{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;justify-content:center;padding:4vw 0 calc(5vw + env(safe-area-inset-bottom));background:linear-gradient(rgba(183,180,174,0), rgba(183,180,174,.55));pointer-events:none;}
 .pw-go{position:fixed;left:8vw;bottom:calc(5vw + env(safe-area-inset-bottom));z-index:51;box-sizing:border-box;pointer-events:auto;display:block;width:84vw;background:#8ecae6;color:#fff;text-align:center;padding:4.6vw;font-size:4.4vw;font-weight:800;letter-spacing:.03em;text-decoration:none;box-shadow:0 1vw 3vw -.5vw rgba(0,0,0,.3);}
+.pw-about{position:fixed;top:calc(5vw + env(safe-area-inset-top));right:8vw;z-index:51;box-sizing:border-box;display:flex;align-items:center;justify-content:center;height:9vw;margin:0;padding:0 3.6vw;border:0;background:#8ecae6;color:#fff;font-family:inherit;font-size:3.6vw;font-weight:800;letter-spacing:.03em;line-height:1;text-transform:uppercase;cursor:pointer;-webkit-appearance:none;appearance:none;box-shadow:0 1vw 3vw -.5vw rgba(0,0,0,.3);}
+.pw-about::before{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%);}
+.pw-sheet{position:fixed;inset:0;z-index:60;background:#fff;color:#141210;}
+.pw-sheet-scroll{position:absolute;inset:0;overflow-y:auto;touch-action:auto;overscroll-behavior:contain;padding:calc(19vw + env(safe-area-inset-top)) 8vw calc(34vw + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;}
+.pw-sheet-bar{position:absolute;top:0;right:0;left:0;z-index:2;height:calc(19vw + env(safe-area-inset-top));background:#fff;pointer-events:none;}
+.pw-sheet-fade{position:absolute;right:0;bottom:0;left:0;z-index:2;height:34vw;background:linear-gradient(rgba(255,255,255,0),#fff);pointer-events:none;}
+.pw-ah{margin:0;font-size:9vw;font-weight:800;line-height:1.05;}
+.pw-alead{margin:3.2vw 0 0;font-size:4.2vw;font-weight:400;line-height:1.45;}
+.pw-asec{margin-top:7vw;}
+.pw-alabel{margin:0;font-size:3.4vw;font-weight:800;letter-spacing:.06em;line-height:1.2;text-transform:uppercase;}
+.pw-abody{margin:1.4vw 0 0;font-size:4.2vw;font-weight:400;line-height:1.45;}
+.pw-afoot{margin:7vw 0 0;font-size:4.2vw;font-weight:400;line-height:1.45;}
 `;
 
 function Mark({ big, light }: { big?: boolean; light?: boolean }) {
@@ -108,9 +121,14 @@ function Icon({ children }: { children: ReactNode }) {
 }
 
 export function PosterWallLanding() {
+  const router = useRouter();
   const view = useRef<HTMLDivElement>(null);
   const concrete = useRef<HTMLDivElement>(null);
   const wall = useRef<HTMLDivElement>(null);
+  const [about, setAbout] = useState(false);
+  const aboutMarker = useRef(false);
+  const aboutOpen = useRef(false);
+  aboutOpen.current = about;
 
   useEffect(() => {
     const content = concrete.current;
@@ -251,6 +269,10 @@ export function PosterWallLanding() {
 
     let frameId = 0;
     function frame() {
+      if (aboutOpen.current) {
+        frameId = window.requestAnimationFrame(frame);
+        return;
+      }
       if (!sized) measure();
       if (!dragging) {
         const turn = (Math.random() - 0.5) * 0.045;
@@ -302,6 +324,49 @@ export function PosterWallLanding() {
       window.removeEventListener("pointercancel", release);
     };
   }, []);
+
+  const openAbout = () => {
+    setAbout(true);
+    if (aboutMarker.current) return;
+    history.pushState({ compassAbout: 1 }, "");
+    aboutMarker.current = true;
+  };
+
+  const closeAbout = () => {
+    setAbout(false);
+    if (!aboutMarker.current) return;
+    aboutMarker.current = false;
+    if (history.state?.compassAbout) history.back();
+  };
+
+  const openCreate = (event: { preventDefault(): void }) => {
+    if (!aboutMarker.current) return;
+    event.preventDefault();
+    aboutMarker.current = false;
+    const go = () => router.push("/create");
+    if (history.state?.compassAbout) {
+      window.addEventListener(
+        "popstate",
+        () => {
+          window.setTimeout(go, 0);
+        },
+        { once: true },
+      );
+      history.back();
+      return;
+    }
+    go();
+  };
+
+  useEffect(() => {
+    if (!about) return;
+    const onPop = () => {
+      aboutMarker.current = false;
+      setAbout(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [about]);
 
   return (
     <div className="pw-root">
@@ -628,11 +693,59 @@ export function PosterWallLanding() {
         </div>
       </div>
       <div className="pw-lighting" />
-      <div className="pw-cta">
-        <Link href="/create" className="pw-go">
-          GET YOUR PORTFOLIO
-        </Link>
-      </div>
+      {about ? (
+        <div className="pw-sheet" role="dialog" aria-modal="true" aria-label="About">
+          <div className="pw-sheet-scroll">
+            <h1 className="pw-ah">Your web portfolio.</h1>
+            <p className="pw-alead">
+              One link for everything you do. Show your QR — people keep you on their phone.
+            </p>
+            <section className="pw-asec">
+              <h2 className="pw-alabel">Portfolio</h2>
+              <p className="pw-abody">
+                Put together a page about you: photo, name, role, links, files, contacts and any text you like. Make
+                up to three portfolios — from lifestyle to a business project — each with its own link and QR.
+              </p>
+            </section>
+            <section className="pw-asec">
+              <h2 className="pw-alabel">Share</h2>
+              <p className="pw-abody">
+                Show your QR — it opens with the phone camera, no app needed. Add your card to Apple Wallet to keep it
+                at hand. Send it as a web card or as a PDF with live links.
+              </p>
+            </section>
+            <section className="pw-asec">
+              <h2 className="pw-alabel">Network</h2>
+              <p className="pw-abody">
+                Scan someone&apos;s QR and their card is saved in your Network. Everyone you scanned, and everyone who
+                shared a card with you, in one list. Search by name, role or company.
+              </p>
+            </section>
+            <p className="pw-afoot">
+              Works in your browser. Add it to your home screen and it opens like an app.
+            </p>
+          </div>
+          <div className="pw-sheet-bar" />
+          <button type="button" className="pw-about" onClick={closeAbout} onPointerDown={(event) => event.stopPropagation()}>
+            Close
+          </button>
+          <div className="pw-sheet-fade" />
+          <Link href="/create" className="pw-go" onClick={openCreate}>
+            GET YOUR PORTFOLIO
+          </Link>
+        </div>
+      ) : (
+        <button type="button" className="pw-about" onClick={openAbout} onPointerDown={(event) => event.stopPropagation()}>
+          About
+        </button>
+      )}
+      {about ? null : (
+        <div className="pw-cta">
+          <Link href="/create" className="pw-go">
+            GET YOUR PORTFOLIO
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
