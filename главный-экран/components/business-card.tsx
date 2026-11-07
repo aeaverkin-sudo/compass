@@ -46,7 +46,7 @@ const HERO_PHOTO_PX = 128;
 /** Apple's registration arrives after the file opens. A few reads, then stop. */
 const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
-/** Under the last line, on the value column. The tab bar stays below the card. */
+/** Under the last line, centered on the screen. The tab bar stays below the card. */
 function AddToWallet({ cardId }: { cardId: string }) {
   const [toast, setToast] = useState(false);
   const [status, setStatus] = useState<"unknown" | "add" | "in">("unknown");
@@ -102,8 +102,7 @@ function AddToWallet({ cardId }: { cardId: string }) {
   return (
     <>
       <section className="border-t border-[var(--rule)] pt-[10px] pb-[18px]">
-        <div className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
-          <span />
+        <div className="flex justify-center">
           {status === "unknown" ? (
             <p aria-hidden className="invisible inline-flex items-center py-[10.8px] t-caps">
               IN WALLET

@@ -513,6 +513,7 @@ export function MainScreen() {
               fontSize: (MARK_VISIBLE_PX * RAIL_ICON_SCALE) / 0.714,
               fontWeight: 400,
               textTransform: "none",
+              clipPath: "inset(0 0 0.18em 0)",
             }}
           >
             i
