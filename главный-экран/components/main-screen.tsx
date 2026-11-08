@@ -39,7 +39,7 @@ import type { Card } from "@/shared/types";
 
 const PASS_ADD_HINT = "Complete your pass: add links, your role, socials or a portfolio file.";
 const PHOTO_MISSED_KEY = "aded-photo-missed";
-const PHOTO_MISSED = "Photo didn't upload. Add it again in Edit.";
+const PHOTO_MISSED = "Photo didn't upload. Try again in Edit.";
 const photoMissedListeners = new Set<() => void>();
 let photoMissedHeld = false;
 
