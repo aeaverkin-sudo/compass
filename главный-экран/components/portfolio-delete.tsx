@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { dropPendingCardUpsert } from "@/shared/services/card-sync";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
 
@@ -37,6 +38,13 @@ export function PortfolioDeleteDialog({
     setError(null);
     try {
       const response = await fetch(`/api/cards/${encodeURIComponent(card.id)}`, { method: "DELETE" });
+      if (response.status === 404) {
+        dropPendingCardUpsert(card.id);
+        removeCard(card.id);
+        setBusy(false);
+        onOpenChange(false);
+        return;
+      }
       const body = (await response.json()) as { error?: string };
       if (!response.ok) {
         setError(body.error ?? "Could not delete the portfolio.");
