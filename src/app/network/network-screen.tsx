@@ -312,75 +312,77 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     >
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
-        <ScreenHeader title="Network" fallbackHref="/main" onBack={() => router.push("/main")} />
-        <Zone
-          label={<Search className="size-4 text-[#111]" strokeWidth={1.5} aria-hidden />}
-          rule
-          align="center"
-        >
-          <div className="flex items-center">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Name, role, company"
-              aria-label="Name, role, company"
-              className="min-w-0 flex-1 bg-transparent t-body outline-none placeholder:text-[var(--placeholder)]"
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                aria-label="Sort"
-                className="inline-flex size-8 items-center justify-center border-0 bg-transparent text-[#111]"
-              >
-                <SlidersHorizontal className="size-4" strokeWidth={1.5} />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {SORTS.map((item) => (
-                  <DropdownMenuItem
-                    key={item.id}
-                    className={sort === item.id ? "font-normal" : undefined}
-                    onSelect={() => setSort(item.id)}
-                  >
-                    {item.label}
-                  </DropdownMenuItem>
+        <div className="network-scroll-spring">
+          <ScreenHeader title="Network" fallbackHref="/main" onBack={() => router.push("/main")} />
+          <Zone
+            label={<Search className="size-4 text-[#111]" strokeWidth={1.5} aria-hidden />}
+            rule
+            align="center"
+          >
+            <div className="flex items-center">
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Name, role, company"
+                aria-label="Name, role, company"
+                className="min-w-0 flex-1 bg-transparent t-body outline-none placeholder:text-[var(--placeholder)]"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label="Sort"
+                  className="inline-flex size-8 items-center justify-center border-0 bg-transparent text-[#111]"
+                >
+                  <SlidersHorizontal className="size-4" strokeWidth={1.5} />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {SORTS.map((item) => (
+                    <DropdownMenuItem
+                      key={item.id}
+                      className={sort === item.id ? "font-normal" : undefined}
+                      onSelect={() => setSort(item.id)}
+                    >
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </Zone>
+          {requests.length > 0 ? (
+            <section className="pt-4">
+              <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Shared their card with you</p>
+              <ul>
+                {requests.map((contact) => (
+                  <ContactRow key={contact.id} contact={contact} veiled onHold={(box) => openMenu(contact, box)} />
                 ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </Zone>
-        {requests.length > 0 ? (
-          <section className="pt-4">
-            <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Shared their card with you</p>
-            <ul>
-              {requests.map((contact) => (
-                <ContactRow key={contact.id} contact={contact} veiled onHold={(box) => openMenu(contact, box)} />
-              ))}
-            </ul>
-          </section>
-        ) : null}
-        {loadError && (contacts == null || contacts.length === 0) ? (
-          <div className="flex justify-center pt-4">
-            <button
-              type="button"
-              aria-label="Try again"
-              onClick={() => void load()}
-              className="flex size-11 items-center justify-center border-0 bg-transparent p-0 text-[var(--grey)] [&_svg_*]:[vector-effect:non-scaling-stroke]"
-            >
-              <RotateCw size={MARK_PX * RAIL_ICON_SCALE} strokeWidth={RAIL_STROKE_PX} aria-hidden />
-            </button>
-          </div>
-        ) : empty ? (
-          <section className="pt-4">
-            <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Contacts</p>
-            <p className="t-body text-[var(--grey)]">No contacts yet.</p>
-            <p className="mt-1 t-meta text-[var(--grey)]">Exchange a card and your first contact appears here.</p>
-          </section>
-        ) : people.length > 0 ? (
-          sort === "alphabet" ? (
-            <AlphabetList contacts={people} onHold={openMenu} />
-          ) : (
-            <FlatList contacts={groupAccepted(people)} onHold={openMenu} />
-          )
-        ) : null}
+              </ul>
+            </section>
+          ) : null}
+          {loadError && (contacts == null || contacts.length === 0) ? (
+            <div className="flex justify-center pt-4">
+              <button
+                type="button"
+                aria-label="Try again"
+                onClick={() => void load()}
+                className="flex size-11 items-center justify-center border-0 bg-transparent p-0 text-[var(--grey)] [&_svg_*]:[vector-effect:non-scaling-stroke]"
+              >
+                <RotateCw size={MARK_PX * RAIL_ICON_SCALE} strokeWidth={RAIL_STROKE_PX} aria-hidden />
+              </button>
+            </div>
+          ) : empty ? (
+            <section className="pt-4">
+              <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Contacts</p>
+              <p className="t-body text-[var(--grey)]">No contacts yet.</p>
+              <p className="mt-1 t-meta text-[var(--grey)]">Exchange a card and your first contact appears here.</p>
+            </section>
+          ) : people.length > 0 ? (
+            sort === "alphabet" ? (
+              <AlphabetList contacts={people} onHold={openMenu} />
+            ) : (
+              <FlatList contacts={groupAccepted(people)} onHold={openMenu} />
+            )
+          ) : null}
+        </div>
       </div>
 
       <NetworkBand current="network" />
