@@ -301,7 +301,9 @@ export async function hydrateCardItems() {
 
   const { useAppStore } = await import("@/shared/store/app-store");
   const state = useAppStore.getState();
-  const rekeyed = rekeyContactItems(state.cards, state.contactItems);
+  const seenCards = state.cards;
+  const seenItems = state.contactItems;
+  const rekeyed = rekeyContactItems(seenCards, seenItems);
 
   const supabase = createBrowserSupabaseClient();
   const { data: itemData, error: itemError } = await supabase
@@ -373,6 +375,10 @@ export async function hydrateCardItems() {
     const localOnly = mapped.contactItemIds.filter((id) => !remoteSet.has(id) && (!remoteById.has(id) || joined.has(id)));
     return { ...mapped, contactItemIds: [...remoteIds, ...localOnly] };
   });
+
+  if ((await ownerId()) !== userId) return;
+  const live = useAppStore.getState();
+  if (live.cards !== seenCards || live.contactItems !== seenItems) return;
 
   useAppStore.setState({ cards, contactItems: items });
 
