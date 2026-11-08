@@ -21,7 +21,7 @@ interface UploadStatusState {
   byItem: Record<string, FileRowStatus>;
   notice: { id: number; text: string } | null;
   setStatus: (itemId: string, status: FileRowStatus | null) => void;
-  /** Failed row plus the reason as a toast. */
+  /** The row failed. The reason stays in the log, not on screen. */
   fail: (itemId: string, reason: string) => void;
   notify: (text: string) => void;
   clearNotice: () => void;
@@ -37,11 +37,12 @@ export const useUploadStatus = create<UploadStatusState>()((set) => ({
       else delete byItem[itemId];
       return { byItem };
     }),
-  fail: (itemId, reason) =>
+  fail: (itemId, reason) => {
+    console.error("[upload]", reason);
     set((state) => ({
       byItem: { ...state.byItem, [itemId]: { state: "failed" } },
-      notice: { id: Date.now(), text: reason },
-    })),
+    }));
+  },
   notify: (text) => set({ notice: { id: Date.now(), text } }),
   clearNotice: () => set({ notice: null }),
 }));
