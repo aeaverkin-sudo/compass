@@ -24,6 +24,9 @@ function isDoor(path: string) {
   if (pathname === "/auth" || pathname.startsWith("/auth/")) return true;
   if (pathname === "/save" || pathname.startsWith("/save/")) return true;
   if (pathname === "/wallet/add" || pathname.startsWith("/wallet/add/")) return true;
+  if (/^\/e\/[^/]+(?:\/|$)/.test(pathname) && !/^\/e\/[^/]+\/manage(?:\/|$)/.test(pathname)) return true;
+  if (pathname.startsWith("/account/")) return true;
+  if (pathname === "/try") return true;
   return false;
 }
 
