@@ -6,9 +6,8 @@ import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { AccountBand } from "@/shared/components/account-band";
-import { SkyToast } from "@/shared/components/sky-toast";
 import { TapButton } from "@/shared/components/tap-button";
-import { cachedWalletStatus, cardInWallet, openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { cachedWalletStatus, cardInWallet, openWalletPass, walletIsConfigured } from "@/shared/lib/wallet-client";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import { PDF_SIDE, pdfBlockPlan, pdfNotesPresent } from "@/shared/services/pdf-pages";
 import { useAppStore } from "@/shared/store/app-store";
@@ -48,8 +47,8 @@ const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
 /** Under the last line, centered on the screen. The tab bar stays below the card. */
 function AddToWallet({ cardId }: { cardId: string }) {
-  const [toast, setToast] = useState(false);
-  const [status, setStatus] = useState<"unknown" | "add" | "in">("unknown");
+  const [off, setOff] = useState(false);
+  const [status, setStatus] = useState<"add" | "in">("add");
   const read = useRef(0);
   const pollGen = useRef(0);
   const polls = useRef<number[]>([]);
@@ -59,7 +58,7 @@ function AddToWallet({ cardId }: { cardId: string }) {
   }, []);
   useLayoutEffect(() => {
     const known = cachedWalletStatus(cardId);
-    setStatus(known === true ? "in" : known === false ? "add" : "unknown");
+    setStatus(known === true ? "in" : "add");
   }, [cardId]);
   const refresh = useCallback(() => {
     const ticket = ++read.current;
@@ -81,11 +80,21 @@ function AddToWallet({ cardId }: { cardId: string }) {
   }, [apply, cardId]);
   useEffect(() => {
     let returnTimer = 0;
+    const readConfigured = () => {
+      void walletIsConfigured().then((ready) => {
+        if (ready === false) setOff(true);
+        else if (ready === true) setOff(false);
+      });
+    };
     refresh();
+    readConfigured();
     const onReturn = () => {
       if (document.visibilityState === "hidden") return;
       window.clearTimeout(returnTimer);
-      returnTimer = window.setTimeout(refresh, 300);
+      returnTimer = window.setTimeout(() => {
+        refresh();
+        readConfigured();
+      }, 300);
     };
     document.addEventListener("visibilitychange", onReturn);
     window.addEventListener("focus", onReturn);
@@ -99,39 +108,30 @@ function AddToWallet({ cardId }: { cardId: string }) {
       window.removeEventListener("focus", onReturn);
     };
   }, [refresh]);
+  if (off && status !== "in") return null;
   return (
-    <>
-      <section className="border-t border-[var(--rule)] pt-[10px] pb-[18px]">
-        <div className="flex justify-center">
-          {status === "unknown" ? (
-            <p aria-hidden className="invisible inline-flex items-center py-[10.8px] t-caps">
-              IN WALLET
-            </p>
-          ) : status === "in" ? (
-            <p className="inline-flex items-center py-[10.8px] t-caps text-[var(--grey)]">IN WALLET</p>
-          ) : (
-            <TapButton
-              data-card-content
-              data-no-swipe
-              onTap={() => {
-                void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
-                  if (!opened) {
-                    setToast(true);
-                    return;
-                  }
-                  watchRegistration();
-                });
-              }}
-              className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
-            >
-              <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
-              Add to Wallet
-            </TapButton>
-          )}
-        </div>
-      </section>
-      {toast ? <SkyToast text={WALLET_SOON} onDone={() => setToast(false)} /> : null}
-    </>
+    <section className="border-t border-[var(--rule)] pt-[10px] pb-[18px]">
+      <div className="flex justify-center">
+        {status === "in" ? (
+          <p className="inline-flex items-center py-[10.8px] t-caps text-[var(--grey)]">IN WALLET</p>
+        ) : (
+          <TapButton
+            data-card-content
+            data-no-swipe
+            onTap={() => {
+              void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
+                if (!opened) return;
+                watchRegistration();
+              });
+            }}
+            className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
+          >
+            <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
+            Add to Wallet
+          </TapButton>
+        )}
+      </div>
+    </section>
   );
 }
 

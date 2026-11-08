@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { openWalletPass, WALLET_RECHECK_MS, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { openWalletPass, WALLET_RECHECK_MS } from "@/shared/lib/wallet-client";
 
 type View = "load" | "expired" | "soon" | "in" | "add" | "error";
 
@@ -94,10 +94,7 @@ export function WalletAddScreen({
 
   const add = () => {
     void openWalletPass(passUrl(cardId, expires, signature)).then((opened) => {
-      if (!opened) {
-        setView("soon");
-        return;
-      }
+      if (!opened) return;
       for (const delay of WALLET_RECHECK_MS) {
         const timer = window.setTimeout(() => {
           void fetch(statusUrl(cardId, expires, signature), { cache: "no-store" })
@@ -134,7 +131,7 @@ export function WalletAddScreen({
           </button>
         </>
       ) : null}
-      {view === "soon" ? <p className="mt-[18px] t-body">{WALLET_SOON}</p> : null}
+      {view === "soon" ? <p className="mt-[18px] t-body">Wallet is unavailable right now.</p> : null}
       {view === "expired" ? (
         <>
           <h1 className="mt-[18px] t-body">This link has expired.</h1>

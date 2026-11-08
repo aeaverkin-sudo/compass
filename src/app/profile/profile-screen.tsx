@@ -8,8 +8,7 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
-import { SkyToast } from "@/shared/components/sky-toast";
-import { cachedWalletStatus, cardInWallet, forgetWalletStatus, openWalletPass, WALLET_RECHECK_MS, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { cachedWalletStatus, cardInWallet, forgetWalletStatus, openWalletPass, walletIsConfigured, WALLET_RECHECK_MS } from "@/shared/lib/wallet-client";
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountRead } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
@@ -165,7 +164,7 @@ export function ProfileScreen() {
   const creatingPortfolio = useRef(false);
   const [portfolioBusy, setPortfolioBusy] = useState(false);
   const [portfoliosOpen, setPortfoliosOpen] = useState(true);
-  const [walletNotice, setWalletNotice] = useState<string | null>(null);
+  const [walletOff, setWalletOff] = useState(false);
   const [inWallet, setInWallet] = useState<Record<string, boolean>>({});
   const walletBusy = useRef(false);
   const walletRead = useRef(new Map<string, number>());
@@ -256,10 +255,7 @@ export function ProfileScreen() {
     walletBusy.current = true;
     void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`)
       .then((opened) => {
-        if (!opened) {
-          setWalletNotice(WALLET_SOON);
-          return;
-        }
+        if (!opened) return;
         watchWallet(cardId);
       })
       .finally(() => {
@@ -280,12 +276,22 @@ export function ProfileScreen() {
         });
       }
     };
+    const readConfigured = () => {
+      void walletIsConfigured().then((ready) => {
+        if (ready === false) setWalletOff(true);
+        else if (ready === true) setWalletOff(false);
+      });
+    };
     refresh();
+    readConfigured();
     let returnTimer = 0;
     const onReturn = () => {
       if (document.visibilityState === "hidden") return;
       window.clearTimeout(returnTimer);
-      returnTimer = window.setTimeout(refresh, 300);
+      returnTimer = window.setTimeout(() => {
+        refresh();
+        readConfigured();
+      }, 300);
     };
     document.addEventListener("visibilitychange", onReturn);
     window.addEventListener("focus", onReturn);
@@ -466,9 +472,9 @@ export function ProfileScreen() {
                     {card.displayName.trim() || "Untitled"}
                   </p>
                   {ready ? (
-                    inWallet[card.id] === true ? (
+                    walletOff && inWallet[card.id] !== true ? null : inWallet[card.id] === true ? (
                       <p className="mt-1 t-label">IN WALLET</p>
-                    ) : inWallet[card.id] === false ? (
+                    ) : (
                       <button
                         type="button"
                         onClick={() => putInWallet(card.id)}
@@ -476,10 +482,6 @@ export function ProfileScreen() {
                       >
                         PUT IN WALLET
                       </button>
-                    ) : (
-                      <p aria-hidden className="invisible mt-1 t-label">
-                        IN WALLET
-                      </p>
                     )
                   ) : (
                     <p className="mt-1 t-meta text-[var(--ink)]">Inactive until you add a name.</p>
@@ -594,7 +596,6 @@ export function ProfileScreen() {
           </a>
         </p>
       </Zone>
-      {walletNotice ? <SkyToast text={walletNotice} onDone={() => setWalletNotice(null)} /> : null}
     </ProfileShell>
   );
 }

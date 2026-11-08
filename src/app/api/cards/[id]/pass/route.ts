@@ -17,6 +17,10 @@ function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+function empty(status = 200) {
+  return new NextResponse(null, { status, headers: { "Cache-Control": "no-store" } });
+}
+
 /** The signed mail link names the card; its owner comes from the card. */
 async function signedOwner(request: Request, cardId: string): Promise<string | null> {
   const params = new URL(request.url).searchParams;
@@ -51,4 +55,35 @@ export async function GET(request: Request, context: RouteProps) {
     console.error("[wallet] personal", error instanceof Error ? error.message : error);
     return noStore({ error: "Could not make the pass." }, 500);
   }
+}
+
+/** Same door as GET, without building the pass file. */
+export async function HEAD(request: Request, context: RouteProps) {
+  if (!walletConfigured()) return empty(503);
+  const { id } = await context.params;
+  if (!UUID.test(id)) return empty(404);
+  const signed = new URL(request.url).searchParams.has("s");
+  let ownerId: string | null;
+  if (signed) {
+    ownerId = await signedOwner(request, id).catch(() => null);
+    if (!ownerId) return empty(403);
+  } else {
+    const owner = await requireOwnerId();
+    if (!owner.ok) return empty(owner.status);
+    ownerId = owner.id;
+  }
+  try {
+    const found = await createAdminSupabaseClient()
+      .from("cards")
+      .select("id")
+      .eq("id", id)
+      .eq("owner_id", ownerId)
+      .maybeSingle();
+    if (found.error) throw new Error(found.error.message);
+    if (!found.data) return empty(404);
+  } catch (error) {
+    console.error("[wallet] personal", error instanceof Error ? error.message : error);
+    return empty(500);
+  }
+  return empty(200);
 }

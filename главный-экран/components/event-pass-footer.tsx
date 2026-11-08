@@ -4,10 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
 import { TapButton } from "@/shared/components/tap-button";
-import { SkyToast } from "@/shared/components/sky-toast";
 import { deletionLine } from "@/shared/lib/deletion-date";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { openWalletPass, WALLET_SOON } from "@/shared/lib/wallet-client";
+import { openWalletPass } from "@/shared/lib/wallet-client";
 import { useAppStore } from "@/shared/store/app-store";
 
 const FIELD =
@@ -99,7 +98,6 @@ export function EventPassFooter({
   needsEmail: boolean;
   pendingEmail: string | null;
 }) {
-  const [toast, setToast] = useState(false);
   const deletion = deletionLine(deleteAt);
 
   return (
@@ -138,8 +136,8 @@ export function EventPassFooter({
               onTap={() => {
                 const { cards, currentCardIndex } = useAppStore.getState();
                 const card = cards[currentCardIndex] ?? cards[0];
-                if (!card) return setToast(true);
-                void openWalletPass(`/api/cards/${card.id}/pass`).then((opened) => setToast(!opened));
+                if (!card) return;
+                void openWalletPass(`/api/cards/${card.id}/pass`);
               }}
               className="press border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
             >
@@ -151,7 +149,6 @@ export function EventPassFooter({
           </p>
         </>
       )}
-      {toast ? <SkyToast text={WALLET_SOON} onDone={() => setToast(false)} /> : null}
     </div>
   );
 }
