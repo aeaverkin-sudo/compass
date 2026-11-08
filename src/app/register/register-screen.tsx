@@ -48,7 +48,6 @@ function rememberLocal() {
 
 function clearLocal() {
   const user = useAppStore.getState().user;
-  forgetLibraryOwner();
   useAppStore.setState({
     cards: [],
     contactItems: [],
@@ -69,6 +68,7 @@ async function enterExistingAccount(signIn: () => Promise<string | null>) {
     useAppStore.setState(snapshot);
     return error;
   }
+  forgetLibraryOwner();
   markRegisteredDevice();
   clearFillPlace();
   clearSignInEmail();
