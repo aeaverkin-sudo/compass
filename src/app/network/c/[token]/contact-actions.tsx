@@ -110,9 +110,9 @@ export function ContactActions({
 
   const shareCard = async (card: SharePickCard) => {
     const sent = await sendShareBack(token, card.id);
-    if (!sent) return;
+    if (sent === "failed") return;
     setPicking(false);
-    setNotice(`${card.name} shared back`);
+    setNotice(sent === "declined" ? "Not accepting swaps." : `${card.name} shared back`);
   };
 
   return (

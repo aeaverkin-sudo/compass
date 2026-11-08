@@ -293,10 +293,10 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     const contact = menuContact;
     if (!contact) return;
     const sent = await sendShareBack(contact.savedCardToken, card.id);
-    if (!sent) return;
+    if (sent === "failed") return;
     setPickUp(false);
     setMenu(null);
-    setNotice(`${card.name} shared back`);
+    setNotice(sent === "declined" ? "Not accepting swaps." : `${card.name} shared back`);
   };
 
   const pressMenu = (run: () => void) => {

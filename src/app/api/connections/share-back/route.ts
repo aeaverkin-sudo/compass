@@ -14,9 +14,8 @@ function noStore(body: unknown, status = 200) {
 
 /**
  * Share back: my card is offered to the other person's book.
- * It arrives pending, unless they turned shared-back cards off — then nothing is written.
+ * It arrives pending. If they turned shared-back cards off, nothing is written and the answer says declined.
  * The browser cannot write it: that row's owner_id is not the viewer. A row already there stays.
- * The sender gets the same { ok: true } either way.
  */
 export async function POST(request: Request) {
   const owner = await requireOwnerId();
@@ -70,7 +69,7 @@ export async function POST(request: Request) {
     if (profile.error) {
       if (!/accept_share_back/i.test(profile.error.message)) throw new Error(profile.error.message);
     } else if (profile.data?.accept_share_back === false) {
-      return noStore({ ok: true, pendingId: null });
+      return noStore({ ok: true, pendingId: null, declined: true });
     }
 
     const inserted = await saveConnection({

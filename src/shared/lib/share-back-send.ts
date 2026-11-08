@@ -55,49 +55,53 @@ export function forgetShareBack(token: string) {
 const inflight = new Set<string>();
 const AGAIN_MS = 1500;
 
-async function postShare(token: string, cardId?: string): Promise<boolean> {
+export type ShareResult = "sent" | "declined" | "failed";
+
+async function postShare(token: string, cardId?: string): Promise<ShareResult> {
   let fromCardId = cardId?.trim() ?? "";
   if (!fromCardId) {
     const primary = await fetch("/api/cards/primary", { cache: "no-store" });
-    if (!primary.ok) return false;
+    if (!primary.ok) return "failed";
     const card = (await primary.json()) as { cardId?: string | null };
     fromCardId = card.cardId ?? "";
   }
-  if (!fromCardId) return false;
+  if (!fromCardId) return "failed";
   const response = await fetch("/api/connections/share-back", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fromCardId, toCardToken: token }),
   });
-  return response.ok;
+  if (!response.ok) return "failed";
+  const body = (await response.json().catch(() => null)) as { declined?: unknown } | null;
+  return body?.declined === true ? "declined" : "sent";
 }
 
 /**
  * Send one of my cards. `cardId` is the one they picked; without it, the primary card goes.
- * The button becomes Shared back at once. This path has no Undo — the toast is the confirmation.
+ * Sent marks the button. Declined does not: they are not taking cards. A failure can be tried once more.
  */
-export async function sendShareBack(token: string, cardId?: string): Promise<boolean> {
-  if (!token || shareBackPhase(token) !== "idle" || inflight.has(token)) return false;
+export async function sendShareBack(token: string, cardId?: string): Promise<ShareResult> {
+  if (!token || shareBackPhase(token) !== "idle" || inflight.has(token)) return "failed";
   inflight.add(token);
   try {
-    let sent = false;
+    let result: ShareResult = "failed";
     try {
-      sent = await postShare(token, cardId);
+      result = await postShare(token, cardId);
     } catch {
-      sent = false;
+      result = "failed";
     }
-    if (!sent) {
+    if (result === "failed") {
       await new Promise((resolve) => window.setTimeout(resolve, AGAIN_MS));
       try {
-        sent = await postShare(token, cardId);
+        result = await postShare(token, cardId);
       } catch {
-        sent = false;
+        result = "failed";
       }
     }
-    if (!sent) return false;
+    if (result !== "sent") return result;
     live.set(token, { phase: "sent" });
     publish();
-    return true;
+    return "sent";
   } finally {
     inflight.delete(token);
   }
