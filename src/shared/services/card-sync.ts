@@ -376,6 +376,11 @@ export async function upsertCardScalars(card: Card): Promise<"ok" | "foreign" | 
 
     if (error) {
       console.error("[card-sync] upsert failed", error.message);
+      if (error.code === "AD301" && /card_tombstone/i.test(error.message)) {
+        const { useAppStore } = await import("@/shared/store/app-store");
+        useAppStore.getState().removeCard(card.id);
+        return "skip";
+      }
       if (foreignCardWrite(error)) return "foreign";
     }
     return "skip";
