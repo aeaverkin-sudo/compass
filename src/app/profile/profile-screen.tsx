@@ -21,7 +21,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, forgetLibraryOwner } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
-import { isCardReady, useAppStore } from "@/shared/store/app-store";
+import { canAddMoreCards, isCardReady, useAppStore } from "@/shared/store/app-store";
 import { cn } from "@/lib/utils";
 
 const ZONE_VALUE =
@@ -161,8 +161,9 @@ export function ProfileScreen() {
   const monochrome = useAppStore((state) => state.user.monochrome);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
   const portfolioLimit = account?.portfolioLimit ?? null;
-  const atCardLimit = portfolioLimit !== null && cards.length >= portfolioLimit;
   const [busy, setBusy] = useState(false);
+  const creatingPortfolio = useRef(false);
+  const [portfolioBusy, setPortfolioBusy] = useState(false);
   const [portfoliosOpen, setPortfoliosOpen] = useState(true);
   const [walletNotice, setWalletNotice] = useState<string | null>(null);
   const [inWallet, setInWallet] = useState<Record<string, boolean>>({});
@@ -486,11 +487,13 @@ export function ProfileScreen() {
         ) : null}
         <button
           type="button"
-          disabled={atCardLimit || portfolioLimit === null}
+          disabled={!canAddMoreCards(cards, portfolioLimit) || portfolioBusy}
           className="border-0 bg-sky px-[21.6px] py-[10.8px] t-label text-[var(--ink)] disabled:opacity-40"
           style={{ color: "var(--ink)" }}
           onClick={() => {
-            if (portfolioLimit === null) return;
+            if (creatingPortfolio.current || portfolioLimit === null || !canAddMoreCards(cards, portfolioLimit)) return;
+            creatingPortfolio.current = true;
+            setPortfolioBusy(true);
             updateSecondCardDraft({ displayName: "" }, portfolioLimit);
             router.push("/main");
           }}
