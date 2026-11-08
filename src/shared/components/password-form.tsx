@@ -50,7 +50,10 @@ export function PasswordForm({ title, hint, fallbackHref, recovery = false }: Pa
       }
     }
     const { error } = await supabase.auth.updateUser({ password: password.trim() });
-    if (!error) await fetch("/api/account/password-set", { method: "POST" }).catch(() => undefined);
+    if (!error) {
+      await supabase.auth.signOut({ scope: "others" }).catch(() => undefined);
+      await fetch("/api/account/password-set", { method: "POST" }).catch(() => undefined);
+    }
     setBusy(false);
     if (error) {
       setMessage(error.message);
