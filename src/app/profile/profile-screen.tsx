@@ -547,29 +547,14 @@ export function ProfileScreen() {
       </Zone>
 
       <Zone label="Manage" rule>
-        <p className={ZONE_VALUE}>
-          {account.provider === "email" ? (
+        {account.provider === "email" ? (
+          <p className={ZONE_VALUE}>
             <Link href="/account/email" className="underline">
               Change email
             </Link>
-          ) : (
-            <button type="button" disabled className="underline disabled:opacity-40">
-              Change email
-            </button>
-          )}
-        </p>
-        {account.provider === "email" || eventPass ? null : (
-          <p className="mt-1 t-meta text-[var(--ink)]">Coming soon</p>
-        )}
-        <div className="hidden">
-          <p className="mt-3 t-body">
-            <button type="button" disabled className="underline disabled:opacity-40">
-              Export my data
-            </button>
           </p>
-          <p className="mt-1 t-meta text-[var(--ink)]">Coming soon</p>
-        </div>
-        <p className="mt-3 t-body">
+        ) : null}
+        <p className={account.provider === "email" ? "mt-3 t-body" : ZONE_VALUE}>
           <Link href="/account/delete" className="underline">
             Delete account
           </Link>
