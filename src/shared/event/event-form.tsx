@@ -332,6 +332,13 @@ export function EventForm({
 
   const changeWhen = (epoch: number, patch: Partial<Pick<EventFormValues, "date" | "time" | "endTime">>) => {
     if (epoch !== whenEpoch.current) return;
+    if (Object.values(patch).some((value) => value === "")) {
+      whenEpoch.current += 1;
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      setWhen(patch);
+      setWhenKey(whenEpoch.current);
+      return;
+    }
     setWhen(patch);
   };
 
@@ -446,14 +453,15 @@ export function EventForm({
               width="5ch"
             />
           </div>
-          {values.date || values.time || values.endTime ? (
-            <TapButton
-              onTap={resetWhen}
-              className="press relative z-10 ml-auto border-0 bg-transparent p-0 t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
-            >
-              Reset
-            </TapButton>
-          ) : null}
+          <TapButton
+            onTap={resetWhen}
+            aria-hidden={!values.date && !values.time && !values.endTime}
+            className={`press relative z-10 ml-auto border-0 bg-transparent p-0 t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]${
+              !values.date && !values.time && !values.endTime ? " opacity-0" : ""
+            }`}
+          >
+            Reset
+          </TapButton>
         </div>
       </Zone>
       <Zone label="Time zone" rule onClick={(event) => focusField(event, zoneRef.current)}>
