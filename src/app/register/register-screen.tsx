@@ -11,7 +11,7 @@ import { Rule } from "@/shared/components/rule";
 import { Zone } from "@/shared/components/zone";
 import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
-import { questionnaireHref } from "@/app/create/door";
+import { doorNext, questionnaireHref } from "@/app/create/door";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
@@ -314,7 +314,8 @@ export function RegisterScreen() {
     }
     rememberAccountEmail(signInEmail);
     clearFillPlace();
-    router.push(nextPath);
+    if (nextPath === "/main") router.replace(nextPath);
+    else router.push(nextPath);
   };
 
   const forgotPassword = async () => {
@@ -343,7 +344,10 @@ export function RegisterScreen() {
   if (signinOnly) {
     return (
       <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-        <BackButton fallbackHref="/" />
+        <BackButton
+          fallbackHref="/"
+          onBack={doorNext(params.get("next")) ? undefined : () => router.replace("/")}
+        />
         <AuthModeToggle
           mode="in"
           signUpHref={questionnaireHref(params.get("next"), params.get("email"))}

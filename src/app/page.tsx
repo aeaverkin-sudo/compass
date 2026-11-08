@@ -27,12 +27,16 @@ export default function Home() {
   useEffect(() => {
     if (installed !== true) return;
     const href = homeEntryHref({ hydrated, sessionReady, cardsReady, needsSignIn, onboarded, cards });
-    if (!href || href === "/create") return;
+    // A signed-out phone stays on the landing. The button opens Sign in.
+    if (!href || href === "/create" || href.startsWith("/register")) return;
     if (href === "/main") noteTrialCardStarted();
     router.replace(href);
   }, [installed, hydrated, sessionReady, cardsReady, needsSignIn, onboarded, cards, router]);
 
   if (installed === false) return <PosterWallLanding />;
-  if (installed === true && homeEntryHref(gate) === "/create") return <PosterWallLanding />;
+  if (installed === true) {
+    const href = homeEntryHref(gate);
+    if (href === "/create" || href?.startsWith("/register")) return <PosterWallLanding />;
+  }
   return <div className="fixed inset-0 bg-white" aria-hidden />;
 }

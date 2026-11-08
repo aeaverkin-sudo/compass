@@ -15,7 +15,8 @@ import { useAccountRead } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { APP_VERSION, SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { deletionLine } from "@/shared/lib/deletion-date";
-import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
+import { ignoreNextSignedOut, markRegistrationRequired } from "@/shared/lib/session-bootstrap";
+import { signInPath } from "@/shared/lib/registered-device";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, forgetLibraryOwner } from "@/shared/services/card-sync";
@@ -195,7 +196,8 @@ export function ProfileScreen() {
     }
     ignoreNextSignedOut();
     await createBrowserSupabaseClient().auth.signOut();
-    router.push("/");
+    markRegistrationRequired();
+    router.replace(signInPath());
   };
 
   useEffect(() => {
