@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 const UNDO_MS = 3000;
+const AGAIN_MS = 1500;
 
 type Kind = "accepting" | "removing";
 
@@ -64,19 +65,50 @@ function begin(id: string, kind: Kind, timer: number | null) {
   return token;
 }
 
+function pause() {
+  return new Promise((resolve) => window.setTimeout(resolve, AGAIN_MS));
+}
+
+async function writeActive(id: string) {
+  const userId = await ownerId();
+  const { error } = userId
+    ? await createBrowserSupabaseClient().from("connections").update({ state: "active" }).eq("id", id).eq("owner_id", userId)
+    : { error: { message: "signed out" } };
+  return error;
+}
+
+async function removeRow(id: string) {
+  const userId = await ownerId();
+  const { error } = userId
+    ? await createBrowserSupabaseClient().from("connections").delete().eq("id", id).eq("owner_id", userId)
+    : { error: { message: "signed out" } };
+  return error;
+}
+
 /** Yes. The row stays in the book as an ordinary contact. */
 export function acceptConnection(id: string) {
   const token = begin(id, "accepting", null);
   void (async () => {
-    const userId = await ownerId();
-    const { error } = userId
-      ? await createBrowserSupabaseClient().from("connections").update({ state: "active" }).eq("id", id).eq("owner_id", userId)
-      : { error: { message: "signed out" } };
-    const entry = entries.get(id);
-    if (!entry || entry.token !== token) return;
+    let error: { message: string } | null = null;
+    try {
+      error = await writeActive(id);
+    } catch {
+      error = { message: "again" };
+    }
+    if (!entries.get(id) || entries.get(id)?.token !== token) return;
     if (error) {
-      entries.delete(id);
-      publish();
+      await pause();
+      if (!entries.get(id) || entries.get(id)?.token !== token) return;
+      try {
+        error = await writeActive(id);
+      } catch {
+        error = { message: "again" };
+      }
+      if (!entries.get(id) || entries.get(id)?.token !== token) return;
+      if (error) {
+        entries.delete(id);
+        publish();
+      }
     }
   })();
 }
@@ -105,12 +137,23 @@ async function finishDecline(id: string, token: number) {
   const entry = entries.get(id);
   if (!entry || entry.token !== token || entry.kind !== "removing") return;
   entry.timer = null;
-  const userId = await ownerId();
-  const { error } = userId
-    ? await createBrowserSupabaseClient().from("connections").delete().eq("id", id).eq("owner_id", userId)
-    : { error: { message: "signed out" } };
-  const latest = entries.get(id);
-  if (!latest || latest.token !== token) return;
+  let error: { message: string } | null = null;
+  try {
+    error = await removeRow(id);
+  } catch {
+    error = { message: "again" };
+  }
+  if (!entries.get(id) || entries.get(id)?.token !== token) return;
+  if (error) {
+    await pause();
+    if (!entries.get(id) || entries.get(id)?.token !== token) return;
+    try {
+      error = await removeRow(id);
+    } catch {
+      error = { message: "again" };
+    }
+    if (!entries.get(id) || entries.get(id)?.token !== token) return;
+  }
   entries.delete(id);
   if (!error) gone.add(id);
   publish();

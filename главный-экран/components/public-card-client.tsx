@@ -198,29 +198,42 @@ export function PublicCardClient({
   const keep = async () => {
     if (saveState !== "ready") return;
     setSaveState("busy");
-    try {
-      const response = await fetch("/api/network/save", {
+    const post = () =>
+      fetch("/api/network/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: publicToken }),
       });
+    const apply = (response: Response) => {
       if (response.status === 401) {
         router.push(`/create?card=${encodeURIComponent(publicToken)}&pick=1`);
         setSaveState("ready");
-        return;
+        return "stop" as const;
       }
       if (response.status === 409) {
         setSaveState("own");
-        return;
+        return "stop" as const;
       }
-      if (!response.ok) {
-        setSaveState("ready");
-        return;
-      }
+      if (!response.ok) return "again" as const;
       setSaveState("saved");
       setNotice("Saved to your network");
+      return "stop" as const;
+    };
+    try {
+      let outcome = apply(await post());
+      if (outcome === "again") {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        outcome = apply(await post());
+        if (outcome === "again") setSaveState("ready");
+      }
     } catch {
-      setSaveState("ready");
+      try {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        const outcome = apply(await post());
+        if (outcome === "again") setSaveState("ready");
+      } catch {
+        setSaveState("ready");
+      }
     }
   };
 

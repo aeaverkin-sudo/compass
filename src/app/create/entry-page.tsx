@@ -331,7 +331,11 @@ export function EntryPage({
             const readyPhoto = await uploadAttachment({ file: photo.file, kind: "card-photo", cardId });
             useAppStore.getState().updateCard(cardId, { photoAttachmentId: readyPhoto.attachmentId, photoLook: "shadow" });
           } catch {
-            // The portfolio is already open. The photo can be added again in Edit.
+            try {
+              sessionStorage.setItem("aded-photo-missed", "1");
+            } catch {
+              // The portfolio is already open. A private tab cannot keep the reminder.
+            }
           }
         }
         await synced;

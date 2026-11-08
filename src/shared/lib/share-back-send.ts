@@ -53,6 +53,24 @@ export function forgetShareBack(token: string) {
 }
 
 const inflight = new Set<string>();
+const AGAIN_MS = 1500;
+
+async function postShare(token: string, cardId?: string): Promise<boolean> {
+  let fromCardId = cardId?.trim() ?? "";
+  if (!fromCardId) {
+    const primary = await fetch("/api/cards/primary", { cache: "no-store" });
+    if (!primary.ok) return false;
+    const card = (await primary.json()) as { cardId?: string | null };
+    fromCardId = card.cardId ?? "";
+  }
+  if (!fromCardId) return false;
+  const response = await fetch("/api/connections/share-back", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fromCardId, toCardToken: token }),
+  });
+  return response.ok;
+}
 
 /**
  * Send one of my cards. `cardId` is the one they picked; without it, the primary card goes.
@@ -62,25 +80,24 @@ export async function sendShareBack(token: string, cardId?: string): Promise<boo
   if (!token || shareBackPhase(token) !== "idle" || inflight.has(token)) return false;
   inflight.add(token);
   try {
-    let fromCardId = cardId?.trim() ?? "";
-    if (!fromCardId) {
-      const primary = await fetch("/api/cards/primary", { cache: "no-store" });
-      if (!primary.ok) return false;
-      const card = (await primary.json()) as { cardId?: string | null };
-      fromCardId = card.cardId ?? "";
+    let sent = false;
+    try {
+      sent = await postShare(token, cardId);
+    } catch {
+      sent = false;
     }
-    if (!fromCardId) return false;
-    const response = await fetch("/api/connections/share-back", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromCardId, toCardToken: token }),
-    });
-    if (!response.ok) return false;
+    if (!sent) {
+      await new Promise((resolve) => window.setTimeout(resolve, AGAIN_MS));
+      try {
+        sent = await postShare(token, cardId);
+      } catch {
+        sent = false;
+      }
+    }
+    if (!sent) return false;
     live.set(token, { phase: "sent" });
     publish();
     return true;
-  } catch {
-    return false;
   } finally {
     inflight.delete(token);
   }

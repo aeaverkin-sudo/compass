@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { RotateCw, Search, SlidersHorizontal } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyActions } from "@/shared/components/sky-actions";
 import { Zone } from "@/shared/components/zone";
@@ -28,6 +28,8 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { clearNewContact } from "@/shared/lib/new-contact";
 import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
+import { MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
+import { RAIL_ICON_SCALE } from "@main/components/side-rail";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
 import { NetworkBand } from "./network-band";
@@ -107,26 +109,33 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const swallowClick = useRef(false);
   const decisions = useConnectionDecisions();
 
-  const load = async () => {
-    const response = await fetch("/api/connections", { cache: "no-store" });
-    if (!response.ok) {
-      setContacts([]);
-      return;
+  const [loadError, setLoadError] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch("/api/connections", { cache: "no-store" });
+      if (!response.ok) {
+        setLoadError(true);
+        return;
+      }
+      const body = (await response.json()) as { connections?: Contact[] };
+      const connections = Array.isArray(body.connections) ? body.connections : [];
+      for (const contact of connections) {
+        if (contact.state !== "pending") releaseIfAccepted(contact.id);
+      }
+      setContacts(
+        connections.map((contact) => ({
+          ...contact,
+          state: contact.state === "pending" ? "pending" : "active",
+          searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
+        })),
+      );
+      setLoadError(false);
+      markIncomingSeen(connections.filter((contact) => contact.state === "pending").map((contact) => contact.id));
+    } catch {
+      setLoadError(true);
     }
-    const body = (await response.json()) as { connections?: Contact[] };
-    const connections = Array.isArray(body.connections) ? body.connections : [];
-    for (const contact of connections) {
-      if (contact.state !== "pending") releaseIfAccepted(contact.id);
-    }
-    setContacts(
-      connections.map((contact) => ({
-        ...contact,
-        state: contact.state === "pending" ? "pending" : "active",
-        searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
-      })),
-    );
-    markIncomingSeen(connections.filter((contact) => contact.state === "pending").map((contact) => contact.id));
-  };
+  }, []);
 
   useEffect(() => {
     clearNewContact();
@@ -134,7 +143,23 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     void createBrowserSupabaseClient().auth.getSession().then(({ data }) => {
       ownerId.current = data.session?.user.id ?? null;
     });
-  }, []);
+  }, [load]);
+
+  useEffect(() => {
+    if (!loadError) return;
+    const retry = () => {
+      void load();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") retry();
+    };
+    window.addEventListener("online", retry);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("online", retry);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [load, loadError]);
 
   useEffect(() => {
     const lift = () => {
@@ -219,12 +244,29 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     inFlight.current.add(id);
     setMenu(null);
     setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
-    try {
+    const drop = async () => {
       const userId = await readyOwnerId();
       const { error } = userId
         ? await createBrowserSupabaseClient().from("connections").delete().eq("id", id).eq("owner_id", userId)
         : { error: true };
-      if (error) {
+      return !error;
+    };
+    try {
+      let dropped = false;
+      try {
+        dropped = await drop();
+      } catch {
+        dropped = false;
+      }
+      if (!dropped) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        try {
+          dropped = await drop();
+        } catch {
+          dropped = false;
+        }
+      }
+      if (!dropped) {
         setContacts((current) => {
           if (!current) return current;
           const next = [...current];
@@ -315,7 +357,18 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
             </ul>
           </section>
         ) : null}
-        {empty ? (
+        {loadError && (contacts == null || contacts.length === 0) ? (
+          <div className="flex justify-center pt-4">
+            <button
+              type="button"
+              aria-label="Try again"
+              onClick={() => void load()}
+              className="flex size-11 items-center justify-center border-0 bg-transparent p-0 text-[var(--grey)] [&_svg_*]:[vector-effect:non-scaling-stroke]"
+            >
+              <RotateCw size={MARK_PX * RAIL_ICON_SCALE} strokeWidth={RAIL_STROKE_PX} aria-hidden />
+            </button>
+          </div>
+        ) : empty ? (
           <section className="pt-4">
             <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Contacts</p>
             <p className="t-body text-[var(--grey)]">No contacts yet.</p>

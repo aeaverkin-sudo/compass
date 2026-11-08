@@ -75,12 +75,29 @@ export function ContactActions({
   const remove = async () => {
     if (busy) return;
     setBusy(true);
-    const { data } = await createBrowserSupabaseClient().auth.getSession();
-    const userId = data.session?.user.id;
-    const { error } = userId
-      ? await createBrowserSupabaseClient().from("connections").delete().eq("id", id).eq("owner_id", userId)
-      : { error: { message: "signed out" } };
-    if (error) {
+    const drop = async () => {
+      const { data } = await createBrowserSupabaseClient().auth.getSession();
+      const userId = data.session?.user.id;
+      const { error } = userId
+        ? await createBrowserSupabaseClient().from("connections").delete().eq("id", id).eq("owner_id", userId)
+        : { error: { message: "signed out" } };
+      return !error;
+    };
+    let dropped = false;
+    try {
+      dropped = await drop();
+    } catch {
+      dropped = false;
+    }
+    if (!dropped) {
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      try {
+        dropped = await drop();
+      } catch {
+        dropped = false;
+      }
+    }
+    if (!dropped) {
       setBusy(false);
       setArmed(false);
       return;

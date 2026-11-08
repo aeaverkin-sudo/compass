@@ -106,51 +106,75 @@ export function ScanScreen() {
       }
       holding = true;
       stopTracks();
+      const ask = () =>
+        fetch("/api/scan/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(link),
+        });
+      const foreign = () => {
+        holding = false;
+        foreignAt = Date.now();
+        setHint("Not an ADED card");
+        void start();
+      };
+      const offline = () => {
+        holding = false;
+        foreignAt = Date.now();
+        setHint("No connection. Try again.");
+        void start();
+      };
+      const finish = async (response: Response) => {
+        if (stopped) return;
+        if (response.status === 401) {
+          router.replace("/main");
+          return;
+        }
+        if (!response.ok) {
+          if (response.status >= 500) offline();
+          else foreign();
+          return;
+        }
+        const body = (await response.json()) as { outcome?: keyof typeof SCAN_LINE; name?: string };
+        const outcome = body.outcome && body.outcome in SCAN_LINE ? body.outcome : null;
+        if (!outcome) {
+          holding = false;
+          void start();
+          return;
+        }
+        left = true;
+        stop();
+        setFlash({ name: body.name?.trim() || "Untitled", line: SCAN_LINE[outcome] });
+        window.setTimeout(() => {
+          if (outcome === "own") {
+            setFlash(null);
+            left = false;
+            holding = false;
+            stopped = false;
+            void start();
+            return;
+          }
+          router.push("/network");
+        }, FLASH_MS);
+      };
       void (async () => {
-        try {
-          const response = await fetch("/api/scan/save", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(link),
-          });
+        const once = async () => {
+          const response = await ask();
           if (stopped) return;
-          if (response.status === 401) {
-            router.replace("/main");
-            return;
-          }
-          if (!response.ok) {
-            holding = false;
-            foreignAt = Date.now();
-            setHint("Not an ADED card");
-            void start();
-            return;
-          }
-          const body = (await response.json()) as { outcome?: keyof typeof SCAN_LINE; name?: string };
-          const outcome = body.outcome && body.outcome in SCAN_LINE ? body.outcome : null;
-          if (!outcome) {
-            holding = false;
-            void start();
-            return;
-          }
-          left = true;
-          stop();
-          setFlash({ name: body.name?.trim() || "Untitled", line: SCAN_LINE[outcome] });
-          window.setTimeout(() => {
-            if (outcome === "own") {
-              setFlash(null);
-              left = false;
-              holding = false;
-              stopped = false;
-              void start();
-              return;
-            }
-            router.push("/network");
-          }, FLASH_MS);
+          if (response.status >= 500) throw new Error("again");
+          await finish(response);
+        };
+        try {
+          await once();
         } catch {
           if (stopped) return;
-          holding = false;
-          setHint("Not an ADED card");
-          void start();
+          try {
+            await new Promise((resolve) => window.setTimeout(resolve, 1500));
+            if (stopped) return;
+            await finish(await ask());
+          } catch {
+            if (!stopped) offline();
+          }
         }
       })();
     };

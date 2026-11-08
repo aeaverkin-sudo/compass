@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
@@ -31,12 +31,47 @@ import { BackButton } from "@/shared/components/back-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { UploadNotice } from "@/shared/components/upload-notice";
+import { SkyToast } from "@/shared/components/sky-toast";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { BrowserHandoff } from "@/shared/components/browser-handoff";
 import { InstallHint } from "@/shared/components/install-hint";
 import type { Card } from "@/shared/types";
 
 const PASS_ADD_HINT = "Complete your pass: add links, your role, socials or a portfolio file.";
+const PHOTO_MISSED_KEY = "aded-photo-missed";
+const PHOTO_MISSED = "Photo didn't upload. Add it again in Edit.";
+const photoMissedListeners = new Set<() => void>();
+let photoMissedHeld = false;
+
+function readPhotoMissed() {
+  if (photoMissedHeld) return PHOTO_MISSED;
+  if (typeof window === "undefined") return null;
+  try {
+    if (sessionStorage.getItem(PHOTO_MISSED_KEY) !== "1") return null;
+    sessionStorage.removeItem(PHOTO_MISSED_KEY);
+    photoMissedHeld = true;
+    return PHOTO_MISSED;
+  } catch {
+    return null;
+  }
+}
+
+function subscribePhotoMissed(listener: () => void) {
+  photoMissedListeners.add(listener);
+  return () => {
+    photoMissedListeners.delete(listener);
+  };
+}
+
+function clearPhotoMissed() {
+  photoMissedHeld = false;
+  try {
+    sessionStorage.removeItem(PHOTO_MISSED_KEY);
+  } catch {
+    // The toast is already leaving.
+  }
+  for (const listener of photoMissedListeners) listener();
+}
 
 /** The rail only needs a card to mount. Row edits keep this same object so the screen around it stays still. */
 const railCardCache = new Map<string, Card>();
@@ -137,6 +172,7 @@ export function MainScreen() {
   const keyboardUp = useKeyboardVisible();
   const account = useAccountStatus();
   const cardsHydrated = useCardsHydrated();
+  const photoMissed = useSyncExternalStore(subscribePhotoMissed, readPhotoMissed, () => null);
   const frozen = account?.frozen === true;
   const needsAccount = account !== null && !account.registered;
   const [gateNonce, setGateNonce] = useState<number | null>(null);
@@ -568,6 +604,7 @@ export function MainScreen() {
       {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}
 
       <UploadNotice />
+      {photoMissed ? <SkyToast text={photoMissed} onDone={clearPhotoMissed} /> : null}
 
       {layout && cardTopBrowse !== undefined ? (
         <div
