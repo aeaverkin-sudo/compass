@@ -42,6 +42,7 @@ begin
 end;
 $$;
 
+-- The same id under another owner is a new card. A purged anonymous card must not block the next sign-in.
 create or replace function public.reject_card_tombstone()
 returns trigger
 language plpgsql
@@ -49,7 +50,10 @@ security definer
 set search_path = public
 as $$
 begin
-  if exists (select 1 from public.card_tombstones where card_id = new.id) then
+  if exists (
+    select 1 from public.card_tombstones
+    where card_id = new.id and owner_id = new.owner_id
+  ) then
     raise exception 'card_tombstone' using errcode = 'AD301';
   end if;
   return new;
