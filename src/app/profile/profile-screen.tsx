@@ -195,7 +195,7 @@ export function ProfileScreen() {
       /* private mode */
     }
     ignoreNextSignedOut();
-    await createBrowserSupabaseClient().auth.signOut();
+    await createBrowserSupabaseClient().auth.signOut({ scope: "local" });
     markRegistrationRequired();
     router.replace(signInPath());
   };
