@@ -73,6 +73,11 @@ async function enterExistingAccount(signIn: () => Promise<string | null>) {
   clearFillPlace();
   clearSignInEmail();
   clearRegistrationRequired();
+  try {
+    sessionStorage.removeItem("aded-signed-out");
+  } catch {
+    // The mark dies with the tab.
+  }
   await hydrateCardsFromServer();
   return null;
 }
@@ -286,6 +291,11 @@ export function RegisterScreen() {
       clearSignInEmail();
       rememberAccountEmail(email);
       clearRegistrationRequired();
+      try {
+        sessionStorage.removeItem("aded-signed-out");
+      } catch {
+        // The mark dies with the tab.
+      }
       router.replace(nextPath);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not check the code");

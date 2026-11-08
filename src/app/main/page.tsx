@@ -42,7 +42,13 @@ export default function MainPage() {
   useEffect(() => {
     if (!hydrated || !sessionReady) return;
     if (needsSignIn) {
-      router.replace(signInPath({ expired: true }));
+      let signedOut = false;
+      try {
+        signedOut = sessionStorage.getItem("aded-signed-out") === "1";
+      } catch {
+        signedOut = false;
+      }
+      router.replace(signedOut ? signInPath() : signInPath({ expired: true }));
       return;
     }
     if (!cardsReady) return;

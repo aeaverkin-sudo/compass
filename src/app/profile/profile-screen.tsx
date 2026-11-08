@@ -198,6 +198,11 @@ export function ProfileScreen() {
     ignoreNextSignedOut();
     await createBrowserSupabaseClient().auth.signOut({ scope: "local" });
     markRegistrationRequired();
+    try {
+      sessionStorage.setItem("aded-signed-out", "1");
+    } catch {
+      // A private tab still leaves through the sign-in screen.
+    }
     router.replace(signInPath());
   };
 
