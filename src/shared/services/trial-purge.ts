@@ -65,36 +65,6 @@ async function dropAttachment(row: AttachmentRow) {
   await deleteAttachment(row.id, row.owner_id);
 }
 
-const KEPT_MARKS = /checked_in_at|paid_status|paid_source/i;
-
-/**
- * The organiser keeps In and Paid after a pass account is gone: the list guest takes them
- * from the registration before it is deleted. Without the columns nothing is copied.
- */
-async function keepGuestMarks(userId: string) {
-  const admin = createAdminSupabaseClient();
-  const regs = await admin
-    .from("event_registrations")
-    .select("id, checked_in_at, paid_status, paid_source")
-    .eq("user_id", userId);
-  if (regs.error) {
-    if (KEPT_MARKS.test(regs.error.message)) return;
-    throw new Error(regs.error.message);
-  }
-  type Marks = { id: string; checked_in_at: string | null; paid_status: string | null; paid_source: string | null };
-  for (const reg of (regs.data ?? []) as Marks[]) {
-    if (!reg.checked_in_at && !reg.paid_status) continue;
-    const copied = await admin
-      .from("event_guests")
-      .update({ checked_in_at: reg.checked_in_at, paid_status: reg.paid_status, paid_source: reg.paid_source })
-      .eq("registration_id", reg.id);
-    if (copied.error) {
-      if (KEPT_MARKS.test(copied.error.message)) return;
-      throw new Error(copied.error.message);
-    }
-  }
-}
-
 const GUEST_NAME = "Guest";
 
 /**
@@ -131,25 +101,24 @@ async function scrubOldGuests() {
   return count;
 }
 
-async function purgeUsers(filter: "trial" | "anon") {
+async function purgeUsers(filter: "anon") {
+  if (filter !== "anon") return 0;
   const admin = createAdminSupabaseClient();
   const now = Date.now();
-  let query = admin.from("profiles").select("id").is("registered_at", null).limit(USER_BATCH);
-  if (filter === "trial") {
-    query = query.lte("purge_at", new Date(now).toISOString()).order("purge_at");
-  } else {
-    query = query
-      .is("draft_expires_at", null)
-      .lt("created_at", new Date(now - ABANDONED_ANON_MS).toISOString())
-      .order("created_at");
-  }
+  const query = admin
+    .from("profiles")
+    .select("id")
+    .is("registered_at", null)
+    .is("draft_expires_at", null)
+    .lt("created_at", new Date(now - ABANDONED_ANON_MS).toISOString())
+    .order("created_at")
+    .limit(USER_BATCH);
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   let count = 0;
   for (const row of data ?? []) {
     const id = row.id as string;
     try {
-      if (filter === "trial") await keepGuestMarks(id);
       await deleteOwnAccount(id);
       count += 1;
     } catch (reason) {
@@ -361,9 +330,9 @@ async function purgeExpiredCodes() {
   return count ?? 0;
 }
 
-/** Expired trials, abandoned anonymous profiles, stale handoffs, and files nothing points at. */
+/** Abandoned anonymous profiles, stale handoffs, and files nothing points at. */
 export async function runPurge(): Promise<PurgeReport> {
-  const purgedTrials = await purgeUsers("trial");
+  const purgedTrials = 0;
   const purgedAnon = await purgeUsers("anon");
   const expiredCodes = await purgeExpiredCodes();
   const staleTransfers = await purgeStaleTransfers();
