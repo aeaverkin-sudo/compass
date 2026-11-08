@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 import { foldSearch } from "@/shared/lib/search-fold";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { primaryCardId } from "@/shared/services/primary-card";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,17 +78,21 @@ export async function GET() {
       if (cards.error) throw new Error(cards.error.message);
       for (const card of (cards.data ?? []) as CardFace[]) faces.set(card.id, card);
 
-      const mine = await primaryCardId(owner.id);
+      const mine = await admin.from("cards").select("id").eq("owner_id", owner.id);
+      const mineIds = mine.error ? [] : ((mine.data ?? []) as { id: string }[]).map((card) => card.id);
       const theirOwners = [...new Set([...faces.values()].map((face) => face.owner_id).filter(Boolean))];
-      if (mine && theirOwners.length > 0) {
+      if (mineIds.length > 0 && theirOwners.length > 0) {
         const held = await admin
           .from("connections")
           .select("owner_id, state")
-          .eq("saved_card_id", mine)
+          .in("saved_card_id", mineIds)
           .in("owner_id", theirOwners);
         if (held.error) throw new Error(held.error.message);
         for (const row of held.data ?? []) {
-          reverse.set(String(row.owner_id), row.state === "pending" ? "pending" : "active");
+          const id = String(row.owner_id);
+          const next = row.state === "pending" ? "pending" : "active";
+          if (reverse.get(id) === "active") continue;
+          reverse.set(id, next);
         }
       }
 
