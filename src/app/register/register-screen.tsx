@@ -235,7 +235,7 @@ export function RegisterScreen() {
         return;
       }
       if (body.mode === "done") {
-        router.push(nextPath);
+        router.replace(nextPath);
         return;
       }
       if (body.mode === "login") {
@@ -286,7 +286,7 @@ export function RegisterScreen() {
       clearSignInEmail();
       rememberAccountEmail(email);
       clearRegistrationRequired();
-      router.push(nextPath);
+      router.replace(nextPath);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not check the code");
     } finally {
@@ -313,8 +313,7 @@ export function RegisterScreen() {
     }
     rememberAccountEmail(signInEmail);
     clearFillPlace();
-    if (nextPath === "/main") router.replace(nextPath);
-    else router.push(nextPath);
+    router.replace(nextPath);
   };
 
   const forgotPassword = async () => {
