@@ -7,7 +7,6 @@ import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
 import { ServiceWorker } from "@/shared/components/service-worker";
 import { SupabaseSession } from "@/shared/components/supabase-session";
 import { FillPlaceResume } from "@/shared/components/fill-place-resume";
-import { ReturnHome } from "@/shared/components/return-home";
 import { TabPrefetch } from "@/shared/components/tab-prefetch";
 import { TrialLock } from "@/shared/components/trial-lock";
 import { VisualBottom } from "@/shared/components/visual-bottom";
@@ -106,7 +105,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PdfPreviewHost />
         <ImagePreviewHost />
         <TabPrefetch />
-        <ReturnHome />
         <FillPlaceResume />
         <ServiceWorker />
         {children}

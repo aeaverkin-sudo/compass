@@ -7,7 +7,6 @@ import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
-import { readEventWorkPlace } from "@/shared/lib/event-work-place";
 import { homeEntryHref, noteTrialCardStarted } from "@/shared/lib/home-entry";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -361,7 +360,7 @@ export function PosterWallLanding() {
         return;
       }
       if (entry === "/main") noteTrialCardStarted();
-      router.push(entry === "/main" ? (readEventWorkPlace() ?? entry) : entry);
+      router.push(entry);
     };
     if (!aboutMarker.current) {
       run();
@@ -380,7 +379,7 @@ export function PosterWallLanding() {
     if (!pendingEntry.current || !entry) return;
     pendingEntry.current = false;
     if (entry === "/main") noteTrialCardStarted();
-    router.push(entry === "/main" ? (readEventWorkPlace() ?? entry) : entry);
+    router.push(entry);
   }, [entry, router]);
 
   useEffect(() => {

@@ -3,8 +3,6 @@
 import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
-import { cardShareHoldsPlace } from "@/shared/lib/card-share-guard";
-import { readPortfolio } from "@/shared/lib/fill-place";
 import {
   contactItemFromAttachment,
   createEmptyContactItem,
@@ -165,21 +163,12 @@ function idlePersistStorage<S>(): PersistStorage<S> {
     writeNow();
   };
 
-  const leaveOnFirstCard = () => {
-    if (cardShareHoldsPlace() || readPortfolio()) return;
-    const { cards, currentCardIndex, setCurrentCardIndex } = useAppStore.getState();
-    if (cards.length === 0 || currentCardIndex === 0) return;
-    setCurrentCardIndex(0);
-  };
-
   if (typeof window !== "undefined") {
     window.addEventListener("pagehide", () => {
-      leaveOnFirstCard();
       flush();
     });
     window.addEventListener("visibilitychange", () => {
       if (document.visibilityState !== "hidden") return;
-      leaveOnFirstCard();
       flush();
     });
   }

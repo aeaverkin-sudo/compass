@@ -6,7 +6,6 @@ import { PosterWallLanding } from "@landing/components/poster-wall-landing";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
-import { readEventWorkPlace } from "@/shared/lib/event-work-place";
 import { homeEntryHref, isInstalledApp, noteTrialCardStarted } from "@/shared/lib/home-entry";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -31,7 +30,7 @@ export default function Home() {
     // A signed-out phone stays on the landing. The button opens Sign in.
     if (!href || href === "/create" || href.startsWith("/register")) return;
     if (href === "/main") noteTrialCardStarted();
-    router.replace(href === "/main" ? (readEventWorkPlace() ?? href) : href);
+    router.replace(href);
   }, [installed, hydrated, sessionReady, cardsReady, needsSignIn, onboarded, cards, router]);
 
   if (installed === false) return <PosterWallLanding />;
