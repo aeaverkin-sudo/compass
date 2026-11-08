@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { isAuthRetryableFetchError } from "@supabase/auth-js";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createBrowserSupabaseClient, isCameraCardPath, syncBrowserRefresh } from "@/shared/lib/supabase/browser";
 import {
@@ -149,6 +150,16 @@ export function SupabaseSession() {
         }
         if (existing.user) {
           acceptUser(existing.user);
+          return;
+        }
+
+        if (
+          existingError &&
+          (isAuthRetryableFetchError(existingError) ||
+            (existingError.status ?? 0) >= 500 ||
+            existingError.status === 429)
+        ) {
+          console.error("[supabase] session check failed, keeping the stored login", existingError.message);
           return;
         }
 
