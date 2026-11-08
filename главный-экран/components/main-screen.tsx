@@ -25,7 +25,7 @@ import { RAIL_ICON_SCALE, SideRail } from "./side-rail";
 import { MARK_VISIBLE_PX } from "@/shared/components/mark-plus";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
-import { cardShareHoldsPlace, editTapBlocked } from "@/shared/lib/card-share-guard";
+import { editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
 import { BackButton } from "@/shared/components/back-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
@@ -306,7 +306,6 @@ export function MainScreen() {
       }
       setComposeOnMount(false);
       setEditing(false);
-      if (!cardShareHoldsPlace()) setBrowseIndex(0);
     };
     const onVisibility = () => {
       if (document.visibilityState === "hidden") leave();
