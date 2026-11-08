@@ -571,18 +571,6 @@ export function MainScreen() {
         />
       ) : null}
 
-      {frozen && !composing && !eventPass ? (
-        <p
-          className="absolute inset-x-6 z-30 text-center t-meta text-[var(--ink)]"
-          style={{ bottom: "1.5rem" }}
-        >
-          Frozen.{" "}
-          <Link href="/register" className="underline">
-            Register to restore this portfolio.
-          </Link>
-        </p>
-      ) : null}
-
       {passwordHint && !composing ? (
         <InfoNotice text="You can change your password in Profile." onDone={dismissPasswordHint} />
       ) : null}
@@ -641,14 +629,7 @@ export function MainScreen() {
                   />
                 );
               }
-              return account?.trial && !frozen && !eventPass ? (
-                <p className="t-meta text-[var(--ink)]">
-                  Trial — {account.hoursLeft}h left.{" "}
-                  <Link href="/register" className="underline">
-                    Register now
-                  </Link>
-                </p>
-              ) : null;
+              return null;
             }}
             addNextFor={(card) => (passes.has(card.id) && !frozen ? () => addToPass(card.id) : undefined)}
             onTrialSlot={showGate}

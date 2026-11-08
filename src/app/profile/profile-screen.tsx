@@ -45,11 +45,6 @@ function planTitle(plan: "free" | "paid") {
   return plan === "paid" ? "Paid" : "Free";
 }
 
-function trialLine(hoursLeft: number | null) {
-  if (hoursLeft === null) return "Trial";
-  return `Trial — ${hoursLeft}h left.`;
-}
-
 type Sharing = { analytics: boolean; connections: boolean };
 
 /** Anonymous analytics for every event registration. Allow connections stays stored, without a switch. */
@@ -350,9 +345,9 @@ export function ProfileScreen() {
           )
         ) : (
           <div className="py-[18px]">
-            <p className={ZONE_VALUE}>{trialLine(account.hoursLeft)}</p>
+            <p className={ZONE_VALUE}>No account yet.</p>
             <Link
-              href="/register"
+              href="/create"
               className="mt-6 inline-block border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)]"
             >
               Register
