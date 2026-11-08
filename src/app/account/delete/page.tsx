@@ -8,7 +8,7 @@ import { clearRegisteredDevice } from "@/shared/lib/registered-device";
 import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
-import { dropPendingCardUpserts } from "@/shared/services/card-sync";
+import { dropPendingCardUpserts, forgetLibraryOwner } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -39,6 +39,7 @@ export default function DeleteAccountPage() {
       dropPendingItemUpserts();
       dropPendingNotes();
       const user = useAppStore.getState().user;
+      forgetLibraryOwner();
       useAppStore.setState({
         cards: [],
         contactItems: [],

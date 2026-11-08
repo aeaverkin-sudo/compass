@@ -19,7 +19,7 @@ import { clearFillPlace, clearSignInEmail, readSignInEmail, writeSignInEmail } f
 import { markRegisteredDevice, rememberAccountEmail, rememberedEmail } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
-import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { dropPendingCardUpserts, forgetLibraryOwner, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { recordConsent } from "@/shared/services/consent-client";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isEventInvitePath, isEventJoinPath, isEventTeamPath } from "@/shared/event/lookup";
@@ -47,6 +47,7 @@ function rememberLocal() {
 
 function clearLocal() {
   const user = useAppStore.getState().user;
+  forgetLibraryOwner();
   useAppStore.setState({
     cards: [],
     contactItems: [],

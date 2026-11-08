@@ -18,7 +18,7 @@ import { deletionLine } from "@/shared/lib/deletion-date";
 import { ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
-import { dropPendingCardUpserts } from "@/shared/services/card-sync";
+import { dropPendingCardUpserts, forgetLibraryOwner } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { isCardReady, useAppStore } from "@/shared/store/app-store";
 import { cn } from "@/lib/utils";
@@ -180,6 +180,7 @@ export function ProfileScreen() {
     dropPendingItemUpserts();
     dropPendingNotes();
     const user = useAppStore.getState().user;
+    forgetLibraryOwner();
     useAppStore.setState({
       cards: [],
       contactItems: [],

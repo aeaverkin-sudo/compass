@@ -8,6 +8,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
 const UPSERT_DEBOUNCE_MS = 400;
 const PUBLIC_TOKEN_LENGTH = 21;
+const LIBRARY_OWNER_KEY = "aded-library-owner";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -231,7 +232,7 @@ function scalarsEqual(a: Card, b: Card) {
   );
 }
 
-async function currentUserId() {
+async function currentAuthUser() {
   const supabase = createBrowserSupabaseClient();
   const { data, error } = await supabase.auth.getUser();
   if (!data.user) {
@@ -240,7 +241,58 @@ async function currentUserId() {
     }
     return null;
   }
-  return data.user.id;
+  return data.user;
+}
+
+async function currentUserId() {
+  return (await currentAuthUser())?.id ?? null;
+}
+
+type LibraryOwner = { id: string; registered: boolean };
+
+function readLibraryOwner(): LibraryOwner | null {
+  try {
+    const raw = localStorage.getItem(LIBRARY_OWNER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LibraryOwner;
+    if (!parsed || typeof parsed.id !== "string" || typeof parsed.registered !== "boolean") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** The local library was wiped on purpose. The next account must not be treated as a thief of it. */
+export function forgetLibraryOwner() {
+  try {
+    localStorage.removeItem(LIBRARY_OWNER_KEY);
+  } catch {
+    // Private mode can block storage.
+  }
+}
+
+function rememberLibraryOwner(id: string, registered: boolean) {
+  try {
+    localStorage.setItem(LIBRARY_OWNER_KEY, JSON.stringify({ id, registered }));
+  } catch {
+    // Private mode can block storage.
+  }
+}
+
+/** A registered account's cards must not be glued onto whoever signs in next in this browser. */
+function libraryIsSomeoneElse(ownerId: string) {
+  const saved = readLibraryOwner();
+  return Boolean(saved?.registered && saved.id !== ownerId);
+}
+
+async function dropLocalCards(ids: Set<string> | "all") {
+  const { useAppStore } = await import("@/shared/store/app-store");
+  const state = useAppStore.getState();
+  const cards = ids === "all" ? [] : state.cards.filter((card) => !ids.has(card.id));
+  const keptItems = new Set(cards.flatMap((card) => card.contactItemIds));
+  const contactItems = ids === "all" ? [] : state.contactItems.filter((item) => keptItems.has(item.id));
+  const currentCardIndex = cards.length === 0 ? 0 : Math.min(state.currentCardIndex, cards.length - 1);
+  useAppStore.setState({ cards, contactItems, currentCardIndex });
 }
 
 /** Local session only. Used to drop a pull that started before sign-in. */
@@ -249,13 +301,21 @@ async function sessionUserId() {
   return data.session?.user?.id ?? null;
 }
 
+/** The row id already belongs to another account, or the database refused the write as not ours. */
+function foreignCardWrite(error: { message: string; code?: string }) {
+  if (error.code === "42501" || /row-level security/i.test(error.message)) return true;
+  if (error.code !== "23505") return false;
+  if (/handle|public_token/i.test(error.message)) return false;
+  return true;
+}
+
 /** Upsert scalar columns only. The avatar is `photo_attachment_id`, never the image bytes. */
-export async function upsertCardScalars(card: Card): Promise<void> {
+export async function upsertCardScalars(card: Card): Promise<"ok" | "foreign" | "skip"> {
   try {
-    if (!isCardUuid(card.id)) return;
+    if (!isCardUuid(card.id)) return "skip";
 
     const ownerId = await currentUserId();
-    if (!ownerId) return;
+    if (!ownerId) return "skip";
 
     const supabase = createBrowserSupabaseClient();
     let handle = card.handle?.trim().toLowerCase() || null;
@@ -294,7 +354,7 @@ export async function upsertCardScalars(card: Card): Promise<void> {
             ),
           });
         }
-        return;
+        return "ok";
       }
       if (error.code === "23505" && /handle/i.test(error.message)) {
         const base = slugFromName(card.displayName);
@@ -318,9 +378,12 @@ export async function upsertCardScalars(card: Card): Promise<void> {
 
     if (error) {
       console.error("[card-sync] upsert failed", error.message);
+      if (foreignCardWrite(error)) return "foreign";
     }
+    return "skip";
   } catch (error) {
     console.error("[card-sync] upsert failed", error);
+    return "skip";
   }
 }
 
@@ -492,8 +555,9 @@ async function selectCardRows(
 async function runHydrate() {
   await waitForPersist();
 
-  const ownerId = await currentUserId();
-  if (!ownerId) return;
+  const authUser = await currentAuthUser();
+  if (!authUser) return;
+  const ownerId = authUser.id;
 
   const supabase = createBrowserSupabaseClient();
   const loaded = await selectCardRows(
@@ -511,6 +575,7 @@ async function runHydrate() {
   const { useAppStore } = await import("@/shared/store/app-store");
   // Sign-in can finish while this pull is in flight. Writing it would put the previous account's cards on the new one.
   if ((await sessionUserId()) !== ownerId) return;
+  if (libraryIsSomeoneElse(ownerId)) await dropLocalCards("all");
   const local = useAppStore.getState().cards;
   const merged = handlesForCards(
     mergeCardScalars(local, remote).map((card) => {
@@ -551,8 +616,11 @@ async function runHydrate() {
       (Boolean(card.handle) && row.handle !== card.handle)
     );
   });
-  await Promise.all(toUpload.map((card) => upsertCardScalars(card)));
+  const uploaded = await Promise.all(toUpload.map(async (card) => ({ id: card.id, result: await upsertCardScalars(card) })));
   if ((await sessionUserId()) !== ownerId) return;
+  const foreign = uploaded.filter((entry) => entry.result === "foreign").map((entry) => entry.id);
+  if (foreign.length > 0) await dropLocalCards(new Set(foreign));
+  rememberLibraryOwner(ownerId, authUser.is_anonymous !== true);
 
   const { hydrateCardItems } = await import("@/shared/services/card-items-sync");
   await hydrateCardItems();

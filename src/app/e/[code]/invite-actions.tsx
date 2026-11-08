@@ -7,7 +7,7 @@ import { SkyToast } from "@/shared/components/sky-toast";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
-import { dropPendingCardUpserts, hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { dropPendingCardUpserts, forgetLibraryOwner, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { useAppStore } from "@/shared/store/app-store";
 import { TapButton } from "@/shared/components/tap-button";
@@ -32,6 +32,7 @@ export function clearLocal() {
   dropPendingItemUpserts();
   dropPendingNotes();
   const user = useAppStore.getState().user;
+  forgetLibraryOwner();
   useAppStore.setState({ cards: [], contactItems: [], currentCardIndex: 0, user: { ...user, onboarded: false } });
 }
 

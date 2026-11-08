@@ -20,7 +20,7 @@ import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { recoverFileRow, uploadAttachment } from "@/shared/services/attachment-upload";
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { assignHandle, handlesForCards } from "@/shared/services/card-handle";
-import { dropPendingCardUpsert, ensureCardIdentity, scheduleCardUpsert, writeCardItemZones, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
+import { dropPendingCardUpsert, ensureCardIdentity, forgetLibraryOwner, scheduleCardUpsert, writeCardItemZones, writeCardRubricLabels, writeCardRubricOrder, writeCardSearchable } from "@/shared/services/card-sync";
 import {
   BASE_EDIT_ZONES,
   canonZoneId,
@@ -227,6 +227,7 @@ export const useAppStore = create<AppState>()(
       contactItems: [],
 
       resetApp: () => {
+        forgetLibraryOwner();
         void useAppStore.persist.clearStorage();
         set({
           user: createInitialUser(),
