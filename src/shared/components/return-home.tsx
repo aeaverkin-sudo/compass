@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { blockEditBriefly, cardShareHoldsPlace } from "@/shared/lib/card-share-guard";
+import { isEventWorkPath, readEventWorkPlace, rememberEventWorkPlace } from "@/shared/lib/event-work-place";
 import { readPortfolio, readQuestionnaire } from "@/shared/lib/fill-place";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -33,10 +34,16 @@ function navigationType() {
 
 /**
  * Leaving the app from the owner's own screen comes back to the first card.
+ * Event work (the list, Create event, the cabinet) comes back to that page.
  * A card share keeps that card. A scanned card is left where it was opened.
  */
 export function ReturnHome() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (isEventWorkPath(pathname)) rememberEventWorkPlace(pathname);
+  }, [pathname]);
 
   useEffect(() => {
     let left = false;
@@ -96,6 +103,11 @@ export function ReturnHome() {
         clearLeft();
         return;
       }
+      // Still on the work page: stay. Do not swap it for the first card.
+      if (isEventWorkPath(window.location.pathname)) {
+        clearLeft();
+        return;
+      }
       let pending = left;
       if (!pending) {
         try {
@@ -107,13 +119,25 @@ export function ReturnHome() {
       if (!pending) return;
       clearLeft();
       blockEditBriefly();
+      const place = readEventWorkPlace();
+      if (place) {
+        if (window.location.pathname !== place) router.replace(place);
+        return;
+      }
       const { cards, currentCardIndex, setCurrentCardIndex } = useAppStore.getState();
       if (cards.length > 0 && currentCardIndex !== 0) setCurrentCardIndex(0);
       if (window.location.pathname !== "/main") router.replace("/main");
     };
 
     const onHide = () => {
-      if (cardShareHoldsPlace() || isPublicCard(window.location.pathname) || isDoor(window.location.pathname)) return;
+      if (
+        cardShareHoldsPlace() ||
+        isPublicCard(window.location.pathname) ||
+        isDoor(window.location.pathname) ||
+        isEventWorkPath(window.location.pathname)
+      ) {
+        return;
+      }
       markLeft();
     };
 

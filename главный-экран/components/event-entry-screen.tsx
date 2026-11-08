@@ -13,6 +13,7 @@ import { inviteDateText, inviteTimeText } from "@/shared/event/invite-when";
 import { COLUMN_GAP_PX, LABEL_COLUMN_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { NetworkBand } from "@/app/network/network-band";
 import { eventTitleLine } from "@/shared/event/event-title";
+import { clearEventWorkPlace } from "@/shared/lib/event-work-place";
 import { DEFAULT_EVENT_TIME_ZONE, browserTimeZone, isTimeZone } from "@/shared/event/time-zone";
 
 type Step = "entry" | "create";
@@ -396,7 +397,14 @@ export function EventEntryScreen() {
           <ScreenHeader
             title={step === "create" ? "Create event" : "Event"}
             fallbackHref="/main"
-            onBack={step === "entry" ? () => router.push("/main") : leave}
+            onBack={
+              step === "entry"
+                ? () => {
+                    clearEventWorkPlace();
+                    router.push("/main");
+                  }
+                : leave
+            }
           />
 
           {step === "entry" ? (
