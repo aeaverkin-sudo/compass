@@ -42,6 +42,7 @@ function rememberLocal() {
     cards: state.cards,
     contactItems: state.contactItems,
     currentCardIndex: state.currentCardIndex,
+    user: state.user,
   };
 }
 
@@ -299,8 +300,6 @@ export function RegisterScreen() {
     setMessage(null);
     const error = await enterExistingAccount(async () => {
       const supabase = createBrowserSupabaseClient();
-      ignoreNextSignedOut();
-      await supabase.auth.signOut({ scope: "local" });
       const { error: signError } = await supabase.auth.signInWithPassword({
         email: signInEmail.trim(),
         password: password,
