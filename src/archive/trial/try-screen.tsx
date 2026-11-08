@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LandingPage } from "@landing/components/landing-page";
+import { LandingPage } from "./landing-page";
 import { TrialGate } from "./trial-gate";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { deviceWasRegistered } from "@/shared/lib/registered-device";

@@ -543,18 +543,6 @@ export function RegisterScreen() {
         <button type="button" onClick={openEmail} className={CHOICE} style={{ color: ink }} aria-label="Sign up with email">
           With email
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (!gate()) return;
-            router.push("/try");
-          }}
-          className={CHOICE}
-          style={{ color: ink }}
-          aria-label="Try without sign up"
-        >
-          Try without account
-        </button>
         </div>
       </Zone>
       <Rule />

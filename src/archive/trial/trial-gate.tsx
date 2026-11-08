@@ -4,7 +4,7 @@ import { useState, type MouseEvent } from "react";
 import Link from "next/link";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { recordConsent } from "@/shared/services/consent-client";
-import { startTrialClock } from "@/shared/services/trial-client";
+import { startTrialClock } from "./trial-client";
 
 export function TrialGate({ onContinue }: { onContinue: () => void }) {
   const [terms, setTerms] = useState(false);

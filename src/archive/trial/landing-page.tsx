@@ -8,11 +8,11 @@ import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { recordConsent } from "@/shared/services/consent-client";
 import { isEventJoinPath } from "@/shared/event/lookup";
 import { upsertCardScalars } from "@/shared/services/card-sync";
-import { startTrialClock } from "@/shared/services/trial-client";
+import { startTrialClock } from "./trial-client";
 import { useAppStore } from "@/shared/store/app-store";
 import { CARD_HEADER_NAME_SIZE_PX, CARD_PHOTO_SIZE_PX } from "@main/layout";
-import { ConfirmButton } from "./confirm-button";
-import { PhotoSlotPicker } from "./photo-slot-picker";
+import { ConfirmButton } from "@landing/components/confirm-button";
+import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 
 function isFilled(value: string) {
   return value.trim().length > 0;
