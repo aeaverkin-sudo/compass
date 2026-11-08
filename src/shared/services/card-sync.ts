@@ -9,7 +9,6 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 const UPSERT_DEBOUNCE_MS = 400;
 const PUBLIC_TOKEN_LENGTH = 21;
 const LIBRARY_OWNER_KEY = "aded-library-owner";
-const CARD_RETRY_KEY = "aded-card-retry";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -85,84 +84,6 @@ export function statusForPublish(card: Card): CardStatus {
   return "draft";
 }
 
-let retryIds: Set<string> | null = null;
-
-function readRetryIds(): Set<string> {
-  if (retryIds) return retryIds;
-  retryIds = new Set();
-  try {
-    if (typeof localStorage === "undefined") return retryIds;
-    const raw = localStorage.getItem(CARD_RETRY_KEY);
-    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-    if (!Array.isArray(parsed)) return retryIds;
-    for (const entry of parsed) {
-      if (typeof entry === "string") retryIds.add(entry);
-    }
-  } catch {
-    // Private mode can block storage. An empty list leaves the merge as it was.
-  }
-  return retryIds;
-}
-
-function writeRetryIds() {
-  const ids = readRetryIds();
-  try {
-    if (typeof localStorage === "undefined") return;
-    if (ids.size === 0) localStorage.removeItem(CARD_RETRY_KEY);
-    else localStorage.setItem(CARD_RETRY_KEY, JSON.stringify([...ids]));
-  } catch {
-    // Private mode can block storage.
-  }
-}
-
-function rememberCardRetry(id: string) {
-  const ids = readRetryIds();
-  if (ids.has(id)) return;
-  ids.add(id);
-  writeRetryIds();
-}
-
-function forgetCardRetry(id: string) {
-  const ids = readRetryIds();
-  if (!ids.delete(id)) return;
-  writeRetryIds();
-}
-
-function clearCardRetries() {
-  readRetryIds().clear();
-  writeRetryIds();
-}
-
-function cardAwaitingRetry(id: string) {
-  return readRetryIds().has(id);
-}
-
-function errorText(error: unknown) {
-  const record = error && typeof error === "object" ? (error as { message?: unknown; code?: unknown }) : {};
-  return {
-    code: typeof record.code === "string" ? record.code : "",
-    message: typeof record.message === "string" ? record.message : "",
-  };
-}
-
-/** The write never reached the database: the network dropped, or the server sent no row error. */
-function offlineWrite(error: unknown) {
-  const { code, message } = errorText(error);
-  if (!error || typeof error !== "object") return false;
-  if (/^(08|53|57)/.test(code) || code === "40001" || code === "40P01" || /^5\d\d$/.test(code)) return true;
-  if (/^[0-9A-Z]{5}$/.test(code)) return false;
-  if (!code && !message) return true;
-  return /failed to fetch|networkerror|network request failed|load failed|internet connection|timeout|timed out|aborted|econnreset|bad gateway|gateway timeout|service unavailable|internal server error/i.test(
-    message,
-  );
-}
-
-/** No session, or the session was refused. That does not join the retry list, and it does not drop one. */
-function authWrite(error: unknown) {
-  const { code, message } = errorText(error);
-  return code === "401" || code === "PGRST301" || /jwt|not authenticated/i.test(message);
-}
-
 /** A name typed here stays when the server row is still blank. The last free slot's update can be rejected, and an empty server value must not erase it. */
 function keptText(local: string, remote: string | null | undefined): string {
   const fromServer = remote ?? "";
@@ -177,8 +98,6 @@ function keptField<T>(localNewer: boolean, local: T | undefined, remote: T | und
 }
 
 function overlayScalars(local: Card, row: CardRow): Card {
-  // A save the network dropped keeps this phone's copy until that save lands.
-  if (cardAwaitingRetry(local.id)) return { ...local };
   const remotePhotoId = row.photo_attachment_id ?? undefined;
   const displayName = keptText(local.displayName, row.display_name);
   const title = keptText(local.title, row.title);
@@ -345,7 +264,6 @@ function readLibraryOwner(): LibraryOwner | null {
 
 /** The local library was wiped on purpose. The next account must not be treated as a thief of it. */
 export function forgetLibraryOwner() {
-  clearCardRetries();
   try {
     localStorage.removeItem(LIBRARY_OWNER_KEY);
   } catch {
@@ -368,8 +286,6 @@ function libraryIsSomeoneElse(ownerId: string) {
 }
 
 async function dropLocalCards(ids: Set<string> | "all") {
-  if (ids === "all") clearCardRetries();
-  else for (const id of ids) forgetCardRetry(id);
   const { useAppStore } = await import("@/shared/store/app-store");
   const state = useAppStore.getState();
   const cards = ids === "all" ? [] : state.cards.filter((card) => !ids.has(card.id));
@@ -427,7 +343,6 @@ export async function upsertCardScalars(card: Card): Promise<"ok" | "foreign" | 
       const saved = await supabase.from("cards").upsert(row, { onConflict: "id", defaultToNull: false });
       error = saved.error;
       if (!error) {
-        forgetCardRetry(card.id);
         if (handle && handle !== card.handle) {
           const savedHandle = handle;
           const { useAppStore } = await import("@/shared/store/app-store");
@@ -461,17 +376,11 @@ export async function upsertCardScalars(card: Card): Promise<"ok" | "foreign" | 
 
     if (error) {
       console.error("[card-sync] upsert failed", error.message);
-      if (foreignCardWrite(error)) {
-        forgetCardRetry(card.id);
-        return "foreign";
-      }
-      if (offlineWrite(error)) rememberCardRetry(card.id);
-      else if (!authWrite(error)) forgetCardRetry(card.id);
+      if (foreignCardWrite(error)) return "foreign";
     }
     return "skip";
   } catch (error) {
     console.error("[card-sync] upsert failed", error);
-    if (offlineWrite(error)) rememberCardRetry(card.id);
     return "skip";
   }
 }
@@ -573,7 +482,6 @@ export function writeCardSearchable(cardId: string, searchable: boolean) {
 
 /** Drop one portfolio's queued write, so a deleted portfolio is not saved back. */
 export function dropPendingCardUpsert(cardId: string) {
-  forgetCardRetry(cardId);
   const pending = pendingUpserts.get(cardId);
   if (!pending) return;
   clearTimeout(pending.timer);
@@ -594,42 +502,9 @@ function flushPendingUpserts() {
   }
 }
 
-let retryChain: Promise<void> = Promise.resolve();
-
-function scheduleCardRetries() {
-  retryChain = retryChain.then(() => retryCardWrites()).catch((error) => {
-    console.error("[card-sync] retry failed", error);
-  });
-}
-
-/** Send only saves the network dropped. An empty deck is a sign-in in progress: keep the list, send nothing. */
-async function retryCardWrites() {
-  if (readRetryIds().size === 0) return;
-  const { useAppStore } = await import("@/shared/store/app-store");
-  if (useAppStore.getState().cards.length === 0) return;
-  const ownerId = await sessionUserId();
-  if (!ownerId) return;
-  const library = readLibraryOwner();
-  if (library && library.id !== ownerId) return;
-  for (const id of [...readRetryIds()]) {
-    if (!readRetryIds().has(id)) return;
-    if (useAppStore.getState().cards.length === 0) return;
-    const card = useAppStore.getState().cards.find((entry) => entry.id === id);
-    if (!card) {
-      forgetCardRetry(id);
-      continue;
-    }
-    await upsertCardScalars(card);
-  }
-}
-
 if (typeof window !== "undefined") {
   window.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") flushPendingUpserts();
-    if (document.visibilityState === "visible") scheduleCardRetries();
-  });
-  window.addEventListener("online", () => {
-    scheduleCardRetries();
   });
 }
 
