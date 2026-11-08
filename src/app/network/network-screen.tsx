@@ -253,7 +253,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     const sent = await sendShareBack(contact.savedCardToken, card.id);
     if (!sent) return;
     setPickUp(false);
-    setMenu((current) => (current?.id === contact.id ? { ...current, picking: false } : current));
+    setMenu(null);
     setNotice(`${card.name} shared back`);
   };
 
