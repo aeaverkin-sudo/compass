@@ -7,8 +7,11 @@ import { listEventManagers, loadManageEvent, visibleSections } from "@/shared/se
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { loadEventPay } from "@/shared/services/event-payment";
 import { loadGuestBook } from "@/shared/services/event-guest-lists";
+import { eventPublicPath } from "@/shared/event/slug";
 import { eventClock } from "@/shared/event/when";
 import { eventDoorIsOpen, eventHasEnded } from "@/shared/services/events";
+import { loadOpenLink } from "@/shared/services/event-open-link";
+import { requestOrigin } from "@/shared/services/public-card-meta";
 import { isPaidGuest, isPendingGuest } from "@/shared/event/guest-sources";
 import { ManageHome } from "./manage-home";
 
@@ -48,7 +51,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
   const pay = await loadEventPay(event.id);
   const ended = eventHasEnded(invite.date, invite.endsAt);
   const needBook = shown("guests") || shown("payment") || shown("analytics");
-  const [managers, book] = await Promise.all([
+  const [managers, book, openLink, origin] = await Promise.all([
     shown("managers") ? listEventManagers(event.id) : Promise.resolve(null),
     needBook
       ? loadGuestBook(event.id).catch((error) => {
@@ -56,6 +59,8 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
           return null;
         })
       : Promise.resolve(null),
+    shown("guests") ? loadOpenLink(event.id) : Promise.resolve(null),
+    shown("guests") ? requestOrigin() : Promise.resolve(""),
   ]);
   const flash = query.created === "1" ? "created" : query.saved === "1" ? "saved" : null;
   const today = eventDoorIsOpen(invite.date, invite.endsAt) && !ended;
@@ -96,6 +101,14 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
           ? { isPaid: pay.isPaid, price: priceLabel(pay.price, pay.currency), confirmed: paid, pending }
           : null,
         guests: shown("guests") ? { sent, confirmed: pay.isPaid ? paid : going } : null,
+        openLink: openLink
+          ? {
+              open: openLink.open,
+              url: `${origin}${eventPublicPath(invite.slug?.trim() || invite.code.trim() || event.publicToken)}`,
+              capacity: openLink.capacity,
+              joined: event.registered,
+            }
+          : null,
         staff: managers
           ? managers.map((manager) => ({ id: manager.userId, name: manager.name, role: staffRole(manager.permissions) }))
           : null,

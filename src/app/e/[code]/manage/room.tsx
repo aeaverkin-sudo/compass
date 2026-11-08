@@ -10,6 +10,7 @@ export const ENTRY =
   "press inline-block t-caps text-[var(--grey)] no-underline [-webkit-tap-highlight-color:transparent]";
 
 const ENTRY_GAP_PX = 8;
+const TEST_MODE_PAD_PX = 78;
 
 /** Alphabetic baseline of the first line, in viewport coordinates. */
 function firstBaseline(el: Element) {
@@ -22,18 +23,23 @@ export function Room({
   label,
   entry,
   href,
+  testMode = false,
   children,
 }: {
   index: number;
   label: string;
   entry: string;
   href: string;
+  /** Grey “Test mode” on the label’s baseline. Off everywhere except the event cabinet. */
+  testMode?: boolean;
   children?: ReactNode;
 }) {
+  const sectionRef = useRef<HTMLElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
   const valueRef = useRef<HTMLDivElement>(null);
   const entryRef = useRef<HTMLAnchorElement>(null);
+  const testRef = useRef<HTMLSpanElement>(null);
   const [gap, setGap] = useState(0);
 
   useLayoutEffect(() => {
@@ -51,6 +57,13 @@ export function Room({
       const next = Math.round((Math.max(onLabel, belowValue) - restingTop) * 10) / 10;
       if (!Number.isFinite(next)) return;
       setGap((current) => (Math.abs(current - next) < 0.5 ? current : next));
+      const testEl = testRef.current;
+      const sectionEl = sectionRef.current;
+      if (testEl && sectionEl) {
+        const testInset = firstBaseline(testEl) - testEl.getBoundingClientRect().top;
+        const top = firstBaseline(labelEl) - testInset - sectionEl.getBoundingClientRect().top;
+        if (Number.isFinite(top)) testEl.style.top = `${Math.round(top * 10) / 10}px`;
+      }
     };
 
     measure();
@@ -71,7 +84,12 @@ export function Room({
   });
 
   return (
-    <section className="min-w-0 border-b border-[var(--rule)] py-[18px]">
+    <section ref={sectionRef} className="relative min-w-0 border-b border-[var(--rule)] py-[18px]">
+      {testMode ? (
+        <span ref={testRef} className="pointer-events-none absolute right-0 t-meta text-[var(--grey)]">
+          Test mode
+        </span>
+      ) : null}
       <div ref={rowRef} className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
         <div className="min-w-0">
           <SectionNumber value={sectionNumberLabel(index)} />
@@ -79,7 +97,7 @@ export function Room({
         </div>
         <div className="flex min-w-0 flex-col items-start">
           <ValueCap className="w-full min-w-0">
-            <div ref={valueRef} className="t-body text-[var(--ink)]">
+            <div ref={valueRef} className="t-body text-[var(--ink)]" style={testMode ? { paddingRight: TEST_MODE_PAD_PX } : undefined}>
               {children}
             </div>
           </ValueCap>

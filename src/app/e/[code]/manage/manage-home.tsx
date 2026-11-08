@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Copy } from "lucide-react";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Rule } from "@/shared/components/rule";
 import { CoverButton } from "@/shared/event/cover-button";
@@ -23,6 +24,8 @@ export type HomeRooms = {
   event: string | null;
   payment: { isPaid: boolean; price: string | null; confirmed: number; pending: number } | null;
   guests: { sent: number; confirmed: number } | null;
+  /** Same open link the Guests screen copies. Null when Guests itself is hidden. */
+  openLink: { open: boolean; url: string; capacity: number | null; joined: number } | null;
   staff: { id: string; name: string; role: string }[] | null;
   /** Set once the event is over. */
   stats: { after: { came: number; total: number } | null } | null;
@@ -90,6 +93,20 @@ export function ManageHome({
   };
 
   const list: { key: string; label: string; entry: string; path: string; state: ReactNode }[] = [];
+  if (rooms.guests && rooms.openLink) {
+    const link = rooms.openLink;
+    list.push({
+      key: "open",
+      label: "Open link",
+      entry: "Open link",
+      path: "/manage/guests",
+      state: link.open ? (
+        <OpenLinkValue url={link.url} capacity={link.capacity} joined={link.joined} onNotice={setNotice} />
+      ) : (
+        "Off"
+      ),
+    });
+  }
   if (rooms.event !== null && canEdit) {
     list.push({ key: "event", label: "Event", entry: "Edit details", path: "/manage/edit", state: rooms.event });
   }
@@ -164,12 +181,56 @@ export function ManageHome({
         <>
           <Rule className="mt-[18px]" />
           {list.map((room, index) => (
-            <Room key={room.key} index={index} label={room.label} entry={room.entry} href={href(room.path)}>
+            <Room
+              key={room.key}
+              index={index}
+              label={room.label}
+              entry={room.entry}
+              href={href(room.path)}
+              testMode={room.key !== "open"}
+            >
               {room.state}
             </Room>
           ))}
         </>
       ) : null}
     </ManageFrame>
+  );
+}
+
+/** The link and the capacity line. The switch stays on the Guests screen. */
+function OpenLinkValue({
+  url,
+  capacity,
+  joined,
+  onNotice,
+}: {
+  url: string;
+  capacity: number | null;
+  joined: number;
+  onNotice: (text: string) => void;
+}) {
+  const copy = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("no clipboard");
+      await navigator.clipboard.writeText(url);
+      onNotice("Link copied");
+    } catch {
+      onNotice("Could not copy");
+    }
+  };
+  const line = capacity ? `Capacity ${capacity} · ${joined} joined` : `Capacity · no limit · ${joined} joined`;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void copy()}
+        className="press flex w-full items-baseline justify-between gap-2 border-0 bg-transparent p-0 text-left text-inherit [-webkit-tap-highlight-color:transparent]"
+      >
+        <span className="min-w-0 break-all">{url.replace(/^https?:\/\//, "")}</span>
+        <Copy aria-label="Copy" className="shrink-0 self-center text-[var(--ink)]" size={16} strokeWidth={1.25} />
+      </button>
+      <p className="mb-0 mt-3 t-meta text-[var(--grey)]">{line}</p>
+    </>
   );
 }
