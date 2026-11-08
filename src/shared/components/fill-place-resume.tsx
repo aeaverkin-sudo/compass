@@ -6,6 +6,7 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { readPortfolio, readQuestionnaire } from "@/shared/lib/fill-place";
+import { isInstalledApp } from "@/shared/lib/home-entry";
 import { useAppStore } from "@/shared/store/app-store";
 
 /** A killed page opens again on the questionnaire or the card that was being edited. */
@@ -36,7 +37,7 @@ export function FillPlaceResume() {
     if (useAppStore.getState().currentCardIndex !== index) {
       useAppStore.getState().setCurrentCardIndex(index);
     }
-    if (path === "/") router.replace("/main");
+    if (path === "/" && isInstalledApp()) router.replace("/main");
   }, [hydrated, sessionReady, cardsReady, router]);
 
   return null;
