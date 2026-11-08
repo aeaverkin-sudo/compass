@@ -4,6 +4,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
+import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
+import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
+import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
+import { homeEntryHref, noteTrialCardStarted } from "@/shared/lib/home-entry";
+import { useAppStore } from "@/shared/store/app-store";
 
 const CSS = `
 .pw-root{position:fixed;inset:0;z-index:1;color:#141210;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;background:#bdbab4;-webkit-font-smoothing:antialiased;}
@@ -128,7 +133,15 @@ export function PosterWallLanding() {
   const [about, setAbout] = useState(false);
   const aboutMarker = useRef(false);
   const aboutOpen = useRef(false);
+  const pendingEntry = useRef(false);
   aboutOpen.current = about;
+  const hydrated = useStoreHydrated();
+  const sessionReady = useSessionBootstrap();
+  const needsSignIn = useRegistrationRequired();
+  const cardsReady = useCardsHydrated();
+  const onboarded = useAppStore((state) => state.user.onboarded);
+  const cards = useAppStore((state) => state.cards);
+  const entry = homeEntryHref({ hydrated, sessionReady, cardsReady, needsSignIn, onboarded, cards });
 
   useEffect(() => {
     const content = concrete.current;
@@ -339,24 +352,35 @@ export function PosterWallLanding() {
     if (history.state?.compassAbout) history.back();
   };
 
-  const openCreate = (event: { preventDefault(): void }) => {
-    if (!aboutMarker.current) return;
+  const openPortfolio = (event: { preventDefault(): void }) => {
     event.preventDefault();
+    const run = () => {
+      if (!entry) {
+        pendingEntry.current = true;
+        return;
+      }
+      if (entry === "/main") noteTrialCardStarted();
+      router.push(entry);
+    };
+    if (!aboutMarker.current) {
+      run();
+      return;
+    }
     aboutMarker.current = false;
-    const go = () => router.push("/create");
     if (history.state?.compassAbout) {
-      window.addEventListener(
-        "popstate",
-        () => {
-          window.setTimeout(go, 0);
-        },
-        { once: true },
-      );
+      window.addEventListener("popstate", () => window.setTimeout(run, 0), { once: true });
       history.back();
       return;
     }
-    go();
+    run();
   };
+
+  useEffect(() => {
+    if (!pendingEntry.current || !entry) return;
+    pendingEntry.current = false;
+    if (entry === "/main") noteTrialCardStarted();
+    router.push(entry);
+  }, [entry, router]);
 
   useEffect(() => {
     if (!about) return;
@@ -730,7 +754,7 @@ export function PosterWallLanding() {
             Close
           </button>
           <div className="pw-sheet-fade" />
-          <Link href="/create" className="pw-go" onClick={openCreate}>
+          <Link href={entry ?? "/create"} className="pw-go" onClick={openPortfolio}>
             GET YOUR PORTFOLIO
           </Link>
         </div>
@@ -741,7 +765,7 @@ export function PosterWallLanding() {
       )}
       {about ? null : (
         <div className="pw-cta">
-          <Link href="/create" className="pw-go">
+          <Link href={entry ?? "/create"} className="pw-go" onClick={openPortfolio}>
             GET YOUR PORTFOLIO
           </Link>
         </div>
