@@ -1,8 +1,45 @@
-/** Where a questionnaire or an Edit session was left. Kept two hours from the last touch. */
+/**
+ * An Edit draft stays in localStorage for two hours, so a killed app can reopen it.
+ * A questionnaire stays in this tab only, until the tab is closed. Tabs do not share it.
+ */
 
 const KEY = "aded-fill-place";
 const PHOTO_KEY = "aded-fill-photo";
 const TTL_MS = 2 * 60 * 60 * 1000;
+
+let retiredSharedQuestionnaire = false;
+
+/** An old shared record that is a questionnaire is dropped once. An Edit draft there stays. */
+function retireSharedQuestionnaire() {
+  if (retiredSharedQuestionnaire || typeof window === "undefined") return;
+  retiredSharedQuestionnaire = true;
+  try {
+    const raw = window.localStorage.getItem(KEY);
+    if (!raw) return;
+    const place = JSON.parse(raw) as { kind?: string };
+    if (place?.kind !== "questionnaire") return;
+    window.localStorage.removeItem(KEY);
+    window.localStorage.removeItem(PHOTO_KEY);
+  } catch {
+    // An Edit draft stays. A broken record is ignored when it is read.
+  }
+}
+
+function dropLocalPhoto() {
+  try {
+    window.localStorage.removeItem(PHOTO_KEY);
+  } catch {
+    // The old picture leaves with the old questionnaire record.
+  }
+}
+
+function dropSessionPhoto() {
+  try {
+    window.sessionStorage.removeItem(PHOTO_KEY);
+  } catch {
+    // The picture leaves with the tab.
+  }
+}
 
 export type QuestionnaireZone = {
   id: string;
@@ -43,97 +80,98 @@ function fresh(at: number) {
   return Number.isFinite(at) && Date.now() - at < TTL_MS;
 }
 
-function dropPhoto() {
-  try {
-    window.localStorage.removeItem(PHOTO_KEY);
-  } catch {
-    // The picture expires with the questionnaire.
-  }
-}
-
 export function createHref(href: string) {
   if (!href.startsWith("/create") || href.startsWith("//")) return null;
   return href;
 }
 
-function readRaw(): FillPlace | null {
+function readQuestionnaireRaw(): QuestionnairePlace | null {
+  retireSharedQuestionnaire();
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(KEY);
+    if (!raw) return null;
+    const place = JSON.parse(raw) as QuestionnairePlace;
+    if (!place || place.kind !== "questionnaire" || !createHref(place.href)) {
+      window.sessionStorage.removeItem(KEY);
+      dropSessionPhoto();
+      return null;
+    }
+    return place;
+  } catch {
+    return null;
+  }
+}
+
+function readPortfolioRaw(): PortfolioPlace | null {
+  retireSharedQuestionnaire();
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return null;
     const place = JSON.parse(raw) as FillPlace;
-    if (!place || typeof place.at !== "number" || !fresh(place.at)) {
+    const keep = Boolean(
+      place && place.kind === "portfolio" && typeof place.at === "number" && fresh(place.at) && place.cardId,
+    );
+    if (!keep) {
       window.localStorage.removeItem(KEY);
-      dropPhoto();
+      dropLocalPhoto();
       return null;
     }
-    if (place.kind === "questionnaire" && createHref(place.href)) return place;
-    if (place.kind === "portfolio" && place.cardId) {
-      dropPhoto();
-      const row = place as PortfolioPlace;
-      return {
-        ...row,
-        rowId: typeof row.rowId === "string" ? row.rowId : null,
-        sectionId: typeof row.sectionId === "string" ? row.sectionId : null,
-        rowText: typeof row.rowText === "string" ? row.rowText : null,
-      };
-    }
-    window.localStorage.removeItem(KEY);
-    dropPhoto();
-    return null;
+    dropLocalPhoto();
+    const row = place as PortfolioPlace;
+    return {
+      ...row,
+      rowId: typeof row.rowId === "string" ? row.rowId : null,
+      sectionId: typeof row.sectionId === "string" ? row.sectionId : null,
+      rowText: typeof row.rowText === "string" ? row.rowText : null,
+    };
   } catch {
     return null;
   }
 }
 
-function write(place: FillPlace) {
-  if (typeof window === "undefined") return;
+export function readQuestionnaire(): QuestionnairePlace | null {
+  return readQuestionnaireRaw();
+}
+
+export function readPortfolio(): PortfolioPlace | null {
+  return readPortfolioRaw();
+}
+
+export function writeQuestionnaire(place: Omit<QuestionnairePlace, "kind" | "at">) {
+  if (!createHref(place.href) || typeof window === "undefined") return;
+  retireSharedQuestionnaire();
   try {
-    window.localStorage.setItem(KEY, JSON.stringify({ ...place, at: Date.now() }));
+    window.sessionStorage.setItem(KEY, JSON.stringify({ ...place, kind: "questionnaire", at: Date.now() }));
+  } catch {
+    // A full tab keeps the live page. Closing it starts empty.
+  }
+}
+
+export function writePortfolio(place: Omit<PortfolioPlace, "kind" | "at">) {
+  if (!place.cardId || typeof window === "undefined") return;
+  retireSharedQuestionnaire();
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify({ ...place, kind: "portfolio", at: Date.now() }));
   } catch {
     // A full disk keeps the live page. The next open starts empty.
   }
 }
 
-export function readQuestionnaire(): QuestionnairePlace | null {
-  const place = readRaw();
-  return place?.kind === "questionnaire" ? place : null;
-}
-
-export function readPortfolio(): PortfolioPlace | null {
-  const place = readRaw();
-  return place?.kind === "portfolio" ? place : null;
-}
-
-export function writeQuestionnaire(place: Omit<QuestionnairePlace, "kind" | "at">) {
-  if (!createHref(place.href)) return;
-  write({ ...place, kind: "questionnaire", at: Date.now() });
-}
-
-export function writePortfolio(place: Omit<PortfolioPlace, "kind" | "at">) {
-  if (!place.cardId) return;
-  write({ ...place, kind: "portfolio", at: Date.now() });
-}
-
 type PhotoPlace = { at: number; href: string; dataUrl: string };
 
-/** The questionnaire photo, kept for the same two hours as the text. */
+/** The questionnaire photo, kept with the text until this tab closes. */
 export function readQuestionnairePhoto(href: string): string | null {
   const place = readQuestionnaire();
   if (!place || place.href !== href) return null;
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(PHOTO_KEY);
+    const raw = window.sessionStorage.getItem(PHOTO_KEY);
     if (!raw) return null;
     const photo = JSON.parse(raw) as PhotoPlace;
-    if (
-      !photo ||
-      photo.href !== href ||
-      !fresh(photo.at) ||
-      typeof photo.dataUrl !== "string" ||
-      !photo.dataUrl.startsWith("data:image/")
-    ) {
-      dropPhoto();
+    if (!photo || photo.href !== href || typeof photo.dataUrl !== "string" || !photo.dataUrl.startsWith("data:image/")) {
+      dropSessionPhoto();
       return null;
     }
     return photo.dataUrl;
@@ -146,10 +184,10 @@ export function writeQuestionnairePhoto(href: string, dataUrl: string | null) {
   if (typeof window === "undefined" || !createHref(href)) return;
   try {
     if (!dataUrl?.startsWith("data:image/")) {
-      dropPhoto();
+      dropSessionPhoto();
       return;
     }
-    window.localStorage.setItem(PHOTO_KEY, JSON.stringify({ at: Date.now(), href, dataUrl }));
+    window.sessionStorage.setItem(PHOTO_KEY, JSON.stringify({ at: Date.now(), href, dataUrl }));
   } catch {
     // The text is already saved. A picture that does not fit stays on this page only.
   }
@@ -209,12 +247,25 @@ export function clearSignInEmail() {
   }
 }
 
+/** This tab's questionnaire only. The Edit draft stays. */
+export function clearQuestionnaire() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(KEY);
+  } catch {
+    // The questionnaire leaves with the tab.
+  }
+  dropSessionPhoto();
+}
+
 export function clearFillPlace() {
   if (typeof window === "undefined") return;
+  retireSharedQuestionnaire();
+  clearQuestionnaire();
   try {
     window.localStorage.removeItem(KEY);
   } catch {
-    // The record expires on its own.
+    // The Edit draft expires on its own.
   }
-  dropPhoto();
+  dropLocalPhoto();
 }

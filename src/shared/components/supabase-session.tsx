@@ -22,7 +22,7 @@ import {
   markSessionBootstrapComplete,
 } from "@/shared/lib/session-bootstrap";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
-import { clearFillPlace, readQuestionnaire } from "@/shared/lib/fill-place";
+import { clearQuestionnaire, readQuestionnaire } from "@/shared/lib/fill-place";
 import { useAppStore } from "@/shared/store/app-store";
 
 function restoreRegisteredOnboarding(isAnonymous: boolean) {
@@ -40,7 +40,7 @@ function restoreRegisteredOnboarding(isAnonymous: boolean) {
 function dropFinishedQuestionnaire() {
   const hasCard = useAppStore.getState().cards.some((card) => card.displayName.trim().length > 0);
   if (!hasCard || !readQuestionnaire()) return;
-  clearFillPlace();
+  clearQuestionnaire();
 }
 
 function acceptUser(user: User) {
