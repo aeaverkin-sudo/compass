@@ -3,10 +3,6 @@ import { planCatalog, planId, planLimits, type PlanId } from "@/shared/services/
 
 const HOUR_MS = 60 * 60 * 1000;
 
-export const TRIAL_MS = 60 * HOUR_MS;
-export const GRACE_MS = 40 * HOUR_MS;
-export const PURGE_AFTER_MS = TRIAL_MS + GRACE_MS;
-
 export type AccountProvider = "email" | "google" | null;
 
 export type AccountStatus = {
@@ -56,20 +52,11 @@ type ProfileClock = {
   portfolio_limit: number | null;
 };
 
-function clockFrom(row: ProfileClock | null, now = Date.now()) {
-  if (!row || row.registered_at) {
-    return { registered: Boolean(row?.registered_at), trial: false, frozen: false, hoursLeft: null as number | null };
-  }
-  if (!row.draft_expires_at) {
-    return { registered: false, trial: false, frozen: false, hoursLeft: null as number | null };
-  }
-  const expires = new Date(row.draft_expires_at).getTime();
-  const frozen = expires <= now;
-  const hoursLeft = frozen ? 0 : Math.max(1, Math.ceil((expires - now) / HOUR_MS));
-  return { registered: false, trial: true, frozen, hoursLeft };
+function clockFrom(row: ProfileClock | null) {
+  return { registered: Boolean(row?.registered_at), trial: false, frozen: false, hoursLeft: null as number | null };
 }
 
-function statusFrom(row: ProfileClock | null, now = Date.now()): AccountStatus {
+function statusFrom(row: ProfileClock | null): AccountStatus {
   const plan = planId(row?.plan);
   const limits = planLimits(plan);
   const portfolioLimit =
@@ -77,7 +64,7 @@ function statusFrom(row: ProfileClock | null, now = Date.now()): AccountStatus {
       ? row.portfolio_limit
       : limits.portfolios;
   return {
-    ...clockFrom(row, now),
+    ...clockFrom(row),
     email: null,
     provider: null,
     consentVersion: null,
@@ -130,26 +117,6 @@ async function readClock(userId: string): Promise<ProfileClock | null> {
 }
 
 export async function readAccountStatus(userId: string): Promise<AccountStatus> {
-  return statusFrom(await readClock(userId));
-}
-
-/** Starts the 60h / 100h clock once. A second call does not move it. */
-export async function startTrialClock(userId: string): Promise<AccountStatus> {
-  const current = await readClock(userId);
-  if (current?.registered_at || current?.draft_expires_at) return statusFrom(current);
-
-  const now = Date.now();
-  const admin = createAdminSupabaseClient();
-  const { error } = await admin
-    .from("profiles")
-    .update({
-      draft_expires_at: new Date(now + TRIAL_MS).toISOString(),
-      purge_at: new Date(now + PURGE_AFTER_MS).toISOString(),
-    })
-    .eq("id", userId)
-    .is("registered_at", null)
-    .is("draft_expires_at", null);
-  if (error) throw new Error(error.message);
   return statusFrom(await readClock(userId));
 }
 
