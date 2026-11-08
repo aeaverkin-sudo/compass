@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Rule } from "@/shared/components/rule";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
@@ -19,7 +18,6 @@ type PasswordFormProps = {
 };
 
 export function PasswordForm({ title, hint, fallbackHref, recovery = false }: PasswordFormProps) {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -63,7 +61,7 @@ export function PasswordForm({ title, hint, fallbackHref, recovery = false }: Pa
       url.searchParams.delete("token_hash");
       window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
       setMessage("Password saved.");
-      window.setTimeout(() => router.push("/main"), 1000);
+      window.setTimeout(() => window.location.replace("/main"), 1000);
       return;
     }
     setMessage("Password saved.");
