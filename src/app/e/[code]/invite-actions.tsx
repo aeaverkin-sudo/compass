@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
+import { deviceWasRegistered } from "@/shared/lib/registered-device";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, forgetLibraryOwner, hydrateCardsFromServer } from "@/shared/services/card-sync";
@@ -143,6 +144,10 @@ export function InviteActions({
     const supabase = createBrowserSupabaseClient();
     let response = await send();
     if (response.status === 401) {
+      await supabase.auth.getSession();
+      response = await send();
+    }
+    if (response.status === 401 && !deviceWasRegistered()) {
       await supabase.auth.signInAnonymously();
       response = await send();
     }

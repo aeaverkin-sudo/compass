@@ -24,7 +24,7 @@ import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { markRegisteredDevice, rememberAccountEmail } from "@/shared/lib/registered-device";
+import { deviceWasRegistered, markRegisteredDevice, rememberAccountEmail } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { INVITE_TITLE_MAX, INVITE_VALUE_MAX } from "@/shared/event/invite-rows";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -452,6 +452,10 @@ export function CreatePortfolio({
     try {
       let response = await send();
       if (response.status === 401) {
+        await supabase.auth.getSession();
+        response = await send();
+      }
+      if (response.status === 401 && !deviceWasRegistered()) {
         await supabase.auth.signInAnonymously();
         response = await send();
       }
