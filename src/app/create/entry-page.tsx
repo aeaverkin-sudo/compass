@@ -398,10 +398,7 @@ export function EntryPage({
               className={photo ? undefined : "[&_button_svg]:invisible"}
             />
             {photo ? null : (
-              <span
-                className="t-label pointer-events-none absolute inset-0 flex items-center justify-center text-center text-[var(--grey)]"
-                style={{ textTransform: "none" }}
-              >
+              <span className="t-body pointer-events-none absolute inset-0 flex items-center justify-center text-center text-[var(--placeholder)]">
                 Photo
               </span>
             )}
