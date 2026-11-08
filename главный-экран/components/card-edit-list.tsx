@@ -1529,6 +1529,10 @@ const EditRow = memo(function EditRow({
           release();
           if (editing || pressedLong.current || deleteReady) return;
           if (!(event.target instanceof Node) || !fieldRef.current?.contains(event.target)) return;
+          if (fileUrl !== undefined) {
+            onArmDelete(itemId);
+            return;
+          }
           onPick?.();
           beginEdit();
         }}

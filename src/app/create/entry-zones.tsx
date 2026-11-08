@@ -12,7 +12,7 @@ import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, sugg
 import { createEmptyContactItem, detectContactType, normalizeContactItem } from "@/shared/services/contact-item";
 import type { QuestionnaireZone } from "@/shared/lib/fill-place";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
-import type { AttachmentContactType } from "@/shared/services/portfolio-limits";
+import { isAttachmentType, type AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { WrapField, type WrapFieldHandle } from "@main/components/wrap-field";
 
 const DELETE_RED = "#E23B2F";
@@ -493,6 +493,10 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                         : undefined
                     }
                     onEdit={() => {
+                      if (row.file || (row.type != null && isAttachmentType(row.type))) {
+                        setArmed(row.key);
+                        return;
+                      }
                       setEditKey(row.key);
                       setEditText(row.value);
                       setArmed(null);
