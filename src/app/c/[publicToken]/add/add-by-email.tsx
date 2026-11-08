@@ -8,7 +8,27 @@ import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { getSessionBootstrapReady, subscribeSessionBootstrap } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { useAppStore } from "@/shared/store/app-store";
 import { clearLocal } from "../../../e/[code]/invite-actions";
+
+const OWNER_KEY = "aded-library-owner";
+
+function readOwnerMark() {
+  try {
+    return localStorage.getItem(OWNER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeOwnerMark(raw: string | null) {
+  try {
+    if (raw === null) localStorage.removeItem(OWNER_KEY);
+    else localStorage.setItem(OWNER_KEY, raw);
+  } catch {
+    // Private mode keeps whatever the page still has.
+  }
+}
 
 const EXPIRED = "This link has expired. Enter your email again.";
 
@@ -38,9 +58,19 @@ export function AddByEmail({
     if (!hash || !ready || ran.current) return;
     ran.current = true;
     void (async () => {
+      const state = useAppStore.getState();
+      const snapshot = {
+        cards: state.cards,
+        contactItems: state.contactItems,
+        currentCardIndex: state.currentCardIndex,
+        user: state.user,
+      };
+      const ownerMark = readOwnerMark();
       clearLocal();
       const signed = await createBrowserSupabaseClient().auth.verifyOtp({ token_hash: hash, type: kind });
       if (signed.error) {
+        useAppStore.setState(snapshot);
+        writeOwnerMark(ownerMark);
         setOpening(false);
         setMessage(EXPIRED);
         return;
