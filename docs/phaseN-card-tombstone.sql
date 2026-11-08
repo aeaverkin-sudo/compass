@@ -68,3 +68,6 @@ drop trigger if exists cards_block_tombstone on public.cards;
 create trigger cards_block_tombstone
   before insert on public.cards
   for each row execute function public.reject_card_tombstone();
+
+-- A card with no owner must still leave a mark. The delete must not fail.
+alter table public.card_tombstones alter column owner_id drop not null;
