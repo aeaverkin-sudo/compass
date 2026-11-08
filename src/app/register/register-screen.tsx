@@ -324,7 +324,7 @@ export function RegisterScreen() {
       const response = await fetch("/api/auth/email/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: signInEmail.trim() }),
       });
       const body = (await response.json()) as { error?: string };
       if (!response.ok) {
