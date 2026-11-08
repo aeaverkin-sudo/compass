@@ -301,12 +301,10 @@ async function sessionUserId() {
   return data.session?.user?.id ?? null;
 }
 
-/** The row id already belongs to another account, or the database refused the write as not ours. */
+/** Another account owns this id, or this id is already the primary key. Any other unique conflict stays on the phone. */
 function foreignCardWrite(error: { message: string; code?: string }) {
   if (error.code === "42501" || /row-level security/i.test(error.message)) return true;
-  if (error.code !== "23505") return false;
-  if (/handle|public_token/i.test(error.message)) return false;
-  return true;
+  return error.code === "23505" && /cards_pkey/i.test(error.message);
 }
 
 /** Upsert scalar columns only. The avatar is `photo_attachment_id`, never the image bytes. */
@@ -616,7 +614,10 @@ async function runHydrate() {
       (Boolean(card.handle) && row.handle !== card.handle)
     );
   });
-  const uploaded = await Promise.all(toUpload.map(async (card) => ({ id: card.id, result: await upsertCardScalars(card) })));
+  const uploaded: { id: string; result: "ok" | "foreign" | "skip" }[] = [];
+  for (const card of toUpload) {
+    uploaded.push({ id: card.id, result: await upsertCardScalars(card) });
+  }
   if ((await sessionUserId()) !== ownerId) return;
   const foreign = uploaded.filter((entry) => entry.result === "foreign").map((entry) => entry.id);
   if (foreign.length > 0) await dropLocalCards(new Set(foreign));
