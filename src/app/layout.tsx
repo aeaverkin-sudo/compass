@@ -8,7 +8,6 @@ import { ServiceWorker } from "@/shared/components/service-worker";
 import { SupabaseSession } from "@/shared/components/supabase-session";
 import { FillPlaceResume } from "@/shared/components/fill-place-resume";
 import { TabPrefetch } from "@/shared/components/tab-prefetch";
-import { TrialLock } from "@/shared/components/trial-lock";
 import { VisualBottom } from "@/shared/components/visual-bottom";
 import "./globals.css";
 
@@ -108,7 +107,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <FillPlaceResume />
         <ServiceWorker />
         {children}
-        <TrialLock />
       </body>
     </html>
   );
