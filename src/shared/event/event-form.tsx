@@ -311,6 +311,8 @@ export function EventForm({
   }
   const logoRef = useRef<HTMLInputElement>(null);
   const [focusRow, setFocusRow] = useState({ id: "", turn: 0 });
+  const [whenKey, setWhenKey] = useState(0);
+  const whenEpoch = useRef(0);
 
   const rows = values.inviteRows;
   const customs = customInviteRows(rows);
@@ -318,6 +320,19 @@ export function EventForm({
   const setWhen = (patch: Partial<Pick<EventFormValues, "date" | "time" | "endTime">>) => {
     const next = { ...values, ...patch };
     onChange({ ...patch, dateText: inviteDateText(next.date), timeText: inviteTimeText(next.time, next.endTime) });
+  };
+
+  const resetWhen = () => {
+    whenEpoch.current += 1;
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    setWhen({ date: "", time: "", endTime: "" });
+    // iPhone keeps a date or time the person already picked and writes it back into the same field.
+    setWhenKey(whenEpoch.current);
+  };
+
+  const changeWhen = (epoch: number, patch: Partial<Pick<EventFormValues, "date" | "time" | "endTime">>) => {
+    if (epoch !== whenEpoch.current) return;
+    setWhen(patch);
   };
 
   const label = (kind: InviteBaseKind) => (
@@ -399,20 +414,22 @@ export function EventForm({
       <Zone label={label("when")} rule onClick={(event) => focusField(event, dateRef.current)}>
         <div className="flex items-baseline">
           <WhenField
+            key={`date-${whenKey}`}
             inputRef={dateRef}
             type="date"
             value={values.date}
             display={fmtDate(values.date)}
-            onChange={(date) => setWhen({ date })}
+            onChange={(date) => changeWhen(whenKey, { date })}
             placeholder="Date"
             width="8ch"
           />
           <div className="ml-6 flex items-baseline">
             <WhenField
+              key={`start-${whenKey}`}
               type="time"
               value={values.time}
               display={values.time}
-              onChange={(time) => setWhen({ time })}
+              onChange={(time) => changeWhen(whenKey, { time })}
               placeholder="Start"
               width="5ch"
             />
@@ -420,18 +437,19 @@ export function EventForm({
               –
             </span>
             <WhenField
+              key={`end-${whenKey}`}
               type="time"
               value={values.endTime}
               display={values.endTime}
-              onChange={(endTime) => setWhen({ endTime })}
+              onChange={(endTime) => changeWhen(whenKey, { endTime })}
               placeholder="End"
               width="5ch"
             />
           </div>
           {values.date || values.time || values.endTime ? (
             <TapButton
-              onTap={() => setWhen({ date: "", time: "", endTime: "" })}
-              className="press relative ml-auto border-0 bg-transparent p-0 t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
+              onTap={resetWhen}
+              className="press relative z-10 ml-auto border-0 bg-transparent p-0 t-meta text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
             >
               Reset
             </TapButton>
