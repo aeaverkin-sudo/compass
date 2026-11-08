@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { TabBand } from "@main/components/tab-band";
 import { TapButton } from "@/shared/components/tap-button";
 import { acceptConnection, declineConnection, undoDecline, useConnectionDecisions } from "@/shared/lib/connection-decision";
@@ -9,6 +10,7 @@ const ITEM =
 
 /** Skip and Confirm on an opened request. The same sky row as Profile, Edit, and Network. */
 export function PendingShare({ id }: { id: string }) {
+  const router = useRouter();
   const decisions = useConnectionDecisions();
   if (decisions.gone.has(id) || decisions.accepting.has(id)) return null;
   const removing = decisions.removing.has(id);
@@ -31,12 +33,16 @@ export function PendingShare({ id }: { id: string }) {
     <TabBand
       label="Request"
       left={
-        <TapButton className={ITEM} onTap={() => declineConnection(id)}>
+        <TapButton className={ITEM} onTap={() => declineConnection(id, (ok) => {
+          if (ok) router.replace("/network");
+        })}>
           Skip
         </TapButton>
       }
       right={
-        <TapButton className={`${ITEM} justify-end`} onTap={() => acceptConnection(id)}>
+        <TapButton className={`${ITEM} justify-end`} onTap={() => acceptConnection(id, (ok) => {
+          if (ok) router.refresh();
+        })}>
           Confirm
         </TapButton>
       }

@@ -8,10 +8,14 @@ const AGAIN_MS = 1500;
 
 type Kind = "accepting" | "removing";
 
+type Settled = (ok: boolean) => void;
+
 type Entry = {
   kind: Kind;
   token: number;
   timer: number | null;
+  /** Only the opened request uses this. The Network list leaves it empty. */
+  onSettled?: Settled;
 };
 
 export type ConnectionDecisions = {
@@ -86,7 +90,7 @@ async function removeRow(id: string) {
 }
 
 /** Yes. The row stays in the book as an ordinary contact. */
-export function acceptConnection(id: string) {
+export function acceptConnection(id: string, onSettled?: Settled) {
   const token = begin(id, "accepting", null);
   void (async () => {
     let error: { message: string } | null = null;
@@ -108,20 +112,26 @@ export function acceptConnection(id: string) {
       if (error) {
         entries.delete(id);
         publish();
+        onSettled?.(false);
+        return;
       }
     }
+    onSettled?.(true);
   })();
 }
 
 /** No. The row leaves the list now. The delete itself waits three seconds. */
-export function declineConnection(id: string) {
+export function declineConnection(id: string, onSettled?: Settled) {
   if (entries.get(id)?.kind === "removing" || gone.has(id)) return;
   const token = begin(id, "removing", 0);
   const timer = window.setTimeout(() => {
     void finishDecline(id, token);
   }, UNDO_MS);
   const entry = entries.get(id);
-  if (entry && entry.token === token) entry.timer = timer;
+  if (entry && entry.token === token) {
+    entry.timer = timer;
+    entry.onSettled = onSettled;
+  }
 }
 
 /** Undo inside the three seconds. Nothing was deleted. */
@@ -154,9 +164,11 @@ async function finishDecline(id: string, token: number) {
     }
     if (!entries.get(id) || entries.get(id)?.token !== token) return;
   }
+  const settled = entries.get(id)?.onSettled;
   entries.delete(id);
   if (!error) gone.add(id);
   publish();
+  settled?.(!error);
 }
 
 /** The server already returned this row as active, so the local Yes mark can go. */
