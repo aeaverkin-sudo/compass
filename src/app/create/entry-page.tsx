@@ -383,7 +383,7 @@ export function EntryPage({
       <div className={PAD}>
         {telegram ? (
           <p className="mb-[18px] t-meta text-[var(--grey)]">
-            Откройте в браузере: ••• → Open in Safari — так карточка останется у вас
+            Open in your browser: ••• → Open in Safari, so your card stays with you.
           </p>
         ) : null}
         <div className="flex items-stretch gap-3" style={{ height: 128 }}>
