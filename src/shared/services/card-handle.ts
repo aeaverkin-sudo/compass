@@ -41,7 +41,49 @@ const CYRILLIC: Record<string, string> = {
   ґ: "g",
 };
 
-export const HANDLE_RE = /^[a-z0-9]+(?:-[0-9]+)?$/;
+const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+
+/** An address already given out, or a new `code-slug`. Nothing else. */
+export const HANDLE_RE =
+  /^(?:[a-z0-9]+(?:-[0-9]+)?|(?=[abcdefghjkmnpqrstuvwxyz23456789]*[a-z])(?=[abcdefghjkmnpqrstuvwxyz23456789]*[23456789])[abcdefghjkmnpqrstuvwxyz23456789]{3}-[a-z0-9]+)$/;
+
+/** `k7m-sergeyivanov` is a new address. `anna` and `anna-2` are not: the code is the first three signs. */
+export function splitCodedHandle(handle: string): { code: string; slug: string } | null {
+  const match = handle
+    .trim()
+    .toLowerCase()
+    .match(
+      /^(?=[abcdefghjkmnpqrstuvwxyz23456789]*[a-z])(?=[abcdefghjkmnpqrstuvwxyz23456789]*[23456789])([abcdefghjkmnpqrstuvwxyz23456789]{3})-([a-z0-9]+)$/,
+    );
+  if (!match) return null;
+  return { code: match[1], slug: match[2] };
+}
+
+function randomCodeChar(): string {
+  const limit = Math.floor(256 / CODE_ALPHABET.length) * CODE_ALPHABET.length;
+  const bytes = new Uint8Array(1);
+  for (;;) {
+    crypto.getRandomValues(bytes);
+    if (bytes[0] < limit) return CODE_ALPHABET[bytes[0] % CODE_ALPHABET.length];
+  }
+}
+
+/** Three signs. Always one letter and one digit, so the address cannot spell a section of the site. */
+export function handleCode(): string {
+  for (;;) {
+    const code = randomCodeChar() + randomCodeChar() + randomCodeChar();
+    if (/[a-z]/.test(code) && /[23456789]/.test(code)) return code;
+  }
+}
+
+export function codedHandle(slug: string): string {
+  return `${handleCode()}-${slug}`;
+}
+
+export function isHandleConflict(error: { code?: string; message?: string; details?: string | null } | null): boolean {
+  if (!error || error.code !== "23505") return false;
+  return /handle/i.test(`${error.message ?? ""}\n${error.details ?? ""}`);
+}
 
 export function slugFromName(name: string): string {
   let latin = "";
@@ -51,18 +93,9 @@ export function slugFromName(name: string): string {
   return latin.replace(/[^a-z0-9]/g, "");
 }
 
-/** Second card with the same slug is `-2`, then `-3`. */
-export function uniqueHandle(base: string, taken: Set<string>): string {
-  const root = base.toLowerCase();
-  if (!taken.has(root)) return root;
-  let n = 2;
-  while (taken.has(`${root}-${n}`)) n += 1;
-  return `${root}-${n}`;
-}
-
 /**
  * Fill `handle` from the display name.
- * An existing handle stays until the name changes (`refresh`).
+ * An existing handle stays until the name changes (`refresh`). A new one is `code-slug`.
  */
 export function assignHandle(card: Card, cards: Card[], refresh = false): Card {
   if (!refresh && card.handle?.trim()) return card;
@@ -74,7 +107,8 @@ export function assignHandle(card: Card, cards: Card[], refresh = false): Card {
       .map((other) => other.handle?.trim().toLowerCase())
       .filter((value): value is string => Boolean(value)),
   );
-  const handle = uniqueHandle(base, taken);
+  let handle = codedHandle(base);
+  for (let attempt = 1; taken.has(handle) && attempt < 8; attempt += 1) handle = codedHandle(base);
   return handle === card.handle ? card : { ...card, handle };
 }
 

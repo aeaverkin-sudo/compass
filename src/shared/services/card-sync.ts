@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { handlesForCards, slugFromName } from "@/shared/services/card-handle";
+import { codedHandle, handlesForCards, isHandleConflict, slugFromName } from "@/shared/services/card-handle";
 import { photoLookValue } from "@/shared/lib/photo-look";
 import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from "@/shared/services/card-zones";
 import type { Card, CardStatus } from "@/shared/types";
@@ -317,8 +317,19 @@ export async function upsertCardScalars(card: Card): Promise<"ok" | "foreign" | 
 
     const supabase = createBrowserSupabaseClient();
     let handle = card.handle?.trim().toLowerCase() || null;
-    let error: { message: string; code?: string } | null = null;
+    let error: { message: string; code?: string; details?: string | null } | null = null;
     const omit = new Set<string>();
+    const rememberHandle = async () => {
+      const previous = card.handle?.trim().toLowerCase() || null;
+      if (handle === previous) return;
+      const savedHandle = handle;
+      const { useAppStore } = await import("@/shared/store/app-store");
+      useAppStore.setState({
+        cards: useAppStore.getState().cards.map((entry) =>
+          entry.id === card.id ? { ...entry, handle: savedHandle ?? undefined } : entry,
+        ),
+      });
+    };
     for (let attempt = 0; attempt < 8; attempt += 1) {
       const row: Record<string, unknown> = {
         id: card.id,
@@ -343,21 +354,13 @@ export async function upsertCardScalars(card: Card): Promise<"ok" | "foreign" | 
       const saved = await supabase.from("cards").upsert(row, { onConflict: "id", defaultToNull: false });
       error = saved.error;
       if (!error) {
-        if (handle && handle !== card.handle) {
-          const savedHandle = handle;
-          const { useAppStore } = await import("@/shared/store/app-store");
-          useAppStore.setState({
-            cards: useAppStore.getState().cards.map((entry) =>
-              entry.id === card.id ? { ...entry, handle: savedHandle } : entry,
-            ),
-          });
-        }
+        await rememberHandle();
         return "ok";
       }
-      if (error.code === "23505" && /handle/i.test(error.message)) {
+      if (isHandleConflict(error)) {
         const base = slugFromName(card.displayName);
         if (!base) break;
-        handle = `${base}-${attempt + 2}`;
+        handle = codedHandle(base);
         continue;
       }
       if (/column|schema/i.test(error.message)) {
@@ -372,6 +375,36 @@ export async function upsertCardScalars(card: Card): Promise<"ok" | "foreign" | 
         }
       }
       break;
+    }
+
+    if (isHandleConflict(error)) {
+      handle = null;
+      const row: Record<string, unknown> = {
+        id: card.id,
+        owner_id: ownerId,
+        display_name: card.displayName,
+        title: card.title,
+        status: statusForPublish(card),
+        public_token: card.publicToken,
+        handle,
+        qr_version: card.qrVersion,
+        is_public: true,
+        listed: card.listed ?? true,
+        rubric_order: card.rubricOrder ?? null,
+        rubric_labels: card.rubricLabels ?? null,
+        item_zones: card.itemZones ?? null,
+        photo_look: card.photoLook ?? (card.photoAttachmentId || card.photo ? "shadow" : null),
+        photo_attachment_id: card.photoAttachmentId ?? null,
+        created_at: card.createdAt,
+        updated_at: card.updatedAt,
+      };
+      for (const column of omit) delete row[column];
+      const saved = await supabase.from("cards").upsert(row, { onConflict: "id", defaultToNull: false });
+      error = saved.error;
+      if (!error) {
+        await rememberHandle();
+        return "ok";
+      }
     }
 
     if (error) {

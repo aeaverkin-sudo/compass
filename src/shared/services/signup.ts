@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { slugFromName, uniqueHandle } from "@/shared/services/card-handle";
+import { codedHandle, isHandleConflict, slugFromName } from "@/shared/services/card-handle";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
 import { isEventLookup } from "@/shared/event/lookup";
 import { isEmail, userIdForEmail } from "@/shared/services/email-signup";
@@ -47,6 +47,8 @@ export type SignupResult =
       status: 201;
       cardId: string;
       publicToken: string;
+      /** The address stored on the card. The letter and the phone both use this one. Null when the name has no letters. */
+      handle: string | null;
       fileItems: SignupFileItem[];
       /** Every saved row, in card order. The new portfolio places them before the first hydrate. */
       itemIds: string[];
@@ -208,35 +210,35 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
     }
     const order = zones.map((zone) => zone.id);
     const base = slugFromName(displayName);
-    let handle: string | null = null;
-    if (base) {
-      const taken = await admin.from("cards").select("handle").ilike("handle", `${base}%`);
-      const used = new Set(
-        ((taken.data ?? []) as { handle: string | null }[])
-          .map((row) => row.handle?.trim().toLowerCase())
-          .filter((value): value is string => Boolean(value)),
-      );
-      handle = uniqueHandle(base, used);
-    }
-
+    let handle: string | null = base ? codedHandle(base) : null;
     const publicToken = nanoid(21);
-    const card = await admin.from("cards").insert({
-      id: cardId,
-      owner_id: userId,
-      display_name: displayName,
-      title: "",
-      status: "published",
-      public_token: publicToken,
-      handle,
-      qr_version: 1,
-      is_public: true,
-      is_primary: true,
-      listed: true,
-      rubric_order: order,
-      rubric_labels: Object.keys(labels).length > 0 ? labels : null,
-      created_at: now,
-      updated_at: now,
-    });
+    const insertCard = (nextHandle: string | null) =>
+      admin.from("cards").insert({
+        id: cardId,
+        owner_id: userId,
+        display_name: displayName,
+        title: "",
+        status: "published",
+        public_token: publicToken,
+        handle: nextHandle,
+        qr_version: 1,
+        is_public: true,
+        is_primary: true,
+        listed: true,
+        rubric_order: order,
+        rubric_labels: Object.keys(labels).length > 0 ? labels : null,
+        created_at: now,
+        updated_at: now,
+      });
+    let card = await insertCard(handle);
+    for (let attempt = 1; base && card.error && isHandleConflict(card.error) && attempt < 8; attempt += 1) {
+      handle = codedHandle(base);
+      card = await insertCard(handle);
+    }
+    if (card.error && isHandleConflict(card.error)) {
+      handle = null;
+      card = await insertCard(null);
+    }
     if (card.error) throw new Error(card.error.message);
 
     const itemZones: Record<string, string> = {};
@@ -316,6 +318,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
       status: 201,
       cardId,
       publicToken,
+      handle,
       fileItems,
       itemIds,
       itemZones,

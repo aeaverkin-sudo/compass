@@ -1,13 +1,13 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isPublicCardPath } from "@/shared/lib/public-card-path";
 
 let browserClient: SupabaseClient | null = null;
 let syncRefresh: (() => void) | null = null;
 
 /** A card opened by the phone camera. This tab must not refresh the login. */
 export function isCameraCardPath(path: string) {
-  const pathname = path.split("?")[0]?.split("#")[0] ?? path;
-  return pathname.startsWith("/c/") || pathname.startsWith("/@");
+  return isPublicCardPath(path);
 }
 
 /** One browser client for the whole app. A new instance would drop the anonymous session. */

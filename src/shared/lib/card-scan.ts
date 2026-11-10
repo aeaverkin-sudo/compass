@@ -32,7 +32,7 @@ function asUrl(text: string, origin: string): URL | null {
 
 /**
  * A portfolio link we can open inside the app.
- * Accepts `/c/{token}` and `/@handle` on adedme.com or this origin.
+ * Accepts `/c/{token}`, `/@handle`, and `/{code}/@slug` on adedme.com or this origin.
  */
 export function cardLinkFromScan(text: string, origin: string): ScannedCard | null {
   const url = asUrl(text, origin);
@@ -45,6 +45,11 @@ export function cardLinkFromScan(text: string, origin: string): ScannedCard | nu
   }
   const token = path.match(/^\/c\/([^/]+)\/?$/)?.[1];
   if (token && TOKEN_RE.test(token)) return { token };
+  const coded = path.match(/^\/([abcdefghjkmnpqrstuvwxyz23456789]{3})\/@([^/]+)\/?$/i);
+  if (coded) {
+    const handle = `${coded[1].toLowerCase()}-${coded[2].toLowerCase()}`;
+    if (HANDLE_RE.test(handle)) return { handle };
+  }
   const handle = path.match(/^\/@([^/]+)\/?$/)?.[1]?.toLowerCase();
   if (handle && HANDLE_RE.test(handle)) return { handle };
   return null;

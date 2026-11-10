@@ -20,7 +20,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { isAccountEmail } from "@/shared/services/contact-item";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { scheduleItemUpsert } from "@/shared/services/card-items-sync";
-import { assignHandle } from "@/shared/services/card-handle";
+import { HANDLE_RE } from "@/shared/services/card-handle";
 import { ensureCardIdentity, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import type { Card } from "@/shared/types";
 import { useAppStore } from "@/shared/store/app-store";
@@ -232,6 +232,7 @@ export function EntryPage({
         itemZones?: Record<string, string>;
         headerItemId?: string;
         title?: string;
+        handle?: string | null;
         saved?: boolean;
         savedName?: string;
         joined?: boolean;
@@ -274,29 +275,27 @@ export function EntryPage({
         return;
       }
       const now = new Date().toISOString();
-      const portfolio: Card = assignHandle(
-        ensureCardIdentity({
-          id: cardId,
-          displayName: titleValue,
-          photo: photo?.dataUrl,
-          photoLook: photo ? "shadow" : undefined,
-          title: reply.title?.trim() ?? "",
-          ...(reply.headerItemId ? { headerItemId: reply.headerItemId } : {}),
-          status: "published",
-          publicToken: reply.publicToken ?? "",
-          qrVersion: 1,
-          contactItemIds: reply.itemIds ?? [],
-          rubricOrder: zones.map((zone) => zone.id),
-          rubricLabels: Object.fromEntries(zones.flatMap((zone) => (zone.title.trim() ? [[zone.id, zone.title.trim()]] : []))),
-          itemZones: reply.itemZones,
-          listed: true,
-          nextScanAddons: [],
-          createdAt: now,
-          updatedAt: now,
-        }),
-        [],
-        true,
-      );
+      const givenHandle = reply.handle?.trim().toLowerCase() ?? "";
+      const portfolio: Card = ensureCardIdentity({
+        id: cardId,
+        displayName: titleValue,
+        photo: photo?.dataUrl,
+        photoLook: photo ? "shadow" : undefined,
+        title: reply.title?.trim() ?? "",
+        ...(reply.headerItemId ? { headerItemId: reply.headerItemId } : {}),
+        status: "published",
+        publicToken: reply.publicToken ?? "",
+        ...(givenHandle && HANDLE_RE.test(givenHandle) ? { handle: givenHandle } : {}),
+        qrVersion: 1,
+        contactItemIds: reply.itemIds ?? [],
+        rubricOrder: zones.map((zone) => zone.id),
+        rubricLabels: Object.fromEntries(zones.flatMap((zone) => (zone.title.trim() ? [[zone.id, zone.title.trim()]] : []))),
+        itemZones: reply.itemZones,
+        listed: true,
+        nextScanAddons: [],
+        createdAt: now,
+        updatedAt: now,
+      });
       useAppStore.getState().resetApp();
       markRegisteredDevice();
       rememberAccountEmail(email);

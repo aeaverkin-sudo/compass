@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { HANDLE_RE } from "@/shared/services/card-handle";
+import { publicCardPath } from "@/shared/services/public-card-url";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
@@ -10,6 +11,6 @@ export default async function ScanCardPage({ searchParams }: PageProps) {
   const params = await searchParams;
   if (params.token && TOKEN_RE.test(params.token)) redirect(`/c/${params.token}`);
   const handle = params.handle?.toLowerCase() ?? "";
-  if (HANDLE_RE.test(handle)) redirect(`/@${handle}`);
+  if (HANDLE_RE.test(handle)) redirect(publicCardPath({ publicToken: "", handle }));
   notFound();
 }

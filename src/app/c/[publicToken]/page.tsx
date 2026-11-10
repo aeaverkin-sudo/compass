@@ -4,6 +4,7 @@ import { PublicCardClient } from "@main/components/public-card-client";
 import { ViewerMirror } from "@/shared/components/viewer-mirror";
 import { cardOpenKind, loadPublicCard, logPublicCardOpen, publicViewer } from "@/shared/services/public-card";
 import { metadataForPublicCard } from "@/shared/services/public-card-meta";
+import { publicCardPath } from "@/shared/services/public-card-url";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { publicToken } = await params;
   const loaded = await loadPublicCard(publicToken);
   const handle = loaded?.card.handle?.trim();
-  return metadataForPublicCard(loaded, handle ? `/@${handle}` : `/c/${publicToken}`);
+  return metadataForPublicCard(loaded, publicCardPath({ publicToken, handle: handle || undefined }));
 }
 
 export default async function PublicCardPage({ params, searchParams }: PageProps) {

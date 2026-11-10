@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     {
       cardId: result.cardId,
       publicToken: result.publicToken,
+      handle: result.handle,
       fileItems: result.fileItems,
       itemIds: result.itemIds,
       itemZones: result.itemZones,

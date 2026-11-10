@@ -1,7 +1,13 @@
-/** Pretty `/@handle` when the card has one. The token URL stays as the fallback. */
+import { splitCodedHandle } from "@/shared/services/card-handle";
+
+/** A new address is `/{code}/@{slug}`. One already given out stays `/@handle`. No handle stays the token. */
 export function publicCardPath(card: { publicToken: string; handle?: string }): string {
   const handle = card.handle?.trim().toLowerCase();
-  if (handle) return `/@${handle}`;
+  if (handle) {
+    const coded = splitCodedHandle(handle);
+    if (coded) return `/${coded.code}/@${coded.slug}`;
+    return `/@${handle}`;
+  }
   return `/c/${card.publicToken}`;
 }
 

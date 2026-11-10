@@ -1,3 +1,5 @@
+import { HANDLE_RE } from "@/shared/services/card-handle";
+
 export type ScanKey =
   | { kind: "badge"; token: string }
   | { kind: "card"; token: string }
@@ -17,7 +19,7 @@ function segment(value: string | undefined): string | null {
 
 /**
  * What the door scanner read: an event badge `/e/{code}/b/{reg_token}`,
- * a card `/c/{publicToken}` or `/c/h/{handle}`, a pretty `/@handle`,
+ * a card `/c/{publicToken}` or `/c/h/{handle}`, a pretty `/@handle` or `/{code}/@slug`,
  * with or without `?src=qr`, or a bare badge token.
  */
 export function scanKeyFromQr(text: string): ScanKey | null {
@@ -32,6 +34,13 @@ export function scanKeyFromQr(text: string): ScanKey | null {
 
   const badge = segment(path.match(/\/b\/([^/]+)\/?$/)?.[1]);
   if (badge && TOKEN.test(badge)) return { kind: "badge", token: badge };
+
+  const coded = path.match(/^\/([abcdefghjkmnpqrstuvwxyz23456789]{3})\/(?:@|%40)([^/]+)\/?$/i);
+  if (coded) {
+    const slug = segment(coded[2])?.replace(/^@/, "").toLowerCase() ?? "";
+    const handle = `${coded[1].toLowerCase()}-${slug}`;
+    return HANDLE_RE.test(handle) ? { kind: "handle", handle } : null;
+  }
 
   const named = segment(path.match(/^\/c\/h\/([^/]+)\/?$/)?.[1]) ?? segment(path.match(/^\/(?:@|%40)([^/]+)\/?$/i)?.[1]);
   if (named) {

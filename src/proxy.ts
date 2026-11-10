@@ -1,12 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicCardPath } from "@/shared/lib/public-card-path";
 import { storedSessionNeedsRefresh } from "@/shared/lib/supabase/access-token";
 import { VIEWER_COOKIE, VIEWER_HEADER, viewerId } from "@/shared/lib/viewer";
 
 const YEAR_SECONDS = 60 * 60 * 24 * 400;
 
 function isPublicCard(pathname: string) {
-  return pathname.startsWith("/c/") || pathname.startsWith("/@");
+  return isPublicCardPath(pathname);
 }
 
 /**
