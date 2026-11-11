@@ -55,7 +55,7 @@ export function AccountBand({
         label="Account"
         left={
           <a href={saveHref} className={DOOR}>
-            <span data-pdf-link="">Sign Up</span>
+            <span data-pdf-link="">Join to save</span>
           </a>
         }
         right={
@@ -64,7 +64,7 @@ export function AccountBand({
             onTap={() => onPdf?.()}
             className={cn(DOOR, "border-0 bg-transparent", "justify-end")}
           >
-            <span data-pdf-link="">Get PDF</span>
+            <span data-pdf-link="">Get PDF file</span>
           </TapButton>
         }
       />
@@ -84,7 +84,7 @@ export function AccountBand({
       <div className="flex min-h-11 items-stretch">
         <a href={saveHref} className={pdfDoor}>
           <span data-pdf-link="" className="inline-block w-fit">
-            Sign Up
+            Join to save
           </span>
         </a>
         <span className="flex flex-1 items-center justify-end">
