@@ -36,9 +36,9 @@ const SECTIONS: Section[] = [
     title: "QR & Wallet",
     lines: [
       "Show your QR. They scan it with the phone camera — your card opens, no app needed.",
-      "On your card they tap Sign Up and save you.",
+      "On your card they tap Join to save.",
       "Add to Wallet — keep your card with its QR in Apple Wallet.",
-      "Get PDF — your card as a file.",
+      "Get PDF file — your card as a file.",
     ],
   },
   {
