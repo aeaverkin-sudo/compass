@@ -54,18 +54,18 @@ export function AccountBand({
         inset="var(--gutter)"
         label="Account"
         left={
+          <a href={saveHref} className={DOOR}>
+            <span data-pdf-link="">Sign Up</span>
+          </a>
+        }
+        right={
           <TapButton
             onPrepare={onPreparePdf}
             onTap={() => onPdf?.()}
-            className={cn(DOOR, "border-0 bg-transparent")}
+            className={cn(DOOR, "border-0 bg-transparent", "justify-end")}
           >
             <span data-pdf-link="">Get PDF</span>
           </TapButton>
-        }
-        right={
-          <a href={saveHref} className={cn(DOOR, "justify-end")}>
-            <span data-pdf-link="">Connect</span>
-          </a>
         }
       />
     );
@@ -82,14 +82,14 @@ export function AccountBand({
       }}
     >
       <div className="flex min-h-11 items-stretch">
-        <span className="flex flex-1 items-center">
-          <AdedWordmark variant="mesh" className="block h-[calc(14px*1.45*2)] w-auto" />
-        </span>
-        <a href={saveHref} className={cn(pdfDoor, "justify-end text-right")}>
+        <a href={saveHref} className={pdfDoor}>
           <span data-pdf-link="" className="inline-block w-fit">
-            Connect
+            Sign Up
           </span>
         </a>
+        <span className="flex flex-1 items-center justify-end">
+          <AdedWordmark variant="mesh" className="block h-[calc(14px*1.45*2)] w-auto" />
+        </span>
       </div>
     </nav>
   );
