@@ -7,6 +7,7 @@ import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
+import { track } from "@/shared/lib/funnel";
 import { homeEntryHref, noteTrialCardStarted } from "@/shared/lib/home-entry";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -354,6 +355,7 @@ export function PosterWallLanding() {
 
   const openPortfolio = (event: { preventDefault(): void }) => {
     event.preventDefault();
+    track("landing_cta");
     const run = () => {
       if (!entry) {
         pendingEntry.current = true;
@@ -391,6 +393,10 @@ export function PosterWallLanding() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [about]);
+
+  useEffect(() => {
+    track("landing_view");
+  }, []);
 
   return (
     <div className="pw-root">

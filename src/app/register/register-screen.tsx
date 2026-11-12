@@ -16,6 +16,7 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { clearFillPlace, clearSignInEmail, readSignInEmail, writeSignInEmail } from "@/shared/lib/fill-place";
+import { track } from "@/shared/lib/funnel";
 import { markRegisteredDevice, rememberAccountEmail, rememberedEmail } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
@@ -189,6 +190,7 @@ export function RegisterScreen() {
     if (!emailed && draftedEmail !== null) emailRef.current?.focus();
     else if (emailed || storedEmail) passwordRef.current?.focus();
     else emailRef.current?.focus();
+    track("signin_view");
   }, [signinOnly, emailed, draftedEmail, storedEmail]);
 
   const blinkConsent = () => {

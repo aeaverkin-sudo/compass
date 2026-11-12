@@ -12,6 +12,7 @@ import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { clearFillPlace, photoFileFromDraft, readQuestionnaire, readQuestionnairePhoto, writeQuestionnaire, writeQuestionnairePhoto } from "@/shared/lib/fill-place";
+import { track } from "@/shared/lib/funnel";
 import { markNewContact } from "@/shared/lib/new-contact";
 import { rememberOpenProfile } from "@/shared/lib/open-profile-return";
 import { deviceWasRegistered, markRegisteredDevice, rememberAccountEmail, rememberedEmail } from "@/shared/lib/registered-device";
@@ -136,6 +137,7 @@ export function EntryPage({
       setPasswordValue((current) => current ?? passwordNow());
     }
     setPlaceReady(true);
+    track("create_view");
   }, []);
 
   useEffect(() => {
@@ -168,11 +170,14 @@ export function EntryPage({
 
   const submit = async () => {
     if (busy || !ready || submitLock.current) return;
+    track("create_submit");
     const first = zonesRef.current?.markProblems() ?? null;
     const emailBad = !isAccountEmail(email);
     setEmailMarked(emailBad);
     if (first || emailBad) {
       setError(CHECK_NOTICE);
+      const redZone = first?.startsWith("seed:") ? first.slice(5) : zonesRef.current?.snapshot().find((zone) => zone.rows.some((row) => row.key === first))?.id;
+      track("create_red", [redZone, emailBad ? "email" : ""].filter(Boolean).join(",") || undefined);
       const mark = first;
       requestAnimationFrame(() => {
         const root = mainRef.current;
@@ -242,18 +247,21 @@ export function EntryPage({
       };
       if (response.status === 409 || reply.kind === "login") {
         setError("This email already has an account.");
+        track("signup_fail", reply.kind);
         submitLock.current = false;
         setBusy(false);
         return;
       }
       if (!response.ok || !reply.cardId) {
         setError("Could not create your profile.");
+        track("signup_fail", reply.kind);
         submitLock.current = false;
         setBusy(false);
         return;
       }
       const cardId = reply.cardId;
       created = true;
+      track("signup_ok");
       keepPlace.current = false;
       clearFillPlace();
       (document.activeElement as HTMLElement | null)?.blur();
@@ -270,6 +278,7 @@ export function EntryPage({
       ]);
       if (signed.error || !signed.data.session) {
         setError("Account created, but sign-in failed — tap Sign in.");
+        track("signup_fail", "signin");
         submitLock.current = false;
         setBusy(false);
         return;
@@ -359,8 +368,10 @@ export function EntryPage({
     } catch {
       if (created) {
         setError("Account created, but sign-in failed — tap Sign in.");
+        track("signup_fail", "signin");
       } else {
         setError("Could not create your profile.");
+        track("signup_fail");
       }
       submitLock.current = false;
       setBusy(false);
