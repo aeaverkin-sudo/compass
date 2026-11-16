@@ -111,7 +111,13 @@ function siteOrigin(origin: string): string {
 }
 
 /** Once per account, to its own confirmed email: the password, the profile link and the Wallet. */
-export async function sendWelcomeMail(userId: string, cardId: string, password: string, origin: string): Promise<boolean> {
+export async function sendWelcomeMail(
+  userId: string,
+  cardId: string,
+  password: string,
+  origin: string,
+  access: "password" | "google" = "password",
+): Promise<boolean> {
   if (!mailConfigured()) return false;
   const admin = createAdminSupabaseClient();
   const user = (await admin.auth.admin.getUserById(userId)).data.user;
@@ -128,6 +134,7 @@ export async function sendWelcomeMail(userId: string, cardId: string, password: 
   const mail = welcomeMail({
     logoSrc: `${site}/brand/aded-grid-mail.png`,
     password: password.trim(),
+    ...(access === "google" ? { access: "google" as const } : {}),
     profileUrl: `${site}${publicCardPath({ publicToken: row.public_token ?? "", handle: row.handle ?? undefined })}`,
     accessUrl: `${site}/open?t=${encodeURIComponent(token)}`,
     walletSectionUrl: walletUrl,

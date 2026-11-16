@@ -40,6 +40,17 @@ export function getRegistrationRequired() {
   return registrationRequired;
 }
 
+let registeredNow = false;
+
+/** The session in this tab is a real account, not an anonymous one. */
+export function noteRegisteredSession(registered: boolean) {
+  registeredNow = registered;
+}
+
+export function registeredSession() {
+  return registeredNow;
+}
+
 let ignoredSignedOut = 0;
 
 /** The next SIGNED_OUT is ours (sign-out, or the local sign-out before a password sign-in). */

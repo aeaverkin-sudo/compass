@@ -21,6 +21,7 @@ import {
   isDeadAuthSession,
   markRegistrationRequired,
   markSessionBootstrapComplete,
+  noteRegisteredSession,
 } from "@/shared/lib/session-bootstrap";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, forgetLibraryOwner, hydrateCardsFromServer } from "@/shared/services/card-sync";
@@ -47,6 +48,7 @@ function dropFinishedQuestionnaire() {
 }
 
 function acceptUser(user: User) {
+  noteRegisteredSession(!user.is_anonymous);
   if (user.is_anonymous && deviceWasRegistered()) {
     console.info("[supabase] anonymous session on a registered device");
     ignoreNextSignedOut();
@@ -94,6 +96,7 @@ function isOwnerRoute(path: string) {
 }
 
 function sendRegisteredDeviceToSignIn() {
+  noteRegisteredSession(false);
   markRegistrationRequired();
   if (!isOwnerRoute(window.location.pathname)) return;
   window.location.replace(signInPath({ expired: true }));

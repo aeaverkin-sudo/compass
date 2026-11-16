@@ -14,6 +14,16 @@ function destination(origin: string, next: string | null) {
   return new URL(doorNext(next) ?? "/main", origin);
 }
 
+/** No card yet: the questionnaire for someone who is already signed in. A failed count stays on the portfolio. */
+async function afterGoogle(origin: string, userId: string, next: string | null) {
+  const admin = createAdminSupabaseClient();
+  const cards = await admin.from("cards").select("id", { count: "exact", head: true }).eq("owner_id", userId);
+  if (cards.error || (cards.count ?? 0) > 0) return destination(origin, next);
+  const url = new URL(questionnaireHref(doorNext(next) ?? null), origin);
+  url.searchParams.set("account", "1");
+  return url;
+}
+
 /** A cancelled or failed Google page returns to the screen that opened it. No reason is shown. */
 function back(origin: string, from: string | null, next: string | null) {
   const safe = doorNext(next);
@@ -75,5 +85,5 @@ export async function GET(request: Request) {
     console.error("[auth] callback");
   }
 
-  return NextResponse.redirect(destination(origin, next));
+  return NextResponse.redirect(await afterGoogle(origin, user.id, next));
 }

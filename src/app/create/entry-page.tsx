@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
+import { BottomNav } from "@main/components/bottom-nav";
 import { carouselSidePaddingPx } from "@main/layout";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
 import { GoogleSignIn } from "@/shared/components/google-sign-in";
@@ -21,6 +22,7 @@ import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/ses
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { isAccountEmail } from "@/shared/services/contact-item";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
+import { recordConsent } from "@/shared/services/consent-client";
 import { scheduleItemUpsert } from "@/shared/services/card-items-sync";
 import { HANDLE_RE } from "@/shared/services/card-handle";
 import { ensureCardIdentity, hydrateCardsFromServer } from "@/shared/services/card-sync";
@@ -62,11 +64,17 @@ export function EntryPage({
   input,
   pick = false,
   telegram = false,
+  account = false,
+  needsConsent = false,
 }: {
   input: EntryInput;
   pick?: boolean;
   /** First open of an invitation inside Telegram. */
   telegram?: boolean;
+  /** Already signed in, and the server confirmed there is no portfolio yet. */
+  account?: boolean;
+  /** The Google return did not manage to store the agreement. */
+  needsConsent?: boolean;
 }) {
   const router = useRouter();
   const knownDevice = useSyncExternalStore(subscribeDevice, deviceWasRegistered, () => false);
@@ -82,7 +90,7 @@ export function EntryPage({
   const [emailLive, setEmailLive] = useState(!offeredEmail);
   const [passwordVisible, setPasswordVisible] = useState(true);
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(account && !needsConsent);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailMarked, setEmailMarked] = useState(false);
@@ -96,9 +104,9 @@ export function EntryPage({
   const [sidePad, setSidePad] = useState(() => carouselSidePaddingPx(0, true));
   const [passwordValue, setPasswordValue] = useState<string | null>(null);
   const passwordShown = passwordValue ?? "";
-  const ready = Boolean(
-    agreed && name.trim() && isAccountEmail(email) && passwordShown.length >= PASSWORD_MIN && zonesReady,
-  );
+  const ready = account
+    ? Boolean(name.trim() && zonesReady && (!needsConsent || agreed))
+    : Boolean(agreed && name.trim() && isAccountEmail(email) && passwordShown.length >= PASSWORD_MIN && zonesReady);
   const frame = { paddingLeft: sidePad, paddingRight: sidePad };
 
   const fields = useRef({ name, email, password: passwordShown, agreed });
@@ -173,7 +181,7 @@ export function EntryPage({
     if (busy || !ready || submitLock.current) return;
     track("create_submit");
     const first = zonesRef.current?.markProblems() ?? null;
-    const emailBad = !isAccountEmail(email);
+    const emailBad = account ? false : !isAccountEmail(email);
     setEmailMarked(emailBad);
     if (first || emailBad) {
       setError(CHECK_NOTICE);
@@ -202,13 +210,13 @@ export function EntryPage({
     setError(null);
     let created = false;
     try {
-      const response = await fetch("/api/signup", {
+      if (account && needsConsent) await recordConsent("register");
+      const response = await fetch(account ? "/api/portfolio/first" : "/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: AbortSignal.timeout(20000),
         body: JSON.stringify({
-          email: emailValue,
-          password: secret,
+          ...(account ? {} : { email: emailValue, password: secret }),
           ...(input.sourceToken ? { sourceToken: input.sourceToken } : {}),
           ...(input.event
             ? { event: { lookup: input.event.lookup, ...(input.event.guestToken ? { guestToken: input.event.guestToken } : {}) } }
@@ -241,6 +249,7 @@ export function EntryPage({
         handle?: string | null;
         saved?: boolean;
         savedName?: string;
+        existing?: boolean;
         joined?: boolean;
         pay?: boolean;
         eventLookup?: string;
@@ -266,23 +275,31 @@ export function EntryPage({
       keepPlace.current = false;
       clearFillPlace();
       (document.activeElement as HTMLElement | null)?.blur();
-      const supabase = createBrowserSupabaseClient();
-      const signed = await Promise.race([
-        (async () => {
-          ignoreNextSignedOut();
-          await supabase.auth.signOut({ scope: "local" });
-          return supabase.auth.signInWithPassword({ email: emailValue, password: secret });
-        })(),
-        new Promise<never>((_, reject) => {
-          window.setTimeout(() => reject(new Error("sign-in")), 20000);
-        }),
-      ]);
-      if (signed.error || !signed.data.session) {
-        setError("Account created, but sign-in failed — tap Sign in.");
-        track("signup_fail", "signin");
-        submitLock.current = false;
-        setBusy(false);
+      if (account && reply.existing) {
+        useAppStore.setState({ user: { ...useAppStore.getState().user, onboarded: true } });
+        void hydrateCardsFromServer();
+        router.replace("/main");
         return;
+      }
+      if (!account) {
+        const supabase = createBrowserSupabaseClient();
+        const signed = await Promise.race([
+          (async () => {
+            ignoreNextSignedOut();
+            await supabase.auth.signOut({ scope: "local" });
+            return supabase.auth.signInWithPassword({ email: emailValue, password: secret });
+          })(),
+          new Promise<never>((_, reject) => {
+            window.setTimeout(() => reject(new Error("sign-in")), 20000);
+          }),
+        ]);
+        if (signed.error || !signed.data.session) {
+          setError("Account created, but sign-in failed — tap Sign in.");
+          track("signup_fail", "signin");
+          submitLock.current = false;
+          setBusy(false);
+          return;
+        }
       }
       const now = new Date().toISOString();
       const givenHandle = reply.handle?.trim().toLowerCase() ?? "";
@@ -306,16 +323,27 @@ export function EntryPage({
         createdAt: now,
         updatedAt: now,
       });
-      useAppStore.getState().resetApp();
-      markRegisteredDevice();
-      rememberAccountEmail(email);
-      clearRegistrationRequired();
-      useAppStore.setState({
-        user: { ...useAppStore.getState().user, onboarded: true },
-        cards: [portfolio],
-        currentCardIndex: 0,
-        contactItems: [],
-      });
+      if (account) {
+        markRegisteredDevice();
+        const user = useAppStore.getState().user;
+        useAppStore.setState({
+          user: { ...user, onboarded: true },
+          cards: [portfolio],
+          currentCardIndex: 0,
+          contactItems: [],
+        });
+      } else {
+        useAppStore.getState().resetApp();
+        markRegisteredDevice();
+        rememberAccountEmail(email);
+        clearRegistrationRequired();
+        useAppStore.setState({
+          user: { ...useAppStore.getState().user, onboarded: true },
+          cards: [portfolio],
+          currentCardIndex: 0,
+          contactItems: [],
+        });
+      }
       const rows = zones.flatMap((zone) => zone.rows);
       const files = (reply.fileItems ?? []).flatMap((item) => {
         const row = rows.find((entry) => entry.key === item.key);
@@ -381,32 +409,67 @@ export function EntryPage({
 
   if (pick && knownDevice) return <div className="fixed inset-0 bg-white" aria-hidden />;
 
-  return (
-    <main
-      ref={mainRef}
-      className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]"
-    >
-      <BackButton fallbackHref="/" />
-      <AuthModeToggle
-        mode="up"
-        pinned={false}
-        signUpHref="/create"
-        signInHref={signInHref(undefined, input)}
-        className="mb-[18px]"
-      />
-      <GoogleSignIn
-        from="create"
-        divider="OR FILL IN"
-        next={
-          input.event
-            ? input.event.guestToken
-              ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
-              : `/e/${encodeURIComponent(input.event.lookup)}`
-            : input.sourceToken
-              ? `/save/${input.sourceToken}`
-              : input.next
-        }
-      />
+  const focusEmpty = () => {
+    const root = mainRef.current;
+    if (!root) return;
+    if (!name.trim()) {
+      const area = root.querySelector("[data-entry-name] textarea");
+      if (area instanceof HTMLTextAreaElement) {
+        area.focus();
+        return;
+      }
+    }
+    const empty = [...root.querySelectorAll("textarea")].find(
+      (node) => node instanceof HTMLTextAreaElement && !node.closest("[data-entry-name]") && !node.value.trim(),
+    );
+    if (empty instanceof HTMLTextAreaElement) empty.focus();
+  };
+
+  const sheet = (
+    <>
+      {account ? (
+        <div className="px-[var(--gutter)] pt-[max(18px,env(safe-area-inset-top))]">
+          <div className="mb-[18px] flex justify-end">
+            <button
+              type="button"
+              aria-label="Info"
+              onClick={() => router.push("/info")}
+              className="border-0 bg-transparent p-0 text-[var(--ink)]"
+            >
+              <span className="block text-center leading-none" style={{ fontSize: 22, fontWeight: 400 }}>
+                i
+              </span>
+            </button>
+          </div>
+          <div className="mx-auto mb-[18px] flex size-[200px] items-center justify-center bg-white px-6 text-center t-meta text-[var(--grey)] shadow-[0_2px_8px_rgba(17,17,17,0.16)]">
+            Fill 3 fields to get your QR
+          </div>
+        </div>
+      ) : (
+        <>
+          <BackButton fallbackHref="/" />
+          <AuthModeToggle
+            mode="up"
+            pinned={false}
+            signUpHref="/create"
+            signInHref={signInHref(undefined, input)}
+            className="mb-[18px]"
+          />
+          <GoogleSignIn
+            from="create"
+            divider="OR FILL IN"
+            next={
+              input.event
+                ? input.event.guestToken
+                  ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
+                  : `/e/${encodeURIComponent(input.event.lookup)}`
+                : input.sourceToken
+                  ? `/save/${input.sourceToken}`
+                  : input.next
+            }
+          />
+        </>
+      )}
       <div style={frame}>
       <div className={PAD}>
         {telegram ? (
@@ -457,6 +520,7 @@ export function EntryPage({
           void submit();
         }}
       >
+      {account ? null : (
       <div className="bg-sky py-[18px]">
         <div style={frame}>
         <div className={`${PAD} flex flex-col gap-[14px]`}>
@@ -538,8 +602,33 @@ export function EntryPage({
         </div>
         </div>
       </div>
+      )}
       <div style={frame}>
       <div className={`${PAD} flex flex-col gap-4 pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]`}>
+        {account && needsConsent ? (
+          <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px]">
+            <span />
+            <span className="flex min-w-0 items-center gap-2">
+              <label htmlFor="create-terms" className="t-meta min-w-0 text-[var(--ink)]">
+                I agree with{" "}
+                <Link href="/terms" className="underline">
+                  terms
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="underline">
+                  privacy
+                </Link>
+              </label>
+              <Checkbox
+                id="create-terms"
+                checked={agreed}
+                onCheckedChange={(value) => setAgreed(value === true)}
+                aria-label="I agree with terms and privacy"
+                className="ml-auto size-4 shrink-0 rounded-none border border-[var(--rule)] bg-white"
+              />
+            </span>
+          </div>
+        ) : null}
         {error ? <p className="m-0 t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>{error}</p> : null}
         <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]">
           <span />
@@ -555,6 +644,27 @@ export function EntryPage({
       </div>
       </div>
       </form>
+    </>
+  );
+
+  if (account) {
+    return (
+      <div className="compass-main flex h-dvh flex-col overflow-hidden bg-background text-[var(--ink)]">
+        <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {sheet}
+        </main>
+        <BottomNav
+          onEdit={focusEmpty}
+          onProfile={() => router.push("/profile")}
+          onNetwork={() => router.push("/network")}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <main ref={mainRef} className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]">
+      {sheet}
     </main>
   );
 }

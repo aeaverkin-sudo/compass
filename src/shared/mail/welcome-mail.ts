@@ -20,6 +20,8 @@ const LOGO_H = Math.round((LOGO_W * 80) / 254);
 export type WelcomeMailInput = {
   logoSrc: string;
   password: string;
+  /** A Google account has no password. The second row says how to come back. */
+  access?: "password" | "google";
   /** `https://adedme.com/@handle`. The visible words of the access line. Typing it does not sign in. */
   profileUrl: string;
   /** `/open?t=…`. The hidden door. The access line and the portfolio button both use it. */
@@ -77,7 +79,9 @@ export function welcomeMail(input: WelcomeMailInput): { html: string; text: stri
   const profileLabel = input.profileUrl.replace(/^https?:\/\//, "");
   const rows: Row[] = [
     { label: "Access", value: [{ text: profileLabel, href: input.accessUrl }] },
-    { label: "Password", value: [`${input.password} — change it anytime in Profile.`] },
+    input.access === "google"
+      ? { label: "Sign in", value: ["With Google — tap Continue with Google on adedme.com."] }
+      : { label: "Password", value: [`${input.password} — change it anytime in Profile.`] },
     { label: "Wallet", value: ["Add your card to ", { text: "Apple Wallet", href: input.walletSectionUrl }, "."] },
     { label: "Portfolio", value: ["Share it with everyone you meet. Up to 3 portfolios from one library."] },
     { label: "App", value: ["Save it as an app: in Safari tap Share → Add to Home Screen."] },

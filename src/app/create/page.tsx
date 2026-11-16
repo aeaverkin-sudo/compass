@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { isEventLookup } from "@/shared/event/lookup";
+import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { findPassGuest, isGuestToken } from "@/shared/services/event-guest-pass";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { doorNext } from "./door";
@@ -11,7 +14,16 @@ export const metadata: Metadata = { title: "Create a portfolio", robots: { index
 const CARD_TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
 
 type PageProps = {
-  searchParams: Promise<{ name?: string | string[]; email?: string | string[]; card?: string | string[]; event?: string | string[]; g?: string | string[]; next?: string | string[]; pick?: string | string[] }>;
+  searchParams: Promise<{
+    name?: string | string[];
+    email?: string | string[];
+    card?: string | string[];
+    event?: string | string[];
+    g?: string | string[];
+    next?: string | string[];
+    pick?: string | string[];
+    account?: string | string[];
+  }>;
 };
 
 function one(value: string | string[] | undefined) {
@@ -41,10 +53,30 @@ export default async function CreatePage({ searchParams }: PageProps) {
   }
   const telegram =
     Boolean(event) && /Telegram/i.test((await headers()).get("user-agent") ?? "");
+  let account = false;
+  let needsConsent = false;
+  if (one(query.account) === "1") {
+    const user = await sessionUser();
+    if (user && !user.is_anonymous) {
+      const admin = createAdminSupabaseClient();
+      const cards = await admin.from("cards").select("id", { count: "exact", head: true }).eq("owner_id", user.id);
+      if (cards.error || (cards.count ?? 0) > 0) redirect("/main");
+      account = true;
+      const consent = await admin.from("consents").select("id").eq("user_id", user.id).limit(1).maybeSingle();
+      needsConsent = Boolean(consent.error) || !consent.data;
+      if (!name) {
+        const meta = user.user_metadata as { full_name?: unknown; name?: unknown } | undefined;
+        const given = typeof meta?.full_name === "string" ? meta.full_name : typeof meta?.name === "string" ? meta.name : "";
+        name = given.trim() || undefined;
+      }
+    }
+  }
   return (
     <EntryPage
       pick={one(query.pick) === "1"}
       telegram={telegram}
+      account={account}
+      needsConsent={needsConsent}
       input={{
         name,
         email,

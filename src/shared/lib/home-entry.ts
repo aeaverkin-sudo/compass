@@ -37,6 +37,7 @@ export function homeEntryHref(gate: HomeGate): string | null {
   if (gate.onboarded) return "/main";
   if (!gate.cardsReady) return null;
   if (trialCardStarted(gate.cards)) return "/main";
+  if (gate.cards.length === 0 && deviceWasRegistered()) return "/create?account=1";
   if (deviceWasRegistered()) return signInPath();
   return "/create";
 }

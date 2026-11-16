@@ -8,6 +8,7 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { signInPath } from "@/shared/lib/registered-device";
+import { registeredSession } from "@/shared/lib/session-bootstrap";
 import { useAppStore } from "@/shared/store/app-store";
 
 function applyMainChrome() {
@@ -52,7 +53,10 @@ export default function MainPage() {
       return;
     }
     if (!cardsReady) return;
-    if (!onboarded) router.replace("/");
+    if (!onboarded) {
+      const cards = useAppStore.getState().cards;
+      router.replace(cards.length === 0 && registeredSession() ? "/create?account=1" : "/");
+    }
   }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, router]);
 
   if (!cached && (!hydrated || !sessionReady || needsSignIn || !cardsReady || !onboarded)) {

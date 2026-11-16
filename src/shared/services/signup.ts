@@ -161,19 +161,20 @@ async function joinEvent(
   }
 }
 
-/** Create the account and its first card. Auth is created first; a failed write deletes that user. */
-export async function createSignup(body: SignupBody, origin = ""): Promise<SignupResult> {
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  const password = typeof body.password === "string" ? body.password : "";
-  const displayName = typeof body.card?.displayName === "string" ? body.card.displayName.trim() : "";
-  if (!displayName) return { ok: false, status: 400, error: "Add a title." };
-  if (!email || email.length > 254 || !isEmail(email)) return { ok: false, status: 400, error: "Add your email." };
-  if (password.length < MIN_PASSWORD) {
-    return { ok: false, status: 400, error: `Use at least ${MIN_PASSWORD} characters for the password.` };
-  }
+type SignupZones = NonNullable<ReturnType<typeof readZones>>;
 
+export type PreparedSignupCard = {
+  displayName: string;
+  zones: SignupZones;
+  headerRow: { key: string; value: string } | undefined;
+};
+
+/** The card half of a sign-up. The same checks the password path already makes. */
+export function prepareSignupCard(body: SignupBody): PreparedSignupCard | { error: string } {
+  const displayName = typeof body.card?.displayName === "string" ? body.card.displayName.trim() : "";
+  if (!displayName) return { error: "Add a title." };
   const zones = readZones(body.card?.zones);
-  if (!zones) return { ok: false, status: 400, error: "Could not create your profile." };
+  if (!zones) return { error: "Could not create your profile." };
   const headerKey = typeof body.card?.headerKey === "string" ? body.card.headerKey.trim() : "";
   const headerRow = headerKey
     ? zones
@@ -181,6 +182,163 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
         .flatMap((zone) => zone.rows)
         .find((row) => row.key === headerKey && !isProseValue(row.value))
     : undefined;
+  return { displayName, zones, headerRow };
+}
+
+type WrittenPortfolio = {
+  cardId: string;
+  publicToken: string;
+  handle: string | null;
+  fileItems: SignupFileItem[];
+  itemIds: string[];
+  itemZones: Record<string, string>;
+  headerItemId: string;
+  headerTitle: string;
+  door: { saved?: boolean; savedName?: string; warning?: string };
+  eventDoor: { joined?: boolean; pay?: boolean; eventLookup?: string; warning?: string };
+};
+
+/** The portfolio rows. The caller owns the account: a password sign-up deletes it if this throws. */
+export async function writeFirstPortfolio(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  userId: string,
+  prepared: PreparedSignupCard,
+  source: Pick<SignupBody, "sourceToken" | "event">,
+  cardId: string,
+  now: string,
+): Promise<WrittenPortfolio> {
+  const { displayName, zones, headerRow } = prepared;
+  const labels: Record<string, string> = {};
+  for (const zone of zones) {
+    if (zone.title) labels[zone.id] = zone.title;
+  }
+  const order = zones.map((zone) => zone.id);
+  const base = slugFromName(displayName);
+  let handle: string | null = base ? codedHandle(base) : null;
+  const publicToken = nanoid(21);
+  const insertCard = (nextHandle: string | null) =>
+    admin.from("cards").insert({
+      id: cardId,
+      owner_id: userId,
+      display_name: displayName,
+      title: "",
+      status: "published",
+      public_token: publicToken,
+      handle: nextHandle,
+      qr_version: 1,
+      is_public: true,
+      is_primary: true,
+      listed: true,
+      rubric_order: order,
+      rubric_labels: Object.keys(labels).length > 0 ? labels : null,
+      created_at: now,
+      updated_at: now,
+    });
+  let card = await insertCard(handle);
+  for (let attempt = 1; base && card.error && isHandleConflict(card.error) && attempt < 8; attempt += 1) {
+    handle = codedHandle(base);
+    card = await insertCard(handle);
+  }
+  if (card.error && isHandleConflict(card.error)) {
+    handle = null;
+    card = await insertCard(null);
+  }
+  if (card.error) throw new Error(card.error.message);
+
+  const itemZones: Record<string, string> = {};
+  const itemIds: string[] = [];
+  const fileItems: SignupFileItem[] = [];
+  let headerItemId = "";
+  let sort = 0;
+  for (const zone of zones) {
+    for (const row of zone.rows) {
+      const id = crypto.randomUUID();
+      if (row.type) {
+        const saved = await admin.from("items").insert({
+          id,
+          owner_id: userId,
+          type: row.type,
+          label: "",
+          value: row.value,
+          url: "",
+        });
+        if (saved.error) throw new Error(saved.error.message);
+        fileItems.push({ key: row.key, itemId: id });
+        if (headerRow && row.key === headerRow.key) headerItemId = id;
+      } else {
+        const normalized = normalizeContactItem(createEmptyContactItem(sort), row.value, zone.id);
+        const saved = await admin.from("items").insert({
+          id: normalized.id,
+          owner_id: userId,
+          type: normalized.type,
+          label: normalized.label,
+          value: normalized.value,
+          url: normalized.url,
+        });
+        if (saved.error) throw new Error(saved.error.message);
+        itemZones[normalized.id] = zone.id;
+        itemIds.push(normalized.id);
+        if (headerRow && row.key === headerRow.key) headerItemId = normalized.id;
+        const link = await admin.from("card_items").insert({
+          card_id: cardId,
+          item_id: normalized.id,
+          sort_order: sort,
+          visible: true,
+        });
+        if (link.error) throw new Error(link.error.message);
+        sort += 1;
+        continue;
+      }
+      const link = await admin.from("card_items").insert({
+        card_id: cardId,
+        item_id: id,
+        sort_order: sort,
+        visible: true,
+      });
+      if (link.error) throw new Error(link.error.message);
+      itemZones[id] = zone.id;
+      itemIds.push(id);
+      sort += 1;
+    }
+  }
+  if (Object.keys(itemZones).length > 0) {
+    const zoned = await admin.from("cards").update({ item_zones: itemZones }).eq("id", cardId);
+    if (zoned.error && !/item_zones/i.test(zoned.error.message)) throw new Error(zoned.error.message);
+  }
+  if (headerItemId && headerRow) {
+    const titled = await admin.from("cards").update({ title: headerRow.value }).eq("id", cardId);
+    if (titled.error) throw new Error(titled.error.message);
+  }
+
+  const door = await keepSourceCard(admin, userId, source.sourceToken);
+  const eventDoor = await joinEvent(userId, cardId, source.event);
+  return {
+    cardId,
+    publicToken,
+    handle,
+    fileItems,
+    itemIds,
+    itemZones,
+    headerItemId,
+    headerTitle: headerRow?.value ?? "",
+    door,
+    eventDoor,
+  };
+}
+
+/** Create the account and its first card. Auth is created first; a failed write deletes that user. */
+export async function createSignup(body: SignupBody, origin = ""): Promise<SignupResult> {
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body.password === "string" ? body.password : "";
+  const prepared = prepareSignupCard(body);
+  if ("error" in prepared && prepared.error === "Add a title.") {
+    return { ok: false, status: 400, error: prepared.error };
+  }
+  if (!email || email.length > 254 || !isEmail(email)) return { ok: false, status: 400, error: "Add your email." };
+  if (password.length < MIN_PASSWORD) {
+    return { ok: false, status: 400, error: `Use at least ${MIN_PASSWORD} characters for the password.` };
+  }
+  if ("error" in prepared) return { ok: false, status: 400, error: prepared.error };
 
   const admin = createAdminSupabaseClient();
   if (await userIdForEmail(email)) {
@@ -204,127 +362,24 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
     const marked = await admin.from("profiles").upsert({ id: userId, registered_at: now }, { onConflict: "id" });
     if (marked.error) throw new Error(marked.error.message);
 
-    const labels: Record<string, string> = {};
-    for (const zone of zones) {
-      if (zone.title) labels[zone.id] = zone.title;
-    }
-    const order = zones.map((zone) => zone.id);
-    const base = slugFromName(displayName);
-    let handle: string | null = base ? codedHandle(base) : null;
-    const publicToken = nanoid(21);
-    const insertCard = (nextHandle: string | null) =>
-      admin.from("cards").insert({
-        id: cardId,
-        owner_id: userId,
-        display_name: displayName,
-        title: "",
-        status: "published",
-        public_token: publicToken,
-        handle: nextHandle,
-        qr_version: 1,
-        is_public: true,
-        is_primary: true,
-        listed: true,
-        rubric_order: order,
-        rubric_labels: Object.keys(labels).length > 0 ? labels : null,
-        created_at: now,
-        updated_at: now,
-      });
-    let card = await insertCard(handle);
-    for (let attempt = 1; base && card.error && isHandleConflict(card.error) && attempt < 8; attempt += 1) {
-      handle = codedHandle(base);
-      card = await insertCard(handle);
-    }
-    if (card.error && isHandleConflict(card.error)) {
-      handle = null;
-      card = await insertCard(null);
-    }
-    if (card.error) throw new Error(card.error.message);
-
-    const itemZones: Record<string, string> = {};
-    const itemIds: string[] = [];
-    const fileItems: SignupFileItem[] = [];
-    let headerItemId = "";
-    let sort = 0;
-    for (const zone of zones) {
-      for (const row of zone.rows) {
-        const id = crypto.randomUUID();
-        if (row.type) {
-          const saved = await admin.from("items").insert({
-            id,
-            owner_id: userId,
-            type: row.type,
-            label: "",
-            value: row.value,
-            url: "",
-          });
-          if (saved.error) throw new Error(saved.error.message);
-          fileItems.push({ key: row.key, itemId: id });
-          if (headerRow && row.key === headerRow.key) headerItemId = id;
-        } else {
-          const normalized = normalizeContactItem(createEmptyContactItem(sort), row.value, zone.id);
-          const saved = await admin.from("items").insert({
-            id: normalized.id,
-            owner_id: userId,
-            type: normalized.type,
-            label: normalized.label,
-            value: normalized.value,
-            url: normalized.url,
-          });
-          if (saved.error) throw new Error(saved.error.message);
-          itemZones[normalized.id] = zone.id;
-          itemIds.push(normalized.id);
-          if (headerRow && row.key === headerRow.key) headerItemId = normalized.id;
-          const link = await admin.from("card_items").insert({
-            card_id: cardId,
-            item_id: normalized.id,
-            sort_order: sort,
-            visible: true,
-          });
-          if (link.error) throw new Error(link.error.message);
-          sort += 1;
-          continue;
-        }
-        const link = await admin.from("card_items").insert({
-          card_id: cardId,
-          item_id: id,
-          sort_order: sort,
-          visible: true,
-        });
-        if (link.error) throw new Error(link.error.message);
-        itemZones[id] = zone.id;
-        itemIds.push(id);
-        sort += 1;
-      }
-    }
-    if (Object.keys(itemZones).length > 0) {
-      const zoned = await admin.from("cards").update({ item_zones: itemZones }).eq("id", cardId);
-      if (zoned.error && !/item_zones/i.test(zoned.error.message)) throw new Error(zoned.error.message);
-    }
-    if (headerItemId && headerRow) {
-      const titled = await admin.from("cards").update({ title: headerRow.value }).eq("id", cardId);
-      if (titled.error) throw new Error(titled.error.message);
-    }
-
-    const door = await keepSourceCard(admin, userId, body.sourceToken);
-    const eventDoor = await joinEvent(userId, cardId, body.event);
+    const written = await writeFirstPortfolio(admin, userId, prepared, body, cardId, now);
     if (origin) {
-      void sendWelcomeMail(userId, cardId, password, origin).catch((error) => {
+      void sendWelcomeMail(userId, written.cardId, password, origin).catch((error) => {
         console.error("[mail] welcome", error instanceof Error ? error.message : error);
       });
     }
     return {
       ok: true,
       status: 201,
-      cardId,
-      publicToken,
-      handle,
-      fileItems,
-      itemIds,
-      itemZones,
-      ...(headerItemId && headerRow ? { headerItemId, headerTitle: headerRow.value } : {}),
-      ...door,
-      ...eventDoor,
+      cardId: written.cardId,
+      publicToken: written.publicToken,
+      handle: written.handle,
+      fileItems: written.fileItems,
+      itemIds: written.itemIds,
+      itemZones: written.itemZones,
+      ...(written.headerItemId && written.headerTitle ? { headerItemId: written.headerItemId, headerTitle: written.headerTitle } : {}),
+      ...written.door,
+      ...written.eventDoor,
     };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);
