@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { useRouter } from "next/navigation";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Zone } from "@/shared/components/zone";
@@ -8,7 +9,21 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useAppStore } from "@/shared/store/app-store";
 import type { CardData } from "@/shared/services/card-stats";
 import { NUMBER_CLASS } from "@/shared/components/section-number";
+import type { Card } from "@/shared/types";
 import { NetworkBand } from "../network-band";
+
+const ACTION =
+  "press w-[160px] border-0 bg-sky px-[21.6px] py-[10.8px] text-center t-caps text-[var(--ink)]";
+
+function dayLabel(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(date);
+}
+
+function cacheKey(cardId: string, history: boolean) {
+  return history ? `${cardId}:all` : cardId;
+}
 
 function isCardData(value: unknown): value is CardData {
   if (!value || typeof value !== "object") return false;
@@ -53,16 +68,35 @@ function Metric({
   );
 }
 
-function PortfolioStats({ name, stats }: { name: string; stats: CardData | null }) {
+function PortfolioStats({
+  name,
+  createdAt,
+  stats,
+  history,
+  onReset,
+  onHistory,
+}: {
+  name: string;
+  createdAt?: string;
+  stats: CardData | null;
+  history: boolean;
+  onReset: () => void;
+  onHistory: () => void;
+}) {
   const shown = (value: number | undefined) => (stats && value !== undefined ? String(value) : "…");
   const links = stats?.linkOpens ?? [];
+  const quiet = Boolean(stats && isQuiet(stats) && !stats.since);
+  const sinceDay = stats?.since ? dayLabel(stats.since) : "";
+  const born = createdAt ? dayLabel(createdAt) : "";
+  const note = history ? (born ? `All time · since ${born}` : "All time") : sinceDay ? `Since ${sinceDay}` : "";
 
   return (
     <>
       <Zone label="Portfolio" rule>
         <p className="t-body break-words text-[var(--ink)]">{name}</p>
       </Zone>
-      {stats && isQuiet(stats) ? (
+      {note ? <p className="mt-[18px] t-meta text-[var(--grey)]">{note}</p> : null}
+      {quiet ? (
         <p className="py-[18px] t-meta text-[var(--grey)]">
           No activity yet. Stats appear once your card is shared or opened.
         </p>
@@ -93,11 +127,21 @@ function PortfolioStats({ name, stats }: { name: string; stats: CardData | null 
           <Metric value={shown(stats?.repeatVisits)} label="Repeat visits" rule={false} />
         </>
       )}
+      {history ? null : (
+        <div className="flex flex-col items-center gap-[10px] pt-[18px]">
+          <button type="button" className={ACTION} onClick={onReset}>
+            Reset
+          </button>
+          <button type="button" className={ACTION} onClick={onHistory}>
+            History
+          </button>
+        </div>
+      )}
     </>
   );
 }
 
-export function DataScreen() {
+export function DataScreen({ history = false }: { history?: boolean }) {
   const router = useRouter();
   const hydrated = useCardsHydrated();
   const cards = useAppStore((state) => state.cards);
@@ -107,6 +151,8 @@ export function DataScreen() {
   const [cache, setCache] = useState<Record<string, CardData>>({});
   const cacheRef = useRef(cache);
   const pending = useRef(new Set<string>());
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [resetBusy, setResetBusy] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const syncing = useRef(false);
   const [width, setWidth] = useState(0);
@@ -118,25 +164,49 @@ export function DataScreen() {
   }, [cache]);
 
   useEffect(() => {
-    if (!hydrated || !activeId || cacheRef.current[activeId] || pending.current.has(activeId)) return;
-    pending.current.add(activeId);
+    if (!hydrated || !activeId) return;
+    const key = cacheKey(activeId, history);
+    if (cacheRef.current[key] || pending.current.has(key)) return;
+    pending.current.add(key);
     const cardId = activeId;
-    void fetch(`/api/network/data?card=${encodeURIComponent(cardId)}`, { cache: "no-store" })
+    void fetch(`/api/network/data?card=${encodeURIComponent(cardId)}${history ? "&all=1" : ""}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return null;
         return response.json() as Promise<unknown>;
       })
       .then((body) => {
-        pending.current.delete(cardId);
+        pending.current.delete(key);
         if (!isCardData(body)) return;
-        const next = { ...cacheRef.current, [cardId]: body };
+        const next = { ...cacheRef.current, [key]: body };
         cacheRef.current = next;
         setCache(next);
       })
       .catch(() => {
-        pending.current.delete(cardId);
+        pending.current.delete(key);
       });
-  }, [hydrated, activeId]);
+  }, [hydrated, activeId, history]);
+
+  const confirmReset = async () => {
+    if (!resetId || resetBusy) return;
+    const cardId = resetId;
+    setResetBusy(true);
+    try {
+      const response = await fetch(`/api/network/data?card=${encodeURIComponent(cardId)}`, {
+        method: "POST",
+        cache: "no-store",
+      });
+      const body = response.ok ? ((await response.json().catch(() => null)) as { ok?: boolean } | null) : null;
+      if (body?.ok === true && isCardData(body)) {
+        const next = { ...cacheRef.current, [cardId]: body };
+        cacheRef.current = next;
+        setCache(next);
+      }
+    } catch {
+      // A failed reset leaves the numbers as they were.
+    }
+    setResetBusy(false);
+    setResetId(null);
+  };
 
   useLayoutEffect(() => {
     const node = scroller.current;
@@ -152,10 +222,10 @@ export function DataScreen() {
   }, [many]);
 
   useLayoutEffect(() => {
-    const previous = history.scrollRestoration;
-    history.scrollRestoration = "manual";
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
     return () => {
-      history.scrollRestoration = previous;
+      window.history.scrollRestoration = previous;
     };
   }, []);
 
@@ -192,17 +262,26 @@ export function DataScreen() {
       </span>
     ) : null;
 
-  const slide = (card: { id: string; displayName: string } | null) => (
-    <PortfolioStats name={card?.displayName.trim() ?? ""} stats={card ? (cache[card.id] ?? null) : null} />
+  const slide = (card: Card | null) => (
+    <PortfolioStats
+      name={card?.displayName.trim() ?? ""}
+      createdAt={card?.createdAt}
+      history={history}
+      stats={card ? (cache[cacheKey(card.id, history)] ?? null) : null}
+      onReset={() => {
+        if (card) setResetId(card.id);
+      }}
+      onHistory={() => router.push("/network/data/history")}
+    />
   );
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
       <div className="shrink-0 px-[var(--gutter)]">
         <ScreenHeader
-          title="Data"
-          fallbackHref="/main"
-          onBack={() => router.push("/main")}
+          title={history ? "History" : "Data"}
+          fallbackHref={history ? "/network/data" : "/main"}
+          onBack={() => router.push(history ? "/network/data" : "/main")}
           trailing={counter}
         />
       </div>
@@ -232,6 +311,43 @@ export function DataScreen() {
         </div>
       )}
       <NetworkBand current="data" />
+      {history ? null : (
+        <Dialog.Root
+          open={resetId !== null}
+          onOpenChange={(next) => {
+            if (resetBusy) return;
+            if (!next) setResetId(null);
+          }}
+        >
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-50 bg-transparent" />
+            <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-max max-w-[min(100%-48px,280px)] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center outline-none">
+              <Dialog.Title className="t-body text-[var(--ink)]">Start counting from now?</Dialog.Title>
+              <Dialog.Description className="mt-2 t-meta text-[var(--grey)]">
+                Numbers here go to zero. History keeps everything.
+              </Dialog.Description>
+              <div className="mt-3 flex justify-center gap-6">
+                <button
+                  type="button"
+                  disabled={resetBusy}
+                  className="t-body text-[var(--grey)] disabled:opacity-40"
+                  onClick={() => setResetId(null)}
+                >
+                  CANCEL
+                </button>
+                <button
+                  type="button"
+                  disabled={resetBusy}
+                  className="t-body text-[var(--ink)] disabled:opacity-40"
+                  onClick={() => void confirmReset()}
+                >
+                  RESET
+                </button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
+      )}
     </main>
   );
 }

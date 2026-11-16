@@ -23,6 +23,8 @@ export type CardData = {
   saved: number;
   linkOpens: LinkOpen[];
   repeatVisits: number;
+  /** Set when this portfolio's Data screen counts from a reset. History leaves it empty. */
+  since?: string | null;
 };
 
 async function ownerCards(ownerId: string): Promise<CardRow[]> {
@@ -46,41 +48,70 @@ function pickCard(rows: CardRow[], requested: string | null) {
   return rows.slice().sort((a, b) => a.created_at.localeCompare(b.created_at))[0]?.id ?? null;
 }
 
-async function countEvents(cardId: string, types: string[]) {
+async function countEvents(cardId: string, types: string[], since?: string) {
   const admin = createAdminSupabaseClient();
-  const { count, error } = await admin
+  let query = admin
     .from("card_events")
     .select("id", { count: "exact", head: true })
     .eq("card_id", cardId)
     .in("type", types);
+  if (since) query = query.gte("created_at", since);
+  const { count, error } = await query;
   if (error) throw new Error(error.message);
   return count ?? 0;
 }
 
-async function uniqueOpens(cardId: string) {
+/** Account-wide, active rows only. A date counts those made at or after it. The count is not a row list. */
+async function countSaved(ownerId: string, since?: string) {
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin.rpc("card_unique_opens", { card: cardId });
+  if (!since) {
+    const savedCall = await admin.rpc("connection_save_count", { subject: ownerId });
+    if (savedCall.error) throw new Error(savedCall.error.message);
+    return Number(savedCall.data ?? 0);
+  }
+  const { count, error } = await admin
+    .from("connections")
+    .select("id", { count: "exact", head: true })
+    .eq("saved_owner_id", ownerId)
+    .eq("state", "active")
+    .gte("created_at", since);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+async function uniqueOpens(cardId: string, since?: string) {
+  const admin = createAdminSupabaseClient();
+  const { data, error } = since
+    ? await admin.rpc("card_unique_opens_since", { card: cardId, since })
+    : await admin.rpc("card_unique_opens", { card: cardId });
   if (error) {
+    if (since) throw new Error(error.message);
     console.error("[network] unique opens", error.message);
     return null;
   }
   return Number(data ?? 0);
 }
 
-async function repeatVisits(cardId: string) {
+async function repeatVisits(cardId: string, since?: string) {
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin.rpc("card_repeat_visits", { card: cardId });
+  const { data, error } = since
+    ? await admin.rpc("card_repeat_visits_since", { card: cardId, since })
+    : await admin.rpc("card_repeat_visits", { card: cardId });
   if (error) {
+    if (since) throw new Error(error.message);
     console.error("[network] repeat", error.message);
     return 0;
   }
   return Number(data ?? 0);
 }
 
-async function linkOpens(cardId: string): Promise<LinkOpen[]> {
+async function linkOpens(cardId: string, since?: string): Promise<LinkOpen[]> {
   const admin = createAdminSupabaseClient();
-  const { data, error } = await admin.rpc("card_link_opens", { card: cardId });
+  const { data, error } = since
+    ? await admin.rpc("card_link_opens_since", { card: cardId, since })
+    : await admin.rpc("card_link_opens", { card: cardId });
   if (error) {
+    if (since) throw new Error(error.message);
     console.error("[network] link opens", error.message);
     return [];
   }
@@ -111,12 +142,21 @@ async function linkOpens(cardId: string): Promise<LinkOpen[]> {
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
+function countedFrom(since?: string | null) {
+  if (!since) return undefined;
+  const time = Date.parse(since);
+  if (Number.isNaN(time)) return undefined;
+  return new Date(time).toISOString();
+}
+
 /** Shared is a sent share. Opens is distinct viewers. Total opens is every counted visit. Saved is the person, not the card. */
-export async function readCardData(ownerId: string, requestedCardId: string | null): Promise<CardData> {
-  const admin = createAdminSupabaseClient();
-  const savedCall = await admin.rpc("connection_save_count", { subject: ownerId });
-  if (savedCall.error) throw new Error(savedCall.error.message);
-  const saved = Number(savedCall.data ?? 0);
+export async function readCardData(
+  ownerId: string,
+  requestedCardId: string | null,
+  since?: string | null,
+): Promise<CardData> {
+  const from = countedFrom(since);
+  const saved = await countSaved(ownerId, from);
 
   const empty = {
     shared: 0,
@@ -131,12 +171,12 @@ export async function readCardData(ownerId: string, requestedCardId: string | nu
   if (!cardId) return empty;
 
   const [shared, totalOpens, opensViaQr, unique, links, repeats] = await Promise.all([
-    countEvents(cardId, ["share"]),
-    countEvents(cardId, ["card_open", "qr_open"]),
-    countEvents(cardId, ["qr_open"]),
-    uniqueOpens(cardId),
-    linkOpens(cardId),
-    repeatVisits(cardId),
+    countEvents(cardId, ["share"], from),
+    countEvents(cardId, ["card_open", "qr_open"], from),
+    countEvents(cardId, ["qr_open"], from),
+    uniqueOpens(cardId, from),
+    linkOpens(cardId, from),
+    repeatVisits(cardId, from),
   ]);
   return {
     shared,
@@ -147,6 +187,51 @@ export async function readCardData(ownerId: string, requestedCardId: string | nu
     linkOpens: links,
     repeatVisits: repeats,
   };
+}
+
+function missingResetTable(error: { code?: string; message?: string }) {
+  if (error.code === "PGRST205" || error.code === "42P01") return true;
+  const message = error.message ?? "";
+  return /card_stats_resets/i.test(message) && /schema cache|does not exist|could not find/i.test(message);
+}
+
+/** The date this portfolio's Data screen counts from. No table and no row both mean all time. */
+export async function cardStatsSince(ownerId: string, cardId: string): Promise<string | null> {
+  if (!isUuid(cardId)) return null;
+  const admin = createAdminSupabaseClient();
+  const row = await admin
+    .from("card_stats_resets")
+    .select("reset_at")
+    .eq("card_id", cardId)
+    .eq("owner_id", ownerId)
+    .maybeSingle();
+  if (row.error) {
+    if (missingResetTable(row.error)) return null;
+    throw new Error(row.error.message);
+  }
+  const resetAt = row.data?.reset_at;
+  return typeof resetAt === "string" ? resetAt : null;
+}
+
+/** Remember now as the start of the count. Nothing already stored is removed. */
+export async function resetCardStats(ownerId: string, cardId: string): Promise<(CardData & { since: string }) | null> {
+  if (!isUuid(cardId)) return null;
+  const owned = (await ownerCards(ownerId)).some((row) => row.id === cardId);
+  if (!owned) return null;
+  const admin = createAdminSupabaseClient();
+  const now = new Date().toISOString();
+  const written = await admin
+    .from("card_stats_resets")
+    .upsert({ card_id: cardId, owner_id: ownerId, reset_at: now }, { onConflict: "card_id" })
+    .select("reset_at")
+    .maybeSingle();
+  if (written.error) {
+    if (missingResetTable(written.error)) return null;
+    throw new Error(written.error.message);
+  }
+  const since = typeof written.data?.reset_at === "string" ? written.data.reset_at : now;
+  const data = await readCardData(ownerId, cardId, since);
+  return { ...data, since };
 }
 
 /** The owner tapped Share and the link or file actually left. A cancelled sheet does not count. */
