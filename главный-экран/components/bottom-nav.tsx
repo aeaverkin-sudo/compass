@@ -23,10 +23,8 @@ function TapButton({ onTap, ...props }: Omit<ComponentProps<"button">, "onClick"
 }
 
 type BottomNavProps = {
-  /** Edit mode: Reset or Delete on the left, Save on the right. The new-section plus sits in the portfolio. */
+  /** Edit mode: Delete on the left, Save on the right. The new-section plus sits in the portfolio. */
   editing?: boolean;
-  /** The edited portfolio is the first one: the left word reads Reset, else Delete. */
-  resetsCard?: boolean;
   onRemove?: () => void;
   onEdit: () => void;
   onAdd?: () => void;
@@ -37,7 +35,6 @@ type BottomNavProps = {
 
 export const BottomNav = memo(function BottomNav({
   editing = false,
-  resetsCard = false,
   onRemove,
   onEdit,
   onDone,
@@ -72,7 +69,7 @@ export const BottomNav = memo(function BottomNav({
             className="flex h-full min-h-11 w-full items-center uppercase"
             onTap={() => onRemove?.()}
           >
-            {resetsCard ? "Reset" : "Delete"}
+            Delete
           </TapButton>
         ) : (
           <TapButton

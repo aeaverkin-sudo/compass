@@ -341,8 +341,12 @@ export const useAppStore = create<AppState>()(
       removeCard: (id) => {
         const { cards, currentCardIndex } = get();
         const index = cards.findIndex((card) => card.id === id);
-        if (index < 0 || cards.length <= 1) return;
+        if (index < 0) return;
         dropPendingCardUpsert(id);
+        if (cards.length <= 1) {
+          set({ cards: [], currentCardIndex: 0 });
+          return;
+        }
         let next = cards.filter((card) => card.id !== id);
         if (!next.some((card) => card.listed !== false)) {
           next = next.map((card, position) => (position === 0 ? { ...card, listed: true } : card));

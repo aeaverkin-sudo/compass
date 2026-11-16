@@ -21,7 +21,7 @@ import {
 import { CardCarousel } from "./card-carousel";
 import { EventPassFooter } from "./event-pass-footer";
 import { QrZone } from "./qr-zone";
-import { PortfolioDeleteDialog, useIsFirstCard } from "./portfolio-delete";
+import { PortfolioDeleteDialog } from "./portfolio-delete";
 import { RAIL_ICON_SCALE, SideRail } from "./side-rail";
 import { MARK_VISIBLE_PX } from "@/shared/components/mark-plus";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
@@ -207,7 +207,6 @@ export function MainScreen() {
   const [browseIndex, setBrowseIndex] = useState(currentCardIndex);
   const viewingAddSlide = showAddSlide && browseIndex >= cardCount;
   const activeId = useAppStore((state) => state.cards[state.currentCardIndex]?.id ?? "");
-  const editedIsFirst = useIsFirstCard(activeId || undefined);
   const browseId = useAppStore((state) => {
     if (viewingAddSlide) return "";
     return (state.cards[browseIndex] ?? state.cards[state.currentCardIndex])?.id ?? "";
@@ -659,7 +658,6 @@ export function MainScreen() {
       {layout && !composing && !keyboardUp && (editing || !hideNav) ? (
         <BottomNav
           editing={editing}
-          resetsCard={editedIsFirst}
           onRemove={onRemove}
           onProfile={onProfile}
           onNetwork={onNetwork}

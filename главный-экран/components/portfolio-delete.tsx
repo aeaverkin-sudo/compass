@@ -1,19 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cardInWallet } from "@/shared/lib/wallet-client";
 import { dropPendingCardUpsert } from "@/shared/services/card-sync";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
 
-/** The first portfolio resets to photo and name; any other is deleted. */
-export function useIsFirstCard(cardId: string | undefined) {
-  return useAppStore((state) => Boolean(cardId) && state.cards[0]?.id === cardId);
-}
-
-/** The confirmation behind the edit bar's Reset or Delete. */
+/** The confirmation behind the edit bar's Delete. */
 export function PortfolioDeleteDialog({
   card,
   open,
@@ -23,8 +17,6 @@ export function PortfolioDeleteDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const isFirst = useIsFirstCard(card.id);
-  const resetCard = useAppStore((state) => state.resetCard);
   const removeCard = useAppStore((state) => state.removeCard);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,11 +36,6 @@ export function PortfolioDeleteDialog({
 
   const confirm = async () => {
     if (busy) return;
-    if (isFirst) {
-      resetCard(card.id);
-      onOpenChange(false);
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -87,27 +74,12 @@ export function PortfolioDeleteDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-transparent" />
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-max max-w-[min(100%-48px,280px)] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center outline-none">
-          <Dialog.Title className="t-body text-[var(--ink)]">
-            {isFirst
-              ? "Reset this portfolio. Lines are removed for everyone who saved you. Photo, name, link and QR stay."
-              : "Delete this portfolio. Its link and QR stop working, and it disappears for everyone who saved you. Your library stays."}
-          </Dialog.Title>
-          <Dialog.Description className="sr-only">
-            {isFirst ? "This resets the portfolio." : "This deletes the portfolio."}
+          <Dialog.Title className="t-body text-[var(--ink)]">Delete this portfolio?</Dialog.Title>
+          <Dialog.Description className="mt-2 t-meta text-[var(--grey)]">
+            Link and QR will stop working. Your library stays.
           </Dialog.Description>
-          {isFirst ? (
-            <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
-              To remove everything,{" "}
-              <Link href="/account/delete" className="underline">
-                delete your account
-              </Link>
-              .
-            </p>
-          ) : null}
           {inWallet ? (
-            <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
-              {isFirst ? "Apple Wallet: Re-add your card to update it." : "Apple Wallet: Remove your card manually."}
-            </p>
+            <p className="mt-2 mb-0 t-meta text-[var(--grey)]">Apple Wallet: Remove your card manually.</p>
           ) : null}
           {error ? <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
           <div className="mt-3 flex justify-center gap-6">
