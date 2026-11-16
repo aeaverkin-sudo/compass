@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
@@ -179,6 +180,8 @@ export function EntryPage({
 
   const submit = async () => {
     if (busy || !ready || submitLock.current) return;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) flushSync(() => active.blur());
     track("create_submit");
     const first = zonesRef.current?.markProblems() ?? null;
     const emailBad = account ? false : !isAccountEmail(email);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { EntryName } from "@/app/create/entry-name";
 import { EntryZones, type EntryZonesHandle } from "@/app/create/entry-zones";
@@ -55,7 +56,7 @@ export function AddPortfolioSlide({
     }
     if (busy || creating.current) return;
     const active = document.activeElement;
-    if (active instanceof HTMLElement) active.blur();
+    if (active instanceof HTMLElement) flushSync(() => active.blur());
     const zones = zonesRef.current;
     if (!zones) return;
     const nameMissing = !name.trim();
