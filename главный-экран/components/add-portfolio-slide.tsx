@@ -42,6 +42,7 @@ export function AddPortfolioSlide({
   const creating = useRef(false);
   const cardId = useRef<string | null>(null);
   const placed = useRef(new Set<string>());
+  const rowItems = useRef(new Map<string, string>());
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
   const [nameMarked, setNameMarked] = useState(false);
@@ -120,12 +121,33 @@ export function AddPortfolioSlide({
             }
           }
           store.addItemToCard(id!, itemId, zone.id);
+          rowItems.current.set(row.key, itemId);
           placed.current.add(row.key);
         }
       }
 
+      const filled = zones.snapshot();
+      const live = useAppStore.getState();
+      for (const zone of filled) {
+        const title = zone.title.trim();
+        if (title) live.setRubricLabel(id!, zone.id, title);
+      }
+      live.setCardRubricOrder(
+        id!,
+        filled.map((zone) => zone.id),
+      );
+      const header = zones.headerKey();
+      const headerItemId = header ? rowItems.current.get(header) : undefined;
+      const headerTitle = header
+        ? filled.flatMap((zone) => zone.rows).find((row) => row.key === header)?.value.trim()
+        : "";
+      if (headerItemId && headerTitle) {
+        live.updateCard(id!, { headerItemId, title: headerTitle });
+      }
+
       cardId.current = null;
       placed.current = new Set();
+      rowItems.current = new Map();
       setName("");
       setPhoto(null);
       setNameMarked(false);
