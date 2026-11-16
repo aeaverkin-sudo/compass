@@ -71,24 +71,54 @@ export function useKeyboardDock(active: boolean, followOffset = false) {
   return inset;
 }
 
-/** True while the software keyboard covers the bottom of the page. */
+function typingFocused() {
+  const node = document.activeElement;
+  if (!(node instanceof HTMLElement)) return false;
+  return node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement || node.isContentEditable;
+}
+
+/** True while a text field is focused and the keyboard covers the bottom. Scroll without a field does not count. */
 export function useKeyboardVisible() {
   const [up, setUp] = useState(false);
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
+    let maxHeight = viewport.height;
+    let adoptNext = false;
     const sync = () => {
       const vv = window.visualViewport;
       if (!vv) return;
+      if (vv.height > maxHeight) maxHeight = vv.height;
+      const dropped = maxHeight - vv.height > KEYBOARD_MIN_PX;
       const overlap = Math.max(0, window.innerHeight - Math.max(0, vv.offsetTop) - vv.height);
-      setUp(overlap > KEYBOARD_MIN_PX);
+      setUp(typingFocused() && (dropped || overlap > KEYBOARD_MIN_PX));
+    };
+    const onResize = () => {
+      const vv = window.visualViewport;
+      if (adoptNext && vv) {
+        maxHeight = vv.height;
+        adoptNext = false;
+      }
+      sync();
+    };
+    const syncFocus = () => {
+      window.setTimeout(sync, 0);
+    };
+    const onOrient = () => {
+      adoptNext = true;
     };
     sync();
-    viewport.addEventListener("resize", sync);
+    viewport.addEventListener("resize", onResize);
     viewport.addEventListener("scroll", sync);
+    document.addEventListener("focusin", syncFocus);
+    document.addEventListener("focusout", syncFocus);
+    window.addEventListener("orientationchange", onOrient);
     return () => {
-      viewport.removeEventListener("resize", sync);
+      viewport.removeEventListener("resize", onResize);
       viewport.removeEventListener("scroll", sync);
+      document.removeEventListener("focusin", syncFocus);
+      document.removeEventListener("focusout", syncFocus);
+      window.removeEventListener("orientationchange", onOrient);
     };
   }, []);
   return up;
