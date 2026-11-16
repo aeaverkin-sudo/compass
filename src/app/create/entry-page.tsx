@@ -427,10 +427,7 @@ export function EntryPage({
         return;
       }
     }
-    const empty = [...root.querySelectorAll("textarea")].find(
-      (node) => node instanceof HTMLTextAreaElement && !node.closest("[data-entry-name]") && !node.value.trim(),
-    );
-    if (empty instanceof HTMLTextAreaElement) empty.focus();
+    zonesRef.current?.focusFirstEmpty();
   };
 
   const sheet = (

@@ -83,6 +83,8 @@ export type EntryZonesHandle = {
   markProblems: () => string | null;
   /** Position, Company, and Contacts each have something typed. */
   requiredFilled: () => boolean;
+  /** Open the first of 01–03 that has no text, the same way a tap on its hint does. */
+  focusFirstEmpty: () => void;
 };
 
 type EntryZonesProps = {
@@ -236,6 +238,21 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
           if (!zone) return false;
           return zoneHasText(zone, seedIdRef.current, seedTextRef.current, editKeyRef.current, editTextRef.current);
         }),
+      focusFirstEmpty: () => {
+        const id = FIRST.find((zoneId) => {
+          const zone = zonesRef.current.find((entry) => entry.id === zoneId);
+          if (!zone) return true;
+          return !zoneHasText(zone, seedIdRef.current, seedTextRef.current, editKeyRef.current, editTextRef.current);
+        });
+        if (!id) return;
+        if (seedIdRef.current === id && !seedTextRef.current.trim()) {
+          valueRef.current?.focusEnd();
+          return;
+        }
+        focusValue.current = true;
+        setSeedId(id);
+        setSeedText("");
+      },
     }),
     [],
   );
