@@ -15,6 +15,7 @@ import { tick } from "@/shared/lib/haptic";
 import { readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
 import { flashRow } from "@/shared/lib/row-flash";
 import {
+  canonZoneId,
   groupEditSections,
   isChoosableHeader,
   isExtraZoneId,
@@ -345,12 +346,15 @@ export const CardEditList = memo(function CardEditList({
   card: cardProp,
   items: _items,
   composeOnMount = false,
+  openZone = null,
   openAddRef,
   onComposingChange,
 }: {
   card: Card;
   items: ContactItem[];
   composeOnMount?: boolean;
+  /** A tap on an empty zone of a live card. Absent when Edit itself is opened. */
+  openZone?: string | null;
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
 }) {
@@ -371,7 +375,7 @@ export const CardEditList = memo(function CardEditList({
   const openNewZoneRef = useRef<() => void>(() => {});
   const [textEditId, setTextEditId] = useState<string | null>(null);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
-  const [seedZoneId, setSeedZoneId] = useState<string | null>(null);
+  const [seedZoneId, setSeedZoneId] = useState<string | null>(() => (openZone ? canonZoneId(openZone) ?? null : null));
   const advanceSeedRef = useRef(false);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [hideReadyId, setHideReadyId] = useState<string | null>(null);

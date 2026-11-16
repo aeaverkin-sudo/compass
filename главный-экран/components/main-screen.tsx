@@ -93,6 +93,7 @@ function CardDeck({
   showAddSlide,
   fillHint,
   composeOnMount,
+  openZone,
   openAddRef,
   onComposingChange,
   frozen,
@@ -109,6 +110,7 @@ function CardDeck({
   showAddSlide: boolean;
   fillHint: boolean;
   composeOnMount: boolean;
+  openZone: string | null;
   openAddRef: RefObject<(() => void) | null>;
   onComposingChange: (open: boolean) => void;
   frozen: boolean;
@@ -116,7 +118,7 @@ function CardDeck({
   shareFootnote: (card: Card) => ReactNode;
   addNextFor: (card: Card) => (() => void) | undefined;
   onTrialSlot: () => void;
-  onFill: (cardId: string) => void;
+  onFill: (cardId: string, zoneId?: string) => void;
   onActiveIndexChange: (index: number) => void;
   onUpdateCard: (id: string, data: Partial<Card>) => void;
 }) {
@@ -134,6 +136,7 @@ function CardDeck({
       editing={editing}
       fillHint={fillHint}
       composeOnMount={composeOnMount}
+      openZone={openZone}
       openAddRef={openAddRef}
       onComposingChange={onComposingChange}
       frozen={frozen}
@@ -165,6 +168,7 @@ export function MainScreen() {
   const [editing, setEditing] = useState(false);
   const editingRef = useRef(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
+  const [openZone, setOpenZone] = useState<string | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
   const openAddRef = useRef<(() => void) | null>(null);
   const draftStarted = useRef(false);
@@ -403,11 +407,13 @@ export function MainScreen() {
   const onRemove = useCallback(() => setRemoveOpen(true), []);
   const onDone = useCallback(() => {
     setComposeOnMount(false);
+    setOpenZone(null);
     clearFillPlace();
     setEditing(false);
   }, []);
   const leaveEdit = useCallback(() => {
     setComposeOnMount(false);
+    setOpenZone(null);
     setComposing(false);
     setRemoveOpen(false);
     clearFillPlace();
@@ -425,6 +431,7 @@ export function MainScreen() {
     }
     const cardId = useAppStore.getState().cards[useAppStore.getState().currentCardIndex]?.id;
     setComposeOnMount(false);
+    setOpenZone(null);
     setEditing(true);
     if (cardId) rememberEdit(cardId);
   }, [frozen, needsAccount, portfolioLimit, rememberEdit, showGate, updateSecondCardDraft]);
@@ -436,13 +443,19 @@ export function MainScreen() {
     }
     openAddRef.current?.();
   }, [needsAccount, showGate]);
-  const onFill = useCallback((cardId: string) => {
+  const onFill = useCallback((cardId: string, zoneId?: string) => {
     if (frozen) return;
     const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
     const index = liveCards.findIndex((card) => card.id === cardId);
     if (index === 0) markEmptyFillHintSeen();
     if (index > 0) setCurrentCardIndex(index);
-    setComposeOnMount(!liveItems.some(isContactFilled));
+    if (zoneId) {
+      setComposeOnMount(false);
+      setOpenZone(zoneId);
+    } else {
+      setOpenZone(null);
+      setComposeOnMount(!liveItems.some(isContactFilled));
+    }
     setEditing(true);
     rememberEdit(cardId);
   }, [frozen, markEmptyFillHintSeen, rememberEdit, setCurrentCardIndex]);
@@ -611,6 +624,7 @@ export function MainScreen() {
             showAddSlide={showAddSlide}
             fillHint={!emptyFillHintSeen}
             composeOnMount={composeOnMount}
+            openZone={openZone}
             openAddRef={openAddRef}
             onComposingChange={onComposingChange}
             frozen={frozen}

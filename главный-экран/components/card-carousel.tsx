@@ -56,10 +56,11 @@ type CardCarouselProps = {
   onEmptyAreaTap: () => void;
   editing?: boolean;
   fillHint?: boolean;
-  onFill?: (cardId: string) => void;
+  onFill?: (cardId: string, zoneId?: string) => void;
   /** Guest event pass: the card's empty next section opens the add line. Absent for other cards. */
   addNextFor?: (card: Card) => (() => void) | undefined;
   composeOnMount?: boolean;
+  openZone?: string | null;
   /** The visible card's add line. The plate's + calls it inside the tap. */
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
@@ -105,6 +106,7 @@ export const CardCarousel = memo(function CardCarousel({
   onFill,
   addNextFor,
   composeOnMount = false,
+  openZone = null,
   openAddRef,
   onComposingChange,
   frozen = false,
@@ -385,9 +387,10 @@ export const CardCarousel = memo(function CardCarousel({
       onCardUpdate={onUpdate}
       editing={editing && card.id !== ADD_SLIDE_ID}
       fillHint={hint}
-      onFill={onFill ? () => onFill(card.id) : undefined}
+      onFill={onFill ? (zoneId) => onFill(card.id, zoneId) : undefined}
       onAddNext={card.id === ADD_SLIDE_ID ? undefined : addNextFor?.(card)}
       composeOnMount={composeOnMount && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id}
+      openZone={editing && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id ? openZone : null}
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
       frozen={frozen}
@@ -449,9 +452,10 @@ export const CardCarousel = memo(function CardCarousel({
         onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
         editing={editing}
         fillHint={fillHint && activeIndex === 0}
-        onFill={onFill ? () => onFill(activeCard.id) : undefined}
+        onFill={onFill ? (zoneId) => onFill(activeCard.id, zoneId) : undefined}
         onAddNext={addNextFor?.(activeCard)}
         composeOnMount={composeOnMount}
+        openZone={editing ? openZone : null}
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}
         frozen={frozen}

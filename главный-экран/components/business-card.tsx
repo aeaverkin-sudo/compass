@@ -1,11 +1,12 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import { Plus, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import { AccountBand } from "@/shared/components/account-band";
+import { EmptyCardZones } from "./empty-card-zones";
 import { TapButton } from "@/shared/components/tap-button";
 import { cachedWalletStatus, cardInWallet, openWalletPass, walletIsConfigured } from "@/shared/lib/wallet-client";
 import { composeCard, orderCardZones } from "@/shared/services/card-zones";
@@ -403,10 +404,12 @@ type BusinessCardProps = {
   onCardUpdate?: (data: Partial<Card>) => void;
   editing?: boolean;
   fillHint?: boolean;
-  onFill?: () => void;
+  onFill?: (zoneId: string) => void;
   /** Guest event pass: the empty next section under the rows. */
   onAddNext?: () => void;
   composeOnMount?: boolean;
+  /** Set only by a tap on an empty zone. Edit on the band does not pass it. */
+  openZone?: string | null;
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
   /** Public /c/ page: same card, no QR, plus, or share link. */
@@ -441,10 +444,10 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onDisplayNameChange,
     onCardUpdate,
     editing = false,
-    fillHint = false,
     onFill,
     onAddNext,
     composeOnMount = false,
+    openZone = null,
     openAddRef,
     onComposingChange,
     readOnly = false,
@@ -642,27 +645,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           )}
         </div>
       ) : null}
-      {bare ? (
-        <div className="flex min-h-0 flex-1 flex-col px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
-          <div className="flex flex-1 flex-col items-center justify-center">
-            {readOnly ? null : (
-            <button
-              type="button"
-              data-card-content
-              data-no-swipe
-              aria-label="Add"
-              onClick={onFill}
-              className="flex size-7 items-center justify-center bg-transparent"
-            >
-              <Plus className="size-7 text-[#111]" strokeWidth={1} aria-hidden />
-            </button>
-            )}
-            {fillHint ? (
-              <p className="mt-5 max-w-[240px] bg-sky px-3 py-2.5 text-center t-meta text-[var(--ink)]">
-                Add your contacts, links, professional details, social media, and files.
-              </p>
-            ) : null}
-          </div>
+      {bare && !readOnly ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
+          <EmptyCardZones onPick={(zoneId) => onFill?.(zoneId)} />
         </div>
       ) : null}
       <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
@@ -708,6 +693,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           card={card}
           items={library}
           composeOnMount={composeOnMount}
+          openZone={openZone}
           openAddRef={openAddRef}
           onComposingChange={onComposingChange}
         />
