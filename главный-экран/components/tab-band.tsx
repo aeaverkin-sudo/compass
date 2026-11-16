@@ -1,5 +1,8 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { BAND_DROP_PX, BAND_ROW_PX } from "../layout";
+import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 
 const WORD = "[&>*]:!w-max [&_a]:!w-max [&_button]:!w-max [&_a]:-mr-[0.14em] [&_button]:-mr-[0.14em]";
 
@@ -23,6 +26,9 @@ export function TabBand({
   /** Horizontal pad. The portfolio and Network use the column gutter. */
   inset?: string;
 }) {
+  const keyboardUp = useKeyboardVisible();
+  if (keyboardUp) return null;
+
   return (
     <nav
       aria-label={label}
