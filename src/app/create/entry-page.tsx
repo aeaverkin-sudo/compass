@@ -409,6 +409,11 @@ export function EntryPage({
 
   if (pick && knownDevice) return <div className="fixed inset-0 bg-white" aria-hidden />;
 
+  const acceptSuggestedName = (event: { target: EventTarget | null }) => {
+    const node = event.target;
+    if (node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement) setNameLive(true);
+  };
+
   const focusEmpty = () => {
     const root = mainRef.current;
     if (!root) return;
@@ -441,9 +446,6 @@ export function EntryPage({
               </span>
             </button>
           </div>
-          <div className="mx-auto mb-[18px] flex size-[200px] items-center justify-center bg-white px-6 text-center t-meta text-[var(--grey)] shadow-[0_2px_8px_rgba(17,17,17,0.16)]">
-            Fill 3 fields to get your QR
-          </div>
         </div>
       ) : (
         <>
@@ -471,7 +473,7 @@ export function EntryPage({
         </>
       )}
       <div style={frame}>
-      <div className={PAD}>
+      <div className={PAD} onFocusCapture={acceptSuggestedName}>
         {telegram ? (
           <p className="mb-[18px] t-meta text-[var(--grey)]">
             Open in your browser: ••• → Open in Safari, so your card stays with you.
@@ -515,6 +517,7 @@ export function EntryPage({
       </div>
       </div>
       <form
+        onFocusCapture={acceptSuggestedName}
         onSubmit={(event) => {
           event.preventDefault();
           void submit();

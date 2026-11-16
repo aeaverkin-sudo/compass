@@ -15,14 +15,14 @@ export function EntryName({
   onTouch,
 }: {
   value: string;
-  /** A suggested name stays grey until the caret is placed. */
+  /** A suggested name is full size and grey until a row is touched. */
   live: boolean;
   onChange: (value: string) => void;
   onTouch: () => void;
 }) {
-  const shown = live ? value : "";
   const suggested = Boolean(value.trim() && !live);
-  const hint = shown.length === 0 && !suggested;
+  const shown = value;
+  const hint = shown.length === 0;
 
   return (
     <label
@@ -44,11 +44,8 @@ export function EntryName({
           className={hint ? "absolute inset-x-0 top-0" : "flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden"}
           style={hint ? { height: HINT_LINE_PX } : undefined}
         >
-          <HeroName value={shown} onChange={onChange} placeholder="" ruled />
+          <HeroName value={shown} onChange={onChange} placeholder="" ruled tone={suggested ? "placeholder" : "ink"} />
         </div>
-        {suggested ? (
-          <span className="pointer-events-none absolute inset-x-0 bottom-0 t-body text-[var(--placeholder)]">{value}</span>
-        ) : null}
       </div>
     </label>
   );

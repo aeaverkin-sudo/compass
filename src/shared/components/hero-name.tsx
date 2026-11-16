@@ -57,6 +57,7 @@ export function HeroName({
   maxLines = 2,
   align = "bottom",
   ruled = false,
+  tone = "ink",
 }: {
   value: string;
   onChange?: (displayName: string) => void;
@@ -68,6 +69,8 @@ export function HeroName({
   align?: "bottom" | "center";
   /** Questionnaire only: two writing lines, each with a thin black rule. */
   ruled?: boolean;
+  /** A suggested name is the same size, drawn grey until the row is touched. */
+  tone?: "ink" | "placeholder";
 }) {
   const centered = align === "center";
   const boxRef = useRef<HTMLDivElement>(null);
@@ -254,7 +257,13 @@ export function HeroName({
             "compass-input m-0 block w-full max-h-full min-h-0 max-w-full resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre text-[var(--ink)] outline-none",
             ruled && "min-w-0",
           )}
-          style={empty ? { ...lineStyle, color: "transparent", caretColor: "var(--ink)" } : lineStyle}
+          style={
+            empty
+              ? { ...lineStyle, color: "transparent", caretColor: "var(--ink)" }
+              : tone === "placeholder"
+                ? { ...lineStyle, color: "var(--placeholder)", caretColor: "var(--placeholder)" }
+                : lineStyle
+          }
         />
         </>
       ) : (
@@ -263,7 +272,7 @@ export function HeroName({
             "w-full overflow-x-hidden overflow-y-visible text-left text-[var(--ink)]",
             wrapWord ? "whitespace-pre-wrap break-all" : "whitespace-nowrap",
           )}
-          style={lineStyle}
+          style={tone === "placeholder" && !empty ? { ...lineStyle, color: "var(--placeholder)" } : lineStyle}
         >
           {empty ? (
             <div className="whitespace-nowrap border-b-[0.5px] border-[#D0D0D0] pb-px text-[var(--placeholder)]">{placeholder}</div>
