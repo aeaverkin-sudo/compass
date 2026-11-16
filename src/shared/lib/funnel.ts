@@ -93,6 +93,17 @@ function readSource() {
   return "other";
 }
 
+const IN_APP = ["fban", "fbav", "line/", "; wv)"];
+
+/** Google refuses these browsers. The recorded client value stays as it is. */
+export function socialSignInBlocked() {
+  if (typeof navigator === "undefined") return true;
+  const client = readClient();
+  if (client === "telegram" || client === "instagram") return true;
+  const agent = navigator.userAgent.toLowerCase();
+  return IN_APP.some((marker) => agent.includes(marker));
+}
+
 function readClient() {
   try {
     if (isInstalledApp()) return "pwa";

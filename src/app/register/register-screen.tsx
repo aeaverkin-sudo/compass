@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
+import { GoogleSignIn } from "@/shared/components/google-sign-in";
 import { BackButton } from "@/shared/components/back-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Rule } from "@/shared/components/rule";
@@ -368,6 +369,7 @@ export function RegisterScreen() {
           className="mb-[18px] shrink-0"
           style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px)` }}
         />
+        <GoogleSignIn from="signin" next={params.get("next")} divider="OR" padded />
         <form
           onSubmit={(event) => {
             event.preventDefault();

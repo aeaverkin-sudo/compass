@@ -7,6 +7,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { carouselSidePaddingPx } from "@main/layout";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
+import { GoogleSignIn } from "@/shared/components/google-sign-in";
 import { BackButton } from "@/shared/components/back-button";
 import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
@@ -392,6 +393,19 @@ export function EntryPage({
         signUpHref="/create"
         signInHref={signInHref(undefined, input)}
         className="mb-[18px]"
+      />
+      <GoogleSignIn
+        from="create"
+        divider="OR FILL IN"
+        next={
+          input.event
+            ? input.event.guestToken
+              ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
+              : `/e/${encodeURIComponent(input.event.lookup)}`
+            : input.sourceToken
+              ? `/save/${input.sourceToken}`
+              : input.next
+        }
       />
       <div style={frame}>
       <div className={PAD}>
