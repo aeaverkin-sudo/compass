@@ -22,7 +22,8 @@ function leavesSessionAlone(pathname: string) {
     pathname.startsWith("/api/c/") ||
     pathname === "/open" ||
     pathname === "/handoff" ||
-    pathname === "/auth/confirm"
+    pathname === "/auth/confirm" ||
+    pathname === "/auth/callback"
   );
 }
 

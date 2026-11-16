@@ -15,13 +15,16 @@ import {
 import {
   clearRegistrationRequired,
   clearStoredAuthTokens,
+  consumeOAuthReplaceLocal,
   consumeSignedOutIgnore,
   ignoreNextSignedOut,
   isDeadAuthSession,
   markRegistrationRequired,
   markSessionBootstrapComplete,
 } from "@/shared/lib/session-bootstrap";
-import { hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
+import { dropPendingCardUpserts, forgetLibraryOwner, hydrateCardsFromServer } from "@/shared/services/card-sync";
+import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { clearQuestionnaire, readQuestionnaire } from "@/shared/lib/fill-place";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -55,6 +58,19 @@ function acceptUser(user: User) {
     if (user.app_metadata?.event_trial !== true) markRegisteredDevice();
     if (user.email) rememberAccountEmail(user.email);
     clearRegistrationRequired();
+    if (consumeOAuthReplaceLocal()) {
+      dropPendingCardUpserts();
+      dropPendingItemUpserts();
+      dropPendingNotes();
+      const state = useAppStore.getState();
+      useAppStore.setState({
+        cards: [],
+        contactItems: [],
+        currentCardIndex: 0,
+        user: { ...state.user, onboarded: false },
+      });
+      forgetLibraryOwner();
+    }
   }
   restoreRegisteredOnboarding(Boolean(user.is_anonymous));
   console.info("[supabase] session", user.id, user.is_anonymous ? "trial" : "registered");

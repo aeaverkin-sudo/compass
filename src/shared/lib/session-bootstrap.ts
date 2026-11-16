@@ -53,6 +53,37 @@ export function consumeSignedOutIgnore() {
   return true;
 }
 
+const OAUTH_REPLACE_LOCAL = "aded-oauth-replace-local";
+
+/** Google sign-in is about to leave the page. The library here stays until that session is real. */
+export function markOAuthReplaceLocal() {
+  try {
+    sessionStorage.setItem(OAUTH_REPLACE_LOCAL, "1");
+  } catch {
+    // A private tab cannot keep the mark. The return still signs in.
+  }
+}
+
+/** The Google page was cancelled. Keep what is already on this phone. */
+export function cancelOAuthReplaceLocal() {
+  try {
+    sessionStorage.removeItem(OAUTH_REPLACE_LOCAL);
+  } catch {
+    // Nothing was stored.
+  }
+}
+
+/** True once, after a confirmed registered return. An anonymous session must not consume it. */
+export function consumeOAuthReplaceLocal() {
+  try {
+    if (sessionStorage.getItem(OAUTH_REPLACE_LOCAL) !== "1") return false;
+    sessionStorage.removeItem(OAUTH_REPLACE_LOCAL);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The account itself is gone.
  * A reused or invalid refresh token is not this. That cookie may still belong
