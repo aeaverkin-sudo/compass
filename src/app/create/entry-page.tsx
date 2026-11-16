@@ -411,7 +411,10 @@ export function EntryPage({
 
   const acceptSuggestedName = (event: { target: EventTarget | null }) => {
     const node = event.target;
-    if (node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement) setNameLive(true);
+    if (!(node instanceof HTMLElement)) return;
+    if (node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement || node.isContentEditable) {
+      setNameLive(true);
+    }
   };
 
   const focusEmpty = () => {
