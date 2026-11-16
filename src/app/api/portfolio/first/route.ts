@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     const keeper = rows[0];
     if (!keeper) throw new Error("missing");
     if (keeper.id !== written.cardId) {
-      const dropped = await deleteOwnCard(user.id, written.cardId);
+      const dropped = await deleteOwnCard(user.id, written.cardId, { keepLast: true });
       if (dropped === "ok" || dropped === "missing") {
         return noStore({
           existing: true,

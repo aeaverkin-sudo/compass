@@ -3,9 +3,14 @@ import { deleteAttachment, loadAttachment, removeStoredObject } from "@/shared/s
 
 /**
  * Removes one portfolio. Links, saves in other people's networks and event badges go with it (on delete cascade).
- * The library is untouched. The first portfolio is reset on the device, never deleted here.
+ * The library is untouched. The account stays when this was the only portfolio.
+ * `keepLast` is only for the two-tab race: that caller must not wipe the card that turned out to be the only one.
  */
-export async function deleteOwnCard(ownerId: string, cardId: string): Promise<"ok" | "missing" | "last"> {
+export async function deleteOwnCard(
+  ownerId: string,
+  cardId: string,
+  options?: { keepLast?: boolean },
+): Promise<"ok" | "missing" | "last"> {
   const admin = createAdminSupabaseClient();
   const { data, error } = await admin
     .from("cards")
@@ -16,7 +21,7 @@ export async function deleteOwnCard(ownerId: string, cardId: string): Promise<"o
   const rows = (data ?? []) as { id: string; photo_attachment_id: string | null }[];
   const target = rows.find((row) => row.id === cardId);
   if (!target) return "missing";
-  if (rows.length <= 1) return "last";
+  if (options?.keepLast && rows.length <= 1) return "last";
 
   const removed = await admin.from("cards").delete().eq("id", cardId).eq("owner_id", ownerId);
   if (removed.error) throw new Error(removed.error.message);

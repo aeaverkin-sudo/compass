@@ -23,7 +23,7 @@ export async function DELETE(_request: Request, context: RouteProps) {
   try {
     const outcome = await deleteOwnCard(owner.id, id);
     if (outcome === "missing") return noStore({ error: "Portfolio not found." }, 404);
-    if (outcome === "last") return noStore({ error: "Keep at least one portfolio." }, 400);
+    if (outcome !== "ok") return noStore({ error: "Could not delete the portfolio." }, 500);
     return noStore({ ok: true });
   } catch (error) {
     console.error("[cards] delete", error);
