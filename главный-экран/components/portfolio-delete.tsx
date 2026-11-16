@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { dropPendingCardUpsert } from "@/shared/services/card-sync";
 import { useAppStore } from "@/shared/store/app-store";
@@ -74,12 +75,21 @@ export function PortfolioDeleteDialog({
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-max max-w-[min(100%-48px,280px)] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center outline-none">
           <Dialog.Title className="t-body text-[var(--ink)]">
             {isFirst
-              ? "Reset this portfolio to photo and name. Everyone you shared it with will see only that. Your library stays."
+              ? "Reset this portfolio. Lines are removed for everyone who saved you. Photo, name, link and QR stay."
               : "Delete this portfolio. It will also disappear for everyone you shared it with. Your library stays."}
           </Dialog.Title>
           <Dialog.Description className="sr-only">
             {isFirst ? "This resets the portfolio." : "This deletes the portfolio."}
           </Dialog.Description>
+          {isFirst ? (
+            <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
+              To remove everything,{" "}
+              <Link href="/account/delete" className="underline">
+                delete your account
+              </Link>
+              .
+            </p>
+          ) : null}
           {error ? <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
           <div className="mt-3 flex justify-center gap-6">
             <button
