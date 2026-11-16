@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { mailOrigin } from "@/shared/lib/public-origin";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
+import { deleteOwnCard } from "@/shared/services/card-delete";
 import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { prepareSignupCard, writeFirstPortfolio, type SignupBody } from "@/shared/services/signup";
 import { readAccountStatus } from "@/shared/services/trial";
@@ -52,6 +53,27 @@ export async function POST(request: Request) {
     const cardId = crypto.randomUUID();
     const now = new Date().toISOString();
     const written = await writeFirstPortfolio(admin, user.id, prepared, body, cardId, now);
+    const listed = await admin
+      .from("cards")
+      .select("id, public_token, handle")
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
+    if (listed.error) throw new Error(listed.error.message);
+    const rows = (listed.data ?? []) as { id: string; public_token: string | null; handle: string | null }[];
+    const keeper = rows[0];
+    if (!keeper) throw new Error("missing");
+    if (keeper.id !== written.cardId) {
+      const dropped = await deleteOwnCard(user.id, written.cardId);
+      if (dropped === "ok" || dropped === "missing") {
+        return noStore({
+          existing: true,
+          cardId: keeper.id,
+          publicToken: keeper.public_token ?? "",
+          handle: keeper.handle,
+        });
+      }
+    }
     const origin = mailOrigin(request);
     if (origin) {
       void sendWelcomeMail(user.id, written.cardId, "", origin, "google").catch((error) => {
