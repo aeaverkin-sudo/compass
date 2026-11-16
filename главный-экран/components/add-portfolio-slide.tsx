@@ -73,7 +73,10 @@ export function AddPortfolioSlide({
       let id = cardId.current;
       const existing = id ? useAppStore.getState().cards.find((card) => card.id === id) : undefined;
       if (!existing) {
-        if (portfolioLimit === null) return;
+        if (portfolioLimit === null) {
+          setError("Could not save this portfolio. Try again.");
+          return;
+        }
         const before = useAppStore.getState().cards.length;
         useAppStore.getState().updateSecondCardDraft(
           { displayName: name.trim(), photo: photo?.dataUrl },
@@ -81,7 +84,10 @@ export function AddPortfolioSlide({
         );
         const cards = useAppStore.getState().cards;
         const created = cards.length === before + 1 ? cards[cards.length - 1] : undefined;
-        if (!created) return;
+        if (!created) {
+          setError("Could not save this portfolio. Try again.");
+          return;
+        }
         id = created.id;
         cardId.current = id;
       } else if (existing.displayName !== name.trim() || (photo && existing.photo !== photo.dataUrl)) {
