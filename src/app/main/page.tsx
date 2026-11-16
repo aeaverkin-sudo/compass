@@ -27,7 +27,8 @@ export default function MainPage() {
   const needsSignIn = useRegistrationRequired();
   const cardsReady = useCardsHydrated();
   const onboarded = useAppStore((state) => state.user.onboarded);
-  const hasCards = useAppStore((state) => state.cards.length > 0);
+  const cardCount = useAppStore((state) => state.cards.length);
+  const hasCards = cardCount > 0;
   // A returning device draws its stored cards at once; the session check and the server pull catch up behind.
   const cached = hydrated && onboarded && hasCards && !needsSignIn;
 
@@ -53,13 +54,17 @@ export default function MainPage() {
       return;
     }
     if (!cardsReady) return;
-    if (!onboarded) {
-      const cards = useAppStore.getState().cards;
-      router.replace(cards.length === 0 && registeredSession() ? "/create?account=1" : "/");
+    if (cardCount === 0 && registeredSession()) {
+      router.replace("/create?account=1");
+      return;
     }
-  }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, router]);
+    if (!onboarded) router.replace("/");
+  }, [hydrated, sessionReady, needsSignIn, cardsReady, onboarded, cardCount, router]);
 
-  if (!cached && (!hydrated || !sessionReady || needsSignIn || !cardsReady || !onboarded)) {
+  if (
+    !cached &&
+    (!hydrated || !sessionReady || needsSignIn || !cardsReady || !onboarded || (cardCount === 0 && registeredSession()))
+  ) {
     return <div className="compass-main fixed inset-y-0 bg-background" aria-hidden />;
   }
 

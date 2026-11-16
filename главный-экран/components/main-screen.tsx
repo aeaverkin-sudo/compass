@@ -12,6 +12,7 @@ import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { groupEditSections } from "@/shared/services/card-zones";
 import { publicCardUrl } from "@/shared/services/public-card-url";
+import { registeredSession } from "@/shared/lib/session-bootstrap";
 import {
   canAddMoreCards,
   isCardReady,
@@ -263,6 +264,7 @@ export function MainScreen() {
 
   useEffect(() => {
     if (!cardsHydrated || cardCount > 0 || portfolioLimit === null || draftStarted.current) return;
+    if (registeredSession()) return;
     draftStarted.current = true;
     updateSecondCardDraft({ displayName: "" }, portfolioLimit);
   }, [cardsHydrated, cardCount, portfolioLimit, updateSecondCardDraft]);
