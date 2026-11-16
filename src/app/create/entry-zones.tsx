@@ -85,6 +85,10 @@ export type EntryZonesHandle = {
   requiredFilled: () => boolean;
   /** Open the first of 01–03 that has no text, the same way a tap on its hint does. */
   focusFirstEmpty: () => void;
+  /** Paint empty Position, Company, and Contacts. The questionnaire does not call this. */
+  markMissing: () => string | null;
+  /** Live rows, including a file that has not been uploaded. The questionnaire does not call this. */
+  lines: () => { id: string; rows: EntryRow[] }[];
 };
 
 type EntryZonesProps = {
@@ -142,6 +146,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const [armed, setArmed] = useState<string | null>(null);
   const [headerKey, setHeaderKey] = useState<string | null>(null);
   const [marked, setMarked] = useState<ReadonlySet<string>>(() => new Set());
+  const [missing, setMissing] = useState<ReadonlySet<string>>(() => new Set());
   const [seedMarked, setSeedMarked] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const zonesRef = useRef(zones);
@@ -253,6 +258,16 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         setSeedId(id);
         setSeedText("");
       },
+      markMissing: () => {
+        const open = FIRST.filter((zoneId) => {
+          const zone = zonesRef.current.find((entry) => entry.id === zoneId);
+          if (!zone) return true;
+          return !zoneHasText(zone, seedIdRef.current, seedTextRef.current, editKeyRef.current, editTextRef.current);
+        });
+        setMissing(new Set(open));
+        return open[0] ?? null;
+      },
+      lines: () => zonesRef.current.map((zone) => ({ id: zone.id, rows: zone.rows })),
     }),
     [],
   );
@@ -260,6 +275,19 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   useEffect(() => {
     onChangeRef.current?.();
   }, [zones, editKey, editText, seedId, seedText, headerKey]);
+
+  useEffect(() => {
+    setMissing((current) => {
+      if (current.size === 0) return current;
+      const next = new Set(
+        [...current].filter((zoneId) => {
+          const zone = zonesRef.current.find((entry) => entry.id === zoneId);
+          return !zone || !zoneHasText(zone, seedIdRef.current, seedTextRef.current, editKeyRef.current, editTextRef.current);
+        }),
+      );
+      return next.size === current.size ? current : next;
+    });
+  }, [zones, editText, seedText]);
 
   useEffect(() => {
     if (!armed) return;
@@ -546,7 +574,13 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                   ) : null}
                   <div className="relative min-w-0 flex-1">
                     {zone.rows.length === 0 && !seedText.trim() ? (
-                      <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 t-body text-[var(--placeholder)]">
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "pointer-events-none absolute inset-x-0 top-0 t-body",
+                          missing.has(zone.id) ? "text-[#E23B2F]" : "text-[var(--placeholder)]",
+                        )}
+                      >
                         <HintLine text={hint} star={REQUIRED.has(zone.id)} />
                       </span>
                     ) : null}
@@ -566,7 +600,10 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
               ) : zone.rows.length === 0 ? (
                 <button
                   type="button"
-                  className="t-body min-h-11 w-full border-0 bg-transparent p-0 text-left text-[var(--placeholder)]"
+                  className={cn(
+                    "t-body min-h-11 w-full border-0 bg-transparent p-0 text-left",
+                    missing.has(zone.id) ? "text-[#E23B2F]" : "text-[var(--placeholder)]",
+                  )}
                   onClick={() => {
                     focusValue.current = true;
                     setSeedId(zone.id);

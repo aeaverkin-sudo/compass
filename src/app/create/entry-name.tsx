@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { HeroName } from "@/shared/components/hero-name";
 import { RequiredStar } from "./entry-zones";
 
@@ -11,12 +12,15 @@ const HINT_LINE_PX = 15.5 * 1.45;
 export function EntryName({
   value,
   live,
+  marked = false,
   onChange,
   onTouch,
 }: {
   value: string;
   /** A suggested name is full size and grey until a row is touched. */
   live: boolean;
+  /** Empty required name, after Create was tapped. The questionnaire does not pass this. */
+  marked?: boolean;
   onChange: (value: string) => void;
   onTouch: () => void;
 }) {
@@ -32,7 +36,7 @@ export function EntryName({
     >
       <div className={hint ? "relative w-full min-w-0 max-w-full" : "absolute inset-0 min-w-0 overflow-x-hidden"}>
         {hint ? (
-          <div aria-hidden className="pointer-events-none t-body text-[var(--placeholder)]">
+          <div aria-hidden className={cn("pointer-events-none t-body", marked ? "text-[#E23B2F]" : "text-[var(--placeholder)]")}>
             <div className="whitespace-nowrap border-b border-[var(--rule)] pb-[3px]">{HINT_ONE}</div>
             <div className="mt-[14px] whitespace-nowrap border-b border-[var(--rule)] pb-[3px]">
               {HINT_TWO}

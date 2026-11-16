@@ -13,6 +13,7 @@ import {
   SHEET_INSET,
   type MainScreenMode,
 } from "../layout";
+import { AddPortfolioSlide } from "./add-portfolio-slide";
 import { BusinessCard } from "./business-card";
 
 const ADD_SLIDE_ID = "__add__";
@@ -77,19 +78,6 @@ type CardCarouselProps = {
 function CarouselSpacer({ width }: { width: number }) {
   return <div aria-hidden className="shrink-0" style={{ width }} />;
 }
-
-const EMPTY_DRAFT: Card = {
-  id: ADD_SLIDE_ID,
-  displayName: "",
-  title: "",
-  status: "draft",
-  publicToken: "",
-  qrVersion: 1,
-  contactItemIds: [],
-  nextScanAddons: [],
-  createdAt: "",
-  updatedAt: "",
-};
 
 export const CardCarousel = memo(function CardCarousel({
   cards,
@@ -181,18 +169,9 @@ export const CardCarousel = memo(function CardCarousel({
     [sidePaddingPx, slideGapPx, slideWidthPx],
   );
 
-  const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
   const portfolioLimit = useAccountStatus()?.portfolioLimit ?? null;
   const sheetTotalCount =
     portfolioLimit !== null && portfolioLimit >= cards.length ? portfolioLimit : cards.length;
-
-  const handleDraftUpdate = useCallback(
-    (data: Partial<Pick<Card, "displayName" | "photo" | "photoAttachmentId">>) => {
-      if (portfolioLimit === null) return;
-      updateSecondCardDraft(data, portfolioLimit);
-    },
-    [portfolioLimit, updateSecondCardDraft],
-  );
 
   const savePickedPhoto = useCallback(
     (cardId: string, photo: string | null, file?: File) => {
@@ -404,24 +383,13 @@ export const CardCarousel = memo(function CardCarousel({
 
   const renderSlide = (slideId: string, index: number) => {
     if (slideId === ADD_SLIDE_ID) {
-      const trialLocked = needsAccount;
-      return renderCard(
-        EMPTY_DRAFT,
-        trialLocked
-          ? () => undefined
-          : (photo, file) => {
-              if (!photo || !file) return;
-              const count = useAppStore.getState().cards.length;
-              handleDraftUpdate({ photo });
-              const created = useAppStore.getState().cards;
-              const cardId = created.length > count ? created[created.length - 1]?.id : undefined;
-              if (!cardId) return;
-              savePickedPhoto(cardId, photo, file);
-            },
-        trialLocked ? () => undefined : (displayName) => handleDraftUpdate({ displayName }),
-        () => undefined,
-        false,
-        trialLocked ? () => onTrialSlot?.() : undefined,
+      return (
+        <AddPortfolioSlide
+          portfolioLimit={portfolioLimit}
+          locked={needsAccount}
+          onBlocked={onTrialSlot}
+          onShow={onActiveIndexChange}
+        />
       );
     }
 
