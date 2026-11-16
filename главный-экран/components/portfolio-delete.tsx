@@ -76,7 +76,7 @@ export function PortfolioDeleteDialog({
           <Dialog.Title className="t-body text-[var(--ink)]">
             {isFirst
               ? "Reset this portfolio. Lines are removed for everyone who saved you. Photo, name, link and QR stay."
-              : "Delete this portfolio. It will also disappear for everyone you shared it with. Your library stays."}
+              : "Delete this portfolio. Its link and QR stop working, and it disappears for everyone who saved you. Your library stays."}
           </Dialog.Title>
           <Dialog.Description className="sr-only">
             {isFirst ? "This resets the portfolio." : "This deletes the portfolio."}
