@@ -38,7 +38,7 @@ import { BrowserHandoff } from "@/shared/components/browser-handoff";
 import { InstallHint } from "@/shared/components/install-hint";
 import type { Card } from "@/shared/types";
 
-const PASS_ADD_HINT = "Complete your pass: add links, your role, socials or a portfolio file.";
+const PASS_ADD_HINT = "Complete your pass: add links, role or a file.";
 const PHOTO_MISSED_KEY = "aded-photo-missed";
 const PHOTO_MISSED = "Photo didn't upload. Try again in Edit.";
 const photoMissedListeners = new Set<() => void>();

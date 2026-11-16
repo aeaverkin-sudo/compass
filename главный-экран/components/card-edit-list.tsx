@@ -1014,7 +1014,7 @@ export const CardEditList = memo(function CardEditList({
       ) : null}
       {libraryHint === "add" ? (
         <SkyHint
-          text="Add anything to the library and use it in different portfolios"
+          text="Add once to your library. Use it in any portfolio."
           onDone={() => {
             useAppStore.getState().markAddLibraryHintSeen();
             setLibraryHint(null);

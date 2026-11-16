@@ -330,18 +330,18 @@ export function DataScreen({ history = false }: { history?: boolean }) {
                 <button
                   type="button"
                   disabled={resetBusy}
-                  className="t-body text-[var(--grey)] disabled:opacity-40"
-                  onClick={() => setResetId(null)}
+                  className="t-body text-[var(--ink)] disabled:text-[var(--grey)]"
+                  onClick={() => void confirmReset()}
                 >
-                  CANCEL
+                  Yes
                 </button>
                 <button
                   type="button"
                   disabled={resetBusy}
-                  className="t-body text-[var(--ink)] disabled:opacity-40"
-                  onClick={() => void confirmReset()}
+                  className="t-body text-[var(--grey)]"
+                  onClick={() => setResetId(null)}
                 >
-                  RESET
+                  No
                 </button>
               </div>
             </Dialog.Content>
