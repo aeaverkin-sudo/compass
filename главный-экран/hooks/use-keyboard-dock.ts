@@ -77,26 +77,31 @@ function typingFocused() {
   return node instanceof HTMLTextAreaElement || node instanceof HTMLInputElement || node.isContentEditable;
 }
 
+/**
+ * Tallest visual viewport since the last turn. Shared by every field: a row that
+ * opens while the keyboard is already up must not start from that short height.
+ */
+let visibleMax = 0;
+
 /** True while a text field is focused and the keyboard covers the bottom. Scroll without a field does not count. */
 export function useKeyboardVisible() {
   const [up, setUp] = useState(false);
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
-    let maxHeight = viewport.height;
     let adoptNext = false;
     const sync = () => {
       const vv = window.visualViewport;
       if (!vv) return;
-      if (vv.height > maxHeight) maxHeight = vv.height;
-      const dropped = maxHeight - vv.height > KEYBOARD_MIN_PX;
+      if (vv.height > visibleMax) visibleMax = vv.height;
+      const dropped = visibleMax - vv.height > KEYBOARD_MIN_PX;
       const overlap = Math.max(0, window.innerHeight - Math.max(0, vv.offsetTop) - vv.height);
       setUp(typingFocused() && (dropped || overlap > KEYBOARD_MIN_PX));
     };
     const onResize = () => {
       const vv = window.visualViewport;
       if (adoptNext && vv) {
-        maxHeight = vv.height;
+        visibleMax = vv.height;
         adoptNext = false;
       }
       sync();
