@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
+import { cardInWallet } from "@/shared/lib/wallet-client";
 import { dropPendingCardUpsert } from "@/shared/services/card-sync";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
@@ -27,6 +28,19 @@ export function PortfolioDeleteDialog({
   const removeCard = useAppStore((state) => state.removeCard);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [walletCardId, setWalletCardId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    void cardInWallet(card.id).then((added) => {
+      if (!live) return;
+      setWalletCardId(added === true ? card.id : null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [open, card.id]);
+  const inWallet = walletCardId === card.id;
 
   const confirm = async () => {
     if (busy) return;
@@ -88,6 +102,11 @@ export function PortfolioDeleteDialog({
                 delete your account
               </Link>
               .
+            </p>
+          ) : null}
+          {inWallet ? (
+            <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
+              {isFirst ? "Apple Wallet: Re-add your card to update it." : "Apple Wallet: Remove your card manually."}
             </p>
           ) : null}
           {error ? <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{error}</p> : null}
