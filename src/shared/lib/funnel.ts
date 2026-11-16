@@ -10,6 +10,9 @@ const STEPS = [
   "create_red",
   "signup_ok",
   "signup_fail",
+  "google_start",
+  "google_ok",
+  "google_fail",
 ] as const;
 
 export type FunnelStep = (typeof STEPS)[number];
@@ -117,6 +120,40 @@ function readClient() {
   if (/CriOS|Chrome/i.test(agent)) return "chrome";
   if (/Safari/i.test(agent)) return "safari";
   return "other";
+}
+
+const GOOGLE_PENDING = "aded-google-pending";
+
+/** Google is about to leave this page. The return writes ok or fail, not a later password sign-in. */
+export function markGooglePending() {
+  try {
+    sessionStorage.setItem(GOOGLE_PENDING, "1");
+  } catch {
+    // A private tab still records the click. The return may not.
+  }
+}
+
+/** The Google page never opened. Drop the mark so the next sign-in is not counted as Google. */
+export function clearGooglePending() {
+  try {
+    sessionStorage.removeItem(GOOGLE_PENDING);
+  } catch {
+    // Nothing was stored.
+  }
+}
+
+/** After Google comes back. One note, then the mark is gone. */
+export function settleGoogleReturn(registered: boolean) {
+  let pending = false;
+  try {
+    if (typeof window === "undefined") return;
+    pending = sessionStorage.getItem(GOOGLE_PENDING) === "1";
+    if (!pending) return;
+    sessionStorage.removeItem(GOOGLE_PENDING);
+  } catch {
+    return;
+  }
+  track(registered ? "google_ok" : "google_fail");
 }
 
 /** One note beside the path the person already took. It never throws and is never awaited. */

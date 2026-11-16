@@ -27,6 +27,7 @@ import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, forgetLibraryOwner, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { clearQuestionnaire, readQuestionnaire } from "@/shared/lib/fill-place";
+import { settleGoogleReturn } from "@/shared/lib/funnel";
 import { useAppStore } from "@/shared/store/app-store";
 
 function restoreRegisteredOnboarding(isAnonymous: boolean) {
@@ -160,14 +161,17 @@ export function SupabaseSession() {
     });
 
     void (async () => {
+      let googleAnswer: boolean | null = null;
       try {
         const { data: existing, error: existingError } = await supabase.auth.getUser();
         if (isDeadAuthSession(existingError)) {
           console.info("[supabase] dead session");
+          googleAnswer = false;
           await startFreshAnonymous(supabase);
           return;
         }
         if (existing.user) {
+          googleAnswer = !existing.user.is_anonymous;
           acceptUser(existing.user);
           return;
         }
@@ -190,12 +194,15 @@ export function SupabaseSession() {
         // the expiry margin, and a second rotation revokes the login.
         if (deviceWasRegistered()) {
           console.info("[supabase] registered device, session missing");
+          googleAnswer = false;
           sendRegisteredDeviceToSignIn();
           return;
         }
 
+        googleAnswer = false;
         await openAnonymous(supabase);
       } finally {
+        if (googleAnswer !== null) settleGoogleReturn(googleAnswer);
         markSessionBootstrapComplete();
       }
     })();

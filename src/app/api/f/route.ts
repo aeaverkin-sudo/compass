@@ -13,6 +13,9 @@ const STEPS = new Set([
   "create_red",
   "signup_ok",
   "signup_fail",
+  "google_start",
+  "google_ok",
+  "google_fail",
 ]);
 const CLIENTS = new Set(["telegram", "instagram", "pwa", "safari", "chrome", "other"]);
 const SOURCES = new Set([

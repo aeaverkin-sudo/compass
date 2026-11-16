@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { doorNext } from "@/app/create/door";
 import { COLUMN_GAP_PX } from "@/shared/layout/axes";
-import { socialSignInBlocked } from "@/shared/lib/funnel";
+import { clearGooglePending, markGooglePending, socialSignInBlocked, track } from "@/shared/lib/funnel";
 import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import { cancelOAuthReplaceLocal, markOAuthReplaceLocal } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
@@ -42,19 +42,26 @@ export function GoogleSignIn({
   if (!shown) return null;
 
   const start = () => {
+    track("google_start");
+    markGooglePending();
     markOAuthReplaceLocal();
     const query = new URLSearchParams();
     query.set("from", from);
     const safe = next ? doorNext(next) : undefined;
     if (safe) query.set("next", safe);
     const redirectTo = `${window.location.origin}/auth/callback?${query.toString()}`;
+    const failed = () => {
+      clearGooglePending();
+      cancelOAuthReplaceLocal();
+      track("google_fail");
+    };
     void createBrowserSupabaseClient()
       .auth.signInWithOAuth({ provider: "google", options: { redirectTo } })
       .then(({ error }) => {
-        if (error) cancelOAuthReplaceLocal();
+        if (error) failed();
       })
       .catch(() => {
-        cancelOAuthReplaceLocal();
+        failed();
       });
   };
 
