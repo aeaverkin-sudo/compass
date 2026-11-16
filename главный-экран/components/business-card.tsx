@@ -648,6 +648,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {bare && !readOnly ? (
         <div className="min-h-0 flex-1 overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)]">
           <EmptyCardZones onPick={(zoneId) => onFill?.(zoneId)} />
+          <NotesRubric ownerNotes={nextScanAddons} />
         </div>
       ) : null}
       <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
@@ -746,7 +747,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       </div>
       )}
 
-      {!compact && !editing ? (
+      {!compact && !editing && !bare ? (
         <NotesRubric
           ownerNotes={readOnly ? undefined : nextScanAddons}
           deliveredNotes={readOnly ? deliveredNotes : undefined}
