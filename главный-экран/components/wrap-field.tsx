@@ -1,8 +1,9 @@
 "use client";
 
 import { CornerDownLeft } from "lucide-react";
-import { useCallback, useImperativeHandle, useLayoutEffect, useRef, useState, type FocusEvent, type Ref } from "react";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type FocusEvent, type Ref } from "react";
 import { cn } from "@/lib/utils";
+import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 
 export type WrapFieldHandle = {
   focusEnd: () => void;
@@ -143,6 +144,22 @@ export function WrapField({
   useLayoutEffect(() => {
     if (autoFocus) focusEnd();
   }, [autoFocus, focusEnd]);
+
+  const onDoneRef = useRef(onDone);
+  const keyboardUp = useKeyboardVisible();
+  const keyboardWasUp = useRef(false);
+  useEffect(() => {
+    onDoneRef.current = onDone;
+    const editor = editorRef.current;
+    const focused = !!editor && document.activeElement === editor;
+    if (keyboardWasUp.current && !keyboardUp && focused) {
+      keyboardWasUp.current = false;
+      onDoneRef.current(read());
+      editor.blur();
+      return;
+    }
+    keyboardWasUp.current = keyboardUp;
+  }, [keyboardUp, onDone, read]);
 
   const breakLine = () => {
     const editor = editorRef.current;

@@ -660,7 +660,13 @@ export const CardEditList = memo(function CardEditList({
     setSectionEditId((current) => (zoneId && current !== zoneId ? current : null));
   };
 
+  const seedGuard = useRef(false);
   const seedItem = (zoneId: string, raw: string) => {
+    if (seedGuard.current) return;
+    seedGuard.current = true;
+    queueMicrotask(() => {
+      seedGuard.current = false;
+    });
     const value = raw.trim();
     if (!value) {
       writeRow(null, null, null);
