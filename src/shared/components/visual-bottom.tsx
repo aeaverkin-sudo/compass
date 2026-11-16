@@ -3,6 +3,7 @@
 import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
 import { writeHeaderScale } from "@main/layout";
+import { useKeyboardVisible } from "@main/hooks/use-keyboard-dock";
 
 /**
  * Header scale after navigation and when the window changes.
@@ -10,6 +11,9 @@ import { writeHeaderScale } from "@main/layout";
  */
 export function VisualBottom() {
   const pathname = usePathname();
+  // Every page, from the first paint. A later field must not adopt a short height
+  // left by a keyboard that was already open (the password page has no band).
+  useKeyboardVisible();
 
   useLayoutEffect(() => {
     const root = document.documentElement;
