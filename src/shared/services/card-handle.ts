@@ -117,6 +117,22 @@ function handleTaken(cards: Card[], cardId: string, handle: string): boolean {
 }
 
 /**
+ * Save and Back ask only when the address would change.
+ * A coded handle is compared with its slug. A plain `/@name` is compared with the name at Edit.
+ * No letters in the name, or the same slug, does not ask.
+ */
+export function renameChangesAddress(card: Card, nameAtEdit: string | null): boolean {
+  const handle = card.handle?.trim().toLowerCase();
+  if (!handle) return false;
+  const next = slugFromName(card.displayName);
+  if (!next) return false;
+  const coded = splitCodedHandle(handle);
+  if (coded) return coded.slug !== next;
+  if (nameAtEdit === null) return false;
+  return slugFromName(nameAtEdit) !== next;
+}
+
+/**
  * The handle after a confirmed rename.
  * Keeping the code uses the slug of the new name, so an old coded address still opens.
  * A plain `/@name` has no code: keeping it is what leaves that address working.

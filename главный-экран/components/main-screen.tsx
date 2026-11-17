@@ -11,7 +11,7 @@ import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { groupEditSections } from "@/shared/services/card-zones";
-import { handleAfterRename } from "@/shared/services/card-handle";
+import { handleAfterRename, renameChangesAddress } from "@/shared/services/card-handle";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import { registeredSession } from "@/shared/lib/session-bootstrap";
 import {
@@ -171,7 +171,7 @@ export function MainScreen() {
   const [openZone, setOpenZone] = useState<string | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
-  const nameAtEdit = useRef<{ cardId: string; name: string; hadHandle: boolean } | null>(null);
+  const nameAtEdit = useRef<{ cardId: string; name: string } | null>(null);
   const leaveAfterRename = useRef<(() => void) | null>(null);
   const openAddRef = useRef<(() => void) | null>(null);
   const draftStarted = useRef(false);
@@ -205,11 +205,7 @@ export function MainScreen() {
     if (!cardId) return;
     if (editingRef.current && nameAtEdit.current?.cardId === cardId) return;
     const card = useAppStore.getState().cards.find((entry) => entry.id === cardId);
-    nameAtEdit.current = {
-      cardId,
-      name: card?.displayName ?? "",
-      hadHandle: Boolean(card?.handle?.trim()),
-    };
+    nameAtEdit.current = { cardId, name: card?.displayName ?? "" };
   }, []);
 
   const frameRef = useRef<HTMLElement>(null);
@@ -429,7 +425,8 @@ export function MainScreen() {
     const snap = nameAtEdit.current;
     const { cards, currentCardIndex: index } = useAppStore.getState();
     const card = cards[index];
-    if (snap && card && card.id === snap.cardId && snap.hadHandle && card.displayName.trim() !== snap.name.trim()) {
+    const nameWhenOpened = snap && card && snap.cardId === card.id ? snap.name : null;
+    if (card && renameChangesAddress(card, nameWhenOpened)) {
       leaveAfterRename.current = leave;
       setRenameOpen(true);
       return;
