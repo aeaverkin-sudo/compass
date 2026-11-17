@@ -2,7 +2,6 @@
 
 import { startTransition, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Rule } from "@/shared/components/rule";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { Zone } from "@/shared/components/zone";
 import { useBusyAction } from "@/shared/hooks/use-busy-action";
@@ -161,7 +160,6 @@ export function StaffScreen({
   return (
     <ManageFrame title="Staff" fallbackHref={back} onBack={() => router.replace(back)}>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
-      <Rule className="mt-[18px]" />
       <Zone label="Staff" align={rows.length === 0 ? "baseline" : "start"}>
         {rows.length > 0 ? (
           <ul>

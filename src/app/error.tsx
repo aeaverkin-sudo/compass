@@ -12,7 +12,7 @@ export default function Error({ error }: { error: Error & { digest?: string } })
   return (
     <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-[var(--gutter)] pb-12 text-[#111]">
       <ScreenHeader title="Error" fallbackHref="/" />
-      <p className="t-body" style={{ marginLeft: VALUE_AXIS_PX }}>
+      <p className="pt-[18px] t-body" style={{ marginLeft: VALUE_AXIS_PX }}>
         Something went wrong.
       </p>
     </main>

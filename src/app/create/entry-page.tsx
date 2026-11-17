@@ -525,7 +525,7 @@ export function EntryPage({
           {formOpen ? null : (
             <div style={frame}>
               <div className={PAD}>
-                <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] pb-[18px]">
+                <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
                   <div className="min-w-0">
                     <SectionNumber value="01" />
                     <span className="mt-[6px] block t-label text-[var(--grey)]">With</span>

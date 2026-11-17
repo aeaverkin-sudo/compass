@@ -114,7 +114,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
       <main className="compass-main fixed inset-0 overflow-y-auto bg-white text-[var(--ink)]">
         <div className="mx-auto min-h-dvh w-full max-w-[430px] px-[var(--gutter)]">
           <ScreenHeader title="Join" fallbackHref="/network/event" />
-          <p className="t-body">Event not found</p>
+          <p className="pt-[18px] t-body">Event not found</p>
         </div>
       </main>
     );

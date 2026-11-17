@@ -371,7 +371,7 @@ export function RegisterScreen() {
           style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px)` }}
         />
         {SOCIAL_SIGNIN ? (
-          <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] pb-[18px]">
+          <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
             <div className="min-w-0">
               <SectionNumber value="01" />
               <span className="mt-[6px] block t-label text-[var(--grey)]">With</span>
@@ -388,7 +388,7 @@ export function RegisterScreen() {
           }}
         >
           <section
-            className={`grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] ${SOCIAL_SIGNIN ? "py-[18px]" : "pb-[18px]"}`}
+            className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] py-[18px]"
           >
             <div className="min-w-0">
               <SectionNumber value={SOCIAL_SIGNIN ? "02" : "01"} />

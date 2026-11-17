@@ -115,7 +115,7 @@ export function AddByEmail({
     <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-[var(--gutter)] pb-12 text-[var(--ink)]">
       <ScreenHeader title="Add to My Network" fallbackHref={cardPath} />
       <div style={{ paddingLeft: VALUE_AXIS_PX }}>
-        <p className="mt-3 max-w-xs t-meta">
+        <p className="mt-[18px] max-w-xs t-meta">
           {sentTo
             ? `Check ${sentTo}. Open the link in the email to add ${name}.`
             : `Enter your email. We'll send a link that adds ${name} to your network. No password needed.`}

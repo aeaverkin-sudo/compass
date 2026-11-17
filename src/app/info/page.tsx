@@ -174,7 +174,7 @@ export default function InfoPage() {
   return (
     <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[var(--ink)]">
       <ScreenHeader title="Info" fallbackHref="/main" center />
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="pt-[18px] grid grid-cols-3 gap-1.5">
         {TOC.map(([id, label]) => {
           const on = open === id;
           return (

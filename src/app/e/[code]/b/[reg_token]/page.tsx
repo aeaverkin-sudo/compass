@@ -47,7 +47,7 @@ export default async function EventBadgePage({ params }: PageProps) {
     return (
       <main className="compass-main fixed inset-0 overflow-y-auto bg-white">
         <ScreenHeader title="Check-in" fallbackHref="/network/event" />
-        <div className="px-[var(--gutter)]">
+        <div className="px-[var(--gutter)] pt-[18px]">
           <p className="mb-0 t-body text-[var(--grey)]">Event badge not found</p>
         </div>
       </main>
@@ -58,7 +58,7 @@ export default async function EventBadgePage({ params }: PageProps) {
     return (
       <main className="compass-main fixed inset-0 overflow-y-auto bg-white">
         <ScreenHeader title="Badge" fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
-        <div className="px-[var(--gutter)]">
+        <div className="px-[var(--gutter)] pt-[18px]">
           <p className="mb-0 t-body text-[var(--ink)]">{opened.name} — event badge</p>
         </div>
       </main>
@@ -69,7 +69,7 @@ export default async function EventBadgePage({ params }: PageProps) {
   return (
     <main className="compass-main fixed inset-0 overflow-y-auto bg-white">
       <ScreenHeader title="Check-in" fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
-      <div className="px-[var(--gutter)]">
+      <div className="px-[var(--gutter)] pt-[18px]">
         <p className="mb-0 t-body text-[var(--ink)]">Checked in: {opened.name}</p>
         {when ? <p className="mt-2 mb-0 t-meta text-[var(--grey)]">{when}</p> : null}
       </div>

@@ -175,7 +175,7 @@ export function CheckinScreen({ lookup, name, registered, checkedIn, last, roste
 
   return (
     <ManageFrame title="Check-in" fallbackHref={`/e/${encodeURIComponent(lookup)}/manage`}>
-      <div className="mx-auto w-full max-w-[280px]">
+      <div className="mx-auto w-full max-w-[280px] pt-[18px]">
         <div className="relative aspect-square overflow-hidden bg-[var(--ink)]" aria-label="Badge scanner">
           <video ref={videoRef} className="h-full w-full object-cover" muted playsInline autoPlay />
           <Corner x="left" y="top" />

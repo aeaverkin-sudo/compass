@@ -60,7 +60,7 @@ export default function DeleteAccountPage() {
     <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-[var(--gutter)] pb-12 text-[#111]">
       <ScreenHeader title="Delete account" fallbackHref="/profile" />
       <div style={{ paddingLeft: VALUE_AXIS_PX }}>
-      <p className="mt-3 max-w-xs t-meta">
+      <p className="mt-[18px] max-w-xs t-meta">
         This deletes the account, every portfolio, and every file. It cannot be undone.
       </p>
       <label className="mt-8 t-label" htmlFor="delete-confirm">

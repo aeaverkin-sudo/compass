@@ -68,7 +68,7 @@ export default function ChangeEmailPage() {
     <main className="compass-main flex h-dvh flex-col overflow-y-auto bg-white px-[var(--gutter)] pb-12 text-[#111]">
       <ScreenHeader title="Email" fallbackHref="/profile" />
       <div style={{ paddingLeft: VALUE_AXIS_PX }}>
-      <p className="mt-3 max-w-xs t-meta">
+      <p className="mt-[18px] max-w-xs t-meta">
         {step === "email"
           ? "A code goes to the new address. Your password stays."
           : "Enter the code from the new address."}

@@ -22,14 +22,12 @@ export function PayScreen({
   const router = useRouter();
   return (
     <ManageFrame title={eventTitleLine(eventName)} fallbackHref="/main" onBack={() => router.replace("/main")}>
-      <div className="pt-[18px]">
-        <Zone label="Payment" align="start">
-          <PaymentBlock lookup={lookup} pay={pay} registration={registration} onSaid={() => router.replace("/main")} />
-          <p className="mt-4 mb-0 t-meta text-[var(--grey)]">
-            Your pass opens right after. The organiser confirms the payment later.
-          </p>
-        </Zone>
-      </div>
+      <Zone label="Payment" align="start">
+        <PaymentBlock lookup={lookup} pay={pay} registration={registration} onSaid={() => router.replace("/main")} />
+        <p className="mt-4 mb-0 t-meta text-[var(--grey)]">
+          Your pass opens right after. The organiser confirms the payment later.
+        </p>
+      </Zone>
     </ManageFrame>
   );
 }

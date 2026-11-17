@@ -124,7 +124,7 @@ export function AcceptScreen({
   return (
     <main className="compass-main min-h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[var(--ink)]">
       <ScreenHeader title="Team invite" fallbackHref={`/e/${encodeURIComponent(lookup)}`} />
-      <div className="w-[150px]" style={{ marginLeft: VALUE_AXIS_PX, marginBottom: POSTER_GAP_PX - ZONE_PAD_PX }}>
+      <div className="w-[150px]" style={{ marginLeft: VALUE_AXIS_PX, paddingTop: 18, marginBottom: POSTER_GAP_PX - ZONE_PAD_PX }}>
         <CoverButton variant="card" layout={layout} themeId={themeId} event={cover} />
       </div>
       <Zone label="Event">
