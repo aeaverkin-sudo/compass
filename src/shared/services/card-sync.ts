@@ -600,6 +600,11 @@ async function runHydrate() {
   const { cards: localCards, contactItems: localItems } = store.getState();
   if (settleEditHold(Boolean(readPortfolio()), localCards, localItems, (restored) => store.setState(restored))) {
     noteHeldHydrate();
+    if (!(await currentAuthUser())) return;
+    const { hydrateNotes } = await import("@/shared/services/notes-sync");
+    await hydrateNotes();
+    const { armLiveQrPulse } = await import("@/shared/lib/live-qr-pulse");
+    armLiveQrPulse();
     return;
   }
 

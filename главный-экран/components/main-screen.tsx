@@ -39,9 +39,9 @@ import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
-import { beginEditHold, commitEditHold, discardEditHold, settleEditHold } from "@/shared/services/edit-hold";
+import { beginEditHold, commitEditHold, discardEditHold, editHeld, settleEditHold } from "@/shared/services/edit-hold";
 import { flushPendingUpserts } from "@/shared/services/card-sync";
-import { flushPendingItemUpserts } from "@/shared/services/card-items-sync";
+import { dropPendingItemUpserts, flushPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { BackButton } from "@/shared/components/back-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
@@ -103,6 +103,7 @@ function railCardOf(cards: Card[], index: number, currentIndex: number) {
 function ignoreEmptyTap() {}
 
 function dropEditHold() {
+  if (editHeld()) dropPendingItemUpserts();
   const { cards, contactItems } = useAppStore.getState();
   discardEditHold(cards, contactItems, (restored) => useAppStore.setState(restored));
 }

@@ -224,7 +224,7 @@ export function commitEditHold(cards: Card[], contactItems: ContactItem[]) {
   void sendThenCatchUp();
 }
 
-/** Back without Save: the portfolio returns to how it was when Edit opened. The photo stays, it was already sent. */
+/** Back without Save: the portfolio returns to how it was when Edit opened. The photo and the notes stay as they are. */
 export function discardEditHold(
   cards: Card[],
   contactItems: ContactItem[],
@@ -240,7 +240,13 @@ export function discardEditHold(
     cards: cards.map((card) => {
       const old = kept.get(card.id);
       if (!old) return card;
-      return { ...old, photo: card.photo, photoAttachmentId: card.photoAttachmentId, photoLook: card.photoLook };
+      return {
+        ...old,
+        photo: card.photo,
+        photoAttachmentId: card.photoAttachmentId,
+        photoLook: card.photoLook,
+        nextScanAddons: card.nextScanAddons,
+      };
     }),
     contactItems: before.contactItems.map((item) => {
       const url = live.get(item.id)?.url;
