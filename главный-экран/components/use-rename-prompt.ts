@@ -48,7 +48,12 @@ export function useRenamePrompt() {
 
   const ask = useCallback((card: Card | undefined, nameWhenOpened: string | null, leave: () => void) => {
     if (leaveRef.current) return;
-    if (card && renameChangesAddress(card, nameWhenOpened)) {
+    const nameChanged = Boolean(
+      card?.handle?.trim() &&
+        nameWhenOpened !== null &&
+        card.displayName.trim() !== nameWhenOpened.trim(),
+    );
+    if (card && (nameChanged || renameChangesAddress(card, nameWhenOpened))) {
       leaveRef.current = leave;
       setAskedId(card.id);
       setOpen(true);
