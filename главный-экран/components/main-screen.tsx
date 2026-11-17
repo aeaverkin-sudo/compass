@@ -97,7 +97,6 @@ function CardDeck({
   openZone,
   openAddRef,
   onComposingChange,
-  frozen,
   needsAccount,
   shareFootnote,
   addNextFor,
@@ -114,7 +113,6 @@ function CardDeck({
   openZone: string | null;
   openAddRef: RefObject<(() => void) | null>;
   onComposingChange: (open: boolean) => void;
-  frozen: boolean;
   needsAccount: boolean;
   shareFootnote: (card: Card) => ReactNode;
   addNextFor: (card: Card) => (() => void) | undefined;
@@ -140,7 +138,6 @@ function CardDeck({
       openZone={openZone}
       openAddRef={openAddRef}
       onComposingChange={onComposingChange}
-      frozen={frozen}
       shareFootnote={shareFootnote}
       addNextFor={addNextFor}
       needsAccount={needsAccount}
@@ -178,7 +175,6 @@ export function MainScreen() {
   const account = useAccountStatus();
   const cardsHydrated = useCardsHydrated();
   const photoMissed = useSyncExternalStore(subscribePhotoMissed, readPhotoMissed, () => null);
-  const frozen = account?.frozen === true;
   const needsAccount = account !== null && !account.registered;
   const [gateNonce, setGateNonce] = useState<number | null>(null);
   const [passwordHint, setPasswordHint] = useState(false);
@@ -258,7 +254,7 @@ export function MainScreen() {
   const creatingFirstEmptyCard = !viewingAddSlide && cardCount === 1 && !cardReady;
   const hideNav = (cardReady && !shownHasBody) || creatingFirstEmptyCard;
   const passAddHint = Boolean(
-    browseId && passes.has(browseId) && shownHasBody && !passAddHintSeen && !editing && !composing && !passwordHint && !frozen,
+    browseId && passes.has(browseId) && shownHasBody && !passAddHintSeen && !editing && !composing && !passwordHint,
   );
 
   useEffect(() => {
@@ -269,7 +265,7 @@ export function MainScreen() {
   }, [cardsHydrated, cardCount, portfolioLimit, updateSecondCardDraft]);
 
   useEffect(() => {
-    if (!cardsHydrated || frozen) return;
+    if (!cardsHydrated) return;
     const place = readPortfolio();
     if (!place) return;
     const state = useAppStore.getState();
@@ -294,21 +290,15 @@ export function MainScreen() {
     setCurrentCardIndex(index);
     setBrowseIndex(index);
     setEditing(true);
-  }, [cardsHydrated, frozen, setCurrentCardIndex]);
+  }, [cardsHydrated, setCurrentCardIndex]);
 
   useEffect(() => {
     if (!cardsHydrated) return;
-    if (frozen) {
-      setEditing(false);
-      setComposeOnMount(false);
-      if (readPortfolio()) clearFillPlace();
-      return;
-    }
     if (!activeId) {
       setEditing(false);
       setComposeOnMount(false);
     }
-  }, [activeId, frozen, cardsHydrated]);
+  }, [activeId, cardsHydrated]);
 
   useEffect(() => {
     if (composing || passwordHintSeen || passwordHint) return;
@@ -421,7 +411,7 @@ export function MainScreen() {
     setEditing(false);
   }, []);
   const onEdit = useCallback(() => {
-    if (frozen || editTapBlocked()) return;
+    if (editTapBlocked()) return;
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
     if (needsAccount && !liveCards[index]) {
       showGate();
@@ -435,7 +425,7 @@ export function MainScreen() {
     setOpenZone(null);
     setEditing(true);
     if (cardId) rememberEdit(cardId);
-  }, [frozen, needsAccount, portfolioLimit, rememberEdit, showGate, updateSecondCardDraft]);
+  }, [needsAccount, portfolioLimit, rememberEdit, showGate, updateSecondCardDraft]);
   const onAdd = useCallback(() => {
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
     if (needsAccount && !liveCards[index]) {
@@ -445,7 +435,6 @@ export function MainScreen() {
     openAddRef.current?.();
   }, [needsAccount, showGate]);
   const onFill = useCallback((cardId: string, zoneId?: string) => {
-    if (frozen) return;
     const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
     const index = liveCards.findIndex((card) => card.id === cardId);
     if (index === 0) markEmptyFillHintSeen();
@@ -459,7 +448,7 @@ export function MainScreen() {
     }
     setEditing(true);
     rememberEdit(cardId);
-  }, [frozen, markEmptyFillHintSeen, rememberEdit, setCurrentCardIndex]);
+  }, [markEmptyFillHintSeen, rememberEdit, setCurrentCardIndex]);
   const onActiveIndexChange = useCallback((index: number) => {
     setBrowseIndex(index);
     if (index < useAppStore.getState().cards.length) setCurrentCardIndex(index);
@@ -579,7 +568,6 @@ export function MainScreen() {
           index={sheetIndex}
           total={sheetTotal}
           showPlus={shownHasBody}
-          frozen={frozen}
           editing={editing}
           onCount={onSheetCount}
         />
@@ -628,7 +616,6 @@ export function MainScreen() {
             openZone={openZone}
             openAddRef={openAddRef}
             onComposingChange={onComposingChange}
-            frozen={frozen}
             needsAccount={needsAccount}
             shareFootnote={(card) => {
               if (composing) return null;
@@ -646,7 +633,7 @@ export function MainScreen() {
               }
               return null;
             }}
-            addNextFor={(card) => (passes.has(card.id) && !frozen ? () => addToPass(card.id) : undefined)}
+            addNextFor={(card) => (passes.has(card.id) ? () => addToPass(card.id) : undefined)}
             onTrialSlot={showGate}
             onFill={onFill}
             onActiveIndexChange={onActiveIndexChange}

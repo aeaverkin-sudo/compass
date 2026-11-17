@@ -157,7 +157,6 @@ export function SideRail({
   index,
   total,
   showPlus,
-  frozen,
   editing = false,
   onCount,
 }: {
@@ -167,7 +166,6 @@ export function SideRail({
   index: number;
   total: number;
   showPlus: boolean;
-  frozen: boolean;
   editing?: boolean;
   onCount?: () => void;
 }) {
@@ -178,7 +176,7 @@ export function SideRail({
   const railLook = useAppStore((state) => (state.user.railLook === "shadow" ? "shadow" : undefined));
   const setRailLook = useAppStore((state) => state.setRailLook);
   const share = useCardShare(card);
-  const canShare = Boolean(card.publicToken) && !frozen;
+  const canShare = Boolean(card.publicToken);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<RailDock>(railDock);

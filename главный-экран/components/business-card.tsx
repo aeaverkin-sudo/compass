@@ -414,8 +414,6 @@ type BusinessCardProps = {
   onComposingChange?: (open: boolean) => void;
   /** Public /c/ page: same card, no QR, plus, or share link. */
   readOnly?: boolean;
-  /** Frozen trial: the card stays visible, share is closed. */
-  frozen?: boolean;
   /** Sits on its own line under the portfolio name and share control. */
   shareFootnote?: ReactNode;
   /** One-time notes delivered to the first real viewer. */

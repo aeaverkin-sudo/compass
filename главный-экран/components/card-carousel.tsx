@@ -65,7 +65,6 @@ type CardCarouselProps = {
   /** The visible card's add line. The plate's + calls it inside the tap. */
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
-  frozen?: boolean;
   /** Trial: the add slide looks empty but taps ask the person to register. */
   needsAccount?: boolean;
   onTrialSlot?: () => void;
@@ -97,7 +96,6 @@ export const CardCarousel = memo(function CardCarousel({
   openZone = null,
   openAddRef,
   onComposingChange,
-  frozen = false,
   needsAccount = false,
   onTrialSlot,
   shareFootnote,
@@ -372,7 +370,6 @@ export const CardCarousel = memo(function CardCarousel({
       openZone={editing && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id ? openZone : null}
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
-      frozen={frozen}
       shareFootnote={card.id === ADD_SLIDE_ID ? undefined : footnoteFor(card)}
       onPortfolioStartBlocked={onPortfolioStartBlocked}
       sheetIndex={isBrowse ? sheet?.index : undefined}
@@ -426,7 +423,6 @@ export const CardCarousel = memo(function CardCarousel({
         openZone={editing ? openZone : null}
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}
-        frozen={frozen}
         shareFootnote={footnoteFor(activeCard)}
         sheetIndex={isBrowse ? 1 : undefined}
         sheetTotal={isBrowse ? sheetTotalCount : undefined}
