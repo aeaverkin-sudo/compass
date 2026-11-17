@@ -18,7 +18,9 @@ import { ignoreNextSignedOut, markRegistrationRequired } from "@/shared/lib/sess
 import { signInPath } from "@/shared/lib/registered-device";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
-import { dropPendingCardUpserts, forgetLibraryOwner } from "@/shared/services/card-sync";
+import { dropPendingCardUpsert, dropPendingCardUpserts, forgetLibraryOwner, upsertCardScalars } from "@/shared/services/card-sync";
+import { handleWithNewCode } from "@/shared/services/card-handle";
+import { NewLinkDialog } from "./new-link-dialog";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { canAddMoreCards, isCardReady, useAppStore } from "@/shared/store/app-store";
 import { cn } from "@/lib/utils";
@@ -154,12 +156,15 @@ export function ProfileScreen() {
   const setMonochrome = useAppStore((state) => state.setMonochrome);
   const monochrome = useAppStore((state) => state.user.monochrome);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
+  const updateCard = useAppStore((state) => state.updateCard);
   const portfolioLimit = account?.portfolioLimit ?? null;
   const [busy, setBusy] = useState(false);
   const creatingPortfolio = useRef(false);
   const [portfolioBusy, setPortfolioBusy] = useState(false);
   const [portfoliosOpen, setPortfoliosOpen] = useState(true);
   const [walletOff, setWalletOff] = useState(false);
+  const [linkCardId, setLinkCardId] = useState<string | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
   const [inWallet, setInWallet] = useState<Record<string, boolean>>({});
   const walletBusy = useRef(false);
   const walletRead = useRef(new Map<string, number>());
@@ -244,6 +249,32 @@ export function ProfileScreen() {
       walletPolls.current.push(timer);
     }
   }, [markWallet]);
+
+  const confirmNewLink = () => {
+    if (linkBusy || !linkCardId) return;
+    const { cards: liveCards } = useAppStore.getState();
+    const card = liveCards.find((entry) => entry.id === linkCardId);
+    if (!card) return;
+    const next = handleWithNewCode(card, liveCards);
+    if (!next) return;
+    const before = card.handle?.trim().toLowerCase() ?? "";
+    setLinkBusy(true);
+    dropPendingCardUpsert(card.id);
+    void upsertCardScalars({ ...card, handle: next, updatedAt: new Date().toISOString() })
+      .then((result) => {
+        if (result !== "ok") return;
+        const live = useAppStore.getState().cards.find((entry) => entry.id === card.id);
+        const liveHandle = live?.handle?.trim().toLowerCase() ?? "";
+        if (!liveHandle) {
+          if (before) updateCard(card.id, { handle: before });
+          return;
+        }
+        if (liveHandle === before) updateCard(card.id, { handle: next });
+        setLinkCardId(null);
+      })
+      .catch(() => undefined)
+      .finally(() => setLinkBusy(false));
+  };
 
   const putInWallet = (cardId: string) => {
     if (walletBusy.current) return;
@@ -467,17 +498,26 @@ export function ProfileScreen() {
                     {card.displayName.trim() || "Untitled"}
                   </p>
                   {ready ? (
-                    walletOff && inWallet[card.id] !== true ? null : inWallet[card.id] === true ? (
-                      <p className="mt-1 t-label">IN WALLET</p>
-                    ) : (
+                    <>
+                      {walletOff && inWallet[card.id] !== true ? null : inWallet[card.id] === true ? (
+                        <p className="mt-1 t-label">IN WALLET</p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => putInWallet(card.id)}
+                          className="mt-1 border-0 bg-transparent p-0 t-label underline"
+                        >
+                          PUT IN WALLET
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => putInWallet(card.id)}
-                        className="mt-1 border-0 bg-transparent p-0 t-label underline"
+                        onClick={() => setLinkCardId(card.id)}
+                        className="mt-1 block border-0 bg-transparent p-0 text-left t-label underline"
                       >
-                        PUT IN WALLET
+                        NEW LINK
                       </button>
-                    )
+                    </>
                   ) : (
                     <p className="mt-1 t-meta text-[var(--ink)]">Inactive until you add a name.</p>
                   )}
@@ -576,6 +616,15 @@ export function ProfileScreen() {
           </a>
         </p>
       </Zone>
+      {linkCardId ? (
+        <NewLinkDialog
+          cardId={linkCardId}
+          open
+          busy={linkBusy}
+          onYes={confirmNewLink}
+          onClose={() => setLinkCardId(null)}
+        />
+      ) : null}
     </ProfileShell>
   );
 }

@@ -154,6 +154,29 @@ export function handleAfterRename(card: Card, cards: Card[], keepCode: boolean):
   return next.handle?.trim().toLowerCase() || current;
 }
 
+/** The slug a new code should keep: the coded slug, otherwise the plain address. */
+function keptSlug(card: Card): string {
+  const current = card.handle?.trim().toLowerCase() ?? "";
+  const coded = current ? splitCodedHandle(current) : null;
+  if (coded) return coded.slug;
+  if (/^[a-z0-9]+$/.test(current)) return current;
+  const numbered = current.match(/^([a-z0-9]+)-[0-9]+$/);
+  if (numbered) return numbered[1];
+  return slugFromName(card.displayName);
+}
+
+/** A new 7-sign code in front of the slug this card already uses. */
+export function handleWithNewCode(card: Card, cards: Card[]): string | undefined {
+  const slug = keptSlug(card);
+  if (!slug) return undefined;
+  const current = card.handle?.trim().toLowerCase() ?? "";
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const handle = `${handleCode()}-${slug}`;
+    if (handle !== current && !handleTaken(cards, card.id, handle)) return handle;
+  }
+  return undefined;
+}
+
 export function handlesForCards(cards: Card[], refresh = false): Card[] {
   const next: Card[] = [];
   for (const card of cards) next.push(assignHandle(card, next, refresh || !card.handle?.trim()));
