@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
-import { GoogleSignIn } from "@/shared/components/google-sign-in";
 import { BackButton } from "@/shared/components/back-button";
+import { SectionNumber } from "@/shared/components/section-number";
+import { SOCIAL_SIGNIN, SocialSignInRows } from "@/shared/components/social-sign-in-rows";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { Rule } from "@/shared/components/rule";
 import { Zone } from "@/shared/components/zone";
@@ -369,78 +370,92 @@ export function RegisterScreen() {
           className="mb-[18px] shrink-0"
           style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px)` }}
         />
-        <GoogleSignIn from="signin" next={params.get("next")} divider="OR" padded />
+        {SOCIAL_SIGNIN ? (
+          <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] pb-[18px]">
+            <div className="min-w-0">
+              <SectionNumber value="01" />
+              <span className="mt-[6px] block t-label text-[var(--grey)]">Account</span>
+            </div>
+            <div className="min-w-0">
+              <SocialSignInRows from="signin" next={params.get("next")} />
+            </div>
+          </section>
+        ) : null}
         <form
           onSubmit={(event) => {
             event.preventDefault();
             void submitPassword();
           }}
         >
-          <Zone label="Email">
-            <input
-              id="signin-email"
-              ref={emailRef}
-              type="email"
-              autoCapitalize="none"
-              autoComplete="username"
-              name="username"
-              aria-label="Email"
-              placeholder="name@mail.com"
-              value={signInEmail}
-              onChange={(event) => {
-                setEmailEdited(true);
-                setEmail(event.target.value);
-                writeSignInEmail(event.target.value);
-              }}
-              className={FIELD}
-            />
-          </Zone>
-          <Rule />
-          <Zone label="Password">
-            <span className="flex min-w-0 items-center gap-2">
-              <input
-                id="signin-password"
-                ref={passwordRef}
-                type={passwordVisible ? "text" : "password"}
-                autoCapitalize="none"
-                autoComplete="current-password"
-                name="password"
-                aria-label="Password"
-                placeholder="Password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className={FIELD}
-              />
-              <button
-                type="button"
-                aria-label={passwordVisible ? "Hide password" : "Show password"}
-                className="shrink-0 border-0 bg-transparent p-0 text-[var(--ink)]"
-                onClick={() => setPasswordVisible((current) => !current)}
-              >
-                {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
+          <section
+            className={`grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] ${SOCIAL_SIGNIN ? "py-[18px]" : "pb-[18px]"}`}
+          >
+            <div className="min-w-0">
+              <SectionNumber value={SOCIAL_SIGNIN ? "02" : "01"} />
+              <span className="mt-[6px] block t-label text-[var(--grey)]">Email</span>
+            </div>
+            <div className="min-w-0">
+              <div className="border-b border-[var(--rule)] pb-[3px]">
+                <input
+                  id="signin-email"
+                  ref={emailRef}
+                  type="email"
+                  autoCapitalize="none"
+                  autoComplete="username"
+                  name="username"
+                  aria-label="Email"
+                  placeholder="name@mail.com"
+                  value={signInEmail}
+                  onChange={(event) => {
+                    setEmailEdited(true);
+                    setEmail(event.target.value);
+                    writeSignInEmail(event.target.value);
+                  }}
+                  className={FIELD}
+                />
+              </div>
+              <span className="mt-[14px] flex min-w-0 items-center gap-2 border-b border-[var(--rule)] pb-[3px]">
+                <input
+                  id="signin-password"
+                  ref={passwordRef}
+                  type={passwordVisible ? "text" : "password"}
+                  autoCapitalize="none"
+                  autoComplete="current-password"
+                  name="password"
+                  aria-label="Password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className={FIELD}
+                />
+                <button
+                  type="button"
+                  aria-label={passwordVisible ? "Hide password" : "Show password"}
+                  className="shrink-0 border-0 bg-transparent p-0 text-[var(--ink)]"
+                  onClick={() => setPasswordVisible((current) => !current)}
+                >
+                  {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
+                </button>
+              </span>
+              <p className="mt-2 t-meta text-[var(--grey)]">
+                Password not changed? It is in your first email from ADED.
+              </p>
+              <button type="submit" disabled={busy} className={`${PRIMARY} mt-[18px] w-full`}>
+                Sign in
               </button>
-            </span>
-            <p className="mt-2 t-meta text-[var(--grey)]">
-              Signed up with a code? That code is your password.
-            </p>
-          </Zone>
-          <Rule />
-          <Zone label="">
-            <button type="submit" disabled={busy} className={`${PRIMARY} w-full`}>
-              Sign in
-            </button>
-            <p className="mt-4 t-meta text-[var(--ink)]">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void forgotPassword()}
-                className={`${UNDERLINE} disabled:text-[var(--grey)]`}
-                style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
-              >
-                Forgot password
-              </button>
-            </p>
-          </Zone>
+              <p className="mt-4 t-meta text-[var(--ink)]">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void forgotPassword()}
+                  className={`${UNDERLINE} disabled:text-[var(--grey)]`}
+                  style={{ textDecorationColor: "rgba(17,17,17,0.4)" }}
+                >
+                  Forgot password
+                </button>
+              </p>
+            </div>
+          </section>
         </form>
         <Message text={message} />
       </main>
