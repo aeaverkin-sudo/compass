@@ -227,7 +227,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const menuContact = menu ? book.find((contact) => contact.id === menu.id) ?? null : null;
   const sharePhase = useShareBack(menuContact?.savedCardToken ?? "");
   const canSwap = Boolean(
-    menuContact && !menuContact.theyHaveMe && !menuContact.shareBackPending && sharePhase === "idle",
+    shareCards.length > 0 && menuContact && !menuContact.theyHaveMe && !menuContact.shareBackPending && sharePhase === "idle",
   );
 
   const readyOwnerId = async () => {

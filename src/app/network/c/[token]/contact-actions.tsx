@@ -106,7 +106,7 @@ export function ContactActions({
     router.push("/network");
   };
 
-  const canSwap = !theyHaveMe && !shareBackPending && phase === "idle";
+  const canSwap = shareCards.length > 0 && !theyHaveMe && !shareBackPending && phase === "idle";
 
   const shareCard = async (card: SharePickCard) => {
     const sent = await sendShareBack(token, card.id);
