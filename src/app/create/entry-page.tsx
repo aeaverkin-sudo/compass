@@ -436,7 +436,7 @@ export function EntryPage({
   const sheet = (
     <>
       {account ? (
-        <div className="px-[var(--gutter)] pt-[max(18px,env(safe-area-inset-top))]">
+        <div className="px-[var(--gutter)] pt-[calc(env(safe-area-inset-top)+14px)]">
           <div className="mb-[18px] flex justify-end">
             <button
               type="button"
