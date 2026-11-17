@@ -27,7 +27,7 @@ const NEIGHBOR_SHADE_BLUR_PX = 7;
 /** ~2mm on a phone, inward from the screen edge toward the card. */
 const NEIGHBOR_SHADE_SCREEN_INSET_PX = 11;
 
-function NeighborShade({ side }: { side: "left" | "right" }) {
+function NeighborShade({ side, drop = 0 }: { side: "left" | "right"; drop?: number }) {
   return (
     <div
       aria-hidden
@@ -38,7 +38,7 @@ function NeighborShade({ side }: { side: "left" | "right" }) {
         borderRadius: NEIGHBOR_SHADE_RADIUS_PX,
         background: `rgba(0,0,0,${NEIGHBOR_SHADE_ALPHA})`,
         filter: `blur(${NEIGHBOR_SHADE_BLUR_PX}px)`,
-        transform: "translateY(-50%)",
+        transform: `translateY(calc(-50% + ${drop}px))`,
         [side]: NEIGHBOR_SHADE_SCREEN_INSET_PX,
       }}
     />
@@ -57,6 +57,10 @@ type CardCarouselProps = {
   /** Header name, outside Edit. Focus remembers the name; commit may ask about the link. */
   onDisplayNameFocus?: (cardId: string) => void;
   onDisplayNameCommit?: (cardId: string) => void;
+  /** Real cards are lowered by this while the column is raised for the add slide. */
+  cardLiftPx?: number;
+  /** The offset stays mounted through Edit so its top can move with the column. */
+  holdCardLift?: boolean;
   onEmptyAreaTap: () => void;
   editing?: boolean;
   fillHint?: boolean;
@@ -92,6 +96,8 @@ export const CardCarousel = memo(function CardCarousel({
   onUpdateCard,
   onDisplayNameFocus,
   onDisplayNameCommit,
+  cardLiftPx = 0,
+  holdCardLift = false,
   onEmptyAreaTap,
   editing = false,
   fillHint = false,
@@ -453,7 +459,8 @@ export const CardCarousel = memo(function CardCarousel({
       <div
         ref={scrollRef}
         className={cn(
-          "compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden bg-background",
+          "compass-carousel h-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden",
+          cardLiftPx > 0 ? "bg-transparent" : "bg-background",
           isBrowse && "compass-carousel-editorial",
         )}
         onScroll={handleScroll}
@@ -474,7 +481,16 @@ export const CardCarousel = memo(function CardCarousel({
                   : { width: slideWidthPx, minWidth: slideWidthPx, maxWidth: slideWidthPx }
               }
             >
-              {renderSlide(slideId, index)}
+              {holdCardLift && slideId !== ADD_SLIDE_ID ? (
+                <div
+                  className="absolute inset-x-0 bottom-0 transition-[top] duration-[460ms] ease-out motion-reduce:transition-none"
+                  style={{ top: cardLiftPx }}
+                >
+                  <div className="h-full w-full">{renderSlide(slideId, index)}</div>
+                </div>
+              ) : (
+                renderSlide(slideId, index)
+              )}
             </div>
           ))}
           <CarouselSpacer width={sidePaddingPx} />
@@ -484,16 +500,16 @@ export const CardCarousel = memo(function CardCarousel({
         <>
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-0 z-20 bg-background"
-            style={{ width: sidePaddingPx }}
+            className="pointer-events-none absolute bottom-0 left-0 z-20 bg-background"
+            style={{ width: sidePaddingPx, top: cardLiftPx }}
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 z-20 bg-background"
-            style={{ width: sidePaddingPx }}
+            className="pointer-events-none absolute right-0 bottom-0 z-20 bg-background"
+            style={{ width: sidePaddingPx, top: cardLiftPx }}
           />
-          {activeIndex > 0 ? <NeighborShade side="left" /> : null}
-          {activeIndex < slideIds.length - 1 ? <NeighborShade side="right" /> : null}
+          {activeIndex > 0 ? <NeighborShade side="left" drop={cardLiftPx / 2} /> : null}
+          {activeIndex < slideIds.length - 1 ? <NeighborShade side="right" drop={cardLiftPx / 2} /> : null}
         </>
       ) : null}
     </div>

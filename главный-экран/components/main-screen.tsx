@@ -4,7 +4,15 @@ import { startTransition, useCallback, useDeferredValue, useEffect, useLayoutEff
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
-import { carouselSidePaddingPx, layoutTop, SHEET_INSET } from "../layout";
+import {
+  BROWSE_QR_SIZE,
+  carouselSidePaddingPx,
+  HEADER_RHYTHM_PX,
+  layoutTop,
+  RULE_GAP_PX,
+  SCREEN_TOP_AXIS_PX,
+  SHEET_INSET,
+} from "../layout";
 import { cardHasPhoto } from "@/shared/services/card-photo";
 import { BottomNav } from "./bottom-nav";
 import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
@@ -109,6 +117,8 @@ function CardDeck({
   onUpdateCard,
   onDisplayNameFocus,
   onDisplayNameCommit,
+  cardLiftPx,
+  holdCardLift,
 }: {
   browseIndex: number;
   editing: boolean;
@@ -127,6 +137,10 @@ function CardDeck({
   onUpdateCard: (id: string, data: Partial<Card>) => void;
   onDisplayNameFocus: (cardId: string) => void;
   onDisplayNameCommit: (cardId: string) => void;
+  /** Real cards sit this far below the raised column, so they stay under the QR. */
+  cardLiftPx: number;
+  /** Keep that offset mounted while Edit moves the column, so the card does not jump. */
+  holdCardLift: boolean;
 }) {
   const cards = useAppStore((state) => state.cards);
   const contactItems = useAppStore((state) => state.contactItems);
@@ -154,6 +168,8 @@ function CardDeck({
       onUpdateCard={onUpdateCard}
       onDisplayNameFocus={onDisplayNameFocus}
       onDisplayNameCommit={onDisplayNameCommit}
+      cardLiftPx={cardLiftPx}
+      holdCardLift={holdCardLift}
       onEmptyAreaTap={ignoreEmptyTap}
     />
   );
@@ -229,6 +245,8 @@ export function MainScreen() {
   );
 
   const frameRef = useRef<HTMLElement>(null);
+  const deckFrameRef = useRef<HTMLDivElement>(null);
+  const addSlideWasShown = useRef(false);
   const [frameWidth, setFrameWidth] = useState(0);
   const portfolioLimit = account?.portfolioLimit ?? null;
   const showAddSlide = useAppStore((state) => canAddMoreCards(state.cards, portfolioLimit));
@@ -530,6 +548,17 @@ export function MainScreen() {
   }, [cardCount]);
 
   useLayoutEffect(() => {
+    if (addSlideWasShown.current === showAddSlide) return;
+    addSlideWasShown.current = showAddSlide;
+    const node = deckFrameRef.current;
+    if (!node) return;
+    // The column jumps up by the QR slot once. A transition would drag the card with it.
+    node.style.transition = "none";
+    void node.offsetHeight;
+    node.style.transition = "";
+  }, [showAddSlide]);
+
+  useLayoutEffect(() => {
     const node = columnRef.current;
     if (!node) return;
     const sync = () => {
@@ -558,6 +587,17 @@ export function MainScreen() {
   }
 
   const cardTopBrowse = layout?.cardTopBrowse;
+  // Photo on /create sits at S + 54. The new slide uses that line. Real cards keep
+  // their place under the QR by the same amount, so a swipe does not move them.
+  const addLiftPx =
+    showAddSlide && layout
+      ? Math.max(
+          0,
+          (HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX) * layout.headerScale -
+            (SCREEN_TOP_AXIS_PX + HEADER_ROW_PX / 2 + 18),
+        )
+      : 0;
+  const cardLiftPx = editing ? 0 : addLiftPx;
   const browseCarousel = cardCount > 1 || showAddSlide;
   // The plan limit arrives after the first paint. A filled card keeps the carousel
   // column while that answer is still out, so the sheet does not slide into center.
@@ -663,11 +703,14 @@ export function MainScreen() {
 
       {layout && cardTopBrowse !== undefined ? (
         <div
+          ref={deckFrameRef}
           className="absolute overflow-hidden transition-[top] duration-[460ms] ease-out motion-reduce:transition-none"
           style={{
             left: frameInset,
             right: frameInset,
-            top: layoutTop(editing && layout ? layout.qrTop + HEADER_ROW_PX / 2 + 18 : cardTopBrowse),
+            top: layoutTop(
+              editing && layout ? layout.qrTop + HEADER_ROW_PX / 2 + 18 : cardTopBrowse - cardLiftPx,
+            ),
             bottom: 0,
             zIndex: 20,
           }}
@@ -705,6 +748,8 @@ export function MainScreen() {
             onUpdateCard={updateCard}
             onDisplayNameFocus={onHeaderNameFocus}
             onDisplayNameCommit={onHeaderNameCommit}
+            cardLiftPx={cardLiftPx}
+            holdCardLift={showAddSlide}
           />
         </div>
       ) : null}
