@@ -44,12 +44,17 @@ export function startGoogleSignIn(from: SocialFrom, next?: string | null) {
   startSocialSignIn("google", from, next);
 }
 
+export const SOCIAL_SIGNIN = process.env.NEXT_PUBLIC_SOCIAL_SIGNIN === "1";
+
+/** A 44px row around one `t-body` line. Pulling it up by this puts the line on the zone top, like a questionnaire value. */
+export const ROW_LINE_TRIM = "calc((15.5px * 1.45 - 44px) / 2)";
+
 const ROW =
   "press relative flex min-h-11 w-full items-center border-0 bg-transparent p-0 text-left t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]";
 
 /** Sign-in rows in the value column. The mark sits left of the axis, the words on it. */
 export function SocialSignInRows({ from, next }: { from: SocialFrom; next?: string | null }) {
-  const enabled = process.env.NEXT_PUBLIC_SOCIAL_SIGNIN === "1";
+  const enabled = SOCIAL_SIGNIN;
   const [google, setGoogle] = useState(false);
 
   useEffect(() => {
@@ -65,7 +70,7 @@ export function SocialSignInRows({ from, next }: { from: SocialFrom; next?: stri
   if (!enabled) return null;
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col" style={{ marginTop: ROW_LINE_TRIM }}>
       <button
         type="button"
         aria-label="Continue with Apple"

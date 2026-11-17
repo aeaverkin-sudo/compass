@@ -4,17 +4,18 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } fr
 import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { BottomNav } from "@main/components/bottom-nav";
 import { carouselSidePaddingPx } from "@main/layout";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
-import { GoogleSignIn } from "@/shared/components/google-sign-in";
 import { BackButton } from "@/shared/components/back-button";
+import { SectionNumber } from "@/shared/components/section-number";
+import { ROW_LINE_TRIM, SOCIAL_SIGNIN, SocialSignInRows } from "@/shared/components/social-sign-in-rows";
 import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { clearFillPlace, photoFileFromDraft, readQuestionnaire, readQuestionnairePhoto, writeQuestionnaire, writeQuestionnairePhoto } from "@/shared/lib/fill-place";
+import { clearFillPlace, photoFileFromDraft, readQuestionnaire, readQuestionnairePhoto, writeQuestionnaire, writeQuestionnairePhoto, type QuestionnairePlace } from "@/shared/lib/fill-place";
 import { track } from "@/shared/lib/funnel";
 import { markNewContact } from "@/shared/lib/new-contact";
 import { rememberOpenProfile } from "@/shared/lib/open-profile-return";
@@ -61,6 +62,32 @@ function subscribeDevice() {
   return () => {};
 }
 
+/** The saved questionnaire holds something the person typed or picked, not only what the page offered. */
+function questionnaireFilled(saved: QuestionnairePlace, offeredName: string, offeredEmail: string, photo: () => boolean) {
+  return (
+    saved.agreed ||
+    saved.name.trim() !== offeredName ||
+    saved.email.trim().toLowerCase() !== offeredEmail ||
+    Boolean(saved.editText.trim() || saved.seedText.trim()) ||
+    saved.zones.some((zone) => zone.custom || zone.rows.some((row) => row.value.trim())) ||
+    photo()
+  );
+}
+
+const filledHrefs = new Set<string>();
+
+/** Back to this tab's questionnaire: the form opens at once instead of 01 / 02. */
+function questionnaireBack(offeredName: string, offeredEmail: string) {
+  if (window.history.state?.compassForm) return true;
+  const here = window.location.pathname + window.location.search;
+  const saved = readQuestionnaire();
+  if (!saved || saved.href !== here) return false;
+  if (filledHrefs.has(here)) return true;
+  if (!questionnaireFilled(saved, offeredName, offeredEmail, () => Boolean(readQuestionnairePhoto(here)))) return false;
+  filledHrefs.add(here);
+  return true;
+}
+
 export function EntryPage({
   input,
   pick = false,
@@ -96,6 +123,15 @@ export function EntryPage({
   const [error, setError] = useState<string | null>(null);
   const [emailMarked, setEmailMarked] = useState(false);
   const [zonesReady, setZonesReady] = useState(false);
+  const formFirst = account || Boolean(input.event) || !SOCIAL_SIGNIN;
+  const [formChoice, setFormChoice] = useState<boolean | null>(null);
+  const formBack = useSyncExternalStore(
+    subscribeDevice,
+    () => !formFirst && formChoice === null && questionnaireBack(offeredName, offeredEmail),
+    () => false,
+  );
+  const formOpen = formChoice ?? (formFirst || formBack);
+  const formPushed = useRef(false);
   const mainRef = useRef<HTMLElement>(null);
   const emailRef = useRef<HTMLLabelElement>(null);
   const zonesRef = useRef<EntryZonesHandle>(null);
@@ -126,6 +162,32 @@ export function EntryPage({
       ...place,
     });
     writeQuestionnairePhoto(href, photoRef.current?.dataUrl ?? null);
+  };
+
+  useEffect(() => {
+    formPushed.current = Boolean(window.history.state?.compassForm);
+    const onPop = () => {
+      if (!formPushed.current || window.history.state?.compassForm) return;
+      formPushed.current = false;
+      setFormChoice(false);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const openForm = () => {
+    window.history.pushState({ compassForm: 1 }, "");
+    formPushed.current = true;
+    setFormChoice(true);
+  };
+
+  const closeForm = () => {
+    if (formPushed.current && window.history.state?.compassForm) {
+      window.history.back();
+      return;
+    }
+    formPushed.current = false;
+    setFormChoice(false);
   };
 
   useEffect(() => {
@@ -452,7 +514,7 @@ export function EntryPage({
         </div>
       ) : (
         <>
-          <BackButton fallbackHref="/" />
+          <BackButton fallbackHref="/" onBack={formOpen && SOCIAL_SIGNIN ? closeForm : undefined} />
           <AuthModeToggle
             mode="up"
             pinned={false}
@@ -460,22 +522,61 @@ export function EntryPage({
             signInHref={signInHref(undefined, input)}
             className="mb-[18px]"
           />
-          <GoogleSignIn
-            from="create"
-            divider="OR FILL IN"
-            next={
-              input.event
-                ? input.event.guestToken
-                  ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
-                  : `/e/${encodeURIComponent(input.event.lookup)}`
-                : input.sourceToken
-                  ? `/save/${input.sourceToken}`
-                  : input.next
-            }
-          />
+          {formOpen ? null : (
+            <div style={frame}>
+              <div className={PAD}>
+                <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] pb-[18px]">
+                  <div className="min-w-0">
+                    <SectionNumber value="01" />
+                    <span className="mt-[6px] block t-label text-[var(--grey)]">Account</span>
+                  </div>
+                  <div className="min-w-0">
+                    <SocialSignInRows
+                      from="create"
+                      next={
+                        input.event
+                          ? input.event.guestToken
+                            ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
+                            : `/e/${encodeURIComponent(input.event.lookup)}`
+                          : input.sourceToken
+                            ? `/save/${input.sourceToken}`
+                            : input.next
+                      }
+                    />
+                    <p className="m-0 t-meta text-[var(--grey)]">
+                      By continuing you agree to{" "}
+                      <Link href="/terms" className="underline">
+                        Terms
+                      </Link>{" "}
+                      and{" "}
+                      <Link href="/privacy" className="underline">
+                        Privacy
+                      </Link>
+                      .
+                    </p>
+                  </div>
+                </section>
+                <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
+                  <div className="min-w-0">
+                    <SectionNumber value="02" />
+                    <span className="mt-[6px] block t-label text-[var(--grey)]">Form</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={openForm}
+                    className="press flex min-h-11 min-w-0 items-center gap-3 border-0 bg-transparent p-0 text-left t-body text-[var(--ink)]"
+                    style={{ marginTop: ROW_LINE_TRIM }}
+                  >
+                    Create portfolio now
+                    <ChevronDown className="size-4 shrink-0 text-[var(--ink)]" strokeWidth={1.5} aria-hidden />
+                  </button>
+                </section>
+              </div>
+            </div>
+          )}
         </>
       )}
-      <div style={frame}>
+      <div style={frame} className={formOpen ? undefined : "hidden"}>
       <div className={PAD} onFocusCapture={acceptSuggestedName}>
         {telegram ? (
           <p className="mb-[18px] t-meta text-[var(--grey)]">
@@ -520,6 +621,7 @@ export function EntryPage({
       </div>
       </div>
       <form
+        className={formOpen ? undefined : "hidden"}
         onFocusCapture={acceptSuggestedName}
         onSubmit={(event) => {
           event.preventDefault();
