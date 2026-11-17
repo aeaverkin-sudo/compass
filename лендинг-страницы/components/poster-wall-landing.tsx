@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
@@ -127,7 +126,6 @@ function Icon({ children }: { children: ReactNode }) {
 }
 
 export function PosterWallLanding() {
-  const router = useRouter();
   const view = useRef<HTMLDivElement>(null);
   const concrete = useRef<HTMLDivElement>(null);
   const wall = useRef<HTMLDivElement>(null);
@@ -362,7 +360,7 @@ export function PosterWallLanding() {
         return;
       }
       if (entry === "/main") noteTrialCardStarted();
-      router.push(entry);
+      window.location.assign(entry);
     };
     if (!aboutMarker.current) {
       run();
@@ -381,8 +379,8 @@ export function PosterWallLanding() {
     if (!pendingEntry.current || !entry) return;
     pendingEntry.current = false;
     if (entry === "/main") noteTrialCardStarted();
-    router.push(entry);
-  }, [entry, router]);
+    window.location.assign(entry);
+  }, [entry]);
 
   useEffect(() => {
     if (!about) return;
