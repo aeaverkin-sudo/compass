@@ -5,6 +5,7 @@ import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from 
 import type { Card, CardStatus } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { editHeld, heldCardWrite, noteHeldHydrate } from "@/shared/services/edit-hold";
 
 const UPSERT_DEBOUNCE_MS = 400;
 const PUBLIC_TOKEN_LENGTH = 21;
@@ -308,7 +309,9 @@ function foreignCardWrite(error: { message: string; code?: string }) {
 }
 
 /** Upsert scalar columns only. The avatar is `photo_attachment_id`, never the image bytes. */
-export async function upsertCardScalars(card: Card): Promise<"ok" | "foreign" | "skip"> {
+export async function upsertCardScalars(edited: Card): Promise<"ok" | "foreign" | "skip"> {
+  const card = heldCardWrite(edited);
+  if (!card) return "ok";
   try {
     if (!isCardUuid(card.id)) return "skip";
 
@@ -468,6 +471,7 @@ function writeCardColumn(cardId: string, column: "rubric_labels" | "item_zones",
         : { itemZones: value ?? undefined }),
     };
   }
+  if (editHeld()) return;
   const supabase = createBrowserSupabaseClient();
   void supabase
     .from("cards")
@@ -494,6 +498,7 @@ export function writeCardItemZones(cardId: string, itemZones: Record<string, str
 export function writeCardRubricOrder(cardId: string, rubricOrder: string[] | null) {
   const pending = pendingUpserts.get(cardId);
   if (pending) pending.card = { ...pending.card, rubricOrder: rubricOrder ?? undefined };
+  if (editHeld()) return;
   const supabase = createBrowserSupabaseClient();
   void supabase
     .from("cards")
@@ -532,7 +537,7 @@ export function dropPendingCardUpserts() {
   pendingUpserts.clear();
 }
 
-function flushPendingUpserts() {
+export function flushPendingUpserts() {
   for (const [id, pending] of pendingUpserts) {
     clearTimeout(pending.timer);
     pendingUpserts.delete(id);
@@ -590,6 +595,10 @@ async function selectCardRows(
 
 async function runHydrate() {
   await waitForPersist();
+  if (editHeld()) {
+    noteHeldHydrate();
+    return;
+  }
 
   const authUser = await currentAuthUser();
   if (!authUser) return;

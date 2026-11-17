@@ -39,6 +39,9 @@ import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
+import { beginEditHold, commitEditHold, editHeld } from "@/shared/services/edit-hold";
+import { flushPendingUpserts } from "@/shared/services/card-sync";
+import { flushPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { BackButton } from "@/shared/components/back-button";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
@@ -232,6 +235,11 @@ export function MainScreen() {
   const noteEditName = useCallback(
     (cardId: string | undefined) => {
       noteRename(cardId, editingRef.current);
+      const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
+      beginEditHold(liveCards, liveItems, () => {
+        flushPendingUpserts();
+        flushPendingItemUpserts();
+      });
     },
     [noteRename],
   );
@@ -345,6 +353,21 @@ export function MainScreen() {
   }, [activeId, cardsHydrated, resetRename]);
 
   useEffect(() => {
+    if (editing || !editHeld()) return;
+    const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
+    commitEditHold(liveCards, liveItems);
+  }, [editing]);
+
+  useEffect(
+    () => () => {
+      if (!editHeld()) return;
+      const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
+      commitEditHold(liveCards, liveItems);
+    },
+    [],
+  );
+
+  useEffect(() => {
     if (composing || passwordHintSeen || passwordHint) return;
     if (!account?.registered || account.provider !== "email") return;
     markPasswordHintSeen();
@@ -450,9 +473,13 @@ export function MainScreen() {
     revealPlaque(snap, warned);
   }, [revealPlaque, takeSnap]);
   const onDone = useCallback(() => {
+    const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
+    commitEditHold(liveCards, liveItems);
     finishEdit(endEdit);
   }, [endEdit, finishEdit]);
   const leaveEdit = useCallback(() => {
+    const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
+    commitEditHold(liveCards, liveItems);
     finishEdit(() => {
       setComposing(false);
       setRemoveOpen(false);

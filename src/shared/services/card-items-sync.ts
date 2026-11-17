@@ -4,6 +4,7 @@ import { isAttachmentType } from "@/shared/services/portfolio-limits";
 import { itemContentKey } from "@/shared/services/item-key";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { upsertCardScalars } from "@/shared/services/card-sync";
+import { editHeld } from "@/shared/services/edit-hold";
 
 const UPSERT_DEBOUNCE_MS = 400;
 
@@ -152,8 +153,8 @@ async function ownerId() {
 }
 
 /** The id the row lives under on the server, or null when it was not saved. */
-async function upsertItemRow(item: ContactItem): Promise<string | null> {
-  if (!isUuid(item.id)) return null;
+export async function upsertItemRow(item: ContactItem): Promise<string | null> {
+  if (editHeld() || !isUuid(item.id)) return null;
   const userId = await ownerId();
   if (!userId) return null;
 
@@ -184,7 +185,7 @@ async function upsertItemRow(item: ContactItem): Promise<string | null> {
 
 /** Link rows conflict on the pair, not on the random row id. */
 async function upsertLink(cardId: string, itemId: string, sortOrder: number) {
-  if (!isUuid(cardId) || !isUuid(itemId)) return;
+  if (editHeld() || !isUuid(cardId) || !isUuid(itemId)) return;
   const supabase = createBrowserSupabaseClient();
   const { error } = await supabase.from("card_items").upsert(
     {
@@ -198,8 +199,16 @@ async function upsertLink(cardId: string, itemId: string, sortOrder: number) {
   if (error) console.error("[card-items] link upsert failed", error.message);
 }
 
-async function upsertLinks(card: Card) {
+export async function upsertLinks(card: Card) {
   await Promise.all(card.contactItemIds.map((itemId, index) => upsertLink(card.id, itemId, index)));
+}
+
+export function flushPendingItemUpserts() {
+  for (const [id, pending] of pendingItemUpserts) {
+    clearTimeout(pending.timer);
+    pendingItemUpserts.delete(id);
+    void upsertItemRow(pending.item);
+  }
 }
 
 export function dropPendingItemUpserts() {
@@ -255,7 +264,7 @@ export async function syncCardLinkOrder(card: Card, items: ContactItem[]) {
 
 export async function unlinkItem(cardId: string, itemId: string) {
   try {
-    if (!isUuid(cardId) || !isUuid(itemId)) return;
+    if (editHeld() || !isUuid(cardId) || !isUuid(itemId)) return;
     const supabase = createBrowserSupabaseClient();
     const { error } = await supabase.from("card_items").delete().eq("card_id", cardId).eq("item_id", itemId);
     if (error) console.error("[card-items] unlink failed", error.message);
@@ -268,7 +277,7 @@ export async function unlinkItem(cardId: string, itemId: string) {
 
 export async function deleteItemRow(itemId: string) {
   try {
-    if (!isUuid(itemId)) return;
+    if (editHeld() || !isUuid(itemId)) return;
     const supabase = createBrowserSupabaseClient();
     const { error } = await supabase.from("items").delete().eq("id", itemId);
     if (error) console.error("[card-items] delete failed", error.message);
