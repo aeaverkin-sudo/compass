@@ -39,7 +39,7 @@ import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
-import { beginEditHold, commitEditHold, editHeld } from "@/shared/services/edit-hold";
+import { beginEditHold, commitEditHold, discardEditHold } from "@/shared/services/edit-hold";
 import { flushPendingUpserts } from "@/shared/services/card-sync";
 import { flushPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { BackButton } from "@/shared/components/back-button";
@@ -101,6 +101,10 @@ function railCardOf(cards: Card[], index: number, currentIndex: number) {
 }
 
 function ignoreEmptyTap() {}
+
+function dropEditHold() {
+  discardEditHold(useAppStore.getState().cards, (restored) => useAppStore.setState(restored));
+}
 
 function CardDeck({
   browseIndex,
@@ -353,19 +357,10 @@ export function MainScreen() {
   }, [activeId, cardsHydrated, resetRename]);
 
   useEffect(() => {
-    if (editing || !editHeld()) return;
-    const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
-    commitEditHold(liveCards, liveItems);
+    if (!editing) dropEditHold();
   }, [editing]);
 
-  useEffect(
-    () => () => {
-      if (!editHeld()) return;
-      const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
-      commitEditHold(liveCards, liveItems);
-    },
-    [],
-  );
+  useEffect(() => dropEditHold, []);
 
   useEffect(() => {
     if (composing || passwordHintSeen || passwordHint) return;
@@ -478,14 +473,11 @@ export function MainScreen() {
     finishEdit(endEdit);
   }, [endEdit, finishEdit]);
   const leaveEdit = useCallback(() => {
-    const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
-    commitEditHold(liveCards, liveItems);
-    finishEdit(() => {
-      setComposing(false);
-      setRemoveOpen(false);
-      endEdit();
-    });
-  }, [endEdit, finishEdit]);
+    dropEditHold();
+    setComposing(false);
+    setRemoveOpen(false);
+    endEdit();
+  }, [endEdit]);
   const onEdit = useCallback(() => {
     if (editTapBlocked() || renamePending()) return;
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();

@@ -156,6 +156,26 @@ export function commitEditHold(cards: Card[], contactItems: ContactItem[]) {
   void sendThenCatchUp();
 }
 
+/** Back without Save: the portfolio returns to how it was when Edit opened. The photo stays, it was already sent. */
+export function discardEditHold(
+  cards: Card[],
+  restore: (state: { cards: Card[]; contactItems: ContactItem[] }) => void,
+) {
+  const before = held;
+  if (!before) return;
+  held = null;
+  const kept = new Map(before.cards.map((card) => [card.id, card]));
+  restore({
+    cards: cards.map((card) => {
+      const old = kept.get(card.id);
+      if (!old) return card;
+      return { ...old, photo: card.photo, photoAttachmentId: card.photoAttachmentId, photoLook: card.photoLook };
+    }),
+    contactItems: before.contactItems,
+  });
+  void sendThenCatchUp();
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("online", () => {
     if (unsent) void sendThenCatchUp();
