@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { cardInWallet } from "@/shared/lib/wallet-client";
+import { cachedWalletStatus, watchWalletLine } from "@/shared/lib/wallet-client";
 
 /** Shown when a portfolio that already has a link is renamed. Tap outside restores the name. */
 export function PortfolioRenameDialog({
@@ -20,21 +20,38 @@ export function PortfolioRenameDialog({
   onCancel: () => void;
   onWalletLine?: () => void;
 }) {
+  if (!open) return null;
+  return (
+    <PortfolioRenameBody
+      key={cardId}
+      cardId={cardId}
+      onYes={onYes}
+      onNo={onNo}
+      onCancel={onCancel}
+      onWalletLine={onWalletLine}
+    />
+  );
+}
+
+function PortfolioRenameBody({
+  cardId,
+  onYes,
+  onNo,
+  onCancel,
+  onWalletLine,
+}: {
+  cardId: string;
+  onYes: () => void;
+  onNo: () => void;
+  onCancel: () => void;
+  onWalletLine?: () => void;
+}) {
   const chosen = useRef(false);
-  const [walletCardId, setWalletCardId] = useState<string | null>(null);
+  const [inWallet, setInWallet] = useState<boolean | undefined>(() => cachedWalletStatus(cardId));
   useEffect(() => {
-    if (!open) return;
-    chosen.current = false;
-    let live = true;
-    void cardInWallet(cardId).then((added) => {
-      if (!live) return;
-      setWalletCardId(added === true ? cardId : null);
-    });
-    return () => {
-      live = false;
-    };
-  }, [open, cardId]);
-  const inWallet = walletCardId === cardId;
+    if (inWallet !== undefined) return;
+    return watchWalletLine(cardId, setInWallet);
+  }, [cardId, inWallet]);
   useEffect(() => {
     if (inWallet) onWalletLine?.();
   }, [inWallet, onWalletLine]);
@@ -45,9 +62,11 @@ export function PortfolioRenameDialog({
     else onNo();
   };
 
+  if (inWallet === undefined) return null;
+
   return (
     <Dialog.Root
-      open={open}
+      open
       onOpenChange={(next) => {
         if (next || chosen.current) return;
         onCancel();

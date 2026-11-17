@@ -512,7 +512,10 @@ export function ProfileScreen() {
                       )}
                       <button
                         type="button"
-                        onClick={() => setLinkCardId(card.id)}
+                        onClick={() => {
+                          if (linkCardId) return;
+                          setLinkCardId(card.id);
+                        }}
                         className="mt-1 block border-0 bg-transparent p-0 text-left t-label underline"
                       >
                         NEW LINK

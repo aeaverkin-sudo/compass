@@ -53,6 +53,30 @@ export function forgetWalletStatus() {
   }
 }
 
+/** How long a link dialog waits for the Wallet line before opening without it. */
+export const WALLET_LINE_WAIT_MS = 1500;
+
+/**
+ * One answer for the Wallet line. A late server reply does not change the first answer.
+ * The caller already checked `cachedWalletStatus`.
+ */
+export function watchWalletLine(cardId: string, onReady: (inWallet: boolean) => void): () => void {
+  let settled = false;
+  let timer = 0;
+  const finish = (inWallet: boolean) => {
+    if (settled) return;
+    settled = true;
+    window.clearTimeout(timer);
+    onReady(inWallet);
+  };
+  timer = window.setTimeout(() => finish(false), WALLET_LINE_WAIT_MS);
+  void cardInWallet(cardId).then((added) => finish(added === true));
+  return () => {
+    settled = true;
+    window.clearTimeout(timer);
+  };
+}
+
 /**
  * Whether this pass is in Wallet right now.
  * `true` / `false` come from the server. `null` means this read failed, or Wallet is not set up.

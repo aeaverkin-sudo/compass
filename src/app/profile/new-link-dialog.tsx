@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { cardInWallet } from "@/shared/lib/wallet-client";
+import { cachedWalletStatus, watchWalletLine } from "@/shared/lib/wallet-client";
 
 /** A new code for this portfolio. No, or a tap outside, leaves the link as it is. */
 export function NewLinkDialog({
@@ -18,23 +18,32 @@ export function NewLinkDialog({
   onYes: () => void;
   onClose: () => void;
 }) {
-  const [walletCardId, setWalletCardId] = useState<string | null>(null);
+  if (!open) return null;
+  return <NewLinkBody key={cardId} cardId={cardId} busy={busy} onYes={onYes} onClose={onClose} />;
+}
+
+function NewLinkBody({
+  cardId,
+  busy,
+  onYes,
+  onClose,
+}: {
+  cardId: string;
+  busy: boolean;
+  onYes: () => void;
+  onClose: () => void;
+}) {
+  const [inWallet, setInWallet] = useState<boolean | undefined>(() => cachedWalletStatus(cardId));
   useEffect(() => {
-    if (!open) return;
-    let live = true;
-    void cardInWallet(cardId).then((added) => {
-      if (!live) return;
-      setWalletCardId(added === true ? cardId : null);
-    });
-    return () => {
-      live = false;
-    };
-  }, [open, cardId]);
-  const inWallet = walletCardId === cardId;
+    if (inWallet !== undefined) return;
+    return watchWalletLine(cardId, setInWallet);
+  }, [cardId, inWallet]);
+
+  if (inWallet === undefined) return null;
 
   return (
     <Dialog.Root
-      open={open}
+      open
       onOpenChange={(next) => {
         if (next || busy) return;
         onClose();
