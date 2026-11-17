@@ -528,7 +528,7 @@ export function EntryPage({
                 <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] pb-[18px]">
                   <div className="min-w-0">
                     <SectionNumber value="01" />
-                    <span className="mt-[6px] block t-label text-[var(--grey)]">Account</span>
+                    <span className="mt-[6px] block t-label text-[var(--grey)]">With</span>
                   </div>
                   <div className="min-w-0">
                     <SocialSignInRows
