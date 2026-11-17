@@ -11,12 +11,14 @@ export function PortfolioRenameDialog({
   onYes,
   onNo,
   onCancel,
+  onWalletLine,
 }: {
   cardId: string;
   open: boolean;
   onYes: () => void;
   onNo: () => void;
   onCancel: () => void;
+  onWalletLine?: () => void;
 }) {
   const chosen = useRef(false);
   const [walletCardId, setWalletCardId] = useState<string | null>(null);
@@ -33,6 +35,9 @@ export function PortfolioRenameDialog({
     };
   }, [open, cardId]);
   const inWallet = walletCardId === cardId;
+  useEffect(() => {
+    if (inWallet) onWalletLine?.();
+  }, [inWallet, onWalletLine]);
 
   const choose = (yes: boolean) => {
     chosen.current = true;

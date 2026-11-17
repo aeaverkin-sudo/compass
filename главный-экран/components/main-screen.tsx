@@ -24,10 +24,12 @@ import { EventPassFooter } from "./event-pass-footer";
 import { QrZone } from "./qr-zone";
 import { PortfolioDeleteDialog } from "./portfolio-delete";
 import { PortfolioRenameDialog } from "./portfolio-rename";
+import { WalletUpdatePlaque, walletPassFace } from "./wallet-update-plaque";
 import { RAIL_ICON_SCALE, SideRail } from "./side-rail";
 import { MARK_VISIBLE_PX } from "@/shared/components/mark-plus";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
+import { cardInWallet } from "@/shared/lib/wallet-client";
 import { editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
 import { BackButton } from "@/shared/components/back-button";
@@ -171,8 +173,10 @@ export function MainScreen() {
   const [openZone, setOpenZone] = useState<string | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
-  const nameAtEdit = useRef<{ cardId: string; name: string } | null>(null);
+  const [walletPlaque, setWalletPlaque] = useState(false);
+  const nameAtEdit = useRef<{ cardId: string; name: string; pass: string } | null>(null);
   const leaveAfterRename = useRef<(() => void) | null>(null);
+  const renameSawWallet = useRef(false);
   const openAddRef = useRef<(() => void) | null>(null);
   const draftStarted = useRef(false);
   const [composing, setComposing] = useState(false);
@@ -204,8 +208,14 @@ export function MainScreen() {
   const noteEditName = useCallback((cardId: string | undefined) => {
     if (!cardId) return;
     if (editingRef.current && nameAtEdit.current?.cardId === cardId) return;
-    const card = useAppStore.getState().cards.find((entry) => entry.id === cardId);
-    nameAtEdit.current = { cardId, name: card?.displayName ?? "" };
+    renameSawWallet.current = false;
+    const { cards, contactItems } = useAppStore.getState();
+    const card = cards.find((entry) => entry.id === cardId);
+    nameAtEdit.current = {
+      cardId,
+      name: card?.displayName ?? "",
+      pass: card ? walletPassFace(card, contactItems) : "",
+    };
   }, []);
 
   const frameRef = useRef<HTMLElement>(null);
@@ -312,6 +322,7 @@ export function MainScreen() {
       setComposeOnMount(false);
       nameAtEdit.current = null;
       leaveAfterRename.current = null;
+      renameSawWallet.current = false;
       setRenameOpen(false);
     }
   }, [activeId, cardsHydrated]);
@@ -413,12 +424,25 @@ export function MainScreen() {
     startTransition(() => router.push("/network"));
   }, [router]);
   const onRemove = useCallback(() => setRemoveOpen(true), []);
+  const markRenameWallet = useCallback(() => {
+    renameSawWallet.current = true;
+  }, []);
   const endEdit = useCallback(() => {
+    const snap = nameAtEdit.current;
+    const warned = renameSawWallet.current;
+    renameSawWallet.current = false;
+    nameAtEdit.current = null;
     setComposeOnMount(false);
     setOpenZone(null);
     clearFillPlace();
     setEditing(false);
-    nameAtEdit.current = null;
+    if (warned || !snap) return;
+    const { cards, contactItems } = useAppStore.getState();
+    const card = cards.find((entry) => entry.id === snap.cardId);
+    if (!card || walletPassFace(card, contactItems) === snap.pass) return;
+    void cardInWallet(card.id).then((added) => {
+      if (added === true) setWalletPlaque(true);
+    });
   }, []);
   const finishEdit = useCallback((leave: () => void) => {
     if (leaveAfterRename.current) return;
@@ -431,7 +455,6 @@ export function MainScreen() {
       setRenameOpen(true);
       return;
     }
-    nameAtEdit.current = null;
     leave();
   }, []);
   const applyRename = useCallback(
@@ -445,7 +468,6 @@ export function MainScreen() {
         const handle = handleAfterRename(card, cards, keepCode);
         if (handle && handle !== card.handle.trim().toLowerCase()) updateCard(card.id, { handle });
       }
-      nameAtEdit.current = null;
       leave?.();
     },
     [updateCard],
@@ -453,6 +475,7 @@ export function MainScreen() {
   const cancelRename = useCallback(() => {
     const snap = nameAtEdit.current;
     leaveAfterRename.current = null;
+    renameSawWallet.current = false;
     setRenameOpen(false);
     if (!snap) return;
     const card = useAppStore.getState().cards.find((entry) => entry.id === snap.cardId);
@@ -656,6 +679,7 @@ export function MainScreen() {
             onYes={() => applyRename(true)}
             onNo={() => applyRename(false)}
             onCancel={cancelRename}
+            onWalletLine={markRenameWallet}
           />
         </>
       ) : null}
@@ -664,6 +688,7 @@ export function MainScreen() {
 
       <UploadNotice />
       {photoMissed ? <SkyToast text={photoMissed} onDone={clearPhotoMissed} /> : null}
+      {walletPlaque ? <WalletUpdatePlaque onDone={() => setWalletPlaque(false)} /> : null}
 
       {layout && cardTopBrowse !== undefined ? (
         <div
