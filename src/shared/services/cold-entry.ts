@@ -128,13 +128,16 @@ export async function sendWelcomeMail(
   const row = card.data as { owner_id: string; handle: string | null; public_token: string | null } | null;
   if (!row || row.owner_id !== userId) return false;
 
+  const providers = new Set((user.identities ?? []).map((identity) => identity.provider));
+  const social = access === "google" && !providers.has("google") && providers.has("apple") ? "apple" : access;
   const site = siteOrigin(origin);
   const walletUrl = `${site}${walletPassPath(cardId)}`;
   const token = mintWelcomeToken();
   const mail = welcomeMail({
     logoSrc: `${site}/brand/aded-grid-mail.png`,
     password: password.trim(),
-    ...(access === "google" ? { access: "google" as const } : {}),
+    ...(social === "google" ? { access: "google" as const } : {}),
+    ...(social === "apple" ? { access: "apple" as const } : {}),
     profileUrl: `${site}${publicCardPath({ publicToken: row.public_token ?? "", handle: row.handle ?? undefined })}`,
     accessUrl: `${site}/open?t=${encodeURIComponent(token)}`,
     walletSectionUrl: walletUrl,

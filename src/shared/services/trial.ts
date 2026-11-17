@@ -3,7 +3,7 @@ import { planCatalog, planId, planLimits, type PlanId } from "@/shared/services/
 
 const HOUR_MS = 60 * 60 * 1000;
 
-export type AccountProvider = "email" | "google" | null;
+export type AccountProvider = "email" | "google" | "apple" | null;
 
 export type AccountStatus = {
   registered: boolean;

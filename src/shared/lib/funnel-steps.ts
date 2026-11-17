@@ -10,4 +10,7 @@ export const STEPS = [
   "google_start",
   "google_ok",
   "google_fail",
+  "apple_start",
+  "apple_ok",
+  "apple_fail",
 ] as const;

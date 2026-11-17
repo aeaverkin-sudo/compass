@@ -13,6 +13,7 @@ function providerOf(user: { is_anonymous?: boolean; email?: string | null; ident
   const providers = new Set((user.identities ?? []).map((identity) => identity.provider));
   if (providers.has("email")) return "email";
   if (providers.has("google")) return "google";
+  if (providers.has("apple")) return "apple";
   if (user.email) return "email";
   return null;
 }

@@ -112,10 +112,10 @@ function readClient() {
 
 const GOOGLE_PENDING = "aded-google-pending";
 
-/** Google is about to leave this page. The return writes ok or fail, not a later password sign-in. */
-export function markGooglePending() {
+/** Google or Apple is about to leave this page. The return writes ok or fail, not a later password sign-in. */
+export function markGooglePending(provider: "google" | "apple" = "google") {
   try {
-    sessionStorage.setItem(GOOGLE_PENDING, "1");
+    sessionStorage.setItem(GOOGLE_PENDING, provider === "apple" ? "apple" : "1");
   } catch {
     // A private tab still records the click. The return may not.
   }
@@ -130,18 +130,19 @@ export function clearGooglePending() {
   }
 }
 
-/** After Google comes back. One note, then the mark is gone. */
+/** After Google or Apple comes back. One note, then the mark is gone. */
 export function settleGoogleReturn(registered: boolean) {
-  let pending = false;
+  let pending: string | null = null;
   try {
     if (typeof window === "undefined") return;
-    pending = sessionStorage.getItem(GOOGLE_PENDING) === "1";
-    if (!pending) return;
+    pending = sessionStorage.getItem(GOOGLE_PENDING);
+    if (pending !== "1" && pending !== "apple") return;
     sessionStorage.removeItem(GOOGLE_PENDING);
   } catch {
     return;
   }
-  track(registered ? "google_ok" : "google_fail");
+  if (pending === "apple") track(registered ? "apple_ok" : "apple_fail");
+  else track(registered ? "google_ok" : "google_fail");
 }
 
 /** One note beside the path the person already took. It never throws and is never awaited. */
