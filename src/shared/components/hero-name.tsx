@@ -58,9 +58,12 @@ export function HeroName({
   align = "bottom",
   ruled = false,
   tone = "ink",
+  locked = false,
 }: {
   value: string;
   onChange?: (displayName: string) => void;
+  /** Drawn exactly as the field, but it cannot be touched. */
+  locked?: boolean;
   /** Reserve the descender and a gap so the role sits clear of g, y, p. */
   roleBelow?: boolean;
   placeholder?: string;
@@ -217,6 +220,8 @@ export function HeroName({
           rows={maxLines}
           enterKeyHint="enter"
           placeholder=""
+          readOnly={locked}
+          tabIndex={locked ? -1 : undefined}
           aria-label={placeholder}
           autoCapitalize="words"
           autoCorrect="off"
@@ -256,6 +261,7 @@ export function HeroName({
           className={cn(
             "compass-input m-0 block w-full max-h-full min-h-0 max-w-full resize-none overflow-x-hidden overflow-y-visible bg-transparent p-0 text-left whitespace-pre text-[var(--ink)] outline-none",
             ruled && "min-w-0",
+            locked && "pointer-events-none select-none",
           )}
           style={
             empty

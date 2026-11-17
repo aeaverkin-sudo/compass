@@ -157,6 +157,7 @@ function EditorialHeader({
   sheetMark,
   onPhotoChange,
   onDisplayNameChange,
+  nameLocked = false,
   onCardUpdate,
   plate = false,
   scale = 1,
@@ -169,6 +170,8 @@ function EditorialHeader({
   sheetMark?: string;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
+  /** Outside Edit the name keeps its field but cannot be changed. */
+  nameLocked?: boolean;
   onCardUpdate?: (data: Partial<Card>) => void;
   /** Screen plate is one A under the photo. The PDF keeps the shorter pad. */
   plate?: boolean;
@@ -224,6 +227,7 @@ function EditorialHeader({
             <HeroName
               value={face.displayName}
               onChange={onDisplayNameChange}
+              locked={nameLocked}
               roleBelow={Boolean(positionTitle)}
             />
             {positionTitle ? (
@@ -635,7 +639,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               reserveSheetMark={ready && !readOnly && sheetIndex != null && sheetTotal != null}
               sheetMark={readOnly ? undefined : sheetMark}
               onPhotoChange={onPhotoChange}
-              onDisplayNameChange={editing ? onDisplayNameChange : undefined}
+              onDisplayNameChange={onDisplayNameChange}
+              nameLocked={!editing}
               onCardUpdate={onCardUpdate}
               plate
               scale={readOnly ? 1 : headerScale}
