@@ -1,12 +1,52 @@
 import type { Card, ContactItem } from "@/shared/types";
 import { isContactFilled } from "@/shared/services/contact-item";
+
 type Snapshot = { cards: Card[]; contactItems: ContactItem[] };
 type Plan = { cardIds: string[]; itemIds: string[]; dropped: string[]; unlinks: [string, string][] };
 
+const HOLD_KEY = "aded-edit-hold";
+const UNSENT_KEY = "aded-edit-unsent";
+
 let held: Snapshot | null = null;
 let missedHydrate = false;
-let unsent: Plan | null = null;
+let unsent: Plan | null = readStored<Plan>(UNSENT_KEY);
 let sending: Promise<void> | null = null;
+
+function readStored<T>(key: string): T | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStored(key: string, value: unknown) {
+  if (typeof window === "undefined") return;
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // A full disk keeps it in memory for this page.
+  }
+}
+
+/** Picture bytes stay out of the stored copy; the live portfolio keeps them. */
+function storeHeld() {
+  writeStored(
+    HOLD_KEY,
+    held && {
+      cards: held.cards.map((card) => (card.photo?.startsWith("data:") ? { ...card, photo: undefined } : card)),
+      contactItems: held.contactItems.map((item) => (item.url?.startsWith("data:") ? { ...item, url: "" } : item)),
+    },
+  );
+}
+
+function setUnsent(plan: Plan | null) {
+  unsent = plan;
+  writeStored(UNSENT_KEY, plan);
+}
 
 /** Edit is open: nothing about the portfolio leaves the phone until Save. */
 export function editHeld() {
@@ -16,8 +56,33 @@ export function editHeld() {
 /** `flush` sends writes queued before Edit opened, while the gate is still open. */
 export function beginEditHold(cards: Card[], contactItems: ContactItem[], flush: () => void) {
   if (held) return;
+  const stored = readStored<Snapshot>(HOLD_KEY);
+  if (stored) {
+    held = stored;
+    return;
+  }
   flush();
   held = { cards, contactItems };
+  storeHeld();
+}
+
+/**
+ * On open: an Edit still in place keeps its draft and returns true; otherwise the portfolio returns to the last Save.
+ * `inEdit` is whether the Edit place is still fresh.
+ */
+export function settleEditHold(
+  inEdit: boolean,
+  cards: Card[],
+  contactItems: ContactItem[],
+  restore: (state: { cards: Card[]; contactItems: ContactItem[] }) => void,
+) {
+  if (held) return true;
+  const stored = readStored<Snapshot>(HOLD_KEY);
+  if (!stored) return false;
+  if (inEdit) return true;
+  held = stored;
+  discardEditHold(cards, contactItems, restore);
+  return false;
 }
 
 function samePhoto(a: Card, b: Card) {
@@ -37,6 +102,7 @@ export function heldCardWrite(card: Card): Card | null {
     updatedAt: card.updatedAt,
   };
   held = { ...held, cards: held.cards.map((entry) => (entry.id === card.id ? next : entry)) };
+  storeHeld();
   return next;
 }
 
@@ -125,9 +191,10 @@ export function sendUnsentEdit(): Promise<void> {
       unsent = null;
       const ok = await sendPlan(plan);
       if (!ok && !navigator.onLine) {
-        unsent = unsent ? mergePlans(plan, unsent) : plan;
+        setUnsent(unsent ? mergePlans(plan, unsent) : plan);
         break;
       }
+      setUnsent(unsent);
     }
   })()
     .catch((error) => console.error("[edit-hold] send failed", error))
@@ -151,27 +218,34 @@ export function commitEditHold(cards: Card[], contactItems: ContactItem[]) {
   const before = held;
   if (!before) return;
   held = null;
+  storeHeld();
   const plan = planEdit(before, cards, contactItems);
-  unsent = unsent ? mergePlans(unsent, plan) : plan;
+  setUnsent(unsent ? mergePlans(unsent, plan) : plan);
   void sendThenCatchUp();
 }
 
 /** Back without Save: the portfolio returns to how it was when Edit opened. The photo stays, it was already sent. */
 export function discardEditHold(
   cards: Card[],
+  contactItems: ContactItem[],
   restore: (state: { cards: Card[]; contactItems: ContactItem[] }) => void,
 ) {
   const before = held;
   if (!before) return;
   held = null;
+  storeHeld();
   const kept = new Map(before.cards.map((card) => [card.id, card]));
+  const live = new Map(contactItems.map((item) => [item.id, item]));
   restore({
     cards: cards.map((card) => {
       const old = kept.get(card.id);
       if (!old) return card;
       return { ...old, photo: card.photo, photoAttachmentId: card.photoAttachmentId, photoLook: card.photoLook };
     }),
-    contactItems: before.contactItems,
+    contactItems: before.contactItems.map((item) => {
+      const url = live.get(item.id)?.url;
+      return !item.url && url?.startsWith("data:") ? { ...item, url } : item;
+    }),
   });
   void sendThenCatchUp();
 }

@@ -39,7 +39,7 @@ import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
-import { beginEditHold, commitEditHold, discardEditHold } from "@/shared/services/edit-hold";
+import { beginEditHold, commitEditHold, discardEditHold, settleEditHold } from "@/shared/services/edit-hold";
 import { flushPendingUpserts } from "@/shared/services/card-sync";
 import { flushPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { BackButton } from "@/shared/components/back-button";
@@ -103,7 +103,8 @@ function railCardOf(cards: Card[], index: number, currentIndex: number) {
 function ignoreEmptyTap() {}
 
 function dropEditHold() {
-  discardEditHold(useAppStore.getState().cards, (restored) => useAppStore.setState(restored));
+  const { cards, contactItems } = useAppStore.getState();
+  discardEditHold(cards, contactItems, (restored) => useAppStore.setState(restored));
 }
 
 function CardDeck({
@@ -321,6 +322,9 @@ export function MainScreen() {
   useEffect(() => {
     if (!cardsHydrated) return;
     const place = readPortfolio();
+    const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
+    const inEdit = liveCards.some((card) => card.id === place?.cardId);
+    settleEditHold(inEdit, liveCards, liveItems, (restored) => useAppStore.setState(restored));
     if (!place) return;
     const state = useAppStore.getState();
     const index = state.cards.findIndex((card) => card.id === place.cardId);

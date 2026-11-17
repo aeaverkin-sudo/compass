@@ -5,7 +5,8 @@ import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from 
 import type { Card, CardStatus } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { editHeld, heldCardWrite, noteHeldHydrate } from "@/shared/services/edit-hold";
+import { editHeld, heldCardWrite, noteHeldHydrate, sendUnsentEdit, settleEditHold } from "@/shared/services/edit-hold";
+import { readPortfolio } from "@/shared/lib/fill-place";
 
 const UPSERT_DEBOUNCE_MS = 400;
 const PUBLIC_TOKEN_LENGTH = 21;
@@ -595,7 +596,9 @@ async function selectCardRows(
 
 async function runHydrate() {
   await waitForPersist();
-  if (editHeld()) {
+  const store = (await import("@/shared/store/app-store")).useAppStore;
+  const { cards: localCards, contactItems: localItems } = store.getState();
+  if (settleEditHold(Boolean(readPortfolio()), localCards, localItems, (restored) => store.setState(restored))) {
     noteHeldHydrate();
     return;
   }
@@ -603,6 +606,7 @@ async function runHydrate() {
   const authUser = await currentAuthUser();
   if (!authUser) return;
   const ownerId = authUser.id;
+  await sendUnsentEdit();
 
   const supabase = createBrowserSupabaseClient();
   const loaded = await selectCardRows(
