@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { doorNext } from "@/app/create/door";
+import { startGoogleSignIn } from "@/shared/components/social-sign-in-rows";
 import { COLUMN_GAP_PX } from "@/shared/layout/axes";
-import { clearGooglePending, markGooglePending, socialSignInBlocked, track } from "@/shared/lib/funnel";
+import { socialSignInBlocked } from "@/shared/lib/funnel";
 import { photoSlotLookClass } from "@/shared/lib/photo-look";
-import { cancelOAuthReplaceLocal, markOAuthReplaceLocal } from "@/shared/lib/session-bootstrap";
-import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { cancelOAuthReplaceLocal } from "@/shared/lib/session-bootstrap";
 import { cn } from "@/lib/utils";
 
 const ARROW_TIP_INSET_PX = 7.3;
@@ -41,29 +40,7 @@ export function GoogleSignIn({
 
   if (!shown) return null;
 
-  const start = () => {
-    track("google_start");
-    markGooglePending();
-    markOAuthReplaceLocal();
-    const query = new URLSearchParams();
-    query.set("from", from);
-    const safe = next ? doorNext(next) : undefined;
-    if (safe) query.set("next", safe);
-    const redirectTo = `${window.location.origin}/auth/callback?${query.toString()}`;
-    const failed = () => {
-      clearGooglePending();
-      cancelOAuthReplaceLocal();
-      track("google_fail");
-    };
-    void createBrowserSupabaseClient()
-      .auth.signInWithOAuth({ provider: "google", options: { redirectTo } })
-      .then(({ error }) => {
-        if (error) failed();
-      })
-      .catch(() => {
-        failed();
-      });
-  };
+  const start = () => startGoogleSignIn(from, next);
 
   const inset = `calc(${padded ? "0px" : "var(--gutter)"} - ${ARROW_TIP_INSET_PX}px + ${CHEVRON_PX}px + ${COLUMN_GAP_PX}px)`;
 
