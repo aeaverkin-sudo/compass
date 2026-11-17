@@ -157,8 +157,6 @@ function EditorialHeader({
   sheetMark,
   onPhotoChange,
   onDisplayNameChange,
-  onDisplayNameFocus,
-  onDisplayNameCommit,
   onCardUpdate,
   plate = false,
   scale = 1,
@@ -171,10 +169,6 @@ function EditorialHeader({
   sheetMark?: string;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
-  /** Outside Edit: remember the name when the header field is focused. */
-  onDisplayNameFocus?: () => void;
-  /** Outside Edit: the header field lost focus or the keyboard closed. */
-  onDisplayNameCommit?: () => void;
   onCardUpdate?: (data: Partial<Card>) => void;
   /** Screen plate is one A under the photo. The PDF keeps the shorter pad. */
   plate?: boolean;
@@ -230,8 +224,6 @@ function EditorialHeader({
             <HeroName
               value={face.displayName}
               onChange={onDisplayNameChange}
-              onFocus={onDisplayNameFocus}
-              onSettle={onDisplayNameCommit}
               roleBelow={Boolean(positionTitle)}
             />
             {positionTitle ? (
@@ -409,8 +401,6 @@ type BusinessCardProps = {
   onEmptyAreaTap?: () => void;
   onPhotoChange?: (photo: string | null, file?: File) => void;
   onDisplayNameChange?: (displayName: string) => void;
-  onDisplayNameFocus?: () => void;
-  onDisplayNameCommit?: () => void;
   onCardUpdate?: (data: Partial<Card>) => void;
   editing?: boolean;
   fillHint?: boolean;
@@ -450,8 +440,6 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onEmptyAreaTap,
     onPhotoChange,
     onDisplayNameChange,
-    onDisplayNameFocus,
-    onDisplayNameCommit,
     onCardUpdate,
     editing = false,
     onFill,
@@ -647,9 +635,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               reserveSheetMark={ready && !readOnly && sheetIndex != null && sheetTotal != null}
               sheetMark={readOnly ? undefined : sheetMark}
               onPhotoChange={onPhotoChange}
-              onDisplayNameChange={onDisplayNameChange}
-              onDisplayNameFocus={onDisplayNameFocus}
-              onDisplayNameCommit={onDisplayNameCommit}
+              onDisplayNameChange={editing ? onDisplayNameChange : undefined}
               onCardUpdate={onCardUpdate}
               plate
               scale={readOnly ? 1 : headerScale}

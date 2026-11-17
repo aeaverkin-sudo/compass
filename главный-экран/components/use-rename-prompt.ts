@@ -9,7 +9,7 @@ import { walletPassFace } from "./wallet-update-plaque";
 
 type NameSnap = { cardId: string; name: string; pass: string };
 
-/** The rename window and the Wallet plaque that follows it. Edit and the header name share this. */
+/** The rename window and the Wallet plaque that follows it. The name changes only in Edit. */
 export function useRenamePrompt() {
   const updateCard = useAppStore((state) => state.updateCard);
   const [open, setOpen] = useState(false);
@@ -73,22 +73,6 @@ export function useRenamePrompt() {
     [ask],
   );
 
-  const finishHeader = useCallback(
-    (cardId: string, editing: boolean) => {
-      if (editing) return;
-      const snap = snapRef.current;
-      if (!snap || snap.cardId !== cardId) return;
-      const card = useAppStore.getState().cards.find((entry) => entry.id === cardId);
-      ask(card, snap.name, () => {
-        const warned = sawWallet.current;
-        sawWallet.current = false;
-        snapRef.current = null;
-        revealPlaque(snap, warned);
-      });
-    },
-    [ask, revealPlaque],
-  );
-
   const takeSnap = useCallback(() => {
     const snap = snapRef.current;
     const warned = sawWallet.current;
@@ -143,7 +127,6 @@ export function useRenamePrompt() {
     markWallet,
     note,
     finishEdit,
-    finishHeader,
     takeSnap,
     revealPlaque,
     apply,

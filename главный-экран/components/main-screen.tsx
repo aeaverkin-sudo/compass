@@ -115,8 +115,6 @@ function CardDeck({
   onFill,
   onActiveIndexChange,
   onUpdateCard,
-  onDisplayNameFocus,
-  onDisplayNameCommit,
   cardLiftPx,
   holdCardLift,
 }: {
@@ -135,8 +133,6 @@ function CardDeck({
   onFill: (cardId: string, zoneId?: string) => void;
   onActiveIndexChange: (index: number) => void;
   onUpdateCard: (id: string, data: Partial<Card>) => void;
-  onDisplayNameFocus: (cardId: string) => void;
-  onDisplayNameCommit: (cardId: string) => void;
   /** Real cards sit this far below the raised column, so they stay under the QR. */
   cardLiftPx: number;
   /** Keep that offset mounted while Edit moves the column, so the card does not jump. */
@@ -166,8 +162,6 @@ function CardDeck({
       onFill={onFill}
       onActiveIndexChange={onActiveIndexChange}
       onUpdateCard={onUpdateCard}
-      onDisplayNameFocus={onDisplayNameFocus}
-      onDisplayNameCommit={onDisplayNameCommit}
       cardLiftPx={cardLiftPx}
       holdCardLift={holdCardLift}
       onEmptyAreaTap={ignoreEmptyTap}
@@ -201,7 +195,6 @@ export function MainScreen() {
     markWallet: markRenameWallet,
     note: noteRename,
     finishEdit,
-    finishHeader,
     takeSnap,
     revealPlaque,
     apply: applyRename,
@@ -467,19 +460,6 @@ export function MainScreen() {
       endEdit();
     });
   }, [endEdit, finishEdit]);
-  const onHeaderNameFocus = useCallback(
-    (cardId: string) => {
-      if (editingRef.current) return;
-      noteRename(cardId, false);
-    },
-    [noteRename],
-  );
-  const onHeaderNameCommit = useCallback(
-    (cardId: string) => {
-      finishHeader(cardId, editingRef.current);
-    },
-    [finishHeader],
-  );
   const onEdit = useCallback(() => {
     if (editTapBlocked() || renamePending()) return;
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
@@ -746,8 +726,6 @@ export function MainScreen() {
             onFill={onFill}
             onActiveIndexChange={onActiveIndexChange}
             onUpdateCard={updateCard}
-            onDisplayNameFocus={onHeaderNameFocus}
-            onDisplayNameCommit={onHeaderNameCommit}
             cardLiftPx={cardLiftPx}
             holdCardLift={showAddSlide}
           />

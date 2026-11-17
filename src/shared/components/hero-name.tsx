@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useKeyboardVisible } from "@main/hooks/use-keyboard-dock";
+import { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
 
@@ -53,8 +52,6 @@ function fitToWidth(text: string, width: number, weight: number, max: number, mi
 export function HeroName({
   value,
   onChange,
-  onFocus,
-  onSettle,
   roleBelow,
   placeholder = "Name or portfolio title",
   maxLines = 2,
@@ -64,10 +61,6 @@ export function HeroName({
 }: {
   value: string;
   onChange?: (displayName: string) => void;
-  /** The field was entered. The deck remembers the name for a later link question. */
-  onFocus?: () => void;
-  /** Focus left, or the keyboard closed. Enter still inserts a line. */
-  onSettle?: () => void;
   /** Reserve the descender and a gap so the role sits clear of g, y, p. */
   roleBelow?: boolean;
   placeholder?: string;
@@ -81,26 +74,6 @@ export function HeroName({
 }) {
   const centered = align === "center";
   const boxRef = useRef<HTMLDivElement>(null);
-  const focusRef = useRef(onFocus);
-  const settleRef = useRef(onSettle);
-  const settled = useRef(false);
-  const keyboardWasUp = useRef(false);
-  const keyboardUp = useKeyboardVisible();
-  useEffect(() => {
-    focusRef.current = onFocus;
-    settleRef.current = onSettle;
-  });
-  useEffect(() => {
-    const area = boxRef.current?.querySelector("textarea");
-    const mine = !!area && document.activeElement === area;
-    if (keyboardWasUp.current && !keyboardUp && mine && settleRef.current && !settled.current) {
-      keyboardWasUp.current = false;
-      settled.current = true;
-      settleRef.current();
-      return;
-    }
-    keyboardWasUp.current = keyboardUp;
-  }, [keyboardUp]);
   const [size, setSize] = useState(16);
   const [wrapWord, setWrapWord] = useState(false);
   const lines = splitHeroLines(value, maxLines);
@@ -250,21 +223,13 @@ export function HeroName({
           spellCheck={false}
           data-no-swipe
           onChange={(event) => {
-            settled.current = false;
             event.currentTarget.scrollTop = 0;
             event.currentTarget.scrollLeft = 0;
             onChange(clamp(event.target.value));
           }}
           onFocus={(event) => {
-            settled.current = false;
-            focusRef.current?.();
             if (ruled) return;
             holdScroll(event.currentTarget);
-          }}
-          onBlur={() => {
-            if (!settleRef.current || settled.current) return;
-            settled.current = true;
-            settleRef.current();
           }}
           onPointerDown={(event) => event.stopPropagation()}
           onBeforeInput={(event) => {
