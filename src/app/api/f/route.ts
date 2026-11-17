@@ -1,22 +1,11 @@
 import { NextResponse } from "next/server";
+import { STEPS as FUNNEL_STEPS } from "@/shared/lib/funnel-steps";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STEPS = new Set([
-  "landing_view",
-  "landing_cta",
-  "signin_view",
-  "create_view",
-  "create_submit",
-  "create_red",
-  "signup_ok",
-  "signup_fail",
-  "google_start",
-  "google_ok",
-  "google_fail",
-]);
+const STEPS = new Set<string>(FUNNEL_STEPS);
 const CLIENTS = new Set(["telegram", "instagram", "pwa", "safari", "chrome", "other"]);
 const SOURCES = new Set([
   "qr",
