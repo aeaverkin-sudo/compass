@@ -54,6 +54,9 @@ type CardCarouselProps = {
   libraryCardHeightPx?: number;
   onActiveIndexChange: (index: number) => void;
   onUpdateCard: (id: string, data: Partial<Card>) => void;
+  /** Header name, outside Edit. Focus remembers the name; commit may ask about the link. */
+  onDisplayNameFocus?: (cardId: string) => void;
+  onDisplayNameCommit?: (cardId: string) => void;
   onEmptyAreaTap: () => void;
   editing?: boolean;
   fillHint?: boolean;
@@ -87,6 +90,8 @@ export const CardCarousel = memo(function CardCarousel({
   libraryCardHeightPx,
   onActiveIndexChange,
   onUpdateCard,
+  onDisplayNameFocus,
+  onDisplayNameCommit,
   onEmptyAreaTap,
   editing = false,
   fillHint = false,
@@ -361,6 +366,8 @@ export const CardCarousel = memo(function CardCarousel({
       onEmptyAreaTap={handleEmptyAreaTap}
       onPhotoChange={onPhoto}
       onDisplayNameChange={onName}
+      onDisplayNameFocus={onDisplayNameFocus ? () => onDisplayNameFocus(card.id) : undefined}
+      onDisplayNameCommit={onDisplayNameCommit ? () => onDisplayNameCommit(card.id) : undefined}
       onCardUpdate={onUpdate}
       editing={editing && card.id !== ADD_SLIDE_ID}
       fillHint={hint}
@@ -414,6 +421,8 @@ export const CardCarousel = memo(function CardCarousel({
         onEmptyAreaTap={handleEmptyAreaTap}
         onPhotoChange={(photo, file) => handlePhotoChange(activeCard.id, photo, file)}
         onDisplayNameChange={(displayName) => onUpdateCard(activeCard.id, { displayName })}
+        onDisplayNameFocus={onDisplayNameFocus ? () => onDisplayNameFocus(activeCard.id) : undefined}
+        onDisplayNameCommit={onDisplayNameCommit ? () => onDisplayNameCommit(activeCard.id) : undefined}
         onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
         editing={editing}
         fillHint={fillHint && activeIndex === 0}

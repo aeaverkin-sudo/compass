@@ -11,7 +11,6 @@ import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { groupEditSections } from "@/shared/services/card-zones";
-import { handleAfterRename, renameChangesAddress } from "@/shared/services/card-handle";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import { registeredSession } from "@/shared/lib/session-bootstrap";
 import {
@@ -24,12 +23,12 @@ import { EventPassFooter } from "./event-pass-footer";
 import { QrZone } from "./qr-zone";
 import { PortfolioDeleteDialog } from "./portfolio-delete";
 import { PortfolioRenameDialog } from "./portfolio-rename";
-import { WalletUpdatePlaque, walletPassFace } from "./wallet-update-plaque";
+import { WalletUpdatePlaque } from "./wallet-update-plaque";
+import { useRenamePrompt } from "./use-rename-prompt";
 import { RAIL_ICON_SCALE, SideRail } from "./side-rail";
 import { MARK_VISIBLE_PX } from "@/shared/components/mark-plus";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
-import { cardInWallet } from "@/shared/lib/wallet-client";
 import { editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
 import { BackButton } from "@/shared/components/back-button";
@@ -108,6 +107,8 @@ function CardDeck({
   onFill,
   onActiveIndexChange,
   onUpdateCard,
+  onDisplayNameFocus,
+  onDisplayNameCommit,
 }: {
   browseIndex: number;
   editing: boolean;
@@ -124,6 +125,8 @@ function CardDeck({
   onFill: (cardId: string, zoneId?: string) => void;
   onActiveIndexChange: (index: number) => void;
   onUpdateCard: (id: string, data: Partial<Card>) => void;
+  onDisplayNameFocus: (cardId: string) => void;
+  onDisplayNameCommit: (cardId: string) => void;
 }) {
   const cards = useAppStore((state) => state.cards);
   const contactItems = useAppStore((state) => state.contactItems);
@@ -149,6 +152,8 @@ function CardDeck({
       onFill={onFill}
       onActiveIndexChange={onActiveIndexChange}
       onUpdateCard={onUpdateCard}
+      onDisplayNameFocus={onDisplayNameFocus}
+      onDisplayNameCommit={onDisplayNameCommit}
       onEmptyAreaTap={ignoreEmptyTap}
     />
   );
@@ -172,11 +177,22 @@ export function MainScreen() {
   const [composeOnMount, setComposeOnMount] = useState(false);
   const [openZone, setOpenZone] = useState<string | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [walletPlaque, setWalletPlaque] = useState(false);
-  const nameAtEdit = useRef<{ cardId: string; name: string; pass: string } | null>(null);
-  const leaveAfterRename = useRef<(() => void) | null>(null);
-  const renameSawWallet = useRef(false);
+  const {
+    open: renameOpen,
+    askedId: renameCardId,
+    plaque: walletPlaque,
+    dismissPlaque,
+    markWallet: markRenameWallet,
+    note: noteRename,
+    finishEdit,
+    finishHeader,
+    takeSnap,
+    revealPlaque,
+    apply: applyRename,
+    cancel: cancelRename,
+    reset: resetRename,
+    pending: renamePending,
+  } = useRenamePrompt();
   const openAddRef = useRef<(() => void) | null>(null);
   const draftStarted = useRef(false);
   const [composing, setComposing] = useState(false);
@@ -205,18 +221,12 @@ export function MainScreen() {
     });
   }, []);
 
-  const noteEditName = useCallback((cardId: string | undefined) => {
-    if (!cardId) return;
-    if (editingRef.current && nameAtEdit.current?.cardId === cardId) return;
-    renameSawWallet.current = false;
-    const { cards, contactItems } = useAppStore.getState();
-    const card = cards.find((entry) => entry.id === cardId);
-    nameAtEdit.current = {
-      cardId,
-      name: card?.displayName ?? "",
-      pass: card ? walletPassFace(card, contactItems) : "",
-    };
-  }, []);
+  const noteEditName = useCallback(
+    (cardId: string | undefined) => {
+      noteRename(cardId, editingRef.current);
+    },
+    [noteRename],
+  );
 
   const frameRef = useRef<HTMLElement>(null);
   const [frameWidth, setFrameWidth] = useState(0);
@@ -320,12 +330,9 @@ export function MainScreen() {
     if (!activeId) {
       setEditing(false);
       setComposeOnMount(false);
-      nameAtEdit.current = null;
-      leaveAfterRename.current = null;
-      renameSawWallet.current = false;
-      setRenameOpen(false);
+      resetRename();
     }
-  }, [activeId, cardsHydrated]);
+  }, [activeId, cardsHydrated, resetRename]);
 
   useEffect(() => {
     if (composing || passwordHintSeen || passwordHint) return;
@@ -424,63 +431,14 @@ export function MainScreen() {
     startTransition(() => router.push("/network"));
   }, [router]);
   const onRemove = useCallback(() => setRemoveOpen(true), []);
-  const markRenameWallet = useCallback(() => {
-    renameSawWallet.current = true;
-  }, []);
   const endEdit = useCallback(() => {
-    const snap = nameAtEdit.current;
-    const warned = renameSawWallet.current;
-    renameSawWallet.current = false;
-    nameAtEdit.current = null;
+    const { snap, warned } = takeSnap();
     setComposeOnMount(false);
     setOpenZone(null);
     clearFillPlace();
     setEditing(false);
-    if (warned || !snap) return;
-    const { cards, contactItems } = useAppStore.getState();
-    const card = cards.find((entry) => entry.id === snap.cardId);
-    if (!card || walletPassFace(card, contactItems) === snap.pass) return;
-    void cardInWallet(card.id).then((added) => {
-      if (added === true) setWalletPlaque(true);
-    });
-  }, []);
-  const finishEdit = useCallback((leave: () => void) => {
-    if (leaveAfterRename.current) return;
-    const snap = nameAtEdit.current;
-    const { cards, currentCardIndex: index } = useAppStore.getState();
-    const card = cards[index];
-    const nameWhenOpened = snap && card && snap.cardId === card.id ? snap.name : null;
-    if (card && renameChangesAddress(card, nameWhenOpened)) {
-      leaveAfterRename.current = leave;
-      setRenameOpen(true);
-      return;
-    }
-    leave();
-  }, []);
-  const applyRename = useCallback(
-    (keepCode: boolean) => {
-      const leave = leaveAfterRename.current;
-      leaveAfterRename.current = null;
-      setRenameOpen(false);
-      const { cards, currentCardIndex: index } = useAppStore.getState();
-      const card = cards[index];
-      if (card?.handle?.trim()) {
-        const handle = handleAfterRename(card, cards, keepCode);
-        if (handle && handle !== card.handle.trim().toLowerCase()) updateCard(card.id, { handle });
-      }
-      leave?.();
-    },
-    [updateCard],
-  );
-  const cancelRename = useCallback(() => {
-    const snap = nameAtEdit.current;
-    leaveAfterRename.current = null;
-    renameSawWallet.current = false;
-    setRenameOpen(false);
-    if (!snap) return;
-    const card = useAppStore.getState().cards.find((entry) => entry.id === snap.cardId);
-    if (card && card.displayName !== snap.name) updateCard(snap.cardId, { displayName: snap.name });
-  }, [updateCard]);
+    revealPlaque(snap, warned);
+  }, [revealPlaque, takeSnap]);
   const onDone = useCallback(() => {
     finishEdit(endEdit);
   }, [endEdit, finishEdit]);
@@ -491,8 +449,21 @@ export function MainScreen() {
       endEdit();
     });
   }, [endEdit, finishEdit]);
+  const onHeaderNameFocus = useCallback(
+    (cardId: string) => {
+      if (editingRef.current) return;
+      noteRename(cardId, false);
+    },
+    [noteRename],
+  );
+  const onHeaderNameCommit = useCallback(
+    (cardId: string) => {
+      finishHeader(cardId, editingRef.current);
+    },
+    [finishHeader],
+  );
   const onEdit = useCallback(() => {
-    if (editTapBlocked()) return;
+    if (editTapBlocked() || renamePending()) return;
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
     if (needsAccount && !liveCards[index]) {
       showGate();
@@ -507,7 +478,7 @@ export function MainScreen() {
     setOpenZone(null);
     setEditing(true);
     if (cardId) rememberEdit(cardId);
-  }, [needsAccount, noteEditName, portfolioLimit, rememberEdit, showGate, updateSecondCardDraft]);
+  }, [needsAccount, noteEditName, portfolioLimit, rememberEdit, renamePending, showGate, updateSecondCardDraft]);
   const onAdd = useCallback(() => {
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
     if (needsAccount && !liveCards[index]) {
@@ -671,24 +642,24 @@ export function MainScreen() {
       />
 
       {editing && activeId ? (
-        <>
-          <DeleteSlot cardId={activeId} open={removeOpen} onOpenChange={setRemoveOpen} />
-          <PortfolioRenameDialog
-            cardId={activeId}
-            open={renameOpen}
-            onYes={() => applyRename(true)}
-            onNo={() => applyRename(false)}
-            onCancel={cancelRename}
-            onWalletLine={markRenameWallet}
-          />
-        </>
+        <DeleteSlot cardId={activeId} open={removeOpen} onOpenChange={setRemoveOpen} />
+      ) : null}
+      {renameOpen && renameCardId ? (
+        <PortfolioRenameDialog
+          cardId={renameCardId}
+          open={renameOpen}
+          onYes={() => applyRename(true)}
+          onNo={() => applyRename(false)}
+          onCancel={cancelRename}
+          onWalletLine={markRenameWallet}
+        />
       ) : null}
 
       {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}
 
       <UploadNotice />
       {photoMissed ? <SkyToast text={photoMissed} onDone={clearPhotoMissed} /> : null}
-      {walletPlaque ? <WalletUpdatePlaque onDone={() => setWalletPlaque(false)} /> : null}
+      {walletPlaque ? <WalletUpdatePlaque onDone={dismissPlaque} /> : null}
 
       {layout && cardTopBrowse !== undefined ? (
         <div
@@ -732,6 +703,8 @@ export function MainScreen() {
             onFill={onFill}
             onActiveIndexChange={onActiveIndexChange}
             onUpdateCard={updateCard}
+            onDisplayNameFocus={onHeaderNameFocus}
+            onDisplayNameCommit={onHeaderNameCommit}
           />
         </div>
       ) : null}
