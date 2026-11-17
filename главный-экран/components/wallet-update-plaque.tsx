@@ -5,7 +5,7 @@ import { composeCard, orderCardZones } from "@/shared/services/card-zones";
 import type { Card, ContactItem } from "@/shared/types";
 
 const APPEAR_MS = 300;
-const HOLD_MS = 2200;
+const HOLD_MS = 3700;
 const LEAVE_MS = 1500;
 
 /** Photo, name, and the first two sections, in the order the Wallet pass shows them. */
