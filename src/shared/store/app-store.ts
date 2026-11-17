@@ -65,8 +65,6 @@ interface AppState {
   setMonochrome: (value: boolean) => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
-  /** The first portfolio: everything but the photo and the name comes off. The library stays. */
-  resetCard: (id: string) => void;
   /** Any other portfolio, once the server has deleted it. The library stays. */
   removeCard: (id: string) => void;
   /** Whether connections may search this card's visible fields. The name stays findable. */
@@ -319,23 +317,6 @@ export const useAppStore = create<AppState>()(
         });
         scheduleCardUpsert(next);
         if ("nextScanAddons" in data) scheduleNotesSync(next);
-      },
-
-      resetCard: (id) => {
-        const current = get().cards.find((card) => card.id === id);
-        if (!current) return;
-        get().updateCard(id, {
-          contactItemIds: [],
-          title: "",
-          headerItemId: undefined,
-          itemOrderManual: false,
-          rubricOrder: undefined,
-          rubricLabels: undefined,
-          itemZones: undefined,
-          hiddenZones: undefined,
-          nextScanAddons: [],
-        });
-        for (const itemId of current.contactItemIds) void unlinkItem(id, itemId);
       },
 
       removeCard: (id) => {
