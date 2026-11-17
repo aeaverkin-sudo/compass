@@ -1571,20 +1571,24 @@ const EditRow = memo(function EditRow({
               }}
               onTextChange={(next) => {
                 onDraftText(itemId, zoneId, next);
-                if (!next.trim()) onErase(itemId);
               }}
               breakButton={false}
               onDone={(next) => {
                 onDraftSave(itemId, zoneId);
+                if (!next.trim()) {
+                  onErase(itemId);
+                  return;
+                }
                 onConfirm(itemId, value, next);
               }}
               onBlur={(next) => {
-                if (!next.trim()) {
-                  onDraftSave(itemId, zoneId);
-                  return;
-                }
                 if (Date.now() - openedAt.current < 700) {
                   dockRef.current?.focusEnd();
+                  return;
+                }
+                if (!next.trim()) {
+                  onDraftSave(itemId, zoneId);
+                  onErase(itemId);
                   return;
                 }
                 onDraftSave(itemId, zoneId);
