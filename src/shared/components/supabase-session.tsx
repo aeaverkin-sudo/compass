@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { isAuthRetryableFetchError } from "@supabase/auth-js";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
@@ -131,16 +131,21 @@ function isCameraCard(path: string) {
 /** Opens an anonymous Supabase session on a new device. Renders nothing. */
 export function SupabaseSession() {
   const pathname = usePathname();
+  const stopSession = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     syncBrowserRefresh();
   }, [pathname]);
 
   useEffect(() => {
+    if (stopSession.current) return;
+    // A public card must not touch the login. Leaving it is an ordinary page,
+    // so the session starts once, the same way it does on a direct visit.
     if (isCameraCard(window.location.pathname)) {
       markSessionBootstrapComplete();
       return;
     }
+    stopSession.current = () => {};
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -159,6 +164,9 @@ export function SupabaseSession() {
       console.info("[supabase] registered session ended");
       sendRegisteredDeviceToSignIn();
     });
+    stopSession.current = () => {
+      authListener.subscription.unsubscribe();
+    };
 
     void (async () => {
       let googleAnswer: boolean | null = null;
@@ -207,9 +215,10 @@ export function SupabaseSession() {
       }
     })();
 
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+  }, [pathname]);
+
+  useEffect(() => {
+    return () => stopSession.current?.();
   }, []);
 
   return null;
