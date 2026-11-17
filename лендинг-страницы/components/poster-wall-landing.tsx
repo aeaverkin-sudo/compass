@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { AdedWordmark } from "@/shared/components/aded-wordmark";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
@@ -72,7 +71,7 @@ const CSS = `
   radial-gradient(135% 105% at 50% 46%, rgba(0,0,0,0) 38%, rgba(22,16,11,.34) 100%),
   linear-gradient(rgba(0,0,0,.26), rgba(0,0,0,0) 14%);}
 .pw-cta{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;justify-content:center;padding:4vw 0 calc(5vw + env(safe-area-inset-bottom));background:linear-gradient(rgba(183,180,174,0), rgba(183,180,174,.55));pointer-events:none;}
-.pw-go{position:fixed;left:8vw;bottom:calc(5vw + env(safe-area-inset-bottom));z-index:51;box-sizing:border-box;pointer-events:auto;display:block;width:84vw;background:#8ecae6;color:#fff;text-align:center;padding:4.6vw;font-size:4.4vw;font-weight:800;letter-spacing:.03em;text-decoration:none;box-shadow:0 1vw 3vw -.5vw rgba(0,0,0,.3);}
+.pw-go{position:fixed;left:8vw;bottom:calc(5vw + env(safe-area-inset-bottom));z-index:51;box-sizing:border-box;pointer-events:auto;display:block;width:84vw;margin:0;border:0;background:#8ecae6;color:#fff;text-align:center;padding:4.6vw;font-family:inherit;font-size:4.4vw;font-weight:800;letter-spacing:.03em;line-height:normal;text-decoration:none;cursor:pointer;-webkit-appearance:none;appearance:none;box-shadow:0 1vw 3vw -.5vw rgba(0,0,0,.3);}
 .pw-about{position:fixed;top:calc(5vw + env(safe-area-inset-top));right:8vw;z-index:51;box-sizing:border-box;display:flex;align-items:center;justify-content:center;height:9vw;margin:0;padding:0 3.6vw;border:0;background:#8ecae6;color:#fff;font-family:inherit;font-size:3.6vw;font-weight:800;letter-spacing:.03em;line-height:1;text-transform:uppercase;cursor:pointer;-webkit-appearance:none;appearance:none;box-shadow:0 1vw 3vw -.5vw rgba(0,0,0,.3);}
 .pw-about::before{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%);}
 .pw-sheet{position:fixed;inset:0;z-index:60;background:#fff;color:#141210;}
@@ -758,21 +757,20 @@ export function PosterWallLanding() {
             Close
           </button>
           <div className="pw-sheet-fade" />
-          <Link href={entry ?? "/create"} className="pw-go" onClick={openPortfolio}>
+          <button type="button" className="pw-go" onClick={openPortfolio} onPointerDown={(event) => event.stopPropagation()}>
             GET YOUR PORTFOLIO
-          </Link>
+          </button>
         </div>
       ) : (
         <button type="button" className="pw-about" onClick={openAbout} onPointerDown={(event) => event.stopPropagation()}>
           About
         </button>
       )}
+      {about ? null : <div className="pw-cta" />}
       {about ? null : (
-        <div className="pw-cta">
-          <Link href={entry ?? "/create"} className="pw-go" onClick={openPortfolio}>
-            GET YOUR PORTFOLIO
-          </Link>
-        </div>
+        <button type="button" className="pw-go" onClick={openPortfolio} onPointerDown={(event) => event.stopPropagation()}>
+          GET YOUR PORTFOLIO
+        </button>
       )}
     </div>
   );
