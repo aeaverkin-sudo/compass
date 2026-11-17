@@ -576,7 +576,10 @@ export function EntryPage({
           )}
         </>
       )}
-      <div style={frame} className={formOpen ? undefined : "hidden"}>
+      <div
+        style={frame}
+        className={[!formOpen && "hidden", !account && "pt-[18px]"].filter(Boolean).join(" ") || undefined}
+      >
       <div className={PAD} onFocusCapture={acceptSuggestedName}>
         {telegram ? (
           <p className="mb-[18px] t-meta text-[var(--grey)]">
