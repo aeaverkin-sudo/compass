@@ -43,18 +43,17 @@ const CYRILLIC: Record<string, string> = {
 
 const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
 
-/** An address already given out, or a new `code-slug`. Nothing else. */
-export const HANDLE_RE =
-  /^(?:[a-z0-9]+(?:-[0-9]+)?|(?=[abcdefghjkmnpqrstuvwxyz23456789]*[a-z])(?=[abcdefghjkmnpqrstuvwxyz23456789]*[23456789])[abcdefghjkmnpqrstuvwxyz23456789]{3}-[a-z0-9]+)$/;
+/** A new address: 7 signs now, 3 already given out. A letter and a digit, then a slug. */
+const CODED_HANDLE = `(?=[${CODE_ALPHABET}]*[a-z])(?=[${CODE_ALPHABET}]*[23456789])([${CODE_ALPHABET}]{7}|[${CODE_ALPHABET}]{3})-([a-z0-9]+)`;
 
-/** `k7m-sergeyivanov` is a new address. `anna` and `anna-2` are not: the code is the first three signs. */
+/** An address already given out, or a `code-slug`. Nothing else. */
+export const HANDLE_RE = new RegExp(`^(?:[a-z0-9]+(?:-[0-9]+)?|${CODED_HANDLE})$`);
+
+const CODED_HANDLE_RE = new RegExp(`^${CODED_HANDLE}$`);
+
+/** `k7m2n4p-sergeyivanov` is a new address. `anna` and `anna-2` are not. */
 export function splitCodedHandle(handle: string): { code: string; slug: string } | null {
-  const match = handle
-    .trim()
-    .toLowerCase()
-    .match(
-      /^(?=[abcdefghjkmnpqrstuvwxyz23456789]*[a-z])(?=[abcdefghjkmnpqrstuvwxyz23456789]*[23456789])([abcdefghjkmnpqrstuvwxyz23456789]{3})-([a-z0-9]+)$/,
-    );
+  const match = handle.trim().toLowerCase().match(CODED_HANDLE_RE);
   if (!match) return null;
   return { code: match[1], slug: match[2] };
 }
@@ -68,10 +67,11 @@ function randomCodeChar(): string {
   }
 }
 
-/** Three signs. Always one letter and one digit, so the address cannot spell a section of the site. */
+/** Seven signs. Always one letter and one digit, so the address cannot spell a section of the site. */
 export function handleCode(): string {
   for (;;) {
-    const code = randomCodeChar() + randomCodeChar() + randomCodeChar();
+    let code = "";
+    for (let index = 0; index < 7; index += 1) code += randomCodeChar();
     if (/[a-z]/.test(code) && /[23456789]/.test(code)) return code;
   }
 }

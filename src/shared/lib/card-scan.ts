@@ -45,7 +45,9 @@ export function cardLinkFromScan(text: string, origin: string): ScannedCard | nu
   }
   const token = path.match(/^\/c\/([^/]+)\/?$/)?.[1];
   if (token && TOKEN_RE.test(token)) return { token };
-  const coded = path.match(/^\/([abcdefghjkmnpqrstuvwxyz23456789]{3})\/@([^/]+)\/?$/i);
+  const coded = path.match(
+    /^\/((?:[abcdefghjkmnpqrstuvwxyz23456789]{7}|[abcdefghjkmnpqrstuvwxyz23456789]{3}))\/@([^/]+)\/?$/i,
+  );
   if (coded) {
     const handle = `${coded[1].toLowerCase()}-${coded[2].toLowerCase()}`;
     if (HANDLE_RE.test(handle)) return { handle };

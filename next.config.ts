@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source:
-          "/:code((?=[abcdefghjkmnpqrstuvwxyz23456789]*[a-z])(?=[abcdefghjkmnpqrstuvwxyz23456789]*[23456789])[abcdefghjkmnpqrstuvwxyz23456789]{3})/@:slug([a-z0-9]+)",
+          "/:code((?=[abcdefghjkmnpqrstuvwxyz23456789]*[a-z])(?=[abcdefghjkmnpqrstuvwxyz23456789]*[23456789])(?:[abcdefghjkmnpqrstuvwxyz23456789]{7}|[abcdefghjkmnpqrstuvwxyz23456789]{3}))/@:slug([a-z0-9]+)",
         destination: "/c/h/:code-:slug",
       },
       { source: "/@:handle", destination: "/c/h/:handle" },

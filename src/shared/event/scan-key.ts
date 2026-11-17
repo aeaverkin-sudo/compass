@@ -35,7 +35,9 @@ export function scanKeyFromQr(text: string): ScanKey | null {
   const badge = segment(path.match(/\/b\/([^/]+)\/?$/)?.[1]);
   if (badge && TOKEN.test(badge)) return { kind: "badge", token: badge };
 
-  const coded = path.match(/^\/([abcdefghjkmnpqrstuvwxyz23456789]{3})\/(?:@|%40)([^/]+)\/?$/i);
+  const coded = path.match(
+    /^\/((?:[abcdefghjkmnpqrstuvwxyz23456789]{7}|[abcdefghjkmnpqrstuvwxyz23456789]{3}))\/(?:@|%40)([^/]+)\/?$/i,
+  );
   if (coded) {
     const slug = segment(coded[2])?.replace(/^@/, "").toLowerCase() ?? "";
     const handle = `${coded[1].toLowerCase()}-${slug}`;

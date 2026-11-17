@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { cache } from "react";
 import { unstable_noStore as noStore } from "next/cache";
-import { HANDLE_RE } from "@/shared/services/card-handle";
+import { HANDLE_RE, splitCodedHandle } from "@/shared/services/card-handle";
 import type { Card, ContactItem, ContactType } from "@/shared/types";
 import { asCardStatus } from "@/shared/lib/card-status";
 import { shownPhotoLook, photoLookValue } from "@/shared/lib/photo-look";
@@ -110,6 +110,25 @@ export const loadPublicCardByHandle = cache(async (handle: string): Promise<Publ
   const row = await selectPublicRow("handle", key);
   if (!row?.public_token) return null;
   return loadPublicCard(row.public_token);
+});
+
+/**
+ * The card whose coded address starts with this code. Exact handle wins elsewhere.
+ * None, or more than one, is no card: the old address then says it is gone.
+ */
+export const loadPublicCardByCode = cache(async (code: string): Promise<PublicCard | null> => {
+  noStore();
+  const key = code.trim().toLowerCase();
+  if (splitCodedHandle(`${key}-a`)?.code !== key) return null;
+  const admin = createAdminSupabaseClient();
+  const loaded = await admin.from("cards").select("public_token, handle").ilike("handle", `${key}-%`).limit(2);
+  if (loaded.error) {
+    if (/handle|column|schema/i.test(loaded.error.message)) return null;
+    throw new Error(loaded.error.message);
+  }
+  const rows = (loaded.data ?? []).filter((row) => splitCodedHandle(String(row.handle ?? ""))?.code === key);
+  if (rows.length !== 1 || !rows[0]?.public_token) return null;
+  return loadPublicCard(rows[0].public_token);
 });
 
 export const loadPublicCard = cache(async (token: string): Promise<PublicCard | null> => {
