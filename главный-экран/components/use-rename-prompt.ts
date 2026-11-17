@@ -99,16 +99,6 @@ export function useRenamePrompt() {
     [askedId, updateCard],
   );
 
-  const cancel = useCallback(() => {
-    const snap = snapRef.current;
-    leaveRef.current = null;
-    sawWallet.current = false;
-    setOpen(false);
-    if (!snap) return;
-    const card = useAppStore.getState().cards.find((entry) => entry.id === snap.cardId);
-    if (card && card.displayName !== snap.name) updateCard(snap.cardId, { displayName: snap.name });
-  }, [updateCard]);
-
   const reset = useCallback(() => {
     snapRef.current = null;
     leaveRef.current = null;
@@ -130,7 +120,6 @@ export function useRenamePrompt() {
     takeSnap,
     revealPlaque,
     apply,
-    cancel,
     reset,
     pending,
   };

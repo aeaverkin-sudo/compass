@@ -198,7 +198,6 @@ export function MainScreen() {
     takeSnap,
     revealPlaque,
     apply: applyRename,
-    cancel: cancelRename,
     reset: resetRename,
     pending: renamePending,
   } = useRenamePrompt();
@@ -670,7 +669,6 @@ export function MainScreen() {
           open={renameOpen}
           onYes={() => applyRename(true)}
           onNo={() => applyRename(false)}
-          onCancel={cancelRename}
           onWalletLine={markRenameWallet}
         />
       ) : null}

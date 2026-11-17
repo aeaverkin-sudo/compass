@@ -1,23 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cachedWalletStatus, watchWalletLine } from "@/shared/lib/wallet-client";
 
-/** Shown when a portfolio that already has a link is renamed. Tap outside restores the name. */
+/** Shown when a portfolio that already has a link is renamed. Only Yes or No closes it. */
 export function PortfolioRenameDialog({
   cardId,
   open,
   onYes,
   onNo,
-  onCancel,
   onWalletLine,
 }: {
   cardId: string;
   open: boolean;
   onYes: () => void;
   onNo: () => void;
-  onCancel: () => void;
   onWalletLine?: () => void;
 }) {
   if (!open) return null;
@@ -27,7 +25,6 @@ export function PortfolioRenameDialog({
       cardId={cardId}
       onYes={onYes}
       onNo={onNo}
-      onCancel={onCancel}
       onWalletLine={onWalletLine}
     />
   );
@@ -37,16 +34,13 @@ function PortfolioRenameBody({
   cardId,
   onYes,
   onNo,
-  onCancel,
   onWalletLine,
 }: {
   cardId: string;
   onYes: () => void;
   onNo: () => void;
-  onCancel: () => void;
   onWalletLine?: () => void;
 }) {
-  const chosen = useRef(false);
   const [inWallet, setInWallet] = useState<boolean | undefined>(() => cachedWalletStatus(cardId));
   useEffect(() => {
     if (inWallet !== undefined) return;
@@ -56,22 +50,10 @@ function PortfolioRenameBody({
     if (inWallet) onWalletLine?.();
   }, [inWallet, onWalletLine]);
 
-  const choose = (yes: boolean) => {
-    chosen.current = true;
-    if (yes) onYes();
-    else onNo();
-  };
-
   if (inWallet === undefined) return null;
 
   return (
-    <Dialog.Root
-      open
-      onOpenChange={(next) => {
-        if (next || chosen.current) return;
-        onCancel();
-      }}
-    >
+    <Dialog.Root open>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-transparent" />
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-max max-w-[min(100%-48px,280px)] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center outline-none">
@@ -87,10 +69,10 @@ function PortfolioRenameBody({
             <Dialog.Description className="sr-only">Keep old links and QR codes working?</Dialog.Description>
           )}
           <div className="mt-3 flex justify-center gap-6">
-            <button type="button" className="t-body text-[var(--ink)]" onClick={() => choose(true)}>
+            <button type="button" className="t-body text-[var(--ink)]" onClick={onYes}>
               Yes
             </button>
-            <button type="button" className="t-body text-[var(--grey)]" onClick={() => choose(false)}>
+            <button type="button" className="t-body text-[var(--grey)]" onClick={onNo}>
               No
             </button>
           </div>
