@@ -300,7 +300,7 @@ export function PublicCardClient({
   if (inside) {
     return (
       <div
-        className="flex h-full min-h-0 flex-col bg-white"
+        className="card-scroll-spring flex h-full min-h-0 flex-col bg-white"
         style={
           {
             "--card-frame-top": "84px",
@@ -346,7 +346,7 @@ export function PublicCardClient({
       ) : null}
       {pdfSheets}
       <div
-        className="min-h-0 flex-1 overflow-hidden"
+        className="card-scroll-spring min-h-0 flex-1 overflow-hidden"
         style={{ paddingLeft: webSheetSide, paddingRight: webSheetSide }}
       >
         {sheet}

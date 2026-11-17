@@ -354,8 +354,9 @@ body {
   scrollbar-width: none;
 }
 
-/* A short opened contact is one pixel past the body, so the pull can spring back. */
-.contact-card .compass-card-scroll > div {
+/* A short opened card is one pixel past the body, so the pull can spring back. */
+.contact-card .compass-card-scroll > div,
+.card-scroll-spring .compass-card-scroll > div {
   min-height: calc(100% + 1px);
   flex-shrink: 0;
 }
