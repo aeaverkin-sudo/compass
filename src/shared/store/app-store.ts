@@ -304,13 +304,12 @@ export const useAppStore = create<AppState>()(
         const current = get().cards.find((card) => card.id === id);
         if (!current) return;
 
-        const nameChanged = data.displayName !== undefined && data.displayName.trim() !== current.displayName.trim();
         const patch: Partial<Card> =
           "photoLook" in data && data.photoLook == null ? { ...data, photoLook: "plain" } : data;
         const next = assignHandle(
           ensureCardIdentity({ ...current, ...patch, updatedAt: now }),
           get().cards,
-          nameChanged || !current.handle?.trim(),
+          !current.handle?.trim(),
         );
         set({
           cards: get().cards.map((card) => (card.id === id ? next : card)),

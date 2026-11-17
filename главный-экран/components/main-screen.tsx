@@ -11,6 +11,7 @@ import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { groupEditSections } from "@/shared/services/card-zones";
+import { handleAfterRename } from "@/shared/services/card-handle";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import { registeredSession } from "@/shared/lib/session-bootstrap";
 import {
@@ -22,6 +23,7 @@ import { CardCarousel } from "./card-carousel";
 import { EventPassFooter } from "./event-pass-footer";
 import { QrZone } from "./qr-zone";
 import { PortfolioDeleteDialog } from "./portfolio-delete";
+import { PortfolioRenameDialog } from "./portfolio-rename";
 import { RAIL_ICON_SCALE, SideRail } from "./side-rail";
 import { MARK_VISIBLE_PX } from "@/shared/components/mark-plus";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
@@ -168,6 +170,9 @@ export function MainScreen() {
   const [composeOnMount, setComposeOnMount] = useState(false);
   const [openZone, setOpenZone] = useState<string | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const nameAtEdit = useRef<{ cardId: string; name: string; hadHandle: boolean } | null>(null);
+  const leaveAfterRename = useRef<(() => void) | null>(null);
   const openAddRef = useRef<(() => void) | null>(null);
   const draftStarted = useRef(false);
   const [composing, setComposing] = useState(false);
@@ -194,6 +199,17 @@ export function MainScreen() {
       sectionId: same?.sectionId ?? null,
       rowText: same?.rowText ?? null,
     });
+  }, []);
+
+  const noteEditName = useCallback((cardId: string | undefined) => {
+    if (!cardId) return;
+    if (editingRef.current && nameAtEdit.current?.cardId === cardId) return;
+    const card = useAppStore.getState().cards.find((entry) => entry.id === cardId);
+    nameAtEdit.current = {
+      cardId,
+      name: card?.displayName ?? "",
+      hadHandle: Boolean(card?.handle?.trim()),
+    };
   }, []);
 
   const frameRef = useRef<HTMLElement>(null);
@@ -289,14 +305,18 @@ export function MainScreen() {
     }
     setCurrentCardIndex(index);
     setBrowseIndex(index);
+    noteEditName(place.cardId);
     setEditing(true);
-  }, [cardsHydrated, setCurrentCardIndex]);
+  }, [cardsHydrated, noteEditName, setCurrentCardIndex]);
 
   useEffect(() => {
     if (!cardsHydrated) return;
     if (!activeId) {
       setEditing(false);
       setComposeOnMount(false);
+      nameAtEdit.current = null;
+      leaveAfterRename.current = null;
+      setRenameOpen(false);
     }
   }, [activeId, cardsHydrated]);
 
@@ -380,6 +400,7 @@ export function MainScreen() {
   const addToPass = useCallback((cardId: string) => {
     markPassAddHintSeen();
     const index = useAppStore.getState().cards.findIndex((entry) => entry.id === cardId);
+    noteEditName(cardId);
     flushSync(() => {
       if (index >= 0) setCurrentCardIndex(index);
       setComposeOnMount(false);
@@ -387,7 +408,7 @@ export function MainScreen() {
     });
     rememberEdit(cardId);
     setComposeOnMount(true);
-  }, [markPassAddHintSeen, rememberEdit, setCurrentCardIndex]);
+  }, [markPassAddHintSeen, noteEditName, rememberEdit, setCurrentCardIndex]);
 
   const onProfile = useCallback(() => {
     startTransition(() => router.push("/profile"));
@@ -396,20 +417,60 @@ export function MainScreen() {
     startTransition(() => router.push("/network"));
   }, [router]);
   const onRemove = useCallback(() => setRemoveOpen(true), []);
+  const endEdit = useCallback(() => {
+    setComposeOnMount(false);
+    setOpenZone(null);
+    clearFillPlace();
+    setEditing(false);
+    nameAtEdit.current = null;
+  }, []);
+  const finishEdit = useCallback((leave: () => void) => {
+    if (leaveAfterRename.current) return;
+    const snap = nameAtEdit.current;
+    const { cards, currentCardIndex: index } = useAppStore.getState();
+    const card = cards[index];
+    if (snap && card && card.id === snap.cardId && snap.hadHandle && card.displayName.trim() !== snap.name.trim()) {
+      leaveAfterRename.current = leave;
+      setRenameOpen(true);
+      return;
+    }
+    nameAtEdit.current = null;
+    leave();
+  }, []);
+  const applyRename = useCallback(
+    (keepCode: boolean) => {
+      const leave = leaveAfterRename.current;
+      leaveAfterRename.current = null;
+      setRenameOpen(false);
+      const { cards, currentCardIndex: index } = useAppStore.getState();
+      const card = cards[index];
+      if (card?.handle?.trim()) {
+        const handle = handleAfterRename(card, cards, keepCode);
+        if (handle && handle !== card.handle.trim().toLowerCase()) updateCard(card.id, { handle });
+      }
+      nameAtEdit.current = null;
+      leave?.();
+    },
+    [updateCard],
+  );
+  const cancelRename = useCallback(() => {
+    const snap = nameAtEdit.current;
+    leaveAfterRename.current = null;
+    setRenameOpen(false);
+    if (!snap) return;
+    const card = useAppStore.getState().cards.find((entry) => entry.id === snap.cardId);
+    if (card && card.displayName !== snap.name) updateCard(snap.cardId, { displayName: snap.name });
+  }, [updateCard]);
   const onDone = useCallback(() => {
-    setComposeOnMount(false);
-    setOpenZone(null);
-    clearFillPlace();
-    setEditing(false);
-  }, []);
+    finishEdit(endEdit);
+  }, [endEdit, finishEdit]);
   const leaveEdit = useCallback(() => {
-    setComposeOnMount(false);
-    setOpenZone(null);
-    setComposing(false);
-    setRemoveOpen(false);
-    clearFillPlace();
-    setEditing(false);
-  }, []);
+    finishEdit(() => {
+      setComposing(false);
+      setRemoveOpen(false);
+      endEdit();
+    });
+  }, [endEdit, finishEdit]);
   const onEdit = useCallback(() => {
     if (editTapBlocked()) return;
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
@@ -421,11 +482,12 @@ export function MainScreen() {
       updateSecondCardDraft({ displayName: "" }, portfolioLimit);
     }
     const cardId = useAppStore.getState().cards[useAppStore.getState().currentCardIndex]?.id;
+    noteEditName(cardId);
     setComposeOnMount(false);
     setOpenZone(null);
     setEditing(true);
     if (cardId) rememberEdit(cardId);
-  }, [needsAccount, portfolioLimit, rememberEdit, showGate, updateSecondCardDraft]);
+  }, [needsAccount, noteEditName, portfolioLimit, rememberEdit, showGate, updateSecondCardDraft]);
   const onAdd = useCallback(() => {
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
     if (needsAccount && !liveCards[index]) {
@@ -446,9 +508,10 @@ export function MainScreen() {
       setOpenZone(null);
       setComposeOnMount(!liveItems.some(isContactFilled));
     }
+    noteEditName(cardId);
     setEditing(true);
     rememberEdit(cardId);
-  }, [markEmptyFillHintSeen, rememberEdit, setCurrentCardIndex]);
+  }, [markEmptyFillHintSeen, noteEditName, rememberEdit, setCurrentCardIndex]);
   const onActiveIndexChange = useCallback((index: number) => {
     setBrowseIndex(index);
     if (index < useAppStore.getState().cards.length) setCurrentCardIndex(index);
@@ -588,7 +651,16 @@ export function MainScreen() {
       />
 
       {editing && activeId ? (
-        <DeleteSlot cardId={activeId} open={removeOpen} onOpenChange={setRemoveOpen} />
+        <>
+          <DeleteSlot cardId={activeId} open={removeOpen} onOpenChange={setRemoveOpen} />
+          <PortfolioRenameDialog
+            cardId={activeId}
+            open={renameOpen}
+            onYes={() => applyRename(true)}
+            onNo={() => applyRename(false)}
+            onCancel={cancelRename}
+          />
+        </>
       ) : null}
 
       {gateNonce !== null ? <GateNotice nonce={gateNonce} onDone={clearGate} /> : null}

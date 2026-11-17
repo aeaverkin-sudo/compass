@@ -95,7 +95,7 @@ export function slugFromName(name: string): string {
 
 /**
  * Fill `handle` from the display name.
- * An existing handle stays until the name changes (`refresh`). A new one is `code-slug`.
+ * An existing handle stays unless `refresh` is set. A new one is `code-slug`.
  */
 export function assignHandle(card: Card, cards: Card[], refresh = false): Card {
   if (!refresh && card.handle?.trim()) return card;
@@ -110,6 +110,32 @@ export function assignHandle(card: Card, cards: Card[], refresh = false): Card {
   let handle = codedHandle(base);
   for (let attempt = 1; taken.has(handle) && attempt < 8; attempt += 1) handle = codedHandle(base);
   return handle === card.handle ? card : { ...card, handle };
+}
+
+function handleTaken(cards: Card[], cardId: string, handle: string): boolean {
+  return cards.some((other) => other.id !== cardId && other.handle?.trim().toLowerCase() === handle);
+}
+
+/**
+ * The handle after a confirmed rename.
+ * Keeping the code uses the slug of the new name, so an old coded address still opens.
+ * A plain `/@name` has no code: keeping it is what leaves that address working.
+ * Not keeping it is a new code and a new slug. A name with no letters leaves the handle as it is.
+ */
+export function handleAfterRename(card: Card, cards: Card[], keepCode: boolean): string | undefined {
+  const current = card.handle?.trim().toLowerCase();
+  if (!current) return undefined;
+  const base = slugFromName(card.displayName);
+  if (!base) return current;
+  if (keepCode) {
+    const parts = splitCodedHandle(current);
+    if (!parts) return current;
+    const handle = `${parts.code}-${base}`;
+    if (handle === current || handleTaken(cards, card.id, handle)) return current;
+    return handle;
+  }
+  const next = assignHandle(card, cards, true);
+  return next.handle?.trim().toLowerCase() || current;
 }
 
 export function handlesForCards(cards: Card[], refresh = false): Card[] {
