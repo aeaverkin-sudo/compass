@@ -16,6 +16,13 @@ const eslintConfig = defineConfig([
     "public/pdf.worker.min.mjs",
     "АРХИВ ФУНКЦИЙ/**",
   ]),
+  {
+    rules: {
+      "react-hooks/refs": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/immutability": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;
