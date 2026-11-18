@@ -40,7 +40,12 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 export function isAccountEmail(value: string) {
   return EMAIL.test(value.trim());
 }
-const PHONE = /^\+?[\d\s()-]{7,}$/;
+/** A phone is 7 to 15 digits. Spaces, brackets and dashes do not count. + may only be first. */
+function isPhone(value: string) {
+  if (!/^\+?[\d\s()-]+$/.test(value)) return false;
+  const digits = value.replace(/\D/g, "").length;
+  return digits >= 7 && digits <= 15;
+}
 const PREFIX = /^([a-z][a-z0-9]*):(.+)$/i;
 const BARE_HANDLE = /^@([a-z0-9._]{1,30})$/i;
 
@@ -157,7 +162,7 @@ export function detectContactType(raw: string, zone?: string): ContactType {
   if (dataType) return dataType;
 
   if (EMAIL.test(value)) return "email";
-  if (PHONE.test(value)) return "phone";
+  if (isPhone(value)) return "phone";
 
   const shortcut = parseTypedShortcut(value, zone);
   if (shortcut) return shortcut.type;
