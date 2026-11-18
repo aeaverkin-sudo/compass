@@ -136,7 +136,6 @@ export function EntryPage({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailMarked, setEmailMarked] = useState(false);
-  const [zonesReady, setZonesReady] = useState(false);
   const formFirst = account || Boolean(input.event) || !SOCIAL_SIGNIN;
   const [formChoice, setFormChoice] = useState<boolean | null>(null);
   const formBack = useSyncExternalStore(
@@ -156,8 +155,8 @@ export function EntryPage({
   const [passwordValue, setPasswordValue] = useState<string | null>(null);
   const passwordShown = passwordValue ?? "";
   const ready = account
-    ? Boolean(name.trim() && zonesReady && (!needsConsent || agreed))
-    : Boolean(agreed && name.trim() && isAccountEmail(email) && passwordShown.length >= PASSWORD_MIN && zonesReady);
+    ? Boolean(name.trim() && (!needsConsent || agreed))
+    : Boolean(agreed && name.trim() && isAccountEmail(email) && passwordShown.length >= PASSWORD_MIN);
   const frame = { paddingLeft: sidePad, paddingRight: sidePad };
 
   const fields = useRef({ name, email, password: passwordShown, agreed });
@@ -631,8 +630,6 @@ export function EntryPage({
           ref={zonesRef}
           onChange={() => {
             flushPlace();
-            const next = zonesRef.current?.requiredFilled() ?? false;
-            setZonesReady((current) => (current === next ? current : next));
           }}
         />
       </div>

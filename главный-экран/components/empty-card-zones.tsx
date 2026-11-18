@@ -4,12 +4,11 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
-import { RequiredStar } from "@/app/create/entry-zones";
 
 const HEAD = [
-  { id: "position", title: "Position", hint: "What you do", star: true },
-  { id: "company", title: "Company", hint: "Company. Business name", star: true },
-  { id: "contact", title: "Contacts", hint: "Phone, messenger, mail", star: true },
+  { id: "position", title: "Position", hint: "What you do" },
+  { id: "company", title: "Company", hint: "Company. Business name" },
+  { id: "contact", title: "Contacts", hint: "Phone, messenger, mail" },
 ] as const;
 
 const FOLDED = [
@@ -46,7 +45,6 @@ export function EmptyCardZones({ onPick }: { onPick: (zoneId: string) => void })
             onClick={() => onPick(zone.id)}
           >
             {zone.hint}
-            {"star" in zone && zone.star ? <RequiredStar /> : null}
           </button>
         </section>
       ))}

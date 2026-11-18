@@ -61,9 +61,8 @@ export function AddPortfolioSlide({
     const zones = zonesRef.current;
     if (!zones) return;
     const nameMissing = !name.trim();
-    const zoneMissing = zones.markMissing();
     setNameMarked(nameMissing);
-    if (nameMissing || zoneMissing) return;
+    if (nameMissing) return;
     if (zones.markProblems()) return;
 
     creating.current = true;

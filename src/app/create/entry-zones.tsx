@@ -47,7 +47,6 @@ const STARTERS: EntryZone[] = [
 
 const FIRST = ["position", "company", "contact"] as const;
 const FOLDED = ["web", "social", "files", "about"] as const;
-const REQUIRED = new Set<string>(["position", "company", "contact"]);
 
 const HINTS: Record<string, string> = {
   position: "What you do",
@@ -80,12 +79,8 @@ export type EntryZonesHandle = {
   }) => void;
   /** Paints refused values and returns the first one. `seed:` is an open line. */
   markProblems: () => string | null;
-  /** Position, Company, and Contacts each have something typed. */
-  requiredFilled: () => boolean;
   /** Open the first of 01–03 that has no text, the same way a tap on its hint does. */
   focusFirstEmpty: () => void;
-  /** Paint empty Position, Company, and Contacts. The questionnaire does not call this. */
-  markMissing: () => string | null;
   /** Live rows, including a file that has not been uploaded. The questionnaire does not call this. */
   lines: () => { id: string; rows: EntryRow[] }[];
 };
@@ -222,7 +217,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const [armed, setArmed] = useState<string | null>(null);
   const [headerKey, setHeaderKey] = useState<string | null>(null);
   const [marked, setMarked] = useState<ReadonlySet<string>>(() => new Set());
-  const [missing, setMissing] = useState<ReadonlySet<string>>(() => new Set());
   const [moreOpen, setMoreOpen] = useState(false);
   const zonesRef = useRef(zones);
   const headerRef = useRef<string | null>(null);
@@ -311,12 +305,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         }
         return first;
       },
-      requiredFilled: () =>
-        FIRST.every((id) => {
-          const zone = zonesRef.current.find((entry) => entry.id === id);
-          if (!zone) return false;
-          return zoneHasText(zone, seedIdRef.current, seedTextRef.current, editKeyRef.current, editTextRef.current);
-        }),
       focusFirstEmpty: () => {
         const id = FIRST.find((zoneId) => {
           const zone = zonesRef.current.find((entry) => entry.id === zoneId);
@@ -332,15 +320,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         setSeedId(id);
         setSeedText("");
       },
-      markMissing: () => {
-        const open = FIRST.filter((zoneId) => {
-          const zone = zonesRef.current.find((entry) => entry.id === zoneId);
-          if (!zone) return true;
-          return !zoneHasText(zone, seedIdRef.current, seedTextRef.current, editKeyRef.current, editTextRef.current);
-        });
-        setMissing(new Set(open));
-        return open[0] ?? null;
-      },
       lines: () => zonesRef.current.map((zone) => ({ id: zone.id, rows: zone.rows })),
     }),
     [],
@@ -349,19 +328,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   useEffect(() => {
     onChangeRef.current?.();
   }, [zones, editKey, editText, seedId, seedText, headerKey]);
-
-  useEffect(() => {
-    setMissing((current) => {
-      if (current.size === 0) return current;
-      const next = new Set(
-        [...current].filter((zoneId) => {
-          const zone = zonesRef.current.find((entry) => entry.id === zoneId);
-          return !zone || !zoneHasText(zone, seedIdRef.current, seedTextRef.current, editKeyRef.current, editTextRef.current);
-        }),
-      );
-      return next.size === current.size ? current : next;
-    });
-  }, [zones, editText, seedText]);
 
   useEffect(() => {
     if (!armed) return;
@@ -663,12 +629,9 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                     {zone.rows.length === 0 && !seedText.trim() ? (
                       <span
                         aria-hidden
-                        className={cn(
-                          "pointer-events-none absolute inset-x-0 top-0 t-body",
-                          missing.has(zone.id) ? "text-[#E23B2F]" : "text-[var(--placeholder)]",
-                        )}
+                        className="pointer-events-none absolute inset-x-0 top-0 t-body text-[var(--placeholder)]"
                       >
-                        <HintLine text={hint} star={REQUIRED.has(zone.id)} />
+                        <HintLine text={hint} />
                       </span>
                     ) : null}
                     <Field
@@ -687,17 +650,14 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
               ) : zone.rows.length === 0 ? (
                 <button
                   type="button"
-                  className={cn(
-                    "t-body min-h-11 w-full border-0 bg-transparent p-0 text-left",
-                    missing.has(zone.id) ? "text-[#E23B2F]" : "text-[var(--placeholder)]",
-                  )}
+                  className="t-body min-h-11 w-full border-0 bg-transparent p-0 text-left text-[var(--placeholder)]"
                   onClick={() => {
                     focusValue.current = true;
                     setSeedId(zone.id);
                     setSeedText("");
                   }}
                 >
-                  <HintLine text={hint} star={REQUIRED.has(zone.id)} />
+                  <HintLine text={hint} />
                 </button>
               ) : (
                 <button
@@ -749,13 +709,8 @@ export function RequiredStar({ className }: { className?: string }) {
   );
 }
 
-function HintLine({ text, star }: { text: string; star: boolean }) {
-  return (
-    <>
-      {text}
-      {star ? <RequiredStar /> : null}
-    </>
-  );
+function HintLine({ text }: { text: string }) {
+  return text;
 }
 
 function MoreRow({ open, onToggle }: { open: boolean; onToggle: () => void }) {
