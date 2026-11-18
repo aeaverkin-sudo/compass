@@ -77,9 +77,9 @@ function contactAddress(line: string, type: string) {
   return words.length >= 2 && (/\d/.test(line) || line.includes(","));
 }
 
-/** Latitude and longitude, split by a comma, spaces, or both. Out of range is still a pair. */
+/** Two decimals, each with a fractional part, split by a comma, spaces, or both. */
 function coordinatePair(line: string): { lat: number; lon: number } | null {
-  const match = line.match(/^(-?\d+(?:\.\d+)?)(?:\s*,\s*|\s+)(-?\d+(?:\.\d+)?)$/);
+  const match = line.match(/^(-?\d+\.\d+)(?:\s*,\s*|\s+)(-?\d+\.\d+)$/);
   if (!match) return null;
   const lat = Number(match[1]);
   const lon = Number(match[2]);
@@ -87,7 +87,23 @@ function coordinatePair(line: string): { lat: number; lon: number } | null {
   return { lat, lon };
 }
 
+/** Copied map degrees: the ° sign twice, and nothing else but digits and map marks. */
+function degreePair(line: string): { lat: number; lon: number } | "invalid" | null {
+  if ((line.match(/°/g) ?? []).length !== 2) return null;
+  if (!/^[\d.,\s'′"″NSEWnsew-]*$/u.test(line.replaceAll("°", ""))) return null;
+  const numbers = [...line.matchAll(/(-?\d+(?:\.\d+)?)°/g)];
+  if (numbers.length !== 2) return "invalid";
+  const lat = Number(numbers[0][1]);
+  const lon = Number(numbers[1][1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return "invalid";
+  return { lat, lon };
+}
+
+/** A coordinate line: null if this is not one, true when the numbers are out of range. */
 function coordinatesOutOfRange(line: string): boolean | null {
+  const degrees = degreePair(line);
+  if (degrees === "invalid") return true;
+  if (degrees) return Math.abs(degrees.lat) > 90 || Math.abs(degrees.lon) > 180;
   const pair = coordinatePair(line);
   if (!pair) return null;
   return pair.lat < -90 || pair.lat > 90 || pair.lon < -180 || pair.lon > 180;
