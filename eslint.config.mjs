@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "src/archive/**",
+    "public/pdf.worker.min.mjs",
+    "АРХИВ ФУНКЦИЙ/**",
   ]),
 ]);
 
