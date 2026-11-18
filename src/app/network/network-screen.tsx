@@ -15,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu";
+import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { recallAnswer, rememberAnswer } from "@/shared/lib/last-answer";
 import {
@@ -32,6 +33,7 @@ import { MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { RAIL_ICON_SCALE } from "@main/components/side-rail";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
+import { useAppStore } from "@/shared/store/app-store";
 import { NetworkBand } from "./network-band";
 
 type SortMode = "recent" | "alphabet";
@@ -99,6 +101,8 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const [menu, setMenu] = useState<HoldMenu | null>(null);
   const [pickUp, setPickUp] = useState(false);
   const shareCards = useNamedShareCards();
+  const cardsReady = useCardsHydrated();
+  const cardCount = useAppStore((state) => state.cards.length);
   const [notice, setNotice] = useState<string | null>(
     addedName ? `${addedName} — just added to your contacts` : null,
   );
@@ -228,6 +232,14 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const sharePhase = useShareBack(menuContact?.savedCardToken ?? "");
   const canSwap = Boolean(
     shareCards.length > 0 && menuContact && !menuContact.theyHaveMe && !menuContact.shareBackPending && sharePhase === "idle",
+  );
+  const swapLocked = Boolean(
+    cardsReady &&
+      cardCount === 0 &&
+      menuContact &&
+      !menuContact.theyHaveMe &&
+      !menuContact.shareBackPending &&
+      sharePhase === "idle",
   );
 
   const readyOwnerId = async () => {
@@ -464,7 +476,20 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                             },
                           },
                         ]
-                      : []),
+                      : swapLocked
+                        ? [
+                            {
+                              label: "Swap",
+                              tone: "grey" as const,
+                              onPress: () => {
+                                pressMenu(() => {
+                                  setMenu(null);
+                                  setNotice("Create a portfolio to swap.");
+                                });
+                              },
+                            },
+                          ]
+                        : []),
                   ]}
                 />
               </div>
