@@ -725,26 +725,19 @@ export function EntryPage({
                       className="ml-auto size-4 shrink-0 rounded-none border border-[var(--rule)] bg-white"
                     />
                   </span>
+                  {error ? <p className="m-0 t-meta text-[var(--ink)]">{error}</p> : null}
+                  <button
+                    type="submit"
+                    disabled={!ready || busy}
+                    className="press mt-[18px] w-full border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] shadow-none disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]"
+                  >
+                    Sign up
+                  </button>
                 </div>
               </section>
             </div>
           </div>
-          <div style={frame}>
-            <div className={`${PAD} flex flex-col gap-4 pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]`}>
-              {error ? <p className="m-0 t-meta text-[var(--ink)]">{error}</p> : null}
-              <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]">
-                <span />
-                <TapButton
-                  type="submit"
-                  onTap={() => void submit()}
-                  disabled={!ready || busy}
-                  className="w-full bg-sky px-[21.6px] py-[10.8px] text-center t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:text-[var(--grey)]"
-                >
-                  {busy ? "Creating…" : "Create portfolio"}
-                </TapButton>
-              </div>
-            </div>
-          </div>
+          <div className="pb-[max(24px,env(safe-area-inset-bottom))]" />
         </form>
       </main>
     );
