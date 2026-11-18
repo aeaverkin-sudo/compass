@@ -175,14 +175,40 @@ const SOCIAL_TYPES = new Set<ContactType>([
   "github",
   "behance",
   "dribbble",
+  "vimeo",
+  "soundcloud",
 ]);
 
 const LIFESTYLE_TYPES = new Set<ContactType>(["pinterest", "spotify", "applemusic"]);
 
-const CONTACT_TYPES = new Set<ContactType>(["email", "phone", "whatsapp", "telegram", "viber", "signal"]);
+const CONTACT_TYPES = new Set<ContactType>([
+  "email",
+  "phone",
+  "whatsapp",
+  "telegram",
+  "viber",
+  "signal",
+  "messenger",
+  "wechat",
+  "line",
+  "discord",
+  "kakaotalk",
+  "zalo",
+]);
 
 /** A messenger needs its name on the row. A phone number alone is indistinguishable from Phone. */
-const MESSENGER_TYPES = new Set<ContactType>(["whatsapp", "telegram", "viber", "signal"]);
+const MESSENGER_TYPES = new Set<ContactType>([
+  "whatsapp",
+  "telegram",
+  "viber",
+  "signal",
+  "messenger",
+  "wechat",
+  "line",
+  "discord",
+  "kakaotalk",
+  "zalo",
+]);
 
 const FILE_AXIS: Partial<Record<ContactType, string>> = {
   pdf: "PDF",

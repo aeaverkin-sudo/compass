@@ -169,6 +169,22 @@ function messengerPhoneFromUrl(host: string, segments: string[]): string | null 
 function handleFrom(host: string, segments: string[]): string | null {
   if (host === "youtu.be") return null;
 
+  if (host === "line.me" || host.endsWith(".line.me")) {
+    const last = segments[segments.length - 1] ?? "";
+    return cleanHandle(last.replace(/^~/, ""));
+  }
+
+  if (host === "open.kakao.com") {
+    return cleanHandle(segments[segments.length - 1] ?? "");
+  }
+
+  if (host === "discord.com" || host.endsWith(".discord.com")) {
+    if (segments[0]?.toLowerCase() === "users" && segments[1]) return cleanHandle(segments[1]);
+    return null;
+  }
+
+  if (host === "discord.gg") return cleanHandle(segments[0] ?? "");
+
   if (host === "youtube.com" || host.endsWith(".youtube.com")) {
     const at = segments.find((segment) => segment.startsWith("@"));
     if (at) return cleanHandle(at);
@@ -247,7 +263,7 @@ function prettyLink(item: ContactItem, type: ContactType) {
   if (phone) return phone;
   const handle = handleFrom(host, segments);
   if (handle) {
-    if (type === "whatsapp" || isWhatsAppHost(host)) return handle;
+    if (type === "whatsapp" || type === "zalo" || isWhatsAppHost(host)) return handle;
     return `@${handle}`;
   }
   return pathLabel(segments) ?? host;
@@ -263,6 +279,14 @@ export function autoLinkDisplay(item: ContactItem): string {
   if (item.type === "email") return item.value.replace(/^mailto:/i, "").trim();
   if (item.type === "phone") return item.value.replace(/^tel:/i, "").trim();
   if (item.type === "text" || item.type === "position") return item.value.trim();
+  if (!item.url.trim()) {
+    const handle = item.value
+      .trim()
+      .match(/^(?:wechat|weixin|discord|kakaotalk|kakao|messenger|line|zalo)\s*(?:[:/]|\s)\s*@?(.+)$/i)?.[1]
+      ?.trim()
+      .replace(/^@+/, "");
+    if (handle) return handle;
+  }
   if (!item.value.trim() && !item.url.trim()) return "";
   return prettyLink(item, item.type);
 }

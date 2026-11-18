@@ -88,6 +88,42 @@ export const PORTFOLIO_ITEM_CATALOG: CatalogEntry[] = [
     examples: ["signal +351912345678"],
   },
   {
+    category: "contact",
+    type: "messenger",
+    label: "Messenger",
+    examples: ["m.me/name"],
+  },
+  {
+    category: "contact",
+    type: "wechat",
+    label: "WeChat",
+    examples: ["WeChat name"],
+  },
+  {
+    category: "contact",
+    type: "line",
+    label: "LINE",
+    examples: ["line.me/ti/p/~name"],
+  },
+  {
+    category: "contact",
+    type: "discord",
+    label: "Discord",
+    examples: ["Discord name"],
+  },
+  {
+    category: "contact",
+    type: "kakaotalk",
+    label: "KakaoTalk",
+    examples: ["KakaoTalk name"],
+  },
+  {
+    category: "contact",
+    type: "zalo",
+    label: "Zalo",
+    examples: ["zalo.me/84901234567"],
+  },
+  {
     category: "social",
     type: "instagram",
     label: "Instagram",
@@ -170,6 +206,18 @@ export const PORTFOLIO_ITEM_CATALOG: CatalogEntry[] = [
     type: "dribbble",
     label: "Dribbble",
     examples: ["dribbble.com/designer"],
+  },
+  {
+    category: "social",
+    type: "vimeo",
+    label: "Vimeo",
+    examples: ["vimeo.com/name"],
+  },
+  {
+    category: "social",
+    type: "soundcloud",
+    label: "SoundCloud",
+    examples: ["soundcloud.com/name"],
   },
   {
     category: "lifestyle",
@@ -289,6 +337,16 @@ export const SERVICE_PREFIX_ALIASES: Readonly<Record<string, ContactType>> = {
   viber: "viber",
   вайбер: "viber",
   signal: "signal",
+  messenger: "messenger",
+  wechat: "wechat",
+  weixin: "wechat",
+  line: "line",
+  discord: "discord",
+  kakaotalk: "kakaotalk",
+  kakao: "kakaotalk",
+  zalo: "zalo",
+  vimeo: "vimeo",
+  soundcloud: "soundcloud",
   behance: "behance",
   dribbble: "dribbble",
   calendly: "calendly",
@@ -395,6 +453,22 @@ export function profileUrlForType(type: ContactType, handle: string): string | n
       const phone = messengerPhoneDigits(handle);
       return phone ? `https://signal.me/#p/+${phone}` : null;
     }
+    case "messenger": {
+      const nick = messengerUsername(handle);
+      return nick ? `https://m.me/${nick}` : null;
+    }
+    case "line": {
+      const nick = messengerUsername(handle);
+      return nick ? `https://line.me/ti/p/~${nick}` : null;
+    }
+    case "zalo": {
+      const phone = messengerPhoneDigits(handle);
+      return phone ? `https://zalo.me/${phone}` : null;
+    }
+    case "vimeo":
+      return id ? `https://vimeo.com/${id}` : null;
+    case "soundcloud":
+      return id ? `https://soundcloud.com/${id}` : null;
     case "behance":
       return `https://behance.net/${id}`;
     case "dribbble":
@@ -441,6 +515,16 @@ export const SOCIAL_DOMAIN_MAP: ReadonlyArray<[string, ContactType]> = [
   ["reddit.com", "reddit"],
   ["twitch.tv", "twitch"],
   ["signal.me", "signal"],
+  ["m.me", "messenger"],
+  ["messenger.com", "messenger"],
+  ["line.me", "line"],
+  ["vimeo.com", "vimeo"],
+  ["soundcloud.com", "soundcloud"],
+  ["on.soundcloud.com", "soundcloud"],
+  ["zalo.me", "zalo"],
+  ["discord.com", "discord"],
+  ["discord.gg", "discord"],
+  ["open.kakao.com", "kakaotalk"],
   ["invite.viber.com", "viber"],
   ["github.com", "github"],
   ["behance.net", "behance"],
@@ -593,6 +677,26 @@ export function inferAttachmentLabel(type: AttachmentContactType, filename: stri
   return defaults[type];
 }
 
+/** A pasted Google Maps or Apple Maps link. An address on its own does not become one. */
+export function isMapLink(raw: string) {
+  const value = raw.trim();
+  if (!value) return false;
+  let url: URL;
+  try {
+    url = new URL(value.startsWith("http") ? value : `https://${value}`);
+  } catch {
+    return false;
+  }
+  const host = url.hostname.replace(/^www\./, "").toLowerCase();
+  const path = url.pathname.toLowerCase();
+  if (host === "maps.apple.com" || host.endsWith(".maps.apple.com")) return true;
+  if (host === "maps.google.com" || host.endsWith(".maps.google.com")) return true;
+  if (host === "maps.app.goo.gl") return true;
+  if ((host === "google.com" || host.endsWith(".google.com")) && path.startsWith("/maps")) return true;
+  if (host === "goo.gl" && path.startsWith("/maps")) return true;
+  return false;
+}
+
 export function matchSocialDomain(hostname: string): ContactType | null {
   const host = hostname.replace(/^www\./, "").toLowerCase();
   for (const [domain, type] of SOCIAL_DOMAIN_MAP) {
@@ -657,6 +761,14 @@ export function typeLabel(type: ContactType): string {
     whatsapp: "WhatsApp",
     viber: "Viber",
     signal: "Signal",
+    messenger: "Messenger",
+    wechat: "WeChat",
+    line: "LINE",
+    discord: "Discord",
+    kakaotalk: "KakaoTalk",
+    zalo: "Zalo",
+    vimeo: "Vimeo",
+    soundcloud: "SoundCloud",
     link: "Website",
     text: "Description",
     position: "Position",

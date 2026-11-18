@@ -88,6 +88,9 @@ export function messengerCountryHint(raw: string): string | null {
   return MESSENGER_COUNTRY_HINT;
 }
 
+/** A nick or a +number after the name, even when the service has no profile link. */
+const NICK_MESSENGERS = new Set<ContactType>(["messenger", "wechat", "line", "discord", "kakaotalk", "zalo"]);
+
 const SERVICE_PHRASES: { phrase: string; type: ContactType }[] = (() => {
   const seen = new Set<string>();
   const list: { phrase: string; type: ContactType }[] = [];
@@ -118,7 +121,25 @@ function slashOrAtShortcut(raw: string): { type: ContactType; handle: string } |
     else continue;
     handle = handle.trim().replace(/^@+/, "").trim();
     if (!handle) continue;
-    if (type !== "position" && !profileUrlForType(type, handle)) continue;
+    if (type !== "position" && !NICK_MESSENGERS.has(type) && !profileUrlForType(type, handle)) continue;
+    return { type, handle };
+  }
+  return null;
+}
+
+/** `WeChat anna`, `Discord anna`. A space without @, only for messengers that are typed that way. */
+function spaceNickShortcut(raw: string): { type: ContactType; handle: string } | null {
+  const trimmed = raw.trim();
+  const lower = trimmed.toLowerCase();
+  for (const { phrase, type } of SERVICE_PHRASES) {
+    if (!NICK_MESSENGERS.has(type)) continue;
+    if (!lower.startsWith(phrase)) continue;
+    const boundary = lower.charAt(phrase.length);
+    if (boundary && /[a-z0-9]/i.test(boundary)) continue;
+    const rest = trimmed.slice(phrase.length);
+    if (!/^\s+/.test(rest) || /^\s*\//.test(rest)) continue;
+    const handle = rest.trim().replace(/^@+/, "").trim();
+    if (!messengerUsername(handle) && !messengerPhoneDigits(handle)) continue;
     return { type, handle };
   }
   return null;
@@ -130,6 +151,9 @@ function parseTypedShortcut(raw: string, zone?: string): { type: ContactType; ha
     if (!profileUrlForType(messenger.type, messenger.handle)) return null;
     return messenger;
   }
+
+  const named = spaceNickShortcut(raw);
+  if (named) return named;
 
   const prefixMatch = raw.match(PREFIX);
   if (prefixMatch) {
@@ -233,6 +257,12 @@ const URL_HOST_TYPES = new Set<ContactType>([
   "whatsapp",
   "viber",
   "signal",
+  "messenger",
+  "line",
+  "zalo",
+  "vimeo",
+  "soundcloud",
+  "discord",
 ]);
 
 /** Lowercase the host. Path and query stay as typed. A bare domain is all host. */
