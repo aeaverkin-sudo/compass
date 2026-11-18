@@ -285,6 +285,91 @@ export function EntryPage({
       });
       return;
     }
+    if (!account) {
+      const emailValue = email.trim().toLowerCase();
+      const secret = passwordShown;
+      submitLock.current = true;
+      setBusy(true);
+      setError(null);
+      let created = false;
+      try {
+        const response = await fetch("/api/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(20000),
+          body: JSON.stringify({
+            email: emailValue,
+            password: secret,
+            ...(input.sourceToken ? { sourceToken: input.sourceToken } : {}),
+            ...(input.event
+              ? { event: { lookup: input.event.lookup, ...(input.event.guestToken ? { guestToken: input.event.guestToken } : {}) } }
+              : {}),
+          }),
+        });
+        const reply = (await response.json().catch(() => ({}))) as {
+          kind?: string;
+          saved?: boolean;
+          warning?: string;
+        };
+        if (response.status === 409 || reply.kind === "login") {
+          setError("This email already has an account.");
+          track("signup_fail", reply.kind);
+          submitLock.current = false;
+          setBusy(false);
+          return;
+        }
+        if (!response.ok) {
+          setError("Could not create the account.");
+          track("signup_fail", reply.kind);
+          submitLock.current = false;
+          setBusy(false);
+          return;
+        }
+        created = true;
+        track("signup_ok");
+        keepPlace.current = false;
+        clearFillPlace();
+        const supabase = createBrowserSupabaseClient();
+        const signed = await Promise.race([
+          (async () => {
+            ignoreNextSignedOut();
+            await supabase.auth.signOut({ scope: "local" });
+            return supabase.auth.signInWithPassword({ email: emailValue, password: secret });
+          })(),
+          new Promise<never>((_, reject) => {
+            window.setTimeout(() => reject(new Error("sign-in")), 20000);
+          }),
+        ]);
+        if (signed.error || !signed.data.session) {
+          setError("Account created, but sign-in failed — tap Sign in.");
+          track("signup_fail", "signin");
+          submitLock.current = false;
+          setBusy(false);
+          return;
+        }
+        useAppStore.getState().resetApp();
+        markRegisteredDevice();
+        rememberAccountEmail(emailValue);
+        clearRegistrationRequired();
+        useAppStore.setState({ user: { ...useAppStore.getState().user, onboarded: true } });
+        const query = new URLSearchParams();
+        query.set("account", "1");
+        if (reply.saved && !reply.warning) query.set("saved", "1");
+        if (input.sourceToken) query.set("card", input.sourceToken);
+        if (input.event) {
+          query.set("event", input.event.lookup);
+          if (input.event.guestToken) query.set("g", input.event.guestToken);
+        }
+        if (input.next) query.set("next", input.next);
+        router.replace(`/create?${query.toString()}`);
+      } catch {
+        setError(created ? "Account created, but sign-in failed — tap Sign in." : "Could not create the account.");
+        track("signup_fail", created ? "signin" : undefined);
+        submitLock.current = false;
+        setBusy(false);
+      }
+      return;
+    }
     const zones = zonesRef.current?.snapshot() ?? [];
     const emailValue = email.trim().toLowerCase();
     const titleValue = name.trim();

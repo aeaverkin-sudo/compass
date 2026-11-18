@@ -8,9 +8,9 @@ import { isGuestToken } from "@/shared/services/event-guest-pass";
 import { loadEventInvite } from "@/shared/services/event-invite";
 import { eventListStatus } from "@/shared/services/events";
 import { joinWithOwnCard, PASSWORD_SET } from "@/shared/services/guest-accept";
+import { CONSENT_VERSION } from "@/shared/services/consent";
 import { ATTACHMENT_TYPES, type AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { saveConnection } from "@/shared/services/save-connection";
-import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { isProseValue } from "@/shared/services/card-zones";
 
 export const MIN_PASSWORD = 8;
@@ -45,25 +45,10 @@ export type SignupResult =
   | {
       ok: true;
       status: 201;
-      cardId: string;
-      publicToken: string;
-      /** The address stored on the card. The letter and the phone both use this one. Null when the name has no letters. */
-      handle: string | null;
-      fileItems: SignupFileItem[];
-      /** Every saved row, in card order. The new portfolio places them before the first hydrate. */
-      itemIds: string[];
-      itemZones: Record<string, string>;
-      /** The lifted row, so the new portfolio opens with it under the name. */
-      headerItemId?: string;
-      headerTitle?: string;
       /** The other person's card is in this account's book. */
       saved?: boolean;
       savedName?: string;
-      /** The new account is on the event list. `pay` opens the payment screen. */
-      joined?: boolean;
-      pay?: boolean;
-      eventLookup?: string;
-      /** The account exists. A door did not. The client opens the portfolio. */
+      /** The account exists. Saving the opened card did not. */
       warning?: string;
     }
   | { ok: false; status: number; error: string; kind?: "login" };
@@ -326,19 +311,15 @@ export async function writeFirstPortfolio(
   };
 }
 
-/** Create the account and its first card. Auth is created first; a failed write deletes that user. */
+/** Create the account only. The first portfolio is a later screen. A failed write deletes the user. */
 export async function createSignup(body: SignupBody, origin = ""): Promise<SignupResult> {
+  void origin;
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
-  const prepared = prepareSignupCard(body);
-  if ("error" in prepared && prepared.error === "Add a title.") {
-    return { ok: false, status: 400, error: prepared.error };
-  }
   if (!email || email.length > 254 || !isEmail(email)) return { ok: false, status: 400, error: "Add your email." };
   if (password.length < MIN_PASSWORD) {
     return { ok: false, status: 400, error: `Use at least ${MIN_PASSWORD} characters for the password.` };
   }
-  if ("error" in prepared) return { ok: false, status: 400, error: prepared.error };
 
   const admin = createAdminSupabaseClient();
   if (await userIdForEmail(email)) {
@@ -356,34 +337,21 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
   }
 
   const userId = made.data.user.id;
-  const cardId = crypto.randomUUID();
   try {
     const now = new Date().toISOString();
     const marked = await admin.from("profiles").upsert({ id: userId, registered_at: now }, { onConflict: "id" });
     if (marked.error) throw new Error(marked.error.message);
-
-    const written = await writeFirstPortfolio(admin, userId, prepared, body, cardId, now);
-    if (origin) {
-      void sendWelcomeMail(userId, written.cardId, password, origin).catch((error) => {
-        console.error("[mail] welcome", error instanceof Error ? error.message : error);
-      });
-    }
-    return {
-      ok: true,
-      status: 201,
-      cardId: written.cardId,
-      publicToken: written.publicToken,
-      handle: written.handle,
-      fileItems: written.fileItems,
-      itemIds: written.itemIds,
-      itemZones: written.itemZones,
-      ...(written.headerItemId && written.headerTitle ? { headerItemId: written.headerItemId, headerTitle: written.headerTitle } : {}),
-      ...written.door,
-      ...written.eventDoor,
-    };
+    const consent = await admin.from("consents").insert({
+      user_id: userId,
+      document_version: CONSENT_VERSION,
+      path: "register",
+    });
+    if (consent.error) throw new Error(consent.error.message);
+    const door = await keepSourceCard(admin, userId, body.sourceToken);
+    return { ok: true, status: 201, ...door };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);
     console.error("[signup]", error instanceof Error ? error.message : error);
-    return { ok: false, status: 500, error: "Could not create your profile." };
+    return { ok: false, status: 500, error: "Could not create the account." };
   }
 }
