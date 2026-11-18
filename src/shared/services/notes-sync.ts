@@ -19,12 +19,10 @@ function bumpNotes(cardId: string) {
   noteEpoch.set(cardId, (noteEpoch.get(cardId) ?? 0) + 1);
 }
 
-type NoteHandoff = { via: "link" | "pdf"; token: string };
+type NoteHandoff = { via: "pdf"; token: string };
 
 const RELEASED_KEY = "compass-released-notes";
 const handedOff = new Map<string, NoteHandoff>();
-/** The list captured at the share tap. Only this object may still upload after the tap. */
-const releaseSnapshots = new Map<string, Card>();
 /** Code for the draft still on the card. Share takes it and the next note gets a new one. */
 const draftCodes = new Map<string, string>();
 /** A share is uploading this card's batch. New notes wait until it is sent. */
@@ -50,7 +48,7 @@ function handoffFor(cardId: string): NoteHandoff | undefined {
       const raw = sessionStorage.getItem(RELEASED_KEY);
       const entries = raw ? (JSON.parse(raw) as [string, NoteHandoff][]) : [];
       for (const [id, hold] of entries) {
-        if (hold?.via === "link" || hold?.via === "pdf") handedOff.set(id, hold);
+        if (hold?.via === "pdf") handedOff.set(id, hold);
       }
     } catch {
       // A broken record must not put a sent note back on the card.
@@ -114,11 +112,11 @@ async function writeLocal(cardId: string, notes: NextScanAddon[]) {
 
 /** A scan took the notes, or another screen already sent them. Drop them here. */
 export function forgetLocalNotes(cardId: string) {
-  if (notesAreSyncing(cardId) || handoffFor(cardId)?.via === "link") return;
+  if (notesAreSyncing(cardId)) return;
   const seen = noteEpoch.get(cardId) ?? 0;
   void import("@/shared/store/app-store").then(({ useAppStore }) => {
     if ((noteEpoch.get(cardId) ?? 0) !== seen) return;
-    if (notesAreSyncing(cardId) || handoffFor(cardId)?.via === "link") return;
+    if (notesAreSyncing(cardId)) return;
     const card = useAppStore.getState().cards.find((entry) => entry.id === cardId);
     if (!card?.nextScanAddons.length) return;
     void writeLocal(cardId, []);
@@ -156,8 +154,6 @@ async function pushNotes(snapshot: Card) {
   const draftCode = draftCodes.get(snapshot.id);
   // This share owns the row. Don't write a later list into it, and don't clear it.
   if (dispatching.has(snapshot.id)) return;
-  // A link handoff keeps its batch until that one open. A later list must not replace it.
-  if (handoffFor(snapshot.id)?.via === "link" && releaseSnapshots.get(snapshot.id) !== snapshot) return;
   if (snapshot.nextScanAddons.length === 0) clearing.add(snapshot.id);
   else clearing.delete(snapshot.id);
   if (inFlight.has(snapshot.id)) {
@@ -175,7 +171,6 @@ async function pushNotes(snapshot: Card) {
 
     if (ordered.length === 0) {
       const hold = handoffFor(card.id);
-      if (hold?.via === "link") return;
       // This share owns the row. An older empty sync must not delete it.
       if (dispatching.has(card.id)) return;
       clearHandoff(card.id);
@@ -251,7 +246,7 @@ async function pushNotes(snapshot: Card) {
     if (again && !dispatching.has(snapshot.id)) {
       const { useAppStore } = await import("@/shared/store/app-store");
       const latest = useAppStore.getState().cards.find((card) => card.id === snapshot.id);
-      if (!latest || handoffFor(latest.id)?.via === "link") return;
+      if (!latest) return;
       void pushNotes(latest);
     }
   }
@@ -269,10 +264,8 @@ export function scheduleNotesSync(card: Card) {
   if (card.nextScanAddons.length === 0) clearing.add(card.id);
   else {
     clearing.delete(card.id);
-    // A link handoff stays until that one open is taken. New notes wait on the card.
-    if (handoffFor(card.id)?.via !== "link") clearHandoff(card.id);
+    clearHandoff(card.id);
   }
-  if (handoffFor(card.id)?.via === "link") return;
   const previous = waiting.get(card.id);
   if (previous) clearTimeout(previous.timer);
   const timer = setTimeout(() => {
@@ -383,28 +376,10 @@ export function claimShare(card: Card): string | null {
   return code;
 }
 
-export function notesHandoffActive(cardId: string) {
-  return handoffFor(cardId)?.via === "link";
-}
-
-/** The sent batch was opened. Notes written since the tap can upload. */
-export function settleTakenHandoff(cardId: string) {
-  if (handoffFor(cardId)?.via !== "link") return;
-  clearHandoff(cardId);
-  releaseSnapshots.delete(cardId);
-  void import("@/shared/store/app-store").then(({ useAppStore }) => {
-    const card = useAppStore.getState().cards.find((entry) => entry.id === cardId);
-    if (card && card.nextScanAddons.length > 0) scheduleNotesSync(card);
-  });
-}
-
 /**
- * The send already happened. Drop every note off the card at once.
- * A link keeps them for the one open. A later scan does not get them.
- * A PDF burns them, because the file already holds them.
+ * The PDF already holds the notes. Burn that batch and drop it off the card.
  */
-export function releaseOwnerNotes(cardId: string, via: "link" | "pdf", token: string) {
-  if (via === "link") return;
+export function releaseOwnerNotes(cardId: string, via: "pdf", token: string) {
   markHandoff(cardId, { via, token });
   const pending = waiting.get(cardId);
   if (pending) {
@@ -448,18 +423,12 @@ export async function hydrateNotes(): Promise<void> {
         const response = await fetch(`/api/notes?cardId=${card.id}`);
         if (response.status === 404) return;
         if ((noteEpoch.get(card.id) ?? 0) !== seen) return;
-        const body = await readJson<{ notes?: NextScanAddon[]; held?: boolean }>(response);
+        const body = await readJson<{ notes?: NextScanAddon[] }>(response);
         const notes = body.notes ?? [];
         if (clearing.has(card.id)) return;
-        // The sent batch is waiting for its one open. This card does not get it back.
-        if (body.held) {
-          if (!handoffFor(card.id)) await writeLocal(card.id, []);
-          return;
-        }
         if (handoffFor(card.id)) {
           if (notes.length === 0) {
             clearHandoff(card.id);
-            releaseSnapshots.delete(card.id);
             const local = useAppStore.getState().cards.find((entry) => entry.id === card.id);
             if (local && local.nextScanAddons.length > 0) scheduleNotesSync(local);
           }

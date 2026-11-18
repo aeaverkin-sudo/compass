@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { loadPublicCard } from "@/shared/services/public-card";
-import { consumeLegacyLink, consumePendingNotes, openCodedNotes, previewPendingNotes } from "@/shared/services/notes-server";
+import { consumePendingNotes, openCodedNotes, previewPendingNotes } from "@/shared/services/notes-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -90,8 +90,7 @@ export async function POST(request: Request, context: RouteProps) {
       const notes = await consumePendingNotes(loaded.card.id, "qr");
       return noStore({ notes, ready: true, owner: false });
     }
-    const notes = await consumeLegacyLink(loaded.card.id);
-    return noStore({ notes, ready: true, owner: false });
+    return noStore({ notes: [], ready: true, owner: false });
   } catch (error) {
     console.error("[notes] consume failed", error);
     return noStore({ error: "Could not open notes" }, 500);
