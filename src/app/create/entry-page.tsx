@@ -58,10 +58,25 @@ function passwordNow() {
   return issuedPassword;
 }
 
-/** Hidden password with the last two characters left visible. */
-function maskedPassword(value: string) {
-  if (value.length <= 2) return value;
-  return `${"•".repeat(value.length - 2)}${value.slice(-2)}`;
+/** Closed password in the same shape as the open one: four marks, a hyphen, four marks. */
+function HiddenPassword({ value }: { value: string }) {
+  const tail = value.slice(-2);
+  const head = value.slice(0, -2);
+  const parts = head.split(/(-)/).filter((part) => part.length > 0);
+  return (
+    <span aria-hidden className="t-body pointer-events-none absolute inset-0 truncate text-[var(--ink)]">
+      {parts.map((part, index) =>
+        part === "-" ? (
+          <span key={index}>-</span>
+        ) : (
+          <span key={index} style={{ letterSpacing: "0.16em" }}>
+            {"•".repeat(part.length)}
+          </span>
+        ),
+      )}
+      <span>{tail}</span>
+    </span>
+  );
 }
 
 function subscribeDevice() {
@@ -687,11 +702,7 @@ export function EntryPage({
                         className="t-body m-0 w-full min-w-0 border-0 bg-transparent p-0 outline-none"
                         style={{ color: passwordVisible ? "var(--ink)" : "transparent", caretColor: "var(--ink)" }}
                       />
-                      {passwordVisible ? null : (
-                        <span aria-hidden className="t-body pointer-events-none absolute inset-0 truncate text-[var(--ink)]">
-                          {maskedPassword(passwordShown)}
-                        </span>
-                      )}
+                      {passwordVisible ? null : <HiddenPassword value={passwordShown} />}
                     </span>
                     <button
                       type="button"
