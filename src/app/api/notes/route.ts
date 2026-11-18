@@ -59,7 +59,7 @@ export async function PUT(request: Request) {
   }
   if (!body || typeof body !== "object") return jsonFail(400, "Expected JSON");
 
-  const record = body as { cardId?: unknown; notes?: unknown };
+  const record = body as { cardId?: unknown; notes?: unknown; dispatch?: unknown };
   const owned = await ownedCard(record.cardId);
   if (!owned.ok) return owned.response;
   if (!Array.isArray(record.notes)) return jsonFail(400, "Expected notes");
@@ -77,7 +77,8 @@ export async function PUT(request: Request) {
   }
 
   try {
-    await writePendingNotes(owned.cardId, owned.ownerId, notes);
+    const dispatch = typeof record.dispatch === "string" ? record.dispatch : undefined;
+    await writePendingNotes(owned.cardId, owned.ownerId, notes, dispatch);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (message === "File is not on this note" || message === "Missing file") {

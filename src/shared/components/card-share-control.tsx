@@ -4,8 +4,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Share } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { flushNotesSync, releaseOwnerNotes } from "@/shared/services/notes-sync";
-import { getNextScanAddons } from "@/shared/services/card-snapshot";
+import { claimShare, flushNotesSync } from "@/shared/services/notes-sync";
 import { publicCardUrl } from "@/shared/services/public-card-url";
 import { shareCardChoice, type CardShareChoice } from "@/shared/services/save-public-card-pdf";
 import { useAppStore } from "@/shared/store/app-store";
@@ -30,8 +29,16 @@ export function useCardShare(card: Card) {
     const title = live.displayName.trim() || "Portfolio";
     // The tap is the send. iOS often reports a Telegram or AirDrop handoff as cancelled,
     // so the note leaves the card before the sheet answers. Closing the sheet does the same.
-    if (getNextScanAddons(live).length > 0) releaseOwnerNotes(live.id, "link", token);
-    void shareCardChoice({ title, url: publicCardUrl(live) }).then((sent) => {
+    const code = claimShare(live);
+    if (code) {
+      useAppStore.setState({
+        cards: useAppStore.getState().cards.map((entry) =>
+          entry.id === live.id ? { ...entry, nextScanAddons: [] } : entry,
+        ),
+      });
+    }
+    const url = publicCardUrl(live);
+    void shareCardChoice({ title, url: code ? `${url}?n=${encodeURIComponent(code)}` : url }).then((sent) => {
       if (!sent) return;
       void fetch("/api/network/share", {
         method: "POST",

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { loadPublicCard } from "@/shared/services/public-card";
-import { consumePendingNotes, previewPendingNotes } from "@/shared/services/notes-server";
+import { consumeLegacyLink, consumePendingNotes, openCodedNotes, previewPendingNotes } from "@/shared/services/notes-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,12 +21,14 @@ export async function POST(request: Request, context: RouteProps) {
 
   let consumeOnShare = false;
   let viaQr = false;
+  let code = "";
   try {
     const body = await request.json();
     if (body && typeof body === "object") {
-      const record = body as { action?: unknown; via?: unknown };
+      const record = body as { action?: unknown; via?: unknown; n?: unknown };
       if (record.action === "consume") consumeOnShare = true;
       if (record.via === "qr") viaQr = true;
+      if (typeof record.n === "string") code = record.n;
     }
   } catch {
     // Visitors post with no body.
@@ -59,8 +61,12 @@ export async function POST(request: Request, context: RouteProps) {
     }
     if (!consumeOnShare) {
       try {
+        if (code && !viaQr) {
+          const opened = await openCodedNotes(loaded.card.id, code, false);
+          return noStore({ notes: opened.notes, ready: opened.ready, owner: true });
+        }
         const notes = await previewPendingNotes(loaded.card.id);
-        return noStore({ notes, owner: true });
+        return noStore({ notes, ready: true, owner: true });
       } catch (error) {
         console.error("[notes] preview failed", error);
         return noStore({ error: "Could not read notes" }, 500);
@@ -76,8 +82,16 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   try {
-    const notes = await consumePendingNotes(loaded.card.id, viaQr ? "qr" : undefined);
-    return noStore({ notes, owner: false });
+    if (code && !viaQr) {
+      const opened = await openCodedNotes(loaded.card.id, code, true);
+      return noStore({ notes: opened.notes, ready: opened.ready, owner: false });
+    }
+    if (viaQr) {
+      const notes = await consumePendingNotes(loaded.card.id, "qr");
+      return noStore({ notes, ready: true, owner: false });
+    }
+    const notes = await consumeLegacyLink(loaded.card.id);
+    return noStore({ notes, ready: true, owner: false });
   } catch (error) {
     console.error("[notes] consume failed", error);
     return noStore({ error: "Could not open notes" }, 500);

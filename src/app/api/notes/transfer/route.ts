@@ -19,12 +19,14 @@ export async function POST(request: Request) {
   } catch {
     return jsonFail(400, "Expected JSON");
   }
-  const cardId = body && typeof body === "object" ? (body as { cardId?: unknown }).cardId : undefined;
+  const record = body && typeof body === "object" ? (body as { cardId?: unknown; token?: unknown }) : {};
+  const cardId = record.cardId;
+  const token = typeof record.token === "string" ? record.token : undefined;
   if (typeof cardId !== "string" || !isUuid(cardId)) return jsonFail(400, "Expected a card");
 
   try {
     if (!(await cardOwnedBy(cardId, owner.id))) return jsonFail(404, "Card not found");
-    const transferId = await ensurePendingTransfer(cardId);
+    const transferId = await ensurePendingTransfer(cardId, token);
     return NextResponse.json({ transferId }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return jsonFail(500, "Could not open the note");

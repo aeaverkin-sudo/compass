@@ -27,7 +27,12 @@ type TransferRow = {
   status: string;
   expires_at: string;
   created_at: string;
+  transfer_token: string;
 };
+
+const DISPATCH_CODE = /^[A-Za-z0-9_-]{21}$/;
+
+export type CodedNotes = { ready: boolean; notes: DeliveredNote[] };
 
 const NOTES_ARMED = "notes_armed";
 
@@ -45,7 +50,7 @@ export async function cardOwnedBy(cardId: string, ownerId: string): Promise<bool
 async function pendingTransfer(cardId: string): Promise<TransferRow | null> {
   const { data, error } = await admin()
     .from("card_transfers")
-    .select("id, status, expires_at, created_at")
+    .select("id, status, expires_at, created_at, transfer_token")
     .eq("card_id", cardId)
     .eq("status", "pending")
     .maybeSingle();
@@ -66,10 +71,21 @@ async function expireTransfer(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/** The live pending row. An expired one is marked and replaced. */
-export async function ensurePendingTransfer(cardId: string): Promise<string> {
+/** The live pending row. An expired one is marked and replaced. A dispatch code, when given, is stored on that row. */
+export async function ensurePendingTransfer(cardId: string, token?: string): Promise<string> {
+  const code = token && DISPATCH_CODE.test(token) ? token : null;
   const existing = await pendingTransfer(cardId);
-  if (existing && stillWaiting(existing)) return existing.id;
+  if (existing && stillWaiting(existing)) {
+    if (code && existing.transfer_token !== code) {
+      const updated = await admin()
+        .from("card_transfers")
+        .update({ transfer_token: code })
+        .eq("id", existing.id)
+        .eq("status", "pending");
+      if (updated.error) throw new Error(updated.error.message);
+    }
+    return existing.id;
+  }
   if (existing) await expireTransfer(existing.id);
 
   const id = crypto.randomUUID();
@@ -78,7 +94,7 @@ export async function ensurePendingTransfer(cardId: string): Promise<string> {
     .insert({
       id,
       card_id: cardId,
-      transfer_token: nanoid(21),
+      transfer_token: code ?? nanoid(21),
       status: "pending",
       expires_at: new Date(Date.now() + NOTES_PENDING_MS).toISOString(),
     })
@@ -187,9 +203,16 @@ export async function readPendingNotes(cardId: string): Promise<{ notes: NextSca
   return { notes: orderNextScanAddons(notes), held: false };
 }
 
-export async function writePendingNotes(cardId: string, ownerId: string, input: NoteWrite[]): Promise<void> {
+export async function writePendingNotes(
+  cardId: string,
+  ownerId: string,
+  input: NoteWrite[],
+  dispatchToken?: string,
+): Promise<void> {
+  const dispatch = Boolean(dispatchToken && DISPATCH_CODE.test(dispatchToken));
   // This batch was already handed to one link. Do not replace it and do not delete it.
-  if (await notesHeldForLink(cardId)) return;
+  // A Share that is sealing its own code may still write that one row.
+  if (!dispatch && (await notesHeldForLink(cardId))) return;
   const ordered = orderNextScanAddons(
     input.map((note) => ({
       id: note.attachmentId || note.type,
@@ -201,11 +224,12 @@ export async function writePendingNotes(cardId: string, ownerId: string, input: 
   );
 
   if (ordered.length === 0) {
+    if (dispatch) return;
     await clearPending(cardId, ownerId);
     return;
   }
 
-  const transferId = await ensurePendingTransfer(cardId);
+  const transferId = await ensurePendingTransfer(cardId, dispatch ? dispatchToken : undefined);
   const previous = await itemFiles(transferId);
   const kept = new Set<string>();
 
@@ -243,6 +267,7 @@ export async function writePendingNotes(cardId: string, ownerId: string, input: 
   }
 
   if (rows.length === 0) {
+    if (dispatch) return;
     await clearPending(cardId, ownerId);
     return;
   }
@@ -332,6 +357,68 @@ async function notesOnTransfer(transferId: string): Promise<DeliveredNote[]> {
   });
 }
 
+async function transferByCode(cardId: string, token: string): Promise<TransferRow | null> {
+  const { data, error } = await admin()
+    .from("card_transfers")
+    .select("id, status, expires_at, created_at, transfer_token")
+    .eq("card_id", cardId)
+    .eq("transfer_token", token)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as TransferRow | null) ?? null;
+}
+
+/** Files are stored. The row leaves `pending`, so a new draft can start and an open can burn it. */
+export async function sealSentTransfer(cardId: string, token: string): Promise<boolean> {
+  if (!DISPATCH_CODE.test(token)) return false;
+  const row = await transferByCode(cardId, token);
+  if (!row || !stillWaiting(row)) return false;
+  if (row.status === "sent") return true;
+  if (row.status !== "pending") return false;
+  const files = await itemFiles(row.id);
+  if (files.length === 0) return false;
+  const { error } = await admin()
+    .from("card_transfers")
+    .update({ status: "sent" })
+    .eq("id", row.id)
+    .eq("status", "pending");
+  if (error) throw new Error(error.message);
+  return true;
+}
+
+/**
+ * The link carried a code. A row still `pending` is not burned: the selfie may still be uploading.
+ * `burn` is false when the owner opens their own link.
+ */
+export async function openCodedNotes(cardId: string, token: string, burn: boolean): Promise<CodedNotes> {
+  if (!DISPATCH_CODE.test(token)) return { ready: true, notes: [] };
+  const row = await transferByCode(cardId, token);
+  if (!row) return { ready: false, notes: [] };
+  if (!stillWaiting(row)) return { ready: true, notes: [] };
+  if (row.status === "pending") return { ready: false, notes: [] };
+  if (row.status !== "sent") return { ready: true, notes: [] };
+  if (!burn) return { ready: true, notes: await notesOnTransfer(row.id) };
+
+  const { data: won, error } = await admin().rpc("consume_sent_transfer", {
+    p_token: token,
+    p_card_id: cardId,
+  });
+  if (error) throw new Error(error.message);
+  if (!won || typeof won !== "string") {
+    const again = await transferByCode(cardId, token);
+    if (again?.status === "pending" && stillWaiting(again)) return { ready: false, notes: [] };
+    return { ready: true, notes: [] };
+  }
+  const notes = await finishDelivered(cardId, won, "share");
+  return { ready: true, notes };
+}
+
+/** A link from before codes. Only an armed waiting batch burns. A draft on the card does not. */
+export async function consumeLegacyLink(cardId: string): Promise<DeliveredNote[]> {
+  if (!(await notesHeldForLink(cardId))) return [];
+  return consumePendingNotes(cardId, "share");
+}
+
 /** Pending notes for the owner opening their own link. Does not burn the handoff. */
 export async function previewPendingNotes(cardId: string): Promise<DeliveredNote[]> {
   const existing = await pendingTransfer(cardId);
@@ -347,7 +434,10 @@ export async function consumePendingNotes(cardId: string, via?: "share" | "qr"):
   });
   if (error) throw new Error(error.message);
   if (!transferId || typeof transferId !== "string") return [];
+  return finishDelivered(cardId, transferId, via);
+}
 
+async function finishDelivered(cardId: string, transferId: string, via?: "share" | "qr"): Promise<DeliveredNote[]> {
   try {
     const event: { card_id: string; type: string; via?: string } = {
       card_id: cardId,

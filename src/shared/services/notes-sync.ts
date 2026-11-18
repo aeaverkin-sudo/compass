@@ -1,3 +1,4 @@
+import { nanoid } from "nanoid";
 import type { Card, NextScanAddon } from "@/shared/types";
 import { fileFromDataUrl, uploadTransferAsset } from "@/shared/services/attachment-upload";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
@@ -24,6 +25,21 @@ const RELEASED_KEY = "compass-released-notes";
 const handedOff = new Map<string, NoteHandoff>();
 /** The list captured at the share tap. Only this object may still upload after the tap. */
 const releaseSnapshots = new Map<string, Card>();
+/** Code for the draft still on the card. Share takes it and the next note gets a new one. */
+const draftCodes = new Map<string, string>();
+/** A share is uploading this card's batch. New notes wait until it is sent. */
+const dispatching = new Set<string>();
+const queuedAfterDispatch = new Map<string, Card>();
+
+const DISPATCH_CODE = /^[A-Za-z0-9_-]{21}$/;
+
+function ensureDraftCode(cardId: string) {
+  const existing = draftCodes.get(cardId);
+  if (existing && DISPATCH_CODE.test(existing)) return existing;
+  const code = nanoid(21);
+  draftCodes.set(cardId, code);
+  return code;
+}
 
 function rememberHandoff() {
   if (typeof window === "undefined") return;
@@ -70,7 +86,7 @@ function isCardUuid(id: string) {
 }
 
 export function notesAreSyncing(cardId: string) {
-  return inFlight.has(cardId) || waiting.has(cardId);
+  return inFlight.has(cardId) || waiting.has(cardId) || dispatching.has(cardId);
 }
 
 function signature(notes: NextScanAddon[]) {
@@ -85,8 +101,11 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 async function writeLocal(cardId: string, notes: NextScanAddon[]) {
+  // A share already took this list. Don't put it back on the card.
+  if (notes.length > 0 && (clearing.has(cardId) || dispatching.has(cardId))) return;
   bumpNotes(cardId);
   const { useAppStore } = await import("@/shared/store/app-store");
+  if (notes.length > 0 && (clearing.has(cardId) || dispatching.has(cardId))) return;
   const ordered = orderNextScanAddons(notes);
   useAppStore.setState({
     cards: useAppStore.getState().cards.map((card) =>
@@ -108,11 +127,11 @@ export function forgetLocalNotes(cardId: string) {
   });
 }
 
-async function openTransfer(cardId: string): Promise<string> {
+async function openTransfer(cardId: string, code?: string): Promise<string> {
   const response = await fetch("/api/notes/transfer", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cardId }),
+    body: JSON.stringify({ cardId, token: code }),
   });
   const body = await readJson<{ transferId?: string }>(response);
   if (!body.transferId) throw new Error("Could not open the note");
@@ -122,11 +141,12 @@ async function openTransfer(cardId: string): Promise<string> {
 async function putNotes(
   cardId: string,
   notes: { type: NextScanAddon["type"]; content: string; attachmentId?: string }[],
+  dispatch?: string,
 ) {
   const response = await fetch("/api/notes", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ cardId, notes }),
+    body: JSON.stringify({ cardId, notes, dispatch }),
   });
   await readJson(response);
 }
@@ -135,6 +155,9 @@ const rerun = new Set<string>();
 
 async function pushNotes(snapshot: Card) {
   if (!isCardUuid(snapshot.id)) return;
+  const draftCode = draftCodes.get(snapshot.id);
+  // This share owns the row. Don't write a later list into it, and don't clear it.
+  if (dispatching.has(snapshot.id)) return;
   // A link handoff keeps its batch until that one open. A later list must not replace it.
   if (handoffFor(snapshot.id)?.via === "link" && releaseSnapshots.get(snapshot.id) !== snapshot) return;
   if (snapshot.nextScanAddons.length === 0) clearing.add(snapshot.id);
@@ -155,6 +178,8 @@ async function pushNotes(snapshot: Card) {
     if (ordered.length === 0) {
       const hold = handoffFor(card.id);
       if (hold?.via === "link") return;
+      // This share owns the row. An older empty sync must not delete it.
+      if (dispatching.has(card.id)) return;
       clearHandoff(card.id);
       await putNotes(card.id, []);
       if (hold?.via === "pdf") await consumeSharedNotes(hold.token);
@@ -172,7 +197,7 @@ async function pushNotes(snapshot: Card) {
         !note.attachmentId &&
         (note.content.startsWith("data:") || note.content.startsWith("blob:")),
     );
-    const transferId = needsFile ? await openTransfer(card.id) : undefined;
+    const transferId = needsFile ? await openTransfer(card.id, draftCode) : undefined;
 
     const payload: { type: NextScanAddon["type"]; content: string; attachmentId?: string }[] = [];
     const uploaded = new Map<string, string>();
@@ -222,8 +247,10 @@ async function pushNotes(snapshot: Card) {
   } finally {
     inFlight.delete(snapshot.id);
     const again = rerun.delete(snapshot.id);
-    if (snapshot.nextScanAddons.length === 0 && !again) clearing.delete(snapshot.id);
-    if (again) {
+    if (snapshot.nextScanAddons.length === 0 && !again && !dispatching.has(snapshot.id)) {
+      clearing.delete(snapshot.id);
+    }
+    if (again && !dispatching.has(snapshot.id)) {
       const { useAppStore } = await import("@/shared/store/app-store");
       const latest = useAppStore.getState().cards.find((card) => card.id === snapshot.id);
       if (!latest || handoffFor(latest.id)?.via === "link") return;
@@ -235,6 +262,11 @@ async function pushNotes(snapshot: Card) {
 /** Push the latest notes for this card. File bytes upload before the row is saved. */
 export function scheduleNotesSync(card: Card) {
   if (!isCardUuid(card.id)) return;
+  if (dispatching.has(card.id)) {
+    if (card.nextScanAddons.length > 0) queuedAfterDispatch.set(card.id, card);
+    return;
+  }
+  if (card.nextScanAddons.length > 0) ensureDraftCode(card.id);
   bumpNotes(card.id);
   if (card.nextScanAddons.length === 0) clearing.add(card.id);
   else {
@@ -273,42 +305,84 @@ function waitUntilNotesIdle(cardId: string) {
   });
 }
 
-/** After this tap's upload lands, a later scan must not take the same notes. */
-async function sealSharedNotes(cardId: string) {
-  await waitUntilNotesIdle(cardId);
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      const response = await fetch("/api/notes/arm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId }),
-      });
-      if (response.ok) {
-        releaseSnapshots.delete(cardId);
-        return;
+async function sealDispatch(cardId: string, code: string): Promise<boolean> {
+  const response = await fetch("/api/notes/seal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cardId, token: code }),
+  });
+  if (!response.ok) return false;
+  const body = (await response.json()) as { ready?: boolean };
+  return body.ready === true;
+}
+
+/** The share tap. The code is already on the link. Upload this list, then mark the row sent. */
+async function deliverDispatch(snapshot: Card, code: string) {
+  await waitUntilNotesIdle(snapshot.id);
+  try {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const ordered = orderNextScanAddons(snapshot.nextScanAddons);
+        const payload: { type: NextScanAddon["type"]; content: string; attachmentId?: string }[] = [];
+        const needsFile = ordered.some(
+          (note) =>
+            note.type !== "text" &&
+            !note.attachmentId &&
+            (note.content.startsWith("data:") || note.content.startsWith("blob:")),
+        );
+        const transferId = needsFile ? await openTransfer(snapshot.id, code) : undefined;
+        for (const note of ordered) {
+          if (note.type === "text") {
+            const content = note.content.trim();
+            if (content) payload.push({ type: "text", content });
+            continue;
+          }
+          let attachmentId = note.attachmentId;
+          if (!attachmentId && transferId && (note.content.startsWith("data:") || note.content.startsWith("blob:"))) {
+            const file = await fileFromDataUrl(note.content, note.type === "selfie" ? "selfie.jpg" : "voice.webm");
+            const ready = await uploadTransferAsset({ file, kind: note.type, transferId });
+            attachmentId = ready.attachmentId;
+          }
+          if (attachmentId) payload.push({ type: note.type, content: "", attachmentId });
+        }
+        if (!needsFile) await openTransfer(snapshot.id, code);
+        if (payload.length === 0) return;
+        await putNotes(snapshot.id, payload, code);
+        if (await sealDispatch(snapshot.id, code)) return;
+      } catch (error) {
+        console.error("[notes] send failed", error);
       }
-    } catch {
-      // Retry. Until this lands, a scan could still take the notes.
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
-    await new Promise((resolve) => setTimeout(resolve, 300));
+  } finally {
+    dispatching.delete(snapshot.id);
+    clearing.delete(snapshot.id);
+    const next = queuedAfterDispatch.get(snapshot.id);
+    queuedAfterDispatch.delete(snapshot.id);
+    if (next && next.nextScanAddons.length > 0) scheduleNotesSync(next);
   }
 }
 
 /**
- * The previous send may already have been opened. If it has, this tap is a new send.
- * If it is still waiting for its one open, notes added since then stay on the card.
+ * Share was tapped. Returns the code for the link and clears the local list's epoch.
+ * The caller drops the notes from the card before showing the share sheet.
  */
-async function releaseAgainIfFree(cardId: string, token: string) {
-  try {
-    const response = await fetch(`/api/notes?cardId=${encodeURIComponent(cardId)}`, { cache: "no-store" });
-    if (!response.ok) return;
-    const body = (await response.json()) as { held?: boolean };
-    if (body.held) return;
-  } catch {
-    return;
+export function claimShare(card: Card): string | null {
+  if (!isCardUuid(card.id) || card.nextScanAddons.length === 0) return null;
+  const code = ensureDraftCode(card.id);
+  draftCodes.delete(card.id);
+  clearHandoff(card.id);
+  bumpNotes(card.id);
+  clearing.add(card.id);
+  dispatching.add(card.id);
+  const pending = waiting.get(card.id);
+  if (pending) {
+    clearTimeout(pending.timer);
+    waiting.delete(card.id);
   }
-  clearHandoff(cardId);
-  releaseOwnerNotes(cardId, "link", token);
+  const snapshot: Card = { ...card, nextScanAddons: card.nextScanAddons.map((note) => ({ ...note })) };
+  void deliverDispatch(snapshot, code);
+  return code;
 }
 
 export function notesHandoffActive(cardId: string) {
@@ -332,21 +406,16 @@ export function settleTakenHandoff(cardId: string) {
  * A PDF burns them, because the file already holds them.
  */
 export function releaseOwnerNotes(cardId: string, via: "link" | "pdf", token: string) {
-  if (via === "link" && handoffFor(cardId)?.via === "link") {
-    void releaseAgainIfFree(cardId, token);
-    return;
-  }
+  if (via === "link") return;
   markHandoff(cardId, { via, token });
   const pending = waiting.get(cardId);
   if (pending) {
     clearTimeout(pending.timer);
     waiting.delete(cardId);
-    if (via === "link") releaseSnapshots.set(cardId, pending.card);
     void pushNotes(pending.card);
-  } else if (via === "pdf" && !inFlight.has(cardId)) {
+  } else if (!inFlight.has(cardId)) {
     void consumeSharedNotes(token);
   }
-  if (via === "link") void sealSharedNotes(cardId);
   void writeLocal(cardId, []);
 }
 

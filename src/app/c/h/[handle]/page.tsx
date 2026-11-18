@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ handle: string }>;
-  searchParams: Promise<{ src?: string | string[]; via?: string | string[] }>;
+  searchParams: Promise<{ src?: string | string[]; via?: string | string[]; n?: string | string[] }>;
 };
 
 /** The current card for this address. An old coded address resolves by its code, for the preview only. */
@@ -31,9 +31,9 @@ async function cardAtHandle(handle: string): Promise<PublicCard | null> {
   return loadPublicCardByCode(coded.code);
 }
 
-function addressQuery(query: { src?: string | string[]; via?: string | string[] }): string {
+function addressQuery(query: { src?: string | string[]; via?: string | string[]; n?: string | string[] }): string {
   const params = new URLSearchParams();
-  for (const key of ["src", "via"] as const) {
+  for (const key of ["src", "via", "n"] as const) {
     const value = query[key];
     if (typeof value === "string") params.append(key, value);
     else if (Array.isArray(value)) for (const item of value) params.append(key, item);

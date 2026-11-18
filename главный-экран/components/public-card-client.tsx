@@ -90,22 +90,40 @@ export function PublicCardClient({
     let cancelled = false;
     const params = new URLSearchParams(window.location.search);
     const scanned = params.get("src") === "qr" || params.get("via") === "qr";
-    void Promise.all([
-      fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, {
+    const code = scanned ? "" : (params.get("n") ?? "");
+    const payload: { action?: string; via?: string; n?: string } = {};
+    if (scanned) {
+      payload.action = "consume";
+      payload.via = "qr";
+    }
+    if (code) payload.n = code;
+    const hasBody = Object.keys(payload).length > 0;
+    const deadline = Date.now() + 8000;
+
+    const pull = async () => {
+      const notesResponse = await fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, {
         method: "POST",
-        headers: scanned ? { "Content-Type": "application/json" } : undefined,
-        body: scanned ? JSON.stringify({ action: "consume", via: "qr" }) : undefined,
-      }),
-      save ? fetch("/api/connections", { cache: "no-store" }) : Promise.resolve(null),
-    ])
-      .then(async ([notesResponse, bookResponse]) => {
+        headers: hasBody ? { "Content-Type": "application/json" } : undefined,
+        body: hasBody ? JSON.stringify(payload) : undefined,
+      });
+      let owner = false;
+      let ready = true;
+      if (notesResponse.ok) {
+        const body = (await notesResponse.json()) as { notes?: DeliveredNote[]; owner?: boolean; ready?: boolean };
+        owner = body.owner === true;
+        ready = body.ready !== false;
+        if (Array.isArray(body.notes) && body.notes.length > 0) setNotes(body.notes);
+      }
+      if (!ready && code && Date.now() < deadline && !cancelled) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        if (!cancelled) return pull();
+      }
+      return owner;
+    };
+
+    void Promise.all([pull(), save ? fetch("/api/connections", { cache: "no-store" }) : Promise.resolve(null)])
+      .then(async ([owner, bookResponse]) => {
         if (cancelled) return;
-        let owner = false;
-        if (notesResponse.ok) {
-          const body = (await notesResponse.json()) as { notes?: DeliveredNote[]; owner?: boolean };
-          owner = body.owner === true;
-          if (Array.isArray(body.notes) && body.notes.length > 0) setNotes(body.notes);
-        }
         let saved = false;
         if (bookResponse?.ok) {
           const book = (await bookResponse.json()) as { connections?: { savedCardToken?: string }[] };

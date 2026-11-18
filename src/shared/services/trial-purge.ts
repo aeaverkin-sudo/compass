@@ -174,7 +174,7 @@ async function abandonedTransferIds(now: string) {
   const { data, error } = await admin
     .from("card_transfers")
     .select("id")
-    .in("status", ["pending", "expired"])
+    .in("status", ["pending", "expired", "sent"])
     .or(`expires_at.lt."${now}",created_at.lt."${createdCutoff}"`)
     .limit(FILE_BATCH);
   if (error) throw new Error(error.message);
