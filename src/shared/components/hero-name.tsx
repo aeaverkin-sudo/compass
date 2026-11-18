@@ -30,7 +30,7 @@ export function clampHeroLines(value: string, maxLines: number) {
 function textWidth(text: string, size: number, weight: number) {
   const probe = document.createElement("span");
   probe.textContent = text;
-  probe.style.cssText = `position:absolute;left:-9999px;white-space:nowrap;font-family:${getComputedStyle(document.body).fontFamily};font-weight:${weight};font-size:${size}px;line-height:1;letter-spacing:${weight === 600 ? "-1px" : "0px"}`;
+  probe.style.cssText = `position:absolute;left:-9999px;white-space:pre;font-family:${getComputedStyle(document.body).fontFamily};font-weight:${weight};font-size:${size}px;line-height:1;letter-spacing:${weight === 600 ? "-1px" : "0px"}`;
   document.body.appendChild(probe);
   const width = probe.getBoundingClientRect().width;
   probe.remove();
