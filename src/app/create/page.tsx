@@ -23,6 +23,7 @@ type PageProps = {
     next?: string | string[];
     pick?: string | string[];
     account?: string | string[];
+    saved?: string | string[];
   }>;
 };
 
@@ -77,6 +78,7 @@ export default async function CreatePage({ searchParams }: PageProps) {
       telegram={telegram}
       account={account}
       needsConsent={needsConsent}
+      savedContact={account && one(query.saved) === "1"}
       input={{
         name,
         email,

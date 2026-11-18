@@ -94,6 +94,7 @@ export function EntryPage({
   telegram = false,
   account = false,
   needsConsent = false,
+  savedContact = false,
 }: {
   input: EntryInput;
   pick?: boolean;
@@ -103,13 +104,26 @@ export function EntryPage({
   account?: boolean;
   /** The Google return did not manage to store the agreement. */
   needsConsent?: boolean;
+  /** The card they opened is already in Network. The dot is this browser's, so the page sets it. */
+  savedContact?: boolean;
 }) {
   const router = useRouter();
   const knownDevice = useSyncExternalStore(subscribeDevice, deviceWasRegistered, () => false);
+  const markedContact = useRef(false);
   useLayoutEffect(() => {
     if (!pick || !knownDevice || !input.sourceToken) return;
     router.replace(signInHref(rememberedEmail() || undefined, input));
   }, [pick, knownDevice, input, router]);
+  useLayoutEffect(() => {
+    if (!savedContact || markedContact.current) return;
+    markedContact.current = true;
+    markNewContact();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("saved");
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState(window.history.state, "", next);
+    router.replace(next);
+  }, [savedContact, router]);
   const offeredName = input.name?.trim() ?? "";
   const offeredEmail = input.email?.trim().toLowerCase() ?? "";
   const [name, setName] = useState(offeredName);

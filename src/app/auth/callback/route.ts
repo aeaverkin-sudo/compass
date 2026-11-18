@@ -4,6 +4,7 @@ import { publicOrigin } from "@/shared/lib/public-origin";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { CONSENT_VERSION } from "@/shared/services/consent";
+import { saveConnection } from "@/shared/services/save-connection";
 import { clearTrialClock } from "@/shared/services/trial";
 
 export const runtime = "nodejs";
@@ -19,9 +20,41 @@ async function afterGoogle(origin: string, userId: string, next: string | null) 
   const admin = createAdminSupabaseClient();
   const cards = await admin.from("cards").select("id", { count: "exact", head: true }).eq("owner_id", userId);
   if (cards.error || (cards.count ?? 0) > 0) return destination(origin, next);
+  const saved = await keepScannedCard(admin, userId, next);
   const url = new URL(questionnaireHref(doorNext(next) ?? null), origin);
   url.searchParams.set("account", "1");
+  if (saved) url.searchParams.set("saved", "1");
   return url;
+}
+
+/** The card they opened, saved into this session before the questionnaire. A miss does not stop sign-in. */
+async function keepScannedCard(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  userId: string,
+  next: string | null,
+) {
+  const safe = doorNext(next);
+  if (!safe?.startsWith("/save/")) return false;
+  try {
+    const card = await admin
+      .from("cards")
+      .select("id, owner_id")
+      .eq("public_token", safe.slice("/save/".length))
+      .maybeSingle();
+    if (card.error || !card.data || card.data.owner_id === userId) {
+      if (card.error) console.error("[auth] callback");
+      return false;
+    }
+    const saved = await saveConnection({ ownerId: userId, cardId: card.data.id });
+    if (!saved.ok) {
+      if (!saved.own) console.error("[auth] callback");
+      return false;
+    }
+    return true;
+  } catch {
+    console.error("[auth] callback");
+    return false;
+  }
 }
 
 /** A cancelled or failed Google page returns to the screen that opened it. No reason is shown. */
