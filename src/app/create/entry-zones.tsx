@@ -222,7 +222,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const [headerKey, setHeaderKey] = useState<string | null>(null);
   const [marked, setMarked] = useState<ReadonlySet<string>>(() => new Set());
   const [missing, setMissing] = useState<ReadonlySet<string>>(() => new Set());
-  const [seedMarked, setSeedMarked] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const zonesRef = useRef(zones);
   const headerRef = useRef<string | null>(null);
@@ -302,7 +301,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         const seedBad = Boolean(seedZone && entryLineIsRed(seedZone, seedTextRef.current));
         if (seedBad && seedZone && !first) first = `seed:${seedZone}`;
         setMarked(new Set(bad));
-        setSeedMarked(seedBad);
         if (first && !moreOpenRef.current) {
           const zoneId = first.startsWith("seed:")
             ? first.slice(5)
@@ -414,17 +412,29 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
     );
   };
 
+  const paintRow = (key: string, zoneId: string | undefined, typed: string) => {
+    const red = Boolean(zoneId && typed && entryLineIsRed(zoneId, typed));
+    setMarked((current) => {
+      const next = new Set(current);
+      if (red) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  };
+
   const commitSeed = (zoneId: string, text: string) => {
     const typed = text.trim();
     const value = typed ? storedLine(typed, zoneId) : "";
     setSeedId(null);
     setSeedText("");
     if (!value) return;
+    const key = nanoid();
     setZones((current) =>
       current.map((zone) =>
-        zone.id === zoneId ? { ...titled(zone, value), rows: [...zone.rows, { key: nanoid(), value }] } : zone,
+        zone.id === zoneId ? { ...titled(zone, value), rows: [...zone.rows, { key, value }] } : zone,
       ),
     );
+    paintRow(key, zoneId, typed);
   };
 
   const commitEdit = (key: string, text: string) => {
@@ -434,6 +444,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
     if (!value) releaseHeader(key);
     setEditKey(null);
     setEditText("");
+    paintRow(key, zoneId, typed);
     setZones((current) =>
       current.map((zone) => {
         const rows = value
@@ -594,7 +605,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                       about={about}
                       value={editText}
                       placeholder=""
-                      marked={marked.has(row.key)}
+                      marked={false}
                       onChange={setEditText}
                       onCommit={(text) => commitEdit(row.key, text)}
                       onDiscardEmpty={() => discardRow(zone.id, row.key)}
@@ -664,7 +675,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                       value={seedText}
                       placeholder=""
                       roomy={zone.rows.length === 0}
-                      marked={seedMarked}
+                      marked={false}
                       inputRef={valueRef}
                       onChange={setSeedText}
                       onCommit={(text) => commitSeed(zone.id, text)}
