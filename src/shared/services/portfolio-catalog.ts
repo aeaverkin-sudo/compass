@@ -265,6 +265,7 @@ export const SERVICE_PREFIX_ALIASES: Readonly<Record<string, ContactType>> = {
   spotify: "spotify",
   applemusic: "applemusic",
   linkedin: "linkedin",
+  li: "linkedin",
   github: "github",
   x: "x",
   twitter: "x",
@@ -302,9 +303,9 @@ export function matchServicePrefix(alias: string): ContactType | null {
   return SERVICE_PREFIX_ALIASES[key] ?? null;
 }
 
-/** `telegram @nick`, `tg: +351…`, `viber +351…`, `signal +351…`. Separator is a space or a colon. */
+/** `telegram @nick`, `tg: +351…`, `viber +351…`, `signal +351…`. Separator is a space or a colon. A slash is a service mark, not this shortcut. */
 const MESSENGER_INPUT =
-  /^(telegram|tg|тг|whatsapp|wa|ватсап|вотсап|viber|вайбер|signal)(?:\s*:\s*|\s+)(.+)$/iu;
+  /^(telegram|tg|тг|whatsapp|wa|ватсап|вотсап|viber|вайбер|signal)(?:\s*:\s*|\s+(?!\/))(.+)$/iu;
 
 const MESSENGER_TYPES = new Set<ContactType>(["telegram", "whatsapp", "viber", "signal"]);
 

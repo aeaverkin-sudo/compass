@@ -371,6 +371,9 @@ export const useAppStore = create<AppState>()(
         const nextItems = get().contactItems.map((item) => {
           if (item.id !== itemId) return item;
           if (data.value === undefined) return { ...item, ...data };
+          if (data.value.trim() === item.value.trim()) {
+            return { ...item, ...data, value: item.value, type: item.type, url: item.url };
+          }
           const placed = get().cards.reduce<string | undefined>((zone, card) => {
             if (!card.contactItemIds.includes(item.id)) return zone;
             return canonZoneId(card.itemZones?.[item.id]) ?? zone;

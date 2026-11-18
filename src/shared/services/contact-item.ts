@@ -5,6 +5,7 @@ import {
   inferAttachmentLabel,
   matchServicePrefix,
   matchSocialDomain,
+  SERVICE_PREFIX_ALIASES,
   messengerNationalDigits,
   messengerPhoneDigits,
   messengerUsername,
@@ -82,6 +83,42 @@ export function messengerCountryHint(raw: string): string | null {
   return MESSENGER_COUNTRY_HINT;
 }
 
+const SERVICE_PHRASES: { phrase: string; type: ContactType }[] = (() => {
+  const seen = new Set<string>();
+  const list: { phrase: string; type: ContactType }[] = [];
+  const add = (phrase: string, type: ContactType) => {
+    const key = phrase.trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    list.push({ phrase: key, type });
+  };
+  for (const [alias, type] of Object.entries(SERVICE_PREFIX_ALIASES)) add(alias, type);
+  for (const type of new Set(Object.values(SERVICE_PREFIX_ALIASES))) add(typeLabel(type), type);
+  list.sort((a, b) => b.phrase.length - a.phrase.length);
+  return list;
+})();
+
+/** `Instagram / @anna`, `Instagram / anna`, `Instagram @anna`. A space without @ stays plain text. */
+function slashOrAtShortcut(raw: string): { type: ContactType; handle: string } | null {
+  const trimmed = raw.trim();
+  const lower = trimmed.toLowerCase();
+  for (const { phrase, type } of SERVICE_PHRASES) {
+    if (!lower.startsWith(phrase)) continue;
+    const boundary = lower.charAt(phrase.length);
+    if (boundary && /[a-z0-9]/i.test(boundary)) continue;
+    const rest = trimmed.slice(phrase.length);
+    let handle = "";
+    if (/^\s*\/\s*/.test(rest)) handle = rest.replace(/^\s*\/\s*/, "");
+    else if (/^\s+@/.test(rest)) handle = rest.replace(/^\s+/, "");
+    else continue;
+    handle = handle.trim().replace(/^@+/, "").trim();
+    if (!handle) continue;
+    if (type !== "position" && !profileUrlForType(type, handle)) continue;
+    return { type, handle };
+  }
+  return null;
+}
+
 function parseTypedShortcut(raw: string, zone?: string): { type: ContactType; handle: string } | null {
   const messenger = splitMessengerInput(raw);
   if (messenger) {
@@ -95,6 +132,9 @@ function parseTypedShortcut(raw: string, zone?: string): { type: ContactType; ha
     const handle = (prefixMatch[2] ?? "").trim();
     if (type && handle) return { type, handle };
   }
+
+  const marked = slashOrAtShortcut(raw);
+  if (marked) return marked;
 
   const bare = raw.match(BARE_HANDLE);
   if (bare?.[1]) {
