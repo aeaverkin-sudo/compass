@@ -6,8 +6,10 @@ import { TabBand } from "@main/components/tab-band";
 import { TapButton } from "@/shared/components/tap-button";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
 import { SkyToast } from "@/shared/components/sky-toast";
+import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { useAppStore } from "@/shared/store/app-store";
 
 const ITEM =
   "press touch-manipulation flex h-full min-h-11 w-full items-center whitespace-nowrap border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
@@ -27,6 +29,8 @@ export function ContactActions({
   const router = useRouter();
   const phase = useShareBack(token);
   const shareCards = useNamedShareCards();
+  const cardsReady = useCardsHydrated();
+  const cardCount = useAppStore((state) => state.cards.length);
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -107,6 +111,7 @@ export function ContactActions({
   };
 
   const canSwap = shareCards.length > 0 && !theyHaveMe && !shareBackPending && phase === "idle";
+  const swapLocked = cardsReady && cardCount === 0 && !theyHaveMe && !shareBackPending && phase === "idle";
 
   const shareCard = async (card: SharePickCard) => {
     const sent = await sendShareBack(token, card.id);
@@ -181,6 +186,16 @@ export function ContactActions({
                   if (shareCards.length < 2) return;
                   setArmed(false);
                   setPicking(true);
+                }}
+              >
+                Swap
+              </TapButton>
+            ) : swapLocked ? (
+              <TapButton
+                className={`${ITEM} justify-end opacity-40`}
+                onTap={() => {
+                  if (cancelTap.current) return;
+                  setNotice("Create a portfolio to swap.");
                 }}
               >
                 Swap
