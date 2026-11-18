@@ -136,7 +136,7 @@ export function EntryPage({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailMarked, setEmailMarked] = useState(false);
-  const formFirst = account || Boolean(input.event) || !SOCIAL_SIGNIN;
+  const formFirst = account || !SOCIAL_SIGNIN;
   const [formChoice, setFormChoice] = useState<boolean | null>(null);
   const formBack = useSyncExternalStore(
     subscribeDevice,
