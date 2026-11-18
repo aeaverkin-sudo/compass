@@ -1,8 +1,8 @@
 # ADED ME — Terms of Service
 
-_Launch-ready draft (v1.1). Plain, GDPR/DSA-aware. Qualified lawyer to sign off before public launch. Only placeholder: operator's full legal name / registration — disclosed on request (sole proprietor)._
+_Launch-ready draft (v1.2). Plain, GDPR/DSA-aware. Qualified lawyer to sign off before public launch. Only placeholder: operator's full legal name / registration — disclosed on request (sole proprietor)._
 
-**Last updated: 16 October 2026 · Version 1.1**
+**Last updated: 18 November 2026 · Version 1.2**
 
 ## 1. About ADED ME
 ADED ME ("ADED", "the Service", "we", "us") is a tool for building and sharing a **living digital portfolio** — a personal card. You add contacts, links, social profiles, files (portfolios, decks, CVs) and other content to one library, and share the version of yourself you choose — via QR code, link, or generated PDF — with the people you decide to show it to. ADED lets you keep more than one portfolio from the same library, save the people you connect with, and, where offered, take part in events. Accessible at www.adedme.com. ADED does not create your content and is not a party to any relationship, transaction or meeting arising from sharing your card. We provide the interface; you decide what to publish and with whom.
@@ -11,7 +11,7 @@ ADED ME ("ADED", "the Service", "we", "us") is a tool for building and sharing a
 By creating a card or otherwise using the Service, you accept these Terms and our Privacy Policy. If you do not agree, do not use the Service. We record which version you accepted and when.
 
 ## 3. Your account, sign-in and security
-You create an account with your email. At creation we show a one-time code that acts as your password; you can change it then or later in your profile. You sign in with that code or with a link we send to your email. Google sign-in is optional. There are no temporary accounts: joining an event creates the same permanent ADED account. One email is one account; we do not create a second account for the same address. You are responsible for the security of your account, device and credentials. Notify support@adedme.com of any unauthorised access.
+You create an account with your email. At creation we show a one-time code that acts as your password; you can change it then or later in your profile. You sign in with that code or with a link we send to your email. You may also sign in with Google or Apple. In that case you have no ADED password: Google or Apple confirms who you are, and we receive your email address and, where they provide it, your name. There are no temporary accounts: joining an event creates the same permanent ADED account. One email is one account; we do not create a second account for the same address. You are responsible for the security of your account, device and credentials. Notify support@adedme.com of any unauthorised access.
 
 ## 4. Your content and ownership
 You keep ownership of everything you add (text, links, images, files, audio — "Your Content"). You are solely responsible for Your Content and for sharing it. You confirm that: you have the right to upload and share it; it does not infringe anyone's rights and is not illegal; you decide voluntarily what to include and with whom. You grant us a limited, non-exclusive licence to store, process, display, transmit and format Your Content solely to operate the Service for you (render your card, generate a PDF, deliver a one-time share, show your public portfolio). The licence ends when you delete the content or account, subject to limited legal retention.

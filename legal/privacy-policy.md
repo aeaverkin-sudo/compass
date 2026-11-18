@@ -1,8 +1,8 @@
 # ADED ME — Privacy Policy
 
-_Launch-ready draft (v1.1). GDPR-aware. GDPR-qualified lawyer to sign off before public launch._
+_Launch-ready draft (v1.2). GDPR-aware. GDPR-qualified lawyer to sign off before public launch._
 
-**Last updated: 16 October 2026 · Version 1.1**
+**Last updated: 18 November 2026 · Version 1.2**
 
 ## 1. Who we are
 The operator and data controller of ADED ME is a sole proprietor established in Portugal, operating under the brand "ADED" at www.adedme.com. Full registration details available on request. Privacy questions / rights: **support@adedme.com**.
@@ -12,7 +12,7 @@ Explains how ADED collects, uses, stores and shares personal data. We comply wit
 
 ## 3. What we collect
 - **Card and portfolio content you provide:** name, title, links, contacts, social profiles, images, files, audio.
-- **Account data:** an email (and Google account id if you use Google sign-in). The sign-in code/password is stored only as a hash.
+- **Account data:** an email. The sign-in code/password is stored only as a hash. If you sign in with Google or Apple, we receive the account identifier they give us, your email address and, where they provide it, your name, together with technical sign-in details: whether the provider has verified your email, whether the address is an Apple private relay address, and the time of sign-in. Google also sends a link to your profile picture; we keep it with the sign-in record and do not use or show it. If you choose to hide your email with Apple, we receive a private relay address instead of your real one.
 - **Files:** images, PDFs, audio you upload.
 - **Event guest data:** name, contact and other details you give, including those supplied by an organiser's guest list.
 - **Event payment status:** paid/unpaid and a pay code. We do not collect or store payment cards.
@@ -22,7 +22,7 @@ Explains how ADED collects, uses, stores and shares personal data. We comply wit
 - **Identity documents:** only when legally required (e.g. DSA) and only to the extent necessary.
 
 ## 4. Why we process it, and legal basis
-- **Provide the Service** (store, display, share cards, generate PDFs, manage connections, run events, send transactional mail): performance of our contract.
+- **Provide the Service** (sign you in, including through Google or Apple, store, display, share cards, generate PDFs, manage connections, run events, send transactional mail): performance of our contract.
 - **Keep the Service safe and lawful** (moderation, abuse prevention, security): legitimate interests and legal obligations.
 - **Optional analytics and extra communications:** your consent, requested separately and withdrawable.
 
@@ -39,6 +39,7 @@ We use AI and automated systems to operate, secure and improve the Service, incl
 - **Email provider:** to send invitations, welcome mail, reminders and similar transactional messages.
 - **Apple:** only the data needed to issue or update a Wallet pass.
 - **Service providers (processors):** e.g. Supabase (hosting/storage) and a payment provider for paid plans, under agreements.
+- **Sign-in providers (Google, Apple):** if you choose to sign in with one of them, that provider confirms your identity to us. We receive only the data listed in section 3 and send them nothing about your portfolio. Your account with Google or Apple is governed by their own privacy policies.
 - **Authorities:** when required by lawful request, court order or law.
 We **never sell** your personal data. International transfers are protected by appropriate safeguards (e.g. EU Standard Contractual Clauses).
 
