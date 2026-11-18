@@ -664,7 +664,6 @@ export function MainScreen() {
           card={railCard}
           index={sheetIndex}
           total={sheetTotal}
-          showPlus={shownHasBody}
           editing={editing}
           onCount={onSheetCount}
         />

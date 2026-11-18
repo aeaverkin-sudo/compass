@@ -156,7 +156,6 @@ export function SideRail({
   card,
   index,
   total,
-  showPlus,
   editing = false,
   onCount,
 }: {
@@ -165,7 +164,6 @@ export function SideRail({
   card: Card;
   index: number;
   total: number;
-  showPlus: boolean;
   editing?: boolean;
   onCount?: () => void;
 }) {
@@ -217,7 +215,7 @@ export function SideRail({
       node.draggable = false;
       node.setAttribute("draggable", "false");
     }
-  }, [card.id, card.nextScanAddons, showPlus, dragging]);
+  }, [card.id, card.nextScanAddons, dragging]);
 
   const mountShield = () => {
     if (shieldRef.current || typeof document === "undefined") return;
@@ -639,15 +637,13 @@ export function SideRail({
         />
       </RailMark>
       <RailMark height={PLUS_SLOT_PX} inert={dragging}>
-        {showPlus ? (
-          <NextScanMenu
-            bare
-            markPx={20 * RAIL_ICON_SCALE}
-            notePx={18}
-            addons={noteAddons ?? []}
-            onSetAddons={(addons) => updateCard(card.id, { nextScanAddons: addons })}
-          />
-        ) : null}
+        <NextScanMenu
+          bare
+          markPx={20 * RAIL_ICON_SCALE}
+          notePx={18}
+          addons={noteAddons ?? []}
+          onSetAddons={(addons) => updateCard(card.id, { nextScanAddons: addons })}
+        />
       </RailMark>
       <RailMark height={COUNT_SLOT_PX} inert={dragging}>
         <button
