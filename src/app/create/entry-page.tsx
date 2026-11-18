@@ -58,6 +58,12 @@ function passwordNow() {
   return issuedPassword;
 }
 
+/** Hidden password with the last two characters left visible. */
+function maskedPassword(value: string) {
+  if (value.length <= 2) return value;
+  return `${"•".repeat(value.length - 2)}${value.slice(-2)}`;
+}
+
 function subscribeDevice() {
   return () => {};
 }
@@ -130,7 +136,7 @@ export function EntryPage({
   const [nameLive, setNameLive] = useState(!offeredName);
   const [email, setEmail] = useState(offeredEmail);
   const [emailLive, setEmailLive] = useState(!offeredEmail);
-  const [passwordVisible, setPasswordVisible] = useState(true);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
   const [agreed, setAgreed] = useState(account && !needsConsent);
   const [busy, setBusy] = useState(false);
@@ -146,7 +152,7 @@ export function EntryPage({
   const formOpen = formChoice ?? (formFirst || formBack);
   const formPushed = useRef(false);
   const mainRef = useRef<HTMLElement>(null);
-  const emailRef = useRef<HTMLLabelElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
   const zonesRef = useRef<EntryZonesHandle>(null);
   const keepPlace = useRef(false);
   const submitLock = useRef(false);
@@ -156,7 +162,7 @@ export function EntryPage({
   const passwordShown = passwordValue ?? "";
   const ready = account
     ? Boolean(name.trim() && (!needsConsent || agreed))
-    : Boolean(agreed && name.trim() && isAccountEmail(email) && passwordShown.length >= PASSWORD_MIN);
+    : Boolean(agreed && isAccountEmail(email) && passwordShown.length >= PASSWORD_MIN);
   const frame = { paddingLeft: sidePad, paddingRight: sidePad };
 
   const fields = useRef({ name, email, password: passwordShown, agreed });
@@ -508,6 +514,157 @@ export function EntryPage({
     zonesRef.current?.focusFirstEmpty();
   };
 
+  const socialNext = input.event
+    ? input.event.guestToken
+      ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
+      : `/e/${encodeURIComponent(input.event.lookup)}`
+    : input.sourceToken
+      ? `/save/${input.sourceToken}`
+      : input.next;
+
+  if (!account) {
+    return (
+      <main ref={mainRef} className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]">
+        <BackButton fallbackHref="/" />
+        <AuthModeToggle
+          mode="up"
+          pinned={false}
+          signUpHref="/create"
+          signInHref={signInHref(undefined, input)}
+          className="mb-[18px]"
+        />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit();
+          }}
+        >
+          <div style={frame}>
+            <div className={PAD}>
+              {telegram ? (
+                <p className="mb-[18px] t-meta text-[var(--grey)]">
+                  Open in your browser: ••• → Open in Safari, so your card stays with you.
+                </p>
+              ) : null}
+              <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
+                <div className="min-w-0">
+                  <SectionNumber value="01" />
+                  <span className="mt-[6px] block t-label text-[var(--grey)]">With</span>
+                </div>
+                <div className="min-w-0">
+                  <SocialSignInRows from="create" next={socialNext} />
+                  <p className="m-0 t-meta text-[var(--grey)]">
+                    By continuing you agree to{" "}
+                    <Link href="/terms" className="underline">
+                      Terms
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/privacy" className="underline">
+                      Privacy
+                    </Link>
+                    .
+                  </p>
+                </div>
+              </section>
+              <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
+                <div className="min-w-0">
+                  <SectionNumber value="02" />
+                  <span className="mt-[6px] block t-label text-[var(--grey)]">Email</span>
+                </div>
+                <div className="flex min-w-0 flex-col gap-[14px]">
+                  <input
+                    ref={emailRef}
+                    type="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    name="username"
+                    aria-label="Email"
+                    placeholder="name@mail.com"
+                    value={email}
+                    onFocus={() => setEmailLive(true)}
+                    onChange={(event) => {
+                      setEmailLive(true);
+                      setEmail(event.target.value);
+                    }}
+                    className="t-body m-0 w-full border-0 border-b border-[var(--rule)] bg-transparent p-0 outline-none placeholder:text-[var(--placeholder)]"
+                    style={{ color: emailMarked ? ENTRY_MARK : emailLive ? "var(--ink)" : "var(--placeholder)" }}
+                  />
+                  <span className="flex min-w-0 items-center gap-2 border-b border-[var(--rule)]">
+                    <span className="relative min-w-0 flex-1">
+                      <input
+                        type="text"
+                        autoComplete="new-password"
+                        name="password"
+                        aria-label="Password"
+                        value={passwordShown}
+                        onChange={(event) => setPasswordValue(event.target.value)}
+                        className="t-body m-0 w-full min-w-0 border-0 bg-transparent p-0 outline-none"
+                        style={{ color: passwordVisible ? "var(--ink)" : "transparent", caretColor: "var(--ink)" }}
+                      />
+                      {passwordVisible ? null : (
+                        <span aria-hidden className="t-body pointer-events-none absolute inset-0 truncate text-[var(--ink)]">
+                          {maskedPassword(passwordShown)}
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={passwordVisible ? "Hide password" : "Show password"}
+                      className="shrink-0 border-0 bg-transparent p-0 text-[var(--ink)]"
+                      onClick={() => setPasswordVisible((current) => !current)}
+                    >
+                      {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
+                    </button>
+                  </span>
+                  {passwordShown.length > 0 && passwordShown.length < PASSWORD_MIN ? (
+                    <p className="m-0 t-meta text-[var(--ink)]">At least 8 characters.</p>
+                  ) : null}
+                  <p className="m-0 t-meta text-[var(--ink)]">You can change it anytime in Profile.</p>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <label htmlFor="create-terms" className="t-meta min-w-0 text-[var(--ink)]">
+                      I agree with{" "}
+                      <Link href="/terms" className="underline">
+                        terms
+                      </Link>{" "}
+                      and{" "}
+                      <Link href="/privacy" className="underline">
+                        privacy
+                      </Link>
+                    </label>
+                    <Checkbox
+                      id="create-terms"
+                      checked={agreed}
+                      onCheckedChange={(value) => setAgreed(value === true)}
+                      aria-label="I agree with terms and privacy"
+                      className="ml-auto size-4 shrink-0 rounded-none border border-[var(--rule)] bg-white"
+                    />
+                  </span>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div style={frame}>
+            <div className={`${PAD} flex flex-col gap-4 pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]`}>
+              {error ? <p className="m-0 t-meta text-[var(--ink)]">{error}</p> : null}
+              <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]">
+                <span />
+                <TapButton
+                  type="submit"
+                  onTap={() => void submit()}
+                  disabled={!ready || busy}
+                  className="w-full bg-sky px-[21.6px] py-[10.8px] text-center t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:text-[var(--grey)]"
+                >
+                  {busy ? "Creating…" : "Create portfolio"}
+                </TapButton>
+              </div>
+            </div>
+          </div>
+        </form>
+      </main>
+    );
+  }
+
   const sheet = (
     <>
       {account ? (
@@ -646,7 +803,7 @@ export function EntryPage({
       <div className="bg-sky py-[18px]">
         <div style={frame}>
         <div className={`${PAD} flex flex-col gap-[14px]`}>
-          <label ref={emailRef} className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
+          <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
             <span className="t-label whitespace-normal">
               Profile email
               <RequiredStar className="top-[calc(-0.35em+3px)] ml-[calc(0.15em-3px)]" />
