@@ -5,7 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Share } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { claimShare, flushNotesSync } from "@/shared/services/notes-sync";
-import { publicCardUrl } from "@/shared/services/public-card-url";
+import { publicCardUrl, publicCardUrlWithNote } from "@/shared/services/public-card-url";
 import { shareCardChoice, type CardShareChoice } from "@/shared/services/save-public-card-pdf";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
@@ -37,8 +37,8 @@ export function useCardShare(card: Card) {
         ),
       });
     }
-    const url = publicCardUrl(live);
-    void shareCardChoice({ title, url: code ? `${url}?n=${encodeURIComponent(code)}` : url }).then((sent) => {
+    const url = code ? publicCardUrlWithNote(live, code) : publicCardUrl(live);
+    void shareCardChoice({ title, url }).then((sent) => {
       if (!sent) return;
       void fetch("/api/network/share", {
         method: "POST",

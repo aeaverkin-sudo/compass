@@ -76,6 +76,15 @@ export function handleCode(): string {
   }
 }
 
+const NOTE_CODE_RE = new RegExp(
+  `^(?=[${CODE_ALPHABET}]*[a-z])(?=[${CODE_ALPHABET}]*[23456789])[${CODE_ALPHABET}]{7}$`,
+);
+
+/** A note code in a share link. Same seven signs as a card code. */
+export function isNoteCode(value: string): boolean {
+  return NOTE_CODE_RE.test(value.trim().toLowerCase());
+}
+
 export function codedHandle(slug: string): string {
   return `${handleCode()}-${slug}`;
 }

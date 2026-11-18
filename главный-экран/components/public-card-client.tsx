@@ -42,6 +42,8 @@ type PublicCardClientProps = {
   deleted?: boolean;
   /** Where back leads instead of Network, e.g. the event's going list. */
   backHref?: string;
+  /** The note code from the address. A link sent earlier still carries it in `?n=`. */
+  noteCode?: string;
 };
 
 type SaveState = "loading" | "ready" | "saved" | "own" | "busy";
@@ -72,6 +74,7 @@ export function PublicCardClient({
   save = false,
   deleted = false,
   backHref,
+  noteCode = "",
 }: PublicCardClientProps) {
   const router = useRouter();
   const frameRef = useRef<HTMLDivElement>(null);
@@ -90,7 +93,7 @@ export function PublicCardClient({
     let cancelled = false;
     const params = new URLSearchParams(window.location.search);
     const scanned = params.get("src") === "qr" || params.get("via") === "qr";
-    const code = scanned ? "" : (params.get("n") ?? "");
+    const code = scanned ? "" : noteCode || params.get("n") || "";
     const payload: { action?: string; via?: string; n?: string } = {};
     if (scanned) {
       payload.action = "consume";
@@ -141,7 +144,7 @@ export function PublicCardClient({
     return () => {
       cancelled = true;
     };
-  }, [deleted, inside, save, publicToken, card.publicToken]);
+  }, [deleted, inside, save, publicToken, card.publicToken, noteCode]);
 
   const pdfInput = (): CardPdfInput => ({
     cardId: card.id,

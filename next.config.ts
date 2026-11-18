@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { publicCardRewrites } from "./src/shared/lib/public-card-path";
 
 /** Changes on every Render deploy, so the service worker drops the previous shell. */
 const buildId = process.env.NEXT_PUBLIC_BUILD_ID || process.env.RENDER_GIT_COMMIT || "dev";
@@ -24,14 +25,7 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    return [
-      {
-        source:
-          "/:code((?=[abcdefghjkmnpqrstuvwxyz23456789]*[a-z])(?=[abcdefghjkmnpqrstuvwxyz23456789]*[23456789])(?:[abcdefghjkmnpqrstuvwxyz23456789]{7}|[abcdefghjkmnpqrstuvwxyz23456789]{3}))/@:slug([a-z0-9]+)",
-        destination: "/c/h/:code-:slug",
-      },
-      { source: "/@:handle", destination: "/c/h/:handle" },
-    ];
+    return publicCardRewrites;
   },
   async headers() {
     return [

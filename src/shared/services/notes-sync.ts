@@ -1,5 +1,5 @@
-import { nanoid } from "nanoid";
 import type { Card, NextScanAddon } from "@/shared/types";
+import { handleCode, isNoteCode } from "@/shared/services/card-handle";
 import { fileFromDataUrl, uploadTransferAsset } from "@/shared/services/attachment-upload";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
 
@@ -31,12 +31,10 @@ const draftCodes = new Map<string, string>();
 const dispatching = new Set<string>();
 const queuedAfterDispatch = new Map<string, Card>();
 
-const DISPATCH_CODE = /^[A-Za-z0-9_-]{21}$/;
-
 function ensureDraftCode(cardId: string) {
   const existing = draftCodes.get(cardId);
-  if (existing && DISPATCH_CODE.test(existing)) return existing;
-  const code = nanoid(21);
+  if (existing && isNoteCode(existing)) return existing;
+  const code = handleCode();
   draftCodes.set(cardId, code);
   return code;
 }

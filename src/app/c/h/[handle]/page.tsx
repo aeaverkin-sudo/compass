@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { PublicCardClient } from "@main/components/public-card-client";
 import { ViewerMirror } from "@/shared/components/viewer-mirror";
-import { splitCodedHandle } from "@/shared/services/card-handle";
+import { isNoteCode, splitCodedHandle } from "@/shared/services/card-handle";
 import {
   cardOpenKind,
   loadPublicCardByCode,
@@ -12,7 +12,7 @@ import {
   type PublicCard,
 } from "@/shared/services/public-card";
 import { metadataForPublicCard } from "@/shared/services/public-card-meta";
-import { publicCardPath } from "@/shared/services/public-card-url";
+import { publicCardPath, publicCardPathWithNote } from "@/shared/services/public-card-url";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +31,16 @@ async function cardAtHandle(handle: string): Promise<PublicCard | null> {
   return loadPublicCardByCode(coded.code);
 }
 
-function addressQuery(query: { src?: string | string[]; via?: string | string[]; n?: string | string[] }): string {
+function first(value: string | string[] | undefined) {
+  return (Array.isArray(value) ? value[0] : value)?.trim() ?? "";
+}
+
+function addressQuery(
+  query: { src?: string | string[]; via?: string | string[]; n?: string | string[] },
+  skipNote: boolean,
+): string {
   const params = new URLSearchParams();
-  for (const key of ["src", "via", "n"] as const) {
+  for (const key of (skipNote ? ["src", "via"] : ["src", "via", "n"]) as readonly ("src" | "via" | "n")[]) {
     const value = query[key];
     if (typeof value === "string") params.append(key, value);
     else if (Array.isArray(value)) for (const item of value) params.append(key, item);
@@ -61,8 +68,13 @@ export default async function PublicHandlePage({ params, searchParams }: PagePro
     const found = coded ? await loadPublicCardByCode(coded.code) : null;
     // 307. A later No or New link drops the old address; a 308 would keep sending people there.
     if (found && found.card.handle !== key) {
-      const path = publicCardPath({ publicToken: found.card.publicToken, handle: found.card.handle });
-      redirect(path + addressQuery(await searchParams));
+      const query = await searchParams;
+      const note = first(query.n);
+      const base = publicCardPath({ publicToken: found.card.publicToken, handle: found.card.handle });
+      const path = isNoteCode(note)
+        ? publicCardPathWithNote({ publicToken: found.card.publicToken, handle: found.card.handle }, note)
+        : base;
+      redirect(path + addressQuery(query, path !== base));
     }
     notFound();
   }
@@ -78,7 +90,12 @@ export default async function PublicHandlePage({ params, searchParams }: PagePro
   return (
     <main className="min-h-lvh bg-white">
       <ViewerMirror />
-      <PublicCardClient card={loaded.card} items={loaded.items} publicToken={loaded.card.publicToken} />
+      <PublicCardClient
+        card={loaded.card}
+        items={loaded.items}
+        publicToken={loaded.card.publicToken}
+        noteCode={first(query.n)}
+      />
     </main>
   );
 }

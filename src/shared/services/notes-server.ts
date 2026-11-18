@@ -8,6 +8,7 @@ import {
   removeStoredObject,
 } from "@/shared/services/attachment-api";
 import { NOTE_FILE_GRACE_MS, SIGNED_READ_SECONDS, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
+import { isNoteCode } from "@/shared/services/card-handle";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 
@@ -30,7 +31,16 @@ type TransferRow = {
   transfer_token: string;
 };
 
-const DISPATCH_CODE = /^[A-Za-z0-9_-]{21}$/;
+/** A link sent before note codes were seven signs. Stored as itself. */
+const LEGACY_NOTE_CODE = /^[A-Za-z0-9_-]{21}$/;
+
+/** What the unique column holds. A short code is scoped to this card, so two cards may share it. */
+function storedNoteToken(cardId: string, token: string): string | null {
+  const raw = token.trim();
+  if (isNoteCode(raw)) return `${cardId}:${raw.toLowerCase()}`;
+  if (LEGACY_NOTE_CODE.test(raw)) return raw;
+  return null;
+}
 
 export type CodedNotes = { ready: boolean; notes: DeliveredNote[] };
 
@@ -73,7 +83,7 @@ async function expireTransfer(id: string): Promise<void> {
 
 /** The live pending row. An expired one is marked and replaced. A dispatch code, when given, is stored on that row. */
 export async function ensurePendingTransfer(cardId: string, token?: string): Promise<string> {
-  const code = token && DISPATCH_CODE.test(token) ? token : null;
+  const code = token ? storedNoteToken(cardId, token) : null;
   const existing = await pendingTransfer(cardId);
   if (existing && stillWaiting(existing)) {
     if (code && existing.transfer_token !== code) {
@@ -209,7 +219,7 @@ export async function writePendingNotes(
   input: NoteWrite[],
   dispatchToken?: string,
 ): Promise<void> {
-  const dispatch = Boolean(dispatchToken && DISPATCH_CODE.test(dispatchToken));
+  const dispatch = Boolean(dispatchToken && storedNoteToken(cardId, dispatchToken));
   // This batch was already handed to one link. Do not replace it and do not delete it.
   // A Share that is sealing its own code may still write that one row.
   if (!dispatch && (await notesHeldForLink(cardId))) return;
@@ -370,8 +380,9 @@ async function transferByCode(cardId: string, token: string): Promise<TransferRo
 
 /** Files are stored. The row leaves `pending`, so a new draft can start and an open can burn it. */
 export async function sealSentTransfer(cardId: string, token: string): Promise<boolean> {
-  if (!DISPATCH_CODE.test(token)) return false;
-  const row = await transferByCode(cardId, token);
+  const stored = storedNoteToken(cardId, token);
+  if (!stored) return false;
+  const row = await transferByCode(cardId, stored);
   if (!row || !stillWaiting(row)) return false;
   if (row.status === "sent") return true;
   if (row.status !== "pending") return false;
@@ -391,8 +402,9 @@ export async function sealSentTransfer(cardId: string, token: string): Promise<b
  * `burn` is false when the owner opens their own link.
  */
 export async function openCodedNotes(cardId: string, token: string, burn: boolean): Promise<CodedNotes> {
-  if (!DISPATCH_CODE.test(token)) return { ready: true, notes: [] };
-  const row = await transferByCode(cardId, token);
+  const stored = storedNoteToken(cardId, token);
+  if (!stored) return { ready: true, notes: [] };
+  const row = await transferByCode(cardId, stored);
   if (!row) return { ready: false, notes: [] };
   if (!stillWaiting(row)) return { ready: true, notes: [] };
   if (row.status === "pending") return { ready: false, notes: [] };
@@ -400,12 +412,12 @@ export async function openCodedNotes(cardId: string, token: string, burn: boolea
   if (!burn) return { ready: true, notes: await notesOnTransfer(row.id) };
 
   const { data: won, error } = await admin().rpc("consume_sent_transfer", {
-    p_token: token,
+    p_token: stored,
     p_card_id: cardId,
   });
   if (error) throw new Error(error.message);
   if (!won || typeof won !== "string") {
-    const again = await transferByCode(cardId, token);
+    const again = await transferByCode(cardId, stored);
     if (again?.status === "pending" && stillWaiting(again)) return { ready: false, notes: [] };
     return { ready: true, notes: [] };
   }
