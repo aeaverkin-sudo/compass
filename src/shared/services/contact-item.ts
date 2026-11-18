@@ -127,7 +127,7 @@ function slashOrAtShortcut(raw: string): { type: ContactType; handle: string } |
   return null;
 }
 
-/** `WeChat anna`, `Discord anna`. A space without @, only for messengers that are typed that way. */
+/** `WeChat anna`, `Discord anna`. A space without @, only for messengers that are typed that way. Contacts only. */
 function spaceNickShortcut(raw: string): { type: ContactType; handle: string } | null {
   const trimmed = raw.trim();
   const lower = trimmed.toLowerCase();
@@ -152,8 +152,10 @@ function parseTypedShortcut(raw: string, zone?: string): { type: ContactType; ha
     return messenger;
   }
 
-  const named = spaceNickShortcut(raw);
-  if (named) return named;
+  if (zone === "contact") {
+    const named = spaceNickShortcut(raw);
+    if (named) return named;
+  }
 
   const prefixMatch = raw.match(PREFIX);
   if (prefixMatch) {
