@@ -32,6 +32,8 @@ import {
   messengerCountryHint,
 } from "@/shared/services/contact-item";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
+import { entryLineIsRed } from "@/shared/services/entry-line";
+import { lineAtEditStart } from "@/shared/services/edit-hold";
 import { customDisplayName } from "@/shared/services/link-display";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { SkyHint } from "@/shared/components/sky-hint";
@@ -69,6 +71,32 @@ type EditSection = {
 
 function lineOf(row: CardDisplayRow) {
   return row.axis ? `${row.axis} / ${row.value}` : row.value;
+}
+
+const LINE_RED = "#E23B2F";
+
+/** A line typed or changed since Edit opened, which its section refuses. */
+function sessionLineIsRed(itemId: string, zoneId: string, value: string) {
+  const started = lineAtEditStart(itemId);
+  if (started === undefined) return false;
+  if (started !== null && started.trim() === value.trim()) return false;
+  return entryLineIsRed(zoneId, value);
+}
+
+/** The first refused line on this card, in the order Edit shows them. */
+export function firstSessionRed(cardId: string): string | null {
+  const { cards, contactItems } = useAppStore.getState();
+  const card = cards.find((entry) => entry.id === cardId);
+  if (!card) return null;
+  for (const section of buildSections(card, contactItems, cards)) {
+    for (const entry of section.rows) {
+      if (!entry.onCard) continue;
+      const item = entry.row.item;
+      if (!item) continue;
+      if (sessionLineIsRed(item.id, section.id, item.value)) return item.id;
+    }
+  }
+  return null;
 }
 
 /** A finished link. Enter closes it. About and other free text keep the line break. */
@@ -864,6 +892,7 @@ export const CardEditList = memo(function CardEditList({
                       zoneId={section.id}
                       text={lineOf(row)}
                       value={row.value}
+                      marked={textEditId !== item.id && sessionLineIsRed(item.id, section.id, item.value)}
                       multiline={
                         section.id === "about" ||
                         item.value.includes("\n") ||
@@ -1424,6 +1453,7 @@ const EditRow = memo(function EditRow({
   zoneId,
   text,
   value,
+  marked = false,
   multiline,
   onCard,
   editing,
@@ -1446,6 +1476,7 @@ const EditRow = memo(function EditRow({
   zoneId: CardZoneId;
   text: string;
   value: string;
+  marked?: boolean;
   /** Additional text. Enter stays inside this one block. */
   multiline: boolean;
   onCard: boolean;
@@ -1526,7 +1557,7 @@ const EditRow = memo(function EditRow({
           (holding || deleteReady) && "opacity-40",
         )}
         style={{
-          color: onCard ? "var(--ink)" : OFF_CARD,
+          color: marked && !editing ? LINE_RED : onCard ? "var(--ink)" : OFF_CARD,
         }}
         onPointerDown={(event) => {
           if (editing || deleteReady) return;

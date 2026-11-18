@@ -40,6 +40,7 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { editTapBlocked } from "@/shared/lib/card-share-guard";
 import { clearFillPlace, readPortfolio, writePortfolio } from "@/shared/lib/fill-place";
 import { beginEditHold, commitEditHold, discardEditHold, editHeld, settleEditHold } from "@/shared/services/edit-hold";
+import { firstSessionRed } from "@main/components/card-edit-list";
 import { flushPendingUpserts } from "@/shared/services/card-sync";
 import { dropPendingItemUpserts, flushPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { BackButton } from "@/shared/components/back-button";
@@ -473,6 +474,14 @@ export function MainScreen() {
     revealPlaque(snap, warned);
   }, [revealPlaque, takeSnap]);
   const onDone = useCallback(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) flushSync(() => active.blur());
+    const cardId = useAppStore.getState().cards[useAppStore.getState().currentCardIndex]?.id;
+    const first = cardId ? firstSessionRed(cardId) : null;
+    if (first) {
+      document.querySelector(`[data-item-row="${CSS.escape(first)}"]`)?.scrollIntoView({ block: "center" });
+      return;
+    }
     const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
     commitEditHold(liveCards, liveItems);
     finishEdit(endEdit);

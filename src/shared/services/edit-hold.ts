@@ -53,6 +53,16 @@ export function editHeld() {
   return held !== null;
 }
 
+/**
+ * The line as Edit opened. `undefined` — Edit is not open.
+ * `null` — this line was added during this Edit.
+ */
+export function lineAtEditStart(itemId: string): string | null | undefined {
+  if (!held) return undefined;
+  const item = held.contactItems.find((entry) => entry.id === itemId);
+  return item ? item.value : null;
+}
+
 /** `flush` sends writes queued before Edit opened, while the gate is still open. */
 export function beginEditHold(cards: Card[], contactItems: ContactItem[], flush: () => void) {
   if (held) return;
