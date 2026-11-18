@@ -169,9 +169,9 @@ const CONTACT_LINE = new Set([
   "zalo",
 ]);
 
-/** A phone in Contacts starts with +. Digits only, from 7 to 15. */
+/** A phone in Contacts is 7 to 15 digits. + may only be first. */
 function contactPhone(line: string) {
-  if (!/^\+\s*[\d\s()-]+$/.test(line)) return false;
+  if (!/^\+?[\d\s()-]+$/.test(line)) return false;
   const digits = line.replace(/\D/g, "").length;
   return digits >= 7 && digits <= 15;
 }
