@@ -11,14 +11,13 @@ import { openContactAttachmentPicker } from "@landing/components/photo-input-uti
 import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
 import { createEmptyContactItem, detectContactType, normalizeContactItem } from "@/shared/services/contact-item";
 import type { QuestionnaireZone } from "@/shared/lib/fill-place";
-import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
+import { detectAttachmentType, isMapLink } from "@/shared/services/portfolio-catalog";
 import { isAttachmentType, type AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { WrapField, type WrapFieldHandle } from "@main/components/wrap-field";
 
 const DELETE_RED = "#E23B2F";
 /** A value Create refused. Same red as the row delete mark. */
 export const ENTRY_MARK = DELETE_RED;
-const LINK_WORD = /^(?:https?:\/\/)?(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s]*)?$/i;
 const HOLD_MS = 900;
 const NEW_HINT = "Skills, projects, experience, etc.";
 
@@ -107,7 +106,6 @@ function lineOf(row: EntryRow, zoneId: string) {
   return labeledEntryLine(row.value, row.type, zoneId);
 }
 
-/** Social and Web: a line that stayed plain text. Contacts: a broken mail or a link split by a space. */
 function zoneHasText(
   zone: EntryZone,
   seedZone: string | null,
@@ -119,14 +117,91 @@ function zoneHasText(
   return zone.rows.some((row) => (editKey === row.key ? editText : row.value).trim().length > 0);
 }
 
+const WEB_LINE = new Set([
+  "website",
+  "link",
+  "custom",
+  "calendly",
+  "appstore",
+  "playstore",
+  "behance",
+  "dribbble",
+  "vimeo",
+  "github",
+  "twitch",
+  "soundcloud",
+  "spotify",
+  "applemusic",
+]);
+
+const SOCIAL_LINE = new Set([
+  "instagram",
+  "linkedin",
+  "meta",
+  "x",
+  "youtube",
+  "tiktok",
+  "threads",
+  "pinterest",
+  "snapchat",
+  "reddit",
+  "behance",
+  "dribbble",
+  "vimeo",
+  "github",
+  "twitch",
+  "soundcloud",
+  "spotify",
+  "applemusic",
+]);
+
+const CONTACT_LINE = new Set([
+  "email",
+  "telegram",
+  "whatsapp",
+  "viber",
+  "signal",
+  "messenger",
+  "wechat",
+  "line",
+  "discord",
+  "kakaotalk",
+  "zalo",
+]);
+
+/** A phone in Contacts starts with +. Digits only, from 7 to 15. */
+function contactPhone(line: string) {
+  if (!/^\+\s*[\d\s()-]+$/.test(line)) return false;
+  const digits = line.replace(/\D/g, "").length;
+  return digits >= 7 && digits <= 15;
+}
+
+/** `WhatsApp 912…` names a messenger and then a number with no country code. */
+function messengerWithoutPlus(line: string) {
+  const match = line.match(
+    /^(?:telegram|tg|тг|whatsapp|wa|ватсап|вотсап|viber|вайбер|signal|wechat|weixin|line|discord|messenger|kakaotalk|kakao|zalo)\s+(.+)$/i,
+  );
+  if (!match?.[1]) return false;
+  return /^[\d\s()-]+$/.test(match[1].trim());
+}
+
+/** A street line: two words, and a number or a comma. A bare number is not an address. */
+function contactAddress(line: string) {
+  if (/^[\d\s()+-]+$/.test(line)) return false;
+  const words = line.trim().split(/\s+/).filter(Boolean);
+  return words.length >= 2 && (/\d/.test(line) || line.includes(","));
+}
+
 function entryLineIsRed(zoneId: string, raw: string) {
   const line = raw.trim();
   if (!line) return false;
   if (zoneId !== "social" && zoneId !== "web" && zoneId !== "contact") return false;
-  if (zoneId === "social" || zoneId === "web") return detectContactType(line, zoneId) === "text";
-  if (detectContactType(line, "contact") !== "text") return false;
-  if (line.includes("@")) return true;
-  return line.split(/\s+/).some((part) => LINK_WORD.test(part.replace(/^[("']+|[),"'.:]+$/g, "")));
+  const type = detectContactType(line, zoneId);
+  if (zoneId === "web") return !(WEB_LINE.has(type) || isMapLink(line));
+  if (zoneId === "social") return !SOCIAL_LINE.has(type);
+  if (messengerWithoutPlus(line)) return true;
+  if (contactPhone(line) || CONTACT_LINE.has(type) || isMapLink(line) || contactAddress(line)) return false;
+  return true;
 }
 
 function titled(zone: EntryZone, value: string, fileType?: AttachmentContactType | null): EntryZone {
