@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ConsentLine } from "@/shared/components/consent-line";
+import Link from "next/link";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { CONSENT_ACCEPTED_EVENT, CONSENT_VERSION } from "@/shared/services/consent";
 import { recordConsent } from "@/shared/services/consent-client";
@@ -43,7 +44,8 @@ export function ConsentRefresh() {
   if (done || !needsRefresh || !account) return null;
 
   const save = async () => {
-    if (!accepted || busy) return;
+    if (busy) return;
+    setAccepted(true);
     setBusy(true);
     setMessage(null);
     try {
@@ -51,29 +53,42 @@ export function ConsentRefresh() {
       window.dispatchEvent(new CustomEvent(CONSENT_ACCEPTED_EVENT, { detail: CONSENT_VERSION }));
       setDone(true);
     } catch (error) {
+      setAccepted(false);
       setMessage(error instanceof Error ? error.message : "Could not save the agreement");
       setBusy(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-end bg-white px-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-      <h1 className="t-name">Updated terms</h1>
-      <p className="mt-3 max-w-xs t-body">
-        The terms and the privacy policy are now version {CONSENT_VERSION}. Accept them to continue.
-      </p>
-      <div className="mt-6">
-        <ConsentLine checked={accepted} onCheckedChange={setAccepted} id="consent-refresh" />
+    <>
+      <div className="fixed inset-0 z-40 bg-transparent" />
+      <div className="fixed top-1/2 left-1/2 z-50 w-max max-w-[min(100%-48px,280px)] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center">
+        <p className="t-body text-[var(--ink)]">We&apos;ve updated our Terms and Privacy Policy.</p>
+        <div className="mt-3 flex items-start justify-center gap-2 text-left">
+          <Checkbox
+            id="consent-refresh"
+            checked={accepted}
+            disabled={busy}
+            onCheckedChange={(value) => {
+              if (value === true) void save();
+            }}
+            aria-label="I agree to the updated Terms and Privacy Policy"
+            className="mt-0.5 size-4 shrink-0 rounded-none border border-[var(--rule)] bg-white"
+          />
+          <label htmlFor="consent-refresh" className="t-meta text-[var(--ink)]">
+            I agree to the updated{" "}
+            <Link href="/terms" className="underline">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="underline">
+              Privacy Policy
+            </Link>
+            .
+          </label>
+        </div>
+        {message ? <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{message}</p> : null}
       </div>
-      <button
-        type="button"
-        disabled={!accepted || busy}
-        onClick={() => void save()}
-        className="mt-2 self-start border-0 bg-sky px-6 py-3 t-caps disabled:opacity-40"
-      >
-        Continue
-      </button>
-      {message ? <p className="mt-4 max-w-xs t-meta">{message}</p> : null}
-    </div>
+    </>
   );
 }
