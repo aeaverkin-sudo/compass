@@ -9,7 +9,7 @@ import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-n
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
-import { createEmptyContactItem, detectContactType, normalizeContactItem } from "@/shared/services/contact-item";
+import { createEmptyContactItem, detectContactType, normalizeContactItem, startsWithServicePhrase } from "@/shared/services/contact-item";
 import type { QuestionnaireZone } from "@/shared/lib/fill-place";
 import { detectAttachmentType, isMapLink } from "@/shared/services/portfolio-catalog";
 import { isAttachmentType, type AttachmentContactType } from "@/shared/services/portfolio-limits";
@@ -185,8 +185,9 @@ function messengerWithoutPlus(line: string) {
   return /^[\d\s()-]+$/.test(match[1].trim());
 }
 
-/** A street line: two words, and a number or a comma. A bare number is not an address. */
-function contactAddress(line: string) {
+/** A street line: plain text, two words, and a number or a comma. A service name is not a street. */
+function contactAddress(line: string, type: string) {
+  if (type !== "text" || startsWithServicePhrase(line)) return false;
   if (/^[\d\s()+-]+$/.test(line)) return false;
   const words = line.trim().split(/\s+/).filter(Boolean);
   return words.length >= 2 && (/\d/.test(line) || line.includes(","));
@@ -200,7 +201,7 @@ function entryLineIsRed(zoneId: string, raw: string) {
   if (zoneId === "web") return !(WEB_LINE.has(type) || isMapLink(line));
   if (zoneId === "social") return !SOCIAL_LINE.has(type);
   if (messengerWithoutPlus(line)) return true;
-  if (contactPhone(line) || CONTACT_LINE.has(type) || isMapLink(line) || contactAddress(line)) return false;
+  if (contactPhone(line) || CONTACT_LINE.has(type) || isMapLink(line) || contactAddress(line, type)) return false;
   return true;
 }
 

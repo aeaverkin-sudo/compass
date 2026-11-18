@@ -106,6 +106,18 @@ const SERVICE_PHRASES: { phrase: string; type: ContactType }[] = (() => {
   return list;
 })();
 
+/** The line opens with a service name or label from the dictionary, not with a longer word. */
+export function startsWithServicePhrase(raw: string) {
+  const lower = raw.trim().toLowerCase();
+  for (const { phrase } of SERVICE_PHRASES) {
+    if (!lower.startsWith(phrase)) continue;
+    const boundary = lower.charAt(phrase.length);
+    if (boundary && /[a-z0-9]/i.test(boundary)) continue;
+    return true;
+  }
+  return false;
+}
+
 /** `Instagram / @anna`, `Instagram / anna`, `Instagram @anna`. A space without @ stays plain text. */
 function slashOrAtShortcut(raw: string): { type: ContactType; handle: string } | null {
   const trimmed = raw.trim();
