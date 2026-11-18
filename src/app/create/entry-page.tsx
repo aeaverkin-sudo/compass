@@ -668,7 +668,7 @@ export function EntryPage({
                   </p>
                 </div>
               </section>
-              <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
+              <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] py-[18px]">
                 <div className="min-w-0">
                   <SectionNumber value="02" />
                   <span className="mt-[6px] block t-label text-[var(--grey)]">Email</span>
