@@ -67,7 +67,9 @@ function HiddenPassword({ value }: { value: string }) {
     <span aria-hidden className="t-body pointer-events-none absolute inset-0 truncate text-[var(--ink)]">
       {parts.map((part, index) =>
         part === "-" ? (
-          <span key={index}>-</span>
+          <span key={index} className="relative -top-[0.12em]">
+            -
+          </span>
         ) : (
           <span key={index} style={{ letterSpacing: "0.16em" }}>
             {"•".repeat(part.length)}
