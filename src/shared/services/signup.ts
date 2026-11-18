@@ -11,6 +11,7 @@ import { joinWithOwnCard, PASSWORD_SET } from "@/shared/services/guest-accept";
 import { CONSENT_VERSION } from "@/shared/services/consent";
 import { ATTACHMENT_TYPES, type AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { saveConnection } from "@/shared/services/save-connection";
+import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { isProseValue } from "@/shared/services/card-zones";
 
 export const MIN_PASSWORD = 8;
@@ -313,7 +314,6 @@ export async function writeFirstPortfolio(
 
 /** Create the account only. The first portfolio is a later screen. A failed write deletes the user. */
 export async function createSignup(body: SignupBody, origin = ""): Promise<SignupResult> {
-  void origin;
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
   if (!email || email.length > 254 || !isEmail(email)) return { ok: false, status: 400, error: "Add your email." };
@@ -348,6 +348,11 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
     });
     if (consent.error) throw new Error(consent.error.message);
     const door = await keepSourceCard(admin, userId, body.sourceToken);
+    if (origin) {
+      void sendWelcomeMail(userId, password, origin).catch((error) => {
+        console.error("[mail] welcome", error instanceof Error ? error.message : error);
+      });
+    }
     return { ok: true, status: 201, ...door };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);

@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { mailOrigin } from "@/shared/lib/public-origin";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { deleteOwnCard } from "@/shared/services/card-delete";
-import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { prepareSignupCard, writeFirstPortfolio, type SignupBody } from "@/shared/services/signup";
 import { readAccountStatus } from "@/shared/services/trial";
 
@@ -73,12 +71,6 @@ export async function POST(request: Request) {
           handle: keeper.handle,
         });
       }
-    }
-    const origin = mailOrigin(request);
-    if (origin) {
-      void sendWelcomeMail(user.id, written.cardId, "", origin, "google").catch((error) => {
-        console.error("[mail] welcome", error instanceof Error ? error.message : error);
-      });
     }
     return noStore(
       {

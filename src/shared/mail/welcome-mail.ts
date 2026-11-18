@@ -1,14 +1,12 @@
 /**
- * The welcome mail after Create my profile, laid out like the card: the logo tile and the thanks on top,
- * numbered rows with grey rules, two buttons on the value axis.
- * Tables and inline styles only, so Gmail, Outlook and Apple Mail draw it the same.
+ * The welcome mail after the account is created: the logo tile and the thanks on top,
+ * then four numbered rows. Tables and inline styles only, so mail clients draw it the same.
  */
 
 const FONT = "Arial, Helvetica, sans-serif";
 const INK = "#111111";
 const GREY = "#999999";
 const RULE = "#999999";
-const SKY = "#c5e8f7";
 const WIDTH = 480;
 const LABEL = 76;
 const GAP = 12;
@@ -20,16 +18,8 @@ const LOGO_H = Math.round((LOGO_W * 80) / 254);
 export type WelcomeMailInput = {
   logoSrc: string;
   password: string;
-  /** A Google or Apple account has no password. The second row says how to come back. */
+  /** A Google or Apple account has no password. The first row says how to come back. */
   access?: "password" | "google" | "apple";
-  /** `https://adedme.com/@handle`. The visible words of the access line. Typing it does not sign in. */
-  profileUrl: string;
-  /** `/open?t=…`. The hidden door. The access line and the portfolio button both use it. */
-  accessUrl: string;
-  /** The signed pass file. The Wallet line opens the card, not a page. */
-  walletSectionUrl: string;
-  /** The same pass. The button label stays Add. */
-  walletPassUrl: string;
   /** `adedme.com` */
   siteLabel: string;
 };
@@ -67,30 +57,18 @@ function rowHtml(row: Row, index: number): string {
 </tr></table></td></tr>`;
 }
 
-function skyButton(button: { label: string; href: string }, top: number): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:${top}px;"><tr><td bgcolor="${SKY}" style="background:${SKY};">
-<a href="${escape(button.href)}" style="display:inline-block;padding:11px 20px;font-family:${FONT};font-size:13px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase;color:${INK};text-decoration:none;">${escape(button.label)}</a>
-</td></tr></table>`;
-}
-
 export const WELCOME_SUBJECT = "Your portfolio is ready";
 
 export function welcomeMail(input: WelcomeMailInput): { html: string; text: string } {
-  const profileLabel = input.profileUrl.replace(/^https?:\/\//, "");
   const rows: Row[] = [
-    { label: "Access", value: [{ text: profileLabel, href: input.accessUrl }] },
     input.access === "google"
       ? { label: "Sign in", value: ["With Google — tap Continue with Google on adedme.com."] }
       : input.access === "apple"
         ? { label: "Sign in", value: ["With Apple — tap Continue with Apple on adedme.com."] }
         : { label: "Password", value: [`${input.password} — change it anytime in Profile.`] },
-    { label: "Wallet", value: ["Add your card to ", { text: "Apple Wallet", href: input.walletSectionUrl }, "."] },
+    { label: "Wallet", value: ["Add your portfolio to Apple Wallet."] },
     { label: "Portfolio", value: ["Share it with everyone you meet. Up to 3 portfolios from one library."] },
     { label: "App", value: ["Save it as an app: in Safari tap Share → Add to Home Screen."] },
-  ];
-  const buttons = [
-    { label: "Open my portfolio", href: input.accessUrl },
-    { label: "Add to Apple Wallet", href: input.walletPassUrl },
   ];
   const footer = `ADED · ${input.siteLabel}`;
 
@@ -103,9 +81,6 @@ export function welcomeMail(input: WelcomeMailInput): { html: string; text: stri
 </tr></table>
 </td></tr>
 ${rows.map((row, index) => rowHtml(row, index)).join("\n")}
-<tr><td style="border-top:1px solid ${RULE};padding:18px 0 20px ${AXIS}px;">
-${buttons.map((button, index) => skyButton(button, index === 0 ? 0 : 8)).join("\n")}
-</td></tr>
 <tr><td style="border-top:1px solid ${RULE};padding:12px 0 0 ${AXIS}px;font-family:${FONT};font-size:12px;line-height:1.45;color:${GREY};">${escape(footer)}</td></tr>
 </table></td></tr></table>`;
 
@@ -119,6 +94,6 @@ ${body}
   rows.forEach((row, index) => {
     lines.push(`${String(index + 1).padStart(2, "0")} ${row.label}: ${row.value.map(partText).join("")}`);
   });
-  lines.push("", ...buttons.map((button) => `${button.label}: ${button.href}`), "", footer);
+  lines.push("", footer);
   return { html, text: lines.join("\n") };
 }

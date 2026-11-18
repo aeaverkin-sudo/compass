@@ -5,6 +5,7 @@ import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { CONSENT_VERSION } from "@/shared/services/consent";
 import { saveConnection } from "@/shared/services/save-connection";
+import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { clearTrialClock } from "@/shared/services/trial";
 
 export const runtime = "nodejs";
@@ -117,6 +118,10 @@ export async function GET(request: Request) {
   } catch {
     console.error("[auth] callback");
   }
+  const providers = new Set((user.identities ?? []).map((identity) => identity.provider));
+  void sendWelcomeMail(user.id, "", origin, providers.has("apple") ? "apple" : "google").catch((error) => {
+    console.error("[mail] welcome", error instanceof Error ? error.message : error);
+  });
 
   return NextResponse.redirect(await afterGoogle(origin, user.id, next));
 }
