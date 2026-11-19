@@ -418,7 +418,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                     <path
                       d="M4.8 11.5h13.4M11.5 4.8v13.4"
                       stroke="currentColor"
-                      strokeWidth="1.4"
+                      strokeWidth="1.26"
                       strokeLinecap="round"
                     />
                   </svg>
