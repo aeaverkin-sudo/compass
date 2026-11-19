@@ -14,9 +14,11 @@ import type { ContactDraft } from "@/features/contact-collect/parse-contact";
 import type { ScannedContact } from "@/features/contact-collect/scan-qr";
 import type { ContactSource, ExternalContact, LineFlag } from "@/features/contact-collect/types";
 
-const SECTION = "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]";
+const ROW = "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)]";
+const SECTION = `${ROW} py-[18px]`;
+const COMPACT = `${ROW} py-[10px]`;
 const FIELD =
-  "min-w-0 w-full border-0 border-b border-[var(--rule)] bg-transparent py-1 t-body outline-none placeholder:text-[var(--placeholder)]";
+  "min-w-0 w-full border-0 bg-transparent py-1 t-body outline-none placeholder:text-[var(--placeholder)]";
 const GHOST =
   "press min-h-11 flex-1 border-0 bg-white t-caps text-[var(--ink)] shadow-[0_10px_22px_rgba(20,20,20,0.14)] [-webkit-tap-highlight-color:transparent]";
 const SAVE =
@@ -320,7 +322,7 @@ export function NewContactForm({
             placeholder="Name"
             aria-label="Name"
             autoComplete="name"
-            className={cn(FIELD, "flex-1 text-[var(--ink)]")}
+            className={cn(FIELD, "flex-1 border-b border-[var(--rule)] text-[var(--ink)]")}
           />
         </div>
 
@@ -406,18 +408,19 @@ export function NewContactForm({
           </div>
         </section>
 
-        <section className={SECTION}>
+        <section className={COMPACT}>
           <span className="t-label text-[var(--grey)]">Note</span>
           <input
             value={note}
             onChange={(event) => setNote(event.target.value)}
             onKeyDown={keepEnter}
+            placeholder="short note"
             aria-label="Note"
             className={cn(FIELD, "text-[var(--ink)]")}
           />
         </section>
 
-        <section className={SECTION}>
+        <section className={COMPACT}>
           <span className="t-label text-[var(--grey)]">Event</span>
           <input
             value={eventTag}

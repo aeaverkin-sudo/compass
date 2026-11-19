@@ -173,7 +173,7 @@ export function PhotoSlotPicker({
             }}
             className="flex size-full items-center justify-center transition-opacity active:opacity-80"
           >
-            <Plus className="size-7 text-hint" strokeWidth={1.5} aria-hidden />
+            <Plus className="size-7 text-hint" strokeWidth={1.28} aria-hidden />
           </button>
         ) : (
           <div
@@ -214,7 +214,7 @@ export function PhotoSlotPicker({
             }}
             className="absolute top-1/2 left-1/2 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center text-[var(--ink)]"
           >
-            <Plus className="size-7" strokeWidth={1.5} aria-hidden />
+            <Plus className="size-7" strokeWidth={1.28} aria-hidden />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger
