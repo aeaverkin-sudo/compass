@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { RotateCw, Search, SlidersHorizontal } from "lucide-react";
+import { Hand, RotateCw, Search, SlidersHorizontal } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyActions } from "@/shared/components/sky-actions";
 import { Zone } from "@/shared/components/zone";
@@ -52,6 +52,8 @@ type Contact = {
   theyHaveMe?: boolean;
   /** My share back is still a request in their book. */
   shareBackPending?: boolean;
+  /** Saved by hand, scan, voice, or photo. Not an ADED card. */
+  collected?: boolean;
 };
 
 const HOLD_MS = 500;
@@ -91,6 +93,31 @@ function matchesQuery(contact: Contact, query: string) {
   return contact.searchText.includes(query);
 }
 
+type CollectedWire = {
+  id?: unknown;
+  displayName?: unknown;
+  position?: unknown;
+  photoUrl?: unknown;
+  createdAt?: unknown;
+  searchText?: unknown;
+};
+
+function collectedContact(row: CollectedWire): Contact | null {
+  if (typeof row.id !== "string" || typeof row.displayName !== "string") return null;
+  return {
+    id: row.id,
+    displayName: row.displayName,
+    state: "active",
+    savedCardToken: "",
+    sourceEventId: null,
+    createdAt: typeof row.createdAt === "string" ? row.createdAt : "",
+    role: typeof row.position === "string" ? row.position.trim() : "",
+    photoUrl: typeof row.photoUrl === "string" && row.photoUrl ? row.photoUrl : null,
+    searchText: foldSearch(typeof row.searchText === "string" ? row.searchText : row.displayName),
+    collected: true,
+  };
+}
+
 type HoldMenu = { id: string; top: number; left: number; width: number; confirmDelete: boolean; picking: boolean };
 
 export function NetworkScreen({ addedName = null }: { addedName?: string | null }) {
@@ -128,22 +155,30 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       for (const contact of connections) {
         if (contact.state !== "pending") releaseIfAccepted(contact.id);
       }
-      setContacts(
-        connections.map((contact) => ({
-          ...contact,
-          state: contact.state === "pending" ? "pending" : "active",
-          searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
-        })),
-      );
-      setLoadError(false);
-      markIncomingSeen(connections.filter((contact) => contact.state === "pending").map((contact) => contact.id));
+      const book = connections.map((contact) => ({
+        ...contact,
+        state: contact.state === "pending" ? "pending" : "active",
+        searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
+      }));
+      let collected: Contact[] = [];
       try {
         const probe = await fetch("/api/external-contacts", { cache: "no-store" });
-        const probeBody = probe.ok ? ((await probe.json()) as { available?: boolean }) : null;
+        const probeBody = probe.ok
+          ? ((await probe.json()) as { available?: boolean; contacts?: CollectedWire[] })
+          : null;
         setCanCollect(probeBody?.available === true);
+        if (probeBody?.available === true && Array.isArray(probeBody.contacts)) {
+          collected = probeBody.contacts.flatMap((row) => {
+            const contact = collectedContact(row);
+            return contact ? [contact] : [];
+          });
+        }
       } catch {
         setCanCollect(false);
       }
+      setContacts([...book, ...collected]);
+      setLoadError(false);
+      markIncomingSeen(connections.filter((contact) => contact.state === "pending").map((contact) => contact.id));
     } catch {
       setLoadError(true);
     }
@@ -239,12 +274,18 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const menuContact = menu ? book.find((contact) => contact.id === menu.id) ?? null : null;
   const sharePhase = useShareBack(menuContact?.savedCardToken ?? "");
   const canSwap = Boolean(
-    shareCards.length > 0 && menuContact && !menuContact.theyHaveMe && !menuContact.shareBackPending && sharePhase === "idle",
+    shareCards.length > 0 &&
+      menuContact &&
+      !menuContact.collected &&
+      !menuContact.theyHaveMe &&
+      !menuContact.shareBackPending &&
+      sharePhase === "idle",
   );
   const swapLocked = Boolean(
     cardsReady &&
       cardCount === 0 &&
       menuContact &&
+      !menuContact.collected &&
       !menuContact.theyHaveMe &&
       !menuContact.shareBackPending &&
       sharePhase === "idle",
@@ -260,7 +301,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const remove = async (id: string) => {
     const index = contacts?.findIndex((contact) => contact.id === id) ?? -1;
     const before = index >= 0 ? contacts?.[index] : undefined;
-    if (!before || inFlight.current.has(id)) return;
+    if (!before || before.collected || inFlight.current.has(id)) return;
     inFlight.current.add(id);
     setMenu(null);
     setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
@@ -304,6 +345,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const empty = contacts !== null && people.length === 0 && requests.length === 0;
 
   const openMenu = (contact: Contact, box: DOMRect) => {
+    if (contact.collected) return;
     arming.current = true;
     setPickUp(false);
     setMenu({ id: contact.id, top: box.top, left: box.left, width: box.width, confirmDelete: false, picking: false });
@@ -623,6 +665,7 @@ function ContactRow({
   const removing = decisions.removing.has(contact.id);
   const box = useRef<DOMRect | null>(null);
   const longPress = useLongPress(() => {
+    if (contact.collected) return;
     if (box.current) onHold(box.current);
   }, HOLD_MS);
   const rule = divider ? "border-b border-[var(--rule)]" : "";
@@ -634,24 +677,36 @@ function ContactRow({
     );
   }
   const line = metaLine(contact);
+  const rowClass =
+    "press flex min-w-0 flex-1 items-center gap-3 py-3 text-inherit no-underline select-none [-webkit-touch-callout:none]";
+  const point = {
+    ...longPress,
+    onPointerDown: (event: PointerEvent<HTMLElement>) => {
+      box.current = event.currentTarget.getBoundingClientRect();
+      longPress.onPointerDown(event);
+    },
+  };
+  const body = (
+    <>
+      <Face photoUrl={contact.photoUrl} />
+      <div className="min-w-0 flex-1">
+        <p className="m-0 flex min-w-0 items-center gap-1.5 t-body text-[var(--ink)]">
+          <span className="min-w-0 truncate">{contact.displayName.trim() || "Untitled"}</span>
+          {contact.collected ? <Hand className="size-4 shrink-0" strokeWidth={1.5} aria-hidden /> : null}
+        </p>
+        {line ? <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{line}</p> : null}
+      </div>
+    </>
+  );
   return (
     <li className={`${rule}${veiled ? " opacity-60" : ""}`}>
-      <Link
-        href={`/network/c/${contact.savedCardToken}`}
-        className="press flex min-w-0 flex-1 items-center gap-3 py-3 text-inherit no-underline select-none [-webkit-touch-callout:none]"
-        draggable={false}
-        {...longPress}
-        onPointerDown={(event) => {
-          box.current = event.currentTarget.getBoundingClientRect();
-          longPress.onPointerDown(event);
-        }}
-      >
-        <Face photoUrl={contact.photoUrl} />
-        <div className="min-w-0 flex-1">
-          <p className="m-0 truncate t-body text-[var(--ink)]">{contact.displayName.trim() || "Untitled"}</p>
-          {line ? <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{line}</p> : null}
-        </div>
-      </Link>
+      {contact.collected ? (
+        <div className={rowClass}>{body}</div>
+      ) : (
+        <Link href={`/network/c/${contact.savedCardToken}`} className={rowClass} draggable={false} {...point}>
+          {body}
+        </Link>
+      )}
     </li>
   );
 }
