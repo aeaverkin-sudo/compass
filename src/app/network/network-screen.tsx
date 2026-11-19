@@ -159,7 +159,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       for (const contact of connections) {
         if (contact.state !== "pending") releaseIfAccepted(contact.id);
       }
-      const book = connections.map((contact) => ({
+      const book: Contact[] = connections.map((contact) => ({
         ...contact,
         state: contact.state === "pending" ? "pending" : "active",
         searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
@@ -237,7 +237,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   useEffect(() => {
     if (!menu) return;
-    const close = (event: PointerEvent) => {
+    const close = (event: Event) => {
       const node = plaqueRef.current;
       if (node && event.target instanceof Node && node.contains(event.target)) return;
       setMenu(null);
