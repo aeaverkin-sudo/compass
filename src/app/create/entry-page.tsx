@@ -7,14 +7,14 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { BottomNav } from "@main/components/bottom-nav";
-import { carouselSidePaddingPx } from "@main/layout";
+import { SCREEN_TOP_AXIS_PX, carouselSidePaddingPx } from "@main/layout";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
 import { BackButton } from "@/shared/components/back-button";
 import { SectionNumber } from "@/shared/components/section-number";
 import { ROW_LINE_TRIM, SOCIAL_SIGNIN, SocialSignInRows } from "@/shared/components/social-sign-in-rows";
 import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
-import { VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
 import { clearFillPlace, photoFileFromDraft, readQuestionnaire, readQuestionnairePhoto, writeQuestionnaire, writeQuestionnairePhoto, type QuestionnairePlace } from "@/shared/lib/fill-place";
 import { track } from "@/shared/lib/funnel";
 import { markNewContact } from "@/shared/lib/new-contact";
@@ -759,20 +759,30 @@ export function EntryPage({
   const sheet = (
     <>
       {account ? (
-        <div className="px-[var(--gutter)] pt-[calc(env(safe-area-inset-top)+14px)]">
-          <div className="mb-[18px] flex justify-end">
-            <button
-              type="button"
-              aria-label="Info"
-              onClick={() => router.push("/info")}
-              className="border-0 bg-transparent p-0 text-[var(--ink)]"
-            >
-              <span className="block text-center leading-none" style={{ fontSize: 22, fontWeight: 400 }}>
-                i
-              </span>
-            </button>
-          </div>
-        </div>
+        <>
+          <button
+            type="button"
+            aria-label="Info"
+            onClick={() => router.push("/info")}
+            className="touch-manipulation fixed z-30 flex w-11 items-center justify-start text-[#111]"
+            style={{
+              top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
+              left: `calc(var(--gutter) - 7.3px)`,
+              height: HEADER_ROW_PX,
+            }}
+          >
+            <span className="block w-[22px] text-center leading-none" style={{ fontSize: 22, fontWeight: 400 }}>
+              i
+            </span>
+          </button>
+          <div
+            aria-hidden
+            className="shrink-0"
+            style={{
+              height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px + ${HEADER_ROW_PX / 2}px + 36px)`,
+            }}
+          />
+        </>
       ) : (
         <>
           <BackButton fallbackHref="/" onBack={formOpen && SOCIAL_SIGNIN ? closeForm : undefined} />

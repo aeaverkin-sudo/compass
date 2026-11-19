@@ -301,7 +301,7 @@ export function NewContactForm({
     <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
       <form onSubmit={(event) => void save(event)} className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(24px,env(safe-area-inset-bottom))]">
         <ScreenHeader title={editing ? "Edit" : "New contact"} fallbackHref={initial ? `/network/x/${initial.id}` : "/network"} />
-        <div className="flex items-end gap-3">
+        <div className="flex items-end gap-3 pt-[18px]">
           <PhotoSlotPicker
             photo={photo?.dataUrl ?? keptPhoto}
             onPhotoChange={(dataUrl, file) => {

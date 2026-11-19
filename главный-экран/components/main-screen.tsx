@@ -599,14 +599,14 @@ export function MainScreen() {
   }
 
   const cardTopBrowse = layout?.cardTopBrowse;
-  // Photo on /create sits at S + 54. The new slide uses that line. Real cards keep
-  // their place under the QR by the same amount, so a swipe does not move them.
+  // Photo on the new slide is 36px under the header row, the same line as /create.
+  // Real cards keep their place under the QR, so a swipe does not move them.
   const addLiftPx =
     showAddSlide && layout
       ? Math.max(
           0,
           (HEADER_RHYTHM_PX + BROWSE_QR_SIZE + RULE_GAP_PX) * layout.headerScale -
-            (SCREEN_TOP_AXIS_PX + HEADER_ROW_PX / 2 + 18),
+            (SCREEN_TOP_AXIS_PX + HEADER_ROW_PX / 2),
         )
       : 0;
   const cardLiftPx = editing ? 0 : addLiftPx;
