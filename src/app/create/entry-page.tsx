@@ -866,13 +866,7 @@ export function EntryPage({
               borderRadiusPx={0}
               photoLook="shadow"
               surfaceClassName="bg-white"
-              className={photo ? undefined : "[&_button_svg]:invisible"}
             />
-            {photo ? null : (
-              <span className="t-body pointer-events-none absolute inset-0 flex items-center justify-center text-center text-[var(--placeholder)]">
-                Photo
-              </span>
-            )}
           </div>
           <EntryName
             value={name}

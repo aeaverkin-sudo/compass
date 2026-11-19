@@ -127,12 +127,10 @@ export function PhotoSlotPicker({
         if (!cancelArm) setControlsLive(true);
       }, 0);
     };
-    if (onPhotoLook) {
-      if (pointersDown.current === 0) arm();
-      else {
-        window.addEventListener("pointerup", arm, { once: true });
-        window.addEventListener("pointercancel", arm, { once: true });
-      }
+    if (pointersDown.current === 0) arm();
+    else {
+      window.addEventListener("pointerup", arm, { once: true });
+      window.addEventListener("pointercancel", arm, { once: true });
     }
     return () => {
       cancelArm = true;
@@ -141,9 +139,9 @@ export function PhotoSlotPicker({
       window.removeEventListener("pointercancel", arm);
       setControlsLive(false);
     };
-  }, [editing, onPhotoLook]);
+  }, [editing]);
 
-  const showPlaceholder = !photo || (editing && !onPhotoLook);
+  const showPlaceholder = !photo;
 
   const slotStyle = {
     width: sizePx,
@@ -193,7 +191,7 @@ export function PhotoSlotPicker({
         )}
       </div>
 
-      {photo && editing && onPhotoLook ? (
+      {photo && editing ? (
         <div
           className={cn("absolute inset-0 z-10", !controlsLive && "pointer-events-none")}
           onClick={(event) => {
@@ -217,7 +215,7 @@ export function PhotoSlotPicker({
           >
             <MarkPlus size={23} />
           </button>
-          <DropdownMenu>
+          {onPhotoLook ? <DropdownMenu>
             <DropdownMenuTrigger
               data-card-content
               aria-label="Photo style"
@@ -246,7 +244,7 @@ export function PhotoSlotPicker({
                 );
               })}
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu> : null}
           <button
             type="button"
             data-card-content
@@ -266,26 +264,6 @@ export function PhotoSlotPicker({
             <X className={removeIconSize} strokeWidth={1.25} aria-hidden />
           </button>
         </div>
-      ) : null}
-      {photo && editing && !onPhotoLook ? (
-        <button
-          type="button"
-          data-card-content
-          aria-label="Remove photo"
-          onClick={(event) => {
-            event.stopPropagation();
-            onPhotoChange(null);
-            setEditing(false);
-          }}
-          className={cn(
-            "absolute z-10 flex items-center justify-center transition-opacity active:opacity-60",
-            sizePx >= LANDING_PHOTO_SIZE_PX - 1
-              ? "-top-[3px] -right-[3px] size-9"
-              : "-top-[1.5px] -right-[1.5px] size-[30px]",
-          )}
-        >
-          <X className={removeIconSize} strokeWidth={1.25} aria-hidden />
-        </button>
       ) : null}
     </div>
   );
