@@ -113,6 +113,11 @@ function zoneHasText(
   return zone.rows.some((row) => (editKey === row.key ? editText : row.value).trim().length > 0);
 }
 
+/** A folded line has been stored. An open empty field stays under More until the text is committed. */
+function zoneFilled(zone: EntryZone) {
+  return zone.rows.some((row) => row.value.trim().length > 0);
+}
+
 function titled(zone: EntryZone, value: string, fileType?: AttachmentContactType | null): EntryZone {
   if (zone.title.trim()) return zone;
   const title = suggestedSectionTitle(value, fileType);
@@ -396,7 +401,12 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
       return zone ? [zone] : [];
     });
   const head = pick(FIRST);
-  const tail = [...pick(FOLDED), ...zones.filter((zone) => zone.custom)];
+  const folded = pick(FOLDED);
+  const filledFold = folded.filter(zoneFilled);
+  const emptyFold = folded.filter((zone) => !zoneFilled(zone));
+  const custom = zones.filter((zone) => zone.custom);
+  const showMore = emptyFold.length > 0;
+  const showRest = !showMore || moreOpen;
   const section = (zone: EntryZone, index: number) => {
         const hint = zone.custom ? NEW_HINT : HINTS[zone.id];
         const about = zone.id === "about";
@@ -591,12 +601,24 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         );
   };
 
+  const filledStart = head.length;
+  const restStart = filledStart + filledFold.length;
   return (
     <div className="mt-[18px]">
-      {head.map(section)}
-      <MoreRow open={moreOpen} onToggle={() => setMoreOpen((current) => !current)} />
-      {moreOpen ? tail.map((zone, index) => section(zone, head.length + index)) : null}
-      {moreOpen ? (
+      {head.map((zone, index) => section(zone, index))}
+      {filledFold.map((zone, index) => section(zone, filledStart + index))}
+      {showMore ? (
+        <MoreRow
+          open={moreOpen}
+          hint={emptyFold.map((zone) => zone.title).join(", ")}
+          onToggle={() => setMoreOpen((current) => !current)}
+        />
+      ) : null}
+      {showRest ? emptyFold.map((zone, index) => section(zone, restStart + index)) : null}
+      {showRest
+        ? custom.map((zone, index) => section(zone, restStart + emptyFold.length + index))
+        : null}
+      {showRest ? (
         <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] py-[18px]">
           <span />
           <button type="button" aria-label="Add section" className="border-0 bg-transparent p-0 text-left text-[var(--ink)]" onClick={addZone}>
@@ -626,7 +648,7 @@ function HintLine({ text }: { text: string }) {
   return text;
 }
 
-function MoreRow({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+function MoreRow({ open, hint, onToggle }: { open: boolean; hint: string; onToggle: () => void }) {
   return (
     <button
       type="button"
@@ -637,7 +659,7 @@ function MoreRow({ open, onToggle }: { open: boolean; onToggle: () => void }) {
       <span className="t-label">More</span>
       <span className="flex min-w-0 items-center gap-3">
         {open ? <span className="min-w-0 flex-1" /> : (
-          <span className="t-body min-w-0 flex-1 text-[var(--placeholder)]">Web, Social, Files, About</span>
+          <span className="t-body min-w-0 flex-1 text-[var(--placeholder)]">{hint}</span>
         )}
         <ChevronDown
           className={cn("size-4 shrink-0 text-[var(--ink)]", open && "rotate-180")}
