@@ -29,7 +29,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { clearNewContact } from "@/shared/lib/new-contact";
 import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
-import { MARK_PX, MarkPlus, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
+import { MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { RAIL_ICON_SCALE } from "@main/components/side-rail";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
@@ -412,9 +412,16 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                 <Link
                   href="/network/new"
                   aria-label="New contact"
-                  className="press pointer-events-auto flex size-11 items-center justify-end text-[var(--ink)]"
+                  className="press pointer-events-auto flex size-11 items-center justify-end text-[#111]"
                 >
-                  <MarkPlus />
+                  <svg width="23" height="23" viewBox="0 0 23 23" fill="none" aria-hidden>
+                    <path
+                      d="M4.8 11.5h13.4M11.5 4.8v13.4"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </Link>
               ) : null
             }
