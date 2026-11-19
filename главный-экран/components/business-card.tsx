@@ -653,7 +653,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       ) : null}
       {bare && !readOnly ? (
         <div className={cn("min-h-0 flex-1 overflow-y-auto", sidePad && "px-[var(--gutter)]")}>
-          <EmptyCardZones onPick={(zoneId) => onFill?.(zoneId)} />
+          <EmptyCardZones />
           <NotesRubric ownerNotes={nextScanAddons} />
         </div>
       ) : null}
