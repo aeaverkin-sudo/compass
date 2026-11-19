@@ -494,9 +494,9 @@ export function ProfileScreen() {
               <li key={card.id} className="flex gap-4">
                 {photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photo} alt="" className="size-12 border border-[#d4d4d4] object-cover" />
+                  <img src={photo} alt="" className="size-12 object-cover shadow-[var(--block-shadow)]" />
                 ) : (
-                  <span className="size-12 shrink-0 border border-[#d4d4d4]" />
+                  <span className="size-12 shrink-0 shadow-[var(--block-shadow)]" />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate t-body">
