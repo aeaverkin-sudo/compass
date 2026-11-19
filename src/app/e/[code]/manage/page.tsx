@@ -79,6 +79,7 @@ export default async function ManageEventPage({ params, searchParams }: PageProp
       lookup={lookup}
       name={event.name}
       canEdit={canEdit}
+      isOwner={event.role === "owner"}
       flash={flash}
       cover={{
         description: invite.description,

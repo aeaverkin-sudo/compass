@@ -39,10 +39,12 @@ export function ManageHome({
   cover,
   scanner,
   rooms,
+  isOwner,
 }: {
   lookup: string;
   name: string;
   canEdit: boolean;
+  isOwner: boolean;
   flash: Flash;
   cover: {
     description: string | null;
@@ -64,7 +66,11 @@ export function ManageHome({
 }) {
   const router = useRouter();
   const flashed = useRef(false);
+  const deletingLock = useRef(false);
   const [notice, setNotice] = useState<string | null>(flash === "saved" ? "Saved" : null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const href = (path: string) => `/e/${encodeURIComponent(lookup)}${path}`;
   const door = !canEdit && !rooms.payment && !rooms.guests && !rooms.staff && !rooms.stats;
 
@@ -77,6 +83,28 @@ export function ManageHome({
     const next = `${url.pathname}${url.search}`;
     window.history.replaceState(null, "", next);
   }, [flash]);
+
+  const remove = async () => {
+    if (!isOwner || deletingLock.current) return;
+    deletingLock.current = true;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/events/${encodeURIComponent(lookup)}`, { method: "DELETE" });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setDeleteError(payload.error ?? "Could not delete the event.");
+        deletingLock.current = false;
+        setDeleting(false);
+        return;
+      }
+      router.replace("/network/event");
+    } catch {
+      setDeleteError("Could not delete the event.");
+      deletingLock.current = false;
+      setDeleting(false);
+    }
+  };
 
   const poster = {
     name,
@@ -193,6 +221,35 @@ export function ManageHome({
             </Room>
           ))}
         </>
+      ) : null}
+      {isOwner ? (
+        <div className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+          <Rule className="mt-[18px]" />
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="press mt-[18px] border-0 bg-transparent p-0 t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+            style={{ marginLeft: VALUE_AXIS_PX }}
+          >
+            Delete event
+          </button>
+          {confirmDelete ? (
+            <div style={{ marginLeft: VALUE_AXIS_PX }}>
+              <p className="mt-2 mb-0 t-meta text-[var(--grey)]">
+                This deletes the event and everything in it — guests, co-hosts, invites. This can&apos;t be undone.
+              </p>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => void remove()}
+                className="press mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+              >
+                Delete {eventTitleLine(name)}
+              </button>
+              {deleteError ? <p className="mt-2 mb-0 t-meta text-[var(--ink)]">{deleteError}</p> : null}
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </ManageFrame>
   );

@@ -38,7 +38,6 @@ export default async function ManageEditPage({ params }: PageProps) {
       lookup={lookup}
       initial={fieldsFromEvent(invite)}
       logoUrl={invite.logoAttachmentId ? `/e/${invite.publicToken}/logo` : null}
-      isOwner={access.event.role === "owner"}
       afishaHref={posterPath ? `/api/events/${encodeURIComponent(lookup)}/afisha` : null}
     />
   );
