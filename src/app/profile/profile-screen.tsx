@@ -411,9 +411,14 @@ export function ProfileScreen() {
         </Zone>
       ) : (
         <Zone label="Account" rule>
-          <p className={ZONE_VALUE}>
-            {account.email ? `Signed in as ${account.email}.` : "Signed in."}
-          </p>
+          {account.email ? (
+            <>
+              <p className={`${ZONE_VALUE} mb-0 whitespace-nowrap`}>Signed in as</p>
+              <p className={`${ZONE_VALUE} mt-1 mb-0`}>{account.email}</p>
+            </>
+          ) : (
+            <p className={ZONE_VALUE}>Signed in.</p>
+          )}
           <p className="mt-3 flex gap-4 t-body">
             {canChangePassword ? (
               <Link href="/account/password" className="underline">
