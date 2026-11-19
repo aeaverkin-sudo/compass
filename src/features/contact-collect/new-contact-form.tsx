@@ -9,7 +9,9 @@ import { SectionNumber } from "@/shared/components/section-number";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { detectContactType } from "@/shared/services/contact-item";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
-import type { ExternalContact, LineFlag } from "@/features/contact-collect/types";
+import { QrScanner } from "@/features/contact-collect/qr-scanner";
+import type { ScannedContact } from "@/features/contact-collect/scan-qr";
+import type { ContactSource, ExternalContact, LineFlag } from "@/features/contact-collect/types";
 
 const SECTION = "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]";
 const FIELD =
@@ -66,6 +68,8 @@ export function NewContactForm({
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
   const [keptPhoto, setKeptPhoto] = useState<string | null>(initial?.photoUrl ?? null);
   const [photoId, setPhotoId] = useState<string | null>(initial?.photoAttachmentId ?? null);
+  const [source, setSource] = useState<ContactSource>(initial?.source ?? "manual");
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -73,6 +77,22 @@ export function NewContactForm({
 
   const updateLine = (id: string, value: string) => {
     setLines((current) => current.map((line) => (line.id === id ? { ...line, value, marked: false } : line)));
+  };
+
+  const applyScan = (found: ScannedContact) => {
+    if (!initial) setSource("scan");
+    if (found.name && !name.trim()) setName(found.name);
+    if (found.lines.length === 0) return;
+    setLines((current) => {
+      const next = current.filter((line) => line.value.trim());
+      for (const value of found.lines) {
+        if (next.length >= 30) break;
+        if (next.some((line) => line.value.trim() === value)) continue;
+        next.push({ id: crypto.randomUUID(), value, flags: [], marked: false });
+      }
+      next.push(blank());
+      return next;
+    });
   };
 
   const toggleFlag = (id: string, flag: LineFlag) => {
@@ -119,7 +139,7 @@ export function NewContactForm({
           company,
           note,
           eventTag: eventLive ? eventTag : suggestedEvent,
-          source: initial?.source ?? "manual",
+          source: initial?.source ?? source,
           photoAttachmentId,
           lines: filled.map((line) => {
             const flags = phoneLine(line.value) ? line.flags : [];
@@ -287,7 +307,7 @@ export function NewContactForm({
         </section>
 
         <div className="mt-[18px] flex gap-3">
-          <button type="button" className={GHOST}>
+          <button type="button" className={GHOST} onClick={() => setScanning(true)}>
             Scan
           </button>
           <button type="button" className={GHOST} onClick={() => lastLine.current?.focus()}>
@@ -299,6 +319,15 @@ export function NewContactForm({
         </button>
         {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
       </form>
+      {scanning ? (
+        <QrScanner
+          onClose={() => setScanning(false)}
+          onScan={(found) => {
+            applyScan(found);
+            setScanning(false);
+          }}
+        />
+      ) : null}
     </main>
   );
 }
