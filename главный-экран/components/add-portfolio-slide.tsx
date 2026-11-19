@@ -168,6 +168,7 @@ export function AddPortfolioSlide({
 
   return (
     <div key={formKey} className="compass-card-scroll h-full overflow-y-auto px-[var(--gutter)] pt-[30px]">
+      <div className="min-h-[calc(100%+1px)]">
       <div className="flex items-stretch gap-3" style={{ height: 128 }}>
         <div className="relative shrink-0">
           <PhotoSlotPicker
@@ -214,6 +215,7 @@ export function AddPortfolioSlide({
         </TapButton>
       </div>
       {error ? <p className="m-0 pb-6 t-meta text-[var(--ink)]">{error}</p> : null}
+      </div>
     </div>
   );
 }

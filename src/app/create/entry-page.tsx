@@ -1012,7 +1012,7 @@ export function EntryPage({
     return (
       <div className="compass-main flex h-dvh flex-col overflow-hidden bg-background text-[var(--ink)]">
         <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {sheet}
+          <div className="min-h-[calc(100%+1px)]">{sheet}</div>
         </main>
         <BottomNav
           showEdit={false}
@@ -1026,7 +1026,7 @@ export function EntryPage({
 
   return (
     <main ref={mainRef} className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]">
-      {sheet}
+      <div className="min-h-[calc(100%+1px)]">{sheet}</div>
     </main>
   );
 }

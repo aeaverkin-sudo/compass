@@ -612,7 +612,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         "compass-layer flex w-full cursor-default flex-col",
         compact
           ? "compass-card compass-card-library relative min-h-0 w-full min-w-0 justify-start overflow-hidden pb-3 transition-[transform,box-shadow,height] duration-[460ms] ease-out"
-          : "relative min-h-0 overflow-hidden bg-white text-[#111] transition-[height] duration-[460ms] ease-out motion-reduce:transition-none",
+          : "card-scroll-spring relative min-h-0 overflow-hidden bg-white text-[#111] transition-[height] duration-[460ms] ease-out motion-reduce:transition-none",
       )}
       style={
         compact
@@ -652,9 +652,11 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         </div>
       ) : null}
       {bare && !readOnly ? (
-        <div className={cn("min-h-0 flex-1 overflow-y-auto", sidePad && "px-[var(--gutter)]")}>
-          <EmptyCardZones />
-          <NotesRubric ownerNotes={nextScanAddons} />
+        <div className={cn("compass-card-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto", sidePad && "px-[var(--gutter)]")}>
+          <div>
+            <EmptyCardZones />
+            <NotesRubric ownerNotes={nextScanAddons} />
+          </div>
         </div>
       ) : null}
       <div className={cn("relative flex min-h-0 flex-1 flex-col", bare && "hidden")}>
