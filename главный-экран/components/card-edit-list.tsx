@@ -349,7 +349,7 @@ function SectionLabel({
           <button
             type="button"
             data-no-swipe
-            className="t-label flex w-full items-center bg-transparent text-left text-[var(--grey)]"
+            className="t-label w-full bg-transparent text-left text-[var(--grey)]"
             onClick={() => {
               if (editing) return;
               if (onPromote && !renamable) {
@@ -359,8 +359,10 @@ function SectionLabel({
               if (renamable) begin();
             }}
           >
-            <span className="min-w-0 whitespace-normal line-clamp-3">{shown}</span>
-            {onPromote ? <PromoteArrow /> : null}
+            <span className="relative inline-block max-w-full align-top">
+              <span className="whitespace-normal line-clamp-3">{shown}</span>
+              {onPromote ? <PromoteArrow /> : null}
+            </span>
           </button>
         ) : (
           <span className="t-label block w-full whitespace-normal line-clamp-3 text-left text-[var(--grey)]">{shown}</span>
@@ -998,10 +1000,10 @@ export const CardEditList = memo(function CardEditList({
                     data-no-swipe
                     data-zone-add=""
                     aria-label="Add to section"
-                    className="t-body w-full border-0 bg-transparent p-0 text-left text-[var(--ink)]"
+                    className="flex w-full border-0 bg-transparent p-0 text-left text-[var(--ink)]"
                     onClick={startSeed}
                   >
-                    +
+                    <MarkPlus size={16} strokeWidth={1.25} />
                   </button>
                 )}
               </ValueCap>
@@ -1587,7 +1589,7 @@ const EditRow = memo(function EditRow({
             editing ? "whitespace-pre-wrap break-words" : "select-none",
             !editing && (multiline || isProseValue(value) || value.includes("\n") || value.includes("  "))
               ? "w-full whitespace-pre-wrap break-words"
-              : !editing && "w-max whitespace-nowrap",
+              : !editing && "w-full min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]",
           )}
         >
           {editing ? (

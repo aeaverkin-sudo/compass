@@ -145,7 +145,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const decisions = useConnectionDecisions();
 
   const [loadError, setLoadError] = useState(false);
-  const [canCollect, setCanCollect] = useState(false);
+  const [canCollect, setCanCollect] = useState(true);
 
   const load = useCallback(async () => {
     try {

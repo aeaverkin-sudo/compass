@@ -220,7 +220,7 @@ export function WrapField({
           onPointerDown={onPointerDown}
           onBlur={(event) => onBlur?.(read(), event)}
           className={cn(
-            "compass-input min-w-0 break-words text-[#111] caret-[#111] outline-none select-text",
+            "compass-input min-w-0 break-words [overflow-wrap:anywhere] text-[#111] caret-[#111] outline-none select-text",
             "whitespace-pre-wrap",
             wrapHint && "absolute inset-0",
             className,
