@@ -14,7 +14,7 @@ export default function TermsPage() {
   return (
     <main
       data-terms-version={TERMS_VERSION}
-      className="compass-main h-dvh overflow-y-auto bg-white px-[26px] pb-16 text-[#111]"
+      className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-16 text-[#111]"
       style={{
         paddingTop: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px + 30px)`,
       }}

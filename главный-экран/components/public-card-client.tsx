@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 import {
@@ -14,7 +14,7 @@ import { BackButton } from "@/shared/components/back-button";
 import { CardPdfSource } from "@/shared/components/card-pdf-source";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { BusinessCard } from "@main/components/business-card";
-import { CARD_TOP_TRIM_PX, RULE_GAP_PX, SCREEN_TOP_AXIS_PX, carouselSidePaddingPx } from "@main/layout";
+import { CARD_TOP_TRIM_PX, RULE_GAP_PX, SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import type { Card, ContactItem } from "@/shared/types";
 
@@ -77,8 +77,6 @@ export function PublicCardClient({
   noteCode = "",
 }: PublicCardClientProps) {
   const router = useRouter();
-  const frameRef = useRef<HTMLDivElement>(null);
-  const [frameWidth, setFrameWidth] = useState(0);
   const [notes, setNotes] = useState<DeliveredNote[]>([]);
   const [notesReady, setNotesReady] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>(save ? "loading" : "ready");
@@ -258,27 +256,14 @@ export function PublicCardClient({
     }
   };
 
-  useLayoutEffect(() => {
-    if (!inside || save) return;
-    const node = frameRef.current;
-    if (!node) return;
-    const sync = () => {
-      const next = node.clientWidth;
-      setFrameWidth((prev) => (prev === next ? prev : next));
-    };
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [inside, save]);
-
-  const sheet = (
+  const sheet = (sidePad: boolean) => (
     <BusinessCard
       card={card}
       library={items}
       mode="browse"
       readOnly
       deliveredNotes={notes}
+      sidePad={sidePad}
     />
   );
 
@@ -295,9 +280,8 @@ export function PublicCardClient({
   ) : null;
 
   if (inside && !save) {
-    const sheetSide = carouselSidePaddingPx(frameWidth || 1, true);
     return (
-      <div ref={frameRef} className="contact-card relative h-full min-h-0 bg-white" style={{ "--card-frame-top": CONTACT_CARD_TOP } as CSSProperties}>
+      <div className="contact-card relative h-full min-h-0 bg-white" style={{ "--card-frame-top": CONTACT_CARD_TOP } as CSSProperties}>
         {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
         <BackButton
           fallbackHref={backHref ?? "/network"}
@@ -305,9 +289,9 @@ export function PublicCardClient({
         />
         <div
           className="absolute"
-          style={{ top: CONTACT_CARD_TOP, bottom: deleted ? 48 : 0, left: sheetSide, right: sheetSide }}
+          style={{ top: CONTACT_CARD_TOP, bottom: deleted ? 48 : 0, left: "var(--gutter)", right: "var(--gutter)" }}
         >
-          {sheet}
+          {sheet(false)}
         </div>
         {deleted ? (
           <div className="absolute inset-x-0 bottom-0 px-[var(--gutter)] pb-[max(12px,env(safe-area-inset-bottom))]">
@@ -335,14 +319,13 @@ export function PublicCardClient({
           onBack={() => router.push(backHref ?? "/network")}
         />
         <div className="relative min-h-0 flex-1">
-          <div className="absolute inset-x-0 top-[84px] bottom-0">{sheet}</div>
+          <div className="absolute inset-x-0 top-[84px] bottom-0">{sheet(true)}</div>
         </div>
         <SaveBar state={saveState} onSave={() => void keep()} />
       </div>
     );
   }
 
-  const webSheetSide = carouselSidePaddingPx(1, true);
   return (
     <div
       className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-white"
@@ -368,9 +351,9 @@ export function PublicCardClient({
       {pdfSheets}
       <div
         className="card-scroll-spring min-h-0 flex-1 overflow-hidden"
-        style={{ paddingLeft: webSheetSide, paddingRight: webSheetSide }}
+        style={{ paddingLeft: "var(--gutter)", paddingRight: "var(--gutter)" }}
       >
-        {sheet}
+        {sheet(false)}
       </div>
       <AccountBand
         token={card.publicToken}

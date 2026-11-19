@@ -5,9 +5,9 @@ import { Scan, Share } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { MarkPlus, MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
-import { SCREEN_TOP_AXIS_PX, carouselSidePaddingPx } from "@main/layout";
+import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
-const RAIL_W = `calc(${carouselSidePaddingPx(1, true)}px + clamp(24px, 6.1vw, 28px) - 3mm)`;
+const RAIL_W = "var(--gutter)";
 
 const TOC = [
   ["qr", "QR & Wallet"],

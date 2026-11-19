@@ -75,7 +75,7 @@ const CSS = `
 .pw-about{position:fixed;top:calc(5vw + env(safe-area-inset-top));right:8vw;z-index:51;box-sizing:border-box;display:flex;align-items:center;justify-content:center;height:9vw;margin:0;padding:0 3.6vw;border:0;background:#8ecae6;color:#fff;font-family:inherit;font-size:3.6vw;font-weight:800;letter-spacing:.03em;line-height:1;text-transform:uppercase;cursor:pointer;-webkit-appearance:none;appearance:none;box-shadow:0 1vw 3vw -.5vw rgba(0,0,0,.3);}
 .pw-about::before{content:"";position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%);}
 .pw-sheet{position:fixed;inset:0;z-index:60;background:#fff;color:#141210;}
-.pw-sheet-scroll{position:absolute;inset:0;overflow-y:auto;touch-action:auto;overscroll-behavior:contain;padding:calc(19vw + env(safe-area-inset-top)) 8vw calc(34vw + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;}
+.pw-sheet-scroll{position:absolute;inset:0;overflow-y:auto;touch-action:auto;overscroll-behavior:contain;padding:calc(19vw + env(safe-area-inset-top)) var(--gutter) calc(34vw + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;}
 .pw-sheet-bar{position:absolute;top:0;right:0;left:0;z-index:2;height:calc(19vw + env(safe-area-inset-top));background:#fff;pointer-events:none;}
 .pw-sheet-fade{position:absolute;right:0;bottom:0;left:0;z-index:2;height:34vw;background:linear-gradient(rgba(255,255,255,0),#fff);pointer-events:none;}
 .pw-ah{margin:0;font-size:9vw;font-weight:800;line-height:1.05;}

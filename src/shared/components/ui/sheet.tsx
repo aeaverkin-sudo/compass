@@ -16,7 +16,7 @@ function SheetContent({ className, children, ...props }: React.ComponentProps<ty
       <Dialog.Content
         data-slot="sheet-content"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto bg-white px-8 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-[#111] outline-none",
+          "fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto bg-white px-[var(--gutter)] pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-[#111] outline-none",
           className,
         )}
         style={{ animation: "compass-sheet-up 280ms ease-out" }}

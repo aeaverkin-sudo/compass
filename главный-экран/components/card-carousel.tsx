@@ -8,9 +8,7 @@ import type { Card, ContactItem } from "@/shared/types";
 import { cn } from "@/lib/utils";
 import {
   CARD_CAROUSEL_GAP_PX,
-  carouselSidePaddingPx,
   carouselSlideWidthPx,
-  SHEET_INSET,
   type MainScreenMode,
 } from "../layout";
 import { AddPortfolioSlide } from "./add-portfolio-slide";
@@ -50,10 +48,6 @@ type CardCarouselProps = {
   /** Card id → pass line under the QR, for a guest's event cards. */
   passMarks?: Record<string, string>;
 };
-
-function CarouselSpacer({ width }: { width: number }) {
-  return <div aria-hidden className="shrink-0" style={{ width }} />;
-}
 
 export const CardCarousel = memo(function CardCarousel({
   cards,
@@ -103,13 +97,8 @@ export const CardCarousel = memo(function CardCarousel({
   const awaitingWidth = containerWidth === 0;
   const slideWidthPx = useMemo(() => {
     if (!multiSlide || containerWidth === 0) return 0;
-    return carouselSlideWidthPx(containerWidth, true, SHEET_INSET.browse.horizontal);
+    return carouselSlideWidthPx(containerWidth, true);
   }, [containerWidth, multiSlide]);
-
-  const sidePaddingPx = useMemo(() => {
-    if (!multiSlide || slideWidthPx === 0 || containerWidth === 0) return 0;
-    return carouselSidePaddingPx(containerWidth, true, SHEET_INSET.browse.horizontal);
-  }, [containerWidth, multiSlide, slideWidthPx]);
 
   useLayoutEffect(() => {
     if (!multiSlide) return;
@@ -140,10 +129,9 @@ export const CardCarousel = memo(function CardCarousel({
     (index: number) => {
       const node = scrollRef.current;
       if (!node || slideWidthPx === 0) return 0;
-      const step = slideWidthPx + slideGapPx;
-      return sidePaddingPx + index * step + slideWidthPx / 2 - node.clientWidth / 2;
+      return index * (slideWidthPx + slideGapPx);
     },
-    [sidePaddingPx, slideGapPx, slideWidthPx],
+    [slideGapPx, slideWidthPx],
   );
 
   const portfolioLimit = useAccountStatus()?.portfolioLimit ?? null;
@@ -293,7 +281,7 @@ export const CardCarousel = memo(function CardCarousel({
     let closestDistance = Number.POSITIVE_INFINITY;
 
     for (let i = 0; i < slideIds.length; i++) {
-      const slideCenter = sidePaddingPx + i * step + slideWidthPx / 2;
+      const slideCenter = i * step + slideWidthPx / 2;
       const distance = Math.abs(viewportCenter - slideCenter);
       if (distance < closestDistance) {
         closestDistance = distance;
@@ -430,7 +418,6 @@ export const CardCarousel = memo(function CardCarousel({
         onScroll={handleScroll}
       >
         <div className="flex h-full" style={{ gap: slideGapPx }}>
-          <CarouselSpacer width={sidePaddingPx} />
           {slideIds.map((slideId, index) => (
             <div
               key={slideId}
@@ -457,23 +444,8 @@ export const CardCarousel = memo(function CardCarousel({
               )}
             </div>
           ))}
-          <CarouselSpacer width={sidePaddingPx} />
         </div>
       </div>
-      {isBrowse && sidePaddingPx > 0 ? (
-        <>
-          <div
-            aria-hidden
-            className="pointer-events-none absolute bottom-0 left-0 z-20 bg-background"
-            style={{ width: sidePaddingPx, top: cardLiftPx }}
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute right-0 bottom-0 z-20 bg-background"
-            style={{ width: sidePaddingPx, top: cardLiftPx }}
-          />
-        </>
-      ) : null}
     </div>
   );
 });

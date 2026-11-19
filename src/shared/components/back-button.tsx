@@ -7,9 +7,6 @@ import { TapButton } from "@/shared/components/tap-button";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
-/** Chevron tip in the 22px svg sits 7.3px in (vertex at x=8, stroke 1.4). */
-const ARROW_TIP_INSET_PX = 7.3;
-
 type BackButtonProps = {
   /** Where to go when this page was opened directly and there is no previous screen. */
   fallbackHref: string;
@@ -119,7 +116,7 @@ export function BackButton({ fallbackHref, onBack, className }: BackButtonProps)
       className={cn("touch-manipulation fixed z-30 flex w-11 items-center justify-start text-[#111]", className)}
       style={{
         top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
-        left: `calc(var(--gutter) - ${ARROW_TIP_INSET_PX}px)`,
+        left: "var(--gutter)",
         height: HEADER_ROW_PX,
         opacity: reduce || !hidden ? 1 : 0,
         transition: reduce ? "none" : `opacity ${hidden ? HIDE_MS : SHOW_MS}ms ease`,

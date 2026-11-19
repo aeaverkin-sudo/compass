@@ -6,8 +6,7 @@ import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import { COLUMN_GAP_PX, HEADER_ROW_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
-/** Same inset as the back chevron, so a pinned toggle starts one gap to its right. */
-const ARROW_TIP_INSET_PX = 7.3;
+/** The back icon is 22px, starting on the gutter. The words start one gap to its right. */
 const CHEVRON_PX = 22;
 
 function Segment({
@@ -20,7 +19,7 @@ function Segment({
   label: string;
 }) {
   const className = cn(
-    "flex min-w-0 flex-1 items-center justify-center t-label no-underline",
+    "flex items-center justify-center px-3 t-label whitespace-nowrap no-underline",
     on ? "bg-sky" : "bg-white",
   );
   const style = {
@@ -60,19 +59,17 @@ export function AuthModeToggle({
   return (
     <nav
       aria-label="Account"
-      className={cn("flex", photoSlotLookClass("shadow"), pinned && "fixed z-[31]", className)}
+      className={cn("flex w-max", photoSlotLookClass("shadow"), pinned && "fixed z-[31]", className)}
       style={
         pinned
           ? {
               top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
-              left: `calc(var(--gutter) - ${ARROW_TIP_INSET_PX}px + ${CHEVRON_PX}px + ${COLUMN_GAP_PX}px)`,
-              right: "var(--gutter)",
+              left: `calc(var(--gutter) + ${CHEVRON_PX}px + ${COLUMN_GAP_PX}px)`,
               height: HEADER_ROW_PX,
             }
           : {
               marginTop: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
-              marginLeft: `calc(var(--gutter) - ${ARROW_TIP_INSET_PX}px + ${CHEVRON_PX}px + ${COLUMN_GAP_PX}px)`,
-              marginRight: "var(--gutter)",
+              marginLeft: `calc(var(--gutter) + ${CHEVRON_PX}px + ${COLUMN_GAP_PX}px)`,
               height: HEADER_ROW_PX,
             }
       }

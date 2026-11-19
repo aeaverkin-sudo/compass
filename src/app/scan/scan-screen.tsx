@@ -270,7 +270,7 @@ export function ScanScreen() {
     <main className="fixed inset-0 bg-[var(--ink)]">
       <video ref={videoRef} className="h-full w-full object-cover" muted playsInline autoPlay />
       {flash ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center px-8">
+        <div className="absolute inset-0 z-10 flex items-center justify-center px-[var(--gutter)]">
           <div className="flex max-w-[280px] flex-col items-center bg-white px-5 py-4 text-center">
             <Check className="size-8 text-[var(--sky)]" strokeWidth={1.5} aria-hidden />
             <p className="mt-3 mb-0 t-body text-[var(--ink)]">{flash.name}</p>
@@ -281,7 +281,7 @@ export function ScanScreen() {
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <Scan className="size-[220px] text-white" strokeWidth={1.25} aria-hidden />
       </div>
-      <p className="pointer-events-none absolute inset-x-6 bottom-24 text-center t-meta text-[var(--grey)]">
+      <p className="pointer-events-none absolute inset-x-[var(--gutter)] bottom-24 text-center t-meta text-[var(--grey)]">
         {cameraOff ? "Camera is off. Allow it in Settings." : hint}
       </p>
       <BackButton fallbackHref="/main" className="text-white" />

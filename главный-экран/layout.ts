@@ -94,15 +94,15 @@ export const SHEET_INSET = {
   library: { horizontal: 14, bottom: 0, gap: 8 },
 } as const;
 
-/** Space between slides. A resting card is the single-card width, and the side masks cover the neighbor. */
-export const CARD_CAROUSEL_GAP_PX = 8;
+/** No gap. A resting slide is the full strip, so the neighbor stays off screen. */
+export const CARD_CAROUSEL_GAP_PX = 0;
 
-export function carouselSlideWidthPx(viewportWidth: number, _multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
-  return viewportWidth - edgeInsetPx * 2;
+export function carouselSlideWidthPx(viewportWidth: number, _multiSlide: boolean, _edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
+  return viewportWidth;
 }
 
-export function carouselSidePaddingPx(_viewportWidth: number, _multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
-  return edgeInsetPx;
+export function carouselSidePaddingPx(_viewportWidth: number, _multiSlide: boolean, _edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
+  return 0;
 }
 
 export type MainScreenMode = "browse" | "library";

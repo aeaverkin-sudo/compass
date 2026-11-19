@@ -78,7 +78,7 @@ export function ConnectionsScreen() {
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
-      <div className="shrink-0 px-8">
+      <div className="shrink-0 px-[var(--gutter)]">
         <BackButton fallbackHref="/network" />
         <div className="mt-10 mb-[18px] grid h-[22px] grid-cols-[44px_minmax(0,1fr)_44px] items-center">
           <span aria-hidden className="size-[22px]" />
@@ -95,7 +95,7 @@ export function ConnectionsScreen() {
           matches.length === 0 ? (
             <EmptyResults />
           ) : (
-            <div className="px-8 pb-8">
+            <div className="px-[var(--gutter)] pb-8">
               <p className={`pt-[18px] ${LABEL}`}>In your network</p>
               <ul>
                 {matches.map((match) => (
@@ -128,7 +128,7 @@ function PinnedQuery({ text, onEdit }: { text: string; onEdit: () => void }) {
   }, [text]);
 
   return (
-    <div className="shrink-0 border-b border-[var(--rule)] px-8 py-[18px]">
+    <div className="shrink-0 border-b border-[var(--rule)] px-[var(--gutter)] py-[18px]">
       <button type="button" onClick={onEdit} className="block w-full border-0 bg-transparent p-0 text-left">
         <p className={LABEL}>Looking for</p>
         <div className="relative mt-2">
@@ -171,7 +171,7 @@ function Composer({
 
   return (
     <form
-      className="shrink-0 border-t border-[var(--rule)] bg-white px-8 py-3"
+      className="shrink-0 border-t border-[var(--rule)] bg-white px-[var(--gutter)] py-3"
       style={{ marginBottom: inset }}
       onSubmit={(event) => {
         event.preventDefault();
@@ -257,10 +257,10 @@ function Worldwide() {
 function EmptyResults() {
   return (
     <div className="flex h-full min-h-full flex-col">
-      <p className="flex flex-1 items-center justify-center px-8 text-center t-body text-[var(--grey)]">
+      <p className="flex flex-1 items-center justify-center px-[var(--gutter)] text-center t-body text-[var(--grey)]">
         No matches yet — it&apos;s a startup. Nobody&apos;s here but us. Try anyway
       </p>
-      <div className="px-8 pb-8">
+      <div className="px-[var(--gutter)] pb-8">
         <Worldwide />
       </div>
     </div>

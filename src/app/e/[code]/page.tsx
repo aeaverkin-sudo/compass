@@ -180,7 +180,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
     <main className="compass-main flex h-dvh w-full flex-col overflow-hidden bg-white text-[var(--ink)]">
       {fromList ? (
         <div
-          className="flex shrink-0 items-center px-5"
+          className="flex shrink-0 items-center px-[var(--gutter)]"
           style={{ height: "calc(env(safe-area-inset-top) + 44px)", paddingTop: "env(safe-area-inset-top)" }}
         >
           <Link
@@ -191,7 +191,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
           </Link>
         </div>
       ) : null}
-      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-5 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-[var(--gutter)] pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex w-full max-w-[380px] flex-col items-center">
           {guest ? <p className="mt-0 mb-4 t-meta text-[var(--grey)]">{`Invitation for ${guest.name}`}</p> : null}
           {opensPass ? (

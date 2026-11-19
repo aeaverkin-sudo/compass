@@ -6,14 +6,11 @@ import { useRouter } from "next/navigation";
 import { flushSync } from "react-dom";
 import {
   BROWSE_QR_SIZE,
-  carouselSidePaddingPx,
   HEADER_RHYTHM_PX,
   layoutTop,
   RULE_GAP_PX,
   SCREEN_TOP_AXIS_PX,
-  SHEET_INSET,
 } from "../layout";
-import { cardHasPhoto } from "@/shared/services/card-photo";
 import { BottomNav } from "./bottom-nav";
 import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 import { useMainLayout } from "../hooks/use-main-layout";
@@ -251,10 +248,8 @@ export function MainScreen() {
     [noteRename],
   );
 
-  const frameRef = useRef<HTMLElement>(null);
   const deckFrameRef = useRef<HTMLDivElement>(null);
   const addSlideWasShown = useRef(false);
-  const [frameWidth, setFrameWidth] = useState(0);
   const portfolioLimit = account?.portfolioLimit ?? null;
   const showAddSlide = useAppStore((state) => canAddMoreCards(state.cards, portfolioLimit));
   const [browseIndex, setBrowseIndex] = useState(currentCardIndex);
@@ -548,16 +543,6 @@ export function MainScreen() {
   const layout = useMainLayout(cardCount === 0 ? undefined : columnH > 0 ? columnH : null);
 
   useLayoutEffect(() => {
-    const node = frameRef.current;
-    if (!node) return;
-    const sync = () => setFrameWidth(node.clientWidth);
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [cardCount]);
-
-  useLayoutEffect(() => {
     if (addSlideWasShown.current === showAddSlide) return;
     addSlideWasShown.current = showAddSlide;
     const node = deckFrameRef.current;
@@ -608,25 +593,12 @@ export function MainScreen() {
         )
       : 0;
   const cardLiftPx = editing ? 0 : addLiftPx;
-  const browseCarousel = cardCount > 1 || showAddSlide;
-  // The plan limit arrives after the first paint. A filled card keeps the carousel
-  // column while that answer is still out, so the sheet does not slide into center.
-  const lastCard = useAppStore.getState().cards[cardCount - 1];
-  const holdCarouselFrame =
-    account === null && cardCount === 1 && Boolean(lastCard && (cardHasPhoto(lastCard) || lastCard.displayName.trim()));
-  const edgeInsetBrowse = layout?.edgeInsetBrowse ?? SHEET_INSET.browse.horizontal;
-  const frameInset = browseCarousel
-    ? 0
-    : holdCarouselFrame
-      ? carouselSidePaddingPx(frameWidth || 1, true)
-      : edgeInsetBrowse;
   const sheetTotal = portfolioLimit !== null && portfolioLimit >= cardCount ? portfolioLimit : cardCount;
   const sheetIndex = Math.min(browseIndex, Math.max(cardCount - 1, 0)) + 1;
-  const sideInset = browseCarousel || holdCarouselFrame ? carouselSidePaddingPx(frameWidth || 1, true) : edgeInsetBrowse;
-  const counterRightCss = `calc(${sideInset}px + clamp(24px, 6.1vw, 28px) - 3mm)`;
+  const counterRightCss = "var(--gutter)";
 
   return (
-    <main ref={frameRef} className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-background">
+    <main className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-background">
       {editing ? (
         <ScreenHeader title="Edit" fallbackHref="/main" onBack={leaveEdit} spacer={false} />
       ) : viewingAddSlide ? (
@@ -646,7 +618,7 @@ export function MainScreen() {
           type="button"
           aria-label="Info"
           onClick={() => router.push("/info")}
-          className="absolute z-30 -translate-x-1/2 border-0 bg-transparent p-0 text-[var(--ink)]"
+          className="absolute z-30 border-0 bg-transparent p-0 text-[var(--ink)]"
           style={{ top: layoutTop(layout.qrTop), left: counterRightCss }}
         >
           <span
@@ -714,8 +686,8 @@ export function MainScreen() {
           ref={deckFrameRef}
           className="absolute overflow-hidden transition-[top] duration-[460ms] ease-out motion-reduce:transition-none"
           style={{
-            left: frameInset,
-            right: frameInset,
+            left: 0,
+            right: 0,
             top: layoutTop(
               editing && layout ? layout.qrTop + HEADER_ROW_PX / 2 + 18 : cardTopBrowse - cardLiftPx,
             ),

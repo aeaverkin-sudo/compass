@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { BottomNav } from "@main/components/bottom-nav";
-import { SCREEN_TOP_AXIS_PX, carouselSidePaddingPx } from "@main/layout";
+import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
 import { BackButton } from "@/shared/components/back-button";
 import { SectionNumber } from "@/shared/components/section-number";
@@ -36,7 +36,6 @@ import { signInHref, type EntryInput } from "./door";
 import { EntryName } from "./entry-name";
 import { ENTRY_MARK, EntryZones, RequiredStar, type EntryZonesHandle } from "./entry-zones";
 
-const PAD = "px-[calc(clamp(24px,6.1vw,28px)-3mm)]";
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const PASSWORD_MIN = 8;
 const CHECK_NOTICE = "Please check the fields in red";
@@ -174,14 +173,11 @@ export function EntryPage({
   const keepPlace = useRef(false);
   const submitLock = useRef(false);
   const [placeReady, setPlaceReady] = useState(false);
-  const [sidePad, setSidePad] = useState(() => carouselSidePaddingPx(0, true));
   const [passwordValue, setPasswordValue] = useState<string | null>(null);
   const passwordShown = passwordValue ?? "";
   const ready = account
     ? Boolean(name.trim() && (!needsConsent || agreed))
     : Boolean(agreed && isAccountEmail(email) && passwordShown.length >= PASSWORD_MIN);
-  const frame = { paddingLeft: sidePad, paddingRight: sidePad };
-
   const fields = useRef({ name, email, password: passwordShown, agreed });
   fields.current = { name, email, password: passwordShown, agreed };
   const photoRef = useRef(photo);
@@ -266,13 +262,6 @@ export function EntryPage({
       window.removeEventListener("pagehide", leave);
     };
   }, [passwordValue]);
-
-  useEffect(() => {
-    const measure = () => setSidePad(carouselSidePaddingPx(window.innerWidth, true));
-    measure();
-    window.addEventListener("orientationchange", measure);
-    return () => window.removeEventListener("orientationchange", measure);
-  }, []);
 
   useKeyboardLift(mainRef);
 
@@ -641,8 +630,8 @@ export function EntryPage({
             void submit();
           }}
         >
-          <div style={frame}>
-            <div className={PAD}>
+          <div className="px-[var(--gutter)]">
+            <div>
               {telegram ? (
                 <p className="mb-[18px] t-meta text-[var(--grey)]">
                   Open in your browser: ••• → Open in Safari, so your card stays with you.
@@ -767,11 +756,11 @@ export function EntryPage({
             className="touch-manipulation fixed z-30 flex w-11 items-center justify-start text-[#111]"
             style={{
               top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
-              left: `calc(var(--gutter) - 7.3px)`,
+              left: "var(--gutter)",
               height: HEADER_ROW_PX,
             }}
           >
-            <span className="block w-[22px] text-center leading-none" style={{ fontSize: 22, fontWeight: 400 }}>
+            <span className="block leading-none" style={{ fontSize: 22, fontWeight: 400 }}>
               i
             </span>
           </button>
@@ -794,8 +783,8 @@ export function EntryPage({
             className="mb-[12px]"
           />
           {formOpen ? null : (
-            <div style={frame}>
-              <div className={PAD}>
+            <div className="px-[var(--gutter)]">
+              <div>
                 <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
                   <div className="min-w-0">
                     <SectionNumber value="01" />
@@ -848,10 +837,9 @@ export function EntryPage({
         </>
       )}
       <div
-        style={frame}
-        className={[!formOpen && "hidden", !account && "pt-[18px]"].filter(Boolean).join(" ") || undefined}
+        className={["px-[var(--gutter)]", !formOpen && "hidden", !account && "pt-[18px]"].filter(Boolean).join(" ")}
       >
-      <div className={PAD} onFocusCapture={acceptSuggestedName}>
+      <div onFocusCapture={acceptSuggestedName}>
         {telegram ? (
           <p className="mb-[18px] t-meta text-[var(--grey)]">
             Open in your browser: ••• → Open in Safari, so your card stays with you.
@@ -896,8 +884,8 @@ export function EntryPage({
       >
       {account ? null : (
       <div className="bg-sky py-[18px]">
-        <div style={frame}>
-        <div className={`${PAD} flex flex-col gap-[14px]`}>
+        <div className="px-[var(--gutter)]">
+        <div className="flex flex-col gap-[14px]">
           <label className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)]">
             <span className="t-label whitespace-normal">
               Profile email
@@ -977,8 +965,8 @@ export function EntryPage({
         </div>
       </div>
       )}
-      <div style={frame}>
-      <div className={`${PAD} flex flex-col gap-4 pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]`}>
+      <div className="px-[var(--gutter)]">
+      <div className="flex flex-col gap-4 pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]">
         {account && needsConsent ? (
           <div className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px]">
             <span />

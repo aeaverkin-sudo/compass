@@ -14,7 +14,7 @@ type PageProps = { params: Promise<{ token: string }> };
 
 function ownCard(token: string) {
   return (
-    <main className="compass-main flex min-h-lvh flex-col items-center justify-center bg-white px-8">
+    <main className="compass-main flex min-h-lvh flex-col items-center justify-center bg-white px-[var(--gutter)]">
       <BackButton fallbackHref={`/c/${token}`} />
       <p className="text-center t-body text-[var(--ink)]">This is your card</p>
     </main>
