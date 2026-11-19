@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 
 const HEAD = [
@@ -13,7 +14,10 @@ export function EmptyCardZones() {
       {HEAD.map((zone, index) => (
         <section
           key={zone.id}
-          className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]"
+          className={cn(
+            "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] py-[18px]",
+            index < HEAD.length - 1 && "border-b border-[var(--rule)]",
+          )}
         >
           <div className="min-w-0">
             <SectionNumber value={sectionNumberLabel(index)} />
