@@ -1000,13 +1000,12 @@ export function EntryPage({
           </div>
         ) : null}
         {error ? <p className="m-0 t-meta text-[var(--ink)]" style={{ marginLeft: VALUE_AXIS_PX }}>{error}</p> : null}
-        <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]">
-          <span />
+        <div className="flex justify-center">
           <TapButton
             type="submit"
             onTap={() => void submit()}
             disabled={!ready || busy}
-            className="w-full bg-sky px-[21.6px] py-[10.8px] text-center t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:text-[var(--grey)]"
+            className="inline-flex items-center bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:text-[var(--grey)]"
           >
             {busy ? "Creating…" : "Create portfolio"}
           </TapButton>

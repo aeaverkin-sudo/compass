@@ -209,13 +209,12 @@ export function AddPortfolioSlide({
         />
       </div>
       <EntryZones ref={zonesRef} />
-      <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]">
-        <span />
+      <div className="flex justify-center pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]">
         <TapButton
           type="button"
           onTap={() => void create()}
           disabled={busy}
-          className="w-full bg-sky px-[21.6px] py-[10.8px] text-center t-band leading-[calc(13px*1.45)] text-[var(--ink)] disabled:text-[var(--grey)]"
+          className="inline-flex items-center bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:text-[var(--grey)]"
         >
           {busy ? "Creating…" : "Create portfolio"}
         </TapButton>
