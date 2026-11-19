@@ -29,7 +29,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { clearNewContact } from "@/shared/lib/new-contact";
 import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
-import { MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
+import { MARK_PX, MarkPlus, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { RAIL_ICON_SCALE } from "@main/components/side-rail";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
@@ -114,6 +114,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const decisions = useConnectionDecisions();
 
   const [loadError, setLoadError] = useState(false);
+  const [canCollect, setCanCollect] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -136,6 +137,13 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       );
       setLoadError(false);
       markIncomingSeen(connections.filter((contact) => contact.state === "pending").map((contact) => contact.id));
+      try {
+        const probe = await fetch("/api/external-contacts", { cache: "no-store" });
+        const probeBody = probe.ok ? ((await probe.json()) as { available?: boolean }) : null;
+        setCanCollect(probeBody?.available === true);
+      } catch {
+        setCanCollect(false);
+      }
     } catch {
       setLoadError(true);
     }
@@ -325,7 +333,22 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
         <div className="network-scroll-spring">
-          <ScreenHeader title="Network" fallbackHref="/main" onBack={() => router.push("/main")} />
+          <ScreenHeader
+            title="Network"
+            fallbackHref="/main"
+            onBack={() => router.push("/main")}
+            trailing={
+              canCollect ? (
+                <Link
+                  href="/network/new"
+                  aria-label="New contact"
+                  className="press pointer-events-auto flex size-11 items-center justify-end text-[var(--ink)]"
+                >
+                  <MarkPlus />
+                </Link>
+              ) : null
+            }
+          />
           <Zone
             label={<Search className="size-4 text-[#111]" strokeWidth={1.5} aria-hidden />}
             rule
