@@ -8,9 +8,11 @@ import { createBrowserSupabaseClient, isCameraCardPath, syncBrowserRefresh } fro
 import {
   clearRegisteredDevice,
   deviceWasRegistered,
+  forgetAccountEmail,
   markRegisteredDevice,
   rememberAccountEmail,
   signInPath,
+  userCanSignInWithPassword,
 } from "@/shared/lib/registered-device";
 import {
   clearRegistrationRequired,
@@ -59,7 +61,8 @@ function acceptUser(user: User) {
   }
   if (!user.is_anonymous) {
     if (user.app_metadata?.event_trial !== true) markRegisteredDevice();
-    if (user.email) rememberAccountEmail(user.email);
+    if (userCanSignInWithPassword(user) && user.email) rememberAccountEmail(user.email);
+    else forgetAccountEmail();
     clearRegistrationRequired();
     if (consumeOAuthReplaceLocal()) {
       dropPendingCardUpserts();

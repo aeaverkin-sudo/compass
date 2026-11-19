@@ -16,7 +16,7 @@ import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import { APP_VERSION, SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { deletionLine } from "@/shared/lib/deletion-date";
 import { ignoreNextSignedOut, markRegistrationRequired } from "@/shared/lib/session-bootstrap";
-import { signInPath } from "@/shared/lib/registered-device";
+import { forgetAccountEmail, signInPath } from "@/shared/lib/registered-device";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpsert, dropPendingCardUpserts, forgetLibraryOwner, upsertCardScalars } from "@/shared/services/card-sync";
@@ -198,6 +198,9 @@ export function ProfileScreen() {
     ignoreNextSignedOut();
     await createBrowserSupabaseClient().auth.signOut({ scope: "local" });
     markRegistrationRequired();
+    if (account?.provider === "google" || account?.provider === "apple") {
+      forgetAccountEmail();
+    }
     try {
       sessionStorage.setItem("aded-signed-out", "1");
     } catch {

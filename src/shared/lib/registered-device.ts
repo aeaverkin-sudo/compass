@@ -1,5 +1,15 @@
 const KEY = "compass-registered-device";
-const EMAIL_KEY = "compass-account-email";
+/** Password sign-in hint only. The old key mixed in Google and Apple addresses. */
+const EMAIL_KEY = "compass-password-email";
+const LEGACY_EMAIL_KEY = "compass-account-email";
+
+function dropLegacyEmailHint() {
+  try {
+    localStorage.removeItem(LEGACY_EMAIL_KEY);
+  } catch {
+    // Private mode can block storage.
+  }
+}
 
 /** This browser once held a registered session. Survives a lost cookie. */
 export function markRegisteredDevice() {
@@ -14,16 +24,35 @@ export function clearRegisteredDevice() {
   try {
     localStorage.removeItem(KEY);
     localStorage.removeItem(EMAIL_KEY);
+    localStorage.removeItem(LEGACY_EMAIL_KEY);
   } catch {
     // Private mode can block storage.
   }
 }
 
-/** The address this browser last signed in with. Never the password. */
+/** Drop the password hint only. Keeps the registered-device mark. */
+export function forgetAccountEmail() {
+  try {
+    localStorage.removeItem(EMAIL_KEY);
+    localStorage.removeItem(LEGACY_EMAIL_KEY);
+  } catch {
+    // Private mode can block storage.
+  }
+}
+
+/** True when this account can open Sign in with email and password. */
+export function userCanSignInWithPassword(user: {
+  identities?: { provider?: string }[] | null;
+}) {
+  return (user.identities ?? []).some((identity) => identity.provider === "email");
+}
+
+/** The address this browser last signed in with by password. Never the password. */
 export function rememberAccountEmail(email: string) {
   const mail = email.trim().toLowerCase();
   if (!mail || mail.length > 254 || !mail.includes("@")) return;
   try {
+    dropLegacyEmailHint();
     localStorage.setItem(EMAIL_KEY, mail);
   } catch {
     // Private mode can block storage.
@@ -32,13 +61,14 @@ export function rememberAccountEmail(email: string) {
 
 export function rememberedEmail() {
   try {
+    dropLegacyEmailHint();
     return localStorage.getItem(EMAIL_KEY)?.trim().toLowerCase() ?? "";
   } catch {
     return "";
   }
 }
 
-/** The existing Sign in screen. The only addition is the stored address. */
+/** The existing Sign in screen. The only addition is the stored password address. */
 export function signInPath(options?: { expired?: boolean; next?: string }) {
   const query = new URLSearchParams();
   query.set("signin", "1");
