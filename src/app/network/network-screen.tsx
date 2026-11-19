@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { RotateCw, Search, SlidersHorizontal } from "lucide-react";
+import { Hand, RotateCw, Search, SlidersHorizontal } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyActions } from "@/shared/components/sky-actions";
 import { Zone } from "@/shared/components/zone";
@@ -29,7 +29,7 @@ import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 import { clearNewContact } from "@/shared/lib/new-contact";
 import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
-import { MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
+import { MARK_PX, MarkPlus, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { RAIL_ICON_SCALE } from "@main/components/side-rail";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
@@ -52,6 +52,10 @@ type Contact = {
   theyHaveMe?: boolean;
   /** My share back is still a request in their book. */
   shareBackPending?: boolean;
+  /** Saved by hand, scan, voice, or photo. Not an ADED card. */
+  collected?: boolean;
+  /** A collected contact already sent a portfolio back. */
+  pushed?: boolean;
 };
 
 const HOLD_MS = 500;
@@ -91,6 +95,33 @@ function matchesQuery(contact: Contact, query: string) {
   return contact.searchText.includes(query);
 }
 
+type CollectedWire = {
+  id?: unknown;
+  displayName?: unknown;
+  position?: unknown;
+  photoUrl?: unknown;
+  createdAt?: unknown;
+  searchText?: unknown;
+  pushbackAt?: unknown;
+};
+
+function collectedContact(row: CollectedWire): Contact | null {
+  if (typeof row.id !== "string" || typeof row.displayName !== "string") return null;
+  return {
+    id: row.id,
+    displayName: row.displayName,
+    state: "active",
+    savedCardToken: "",
+    sourceEventId: null,
+    createdAt: typeof row.createdAt === "string" ? row.createdAt : "",
+    role: typeof row.position === "string" ? row.position.trim() : "",
+    photoUrl: typeof row.photoUrl === "string" && row.photoUrl ? row.photoUrl : null,
+    searchText: foldSearch(typeof row.searchText === "string" ? row.searchText : row.displayName),
+    collected: true,
+    pushed: typeof row.pushbackAt === "string" && row.pushbackAt.length > 0,
+  };
+}
+
 type HoldMenu = { id: string; top: number; left: number; width: number; confirmDelete: boolean; picking: boolean };
 
 export function NetworkScreen({ addedName = null }: { addedName?: string | null }) {
@@ -114,6 +145,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const decisions = useConnectionDecisions();
 
   const [loadError, setLoadError] = useState(false);
+  const [canCollect, setCanCollect] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -127,13 +159,28 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       for (const contact of connections) {
         if (contact.state !== "pending") releaseIfAccepted(contact.id);
       }
-      setContacts(
-        connections.map((contact) => ({
-          ...contact,
-          state: contact.state === "pending" ? "pending" : "active",
-          searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
-        })),
-      );
+      const book: Contact[] = connections.map((contact) => ({
+        ...contact,
+        state: contact.state === "pending" ? "pending" : "active",
+        searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
+      }));
+      let collected: Contact[] = [];
+      try {
+        const probe = await fetch("/api/external-contacts", { cache: "no-store" });
+        const probeBody = probe.ok
+          ? ((await probe.json()) as { available?: boolean; contacts?: CollectedWire[] })
+          : null;
+        setCanCollect(probeBody?.available === true);
+        if (probeBody?.available === true && Array.isArray(probeBody.contacts)) {
+          collected = probeBody.contacts.flatMap((row) => {
+            const contact = collectedContact(row);
+            return contact ? [contact] : [];
+          });
+        }
+      } catch {
+        setCanCollect(false);
+      }
+      setContacts([...book, ...collected]);
       setLoadError(false);
       markIncomingSeen(connections.filter((contact) => contact.state === "pending").map((contact) => contact.id));
     } catch {
@@ -190,7 +237,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   useEffect(() => {
     if (!menu) return;
-    const close = (event: PointerEvent) => {
+    const close = (event: Event) => {
       const node = plaqueRef.current;
       if (node && event.target instanceof Node && node.contains(event.target)) return;
       setMenu(null);
@@ -231,12 +278,18 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const menuContact = menu ? book.find((contact) => contact.id === menu.id) ?? null : null;
   const sharePhase = useShareBack(menuContact?.savedCardToken ?? "");
   const canSwap = Boolean(
-    shareCards.length > 0 && menuContact && !menuContact.theyHaveMe && !menuContact.shareBackPending && sharePhase === "idle",
+    shareCards.length > 0 &&
+      menuContact &&
+      !menuContact.collected &&
+      !menuContact.theyHaveMe &&
+      !menuContact.shareBackPending &&
+      sharePhase === "idle",
   );
   const swapLocked = Boolean(
     cardsReady &&
       cardCount === 0 &&
       menuContact &&
+      !menuContact.collected &&
       !menuContact.theyHaveMe &&
       !menuContact.shareBackPending &&
       sharePhase === "idle",
@@ -252,7 +305,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const remove = async (id: string) => {
     const index = contacts?.findIndex((contact) => contact.id === id) ?? -1;
     const before = index >= 0 ? contacts?.[index] : undefined;
-    if (!before || inFlight.current.has(id)) return;
+    if (!before || before.collected || inFlight.current.has(id)) return;
     inFlight.current.add(id);
     setMenu(null);
     setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
@@ -295,6 +348,31 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   const empty = contacts !== null && people.length === 0 && requests.length === 0;
 
+  const removeCollected = async (id: string) => {
+    const index = contacts?.findIndex((contact) => contact.id === id) ?? -1;
+    const before = index >= 0 ? contacts?.[index] : undefined;
+    if (!before?.collected || inFlight.current.has(id)) return;
+    inFlight.current.add(id);
+    setMenu(null);
+    setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
+    let dropped = false;
+    try {
+      const response = await fetch(`/api/external-contacts/${id}`, { method: "DELETE" });
+      dropped = response.ok;
+    } catch {
+      dropped = false;
+    }
+    if (!dropped) {
+      setContacts((current) => {
+        if (!current) return current;
+        const next = [...current];
+        next.splice(Math.min(index, next.length), 0, before);
+        return next;
+      });
+    }
+    inFlight.current.delete(id);
+  };
+
   const openMenu = (contact: Contact, box: DOMRect) => {
     arming.current = true;
     setPickUp(false);
@@ -303,7 +381,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   const shareCard = async (card: SharePickCard) => {
     const contact = menuContact;
-    if (!contact) return;
+    if (!contact || contact.collected) return;
     const sent = await sendShareBack(contact.savedCardToken, card.id);
     if (sent === "failed") return;
     setPickUp(false);
@@ -325,7 +403,22 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
         <div className="network-scroll-spring">
-          <ScreenHeader title="Network" fallbackHref="/main" onBack={() => router.push("/main")} />
+          <ScreenHeader
+            title="Network"
+            fallbackHref="/main"
+            onBack={() => router.push("/main")}
+            trailing={
+              canCollect ? (
+                <Link
+                  href="/network/new"
+                  aria-label="New contact"
+                  className="press pointer-events-auto flex size-11 items-center justify-end text-[var(--ink)]"
+                >
+                  <MarkPlus />
+                </Link>
+              ) : null
+            }
+          />
           <Zone
             label={<Search className="size-4 text-[#111]" strokeWidth={1.5} aria-hidden />}
             rule
@@ -404,7 +497,55 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           className="fixed z-40"
           style={{ top: menu.top, left: menu.left, width: menu.width }}
         >
-          {requestMenu ? (
+          {menuContact.collected ? (
+            <SkyActions
+              actions={[
+                {
+                  label: menu.confirmDelete ? "Delete?" : "Delete",
+                  tone: "ink",
+                  onPress: () => {
+                    pressMenu(() => {
+                      if (!menu.confirmDelete) {
+                        setMenu({ ...menu, confirmDelete: true });
+                        return;
+                      }
+                      void removeCollected(menu.id);
+                    });
+                  },
+                },
+                {
+                  label: "Edit",
+                  tone: menu.confirmDelete ? "grey" : "ink",
+                  onPress: () => {
+                    pressMenu(() => {
+                      if (menu.confirmDelete) {
+                        setMenu({ ...menu, confirmDelete: false });
+                        return;
+                      }
+                      setMenu(null);
+                      router.push(`/network/x/${menu.id}/edit`);
+                    });
+                  },
+                },
+                {
+                  label: "Swap",
+                  tone: menuContact.pushed ? "grey" : "ink",
+                  disabled: Boolean(menuContact.pushed),
+                  onPress: () => {
+                    pressMenu(() => {
+                      if (menu.confirmDelete) {
+                        setMenu({ ...menu, confirmDelete: false });
+                        return;
+                      }
+                      if (menuContact.pushed) return;
+                      setMenu(null);
+                      router.push(`/network/x/${menu.id}/push`);
+                    });
+                  },
+                },
+              ]}
+            />
+          ) : requestMenu ? (
             <SkyActions
               actions={[
                 {
@@ -611,23 +752,36 @@ function ContactRow({
     );
   }
   const line = metaLine(contact);
+  const rowClass =
+    "press flex min-w-0 flex-1 items-center gap-3 py-3 text-inherit no-underline select-none [-webkit-touch-callout:none]";
+  const point = {
+    ...longPress,
+    onPointerDown: (event: PointerEvent<HTMLElement>) => {
+      box.current = event.currentTarget.getBoundingClientRect();
+      longPress.onPointerDown(event);
+    },
+  };
+  const body = (
+    <>
+      <Face photoUrl={contact.photoUrl} />
+      <div className="min-w-0 flex-1">
+        <p className="m-0 flex min-w-0 items-center gap-1.5 t-body text-[var(--ink)]">
+          <span className="min-w-0 truncate">{contact.displayName.trim() || "Untitled"}</span>
+          {contact.collected ? <Hand className="size-4 shrink-0" strokeWidth={1.5} aria-hidden /> : null}
+        </p>
+        {line ? <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{line}</p> : null}
+      </div>
+    </>
+  );
   return (
     <li className={`${rule}${veiled ? " opacity-60" : ""}`}>
       <Link
-        href={`/network/c/${contact.savedCardToken}`}
-        className="press flex min-w-0 flex-1 items-center gap-3 py-3 text-inherit no-underline select-none [-webkit-touch-callout:none]"
+        href={contact.collected ? `/network/x/${contact.id}` : `/network/c/${contact.savedCardToken}`}
+        className={rowClass}
         draggable={false}
-        {...longPress}
-        onPointerDown={(event) => {
-          box.current = event.currentTarget.getBoundingClientRect();
-          longPress.onPointerDown(event);
-        }}
+        {...point}
       >
-        <Face photoUrl={contact.photoUrl} />
-        <div className="min-w-0 flex-1">
-          <p className="m-0 truncate t-body text-[var(--ink)]">{contact.displayName.trim() || "Untitled"}</p>
-          {line ? <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{line}</p> : null}
-        </div>
+        {body}
       </Link>
     </li>
   );
