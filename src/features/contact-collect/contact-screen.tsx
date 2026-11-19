@@ -92,7 +92,13 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
         <button
           type="button"
           disabled={swapped}
-          onClick={() => setArmed(false)}
+          onClick={() => {
+            if (armed) {
+              setArmed(false);
+              return;
+            }
+            router.push(`/network/x/${contact.id}/push`);
+          }}
           className="press min-h-11 flex-1 border-0 bg-transparent t-caps text-[var(--ink)] disabled:text-[var(--grey)]"
         >
           Swap

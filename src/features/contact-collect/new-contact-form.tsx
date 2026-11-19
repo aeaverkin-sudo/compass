@@ -127,13 +127,23 @@ export function NewContactForm({
           }),
         }),
       });
-      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      const saved = (await response.json().catch(() => null)) as {
+        error?: string;
+        contact?: { id?: string };
+      } | null;
       if (!response.ok) {
-        setError(body?.error || "Could not save the contact.");
+        setError(saved?.error || "Could not save the contact.");
         setBusy(false);
         return;
       }
-      router.replace(initial ? `/network/x/${initial.id}` : `/network?added=${encodeURIComponent(displayName)}`);
+      const createdId = typeof saved?.contact?.id === "string" ? saved.contact.id : "";
+      router.replace(
+        initial
+          ? `/network/x/${initial.id}`
+          : createdId
+            ? `/network/x/${createdId}/push?new=1`
+            : `/network?added=${encodeURIComponent(displayName)}`,
+      );
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save the contact.");
       setBusy(false);
