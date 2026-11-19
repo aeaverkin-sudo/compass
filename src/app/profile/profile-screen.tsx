@@ -12,6 +12,7 @@ import { cachedWalletStatus, cardInWallet, forgetWalletStatus, openWalletPass, w
 import { Switch } from "@/shared/components/ui/switch";
 import { useAccountRead } from "@/shared/hooks/use-account-status";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
+import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import { APP_VERSION, SUPPORT_EMAIL } from "@/shared/lib/app-info";
 import { deletionLine } from "@/shared/lib/deletion-date";
 import { ignoreNextSignedOut, markRegistrationRequired } from "@/shared/lib/session-bootstrap";
@@ -494,9 +495,9 @@ export function ProfileScreen() {
               <li key={card.id} className="flex gap-4">
                 {photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photo} alt="" className="size-12 object-cover shadow-[var(--block-shadow)]" />
+                  <img src={photo} alt="" className={cn("size-12 object-cover", photoSlotLookClass("shadow"))} />
                 ) : (
-                  <span className="size-12 shrink-0 shadow-[var(--block-shadow)]" />
+                  <span className={cn("size-12 shrink-0 bg-white", photoSlotLookClass("shadow"))} />
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate t-body">
