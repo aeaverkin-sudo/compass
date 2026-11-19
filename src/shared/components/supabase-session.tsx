@@ -28,7 +28,7 @@ import {
 import { dropPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { dropPendingCardUpserts, forgetLibraryOwner, hydrateCardsFromServer } from "@/shared/services/card-sync";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
-import { clearQuestionnaire, readQuestionnaire } from "@/shared/lib/fill-place";
+import { clearQuestionnaire, clearSignInEmail, readQuestionnaire } from "@/shared/lib/fill-place";
 import { settleGoogleReturn } from "@/shared/lib/funnel";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -63,6 +63,7 @@ function acceptUser(user: User) {
     if (user.app_metadata?.event_trial !== true) markRegisteredDevice();
     if (userCanSignInWithPassword(user) && user.email) rememberAccountEmail(user.email);
     else forgetAccountEmail();
+    clearSignInEmail();
     clearRegistrationRequired();
     if (consumeOAuthReplaceLocal()) {
       dropPendingCardUpserts();
