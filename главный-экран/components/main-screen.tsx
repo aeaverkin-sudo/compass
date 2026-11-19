@@ -308,8 +308,6 @@ export function MainScreen() {
   const eventPass = account?.eventPass ?? null;
   const passes = new Map((eventPass?.passes ?? []).map((pass) => [pass.cardId, pass]));
   const cardReady = Boolean(browseId && (passes.has(browseId) || nameReady));
-  const creatingFirstEmptyCard = !viewingAddSlide && cardCount === 1 && !cardReady;
-  const hideNav = (cardReady && !shownHasBody) || creatingFirstEmptyCard;
   const passAddHint = Boolean(
     browseId && passes.has(browseId) && shownHasBody && !passAddHintSeen && !editing && !composing && !passwordHint,
   );
@@ -762,9 +760,10 @@ export function MainScreen() {
         </div>
       ) : null}
       </div>
-      {layout && !composing && !keyboardUp && (editing || !hideNav) ? (
+      {layout && !composing && !keyboardUp ? (
         <BottomNav
           editing={editing}
+          showEdit={nameReady}
           onRemove={onRemove}
           onProfile={onProfile}
           onNetwork={onNetwork}

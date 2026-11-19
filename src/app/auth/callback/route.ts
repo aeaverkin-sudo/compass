@@ -1,8 +1,10 @@
+import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { doorNext, questionnaireHref } from "@/app/create/door";
 import { publicOrigin } from "@/shared/lib/public-origin";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
+import { codedHandle, isHandleConflict, slugFromName } from "@/shared/services/card-handle";
 import { CONSENT_VERSION } from "@/shared/services/consent";
 import { saveConnection } from "@/shared/services/save-connection";
 import { sendWelcomeMail } from "@/shared/services/cold-entry";
@@ -16,12 +18,72 @@ function destination(origin: string, next: string | null) {
   return new URL(doorNext(next) ?? "/main", origin);
 }
 
-/** No card yet: the questionnaire for someone who is already signed in. A failed count stays on the portfolio. */
-async function afterGoogle(origin: string, userId: string, next: string | null) {
+function readName(meta: unknown) {
+  if (!meta || typeof meta !== "object") return "";
+  const record = meta as Record<string, unknown>;
+  const direct = [record.full_name, record.name].find((value) => typeof value === "string" && value.trim());
+  if (typeof direct === "string") return direct.replace(/\s+/g, " ").trim().slice(0, 120);
+  const given = typeof record.given_name === "string" ? record.given_name.trim() : "";
+  const family = typeof record.family_name === "string" ? record.family_name.trim() : "";
+  return `${given} ${family}`.replace(/\s+/g, " ").trim().slice(0, 120);
+}
+
+/** Google and Apple put the person's name on the account. A typed field is not this. */
+function providerName(user: { user_metadata?: unknown; identities?: { identity_data?: unknown }[] | null }) {
+  const fromAccount = readName(user.user_metadata);
+  if (fromAccount) return fromAccount;
+  for (const identity of user.identities ?? []) {
+    const fromIdentity = readName(identity.identity_data);
+    if (fromIdentity) return fromIdentity;
+  }
+  return "";
+}
+
+/** One saved portfolio, so the deck opens with Edit and Create is not shown. */
+async function writeProviderPortfolio(
+  admin: ReturnType<typeof createAdminSupabaseClient>,
+  userId: string,
+  displayName: string,
+) {
+  const now = new Date().toISOString();
+  const base = slugFromName(displayName);
+  let handle: string | null = base ? codedHandle(base) : null;
+  const insert = (nextHandle: string | null) =>
+    admin.from("cards").insert({
+      id: crypto.randomUUID(),
+      owner_id: userId,
+      display_name: displayName,
+      title: "",
+      status: "published",
+      public_token: nanoid(21),
+      handle: nextHandle,
+      qr_version: 1,
+      is_public: true,
+      is_primary: true,
+      listed: true,
+      created_at: now,
+      updated_at: now,
+    });
+  let card = await insert(handle);
+  for (let attempt = 1; base && card.error && isHandleConflict(card.error) && attempt < 8; attempt += 1) {
+    handle = codedHandle(base);
+    card = await insert(handle);
+  }
+  if (card.error && isHandleConflict(card.error)) card = await insert(null);
+  if (card.error) {
+    console.error("[auth] callback");
+    return false;
+  }
+  return true;
+}
+
+/** No card yet: a provider name is saved here. Otherwise the questionnaire, for a name still to be typed. */
+async function afterGoogle(origin: string, userId: string, name: string, next: string | null) {
   const admin = createAdminSupabaseClient();
   const cards = await admin.from("cards").select("id", { count: "exact", head: true }).eq("owner_id", userId);
   if (cards.error || (cards.count ?? 0) > 0) return destination(origin, next);
   const saved = await keepScannedCard(admin, userId, next);
+  if (name && (await writeProviderPortfolio(admin, userId, name))) return destination(origin, next);
   const url = new URL(questionnaireHref(doorNext(next) ?? null), origin);
   url.searchParams.set("account", "1");
   if (saved) url.searchParams.set("saved", "1");
@@ -123,5 +185,5 @@ export async function GET(request: Request) {
     console.error("[mail] welcome", error instanceof Error ? error.message : error);
   });
 
-  return NextResponse.redirect(await afterGoogle(origin, user.id, next));
+  return NextResponse.redirect(await afterGoogle(origin, user.id, providerName(user), next));
 }

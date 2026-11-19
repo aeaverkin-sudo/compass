@@ -1027,6 +1027,7 @@ export function EntryPage({
           {sheet}
         </main>
         <BottomNav
+          showEdit={false}
           onEdit={focusEmpty}
           onProfile={() => router.push("/profile")}
           onNetwork={() => router.push("/network")}

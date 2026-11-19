@@ -25,6 +25,8 @@ function TapButton({ onTap, ...props }: Omit<ComponentProps<"button">, "onClick"
 type BottomNavProps = {
   /** Edit mode: Delete on the left, Save on the right. The new-section plus sits in the portfolio. */
   editing?: boolean;
+  /** A saved portfolio. Absent while the questionnaire is still unsaved. */
+  showEdit?: boolean;
   onRemove?: () => void;
   onEdit: () => void;
   onAdd?: () => void;
@@ -35,6 +37,7 @@ type BottomNavProps = {
 
 export const BottomNav = memo(function BottomNav({
   editing = false,
+  showEdit = true,
   onRemove,
   onEdit,
   onDone,
@@ -81,7 +84,7 @@ export const BottomNav = memo(function BottomNav({
         )
       }
       center={
-        editing ? undefined : (
+        editing || !showEdit ? undefined : (
           <button
             type="button"
             className="flex h-full min-h-11 w-full items-center justify-center uppercase"
