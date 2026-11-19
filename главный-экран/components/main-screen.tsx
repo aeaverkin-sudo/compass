@@ -599,7 +599,7 @@ export function MainScreen() {
   }
 
   const cardTopBrowse = layout?.cardTopBrowse;
-  // Photo on the new slide is 36px under the header row, the same line as /create.
+  // Photo on the new slide is 30px under the header row, the same line as /create.
   // Real cards keep their place under the QR, so a swipe does not move them.
   const addLiftPx =
     showAddSlide && layout

@@ -7,7 +7,7 @@ import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
 /**
  * Section title on A1, back arrow on A0. The in-flow spacer keeps the same
- * gap Profile had: the row, then 18px, then a zone's own 18px padding.
+ * gap Profile had: the row, then 12px, then a zone's own 18px padding.
  */
 export function ScreenHeader({
   title,
@@ -54,7 +54,7 @@ export function ScreenHeader({
         </div>
       ) : null}
       {spacer ? (
-        <div aria-hidden className="mb-[18px] shrink-0" style={{ height: `calc(${top} + ${HEADER_ROW_PX}px)` }} />
+        <div aria-hidden className="mb-[12px] shrink-0" style={{ height: `calc(${top} + ${HEADER_ROW_PX}px)` }} />
       ) : null}
     </>
   );

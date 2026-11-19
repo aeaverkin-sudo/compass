@@ -633,7 +633,7 @@ export function EntryPage({
           pinned={false}
           signUpHref="/create"
           signInHref={signInHref(undefined, input)}
-          className="mb-[18px]"
+          className="mb-[12px]"
         />
         <form
           onSubmit={(event) => {
@@ -779,7 +779,7 @@ export function EntryPage({
             aria-hidden
             className="shrink-0"
             style={{
-              height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px + ${HEADER_ROW_PX / 2}px + 36px)`,
+              height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px + ${HEADER_ROW_PX / 2}px + 30px)`,
             }}
           />
         </>
@@ -791,7 +791,7 @@ export function EntryPage({
             pinned={false}
             signUpHref="/create"
             signInHref={signInHref(undefined, input)}
-            className="mb-[18px]"
+            className="mb-[12px]"
           />
           {formOpen ? null : (
             <div style={frame}>

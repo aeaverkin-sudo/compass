@@ -167,7 +167,7 @@ export function AddPortfolioSlide({
   };
 
   return (
-    <div key={formKey} className="compass-card-scroll h-full overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)] pt-[36px]">
+    <div key={formKey} className="compass-card-scroll h-full overflow-y-auto px-[calc(clamp(24px,6.1vw,28px)-3mm)] pt-[30px]">
       <div className="flex items-stretch gap-3" style={{ height: 128 }}>
         <div className="relative shrink-0">
           <PhotoSlotPicker
