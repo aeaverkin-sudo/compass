@@ -18,33 +18,6 @@ import { BusinessCard } from "./business-card";
 
 const ADD_SLIDE_ID = "__add__";
 
-/** Soft rectangular hint at the screen edge, nudged toward the card. Tune on a phone. */
-const NEIGHBOR_SHADE_WIDTH_PX = 6;
-const NEIGHBOR_SHADE_HEIGHT_PX = 156;
-const NEIGHBOR_SHADE_RADIUS_PX = 6;
-const NEIGHBOR_SHADE_ALPHA = 0.075;
-const NEIGHBOR_SHADE_BLUR_PX = 7;
-/** ~2mm on a phone, inward from the screen edge toward the card. */
-const NEIGHBOR_SHADE_SCREEN_INSET_PX = 11;
-
-function NeighborShade({ side, drop = 0 }: { side: "left" | "right"; drop?: number }) {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute top-1/2 z-30"
-      style={{
-        width: NEIGHBOR_SHADE_WIDTH_PX,
-        height: NEIGHBOR_SHADE_HEIGHT_PX,
-        borderRadius: NEIGHBOR_SHADE_RADIUS_PX,
-        background: `rgba(0,0,0,${NEIGHBOR_SHADE_ALPHA})`,
-        filter: `blur(${NEIGHBOR_SHADE_BLUR_PX}px)`,
-        transform: `translateY(calc(-50% + ${drop}px))`,
-        [side]: NEIGHBOR_SHADE_SCREEN_INSET_PX,
-      }}
-    />
-  );
-}
-
 type CardCarouselProps = {
   cards: Card[];
   activeIndex: number;
@@ -499,8 +472,6 @@ export const CardCarousel = memo(function CardCarousel({
             className="pointer-events-none absolute right-0 bottom-0 z-20 bg-background"
             style={{ width: sidePaddingPx, top: cardLiftPx }}
           />
-          {activeIndex > 0 ? <NeighborShade side="left" drop={cardLiftPx / 2} /> : null}
-          {activeIndex < slideIds.length - 1 ? <NeighborShade side="right" drop={cardLiftPx / 2} /> : null}
         </>
       ) : null}
     </div>

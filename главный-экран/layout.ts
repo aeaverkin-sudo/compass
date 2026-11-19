@@ -94,18 +94,15 @@ export const SHEET_INSET = {
   library: { horizontal: 14, bottom: 0, gap: 8 },
 } as const;
 
-/** Visible tail of the next card in browse carousel (keep small — max card size). */
-const CARD_CAROUSEL_PEEK_PX = 24;
+/** Space between slides. A resting card is the single-card width, and the side masks cover the neighbor. */
 export const CARD_CAROUSEL_GAP_PX = 8;
 
-export function carouselSlideWidthPx(viewportWidth: number, multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
-  if (!multiSlide) return viewportWidth - edgeInsetPx * 2;
-  return viewportWidth - 2 * CARD_CAROUSEL_PEEK_PX - CARD_CAROUSEL_GAP_PX;
+export function carouselSlideWidthPx(viewportWidth: number, _multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
+  return viewportWidth - edgeInsetPx * 2;
 }
 
-export function carouselSidePaddingPx(viewportWidth: number, multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
-  if (!multiSlide) return edgeInsetPx;
-  return (viewportWidth - carouselSlideWidthPx(viewportWidth, true)) / 2;
+export function carouselSidePaddingPx(_viewportWidth: number, _multiSlide: boolean, edgeInsetPx: number = SHEET_INSET.browse.horizontal) {
+  return edgeInsetPx;
 }
 
 export type MainScreenMode = "browse" | "library";
