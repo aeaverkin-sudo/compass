@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Mic, Scan } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
+import { TabBand } from "@main/components/tab-band";
 import { cn } from "@/lib/utils";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
@@ -14,15 +16,22 @@ import type { ContactDraft } from "@/features/contact-collect/parse-contact";
 import type { ScannedContact } from "@/features/contact-collect/scan-qr";
 import type { ContactSource, ExternalContact, LineFlag } from "@/features/contact-collect/types";
 
-const ROW = "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)]";
-const SECTION = `${ROW} py-[18px]`;
-const COMPACT = `${ROW} py-[10px]`;
+const ROW = "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]";
+const SECTION = `${ROW} items-start border-b border-[var(--rule)] py-[18px]`;
+const SECTION_CREATE = `${ROW} items-center border-b border-[var(--rule)] py-[18px]`;
+const COMPACT = `${ROW} items-start border-b border-[var(--rule)] py-[10px]`;
+const COMPACT_NOTE = `${ROW} items-center py-[10px]`;
+const COMPACT_EVENT = `${ROW} items-center border-b border-[var(--rule)] py-[10px]`;
 const FIELD =
   "min-w-0 w-full border-0 bg-transparent py-1 t-body outline-none placeholder:text-[var(--placeholder)]";
 const GHOST =
   "press min-h-11 flex-1 border-0 bg-white t-caps text-[var(--ink)] shadow-[0_10px_22px_rgba(20,20,20,0.14)] [-webkit-tap-highlight-color:transparent]";
+const GHOST_CREATE =
+  "press flex min-h-11 flex-1 items-center justify-center gap-2 border-0 bg-white t-caps text-[var(--ink)] shadow-[0_10px_22px_rgba(20,20,20,0.14)] [-webkit-tap-highlight-color:transparent]";
 const SAVE =
   "press mt-[18px] w-full border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] shadow-none disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
+const SAVE_BAND =
+  "flex h-full min-h-11 items-center justify-center border-0 bg-transparent p-0 t-band uppercase disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 type Line = { id: string; value: string; flags: LineFlag[]; marked: boolean };
 
 function blank(): Line {
@@ -297,164 +306,245 @@ export function NewContactForm({
     }
   };
 
-  return (
-    <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
-      <form onSubmit={(event) => void save(event)} className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(24px,env(safe-area-inset-bottom))]">
-        <ScreenHeader title={editing ? "Edit" : "New contact"} fallbackHref={initial ? `/network/x/${initial.id}` : "/network"} />
-        <div className="flex items-end gap-3 pt-[18px]">
-          <PhotoSlotPicker
-            photo={photo?.dataUrl ?? keptPhoto}
-            onPhotoChange={(dataUrl, file) => {
-              setPhoto(dataUrl && file ? { file, dataUrl } : null);
-              setKeptPhoto(dataUrl ? keptPhoto : null);
-              setPhotoId(null);
-              if (file && canReadRef.current) void readFile("image", file, file.name || "card.jpg");
-            }}
-            sizePx={128}
-            borderRadiusPx={0}
-            photoLook="shadow"
-            surfaceClassName="bg-white"
-          />
+  const sectionClass = editing ? SECTION : SECTION_CREATE;
+  const contactHint = editing ? "Phone, messenger, email, links" : "Phone, @nick, email, link";
+  const positionHint = editing ? "What you do" : "Role";
+
+  const photoName = (
+    <div className="flex items-end gap-3 pt-[18px]">
+      <PhotoSlotPicker
+        photo={photo?.dataUrl ?? keptPhoto}
+        onPhotoChange={(dataUrl, file) => {
+          setPhoto(dataUrl && file ? { file, dataUrl } : null);
+          setKeptPhoto(dataUrl ? keptPhoto : null);
+          setPhotoId(null);
+          if (file && canReadRef.current) void readFile("image", file, file.name || "card.jpg");
+        }}
+        sizePx={128}
+        borderRadiusPx={0}
+        photoLook="shadow"
+        surfaceClassName="bg-white"
+      />
+      <input
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        onKeyDown={keepEnter}
+        placeholder="Name"
+        aria-label="Name"
+        autoComplete="name"
+        className={cn(FIELD, "flex-1 border-b border-[var(--rule)] text-[var(--ink)]")}
+      />
+    </div>
+  );
+
+  const contactLines = (
+    <div className="flex min-w-0 flex-col gap-[14px]">
+      {lines.map((line, index) => (
+        <div key={line.id} className="flex min-w-0 items-center gap-3">
           <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            onKeyDown={keepEnter}
-            placeholder="Name"
-            aria-label="Name"
-            autoComplete="name"
-            className={cn(FIELD, "flex-1 border-b border-[var(--rule)] text-[var(--ink)]")}
+            ref={index === lines.length - 1 ? lastLine : undefined}
+            value={line.value}
+            onChange={(event) => updateLine(line.id, event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              if (!line.value.trim()) return;
+              if (index === lines.length - 1) {
+                setLines((current) => {
+                  const last = current[current.length - 1];
+                  if (!last?.value.trim()) return current;
+                  return [...current, blank()];
+                });
+                window.setTimeout(() => lastLine.current?.focus(), 0);
+              }
+            }}
+            placeholder={line.value ? "" : contactHint}
+            aria-label="Contact"
+            onBlur={() => {
+              if (index !== lines.length - 1 || !line.value.trim()) return;
+              setLines((current) => {
+                const last = current[current.length - 1];
+                if (!last?.value.trim()) return current;
+                return [...current, blank()];
+              });
+            }}
+            className={cn(FIELD, "flex-1", line.marked ? "text-[#E23B2F]" : "text-[var(--ink)]")}
           />
+          {phoneLine(line.value) ? (
+            <span className="flex shrink-0 gap-2">
+              <FlagButton on={line.flags.includes("tg")} onPress={() => toggleFlag(line.id, "tg")}>
+                TG
+              </FlagButton>
+              <FlagButton on={line.flags.includes("wa")} onPress={() => toggleFlag(line.id, "wa")}>
+                WA
+              </FlagButton>
+            </span>
+          ) : null}
         </div>
+      ))}
+    </div>
+  );
 
-        <section className={SECTION}>
-          <div className="min-w-0">
-            <SectionNumber value="01" />
-            <span className="mt-[6px] block t-label text-[var(--grey)]">Position</span>
-          </div>
-          <input
-            value={position}
-            onChange={(event) => setPosition(event.target.value)}
-            onKeyDown={keepEnter}
-            placeholder="What you do"
-            aria-label="Position"
-            className={cn(FIELD, "text-[var(--ink)]")}
-          />
-        </section>
-
-        <section className={SECTION}>
-          <div className="min-w-0">
-            <SectionNumber value="02" />
-            <span className="mt-[6px] block t-label text-[var(--grey)]">Company</span>
-          </div>
-          <input
-            value={company}
-            onChange={(event) => setCompany(event.target.value)}
-            onKeyDown={keepEnter}
-            placeholder="Company or brand name"
-            aria-label="Company"
-            className={cn(FIELD, "text-[var(--ink)]")}
-          />
-        </section>
-
-        <section className={SECTION}>
-          <div className="min-w-0">
-            <SectionNumber value="03" />
-            <span className="mt-[6px] block t-label text-[var(--grey)]">Contacts</span>
-          </div>
-          <div className="flex min-w-0 flex-col gap-[14px]">
-            {lines.map((line, index) => (
-              <div key={line.id} className="flex min-w-0 items-center gap-3">
-                <input
-                  ref={index === lines.length - 1 ? lastLine : undefined}
-                  value={line.value}
-                  onChange={(event) => updateLine(line.id, event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Enter") return;
-                    event.preventDefault();
-                    if (!line.value.trim()) return;
-                    if (index === lines.length - 1) {
-                      setLines((current) => {
-                        const last = current[current.length - 1];
-                        if (!last?.value.trim()) return current;
-                        return [...current, blank()];
-                      });
-                      window.setTimeout(() => lastLine.current?.focus(), 0);
-                    }
-                  }}
-                  placeholder={line.value ? "" : "Phone, messenger, email, links"}
-                  aria-label="Contact"
-                  onBlur={() => {
-                    if (index !== lines.length - 1 || !line.value.trim()) return;
-                    setLines((current) => {
-                      const last = current[current.length - 1];
-                      if (!last?.value.trim()) return current;
-                      return [...current, blank()];
-                    });
-                  }}
-                  className={cn(FIELD, "flex-1", line.marked ? "text-[#E23B2F]" : "text-[var(--ink)]")}
-                />
-                {phoneLine(line.value) ? (
-                  <span className="flex shrink-0 gap-2">
-                    <FlagButton on={line.flags.includes("tg")} onPress={() => toggleFlag(line.id, "tg")}>
-                      TG
-                    </FlagButton>
-                    <FlagButton on={line.flags.includes("wa")} onPress={() => toggleFlag(line.id, "wa")}>
-                      WA
-                    </FlagButton>
-                  </span>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className={COMPACT}>
-          <span className="t-label text-[var(--grey)]">Note</span>
-          <input
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            onKeyDown={keepEnter}
-            placeholder="short note"
-            aria-label="Note"
-            className={cn(FIELD, "text-[var(--ink)]")}
-          />
-        </section>
-
-        <section className={COMPACT}>
-          <span className="t-label text-[var(--grey)]">Event</span>
-          <input
-            value={eventTag}
-            onChange={(event) => {
-              setEventLive(true);
-              setEventTag(event.target.value);
-            }}
-            onKeyDown={keepEnter}
-            placeholder="#event"
-            aria-label="Event"
-            className={cn(FIELD, !eventLive && eventTag ? "text-[var(--grey)]" : "text-[var(--ink)]")}
-          />
-        </section>
-
-        <div className="mt-[18px] flex gap-3">
-          <button type="button" className={GHOST} onClick={() => setScanning(true)}>
-            Scan
-          </button>
-          <button
-            type="button"
-            className={GHOST}
-            onPointerDown={beginVoice}
-            onClick={() => {
-              if (!canRead) lastLine.current?.focus();
-            }}
-            onContextMenu={(event) => event.preventDefault()}
-          >
-            Voice
-          </button>
+  const fields = (
+    <>
+      {photoName}
+      <section className={sectionClass}>
+        <div className="min-w-0">
+          <SectionNumber value="01" />
+          <span className="mt-[6px] block t-label text-[var(--grey)]">Position</span>
         </div>
-        <button type="submit" disabled={!ready} className={SAVE}>
-          Save contact
+        <input
+          value={position}
+          onChange={(event) => setPosition(event.target.value)}
+          onKeyDown={keepEnter}
+          placeholder={positionHint}
+          aria-label="Position"
+          className={cn(FIELD, "text-[var(--ink)]")}
+        />
+      </section>
+      <section className={sectionClass}>
+        <div className="min-w-0">
+          <SectionNumber value="02" />
+          <span className="mt-[6px] block t-label text-[var(--grey)]">Company</span>
+        </div>
+        <input
+          value={company}
+          onChange={(event) => setCompany(event.target.value)}
+          onKeyDown={keepEnter}
+          placeholder="Company or brand name"
+          aria-label="Company"
+          className={cn(FIELD, "text-[var(--ink)]")}
+        />
+      </section>
+      <section className={sectionClass}>
+        <div className="min-w-0">
+          <SectionNumber value="03" />
+          <span className="mt-[6px] block t-label text-[var(--grey)]">Contacts</span>
+        </div>
+        {contactLines}
+      </section>
+      {editing ? (
+        <>
+          <section className={COMPACT}>
+            <span className="t-label text-[var(--grey)]">Note</span>
+            <input
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              onKeyDown={keepEnter}
+              placeholder="short note"
+              aria-label="Note"
+              className={cn(FIELD, "text-[var(--ink)]")}
+            />
+          </section>
+          <section className={COMPACT}>
+            <span className="t-label text-[var(--grey)]">Event</span>
+            <input
+              value={eventTag}
+              onChange={(event) => {
+                setEventLive(true);
+                setEventTag(event.target.value);
+              }}
+              onKeyDown={keepEnter}
+              placeholder="#event"
+              aria-label="Event"
+              className={cn(FIELD, !eventLive && eventTag ? "text-[var(--grey)]" : "text-[var(--ink)]")}
+            />
+          </section>
+        </>
+      ) : (
+        <>
+          <section className={COMPACT_NOTE}>
+            <span className="t-label text-[var(--grey)]">Note</span>
+            <input
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              onKeyDown={keepEnter}
+              placeholder="short note"
+              aria-label="Note"
+              className={cn(FIELD, "text-[var(--ink)]")}
+            />
+          </section>
+          <section className={COMPACT_EVENT}>
+            <span className="t-label text-[var(--grey)]">Event</span>
+            <input
+              value={eventTag}
+              onChange={(event) => {
+                setEventLive(true);
+                setEventTag(event.target.value);
+              }}
+              onKeyDown={keepEnter}
+              placeholder="#event"
+              aria-label="Event"
+              className={cn(FIELD, !eventLive && eventTag ? "text-[var(--grey)]" : "text-[var(--ink)]")}
+            />
+          </section>
+        </>
+      )}
+      <div className="mt-[18px] flex gap-3">
+        <button type="button" className={editing ? GHOST : GHOST_CREATE} onClick={() => setScanning(true)}>
+          {editing ? null : <Scan className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />}
+          Scan
         </button>
-        {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
+        <button
+          type="button"
+          className={editing ? GHOST : GHOST_CREATE}
+          onPointerDown={beginVoice}
+          onClick={() => {
+            if (!canRead) lastLine.current?.focus();
+          }}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          {editing ? null : <Mic className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />}
+          Voice
+        </button>
+      </div>
+      {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
+    </>
+  );
+
+  if (editing) {
+    return (
+      <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
+        <form
+          onSubmit={(event) => void save(event)}
+          className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(24px,env(safe-area-inset-bottom))]"
+        >
+          <ScreenHeader title="Edit" fallbackHref={`/network/x/${initial!.id}`} />
+          {fields}
+          <button type="submit" disabled={!ready} className={SAVE}>
+            Save contact
+          </button>
+        </form>
+        {scanning ? (
+          <QrScanner
+            onClose={() => setScanning(false)}
+            onScan={(found) => {
+              applyScan(found);
+              setScanning(false);
+            }}
+          />
+        ) : null}
+      </main>
+    );
+  }
+
+  return (
+    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
+      <form onSubmit={(event) => void save(event)} className="flex min-h-0 flex-1 flex-col">
+        <ScreenHeader title="New contact" fallbackHref="/network" />
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-[var(--gutter)]">
+          <div className="min-h-[calc(100%+1px)] pb-6">{fields}</div>
+        </div>
+        <TabBand
+          label="Save"
+          left={<span aria-hidden className="block w-px" />}
+          right={<span aria-hidden className="block w-px" />}
+          center={
+            <button type="submit" disabled={!ready} className={SAVE_BAND}>
+              Save
+            </button>
+          }
+        />
       </form>
       {scanning ? (
         <QrScanner
