@@ -2,12 +2,12 @@
 
 import type { ReactNode } from "react";
 import { BackButton } from "@/shared/components/back-button";
-import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
+import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
 /**
- * Section title on A1, back arrow on A0. The in-flow spacer keeps the same
- * gap Profile had: the row, then 12px, then a zone's own 18px padding.
+ * Section title in the center of the screen, back arrow on the left gutter.
+ * The in-flow spacer keeps the same gap Profile had: the row, then 12px, then a zone's own 18px padding.
  */
 export function ScreenHeader({
   title,
@@ -15,7 +15,6 @@ export function ScreenHeader({
   onBack,
   spacer = true,
   trailing,
-  center = false,
 }: {
   title: string;
   fallbackHref: string;
@@ -24,26 +23,16 @@ export function ScreenHeader({
   spacer?: boolean;
   /** Sits on the header row, at the right gutter, mirroring the back arrow. */
   trailing?: ReactNode;
-  /** Screen center. Other screens stay on the value axis. */
-  center?: boolean;
 }) {
   const top = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`;
   return (
     <>
       <BackButton fallbackHref={fallbackHref} onBack={onBack} />
       <h1
-        className={
-          center
-            ? "pointer-events-none fixed inset-x-0 z-20 flex items-center justify-center t-caps text-[var(--ink)]"
-            : "pointer-events-none fixed z-20 flex items-center t-caps text-[var(--ink)]"
-        }
-        style={
-          center
-            ? { top, height: HEADER_ROW_PX }
-            : { top, left: `calc(var(--gutter) + ${VALUE_AXIS_PX}px)`, height: HEADER_ROW_PX }
-        }
+        className="pointer-events-none fixed inset-x-0 z-20 flex items-center justify-center t-caps text-[var(--ink)]"
+        style={{ top, height: HEADER_ROW_PX }}
       >
-        {center ? <span className="-mr-[0.12em]">{title}</span> : title}
+        <span className="-mr-[0.12em]">{title}</span>
       </h1>
       {trailing ? (
         <div
