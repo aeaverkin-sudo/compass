@@ -32,6 +32,8 @@ Your public card is visible to anyone you show or send your QR/link to — the p
 ## 6. AI and automated processing
 We use AI and automated systems to operate, secure and improve the Service, including classifying content for safety and convenience. We do not use this to profile you for advertising. Automated results are used for convenience and safety only, not as a substitute for human judgement.
 
+When you add someone else's contact from a photo or a voice recording, that photo or recording is sent to OpenAI to read it into the form. We do not keep the recording after the form is filled. The contact you save stays in your account until you delete it, or until you ask us to delete it at support@adedme.com.
+
 ## 7. Who we share with, and transfers
 - **People you share with:** your public card.
 - **Event organisers:** with your consent when joining a specific event, scoped to that event (name, contact, attendance, payment status, chosen card fields); the organiser then acts as a separate/joint controller.
@@ -39,6 +41,7 @@ We use AI and automated systems to operate, secure and improve the Service, incl
 - **Email provider:** to send invitations, welcome mail, reminders and similar transactional messages.
 - **Apple:** only the data needed to issue or update a Wallet pass.
 - **Service providers (processors):** e.g. Supabase (hosting/storage) and a payment provider for paid plans, under agreements.
+- **OpenAI:** only when you use a photo or a voice recording to read someone else's contact into a form. We send that photo or recording for the reading and do not keep the recording afterwards.
 - **Sign-in providers (Google, Apple):** if you choose to sign in with one of them, that provider confirms your identity to us. We receive only the data listed in section 3 and send them nothing about your portfolio. Your account with Google or Apple is governed by their own privacy policies.
 - **Authorities:** when required by lawful request, court order or law.
 We **never sell** your personal data. International transfers are protected by appropriate safeguards (e.g. EU Standard Contractual Clauses).

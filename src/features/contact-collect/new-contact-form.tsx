@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { detectContactType } from "@/shared/services/contact-item";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
 import { QrScanner } from "@/features/contact-collect/qr-scanner";
+import type { ContactDraft } from "@/features/contact-collect/parse-contact";
 import type { ScannedContact } from "@/features/contact-collect/scan-qr";
 import type { ContactSource, ExternalContact, LineFlag } from "@/features/contact-collect/types";
 
@@ -70,10 +71,31 @@ export function NewContactForm({
   const [photoId, setPhotoId] = useState<string | null>(initial?.photoAttachmentId ?? null);
   const [source, setSource] = useState<ContactSource>(initial?.source ?? "manual");
   const [scanning, setScanning] = useState(false);
+  const [canRead, setCanRead] = useState(false);
+  const [reading, setReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const canReadRef = useRef(false);
+  const voiceRef = useRef<{ released: boolean; recorder: MediaRecorder | null; started: number } | null>(null);
 
-  const ready = name.trim().length > 0 && !busy;
+  const ready = name.trim().length > 0 && !busy && !reading;
+
+  useEffect(() => {
+    canReadRef.current = canRead;
+  }, [canRead]);
+
+  useEffect(() => {
+    let gone = false;
+    void fetch("/api/external-contacts/parse", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { available?: boolean } | null) => {
+        if (!gone && body?.available === true) setCanRead(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      gone = true;
+    };
+  }, []);
 
   const updateLine = (id: string, value: string) => {
     setLines((current) => current.map((line) => (line.id === id ? { ...line, value, marked: false } : line)));
@@ -93,6 +115,109 @@ export function NewContactForm({
       next.push(blank());
       return next;
     });
+  };
+
+  const applyDraft = (draft: ContactDraft, kind: "voice" | "photo") => {
+    const has = Boolean(draft.displayName || draft.position || draft.company || draft.note || draft.lines.length);
+    if (!has) {
+      if (kind === "voice") setError("Could not hear that.");
+      return;
+    }
+    setError(null);
+    if (!initial) setSource(kind);
+    if (draft.displayName && !name.trim()) setName(draft.displayName);
+    if (draft.position && !position.trim()) setPosition(draft.position);
+    if (draft.company && !company.trim()) setCompany(draft.company);
+    if (draft.note && !note.trim()) setNote(draft.note);
+    if (draft.lines.length === 0) return;
+    setLines((current) => {
+      const next = current.filter((line) => line.value.trim());
+      for (const value of draft.lines) {
+        if (next.length >= 30) break;
+        if (next.some((line) => line.value.trim() === value)) continue;
+        next.push({ id: crypto.randomUUID(), value, flags: [], marked: false });
+      }
+      next.push(blank());
+      return next;
+    });
+  };
+
+  const readFile = async (field: "image" | "audio", file: Blob, filename: string) => {
+    setReading(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      body.set(field, file, filename);
+      const response = await fetch("/api/external-contacts/parse", { method: "POST", body });
+      const payload = (await response.json().catch(() => null)) as { error?: string; draft?: ContactDraft } | null;
+      if (!response.ok || !payload?.draft) {
+        setError(payload?.error || (field === "audio" ? "Could not hear that." : "Could not read that."));
+        return;
+      }
+      applyDraft(payload.draft, field === "audio" ? "voice" : "photo");
+    } catch {
+      setError(field === "audio" ? "Could not hear that." : "Could not read that.");
+    } finally {
+      setReading(false);
+    }
+  };
+
+  const beginVoice = (event: PointerEvent<HTMLButtonElement>) => {
+    if (!canReadRef.current || reading) return;
+    event.preventDefault();
+    const session = { released: false, recorder: null as MediaRecorder | null, started: 0 };
+    voiceRef.current = session;
+    let done = false;
+    const stop = () => {
+      if (done) return;
+      done = true;
+      session.released = true;
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+      const recorder = session.recorder;
+      if (!recorder) {
+        lastLine.current?.focus();
+        return;
+      }
+      if (recorder.state !== "inactive") recorder.stop();
+    };
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+    void (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (session.released || voiceRef.current !== session) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        const mime = MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : MediaRecorder.isTypeSupported("audio/mp4")
+            ? "audio/mp4"
+            : "";
+        const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = (item) => {
+          if (item.data.size) chunks.push(item.data);
+        };
+        recorder.onstop = () => {
+          stream.getTracks().forEach((track) => track.stop());
+          const held = Date.now() - session.started;
+          if (held < 280 || chunks.length === 0) {
+            lastLine.current?.focus();
+            return;
+          }
+          const type = recorder.mimeType || mime || "audio/webm";
+          const extension = type.includes("mp4") ? "mp4" : "webm";
+          void readFile("audio", new Blob(chunks, { type }), `recording.${extension}`);
+        };
+        session.recorder = recorder;
+        session.started = Date.now();
+        recorder.start();
+      } catch {
+        if (!session.released) lastLine.current?.focus();
+      }
+    })();
   };
 
   const toggleFlag = (id: string, flag: LineFlag) => {
@@ -181,6 +306,7 @@ export function NewContactForm({
               setPhoto(dataUrl && file ? { file, dataUrl } : null);
               setKeptPhoto(dataUrl ? keptPhoto : null);
               setPhotoId(null);
+              if (file && canReadRef.current) void readFile("image", file, file.name || "card.jpg");
             }}
             sizePx={128}
             borderRadiusPx={0}
@@ -310,7 +436,15 @@ export function NewContactForm({
           <button type="button" className={GHOST} onClick={() => setScanning(true)}>
             Scan
           </button>
-          <button type="button" className={GHOST} onClick={() => lastLine.current?.focus()}>
+          <button
+            type="button"
+            className={GHOST}
+            onPointerDown={beginVoice}
+            onClick={() => {
+              if (!canRead) lastLine.current?.focus();
+            }}
+            onContextMenu={(event) => event.preventDefault()}
+          >
             Voice
           </button>
         </div>
