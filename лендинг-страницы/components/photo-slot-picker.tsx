@@ -1,6 +1,7 @@
 "use client";
 
-import { Ellipsis, Plus, X } from "lucide-react";
+import { Ellipsis, X } from "lucide-react";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { hasLightEdges, photoSlotLookClass, type PhotoLook, type StoredPhotoLook } from "@/shared/lib/photo-look";
@@ -173,7 +174,7 @@ export function PhotoSlotPicker({
             }}
             className="flex size-full items-center justify-center transition-opacity active:opacity-80"
           >
-            <Plus className="size-7 text-hint" strokeWidth={1.28} aria-hidden />
+            <MarkPlus size={23} className="text-hint" />
           </button>
         ) : (
           <div
@@ -214,7 +215,7 @@ export function PhotoSlotPicker({
             }}
             className="absolute top-1/2 left-1/2 flex size-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center text-[var(--ink)]"
           >
-            <Plus className="size-7" strokeWidth={1.28} aria-hidden />
+            <MarkPlus size={23} />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger

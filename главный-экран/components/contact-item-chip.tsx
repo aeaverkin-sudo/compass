@@ -11,7 +11,8 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { GripHorizontal, Plus } from "lucide-react";
+import { GripHorizontal } from "lucide-react";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { cn } from "@/lib/utils";
 import { SectionNumber, ValueCap, sectionNumberLabel } from "@/shared/components/section-number";
 import { openAttachmentImage } from "@/shared/components/image-preview-host";
@@ -1299,7 +1300,7 @@ function NextSection({ number, onAdd }: { number: string; onAdd: () => void }) {
           onClick={onAdd}
           className="flex size-7 items-center justify-center border-0 bg-transparent p-0"
         >
-          <Plus className="size-7 text-[var(--ink)]" strokeWidth={1} aria-hidden />
+          <MarkPlus size={23} className="text-[var(--ink)]" />
         </button>
       </div>
     </div>
