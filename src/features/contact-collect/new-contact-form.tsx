@@ -9,7 +9,7 @@ import { SectionNumber } from "@/shared/components/section-number";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { detectContactType } from "@/shared/services/contact-item";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
-import type { LineFlag } from "@/features/contact-collect/types";
+import type { ExternalContact, LineFlag } from "@/features/contact-collect/types";
 
 const SECTION = "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]";
 const FIELD =
@@ -24,6 +24,19 @@ function blank(): Line {
   return { id: crypto.randomUUID(), value: "", flags: [], marked: false };
 }
 
+function linesFrom(initial?: ExternalContact): Line[] {
+  if (!initial || initial.lines.length === 0) return [blank()];
+  return [
+    ...initial.lines.map((line) => ({
+      id: crypto.randomUUID(),
+      value: line.value,
+      flags: line.flags ? [...line.flags] : [],
+      marked: false,
+    })),
+    blank(),
+  ];
+}
+
 function phoneLine(value: string) {
   return detectContactType(value.trim(), "contact") === "phone";
 }
@@ -33,18 +46,26 @@ function keepEnter(event: KeyboardEvent<HTMLInputElement>) {
   event.preventDefault();
 }
 
-export function NewContactForm({ suggestedEvent }: { suggestedEvent: string }) {
+export function NewContactForm({
+  suggestedEvent,
+  initial,
+}: {
+  suggestedEvent: string;
+  initial?: ExternalContact;
+}) {
   const router = useRouter();
+  const editing = Boolean(initial);
   const lastLine = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState("");
-  const [position, setPosition] = useState("");
-  const [company, setCompany] = useState("");
-  const [note, setNote] = useState("");
-  const [eventTag, setEventTag] = useState(suggestedEvent);
-  const [eventLive, setEventLive] = useState(false);
-  const [lines, setLines] = useState<Line[]>([blank()]);
+  const [name, setName] = useState(initial?.displayName ?? "");
+  const [position, setPosition] = useState(initial?.position ?? "");
+  const [company, setCompany] = useState(initial?.company ?? "");
+  const [note, setNote] = useState(initial?.note ?? "");
+  const [eventTag, setEventTag] = useState(editing ? (initial?.eventTag ?? "") : suggestedEvent);
+  const [eventLive, setEventLive] = useState(editing);
+  const [lines, setLines] = useState<Line[]>(() => linesFrom(initial));
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
-  const [photoId, setPhotoId] = useState<string | null>(null);
+  const [keptPhoto, setKeptPhoto] = useState<string | null>(initial?.photoUrl ?? null);
+  const [photoId, setPhotoId] = useState<string | null>(initial?.photoAttachmentId ?? null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -89,8 +110,8 @@ export function NewContactForm({ suggestedEvent }: { suggestedEvent: string }) {
         photoAttachmentId = readyPhoto.attachmentId;
         setPhotoId(readyPhoto.attachmentId);
       }
-      const response = await fetch("/api/external-contacts", {
-        method: "POST",
+      const response = await fetch(initial ? `/api/external-contacts/${initial.id}` : "/api/external-contacts", {
+        method: initial ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           displayName,
@@ -98,7 +119,7 @@ export function NewContactForm({ suggestedEvent }: { suggestedEvent: string }) {
           company,
           note,
           eventTag: eventLive ? eventTag : suggestedEvent,
-          source: "manual",
+          source: initial?.source ?? "manual",
           photoAttachmentId,
           lines: filled.map((line) => {
             const flags = phoneLine(line.value) ? line.flags : [];
@@ -112,7 +133,7 @@ export function NewContactForm({ suggestedEvent }: { suggestedEvent: string }) {
         setBusy(false);
         return;
       }
-      router.replace(`/network?added=${encodeURIComponent(displayName)}`);
+      router.replace(initial ? `/network/x/${initial.id}` : `/network?added=${encodeURIComponent(displayName)}`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save the contact.");
       setBusy(false);
@@ -122,12 +143,13 @@ export function NewContactForm({ suggestedEvent }: { suggestedEvent: string }) {
   return (
     <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
       <form onSubmit={(event) => void save(event)} className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(24px,env(safe-area-inset-bottom))]">
-        <ScreenHeader title="New contact" fallbackHref="/network" />
+        <ScreenHeader title={editing ? "Edit" : "New contact"} fallbackHref={initial ? `/network/x/${initial.id}` : "/network"} />
         <div className="flex items-end gap-3">
           <PhotoSlotPicker
-            photo={photo?.dataUrl ?? null}
+            photo={photo?.dataUrl ?? keptPhoto}
             onPhotoChange={(dataUrl, file) => {
               setPhoto(dataUrl && file ? { file, dataUrl } : null);
+              setKeptPhoto(dataUrl ? keptPhoto : null);
               setPhotoId(null);
             }}
             sizePx={128}

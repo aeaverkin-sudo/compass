@@ -54,6 +54,8 @@ type Contact = {
   shareBackPending?: boolean;
   /** Saved by hand, scan, voice, or photo. Not an ADED card. */
   collected?: boolean;
+  /** A collected contact already sent a portfolio back. */
+  pushed?: boolean;
 };
 
 const HOLD_MS = 500;
@@ -100,6 +102,7 @@ type CollectedWire = {
   photoUrl?: unknown;
   createdAt?: unknown;
   searchText?: unknown;
+  pushbackAt?: unknown;
 };
 
 function collectedContact(row: CollectedWire): Contact | null {
@@ -115,6 +118,7 @@ function collectedContact(row: CollectedWire): Contact | null {
     photoUrl: typeof row.photoUrl === "string" && row.photoUrl ? row.photoUrl : null,
     searchText: foldSearch(typeof row.searchText === "string" ? row.searchText : row.displayName),
     collected: true,
+    pushed: typeof row.pushbackAt === "string" && row.pushbackAt.length > 0,
   };
 }
 
@@ -344,8 +348,32 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   const empty = contacts !== null && people.length === 0 && requests.length === 0;
 
+  const removeCollected = async (id: string) => {
+    const index = contacts?.findIndex((contact) => contact.id === id) ?? -1;
+    const before = index >= 0 ? contacts?.[index] : undefined;
+    if (!before?.collected || inFlight.current.has(id)) return;
+    inFlight.current.add(id);
+    setMenu(null);
+    setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
+    let dropped = false;
+    try {
+      const response = await fetch(`/api/external-contacts/${id}`, { method: "DELETE" });
+      dropped = response.ok;
+    } catch {
+      dropped = false;
+    }
+    if (!dropped) {
+      setContacts((current) => {
+        if (!current) return current;
+        const next = [...current];
+        next.splice(Math.min(index, next.length), 0, before);
+        return next;
+      });
+    }
+    inFlight.current.delete(id);
+  };
+
   const openMenu = (contact: Contact, box: DOMRect) => {
-    if (contact.collected) return;
     arming.current = true;
     setPickUp(false);
     setMenu({ id: contact.id, top: box.top, left: box.left, width: box.width, confirmDelete: false, picking: false });
@@ -353,7 +381,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   const shareCard = async (card: SharePickCard) => {
     const contact = menuContact;
-    if (!contact) return;
+    if (!contact || contact.collected) return;
     const sent = await sendShareBack(contact.savedCardToken, card.id);
     if (sent === "failed") return;
     setPickUp(false);
@@ -469,7 +497,47 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
           className="fixed z-40"
           style={{ top: menu.top, left: menu.left, width: menu.width }}
         >
-          {requestMenu ? (
+          {menuContact.collected ? (
+            <SkyActions
+              actions={[
+                {
+                  label: menu.confirmDelete ? "Delete?" : "Delete",
+                  tone: "ink",
+                  onPress: () => {
+                    pressMenu(() => {
+                      if (!menu.confirmDelete) {
+                        setMenu({ ...menu, confirmDelete: true });
+                        return;
+                      }
+                      void removeCollected(menu.id);
+                    });
+                  },
+                },
+                {
+                  label: "Edit",
+                  tone: menu.confirmDelete ? "grey" : "ink",
+                  onPress: () => {
+                    pressMenu(() => {
+                      if (menu.confirmDelete) {
+                        setMenu({ ...menu, confirmDelete: false });
+                        return;
+                      }
+                      setMenu(null);
+                      router.push(`/network/x/${menu.id}/edit`);
+                    });
+                  },
+                },
+                {
+                  label: "Swap",
+                  tone: menuContact.pushed ? "grey" : "ink",
+                  disabled: Boolean(menuContact.pushed),
+                  onPress: () => {
+                    pressMenu(() => setMenu(null));
+                  },
+                },
+              ]}
+            />
+          ) : requestMenu ? (
             <SkyActions
               actions={[
                 {
@@ -665,7 +733,6 @@ function ContactRow({
   const removing = decisions.removing.has(contact.id);
   const box = useRef<DOMRect | null>(null);
   const longPress = useLongPress(() => {
-    if (contact.collected) return;
     if (box.current) onHold(box.current);
   }, HOLD_MS);
   const rule = divider ? "border-b border-[var(--rule)]" : "";
@@ -700,13 +767,14 @@ function ContactRow({
   );
   return (
     <li className={`${rule}${veiled ? " opacity-60" : ""}`}>
-      {contact.collected ? (
-        <div className={rowClass}>{body}</div>
-      ) : (
-        <Link href={`/network/c/${contact.savedCardToken}`} className={rowClass} draggable={false} {...point}>
-          {body}
-        </Link>
-      )}
+      <Link
+        href={contact.collected ? `/network/x/${contact.id}` : `/network/c/${contact.savedCardToken}`}
+        className={rowClass}
+        draggable={false}
+        {...point}
+      >
+        {body}
+      </Link>
     </li>
   );
 }
