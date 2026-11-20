@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { photoSlotLookClass } from "@/shared/lib/photo-look";
-import { COLUMN_GAP_PX, HEADER_ROW_PX } from "@/shared/layout/axes";
+import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
-/** Clears the back icon and matches that inset on the right, so the bar sits in the center. */
-const CHEVRON_PX = 22;
-const SIDE_INSET = `calc(var(--gutter) + ${CHEVRON_PX}px + ${COLUMN_GAP_PX}px)`;
+/** Gap from the bottom of the back-arrow row to the top of this bar. */
+const BELOW_BACK_PX = 16;
+
+/** Top edge of the bar: under the back row, then BELOW_BACK_PX. */
+const BAR_TOP = `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px + ${HEADER_ROW_PX / 2}px + ${BELOW_BACK_PX}px)`;
 
 function Segment({
   href,
@@ -42,7 +44,7 @@ function Segment({
   );
 }
 
-/** Sign up / Sign in. Pinned stays on the screen. Loose sits on the chevron row and scrolls away. */
+/** Sign up / Sign in. Pinned stays on the screen. Loose sits under the back arrow and scrolls away. */
 export function AuthModeToggle({
   mode,
   signUpHref,
@@ -64,15 +66,15 @@ export function AuthModeToggle({
       style={
         pinned
           ? {
-              top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
-              left: SIDE_INSET,
-              right: SIDE_INSET,
+              top: BAR_TOP,
+              left: "var(--gutter)",
+              right: "var(--gutter)",
               height: HEADER_ROW_PX,
             }
           : {
-              marginTop: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
-              marginLeft: SIDE_INSET,
-              marginRight: SIDE_INSET,
+              marginTop: BAR_TOP,
+              marginLeft: "var(--gutter)",
+              marginRight: "var(--gutter)",
               height: HEADER_ROW_PX,
             }
       }

@@ -368,7 +368,9 @@ export function RegisterScreen() {
         <div
           aria-hidden
           className="mb-[12px] shrink-0"
-          style={{ height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px + ${HEADER_ROW_PX}px)` }}
+          style={{
+            height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px + ${HEADER_ROW_PX / 2}px + 16px + ${HEADER_ROW_PX}px)`,
+          }}
         />
         {SOCIAL_SIGNIN ? (
           <section className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
