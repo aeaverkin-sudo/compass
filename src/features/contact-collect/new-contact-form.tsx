@@ -6,7 +6,6 @@ import { Mic, Scan } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { TabBand } from "@main/components/tab-band";
 import { cn } from "@/lib/utils";
-import { HeroName } from "@/shared/components/hero-name";
 import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
@@ -21,7 +20,7 @@ import type { ContactSource, ExternalContact, HeaderField, LineFlag } from "@/fe
 
 const ROW = "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]";
 const SECTION = `${ROW} items-start border-b border-[var(--rule)] py-[18px]`;
-const COMPACT = `${ROW} items-start border-b border-[var(--rule)] py-[10px]`;
+const COMPACT = `${ROW} items-center border-b border-[var(--rule)] py-[10px]`;
 const FIELD =
   "min-w-0 w-full border-0 bg-transparent py-1 t-body outline-none placeholder:text-[var(--placeholder)]";
 
@@ -80,7 +79,7 @@ export function NewContactForm({
   const editing = Boolean(initial);
   const lastLine = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
-  const [name, setName] = useState(initial?.displayName ?? "");
+  const [name, setName] = useState((initial?.displayName ?? "").replace(/\n/g, " "));
   const [position, setPosition] = useState(initial?.position ?? "");
   const [company, setCompany] = useState(initial?.company ?? "");
   const [headerField, setHeaderField] = useState<HeaderField | null>(initial?.headerField ?? null);
@@ -357,8 +356,8 @@ export function NewContactForm({
   const positionHint = editing ? "What you do" : "Role";
 
   const photoName = (
-    <div className="pt-[18px]">
-      <div className="flex items-stretch gap-3" style={{ height: 128 }}>
+    <div className="border-b border-[var(--rule)] pt-[18px] pb-[18px]">
+      <div className="flex items-end gap-3">
         <PhotoSlotPicker
           photo={photo?.dataUrl ?? keptPhoto}
           onPhotoChange={(dataUrl, file) => {
@@ -372,12 +371,17 @@ export function NewContactForm({
           photoLook="shadow"
           surfaceClassName="bg-white"
         />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-end">
-          <HeroName
+        <div className="flex min-w-0 flex-1 flex-col justify-end pb-1">
+          <input
             value={name}
-            onChange={setName}
+            onChange={(event) => setName(event.target.value.replace(/\n/g, " "))}
+            onKeyDown={keepEnter}
             placeholder="Name"
-            roleBelow={Boolean(headerTitle)}
+            aria-label="Name"
+            autoCapitalize="words"
+            autoCorrect="off"
+            spellCheck={false}
+            className={cn(FIELD, "text-[var(--ink)]")}
           />
           {headerTitle ? (
             <p className="m-0 t-label uppercase text-[var(--grey)]">{headerTitle}</p>
