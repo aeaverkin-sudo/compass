@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { EntryName } from "@/app/create/entry-name";
 import { EntryZones, type EntryZonesHandle } from "@/app/create/entry-zones";
 import { TapButton } from "@/shared/components/tap-button";
+import { bindKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
@@ -49,6 +50,12 @@ export function AddPortfolioSlide({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    return bindKeyboardLift(node);
+  }, [formKey]);
 
   const create = async () => {
     if (locked) {
@@ -167,7 +174,11 @@ export function AddPortfolioSlide({
   };
 
   return (
-    <div key={formKey} className="compass-card-scroll h-full overflow-y-auto px-[var(--gutter)] pt-[30px]">
+    <div
+      key={formKey}
+      ref={scrollRef}
+      className="compass-card-scroll h-full overflow-y-auto px-[var(--gutter)] pt-[30px]"
+    >
       <div className="min-h-[calc(100%+1px)]">
       <div className="flex items-stretch gap-3" style={{ height: 128 }}>
         <div className="relative shrink-0">
