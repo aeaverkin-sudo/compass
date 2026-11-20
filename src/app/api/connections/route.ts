@@ -69,22 +69,21 @@ export async function GET() {
     const lines = new Map<string, string>();
     const reverse = new Map<string, "pending" | "active">();
     if (ids.length > 0) {
-      const withLook = await admin
-        .from("cards")
-        .select("id, owner_id, title, display_name, photo_attachment_id, photo_look, searchable")
-        .in("id", ids);
-      let cards = withLook;
-      if (cards.error && /photo_look/i.test(cards.error.message)) {
-        cards = await admin
-          .from("cards")
-          .select("id, owner_id, title, display_name, photo_attachment_id, searchable")
-          .in("id", ids);
-      }
-      if (cards.error && /searchable/i.test(cards.error.message)) {
-        cards = await admin.from("cards").select("id, owner_id, title, display_name, photo_attachment_id").in("id", ids);
-      }
+      const readFaces = (columns: string) =>
+        admin.from("cards").select(columns).in("id", ids);
+      const withLook = await readFaces(
+        "id, owner_id, title, display_name, photo_attachment_id, photo_look, searchable",
+      );
+      const withFlag =
+        withLook.error && /photo_look/i.test(withLook.error.message)
+          ? await readFaces("id, owner_id, title, display_name, photo_attachment_id, searchable")
+          : withLook;
+      const cards =
+        withFlag.error && /searchable/i.test(withFlag.error.message)
+          ? await readFaces("id, owner_id, title, display_name, photo_attachment_id")
+          : withFlag;
       if (cards.error) throw new Error(cards.error.message);
-      for (const card of (cards.data ?? []) as CardFace[]) faces.set(card.id, card);
+      for (const card of (cards.data ?? []) as unknown as CardFace[]) faces.set(card.id, card);
 
       const mine = await admin.from("cards").select("id").eq("owner_id", owner.id);
       const mineIds = mine.error ? [] : ((mine.data ?? []) as { id: string }[]).map((card) => card.id);
