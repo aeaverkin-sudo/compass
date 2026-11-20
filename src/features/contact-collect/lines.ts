@@ -101,7 +101,7 @@ export function parseExternalContact(body: unknown): ParsedContact {
     if (!entry || typeof entry !== "object") return { ok: false, error: "Expected contact lines." };
     const line = entry as { value?: unknown; flags?: unknown };
     if (typeof line.value !== "string") return { ok: false, error: "Expected contact lines." };
-    const value = line.value.trim();
+    let value = line.value.trim();
     if (!value) continue;
     if (value.length > LINE_MAX || /[\r\n]/.test(value)) {
       return { ok: false, error: "A contact line is too long." };
@@ -110,7 +110,11 @@ export function parseExternalContact(body: unknown): ParsedContact {
     const flags = flagsOf(line.flags);
     if (!Array.isArray(flags)) return { ok: false, error: flags.error };
     const type = storedType(value);
+    if (type === "email") value = value.toLowerCase();
     if (flags.length > 0 && type !== "phone") return { ok: false, error: "Marks belong on a phone number." };
+    if (flags.length > 0 && !value.startsWith("+")) {
+      return { ok: false, error: "Marks belong on an international number." };
+    }
     lines.push(flags.length > 0 ? { value, type, flags } : { value, type });
   }
   if (lines.length > LINES_MAX) return { ok: false, error: "Too many contact lines." };

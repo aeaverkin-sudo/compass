@@ -6,22 +6,22 @@ import { Mic, Scan } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { TabBand } from "@main/components/tab-band";
 import { cn } from "@/lib/utils";
+import { HeroName } from "@/shared/components/hero-name";
+import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
 import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
-import { detectContactType } from "@/shared/services/contact-item";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
 import { QrScanner } from "@/features/contact-collect/qr-scanner";
+import { isIntlPhone, polishContactLine } from "@/features/contact-collect/view-lines";
 import type { ContactDraft } from "@/features/contact-collect/parse-contact";
 import type { ScannedContact } from "@/features/contact-collect/scan-qr";
 import type { ContactSource, ExternalContact, LineFlag } from "@/features/contact-collect/types";
 
 const ROW = "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]";
 const SECTION = `${ROW} items-start border-b border-[var(--rule)] py-[18px]`;
-const SECTION_CREATE = `${ROW} items-center border-b border-[var(--rule)] py-[18px]`;
 const COMPACT = `${ROW} items-start border-b border-[var(--rule)] py-[10px]`;
-const COMPACT_NOTE = `${ROW} items-center py-[10px]`;
 const COMPACT_EVENT = `${ROW} items-center border-b border-[var(--rule)] py-[10px]`;
 const FIELD =
   "min-w-0 w-full border-0 bg-transparent py-1 t-body outline-none placeholder:text-[var(--placeholder)]";
@@ -34,6 +34,8 @@ const SAVE =
 const SAVE_BAND =
   "flex h-full min-h-11 items-center justify-center border-0 bg-transparent p-0 t-band uppercase disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 type Line = { id: string; value: string; flags: LineFlag[]; marked: boolean };
+/** Which section value sits under the name. Not persisted until header_field ships. */
+type HeaderField = "position" | "company" | null;
 
 function blank(): Line {
   return { id: crypto.randomUUID(), value: "", flags: [], marked: false };
@@ -44,7 +46,7 @@ function linesFrom(initial?: ExternalContact): Line[] {
   return [
     ...initial.lines.map((line) => ({
       id: crypto.randomUUID(),
-      value: line.value,
+      value: polishContactLine(line.value) || line.value,
       flags: line.flags ? [...line.flags] : [],
       marked: false,
     })),
@@ -52,11 +54,7 @@ function linesFrom(initial?: ExternalContact): Line[] {
   ];
 }
 
-function phoneLine(value: string) {
-  return detectContactType(value.trim(), "contact") === "phone";
-}
-
-function keepEnter(event: KeyboardEvent<HTMLInputElement>) {
+function keepEnter(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
   if (event.key !== "Enter") return;
   event.preventDefault();
 }
@@ -74,6 +72,7 @@ export function NewContactForm({
   const [name, setName] = useState(initial?.displayName ?? "");
   const [position, setPosition] = useState(initial?.position ?? "");
   const [company, setCompany] = useState(initial?.company ?? "");
+  const [headerField, setHeaderField] = useState<HeaderField>(null);
   const [note, setNote] = useState(initial?.note ?? "");
   const [eventTag, setEventTag] = useState(editing ? (initial?.eventTag ?? "") : suggestedEvent);
   const [eventLive, setEventLive] = useState(editing);
@@ -93,6 +92,18 @@ export function NewContactForm({
   useKeyboardLift(scrollRef);
 
   const ready = name.trim().length > 0 && !busy && !reading;
+  const headerTitle =
+    headerField === "position" && position.trim()
+      ? position.trim()
+      : headerField === "company" && company.trim()
+        ? company.trim()
+        : "";
+
+  const pickHeader = (field: "position" | "company") => {
+    const value = field === "position" ? position.trim() : company.trim();
+    if (!value) return;
+    setHeaderField((current) => (current === field ? null : field));
+  };
 
   useEffect(() => {
     canReadRef.current = canRead;
@@ -113,6 +124,18 @@ export function NewContactForm({
 
   const updateLine = (id: string, value: string) => {
     setLines((current) => current.map((line) => (line.id === id ? { ...line, value, marked: false } : line)));
+  };
+
+  const commitLine = (id: string, raw: string, andNext: boolean) => {
+    const polished = polishContactLine(raw);
+    setLines((current) => {
+      const next = current.map((line) => (line.id === id ? { ...line, value: polished, marked: false } : line));
+      if (!andNext || !polished) return next;
+      const index = next.findIndex((line) => line.id === id);
+      if (index === next.length - 1) return [...next, blank()];
+      return next;
+    });
+    if (andNext && polished) window.setTimeout(() => lastLine.current?.focus(), 0);
   };
 
   const applyScan = (found: ScannedContact) => {
@@ -281,8 +304,9 @@ export function NewContactForm({
           source: initial?.source ?? source,
           photoAttachmentId,
           lines: filled.map((line) => {
-            const flags = phoneLine(line.value) ? line.flags : [];
-            return flags.length > 0 ? { value: line.value, flags } : { value: line.value };
+            const value = polishContactLine(line.value) || line.value.trim();
+            const flags = isIntlPhone(value) ? line.flags : [];
+            return flags.length > 0 ? { value, flags } : { value };
           }),
         }),
       });
@@ -309,79 +333,90 @@ export function NewContactForm({
     }
   };
 
-  const sectionClass = editing ? SECTION : SECTION_CREATE;
-  const contactHint = editing ? "Phone, messenger, email, links" : "Phone, @nick, email, link";
+  const sectionClass = SECTION;
+  const contactHint = "Phone, @nick, email, link";
   const positionHint = editing ? "What you do" : "Role";
 
   const photoName = (
-    <div className="flex items-end gap-3 pt-[18px]">
-      <PhotoSlotPicker
-        photo={photo?.dataUrl ?? keptPhoto}
-        onPhotoChange={(dataUrl, file) => {
-          setPhoto(dataUrl && file ? { file, dataUrl } : null);
-          setKeptPhoto(dataUrl ? keptPhoto : null);
-          setPhotoId(null);
-          if (file && canReadRef.current) void readFile("image", file, file.name || "card.jpg");
-        }}
-        sizePx={128}
-        borderRadiusPx={0}
-        photoLook="shadow"
-        surfaceClassName="bg-white"
-      />
-      <input
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        onKeyDown={keepEnter}
-        placeholder="Name"
-        aria-label="Name"
-        autoComplete="name"
-        className={cn(FIELD, "flex-1 border-b border-[var(--rule)] text-[var(--ink)]")}
-      />
+    <div className="pt-[18px]">
+      <div className="flex items-stretch gap-3" style={{ height: 128 }}>
+        <PhotoSlotPicker
+          photo={photo?.dataUrl ?? keptPhoto}
+          onPhotoChange={(dataUrl, file) => {
+            setPhoto(dataUrl && file ? { file, dataUrl } : null);
+            setKeptPhoto(dataUrl ? keptPhoto : null);
+            setPhotoId(null);
+            if (file && canReadRef.current) void readFile("image", file, file.name || "card.jpg");
+          }}
+          sizePx={128}
+          borderRadiusPx={0}
+          photoLook="shadow"
+          surfaceClassName="bg-white"
+        />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-end">
+          <HeroName
+            value={name}
+            onChange={setName}
+            placeholder="Name"
+            roleBelow={Boolean(headerTitle)}
+          />
+          {headerTitle ? (
+            <p className="m-0 t-label uppercase text-[var(--grey)]">{headerTitle}</p>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 
   const contactLines = (
     <div className="flex min-w-0 flex-col gap-[14px]">
       {lines.map((line, index) => (
-        <div key={line.id} className="flex min-w-0 items-center gap-3">
+        <div key={line.id} className="flex min-w-0 flex-col gap-2">
           <input
             ref={index === lines.length - 1 ? lastLine : undefined}
             value={line.value}
-            onChange={(event) => updateLine(line.id, event.target.value)}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next.includes(",")) {
+                const [head, ...tail] = next.split(",");
+                const rest = tail.join(",").trim();
+                commitLine(line.id, head ?? "", true);
+                if (rest) {
+                  window.setTimeout(() => {
+                    setLines((current) => {
+                      const last = current[current.length - 1];
+                      if (!last || last.value.trim()) return current;
+                      return current.map((row) => (row.id === last.id ? { ...row, value: rest } : row));
+                    });
+                  }, 0);
+                }
+                return;
+              }
+              updateLine(line.id, next);
+            }}
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;
               event.preventDefault();
               if (!line.value.trim()) return;
-              if (index === lines.length - 1) {
-                setLines((current) => {
-                  const last = current[current.length - 1];
-                  if (!last?.value.trim()) return current;
-                  return [...current, blank()];
-                });
-                window.setTimeout(() => lastLine.current?.focus(), 0);
-              }
+              commitLine(line.id, line.value, true);
             }}
             placeholder={line.value ? "" : contactHint}
             aria-label="Contact"
             onBlur={() => {
-              if (index !== lines.length - 1 || !line.value.trim()) return;
-              setLines((current) => {
-                const last = current[current.length - 1];
-                if (!last?.value.trim()) return current;
-                return [...current, blank()];
-              });
+              if (!line.value.trim()) return;
+              commitLine(line.id, line.value, index === lines.length - 1);
             }}
             className={cn(FIELD, "flex-1", line.marked ? "text-[#E23B2F]" : "text-[var(--ink)]")}
           />
-          {phoneLine(line.value) ? (
-            <span className="flex shrink-0 gap-2">
-              <FlagButton on={line.flags.includes("tg")} onPress={() => toggleFlag(line.id, "tg")}>
-                TG
-              </FlagButton>
+          {isIntlPhone(line.value) ? (
+            <div className="flex flex-wrap gap-2">
               <FlagButton on={line.flags.includes("wa")} onPress={() => toggleFlag(line.id, "wa")}>
-                WA
+                WhatsApp
               </FlagButton>
-            </span>
+              <FlagButton on={line.flags.includes("tg")} onPress={() => toggleFlag(line.id, "tg")}>
+                Telegram
+              </FlagButton>
+            </div>
           ) : null}
         </div>
       ))}
@@ -394,11 +429,24 @@ export function NewContactForm({
       <section className={sectionClass}>
         <div className="min-w-0">
           <SectionNumber value="01" />
-          <span className="mt-[6px] block t-label text-[var(--grey)]">Position</span>
+          <button
+            type="button"
+            className="mt-[6px] block w-full bg-transparent p-0 text-left t-label text-[var(--grey)]"
+            onClick={() => pickHeader("position")}
+          >
+            <span className="relative inline-block max-w-full">
+              Position
+              {position.trim() ? <PromoteArrow /> : null}
+            </span>
+          </button>
         </div>
         <input
           value={position}
-          onChange={(event) => setPosition(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            setPosition(next);
+            if (!next.trim() && headerField === "position") setHeaderField(null);
+          }}
           onKeyDown={keepEnter}
           placeholder={positionHint}
           aria-label="Position"
@@ -408,11 +456,24 @@ export function NewContactForm({
       <section className={sectionClass}>
         <div className="min-w-0">
           <SectionNumber value="02" />
-          <span className="mt-[6px] block t-label text-[var(--grey)]">Company</span>
+          <button
+            type="button"
+            className="mt-[6px] block w-full bg-transparent p-0 text-left t-label text-[var(--grey)]"
+            onClick={() => pickHeader("company")}
+          >
+            <span className="relative inline-block max-w-full">
+              Company
+              {company.trim() ? <PromoteArrow /> : null}
+            </span>
+          </button>
         </div>
         <input
           value={company}
-          onChange={(event) => setCompany(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            setCompany(next);
+            if (!next.trim() && headerField === "company") setHeaderField(null);
+          }}
           onKeyDown={keepEnter}
           placeholder="Company or brand name"
           aria-label="Company"
@@ -426,63 +487,31 @@ export function NewContactForm({
         </div>
         {contactLines}
       </section>
-      {editing ? (
-        <>
-          <section className={COMPACT}>
-            <span className="t-label text-[var(--grey)]">Note</span>
-            <input
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              onKeyDown={keepEnter}
-              placeholder="short note"
-              aria-label="Note"
-              className={cn(FIELD, "text-[var(--ink)]")}
-            />
-          </section>
-          <section className={COMPACT}>
-            <span className="t-label text-[var(--grey)]">Event</span>
-            <input
-              value={eventTag}
-              onChange={(event) => {
-                setEventLive(true);
-                setEventTag(event.target.value);
-              }}
-              onKeyDown={keepEnter}
-              placeholder="#event"
-              aria-label="Event"
-              className={cn(FIELD, !eventLive && eventTag ? "text-[var(--grey)]" : "text-[var(--ink)]")}
-            />
-          </section>
-        </>
-      ) : (
-        <>
-          <section className={COMPACT_NOTE}>
-            <span className="t-label text-[var(--grey)]">Note</span>
-            <input
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              onKeyDown={keepEnter}
-              placeholder="short note"
-              aria-label="Note"
-              className={cn(FIELD, "text-[var(--ink)]")}
-            />
-          </section>
-          <section className={COMPACT_EVENT}>
-            <span className="t-label text-[var(--grey)]">Event</span>
-            <input
-              value={eventTag}
-              onChange={(event) => {
-                setEventLive(true);
-                setEventTag(event.target.value);
-              }}
-              onKeyDown={keepEnter}
-              placeholder="#event"
-              aria-label="Event"
-              className={cn(FIELD, !eventLive && eventTag ? "text-[var(--grey)]" : "text-[var(--ink)]")}
-            />
-          </section>
-        </>
-      )}
+      <section className={COMPACT}>
+        <span className="t-label text-[var(--grey)]">Note</span>
+        <textarea
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          rows={2}
+          placeholder="short text"
+          aria-label="Note"
+          className={cn(FIELD, "resize-none text-[var(--ink)]")}
+        />
+      </section>
+      <section className={COMPACT_EVENT}>
+        <span className="t-label text-[var(--grey)]">Event</span>
+        <input
+          value={eventTag}
+          onChange={(event) => {
+            setEventLive(true);
+            setEventTag(event.target.value);
+          }}
+          onKeyDown={keepEnter}
+          placeholder="/event"
+          aria-label="Event"
+          className={cn(FIELD, !eventLive && eventTag ? "text-[var(--grey)]" : "text-[var(--ink)]")}
+        />
+      </section>
       <div className="mt-[18px] flex gap-3">
         <button type="button" className={editing ? GHOST : GHOST_CREATE} onClick={() => setScanning(true)}>
           {editing ? null : <Scan className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />}
@@ -571,7 +600,10 @@ function FlagButton({ on, onPress, children }: { on: boolean; onPress: () => voi
       type="button"
       aria-pressed={on}
       onClick={onPress}
-      className={cn("press border-0 bg-transparent p-0 t-label", on ? "text-[var(--ink)]" : "text-[var(--grey)]")}
+      className={cn(
+        "press min-h-8 border-0 px-3 py-1.5 t-label text-[var(--ink)] [-webkit-tap-highlight-color:transparent]",
+        on ? "bg-sky shadow-none" : "bg-white shadow-[0_2px_8px_rgba(17,17,17,0.16)]",
+      )}
     >
       {children}
     </button>

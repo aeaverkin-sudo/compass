@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Hand } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HeroName } from "@/shared/components/hero-name";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { photoSlotLookClass } from "@/shared/lib/photo-look";
+import { viewContactLines } from "@/features/contact-collect/view-lines";
 import type { ExternalContact } from "@/features/contact-collect/types";
 
 const ROW = "border-b border-[var(--rule)] py-[14px]";
@@ -16,6 +18,7 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const swapped = Boolean(contact.pushbackAt);
+  const lines = viewContactLines(contact.lines);
 
   const remove = async () => {
     if (busy) return;
@@ -40,26 +43,40 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
   return (
     <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
-        <ScreenHeader title={contact.displayName.trim() || "Contact"} fallbackHref="/network" />
-        <div className="flex items-center gap-3 overflow-visible pb-[18px]">
+        <ScreenHeader title={contact.displayName.trim().split("\n")[0] || "Contact"} fallbackHref="/network" />
+        <div className="flex items-end gap-3 overflow-visible pb-[18px]" style={{ minHeight: 64 }}>
           <span className={cn("size-16 shrink-0 overflow-visible bg-white", photoSlotLookClass("shadow"))}>
             {contact.photoUrl ? <img src={contact.photoUrl} alt="" className="size-full object-cover" /> : null}
           </span>
-          <p className="m-0 flex min-w-0 items-center gap-1.5 t-body">
-            <span className="min-w-0 truncate">{contact.displayName.trim() || "Untitled"}</span>
-            <Hand className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-          </p>
+          <div className="flex min-h-16 min-w-0 flex-1 items-end gap-1.5">
+            <div className="min-h-0 min-w-0 flex-1" style={{ height: 64 }}>
+              <HeroName value={contact.displayName} placeholder="Name" locked />
+            </div>
+            <Hand className="mb-1 size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+          </div>
         </div>
         {contact.position ? <p className={`m-0 t-body ${ROW}`}>{contact.position}</p> : null}
         {contact.company ? <p className={`m-0 t-body ${ROW}`}>{contact.company}</p> : null}
-        {contact.lines.map((line, index) => (
-          <p key={`${index}-${line.value}`} className={`m-0 t-body ${ROW}`}>
-            {line.value}
-            {line.flags?.includes("tg") ? <span className="ml-2 t-label text-[var(--grey)]">TG</span> : null}
-            {line.flags?.includes("wa") ? <span className="ml-2 t-label text-[var(--grey)]">WA</span> : null}
-          </p>
-        ))}
-        {contact.note ? <p className={`m-0 t-body ${ROW}`}>{contact.note}</p> : null}
+        {lines.map((line) =>
+          line.href ? (
+            <a
+              key={line.key}
+              href={line.href}
+              target="_blank"
+              rel="noreferrer"
+              className={`m-0 block t-body text-[var(--ink)] no-underline ${ROW}`}
+            >
+              {line.label}
+            </a>
+          ) : (
+            <p key={line.key} className={`m-0 t-body ${ROW}`}>
+              {line.label}
+            </p>
+          ),
+        )}
+        {contact.note ? (
+          <p className={`m-0 whitespace-pre-wrap t-body ${ROW}`}>{contact.note}</p>
+        ) : null}
         {contact.eventTag ? <p className={`m-0 t-body ${ROW}`}>{contact.eventTag}</p> : null}
         {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
       </div>

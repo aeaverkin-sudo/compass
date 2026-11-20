@@ -99,8 +99,18 @@ function readLines(value: unknown): ExternalLine[] {
 function mapRow(row: DbRow): ExternalContact {
   const lines = readLines(row.lines);
   const photoAttachmentId = row.photo_attachment_id;
+  const eventTag = row.event_tag ?? "";
+  const eventBare = eventTag.replace(/^[#/]+/, "");
   const searchText = foldSearch(
-    [row.display_name, row.position, row.company, row.note, row.event_tag, ...lines.map((line) => line.value)]
+    [
+      row.display_name,
+      row.position,
+      row.company,
+      row.note,
+      eventTag,
+      eventBare,
+      ...lines.map((line) => line.value),
+    ]
       .map(piece)
       .filter(Boolean)
       .join(" "),
