@@ -411,9 +411,10 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                 <Link
                   href="/network/new"
                   aria-label="New contact"
-                  className="press pointer-events-auto flex size-11 items-center justify-end text-[#111]"
+                  className="press pointer-events-auto flex size-11 items-center justify-end overflow-visible text-[#111]"
                 >
-                  <MarkPlus size={23} />
+                  {/* Lucide Plus sits ~4px inside its box; shift ink to the right card axis. */}
+                  <MarkPlus size={23} className="translate-x-[4px]" />
                 </Link>
               ) : null
             }
