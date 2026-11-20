@@ -5,6 +5,9 @@ export type ContactSource = (typeof CONTACT_SOURCES)[number];
 
 export type LineFlag = "wa" | "tg";
 
+/** Which filled field is shown under the name. Absent on older rows. */
+export type HeaderField = "position" | "company";
+
 export type ExternalLine = {
   value: string;
   /** From detectContactType. The client does not choose it. */
@@ -20,6 +23,8 @@ export type ExternalContact = {
   displayName: string;
   position: string;
   company: string;
+  /** null / undefined: nothing under the name (legacy contacts). */
+  headerField: HeaderField | null;
   note: string;
   eventTag: string;
   source: ContactSource;
@@ -39,6 +44,7 @@ export type ExternalContactInput = {
   displayName: string;
   position: string;
   company: string;
+  headerField: HeaderField | null;
   note: string;
   eventTag: string;
   source: ContactSource;

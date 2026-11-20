@@ -5,6 +5,7 @@ import {
   type ContactSource,
   type ExternalContactInput,
   type ExternalLine,
+  type HeaderField,
   type LineFlag,
 } from "@/features/contact-collect/types";
 
@@ -76,6 +77,16 @@ export function parseExternalContact(body: unknown): ParsedContact {
   const eventTag = field(record.eventTag, TAG_MAX, "The event is too long.");
   if (typeof eventTag !== "string") return { ok: false, error: eventTag.error };
 
+  let headerField: HeaderField | null = null;
+  if (record.headerField != null && record.headerField !== "") {
+    if (record.headerField !== "position" && record.headerField !== "company") {
+      return { ok: false, error: "Unknown header field." };
+    }
+    headerField = record.headerField;
+  }
+  if (headerField === "position" && !position) headerField = null;
+  if (headerField === "company" && !company) headerField = null;
+
   let source: ContactSource = "manual";
   if (record.source != null) {
     if (typeof record.source !== "string" || !CONTACT_SOURCES.includes(record.source as ContactSource)) {
@@ -121,6 +132,6 @@ export function parseExternalContact(body: unknown): ParsedContact {
 
   return {
     ok: true,
-    value: { displayName, position, company, note, eventTag, source, photoAttachmentId, lines },
+    value: { displayName, position, company, headerField, note, eventTag, source, photoAttachmentId, lines },
   };
 }

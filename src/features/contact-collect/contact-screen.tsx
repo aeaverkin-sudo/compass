@@ -19,6 +19,12 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
   const [error, setError] = useState<string | null>(null);
   const swapped = Boolean(contact.pushbackAt);
   const lines = viewContactLines(contact.lines);
+  const headerTitle =
+    contact.headerField === "position" && contact.position.trim()
+      ? contact.position.trim()
+      : contact.headerField === "company" && contact.company.trim()
+        ? contact.company.trim()
+        : "";
 
   const remove = async () => {
     if (busy) return;
@@ -49,8 +55,18 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
             {contact.photoUrl ? <img src={contact.photoUrl} alt="" className="size-full object-cover" /> : null}
           </span>
           <div className="flex min-h-16 min-w-0 flex-1 items-end gap-1.5">
-            <div className="min-h-0 min-w-0 flex-1" style={{ height: 64 }}>
-              <HeroName value={contact.displayName} placeholder="Name" locked />
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-end" style={{ minHeight: 64 }}>
+              <div className="min-h-0 min-w-0" style={{ height: headerTitle ? 48 : 64 }}>
+                <HeroName
+                  value={contact.displayName}
+                  placeholder="Name"
+                  locked
+                  roleBelow={Boolean(headerTitle)}
+                />
+              </div>
+              {headerTitle ? (
+                <p className="m-0 t-label uppercase text-[var(--grey)]">{headerTitle}</p>
+              ) : null}
             </div>
             <Hand className="mb-1 size-4 shrink-0" strokeWidth={1.5} aria-hidden />
           </div>

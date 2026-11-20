@@ -17,7 +17,7 @@ import { QrScanner } from "@/features/contact-collect/qr-scanner";
 import { isIntlPhone, polishContactLine } from "@/features/contact-collect/view-lines";
 import type { ContactDraft } from "@/features/contact-collect/parse-contact";
 import type { ScannedContact } from "@/features/contact-collect/scan-qr";
-import type { ContactSource, ExternalContact, LineFlag } from "@/features/contact-collect/types";
+import type { ContactSource, ExternalContact, HeaderField, LineFlag } from "@/features/contact-collect/types";
 
 const ROW = "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]";
 const SECTION = `${ROW} items-start border-b border-[var(--rule)] py-[18px]`;
@@ -34,8 +34,6 @@ const SAVE =
 const SAVE_BAND =
   "flex h-full min-h-11 items-center justify-center border-0 bg-transparent p-0 t-band uppercase disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 type Line = { id: string; value: string; flags: LineFlag[]; marked: boolean };
-/** Which section value sits under the name. Not persisted until header_field ships. */
-type HeaderField = "position" | "company" | null;
 
 function blank(): Line {
   return { id: crypto.randomUUID(), value: "", flags: [], marked: false };
@@ -72,7 +70,7 @@ export function NewContactForm({
   const [name, setName] = useState(initial?.displayName ?? "");
   const [position, setPosition] = useState(initial?.position ?? "");
   const [company, setCompany] = useState(initial?.company ?? "");
-  const [headerField, setHeaderField] = useState<HeaderField>(null);
+  const [headerField, setHeaderField] = useState<HeaderField | null>(initial?.headerField ?? null);
   const [note, setNote] = useState(initial?.note ?? "");
   const [eventTag, setEventTag] = useState(editing ? (initial?.eventTag ?? "") : suggestedEvent);
   const [eventLive, setEventLive] = useState(editing);
@@ -299,6 +297,12 @@ export function NewContactForm({
           displayName,
           position,
           company,
+          headerField:
+            headerField === "position" && position.trim()
+              ? "position"
+              : headerField === "company" && company.trim()
+                ? "company"
+                : null,
           note,
           eventTag: eventLive ? eventTag : suggestedEvent,
           source: initial?.source ?? source,

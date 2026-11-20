@@ -14,6 +14,7 @@ import type {
   ExternalContact,
   ExternalContactInput,
   ExternalLine,
+  HeaderField,
   LineFlag,
   PushbackChannel,
 } from "@/features/contact-collect/types";
@@ -24,8 +25,9 @@ import type {
  * A missing table means the SQL has not been run yet. Callers hide the feature.
  */
 
-const COLUMNS =
+const COLUMNS_BASE =
   "id, display_name, photo_attachment_id, position, company, note, event_tag, source, lines, created_at, updated_at, pushback_at, pushback_channel, pushback_card_id";
+const COLUMNS = `${COLUMNS_BASE}, header_field`;
 
 const NOT_READY = "Contacts are not ready.";
 
@@ -37,6 +39,7 @@ type DbRow = {
   photo_attachment_id: string | null;
   position: string;
   company: string;
+  header_field?: string | null;
   note: string;
   event_tag: string;
   source: string;
@@ -54,6 +57,16 @@ function missingTable(error: DbError) {
   if (error.code === "PGRST205" || error.code === "42P01") return true;
   const message = error.message ?? "";
   return /external_contacts/i.test(message) && /schema cache|does not exist|could not find/i.test(message);
+}
+
+function missingHeaderColumn(error: DbError) {
+  return /header_field/i.test(error.message ?? "");
+}
+
+function headerOf(value: string | null | undefined, position: string, company: string): HeaderField | null {
+  if (value === "position" && position.trim()) return "position";
+  if (value === "company" && company.trim()) return "company";
+  return null;
 }
 
 function failed(error: DbError, fallback: string): StoreError {
@@ -115,11 +128,14 @@ function mapRow(row: DbRow): ExternalContact {
       .filter(Boolean)
       .join(" "),
   );
+  const position = row.position ?? "";
+  const company = row.company ?? "";
   return {
     id: row.id,
     displayName: row.display_name,
-    position: row.position ?? "",
-    company: row.company ?? "",
+    position,
+    company,
+    headerField: headerOf(row.header_field, position, company),
     note: row.note ?? "",
     eventTag: row.event_tag ?? "",
     source: sourceOf(row.source),
@@ -135,8 +151,8 @@ function mapRow(row: DbRow): ExternalContact {
   };
 }
 
-function rowValues(input: ExternalContactInput) {
-  return {
+function rowValues(input: ExternalContactInput, withHeader: boolean) {
+  const base = {
     display_name: input.displayName,
     photo_attachment_id: input.photoAttachmentId,
     position: input.position,
@@ -146,6 +162,8 @@ function rowValues(input: ExternalContactInput) {
     source: input.source,
     lines: input.lines,
   };
+  if (!withHeader) return base;
+  return { ...base, header_field: headerOf(input.headerField, input.position, input.company) };
 }
 
 /** An image this person already uploaded. Anything else is refused. */
@@ -209,16 +227,24 @@ export async function listExternalContacts(
   ownerId: string,
 ): Promise<{ ok: true; available: true; contacts: ExternalContact[] } | { ok: true; available: false; contacts: [] } | StoreError> {
   const admin = createAdminSupabaseClient();
-  const loaded = await admin
+  const withHeader = await admin
     .from("external_contacts")
     .select(COLUMNS)
     .eq("owner_id", ownerId)
     .order("created_at", { ascending: true });
+  const loaded =
+    withHeader.error && missingHeaderColumn(withHeader.error)
+      ? await admin
+          .from("external_contacts")
+          .select(COLUMNS_BASE)
+          .eq("owner_id", ownerId)
+          .order("created_at", { ascending: true })
+      : withHeader;
   if (loaded.error) {
     if (missingTable(loaded.error)) return { ok: true, available: false, contacts: [] };
     return failed(loaded.error, "Could not read contacts.");
   }
-  return { ok: true, available: true, contacts: ((loaded.data ?? []) as DbRow[]).map(mapRow) };
+  return { ok: true, available: true, contacts: ((loaded.data ?? []) as unknown as DbRow[]).map(mapRow) };
 }
 
 export async function readExternalContact(
@@ -226,10 +252,24 @@ export async function readExternalContact(
   id: string,
 ): Promise<{ ok: true; contact: ExternalContact } | StoreError> {
   const admin = createAdminSupabaseClient();
-  const loaded = await admin.from("external_contacts").select(COLUMNS).eq("owner_id", ownerId).eq("id", id).maybeSingle();
+  const withHeader = await admin
+    .from("external_contacts")
+    .select(COLUMNS)
+    .eq("owner_id", ownerId)
+    .eq("id", id)
+    .maybeSingle();
+  const loaded =
+    withHeader.error && missingHeaderColumn(withHeader.error)
+      ? await admin
+          .from("external_contacts")
+          .select(COLUMNS_BASE)
+          .eq("owner_id", ownerId)
+          .eq("id", id)
+          .maybeSingle()
+      : withHeader;
   if (loaded.error) return failed(loaded.error, "Could not read contacts.");
   if (!loaded.data) return { ok: false, status: 404, error: "Contact not found." };
-  return { ok: true, contact: mapRow(loaded.data as DbRow) };
+  return { ok: true, contact: mapRow(loaded.data as unknown as DbRow) };
 }
 
 export async function createExternalContact(
@@ -239,13 +279,22 @@ export async function createExternalContact(
   const photo = await checkPhoto(ownerId, input.photoAttachmentId, "Could not save the contact.");
   if (photo) return photo;
   const admin = createAdminSupabaseClient();
-  const inserted = await admin
+  const id = crypto.randomUUID();
+  const withHeader = await admin
     .from("external_contacts")
-    .insert({ id: crypto.randomUUID(), owner_id: ownerId, ...rowValues(input) })
+    .insert({ id, owner_id: ownerId, ...rowValues(input, true) })
     .select(COLUMNS)
     .single();
+  const inserted =
+    withHeader.error && missingHeaderColumn(withHeader.error)
+      ? await admin
+          .from("external_contacts")
+          .insert({ id, owner_id: ownerId, ...rowValues(input, false) })
+          .select(COLUMNS_BASE)
+          .single()
+      : withHeader;
   if (inserted.error) return failed(inserted.error, "Could not save the contact.");
-  return { ok: true, contact: mapRow(inserted.data as DbRow) };
+  return { ok: true, contact: mapRow(inserted.data as unknown as DbRow) };
 }
 
 export async function updateExternalContact(
@@ -258,18 +307,28 @@ export async function updateExternalContact(
   const photo = await checkPhoto(ownerId, input.photoAttachmentId, "Could not save the contact.");
   if (photo) return photo;
   const admin = createAdminSupabaseClient();
-  const updated = await admin
+  const withHeader = await admin
     .from("external_contacts")
-    .update(rowValues(input))
+    .update(rowValues(input, true))
     .eq("owner_id", ownerId)
     .eq("id", id)
     .select(COLUMNS)
     .maybeSingle();
+  const updated =
+    withHeader.error && missingHeaderColumn(withHeader.error)
+      ? await admin
+          .from("external_contacts")
+          .update(rowValues(input, false))
+          .eq("owner_id", ownerId)
+          .eq("id", id)
+          .select(COLUMNS_BASE)
+          .maybeSingle()
+      : withHeader;
   if (updated.error) return failed(updated.error, "Could not save the contact.");
   if (!updated.data) return { ok: false, status: 404, error: "Contact not found." };
   const previous = current.contact.photoAttachmentId;
   if (previous && previous !== input.photoAttachmentId) await releasePhoto(ownerId, previous);
-  return { ok: true, contact: mapRow(updated.data as DbRow) };
+  return { ok: true, contact: mapRow(updated.data as unknown as DbRow) };
 }
 
 /** The owner's own portfolio, for the link in a pushback. Not a connection. */
