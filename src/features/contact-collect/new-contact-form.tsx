@@ -8,6 +8,7 @@ import { TabBand } from "@main/components/tab-band";
 import { cn } from "@/lib/utils";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
+import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { detectContactType } from "@/shared/services/contact-item";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
@@ -88,6 +89,8 @@ export function NewContactForm({
   const [busy, setBusy] = useState(false);
   const canReadRef = useRef(false);
   const voiceRef = useRef<{ released: boolean; recorder: MediaRecorder | null; started: number } | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useKeyboardLift(scrollRef);
 
   const ready = name.trim().length > 0 && !busy && !reading;
 
@@ -532,7 +535,10 @@ export function NewContactForm({
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
       <form onSubmit={(event) => void save(event)} className="flex min-h-0 flex-1 flex-col">
         <ScreenHeader title="New contact" fallbackHref="/network" />
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-[var(--gutter)]">
+        <div
+          ref={scrollRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-[var(--gutter)]"
+        >
           <div className="min-h-[calc(100%+1px)] pb-6">{fields}</div>
         </div>
         <TabBand
