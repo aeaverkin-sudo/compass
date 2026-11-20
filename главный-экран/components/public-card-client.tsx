@@ -302,6 +302,7 @@ export function PublicCardClient({
       readOnly
       deliveredNotes={notes}
       sidePad={sidePad}
+      emptyPhotoShadow={inside}
     />
   );
 

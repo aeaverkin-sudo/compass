@@ -30,6 +30,8 @@ import { deleteConnectionRemote } from "@/shared/lib/delete-connection";
 import { clearNewContact } from "@/shared/lib/new-contact";
 import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
+import { photoLookValue, photoSlotLookClass, shownPhotoLook, type StoredPhotoLook } from "@/shared/lib/photo-look";
+import { cn } from "@/lib/utils";
 import { MARK_PX, MarkPlus, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { RAIL_ICON_SCALE } from "@main/components/side-rail";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
@@ -48,6 +50,8 @@ type Contact = {
   createdAt: string;
   role: string;
   photoUrl: string | null;
+  /** Owner’s choice on an exchanged card. Manual contacts stay on the default shadow. */
+  photoLook?: StoredPhotoLook;
   searchText: string;
   /** Their book already holds my primary card. */
   theyHaveMe?: boolean;
@@ -163,6 +167,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       const book: Contact[] = connections.map((contact) => ({
         ...contact,
         state: contact.state === "pending" ? "pending" : "active",
+        photoLook: photoLookValue(contact.photoLook),
         searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
       }));
       let collected: Contact[] = [];
@@ -763,7 +768,7 @@ function ContactRow({
   };
   const body = (
     <>
-      <Face photoUrl={contact.photoUrl} />
+      <Face photoUrl={contact.photoUrl} photoLook={contact.collected ? "shadow" : contact.photoLook} />
       <div className="min-w-0 flex-1">
         <p className="m-0 flex min-w-0 items-center gap-1.5 t-body text-[var(--ink)]">
           <span className="min-w-0 truncate">{contact.displayName.trim() || "Untitled"}</span>
@@ -787,9 +792,11 @@ function ContactRow({
   );
 }
 
-function Face({ photoUrl }: { photoUrl: string | null }) {
+function Face({ photoUrl, photoLook }: { photoUrl: string | null; photoLook?: StoredPhotoLook }) {
+  // Empty slots and unset looks use Profile’s default shadow. Plain stays flat.
+  const look = photoUrl ? shownPhotoLook(photoLook) : "shadow";
   return (
-    <span className="size-11 shrink-0 bg-[#f3f3f3]">
+    <span className={cn("size-11 shrink-0 overflow-visible bg-white", photoSlotLookClass(look))}>
       {photoUrl ? <img src={photoUrl} alt="" className="size-full object-cover" /> : null}
     </span>
   );

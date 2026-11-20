@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Hand } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ScreenHeader } from "@/shared/components/screen-header";
+import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import type { ExternalContact } from "@/features/contact-collect/types";
 
 const ROW = "border-b border-[var(--rule)] py-[14px]";
@@ -39,8 +41,8 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
     <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
         <ScreenHeader title={contact.displayName.trim() || "Contact"} fallbackHref="/network" />
-        <div className="flex items-center gap-3 pb-[18px]">
-          <span className="size-16 shrink-0 bg-[#f3f3f3]">
+        <div className="flex items-center gap-3 overflow-visible pb-[18px]">
+          <span className={cn("size-16 shrink-0 overflow-visible bg-white", photoSlotLookClass("shadow"))}>
             {contact.photoUrl ? <img src={contact.photoUrl} alt="" className="size-full object-cover" /> : null}
           </span>
           <p className="m-0 flex min-w-0 items-center gap-1.5 t-body">

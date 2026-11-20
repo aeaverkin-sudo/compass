@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 import { foldSearch } from "@/shared/lib/search-fold";
+import { photoLookValue, type StoredPhotoLook } from "@/shared/lib/photo-look";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -27,6 +28,7 @@ type CardFace = {
   title: string | null;
   display_name: string | null;
   photo_attachment_id: string | null;
+  photo_look?: string | null;
   searchable?: boolean | null;
 };
 
@@ -67,14 +69,20 @@ export async function GET() {
     const lines = new Map<string, string>();
     const reverse = new Map<string, "pending" | "active">();
     if (ids.length > 0) {
-      const withFlag = await admin
+      const withLook = await admin
         .from("cards")
-        .select("id, owner_id, title, display_name, photo_attachment_id, searchable")
+        .select("id, owner_id, title, display_name, photo_attachment_id, photo_look, searchable")
         .in("id", ids);
-      const cards =
-        withFlag.error && /searchable/i.test(withFlag.error.message)
-          ? await admin.from("cards").select("id, owner_id, title, display_name, photo_attachment_id").in("id", ids)
-          : withFlag;
+      let cards = withLook;
+      if (cards.error && /photo_look/i.test(cards.error.message)) {
+        cards = await admin
+          .from("cards")
+          .select("id, owner_id, title, display_name, photo_attachment_id, searchable")
+          .in("id", ids);
+      }
+      if (cards.error && /searchable/i.test(cards.error.message)) {
+        cards = await admin.from("cards").select("id, owner_id, title, display_name, photo_attachment_id").in("id", ids);
+      }
       if (cards.error) throw new Error(cards.error.message);
       for (const card of (cards.data ?? []) as CardFace[]) faces.set(card.id, card);
 
@@ -143,6 +151,8 @@ export async function GET() {
         const role = face.title?.trim() || "";
         const deep = face.searchable !== false;
         const held = reverse.get(face.owner_id);
+        const photoUrl = face.photo_attachment_id ? `/f/${face.photo_attachment_id}` : null;
+        const photoLook: StoredPhotoLook | undefined = photoLookValue(face.photo_look);
         return [{
           id: row.id,
           displayName: row.display_name,
@@ -151,7 +161,8 @@ export async function GET() {
           sourceEventId: row.source_event_id,
           createdAt: row.created_at,
           role,
-          photoUrl: face.photo_attachment_id ? `/f/${face.photo_attachment_id}` : null,
+          photoUrl,
+          ...(photoLook ? { photoLook } : {}),
           searchText: joinSearch(row.display_name, role, deep ? face.display_name : "", deep ? lines.get(row.saved_card_id) : ""),
           theyHaveMe: held === "active",
           shareBackPending: held === "pending",

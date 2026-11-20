@@ -15,6 +15,7 @@ import { useAppStore } from "@/shared/store/app-store";
 import { useUploadStatus } from "@/shared/store/upload-status";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 import { PhotoSlotPicker, photoSlotLookClass } from "@landing/components/photo-slot-picker";
+import { shownPhotoLook } from "@/shared/lib/photo-look";
 import { CardNameField } from "./card-name-field";
 import { getCardItems, getNextScanAddons } from "@/shared/services/card-snapshot";
 import { cardHasPhoto, cardPhotoSrc } from "@/shared/services/card-photo";
@@ -161,6 +162,8 @@ function EditorialHeader({
   onCardUpdate,
   plate = false,
   scale = 1,
+  /** Network open: empty photo is a white square with the Profile shadow, not grey. */
+  emptyPhotoShadow = false,
 }: {
   card: Card;
   positionTitle?: string;
@@ -177,6 +180,7 @@ function EditorialHeader({
   plate?: boolean;
   /** Compact screen: the photo and the gaps around it, below 1. */
   scale?: number;
+  emptyPhotoShadow?: boolean;
 }) {
   const face = useLiveFace(card);
   const photoSrc = face.photoSrc;
@@ -217,7 +221,13 @@ function EditorialHeader({
               src={photoSrc}
               alt=""
               fetchPriority="high"
-              className={cn("shrink-0 object-cover", photoSlotLookClass(face.photoLook))}
+              className={cn("shrink-0 object-cover", photoSlotLookClass(shownPhotoLook(face.photoLook)))}
+              style={{ width: photoPx, height: photoPx }}
+            />
+          ) : emptyPhotoShadow ? (
+            <span
+              aria-hidden
+              className={cn("shrink-0 bg-white", photoSlotLookClass("shadow"))}
               style={{ width: photoPx, height: photoPx }}
             />
           ) : (
@@ -435,6 +445,8 @@ type BusinessCardProps = {
   sheetMark?: string;
   /** False when the parent already applies the gutter, so the two layers are not stacked. */
   sidePad?: boolean;
+  /** Network open only: empty photo slot is white with the default shadow. */
+  emptyPhotoShadow?: boolean;
 };
 
 export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function BusinessCard(
@@ -464,6 +476,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     sheetTotal,
     sheetMark,
     sidePad = true,
+    emptyPhotoShadow = false,
   },
   ref,
 ) {
@@ -647,6 +660,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
               onCardUpdate={onCardUpdate}
               plate
               scale={readOnly ? 1 : headerScale}
+              emptyPhotoShadow={emptyPhotoShadow}
             />
           )}
         </div>
