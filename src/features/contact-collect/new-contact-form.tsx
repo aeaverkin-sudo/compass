@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Mic, Scan } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { TabBand } from "@main/components/tab-band";
+import { useKeyboardVisible } from "@main/hooks/use-keyboard-dock";
 import { cn } from "@/lib/utils";
 import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { ScreenHeader } from "@/shared/components/screen-header";
@@ -106,6 +107,7 @@ export function NewContactForm({
   const draftRef = useRef({ name, position, company, note, lines });
   draftRef.current = { name, position, company, note, lines };
   useKeyboardLift(scrollRef);
+  const keyboardUp = useKeyboardVisible();
 
   useEffect(() => {
     if (noteRef.current) fitNoteField(noteRef.current);
@@ -593,6 +595,11 @@ export function NewContactForm({
         >
           <div className="min-h-[calc(100%+1px)] pb-6">{fields}</div>
         </div>
+        {keyboardUp ? null : (
+          <div className="shrink-0 bg-sky px-[var(--gutter)] py-3 text-center t-body text-[var(--ink)]">
+            Test Mode
+          </div>
+        )}
         <TabBand
           label="Save"
           left={<span aria-hidden className="block w-px" />}
