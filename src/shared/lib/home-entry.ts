@@ -1,4 +1,4 @@
-import { deviceWasRegistered, signInPath } from "@/shared/lib/registered-device";
+import { deviceWasRegistered } from "@/shared/lib/registered-device";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
 
@@ -26,19 +26,17 @@ export function isInstalledApp() {
 
 /**
  * Where `/` used to send the person, once the phone has caught up.
- * A live session is onboarded and goes to Main. A registered device goes to
- * sign-in only when that session is gone — checking the device first would
- * ask a signed-in person for the password again.
+ * A live session is onboarded and goes to Main. Create portfolio on the landing
+ * always opens Sign up; Sign in is the other half of the auth toggle.
  * Null means keep waiting.
  */
 export function homeEntryHref(gate: HomeGate): string | null {
   if (!gate.hydrated || !gate.sessionReady) return null;
-  if (gate.needsSignIn) return signInPath();
+  if (gate.needsSignIn) return "/create";
   if (gate.onboarded) return "/main";
   if (!gate.cardsReady) return null;
   if (trialCardStarted(gate.cards)) return "/main";
   if (gate.cards.length === 0 && deviceWasRegistered()) return "/create?account=1";
-  if (deviceWasRegistered()) return signInPath();
   return "/create";
 }
 

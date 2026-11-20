@@ -27,7 +27,7 @@ export default function Home() {
   useEffect(() => {
     if (installed !== true) return;
     const href = homeEntryHref({ hydrated, sessionReady, cardsReady, needsSignIn, onboarded, cards });
-    // A signed-out phone stays on the landing. The button opens Sign in.
+    // A signed-out phone stays on the landing. The button opens Sign up.
     if (!href || href === "/create" || href.startsWith("/register")) return;
     if (href === "/main") noteTrialCardStarted();
     router.replace(href);

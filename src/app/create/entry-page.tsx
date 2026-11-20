@@ -616,7 +616,7 @@ export function EntryPage({
   if (!account) {
     return (
       <main ref={mainRef} className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]">
-        <BackButton fallbackHref="/" />
+        <BackButton fallbackHref="/" onBack={() => router.replace("/")} />
         <AuthModeToggle
           mode="up"
           pinned={false}
@@ -774,7 +774,10 @@ export function EntryPage({
         </>
       ) : (
         <>
-          <BackButton fallbackHref="/" onBack={formOpen && SOCIAL_SIGNIN ? closeForm : undefined} />
+          <BackButton
+            fallbackHref="/"
+            onBack={formOpen && SOCIAL_SIGNIN ? closeForm : () => router.replace("/")}
+          />
           <AuthModeToggle
             mode="up"
             pinned={false}
