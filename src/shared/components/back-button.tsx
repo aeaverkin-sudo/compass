@@ -113,7 +113,10 @@ export function BackButton({ fallbackHref, onBack, className }: BackButtonProps)
       ref={buttonRef}
       aria-label="Back"
       onTap={go}
-      className={cn("touch-manipulation fixed z-30 flex w-11 items-center justify-start text-[#111]", className)}
+      className={cn(
+        "touch-manipulation fixed z-30 flex w-11 items-center justify-start overflow-visible text-[#111]",
+        className,
+      )}
       style={{
         top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
         left: "var(--gutter)",
@@ -122,7 +125,16 @@ export function BackButton({ fallbackHref, onBack, className }: BackButtonProps)
         transition: reduce ? "none" : `opacity ${hidden ? HIDE_MS : SHOW_MS}ms ease`,
       }}
     >
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
+      {/* Path tip sits ~7px inside the 22 viewBox; shift ink so the stroke’s left edge meets A0. */}
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 22 22"
+        fill="none"
+        aria-hidden
+        overflow="visible"
+        className="shrink-0 -translate-x-[7px]"
+      >
         <path
           d="M15 5l-7 7 7 7"
           stroke="currentColor"
