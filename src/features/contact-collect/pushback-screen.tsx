@@ -23,7 +23,12 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [openAfter, setOpenAfter] = useState<string | null>(null);
+  /** Messenger URL when a new context could not be opened after OK. */
+  const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
+
+  const networkHref = fresh
+    ? `/network?added=${encodeURIComponent(contact.displayName.trim() || "Contact")}`
+    : "/network";
 
   const leave = () => {
     if (fresh) {
@@ -33,8 +38,32 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     router.replace(`/network/x/${contact.id}`);
   };
 
+  const goNetwork = () => {
+    router.replace(networkHref);
+  };
+
+  const openInHandoff = (handoff: Window | null, url: string) => {
+    if (handoff) {
+      try {
+        handoff.location.href = url;
+        return true;
+      } catch {
+        try {
+          handoff.close();
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    try {
+      return Boolean(window.open(url, "_blank"));
+    } catch {
+      return false;
+    }
+  };
+
   const finish = async () => {
-    if (busy) return;
+    if (busy || handoffUrl) return;
     if (sent) {
       leave();
       return;
@@ -47,6 +76,11 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
       leave();
       return;
     }
+
+    // Open during the tap — after await, iOS often blocks a new context.
+    const handoff =
+      channel === "whatsapp" || channel === "telegram" ? window.open("about:blank", "_blank") : null;
+
     setBusy(true);
     setError(null);
     try {
@@ -62,10 +96,12 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
         copy?: boolean;
       } | null;
       if (response.status === 409) {
+        handoff?.close();
         leave();
         return;
       }
       if (!response.ok) {
+        handoff?.close();
         setError(body?.error || "Could not send.");
         setBusy(false);
         return;
@@ -78,19 +114,39 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
         } catch {
           copied = false;
         }
-        setOpenAfter(body.open ?? null);
+        const opened = body.open ? openInHandoff(handoff, body.open) : true;
+        if (!opened && body.open) setHandoffUrl(body.open);
         setToast(copied ? "Text copied — paste it in Telegram" : "Could not copy the text.");
+        if (!opened) setBusy(false);
         return;
       }
       if (body?.open) {
-        window.location.assign(body.open);
+        if (!openInHandoff(handoff, body.open)) {
+          setHandoffUrl(body.open);
+          setBusy(false);
+          return;
+        }
+        goNetwork();
         return;
       }
-      leave();
+      handoff?.close();
+      goNetwork();
     } catch {
+      handoff?.close();
       setError("Could not send.");
       setBusy(false);
     }
+  };
+
+  const openHandoff = () => {
+    if (!handoffUrl) return;
+    try {
+      window.open(handoffUrl, "_blank");
+    } catch {
+      window.location.assign(handoffUrl);
+      return;
+    }
+    goNetwork();
   };
 
   return (
@@ -157,16 +213,23 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
           </>
         )}
         {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
-        <button type="button" disabled={busy} onClick={() => void finish()} className={OK}>
-          OK
-        </button>
+        {handoffUrl ? (
+          <button type="button" onClick={openHandoff} className={OK}>
+            {channel === "telegram" ? "Open Telegram" : "Open WhatsApp"}
+          </button>
+        ) : (
+          <button type="button" disabled={busy} onClick={() => void finish()} className={OK}>
+            OK
+          </button>
+        )}
       </div>
       {toast ? (
         <SkyToast
           text={toast}
           onDone={() => {
-            if (openAfter) window.location.assign(openAfter);
-            else leave();
+            setToast(null);
+            if (handoffUrl) return;
+            goNetwork();
           }}
         />
       ) : null}
