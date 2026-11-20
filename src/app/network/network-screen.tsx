@@ -154,7 +154,11 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
 
   const load = useCallback(async () => {
     try {
-      const response = await fetch("/api/connections", { cache: "no-store" });
+      // Book and collected list in parallel — do not wait on one before the other.
+      const [response, probe] = await Promise.all([
+        fetch("/api/connections", { cache: "no-store" }),
+        fetch("/api/external-contacts", { cache: "no-store" }).catch(() => null),
+      ]);
       if (!response.ok) {
         setLoadError(true);
         return;
@@ -172,8 +176,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
       }));
       let collected: Contact[] = [];
       try {
-        const probe = await fetch("/api/external-contacts", { cache: "no-store" });
-        const probeBody = probe.ok
+        const probeBody = probe?.ok
           ? ((await probe.json()) as { available?: boolean; contacts?: CollectedWire[] })
           : null;
         setCanCollect(probeBody?.available === true);

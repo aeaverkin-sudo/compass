@@ -94,7 +94,7 @@ export async function GET(
   } else if (!owner) {
     if (!isServableMime(row.mime)) return notFound();
     try {
-      if (!(await attachmentIsPublic(attachmentId))) return notFound();
+      if (!(await attachmentIsPublic(attachmentId, viewer))) return notFound();
     } catch {
       return serverError("Could not read the file");
     }

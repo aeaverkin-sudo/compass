@@ -213,10 +213,17 @@ export async function loadVisibleCardItems(cardId: string): Promise<ContactItem[
   return items;
 }
 
-/** True when this file is the photo or a visible item on a public ready card. */
-export async function attachmentIsPublic(attachmentId: string): Promise<boolean> {
+/**
+ * True when this file is the photo or a visible item on a public ready card.
+ * A signed-in viewer who already saved one of the photo’s cards may also read it
+ * (Network list), without walking every item row.
+ */
+export async function attachmentIsPublic(
+  attachmentId: string,
+  viewerId?: string | null,
+): Promise<boolean> {
   const admin = createAdminSupabaseClient();
-  const columns = "owner_id, is_public, status, display_name, photo_attachment_id";
+  const columns = "id, owner_id, is_public, status, display_name, photo_attachment_id";
 
   const { data: photoCards, error: photoError } = await admin
     .from("cards")
@@ -224,8 +231,20 @@ export async function attachmentIsPublic(attachmentId: string): Promise<boolean>
     .eq("photo_attachment_id", attachmentId)
     .limit(5);
   if (photoError) throw new Error(photoError.message);
-  for (const card of photoCards ?? []) {
+  const photoRows = photoCards ?? [];
+  for (const card of photoRows) {
     if (cardIsPubliclyServed(card)) return true;
+  }
+  if (viewerId && photoRows.length > 0) {
+    const cardIds = photoRows.map((card) => card.id as string);
+    const held = await admin
+      .from("connections")
+      .select("id")
+      .eq("owner_id", viewerId)
+      .in("saved_card_id", cardIds)
+      .limit(1);
+    if (held.error) throw new Error(held.error.message);
+    if ((held.data ?? []).length > 0) return true;
   }
 
   const { data: itemRows, error: itemError } = await admin

@@ -69,11 +69,12 @@ export async function GET() {
     const lines = new Map<string, string>();
     const reverse = new Map<string, "pending" | "active">();
     if (ids.length > 0) {
-      const readFaces = (columns: string) =>
-        admin.from("cards").select(columns).in("id", ids);
-      const withLook = await readFaces(
-        "id, owner_id, title, display_name, photo_attachment_id, photo_look, searchable",
-      );
+      const readFaces = (columns: string) => admin.from("cards").select(columns).in("id", ids);
+      // Faces and the owner's cards are independent — fetch together.
+      const [withLook, mine] = await Promise.all([
+        readFaces("id, owner_id, title, display_name, photo_attachment_id, photo_look, searchable"),
+        admin.from("cards").select("id").eq("owner_id", owner.id),
+      ]);
       const withFlag =
         withLook.error && /photo_look/i.test(withLook.error.message)
           ? await readFaces("id, owner_id, title, display_name, photo_attachment_id, searchable")
@@ -85,24 +86,8 @@ export async function GET() {
       if (cards.error) throw new Error(cards.error.message);
       for (const card of (cards.data ?? []) as unknown as CardFace[]) faces.set(card.id, card);
 
-      const mine = await admin.from("cards").select("id").eq("owner_id", owner.id);
       const mineIds = mine.error ? [] : ((mine.data ?? []) as { id: string }[]).map((card) => card.id);
       const theirOwners = [...new Set([...faces.values()].map((face) => face.owner_id).filter(Boolean))];
-      if (mineIds.length > 0 && theirOwners.length > 0) {
-        const held = await admin
-          .from("connections")
-          .select("owner_id, state")
-          .in("saved_card_id", mineIds)
-          .in("owner_id", theirOwners);
-        if (held.error) throw new Error(held.error.message);
-        for (const row of held.data ?? []) {
-          const id = String(row.owner_id);
-          const next = row.state === "pending" ? "pending" : "active";
-          if (reverse.get(id) === "active") continue;
-          reverse.set(id, next);
-        }
-      }
-
       const openIds = [
         ...new Set(
           rows
@@ -113,21 +98,38 @@ export async function GET() {
             .map((row) => row.saved_card_id),
         ),
       ];
-      if (openIds.length > 0) {
-        const links = await admin
-          .from("card_items")
-          .select("card_id, item_id")
-          .in("card_id", openIds)
-          .eq("visible", true);
-        if (links.error) throw new Error(links.error.message);
-        const linkRows = (links.data ?? []) as LinkRow[];
-        const itemIds = [...new Set(linkRows.map((link) => link.item_id))];
+
+      const reversePromise =
+        mineIds.length > 0 && theirOwners.length > 0
+          ? admin
+              .from("connections")
+              .select("owner_id, state")
+              .in("saved_card_id", mineIds)
+              .in("owner_id", theirOwners)
+          : Promise.resolve({ data: [] as { owner_id: string; state: string | null }[], error: null });
+
+      const linksPromise =
+        openIds.length > 0
+          ? admin.from("card_items").select("card_id, item_id").in("card_id", openIds).eq("visible", true)
+          : Promise.resolve({ data: [] as LinkRow[], error: null });
+
+      const [held, links] = await Promise.all([reversePromise, linksPromise]);
+      if (held.error) throw new Error(held.error.message);
+      for (const row of held.data ?? []) {
+        const id = String(row.owner_id);
+        const next = row.state === "pending" ? "pending" : "active";
+        if (reverse.get(id) === "active") continue;
+        reverse.set(id, next);
+      }
+
+      if (links.error) throw new Error(links.error.message);
+      const linkRows = (links.data ?? []) as LinkRow[];
+      const itemIds = [...new Set(linkRows.map((link) => link.item_id))];
+      if (itemIds.length > 0) {
+        const items = await admin.from("items").select("id, label, value, url").in("id", itemIds);
+        if (items.error) throw new Error(items.error.message);
         const byItem = new Map<string, ItemRow>();
-        if (itemIds.length > 0) {
-          const items = await admin.from("items").select("id, label, value, url").in("id", itemIds);
-          if (items.error) throw new Error(items.error.message);
-          for (const item of (items.data ?? []) as ItemRow[]) byItem.set(item.id, item);
-        }
+        for (const item of (items.data ?? []) as ItemRow[]) byItem.set(item.id, item);
         const grouped = new Map<string, string[]>();
         for (const link of linkRows) {
           const item = byItem.get(link.item_id);
