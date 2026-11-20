@@ -356,7 +356,7 @@ export function NewContactForm({
   const positionHint = editing ? "What you do" : "Role";
 
   const photoName = (
-    <div className="border-b border-[var(--rule)] pt-[18px] pb-[18px]">
+    <div className="pt-[18px] pb-[18px]">
       <div className="flex items-end gap-3">
         <PhotoSlotPicker
           photo={photo?.dataUrl ?? keptPhoto}
@@ -372,17 +372,19 @@ export function NewContactForm({
           surfaceClassName="bg-white"
         />
         <div className="flex min-w-0 flex-1 flex-col justify-end pb-1">
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value.replace(/\n/g, " "))}
-            onKeyDown={keepEnter}
-            placeholder="Name"
-            aria-label="Name"
-            autoCapitalize="words"
-            autoCorrect="off"
-            spellCheck={false}
-            className={cn(FIELD, "text-[var(--ink)]")}
-          />
+          <div className={cn("min-w-0 w-full", !name.trim() && "border-b border-[var(--rule)]")}>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value.replace(/\n/g, " "))}
+              onKeyDown={keepEnter}
+              placeholder="Name"
+              aria-label="Name"
+              autoCapitalize="words"
+              autoCorrect="off"
+              spellCheck={false}
+              className={cn(FIELD, "text-[var(--ink)]")}
+            />
+          </div>
           {headerTitle ? (
             <p className="m-0 t-label uppercase text-[var(--grey)]">{headerTitle}</p>
           ) : null}

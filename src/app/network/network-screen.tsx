@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Hand, RotateCw, Search, SlidersHorizontal } from "lucide-react";
+import { RotateCw, Search, SlidersHorizontal } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SkyActions } from "@/shared/components/sky-actions";
 import { Zone } from "@/shared/components/zone";
@@ -773,10 +773,7 @@ function ContactRow({
     <>
       <Face photoUrl={contact.photoUrl} photoLook={contact.collected ? "shadow" : contact.photoLook} />
       <div className="min-w-0 flex-1">
-        <p className="m-0 flex min-w-0 items-center gap-1.5 t-body text-[var(--ink)]">
-          <span className="min-w-0 truncate">{contact.displayName.trim() || "Untitled"}</span>
-          {contact.collected ? <Hand className="size-4 shrink-0" strokeWidth={1.5} aria-hidden /> : null}
-        </p>
+        <p className="m-0 truncate t-body text-[var(--ink)]">{contact.displayName.trim() || "Untitled"}</p>
         {line ? <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{line}</p> : null}
       </div>
     </>
