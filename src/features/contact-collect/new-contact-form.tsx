@@ -14,6 +14,12 @@ import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
 import { QrScanner } from "@/features/contact-collect/qr-scanner";
 import { isIntlPhone, polishContactLine } from "@/features/contact-collect/view-lines";
+import {
+  mergeContactDraft,
+  patchFromContactDraft,
+  patchFromScan,
+  type ContactDraftPatch,
+} from "@/features/contact-collect/merge-contact-draft";
 import type { ContactDraft } from "@/features/contact-collect/parse-contact";
 import type { ScannedContact } from "@/features/contact-collect/scan-qr";
 import type { ContactSource, ExternalContact, HeaderField, LineFlag } from "@/features/contact-collect/types";
@@ -97,6 +103,8 @@ export function NewContactForm({
   const canReadRef = useRef(false);
   const voiceRef = useRef<{ released: boolean; recorder: MediaRecorder | null; started: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const draftRef = useRef({ name, position, company, note, lines });
+  draftRef.current = { name, position, company, note, lines };
   useKeyboardLift(scrollRef);
 
   useEffect(() => {
@@ -150,20 +158,37 @@ export function NewContactForm({
     if (andNext && polished) window.setTimeout(() => lastLine.current?.focus(), 0);
   };
 
+  const applyPatch = (patch: ContactDraftPatch) => {
+    const current = draftRef.current;
+    const merged = mergeContactDraft(
+      {
+        displayName: current.name,
+        position: current.position,
+        company: current.company,
+        note: current.note,
+        lines: current.lines
+          .filter((line) => line.value.trim())
+          .map((line) => ({ id: line.id, value: line.value, flags: line.flags })),
+      },
+      patch,
+    );
+    setName(merged.displayName.replace(/\n/g, " "));
+    setPosition(merged.position);
+    setCompany(merged.company);
+    setNote(merged.note);
+    setLines([...merged.lines.map((line) => ({ ...line, marked: false })), blank()]);
+    draftRef.current = {
+      name: merged.displayName.replace(/\n/g, " "),
+      position: merged.position,
+      company: merged.company,
+      note: merged.note,
+      lines: [...merged.lines.map((line) => ({ ...line, marked: false })), blank()],
+    };
+  };
+
   const applyScan = (found: ScannedContact) => {
     if (!initial) setSource("scan");
-    if (found.name && !name.trim()) setName(found.name);
-    if (found.lines.length === 0) return;
-    setLines((current) => {
-      const next = current.filter((line) => line.value.trim());
-      for (const value of found.lines) {
-        if (next.length >= 30) break;
-        if (next.some((line) => line.value.trim() === value)) continue;
-        next.push({ id: crypto.randomUUID(), value, flags: [], marked: false });
-      }
-      next.push(blank());
-      return next;
-    });
+    applyPatch(patchFromScan(found));
   };
 
   const applyDraft = (draft: ContactDraft, kind: "voice" | "photo") => {
@@ -174,21 +199,7 @@ export function NewContactForm({
     }
     setError(null);
     if (!initial) setSource(kind);
-    if (draft.displayName && !name.trim()) setName(draft.displayName);
-    if (draft.position && !position.trim()) setPosition(draft.position);
-    if (draft.company && !company.trim()) setCompany(draft.company);
-    if (draft.note && !note.trim()) setNote(draft.note);
-    if (draft.lines.length === 0) return;
-    setLines((current) => {
-      const next = current.filter((line) => line.value.trim());
-      for (const value of draft.lines) {
-        if (next.length >= 30) break;
-        if (next.some((line) => line.value.trim() === value)) continue;
-        next.push({ id: crypto.randomUUID(), value, flags: [], marked: false });
-      }
-      next.push(blank());
-      return next;
-    });
+    applyPatch(patchFromContactDraft(draft));
   };
 
   const readFile = async (field: "image" | "audio", file: Blob, filename: string) => {
