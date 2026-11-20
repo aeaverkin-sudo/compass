@@ -26,6 +26,7 @@ import {
   useConnectionDecisions,
 } from "@/shared/lib/connection-decision";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { deleteConnectionRemote } from "@/shared/lib/delete-connection";
 import { clearNewContact } from "@/shared/lib/new-contact";
 import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
@@ -311,10 +312,8 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     setContacts((current) => current?.filter((contact) => contact.id !== id) ?? current);
     const drop = async () => {
       const userId = await readyOwnerId();
-      const { error } = userId
-        ? await createBrowserSupabaseClient().from("connections").delete().eq("id", id).eq("owner_id", userId)
-        : { error: true };
-      return !error;
+      if (!userId) return false;
+      return deleteConnectionRemote(id);
     };
     try {
       let dropped = false;

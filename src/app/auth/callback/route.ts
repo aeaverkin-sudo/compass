@@ -6,6 +6,7 @@ import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
 import { codedHandle, isHandleConflict, slugFromName } from "@/shared/services/card-handle";
 import { CONSENT_VERSION } from "@/shared/services/consent";
+import { bindSessionReceipts } from "@/shared/services/bind-note-receipts";
 import { saveConnection } from "@/shared/services/save-connection";
 import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { clearTrialClock } from "@/shared/services/trial";
@@ -113,6 +114,7 @@ async function keepScannedCard(
       if (!saved.own) console.error("[auth] callback");
       return false;
     }
+    await bindSessionReceipts(userId);
     return true;
   } catch {
     console.error("[auth] callback");
@@ -180,6 +182,7 @@ export async function GET(request: Request) {
   } catch {
     console.error("[auth] callback");
   }
+  await bindSessionReceipts(user.id);
   const providers = new Set((user.identities ?? []).map((identity) => identity.provider));
   void sendWelcomeMail(user.id, "", origin, providers.has("apple") ? "apple" : "google").catch((error) => {
     console.error("[mail] welcome", error instanceof Error ? error.message : error);

@@ -1,5 +1,6 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { HANDLE_RE } from "@/shared/services/card-handle";
+import { bindSessionReceipts } from "@/shared/services/bind-note-receipts";
 import { saveConnection } from "@/shared/services/save-connection";
 
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
@@ -36,12 +37,16 @@ export async function saveScannedCard(
     .eq("saved_card_id", card.id)
     .maybeSingle();
   if (prior.error) throw new Error(prior.error.message);
-  if (prior.data) return { outcome: "existing", name };
+  if (prior.data) {
+    await bindSessionReceipts(userId);
+    return { outcome: "existing", name };
+  }
 
   const saved = await saveConnection({ ownerId: userId, cardId: card.id });
   if (!saved.ok) {
     if (saved.own) return { outcome: "own", name };
     throw new Error(saved.message);
   }
+  await bindSessionReceipts(userId);
   return { outcome: "new", name };
 }

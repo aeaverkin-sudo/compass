@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { BackButton } from "@/shared/components/back-button";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
+import { bindSessionReceipts } from "@/shared/services/bind-note-receipts";
 import { saveConnection } from "@/shared/services/save-connection";
 import { SAVE_SIGNUP } from "@/shared/services/save-link";
 import { clearTrialClock } from "@/shared/services/trial";
@@ -53,6 +54,7 @@ export default async function SaveCardPage({ params }: PageProps) {
     if (saved.own) return ownCard(token);
     throw new Error(saved.message);
   }
+  await bindSessionReceipts(user.id);
 
   const name = card.data.display_name.trim() || "Untitled";
   redirect(`/network?added=${encodeURIComponent(name)}`);

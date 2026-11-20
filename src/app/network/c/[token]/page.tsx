@@ -8,6 +8,7 @@ import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { ContactActions } from "./contact-actions";
 import { PendingShare } from "./pending-share";
 import { reverseShareFor } from "@/shared/services/reverse-share";
+import { notesForConnection } from "@/shared/services/note-receipts";
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +41,18 @@ export default async function NetworkCardPage({ params }: PageProps) {
   const link = await ownConnection(token);
   const pending = link?.state === "pending";
   const reverse = link ? await reverseShareFor(link.userId, loaded.ownerId) : "none";
+  const boundNotes = link ? await notesForConnection(link.userId, link.id).catch(() => []) : [];
 
   return (
     <main className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-white">
       <div className="min-h-0 flex-1">
-        <PublicCardClient inside card={loaded.card} items={loaded.items} publicToken={loaded.card.publicToken} />
+        <PublicCardClient
+          inside
+          card={loaded.card}
+          items={loaded.items}
+          publicToken={loaded.card.publicToken}
+          initialNotes={boundNotes}
+        />
       </div>
       {link && pending ? <PendingShare id={link.id} /> : null}
       {link && !pending ? (

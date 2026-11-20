@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
+import { bindSessionReceipts } from "@/shared/services/bind-note-receipts";
 import { saveConnection } from "@/shared/services/save-connection";
 
 export const runtime = "nodejs";
@@ -40,5 +41,6 @@ export async function POST(request: Request) {
     if (saved.own) return noStore({ error: "own" }, 409);
     return noStore({ error: "Could not save the card" }, 500);
   }
+  await bindSessionReceipts(user.id);
   return noStore({ ok: true });
 }

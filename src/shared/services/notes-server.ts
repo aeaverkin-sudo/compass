@@ -9,6 +9,11 @@ import {
 } from "@/shared/services/attachment-api";
 import { NOTE_FILE_GRACE_MS, SIGNED_READ_SECONDS, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
 import { isNoteCode } from "@/shared/services/card-handle";
+import {
+  claimCodedDelivery,
+  claimPendingDelivery,
+  type ClaimWinner,
+} from "@/shared/services/note-receipts";
 import { orderNextScanAddons } from "@/shared/services/notes-order";
 import type { DeliveredNote } from "@/shared/services/notes-types";
 
@@ -366,16 +371,40 @@ export async function sealSentTransfer(cardId: string, token: string): Promise<b
 /**
  * The link carried a code. A row still `pending` is not burned: the selfie may still be uploading.
  * `burn` is false when the owner opens their own link.
+ * Recipient burn writes a receipt for the guest claim / user; the same claimant can resume.
  */
-export async function openCodedNotes(cardId: string, token: string, burn: boolean): Promise<CodedNotes> {
+export async function openCodedNotes(
+  cardId: string,
+  token: string,
+  burn: boolean,
+  claim?: ClaimWinner,
+): Promise<CodedNotes> {
   const stored = storedNoteToken(cardId, token);
   if (!stored) return { ready: true, notes: [] };
   const row = await transferByCode(cardId, stored);
-  if (!row) return { ready: false, notes: [] };
-  if (!stillWaiting(row)) return { ready: true, notes: [] };
+  if (!row) {
+    if (burn && claim) {
+      const resumed = await claimCodedDelivery(cardId, stored, claim);
+      if (resumed.schema) return { ready: resumed.ready, notes: resumed.notes };
+    }
+    return { ready: false, notes: [] };
+  }
+  if (!stillWaiting(row) && row.status !== "consumed") return { ready: true, notes: [] };
   if (row.status === "pending") return { ready: false, notes: [] };
+  if (row.status === "consumed" && burn && claim) {
+    const resumed = await claimCodedDelivery(cardId, stored, claim);
+    return { ready: resumed.ready, notes: resumed.notes };
+  }
   if (row.status !== "sent") return { ready: true, notes: [] };
   if (!burn) return { ready: true, notes: await notesOnTransfer(row.id) };
+
+  if (claim && (claim.guestClaimId || claim.userId)) {
+    const claimed = await claimCodedDelivery(cardId, stored, claim);
+    if (claimed.schema) {
+      if (claimed.notes.length > 0) await logConsumed(cardId, "share");
+      return { ready: claimed.ready, notes: claimed.notes };
+    }
+  }
 
   const { data: won, error } = await admin().rpc("consume_sent_transfer", {
     p_token: stored,
@@ -399,16 +428,34 @@ export async function previewPendingNotes(cardId: string): Promise<DeliveredNote
 }
 
 /** First handoff wins. Returns notes once; a second call gets []. A scan after Share gets nothing. */
-export async function consumePendingNotes(cardId: string, via?: "share" | "qr"): Promise<DeliveredNote[]> {
+export async function consumePendingNotes(
+  cardId: string,
+  via?: "share" | "qr",
+  claim?: ClaimWinner,
+): Promise<DeliveredNote[]> {
+  if (claim && (claim.guestClaimId || claim.userId)) {
+    const claimed = await claimPendingDelivery(cardId, claim);
+    if (claimed.schema) {
+      if (claimed.notes.length > 0) await logConsumed(cardId, via);
+      return claimed.notes;
+    }
+  }
+
   const { data: transferId, error } = await admin().rpc("consume_pending_transfer", {
     p_card_id: cardId,
   });
   if (error) throw new Error(error.message);
-  if (!transferId || typeof transferId !== "string") return [];
+  if (!transferId || typeof transferId !== "string") {
+    if (claim) {
+      const resumed = await claimPendingDelivery(cardId, claim);
+      if (resumed.schema) return resumed.notes;
+    }
+    return [];
+  }
   return finishDelivered(cardId, transferId, via);
 }
 
-async function finishDelivered(cardId: string, transferId: string, via?: "share" | "qr"): Promise<DeliveredNote[]> {
+async function logConsumed(cardId: string, via?: "share" | "qr"): Promise<void> {
   try {
     const event: { card_id: string; type: string; via?: string } = {
       card_id: cardId,
@@ -422,6 +469,10 @@ async function finishDelivered(cardId: string, transferId: string, via?: "share"
   } catch {
     // Visit already counted; delivery is what matters.
   }
+}
+
+async function finishDelivered(cardId: string, transferId: string, via?: "share" | "qr"): Promise<DeliveredNote[]> {
+  await logConsumed(cardId, via);
 
   const notes = await notesOnTransfer(transferId);
   try {

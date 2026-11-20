@@ -2,6 +2,11 @@ import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { deleteAttachment, removeStoredObject } from "@/shared/services/attachment-api";
 import { CARD_ATTACHMENTS_BUCKET, NOTE_FILE_GRACE_MS, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
 import { deleteOwnAccount } from "@/shared/services/account-delete";
+import {
+  purgeExpiredGuestReceipts,
+  receiptReferencedAttachmentIds,
+  transferIdsHeldByCopying,
+} from "@/shared/services/note-receipts";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -55,7 +60,9 @@ async function referenced(ids: string[]) {
     idsOf("transfer_items", "attachment_id", ids),
     idsOf("events", "logo_attachment_id", ids),
   ]);
-  return new Set(lists.flat());
+  const used = new Set(lists.flat());
+  for (const id of await receiptReferencedAttachmentIds(ids)) used.add(id);
+  return used;
 }
 
 async function dropAttachment(row: AttachmentRow) {
@@ -187,12 +194,16 @@ async function purgeStaleTransfers() {
   const graceCutoff = new Date(Date.now() - NOTE_FILE_GRACE_MS).toISOString();
   const abandoned = await abandonedTransferIds(now);
   const consumed = await transferIds("consumed", "consumed_at", graceCutoff);
+  const held = await transferIdsHeldByCopying();
   let count = 0;
   for (const id of [...abandoned, ...consumed]) {
+    // A receipt still copying keeps the source transfer until the guest copy is ready.
+    if (held.has(id)) continue;
     await retireTransfer(id);
     count += 1;
   }
   count += await purgeScheduledTransferFiles();
+  count += await purgeExpiredGuestReceipts();
   return count;
 }
 

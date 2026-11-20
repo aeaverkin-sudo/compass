@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
 import { loadPublicCard } from "@/shared/services/public-card";
+import { ensureGuestClaimId } from "@/shared/services/note-guest-claim";
+import { findOpenReceiptsForCard, completeReceiptCopy, deliveredFromReceipt, bindGuestReceipts } from "@/shared/services/note-receipts";
 import { consumePendingNotes, openCodedNotes, previewPendingNotes } from "@/shared/services/notes-server";
+import type { ClaimWinner } from "@/shared/services/note-receipts";
+import type { DeliveredNote } from "@/shared/services/notes-types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,6 +14,32 @@ type RouteProps = { params: Promise<{ publicToken: string }> };
 
 function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
+}
+
+async function recipientClaim(userId: string | null): Promise<ClaimWinner> {
+  const guestClaimId = await ensureGuestClaimId();
+  return { guestClaimId, userId };
+}
+
+async function resumeOpenNotes(cardId: string, claim: ClaimWinner): Promise<DeliveredNote[]> {
+  const open = await findOpenReceiptsForCard(cardId, claim);
+  const notes: DeliveredNote[] = [];
+  for (const row of open) {
+    try {
+      await completeReceiptCopy(row.id);
+    } catch (reason) {
+      console.error("[notes] resume copy", row.id, reason);
+    }
+    notes.push(...(await deliveredFromReceipt(row.id)));
+  }
+  if (claim.userId) {
+    try {
+      await bindGuestReceipts(claim.userId, claim.guestClaimId);
+    } catch (reason) {
+      console.error("[notes] resume bind", reason);
+    }
+  }
+  return notes;
 }
 
 /**
@@ -43,10 +73,14 @@ export async function POST(request: Request, context: RouteProps) {
   if (!loaded) return noStore({ error: "Not found" }, 404);
 
   let userId: string | null = null;
+  let registeredId: string | null = null;
   try {
-    userId = (await sessionUser())?.id ?? null;
+    const session = await sessionUser();
+    userId = session?.id ?? null;
+    registeredId = session && !session.is_anonymous ? session.id : null;
   } catch {
     userId = null;
+    registeredId = null;
   }
 
   if (userId && userId === loaded.ownerId) {
@@ -82,15 +116,18 @@ export async function POST(request: Request, context: RouteProps) {
   }
 
   try {
+    const claim = await recipientClaim(registeredId);
     if (code && !viaQr) {
-      const opened = await openCodedNotes(loaded.card.id, code, true);
+      const opened = await openCodedNotes(loaded.card.id, code, true, claim);
       return noStore({ notes: opened.notes, ready: opened.ready, owner: false });
     }
     if (viaQr) {
-      const notes = await consumePendingNotes(loaded.card.id, "qr");
+      const notes = await consumePendingNotes(loaded.card.id, "qr", claim);
       return noStore({ notes, ready: true, owner: false });
     }
-    return noStore({ notes: [], ready: true, owner: false });
+    // No code and not a QR burn: do not start a new handoff; only resume this claimant's receipts.
+    const notes = await resumeOpenNotes(loaded.card.id, claim);
+    return noStore({ notes, ready: true, owner: false });
   } catch (error) {
     console.error("[notes] consume failed", error);
     return noStore({ error: "Could not open notes" }, 500);

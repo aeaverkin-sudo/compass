@@ -8,7 +8,7 @@ import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/comp
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
-import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { deleteConnectionRemote } from "@/shared/lib/delete-connection";
 import { useAppStore } from "@/shared/store/app-store";
 
 const ITEM =
@@ -79,14 +79,7 @@ export function ContactActions({
   const remove = async () => {
     if (busy) return;
     setBusy(true);
-    const drop = async () => {
-      const { data } = await createBrowserSupabaseClient().auth.getSession();
-      const userId = data.session?.user.id;
-      const { error } = userId
-        ? await createBrowserSupabaseClient().from("connections").delete().eq("id", id).eq("owner_id", userId)
-        : { error: { message: "signed out" } };
-      return !error;
-    };
+    const drop = async () => deleteConnectionRemote(id);
     let dropped = false;
     try {
       dropped = await drop();

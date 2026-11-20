@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
+import { deleteConnectionRemote } from "@/shared/lib/delete-connection";
 
 const UNDO_MS = 3000;
 const AGAIN_MS = 1500;
@@ -83,10 +84,9 @@ async function writeActive(id: string) {
 
 async function removeRow(id: string) {
   const userId = await ownerId();
-  const { error } = userId
-    ? await createBrowserSupabaseClient().from("connections").delete().eq("id", id).eq("owner_id", userId)
-    : { error: { message: "signed out" } };
-  return error;
+  if (!userId) return { message: "signed out" };
+  const ok = await deleteConnectionRemote(id);
+  return ok ? null : { message: "again" };
 }
 
 /** Yes. The row stays in the book as an ordinary contact. */

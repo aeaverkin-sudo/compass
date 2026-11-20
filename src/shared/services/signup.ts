@@ -10,6 +10,7 @@ import { eventListStatus } from "@/shared/services/events";
 import { joinWithOwnCard, PASSWORD_SET } from "@/shared/services/guest-accept";
 import { CONSENT_VERSION } from "@/shared/services/consent";
 import { ATTACHMENT_TYPES, type AttachmentContactType } from "@/shared/services/portfolio-limits";
+import { bindSessionReceipts } from "@/shared/services/bind-note-receipts";
 import { saveConnection } from "@/shared/services/save-connection";
 import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { isProseValue } from "@/shared/services/card-zones";
@@ -108,6 +109,7 @@ async function keepSourceCard(
     if (found.error || !found.data || found.data.owner_id === userId) return { warning: "card" };
     const saved = await saveConnection({ ownerId: userId, cardId: found.data.id });
     if (!saved.ok) return { warning: "card" };
+    await bindSessionReceipts(userId);
     const raw = found.data.display_name;
     const savedName = (typeof raw === "string" ? raw.trim() : "") || "Untitled";
     return { saved: true, savedName };
@@ -297,6 +299,7 @@ export async function writeFirstPortfolio(
   }
 
   const door = await keepSourceCard(admin, userId, source.sourceToken);
+  await bindSessionReceipts(userId);
   const eventDoor = await joinEvent(userId, cardId, source.event);
   return {
     cardId,
@@ -348,6 +351,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
     });
     if (consent.error) throw new Error(consent.error.message);
     const door = await keepSourceCard(admin, userId, body.sourceToken);
+    await bindSessionReceipts(userId);
     if (origin) {
       void sendWelcomeMail(userId, password, origin).catch((error) => {
         console.error("[mail] welcome", error instanceof Error ? error.message : error);

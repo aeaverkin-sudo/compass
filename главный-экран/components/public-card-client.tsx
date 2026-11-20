@@ -44,7 +44,26 @@ type PublicCardClientProps = {
   backHref?: string;
   /** The note code from the address. A link sent earlier still carries it in `?n=`. */
   noteCode?: string;
+  /** Bound Notes from Network. Skips the one-time consume. */
+  initialNotes?: DeliveredNote[];
 };
+
+/** Keep selfie/voice bytes in this tab after the signed URL dies. */
+async function materializeNotes(notes: DeliveredNote[]): Promise<DeliveredNote[]> {
+  return Promise.all(
+    notes.map(async (note) => {
+      if (note.type === "text" || !note.url || note.url.startsWith("blob:")) return note;
+      try {
+        const response = await fetch(note.url);
+        if (!response.ok) return note;
+        const blob = await response.blob();
+        return { ...note, url: URL.createObjectURL(blob), expired: false };
+      } catch {
+        return note;
+      }
+    }),
+  );
+}
 
 type SaveState = "loading" | "ready" | "saved" | "own" | "busy";
 
@@ -75,10 +94,11 @@ export function PublicCardClient({
   deleted = false,
   backHref,
   noteCode = "",
+  initialNotes,
 }: PublicCardClientProps) {
   const router = useRouter();
-  const [notes, setNotes] = useState<DeliveredNote[]>([]);
-  const [notesReady, setNotesReady] = useState(false);
+  const [notes, setNotes] = useState<DeliveredNote[]>(() => initialNotes ?? []);
+  const [notesReady, setNotesReady] = useState(() => Boolean(initialNotes) || deleted || inside);
   const [saveState, setSaveState] = useState<SaveState>(save ? "loading" : "ready");
   const [notice, setNotice] = useState<string | null>(null);
   const [paintPdf, setPaintPdf] = useState(false);
@@ -87,7 +107,18 @@ export function PublicCardClient({
   const waitingRef = useRef(false);
 
   useEffect(() => {
-    if (deleted) return;
+    if (!initialNotes?.length) return;
+    let cancelled = false;
+    void materializeNotes(initialNotes).then((next) => {
+      if (!cancelled) setNotes(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialNotes]);
+
+  useEffect(() => {
+    if (deleted || inside) return;
     let cancelled = false;
     const params = new URLSearchParams(window.location.search);
     const scanned = params.get("src") === "qr" || params.get("via") === "qr";
@@ -102,8 +133,12 @@ export function PublicCardClient({
     const deadline = Date.now() + 8000;
 
     const pull = async () => {
+      // Guest claim cookie must exist before the burn request.
+      await fetch("/api/note-guest", { method: "POST", credentials: "include" }).catch(() => undefined);
+      if (cancelled) return false;
       const notesResponse = await fetch(`/api/c/${encodeURIComponent(publicToken)}/notes`, {
         method: "POST",
+        credentials: "include",
         headers: hasBody ? { "Content-Type": "application/json" } : undefined,
         body: hasBody ? JSON.stringify(payload) : undefined,
       });
@@ -113,7 +148,10 @@ export function PublicCardClient({
         const body = (await notesResponse.json()) as { notes?: DeliveredNote[]; owner?: boolean; ready?: boolean };
         owner = body.owner === true;
         ready = body.ready !== false;
-        if (Array.isArray(body.notes) && body.notes.length > 0) setNotes(body.notes);
+        if (Array.isArray(body.notes) && body.notes.length > 0) {
+          const held = await materializeNotes(body.notes);
+          if (!cancelled) setNotes(held);
+        }
       }
       if (!ready && code && Date.now() < deadline && !cancelled) {
         await new Promise((resolve) => setTimeout(resolve, 400));
