@@ -22,9 +22,21 @@ import type { ContactSource, ExternalContact, HeaderField, LineFlag } from "@/fe
 const ROW = "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]";
 const SECTION = `${ROW} items-start border-b border-[var(--rule)] py-[18px]`;
 const COMPACT = `${ROW} items-start border-b border-[var(--rule)] py-[10px]`;
-const COMPACT_EVENT = `${ROW} items-center border-b border-[var(--rule)] py-[10px]`;
 const FIELD =
   "min-w-0 w-full border-0 bg-transparent py-1 t-body outline-none placeholder:text-[var(--placeholder)]";
+
+/** Note stays one line until wrap, then grows to two. */
+function fitNoteField(node: HTMLTextAreaElement) {
+  node.style.height = "0px";
+  const styles = getComputedStyle(node);
+  const line = Number.parseFloat(styles.lineHeight) || 22;
+  const pad =
+    (Number.parseFloat(styles.paddingTop) || 0) + (Number.parseFloat(styles.paddingBottom) || 0);
+  const max = line * 2 + pad;
+  const next = Math.min(node.scrollHeight, max);
+  node.style.height = `${next}px`;
+  node.style.overflowY = node.scrollHeight > max + 1 ? "auto" : "hidden";
+}
 const GHOST =
   "press min-h-11 flex-1 border-0 bg-white t-caps text-[var(--ink)] shadow-[0_10px_22px_rgba(20,20,20,0.14)] [-webkit-tap-highlight-color:transparent]";
 const GHOST_CREATE =
@@ -67,13 +79,12 @@ export function NewContactForm({
   const router = useRouter();
   const editing = Boolean(initial);
   const lastLine = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const [name, setName] = useState(initial?.displayName ?? "");
   const [position, setPosition] = useState(initial?.position ?? "");
   const [company, setCompany] = useState(initial?.company ?? "");
   const [headerField, setHeaderField] = useState<HeaderField | null>(initial?.headerField ?? null);
   const [note, setNote] = useState(initial?.note ?? "");
-  const [eventTag, setEventTag] = useState(editing ? (initial?.eventTag ?? "") : suggestedEvent);
-  const [eventLive, setEventLive] = useState(editing);
   const [lines, setLines] = useState<Line[]>(() => linesFrom(initial));
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
   const [keptPhoto, setKeptPhoto] = useState<string | null>(initial?.photoUrl ?? null);
@@ -88,6 +99,10 @@ export function NewContactForm({
   const voiceRef = useRef<{ released: boolean; recorder: MediaRecorder | null; started: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useKeyboardLift(scrollRef);
+
+  useEffect(() => {
+    if (noteRef.current) fitNoteField(noteRef.current);
+  }, [note]);
 
   const ready = name.trim().length > 0 && !busy && !reading;
   const headerTitle =
@@ -304,7 +319,7 @@ export function NewContactForm({
                 ? "company"
                 : null,
           note,
-          eventTag: eventLive ? eventTag : suggestedEvent,
+          eventTag: editing ? (initial?.eventTag ?? "") : suggestedEvent,
           source: initial?.source ?? source,
           photoAttachmentId,
           lines: filled.map((line) => {
@@ -494,26 +509,13 @@ export function NewContactForm({
       <section className={COMPACT}>
         <span className="t-label text-[var(--grey)]">Note</span>
         <textarea
+          ref={noteRef}
           value={note}
           onChange={(event) => setNote(event.target.value)}
-          rows={2}
-          placeholder="short text"
+          rows={1}
+          placeholder="Event name, short text"
           aria-label="Note"
           className={cn(FIELD, "resize-none text-[var(--ink)]")}
-        />
-      </section>
-      <section className={COMPACT_EVENT}>
-        <span className="t-label text-[var(--grey)]">Event</span>
-        <input
-          value={eventTag}
-          onChange={(event) => {
-            setEventLive(true);
-            setEventTag(event.target.value);
-          }}
-          onKeyDown={keepEnter}
-          placeholder="/event"
-          aria-label="Event"
-          className={cn(FIELD, !eventLive && eventTag ? "text-[var(--grey)]" : "text-[var(--ink)]")}
         />
       </section>
       <div className="mt-[18px] flex gap-3">
