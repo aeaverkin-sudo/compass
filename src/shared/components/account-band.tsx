@@ -59,12 +59,12 @@ export function AccountBand({
             onTap={() => onPdf?.()}
             className={cn(DOOR, "border-0 bg-transparent")}
           >
-            <span data-pdf-link="">Get PDF file</span>
+            <span data-pdf-link="">PDF file</span>
           </TapButton>
         }
         right={
           <a href={saveHref} className={cn(DOOR, "justify-end")}>
-            <span data-pdf-link="">Join to save</span>
+            <span data-pdf-link="">Connect</span>
           </a>
         }
       />
@@ -87,7 +87,7 @@ export function AccountBand({
         </span>
         <a href={saveHref} className={cn(pdfDoor, "justify-end text-right")}>
           <span data-pdf-link="" className="inline-block w-fit">
-            Join to save
+            Connect
           </span>
         </a>
       </div>
