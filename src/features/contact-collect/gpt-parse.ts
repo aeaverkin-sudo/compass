@@ -44,17 +44,6 @@ export type ParseInput = {
   openai?: boolean;
 };
 
-/** Closed test. Empty CONTACT_READ_OWNER_IDS allows nobody. */
-export function contactReadAllowed(ownerId: string, list = process.env.CONTACT_READ_OWNER_IDS): boolean {
-  const id = ownerId.trim();
-  if (!id) return false;
-  const ids = (list ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return ids.includes(id);
-}
-
 export type ParseResult =
   | { ok: true; draft: ContactReading }
   | { ok: false; status: number; error: string; available?: false };

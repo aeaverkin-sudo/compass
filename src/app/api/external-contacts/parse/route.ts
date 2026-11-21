@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { contactReadAllowed, gptConfigured, parseContactInput } from "@/features/contact-collect/gpt-parse";
+import { gptConfigured, parseContactInput } from "@/features/contact-collect/gpt-parse";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 
 export const runtime = "nodejs";
@@ -9,15 +9,11 @@ function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-function readingOpen(ownerId: string) {
-  return gptConfigured() && contactReadAllowed(ownerId);
-}
-
-/** Whether photo and voice reading is on for this account. The key itself is never returned. */
+/** Whether photo and voice reading is on. The key itself is never returned. */
 export async function GET() {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ error: owner.error }, owner.status);
-  return noStore({ available: readingOpen(owner.id) });
+  return noStore({ available: gptConfigured() });
 }
 
 async function bytesOf(value: FormDataEntryValue | null) {
@@ -29,7 +25,7 @@ async function bytesOf(value: FormDataEntryValue | null) {
 export async function POST(request: Request) {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ error: owner.error }, owner.status);
-  const openai = readingOpen(owner.id);
+  const openai = gptConfigured();
 
   const type = request.headers.get("content-type") ?? "";
   try {
