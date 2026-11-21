@@ -1,6 +1,10 @@
 import "server-only";
 
-import { contactDraft, parseContactLocal, type ContactDraft } from "@/features/contact-collect/parse-contact";
+import {
+  contactReading,
+  parseContactLocal,
+  type ContactReading,
+} from "@/features/contact-collect/parse-contact";
 
 /**
  * Photo, voice, and messy text. The key stays in the host environment.
@@ -16,11 +20,21 @@ const TEXT_MAX = 4000;
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
-const ASK = `Read one person into JSON only, with no markdown.
-Shape: {"displayName":"","position":"","company":"","note":"","lines":[]}
+const ASK_DATA = `Read one person into JSON only, with no markdown.
+Shape: {"displayName":"","position":"","company":"","note":"","lines":[],"lineFlags":[]}
 lines are phones, emails, @telegram names, or links, each one string.
-Copy only what is written or said. Do not invent a country code. Keep a leading + if it was there.
-If there is no contact, return empty strings and an empty lines array.`;
+lineFlags is optional: [{"value":"+44…","flags":["wa"]}] or ["tg"] when WhatsApp/Telegram is marked on the card.
+Copy only what is written. Do not invent a country code. Keep a leading + if it was there.
+Do not include sets. If there is no contact, return empty strings and an empty lines array.`;
+
+const ASK_VOICE = `Turn one spoken contact update into JSON only, with no markdown.
+Shape: {"displayName":"","position":"","company":"","note":"","lines":[],"sets":{},"lineFlags":[]}
+Top-level fields and lines are ordinary fills: name, role, company, note, phones, emails, @nicks, links.
+sets is only for an explicit correction the speaker asked for, e.g. {"position":"Founder"} or {"line":{"from":"+44 7700 900123","to":"+44 7700 900999"}}.
+If the target of a correction is unclear, omit that set field and still return the other clear data.
+lineFlags marks a number as WhatsApp or Telegram: [{"value":"+44…","flags":["wa"]}].
+Copy only what was said. Do not invent a country code, nick, or domain. Keep a leading + if it was there.
+If nothing useful was said, return empty strings and empty arrays.`;
 
 export type ParseInput = {
   text?: string;
@@ -29,7 +43,7 @@ export type ParseInput = {
 };
 
 export type ParseResult =
-  | { ok: true; draft: ContactDraft }
+  | { ok: true; draft: ContactReading }
   | { ok: false; status: number; error: string; available?: false };
 
 export function gptConfigured() {
@@ -40,7 +54,7 @@ function key() {
   return process.env.OPENAI_API_KEY?.trim() ?? "";
 }
 
-async function chat(content: unknown): Promise<ParseResult> {
+async function chat(content: unknown, allowSets: boolean): Promise<ParseResult> {
   let response: Response;
   try {
     response = await fetch(CHAT_URL, {
@@ -51,7 +65,7 @@ async function chat(content: unknown): Promise<ParseResult> {
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: ASK },
+          { role: "system", content: allowSets ? ASK_VOICE : ASK_DATA },
           { role: "user", content },
         ],
       }),
@@ -70,7 +84,7 @@ async function chat(content: unknown): Promise<ParseResult> {
   } | null;
   const raw = body?.choices?.[0]?.message?.content ?? "";
   try {
-    return { ok: true, draft: contactDraft(JSON.parse(raw) as unknown) };
+    return { ok: true, draft: contactReading(JSON.parse(raw) as unknown, { allowSets }) };
   } catch {
     return { ok: false, status: 502, error: "Could not read that." };
   }
@@ -119,20 +133,23 @@ export async function parseContactInput(input: ParseInput): Promise<ParseResult>
   }
   if (!gptConfigured()) {
     if (input.image || input.audio) return { ok: false, status: 503, error: "Reading is not ready.", available: false };
-    return { ok: true, draft: parseContactLocal(text) };
+    return { ok: true, draft: contactReading(parseContactLocal(text), { allowSets: false }) };
   }
   if (input.audio) {
     const heard = await transcribe(input.audio);
     if (typeof heard !== "string") return heard;
     if (!heard) return { ok: false, status: 422, error: "Could not hear that." };
-    return chat(heard);
+    return chat(heard, true);
   }
   if (input.image) {
     const base64 = Buffer.from(input.image.bytes).toString("base64");
-    return chat([
-      { type: "text", text: "Read this card or badge." },
-      { type: "image_url", image_url: { url: `data:${input.image.mime};base64,${base64}` } },
-    ]);
+    return chat(
+      [
+        { type: "text", text: "Read this card or badge." },
+        { type: "image_url", image_url: { url: `data:${input.image.mime};base64,${base64}` } },
+      ],
+      false,
+    );
   }
-  return chat(text);
+  return chat(text, false);
 }

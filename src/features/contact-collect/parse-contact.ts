@@ -1,5 +1,10 @@
 import { detectContactType } from "@/shared/services/contact-item";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
+import {
+  readingExtras,
+  type ContactDraftLineFlag,
+  type ContactDraftSets,
+} from "@/features/contact-collect/contact-reading";
 
 /** Fields a reading may fill. The client still does not choose line types. */
 export type ContactDraft = {
@@ -8,6 +13,17 @@ export type ContactDraft = {
   company: string;
   note: string;
   lines: string[];
+};
+
+export type { ContactDraftLineFlag, ContactDraftSets };
+
+/**
+ * Parse API body. Old clients only read the flat fields.
+ * `sets` / `lineFlags` are optional and ignored by fill-only callers.
+ */
+export type ContactReading = ContactDraft & {
+  sets?: ContactDraftSets;
+  lineFlags?: ContactDraftLineFlag[];
 };
 
 const NAME_MAX = 120;
@@ -40,6 +56,29 @@ export function contactDraft(value: unknown): ContactDraft {
     note: clip(record.note, NOTE_MAX),
     lines,
   };
+}
+
+/**
+ * Full reading for the form. Old flat JSON still works.
+ * Pass allowSets:false for badge/card photos — printed text is data, not a replace command.
+ */
+export function contactReading(value: unknown, options?: { allowSets?: boolean }): ContactReading {
+  const extras = readingExtras(value, options);
+  const lineFlags = extras.lineFlags?.filter((row) => !externalLineIsRed(row.value));
+  return {
+    ...contactDraft(value),
+    ...(extras.sets ? { sets: extras.sets } : {}),
+    ...(lineFlags && lineFlags.length > 0 ? { lineFlags } : {}),
+  };
+}
+
+export function contactReadingHasContent(reading: ContactReading): boolean {
+  if (reading.displayName || reading.position || reading.company || reading.note || reading.lines.length) {
+    return true;
+  }
+  if (reading.sets && Object.keys(reading.sets).length > 0) return true;
+  if (reading.lineFlags && reading.lineFlags.length > 0) return true;
+  return false;
 }
 
 function contactLine(value: string) {

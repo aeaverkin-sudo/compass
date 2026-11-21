@@ -1,4 +1,4 @@
-import type { ContactDraft } from "./parse-contact.ts";
+import type { ContactDraft, ContactReading } from "./parse-contact.ts";
 import type { ScannedContact } from "./scan-qr.ts";
 import type { LineFlag } from "./types.ts";
 
@@ -32,8 +32,8 @@ export type ContactDraftState = {
 
 /**
  * A recognition result as a patch.
- * Live QR / parse API today only produce `fills`.
- * `sets` and `lineFlags` are for explicit commands (tests now; prompts later).
+ * QR and badge/card reads produce `fills` (and optional `lineFlags`).
+ * `sets` come from explicit Voice commands after validation.
  */
 export type ContactDraftPatch = {
   fills?: {
@@ -53,6 +53,23 @@ export type ContactDraftPatch = {
   };
   lineFlags?: { value: string; flags: LineFlag[] }[];
 };
+
+export function patchHasContent(patch: ContactDraftPatch): boolean {
+  const fills = patch.fills;
+  if (
+    fills &&
+    (fills.displayName?.trim() ||
+      fills.position?.trim() ||
+      fills.company?.trim() ||
+      fills.note?.trim() ||
+      (fills.lines?.length ?? 0) > 0)
+  ) {
+    return true;
+  }
+  if (patch.sets && Object.keys(patch.sets).length > 0) return true;
+  if (patch.lineFlags && patch.lineFlags.length > 0) return true;
+  return false;
+}
 
 function phoneKey(value: string): string | null {
   const digits = phoneDigits(value);
@@ -165,9 +182,16 @@ export function mergeContactDraft(state: ContactDraftState, patch: ContactDraftP
   return { displayName, position, company, note, lines };
 }
 
-/** Current parse / voice / photo API body → fill-only patch. */
-export function patchFromContactDraft(draft: ContactDraft): ContactDraftPatch {
-  return {
+/**
+ * Parse API body → patch for the form.
+ * `allowSets:false` drops replace commands (badge / card photo).
+ */
+export function patchFromContactDraft(
+  draft: ContactDraft | ContactReading,
+  options?: { allowSets?: boolean },
+): ContactDraftPatch {
+  const reading = draft as ContactReading;
+  const patch: ContactDraftPatch = {
     fills: {
       displayName: draft.displayName,
       position: draft.position,
@@ -176,6 +200,13 @@ export function patchFromContactDraft(draft: ContactDraft): ContactDraftPatch {
       lines: draft.lines,
     },
   };
+  if (options?.allowSets !== false && reading.sets && Object.keys(reading.sets).length > 0) {
+    patch.sets = reading.sets;
+  }
+  if (reading.lineFlags && reading.lineFlags.length > 0) {
+    patch.lineFlags = reading.lineFlags;
+  }
+  return patch;
 }
 
 /** Local QR result → fill-only patch. */

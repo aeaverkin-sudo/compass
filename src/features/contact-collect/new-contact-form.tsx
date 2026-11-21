@@ -19,9 +19,10 @@ import {
   mergeContactDraft,
   patchFromContactDraft,
   patchFromScan,
+  patchHasContent,
   type ContactDraftPatch,
 } from "@/features/contact-collect/merge-contact-draft";
-import type { ContactDraft } from "@/features/contact-collect/parse-contact";
+import type { ContactReading } from "@/features/contact-collect/parse-contact";
 import type { ScannedContact } from "@/features/contact-collect/scan-qr";
 import type { ContactSource, ExternalContact, HeaderField, LineFlag } from "@/features/contact-collect/types";
 
@@ -193,15 +194,15 @@ export function NewContactForm({
     applyPatch(patchFromScan(found));
   };
 
-  const applyDraft = (draft: ContactDraft, kind: "voice" | "photo") => {
-    const has = Boolean(draft.displayName || draft.position || draft.company || draft.note || draft.lines.length);
-    if (!has) {
+  const applyDraft = (draft: ContactReading, kind: "voice" | "photo") => {
+    const patch = patchFromContactDraft(draft, { allowSets: kind === "voice" });
+    if (!patchHasContent(patch)) {
       if (kind === "voice") setError("Could not hear that.");
       return;
     }
     setError(null);
     if (!initial) setSource(kind);
-    applyPatch(patchFromContactDraft(draft));
+    applyPatch(patch);
   };
 
   const readFile = async (field: "image" | "audio", file: Blob, filename: string) => {
@@ -211,7 +212,7 @@ export function NewContactForm({
       const body = new FormData();
       body.set(field, file, filename);
       const response = await fetch("/api/external-contacts/parse", { method: "POST", body });
-      const payload = (await response.json().catch(() => null)) as { error?: string; draft?: ContactDraft } | null;
+      const payload = (await response.json().catch(() => null)) as { error?: string; draft?: ContactReading } | null;
       if (!response.ok || !payload?.draft) {
         setError(payload?.error || (field === "audio" ? "Could not hear that." : "Could not read that."));
         return;
