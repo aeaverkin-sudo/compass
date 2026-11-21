@@ -72,6 +72,14 @@ const SAVE =
 const SAVE_BAND =
   "flex h-full min-h-11 items-center justify-center border-0 bg-transparent p-0 t-band uppercase disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 type Line = { id: string; value: string; flags: LineFlag[]; marked: boolean };
+type VoicePhase = "idle" | "recording" | "processing";
+type VoiceRun = {
+  released: boolean;
+  dropped: boolean;
+  recorder: MediaRecorder | null;
+  stream: MediaStream | null;
+  started: number;
+};
 type LinkDraft = { id: string; value: string; marked: boolean };
 
 function linkDrafts(links: ContactLink[] | undefined): LinkDraft[] {
@@ -239,10 +247,19 @@ export function NewContactForm({
   const [scanning, setScanning] = useState(false);
   const [canRead, setCanRead] = useState(false);
   const [reading, setReading] = useState(false);
+  const [voicePhase, setVoicePhaseState] = useState<VoicePhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const canReadRef = useRef(false);
-  const voiceRef = useRef<{ released: boolean; recorder: MediaRecorder | null; started: number } | null>(null);
+  const readingRef = useRef(false);
+  const voicePhaseRef = useRef<VoicePhase>("idle");
+  const voiceRef = useRef<VoiceRun | null>(null);
+  const stopVoiceRef = useRef<(() => void) | null>(null);
+  const setVoicePhase = (phase: VoicePhase) => {
+    voicePhaseRef.current = phase;
+    setVoicePhaseState(phase);
+  };
+  readingRef.current = reading;
   const scrollRef = useRef<HTMLDivElement>(null);
   const photoTicket = useRef(0);
   const persistDraftRef = useRef(true);
@@ -495,34 +512,48 @@ export function NewContactForm({
       setError(field === "audio" ? "Could not hear that." : "Could not read that.");
     } finally {
       setReading(false);
+      if (field === "audio") setVoicePhase("idle");
     }
   };
 
   const beginVoice = (event: PointerEvent<HTMLButtonElement>) => {
-    if (!canReadRef.current || reading) return;
+    if (!canReadRef.current) return;
+    if (readingRef.current || voicePhaseRef.current !== "idle") {
+      event.preventDefault();
+      return;
+    }
     event.preventDefault();
-    const session = { released: false, recorder: null as MediaRecorder | null, started: 0 };
+    const session: VoiceRun = {
+      released: false,
+      dropped: false,
+      recorder: null,
+      stream: null,
+      started: 0,
+    };
     voiceRef.current = session;
     let done = false;
     const stop = () => {
       if (done) return;
       done = true;
+      if (stopVoiceRef.current === stop) stopVoiceRef.current = null;
       session.released = true;
       window.removeEventListener("pointerup", stop);
       window.removeEventListener("pointercancel", stop);
       const recorder = session.recorder;
       if (!recorder) {
-        lastLine.current?.focus();
+        if (!session.dropped) lastLine.current?.focus();
         return;
       }
       if (recorder.state !== "inactive") recorder.stop();
     };
+    stopVoiceRef.current = stop;
     window.addEventListener("pointerup", stop);
     window.addEventListener("pointercancel", stop);
     void (async () => {
+      let stream: MediaStream | null = null;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (session.released || voiceRef.current !== session) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (session.released || session.dropped || voiceRef.current !== session) {
           stream.getTracks().forEach((track) => track.stop());
           return;
         }
@@ -537,24 +568,48 @@ export function NewContactForm({
           if (item.data.size) chunks.push(item.data);
         };
         recorder.onstop = () => {
-          stream.getTracks().forEach((track) => track.stop());
+          stream?.getTracks().forEach((track) => track.stop());
+          if (session.dropped) {
+            setVoicePhase("idle");
+            return;
+          }
           const held = Date.now() - session.started;
           if (held < 280 || chunks.length === 0) {
+            setVoicePhase("idle");
             lastLine.current?.focus();
             return;
           }
+          setVoicePhase("processing");
           const type = recorder.mimeType || mime || "audio/webm";
           const extension = type.includes("mp4") ? "mp4" : "webm";
           void readFile("audio", new Blob(chunks, { type }), `recording.${extension}`);
         };
         session.recorder = recorder;
+        session.stream = stream;
         session.started = Date.now();
         recorder.start();
+        if (session.released || session.dropped || voiceRef.current !== session) {
+          if (recorder.state !== "inactive") recorder.stop();
+          return;
+        }
+        setVoicePhase("recording");
       } catch {
-        if (!session.released) lastLine.current?.focus();
+        stream?.getTracks().forEach((track) => track.stop());
+        if (session.dropped) return;
+        setVoicePhase("idle");
+        setError("Microphone is unavailable.");
       }
     })();
   };
+
+  useEffect(() => {
+    return () => {
+      const session = voiceRef.current;
+      if (session) session.dropped = true;
+      stopVoiceRef.current?.();
+      session?.stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
 
   const toggleFlag = (id: string, flag: LineFlag) => {
     setLines((current) =>
@@ -1011,15 +1066,16 @@ export function NewContactForm({
         </button>
         <button
           type="button"
-          className={editing ? GHOST : GHOST_CREATE}
+          className={cn(GHOST_CREATE, voicePhase === "recording" && "bg-sky", voicePhase === "processing" && "text-[#1a6a86]")}
+          aria-pressed={voicePhase === "recording"}
           onPointerDown={beginVoice}
           onClick={() => {
             if (!canRead) lastLine.current?.focus();
           }}
           onContextMenu={(event) => event.preventDefault()}
         >
-          {editing ? null : <Mic className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />}
-          Voice
+          <VoiceMark phase={voicePhase} />
+          {voicePhase === "recording" ? "Recording..." : voicePhase === "processing" ? "Processing..." : "Voice"}
         </button>
       </div>
       {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
@@ -1107,6 +1163,22 @@ export function NewContactForm({
       ) : null}
     </main>
   );
+}
+
+function VoiceMark({ phase }: { phase: VoicePhase }) {
+  if (phase === "recording") {
+    return (
+      <span className="voice-wave" aria-hidden>
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </span>
+    );
+  }
+  if (phase === "processing") return <span className="voice-spin" aria-hidden />;
+  return <Mic className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />;
 }
 
 function FlagButton({ on, onPress, children }: { on: boolean; onPress: () => void; children: string }) {
