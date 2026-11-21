@@ -36,22 +36,25 @@ export async function uploadAttachment(input: {
   file: File;
   kind: UploadKind;
   cardId?: string;
+  /** Saved manual contact. The server stores the file in that contact's bucket. */
+  contactId?: string;
   /** PDF and video only: whole percent of bytes sent. */
   onProgress?: (percent: number) => void;
 }): Promise<ReadyAttachment> {
   if (input.kind === "pdf") {
-    return uploadSigned(input.file, "application/pdf", input.cardId, input.onProgress);
+    return uploadSigned(input.file, "application/pdf", input.cardId, input.contactId, input.onProgress);
   }
   if (input.kind === "video" || isVideoMime(videoMime(input.file))) {
-    return uploadSigned(input.file, videoMime(input.file), input.cardId, input.onProgress);
+    return uploadSigned(input.file, videoMime(input.file), input.cardId, input.contactId, input.onProgress);
   }
-  return uploadBuffered(input.file, input.kind, input.cardId);
+  return uploadBuffered(input.file, input.kind, input.cardId, input.contactId);
 }
 
 async function uploadBuffered(
   file: File,
   kind: UploadKind,
   cardId?: string,
+  contactId?: string,
 ): Promise<ReadyAttachment> {
   const body = new FormData();
   const payload =
@@ -61,7 +64,8 @@ async function uploadBuffered(
   const name = file.name || "file";
   body.append("file", payload, name);
   body.append("kind", kind);
-  if (cardId) body.append("cardId", cardId);
+  if (contactId) body.append("contactId", contactId);
+  else if (cardId) body.append("cardId", cardId);
 
   const response = await fetch("/api/attachments", { method: "POST", body });
   return readReady(response);
@@ -98,11 +102,17 @@ async function postJson(path: string, payload: unknown): Promise<Response> {
 }
 
 /** Same request as `uploadToSignedUrl`, sent by XHR so the bytes report progress. */
-function putSigned(path: string, token: string, file: File, onProgress?: (percent: number) => void) {
+function putSigned(
+  bucket: string,
+  path: string,
+  token: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+) {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!base || !anonKey) return Promise.reject(new Error("Upload is not configured"));
-  const encoded = `${CARD_ATTACHMENTS_BUCKET}/${path}`.split("/").map(encodeURIComponent).join("/");
+  const encoded = `${bucket}/${path}`.split("/").map(encodeURIComponent).join("/");
   const url = `${base}/storage/v1/object/upload/sign/${encoded}?token=${encodeURIComponent(token)}`;
   const body = new FormData();
   body.append("cacheControl", "3600");
@@ -157,22 +167,28 @@ async function uploadSigned(
   file: File,
   mime: string,
   cardId?: string,
+  contactId?: string,
   onProgress?: (percent: number) => void,
 ): Promise<ReadyAttachment> {
   const opened = await postJson("/api/attachments/upload-url", {
     mime,
     byteSize: file.size,
     originalName: file.name,
-    cardId,
+    ...(contactId ? { contactId } : { cardId }),
   });
   if (!opened.ok) throw new Error(await errorText(opened));
 
-  const ticket = (await opened.json()) as { path?: string; token?: string; attachmentId?: string };
+  const ticket = (await opened.json()) as {
+    path?: string;
+    token?: string;
+    attachmentId?: string;
+    bucket?: string;
+  };
   if (!ticket.path || !ticket.token || !ticket.attachmentId) {
     throw new Error("Could not start the upload");
   }
 
-  await putSigned(ticket.path, ticket.token, file, onProgress);
+  await putSigned(ticket.bucket || CARD_ATTACHMENTS_BUCKET, ticket.path, ticket.token, file, onProgress);
 
   const confirmed = await postJson("/api/attachments/finalize", { attachmentId: ticket.attachmentId });
   return readReady(confirmed);

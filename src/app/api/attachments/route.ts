@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { fileTypeFromBuffer } from "file-type/core";
+import { ownsExternalContact } from "@/features/contact-collect/store";
+import { contactFilePath } from "@/features/contact-collect/contact-files";
 import {
   accountBytesLimit,
   insertAttachment,
@@ -16,6 +18,7 @@ import {
   AUDIO_BYTE_LIMIT,
   BUFFERED_BODY_LIMIT,
   CARD_ATTACHMENTS_BUCKET,
+  CONTACT_FILES_BUCKET,
   TRANSFER_ASSETS_BUCKET,
   byteLimitForMime,
   isSmallAttachmentKind,
@@ -175,11 +178,26 @@ export async function POST(request: Request) {
   }
 
   const attachmentId = crypto.randomUUID();
-  const cardId = form.get("cardId");
-  const path = storagePath(owner.id, typeof cardId === "string" ? cardId : null, attachmentId);
+  const cardValue = form.get("cardId");
+  const contactValue = form.get("contactId");
+  const contactId = typeof contactValue === "string" && contactValue.length > 0 ? contactValue : null;
+  if (contactId && typeof cardValue === "string" && cardValue.length > 0) {
+    return jsonFail(400, "Expected one destination");
+  }
+  let bucket: string = CARD_ATTACHMENTS_BUCKET;
+  let path = storagePath(owner.id, typeof cardValue === "string" ? cardValue : null, attachmentId);
+  if (contactId) {
+    if (!isUuid(contactId)) return jsonFail(404, "Contact not found.");
+    const owned = await ownsExternalContact(owner.id, contactId);
+    if (owned === "unavailable") return jsonFail(503, "Contacts are not ready.");
+    if (owned === "failed") return jsonFail(500, "Could not store the file");
+    if (owned !== "yes") return jsonFail(404, "Contact not found.");
+    bucket = CONTACT_FILES_BUCKET;
+    path = contactFilePath(owner.id, contactId, attachmentId);
+  }
 
   const admin = createAdminSupabaseClient();
-  const uploaded = await admin.storage.from(CARD_ATTACHMENTS_BUCKET).upload(path, bytes, {
+  const uploaded = await admin.storage.from(bucket).upload(path, bytes, {
     contentType: detected.mime,
     upsert: false,
   });
@@ -194,9 +212,10 @@ export async function POST(request: Request) {
       byteSize: bytes.byteLength,
       originalName: safeOriginalName(file.name),
       status: "ready",
+      bucket,
     });
   } catch {
-    await removeStoredObject(path);
+    await removeStoredObject(path, bucket);
     return jsonFail(500, "Could not save the file record");
   }
 

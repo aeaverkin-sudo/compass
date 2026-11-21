@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { ownsExternalContact } from "@/features/contact-collect/store";
+import { contactFilePath } from "@/features/contact-collect/contact-files";
 import {
   accountBytesLimit,
   deleteAttachment,
   insertAttachment,
+  isUuid,
   quotaAllows,
   readyByteTotal,
   requireOwnerId,
@@ -12,6 +15,7 @@ import {
 } from "@/shared/services/attachment-api";
 import {
   CARD_ATTACHMENTS_BUCKET,
+  CONTACT_FILES_BUCKET,
   PDF_BYTE_LIMIT,
   VIDEO_BYTE_LIMIT,
   isVideoMime,
@@ -39,11 +43,12 @@ export async function POST(request: Request) {
   }
   if (!body || typeof body !== "object") return jsonFail(400, "Expected JSON");
 
-  const { mime, byteSize, originalName, cardId } = body as {
+  const { mime, byteSize, originalName, cardId, contactId } = body as {
     mime?: unknown;
     byteSize?: unknown;
     originalName?: unknown;
     cardId?: unknown;
+    contactId?: unknown;
   };
 
   if (typeof mime !== "string" || (mime !== "application/pdf" && !isVideoMime(mime))) {
@@ -69,11 +74,21 @@ export async function POST(request: Request) {
   }
 
   const attachmentId = crypto.randomUUID();
-  const path = storagePath(
-    owner.id,
-    typeof cardId === "string" ? cardId : null,
-    attachmentId,
-  );
+  const contact = typeof contactId === "string" && contactId.length > 0 ? contactId : null;
+  if (contact && typeof cardId === "string" && cardId.length > 0) {
+    return jsonFail(400, "Expected one destination");
+  }
+  let bucket: string = CARD_ATTACHMENTS_BUCKET;
+  let path = storagePath(owner.id, typeof cardId === "string" ? cardId : null, attachmentId);
+  if (contact) {
+    if (!isUuid(contact)) return jsonFail(404, "Contact not found.");
+    const owned = await ownsExternalContact(owner.id, contact);
+    if (owned === "unavailable") return jsonFail(503, "Contacts are not ready.");
+    if (owned === "failed") return jsonFail(500, "Could not store the file");
+    if (owned !== "yes") return jsonFail(404, "Contact not found.");
+    bucket = CONTACT_FILES_BUCKET;
+    path = contactFilePath(owner.id, contact, attachmentId);
+  }
 
   try {
     await insertAttachment({
@@ -84,13 +99,14 @@ export async function POST(request: Request) {
       byteSize,
       originalName: safeOriginalName(originalName),
       status: "pending",
+      bucket,
     });
   } catch {
     return jsonFail(500, "Could not save the file record");
   }
 
   const admin = createAdminSupabaseClient();
-  const signed = await admin.storage.from(CARD_ATTACHMENTS_BUCKET).createSignedUploadUrl(path, {
+  const signed = await admin.storage.from(bucket).createSignedUploadUrl(path, {
     upsert: false,
   });
   if (signed.error || !signed.data) {
@@ -102,6 +118,7 @@ export async function POST(request: Request) {
     attachmentId,
     path: signed.data.path,
     token: signed.data.token,
+    bucket,
     status: "pending" as const,
   });
 }

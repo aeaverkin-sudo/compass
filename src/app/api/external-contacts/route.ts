@@ -41,6 +41,14 @@ export async function POST(request: Request) {
   }
   const parsed = parseExternalContact(body);
   if (!parsed.ok) return noStore({ error: parsed.error }, 400);
+  if (
+    parsed.value.web !== undefined ||
+    parsed.value.social !== undefined ||
+    parsed.value.about !== undefined ||
+    parsed.value.files !== undefined
+  ) {
+    return noStore({ error: "Save the contact first." }, 400);
+  }
 
   try {
     const saved = await createExternalContact(owner.id, parsed.value);

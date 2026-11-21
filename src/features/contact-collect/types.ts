@@ -16,6 +16,19 @@ export type ExternalLine = {
   flags?: LineFlag[];
 };
 
+/** A Web or Social row. Stored apart from Contacts. */
+export type ContactLink = {
+  value: string;
+  type: string;
+};
+
+/** A file uploaded into the contact's private bucket. */
+export type ContactFileRef = {
+  id: string;
+  name: string;
+  type: string;
+};
+
 export type PushbackChannel = "email" | "whatsapp" | "telegram";
 
 export type ExternalContact = {
@@ -31,6 +44,10 @@ export type ExternalContact = {
   photoUrl: string | null;
   photoAttachmentId: string | null;
   lines: ExternalLine[];
+  web: ContactLink[];
+  social: ContactLink[];
+  about: string;
+  files: ContactFileRef[];
   createdAt: string;
   updatedAt: string;
   pushbackAt: string | null;
@@ -50,4 +67,12 @@ export type ExternalContactInput = {
   source: ContactSource;
   photoAttachmentId: string | null;
   lines: ExternalLine[];
+  /**
+   * Absent on a short save and on an old client.
+   * Present only together: one update writes all four, or none of them.
+   */
+  web?: ContactLink[];
+  social?: ContactLink[];
+  about?: string;
+  files?: ContactFileRef[];
 };

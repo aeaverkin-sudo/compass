@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isUuid, loadAttachment, requireOwnerId } from "@/shared/services/attachment-api";
 import { finalizePending } from "@/shared/services/attachment-finalize";
-import { CARD_ATTACHMENTS_BUCKET } from "@/shared/services/attachment-limits";
+import { CARD_ATTACHMENTS_BUCKET, CONTACT_FILES_BUCKET } from "@/shared/services/attachment-limits";
 
 export const runtime = "nodejs";
 
@@ -38,7 +38,9 @@ export async function POST(request: Request) {
     return jsonFail(500, "Could not read the file record");
   }
   if (!row || row.owner_id !== owner.id) return jsonFail(404, "Not found");
-  if (row.bucket !== CARD_ATTACHMENTS_BUCKET) return jsonFail(404, "Not found");
+  if (row.bucket !== CARD_ATTACHMENTS_BUCKET && row.bucket !== CONTACT_FILES_BUCKET) {
+    return jsonFail(404, "Not found");
+  }
   if (row.status === "ready") {
     return NextResponse.json({
       attachmentId: row.id,

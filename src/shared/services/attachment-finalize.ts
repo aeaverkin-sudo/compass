@@ -26,13 +26,13 @@ class PrefixTimeout extends Error {}
  * First bytes of a stored object, read whole from a ranged response.
  * A streamed read with cancel never settles under the Next server fetch.
  */
-async function objectPrefix(path: string, byteCount: number): Promise<Uint8Array> {
+async function objectPrefix(bucket: string, path: string, byteCount: number): Promise<Uint8Array> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Storage is not configured");
   const encoded = path.split("/").map((part) => encodeURIComponent(part)).join("/");
   try {
-    const response = await fetch(`${url}/storage/v1/object/${CARD_ATTACHMENTS_BUCKET}/${encoded}`, {
+    const response = await fetch(`${url}/storage/v1/object/${bucket}/${encoded}`, {
       headers: {
         Authorization: `Bearer ${key}`,
         apikey: key,
@@ -59,11 +59,12 @@ async function objectPrefix(path: string, byteCount: number): Promise<Uint8Array
  */
 export async function finalizePending(row: AttachmentRow, ownerId: string): Promise<FinalizeResult> {
   const admin = createAdminSupabaseClient();
-  const info = await admin.storage.from(CARD_ATTACHMENTS_BUCKET).info(row.storage_path);
+  const bucket = row.bucket || CARD_ATTACHMENTS_BUCKET;
+  const info = await admin.storage.from(bucket).info(row.storage_path);
   const size = info.error ? null : storedSize(info.data);
 
   if (size == null || size !== row.byte_size) {
-    await removeStoredObject(row.storage_path);
+    await removeStoredObject(row.storage_path, bucket);
     await deleteAttachment(row.id, ownerId);
     return { ok: false, status: 409, error: "Upload did not finish" };
   }
@@ -71,7 +72,7 @@ export async function finalizePending(row: AttachmentRow, ownerId: string): Prom
   if (row.mime === "application/pdf") {
     let head: Uint8Array;
     try {
-      head = await objectPrefix(row.storage_path, 1024);
+      head = await objectPrefix(bucket, row.storage_path, 1024);
     } catch (error) {
       if (error instanceof PrefixTimeout) {
         return { ok: false, status: 504, error: "Storage did not answer in time" };
@@ -80,7 +81,7 @@ export async function finalizePending(row: AttachmentRow, ownerId: string): Prom
       return { ok: false, status: 502, error: "Could not read the stored file" };
     }
     if (!looksLikePdf(head)) {
-      await removeStoredObject(row.storage_path);
+      await removeStoredObject(row.storage_path, bucket);
       await deleteAttachment(row.id, ownerId);
       return { ok: false, status: 415, error: "File type does not match" };
     }

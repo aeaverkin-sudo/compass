@@ -6,10 +6,20 @@ import {
   deleteAttachment,
   loadAttachment,
   removeStoredObject,
+  safeOriginalName,
   type AttachmentRow,
 } from "@/shared/services/attachment-api";
-import { CARD_ATTACHMENTS_BUCKET, isImageMime } from "@/shared/services/attachment-limits";
+import {
+  AUDIO_MIMES,
+  CARD_ATTACHMENTS_BUCKET,
+  CONTACT_FILES_BUCKET,
+  isImageMime,
+  isVideoMime,
+} from "@/shared/services/attachment-limits";
+import { CONTACT_FILE_LIMIT, contactFilePath } from "@/features/contact-collect/contact-files";
 import type {
+  ContactFileRef,
+  ContactLink,
   ContactSource,
   ExternalContact,
   ExternalContactInput,
@@ -28,6 +38,7 @@ import type {
 const COLUMNS_BASE =
   "id, display_name, photo_attachment_id, position, company, note, event_tag, source, lines, created_at, updated_at, pushback_at, pushback_channel, pushback_card_id";
 const COLUMNS = `${COLUMNS_BASE}, header_field`;
+const COLUMNS_MORE = `${COLUMNS}, web, social, about, files`;
 
 const NOT_READY = "Contacts are not ready.";
 
@@ -49,6 +60,10 @@ type DbRow = {
   pushback_at: string | null;
   pushback_channel: string | null;
   pushback_card_id: string | null;
+  web?: unknown;
+  social?: unknown;
+  about?: string | null;
+  files?: unknown;
 };
 
 type DbError = { code?: string; message?: string };
@@ -61,6 +76,11 @@ function missingTable(error: DbError) {
 
 function missingHeaderColumn(error: DbError) {
   return /header_field/i.test(error.message ?? "");
+}
+
+function missingMoreColumn(error: DbError) {
+  const message = error.message ?? "";
+  return /\b(web|social|about|files)\b/i.test(message) && /schema cache|does not exist|could not find/i.test(message);
 }
 
 function headerOf(value: string | null | undefined, position: string, company: string): HeaderField | null {
@@ -89,6 +109,35 @@ function sourceOf(value: string): ContactSource {
 function channelOf(value: string | null): PushbackChannel | null {
   if (value === "email" || value === "whatsapp" || value === "telegram") return value;
   return null;
+}
+
+function readLinks(value: unknown): ContactLink[] {
+  if (!Array.isArray(value)) return [];
+  const links: ContactLink[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as { value?: unknown; type?: unknown };
+    if (typeof record.value !== "string") continue;
+    const text = record.value.trim();
+    if (!text) continue;
+    const type = typeof record.type === "string" && record.type.trim() ? record.type.trim() : "link";
+    links.push({ value: text, type });
+  }
+  return links;
+}
+
+function readFiles(value: unknown): ContactFileRef[] {
+  if (!Array.isArray(value)) return [];
+  const files: ContactFileRef[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as { id?: unknown; name?: unknown; type?: unknown };
+    if (typeof record.id !== "string" || !record.id) continue;
+    const name = typeof record.name === "string" && record.name.trim() ? record.name.trim() : "File";
+    const type = typeof record.type === "string" && record.type.trim() ? record.type.trim() : "file";
+    files.push({ id: record.id, name, type });
+  }
+  return files;
 }
 
 function readLines(value: unknown): ExternalLine[] {
@@ -122,7 +171,11 @@ function mapRow(row: DbRow): ExternalContact {
       row.note,
       eventTag,
       eventBare,
+      row.about ?? "",
       ...lines.map((line) => line.value),
+      ...readLinks(row.web).map((link) => link.value),
+      ...readLinks(row.social).map((link) => link.value),
+      ...readFiles(row.files).map((file) => file.name),
     ]
       .map(piece)
       .filter(Boolean)
@@ -142,6 +195,10 @@ function mapRow(row: DbRow): ExternalContact {
     photoAttachmentId,
     photoUrl: photoAttachmentId ? `/f/${photoAttachmentId}` : null,
     lines,
+    web: readLinks(row.web),
+    social: readLinks(row.social),
+    about: row.about ?? "",
+    files: readFiles(row.files),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     pushbackAt: row.pushback_at,
@@ -223,23 +280,39 @@ async function checkPhoto(ownerId: string, photoId: string | null, fallback: str
   return null;
 }
 
+async function loadExternal(ownerId: string, id?: string) {
+  const admin = createAdminSupabaseClient();
+  const run = (columns: string) => {
+    const query = admin.from("external_contacts").select(columns).eq("owner_id", ownerId);
+    if (!id) return query.order("created_at", { ascending: true });
+    return query.eq("id", id).maybeSingle();
+  };
+  const more = await run(COLUMNS_MORE);
+  if (!more.error || !missingMoreColumn(more.error)) return more;
+  const withHeader = await run(COLUMNS);
+  if (!withHeader.error || !missingHeaderColumn(withHeader.error)) return withHeader;
+  return run(COLUMNS_BASE);
+}
+
+/** Upload may target a contact only after this owner already saved it. */
+export async function ownsExternalContact(
+  ownerId: string,
+  id: string,
+): Promise<"yes" | "no" | "unavailable" | "failed"> {
+  const admin = createAdminSupabaseClient();
+  const loaded = await admin.from("external_contacts").select("id").eq("owner_id", ownerId).eq("id", id).maybeSingle();
+  if (loaded.error) {
+    if (missingTable(loaded.error)) return "unavailable";
+    console.error("[external-contacts] owner", loaded.error.message);
+    return "failed";
+  }
+  return loaded.data ? "yes" : "no";
+}
+
 export async function listExternalContacts(
   ownerId: string,
 ): Promise<{ ok: true; available: true; contacts: ExternalContact[] } | { ok: true; available: false; contacts: [] } | StoreError> {
-  const admin = createAdminSupabaseClient();
-  const withHeader = await admin
-    .from("external_contacts")
-    .select(COLUMNS)
-    .eq("owner_id", ownerId)
-    .order("created_at", { ascending: true });
-  const loaded =
-    withHeader.error && missingHeaderColumn(withHeader.error)
-      ? await admin
-          .from("external_contacts")
-          .select(COLUMNS_BASE)
-          .eq("owner_id", ownerId)
-          .order("created_at", { ascending: true })
-      : withHeader;
+  const loaded = await loadExternal(ownerId);
   if (loaded.error) {
     if (missingTable(loaded.error)) return { ok: true, available: false, contacts: [] };
     return failed(loaded.error, "Could not read contacts.");
@@ -251,22 +324,7 @@ export async function readExternalContact(
   ownerId: string,
   id: string,
 ): Promise<{ ok: true; contact: ExternalContact } | StoreError> {
-  const admin = createAdminSupabaseClient();
-  const withHeader = await admin
-    .from("external_contacts")
-    .select(COLUMNS)
-    .eq("owner_id", ownerId)
-    .eq("id", id)
-    .maybeSingle();
-  const loaded =
-    withHeader.error && missingHeaderColumn(withHeader.error)
-      ? await admin
-          .from("external_contacts")
-          .select(COLUMNS_BASE)
-          .eq("owner_id", ownerId)
-          .eq("id", id)
-          .maybeSingle()
-      : withHeader;
+  const loaded = await loadExternal(ownerId, id);
   if (loaded.error) return failed(loaded.error, "Could not read contacts.");
   if (!loaded.data) return { ok: false, status: 404, error: "Contact not found." };
   return { ok: true, contact: mapRow(loaded.data as unknown as DbRow) };
@@ -297,6 +355,79 @@ export async function createExternalContact(
   return { ok: true, contact: mapRow(inserted.data as unknown as DbRow) };
 }
 
+function fileTypeOf(mime: string): string | null {
+  if (mime === "application/pdf") return "pdf";
+  if (isImageMime(mime)) return "photo";
+  if (isVideoMime(mime)) return "video";
+  if (mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return "document";
+  if (mime === "application/vnd.openxmlformats-officedocument.presentationml.presentation") return "presentation";
+  if (mime === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") return "spreadsheet";
+  if ((AUDIO_MIMES as readonly string[]).includes(mime)) return "audio";
+  return null;
+}
+
+/** A ready file uploaded for this contact, in the contact bucket. */
+async function boundFiles(
+  ownerId: string,
+  contactId: string,
+  files: ContactFileRef[],
+): Promise<ContactFileRef[] | StoreError> {
+  if (files.length > CONTACT_FILE_LIMIT) return { ok: false, status: 400, error: "Too many files." };
+  if (files.length === 0) return [];
+  const admin = createAdminSupabaseClient();
+  const loaded = await admin
+    .from("attachments")
+    .select("id, owner_id, bucket, storage_path, mime, original_name, status")
+    .in("id", files.map((file) => file.id));
+  if (loaded.error) return { ok: false, status: 500, error: "Could not save the contact." };
+  const rows = new Map(
+    (loaded.data ?? []).map((row) => [row.id as string, row] as const),
+  );
+  const ready: ContactFileRef[] = [];
+  for (const file of files) {
+    const row = rows.get(file.id);
+    const mime = typeof row?.mime === "string" ? row.mime : "";
+    const type = fileTypeOf(mime);
+    if (
+      !row ||
+      row.owner_id !== ownerId ||
+      row.bucket !== CONTACT_FILES_BUCKET ||
+      row.status !== "ready" ||
+      row.storage_path !== contactFilePath(ownerId, contactId, file.id) ||
+      !type
+    ) {
+      return { ok: false, status: 400, error: "File not found." };
+    }
+    ready.push({ id: file.id, name: safeOriginalName(row.original_name) || "File", type });
+  }
+  return ready;
+}
+
+async function fileStillLinked(attachmentId: string): Promise<boolean> {
+  const admin = createAdminSupabaseClient();
+  const hit = await admin.from("external_contacts").select("id").contains("files", [{ id: attachmentId }]).limit(1);
+  if (hit.error) {
+    if (missingMoreColumn(hit.error)) return false;
+    console.error("[external-contacts] file", hit.error.message);
+    return true;
+  }
+  return (hit.data ?? []).length > 0;
+}
+
+async function releaseContactFile(ownerId: string, attachmentId: string): Promise<void> {
+  if (await fileStillLinked(attachmentId)) return;
+  let row: AttachmentRow | null;
+  try {
+    row = await loadAttachment(attachmentId);
+  } catch (error) {
+    console.error("[external-contacts] file", error instanceof Error ? error.message : error);
+    return;
+  }
+  if (!row || row.owner_id !== ownerId || row.bucket !== CONTACT_FILES_BUCKET) return;
+  await removeStoredObject(row.storage_path, row.bucket);
+  await deleteAttachment(attachmentId, ownerId);
+}
+
 export async function updateExternalContact(
   ownerId: string,
   id: string,
@@ -306,28 +437,69 @@ export async function updateExternalContact(
   if (!current.ok) return current;
   const photo = await checkPhoto(ownerId, input.photoAttachmentId, "Could not save the contact.");
   if (photo) return photo;
+  const wantsExtras =
+    input.web !== undefined || input.social !== undefined || input.about !== undefined || input.files !== undefined;
+  if (
+    wantsExtras &&
+    (input.web === undefined || input.social === undefined || input.about === undefined || input.files === undefined)
+  ) {
+    return { ok: false, status: 400, error: "Expected the extra sections." };
+  }
+  let files: ContactFileRef[] | null = null;
+  if (wantsExtras) {
+    const bound = await boundFiles(ownerId, id, input.files ?? []);
+    if (!Array.isArray(bound)) return bound;
+    files = bound;
+  }
   const admin = createAdminSupabaseClient();
-  const withHeader = await admin
-    .from("external_contacts")
-    .update(rowValues(input, true))
-    .eq("owner_id", ownerId)
-    .eq("id", id)
-    .select(COLUMNS)
-    .maybeSingle();
-  const updated =
-    withHeader.error && missingHeaderColumn(withHeader.error)
-      ? await admin
+  const updated = wantsExtras
+    ? await admin
+        .from("external_contacts")
+        .update({
+          ...rowValues(input, true),
+          web: input.web,
+          social: input.social,
+          about: input.about,
+          files,
+        })
+        .eq("owner_id", ownerId)
+        .eq("id", id)
+        .select(COLUMNS_MORE)
+        .maybeSingle()
+    : await (async () => {
+        const withHeader = await admin
           .from("external_contacts")
-          .update(rowValues(input, false))
+          .update(rowValues(input, true))
           .eq("owner_id", ownerId)
           .eq("id", id)
-          .select(COLUMNS_BASE)
-          .maybeSingle()
-      : withHeader;
-  if (updated.error) return failed(updated.error, "Could not save the contact.");
+          .select(COLUMNS)
+          .maybeSingle();
+        if (withHeader.error && missingHeaderColumn(withHeader.error)) {
+          return admin
+            .from("external_contacts")
+            .update(rowValues(input, false))
+            .eq("owner_id", ownerId)
+            .eq("id", id)
+            .select(COLUMNS_BASE)
+            .maybeSingle();
+        }
+        return withHeader;
+      })();
+  if (updated.error) {
+    if (wantsExtras && (missingMoreColumn(updated.error) || missingHeaderColumn(updated.error))) {
+      return { ok: false, status: 503, error: "Could not save the extra sections." };
+    }
+    return failed(updated.error, "Could not save the contact.");
+  }
   if (!updated.data) return { ok: false, status: 404, error: "Contact not found." };
   const previous = current.contact.photoAttachmentId;
   if (previous && previous !== input.photoAttachmentId) await releasePhoto(ownerId, previous);
+  if (files) {
+    const nextIds = new Set(files.map((file) => file.id));
+    for (const file of current.contact.files) {
+      if (!nextIds.has(file.id)) await releaseContactFile(ownerId, file.id);
+    }
+  }
   return { ok: true, contact: mapRow(updated.data as unknown as DbRow) };
 }
 
@@ -405,5 +577,6 @@ export async function deleteExternalContact(ownerId: string, id: string): Promis
   const removed = await admin.from("external_contacts").delete().eq("owner_id", ownerId).eq("id", id);
   if (removed.error) return failed(removed.error, "Could not delete the contact.");
   if (current.contact.photoAttachmentId) await releasePhoto(ownerId, current.contact.photoAttachmentId);
+  for (const file of current.contact.files) await releaseContactFile(ownerId, file.id);
   return { ok: true };
 }

@@ -1,6 +1,12 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { deleteAttachment, removeStoredObject } from "@/shared/services/attachment-api";
-import { CARD_ATTACHMENTS_BUCKET, NOTE_FILE_GRACE_MS, TRANSFER_ASSETS_BUCKET } from "@/shared/services/attachment-limits";
+import { fileIdsOf, keptContactAttachmentIds } from "@/features/contact-collect/contact-files";
+import {
+  CARD_ATTACHMENTS_BUCKET,
+  CONTACT_FILES_BUCKET,
+  NOTE_FILE_GRACE_MS,
+  TRANSFER_ASSETS_BUCKET,
+} from "@/shared/services/attachment-limits";
 import { deleteOwnAccount } from "@/shared/services/account-delete";
 import {
   purgeExpiredGuestReceipts,
@@ -53,12 +59,41 @@ async function idsOf(table: "cards" | "items" | "transfer_items" | "events", col
   });
 }
 
+function missingContactColumn(message: string) {
+  return /schema cache|does not exist|could not find/i.test(message);
+}
+
+/** Contact photos and linked contact files. A missing column does not fail the sweep. */
+async function contactReferenced(ids: string[]) {
+  if (ids.length === 0) return [];
+  const admin = createAdminSupabaseClient();
+  const photos = await admin.from("external_contacts").select("photo_attachment_id").in("photo_attachment_id", ids);
+  if (photos.error) {
+    if (missingContactColumn(photos.error.message)) return [];
+    throw new Error(photos.error.message);
+  }
+  const photoIds = (photos.data ?? []).flatMap((row) =>
+    typeof row.photo_attachment_id === "string" ? [row.photo_attachment_id] : [],
+  );
+  const fileIds: string[] = [];
+  for (const id of ids) {
+    const hit = await admin.from("external_contacts").select("files").contains("files", [{ id }]).limit(1);
+    if (hit.error) {
+      if (/\bfiles\b/i.test(hit.error.message) && missingContactColumn(hit.error.message)) break;
+      throw new Error(hit.error.message);
+    }
+    fileIds.push(...fileIdsOf(hit.data?.[0]?.files));
+  }
+  return keptContactAttachmentIds(ids, photoIds, fileIds);
+}
+
 async function referenced(ids: string[]) {
   const lists = await Promise.all([
     idsOf("cards", "photo_attachment_id", ids),
     idsOf("items", "attachment_id", ids),
     idsOf("transfer_items", "attachment_id", ids),
     idsOf("events", "logo_attachment_id", ids),
+    contactReferenced(ids),
   ]);
   const used = new Set(lists.flat());
   for (const id of await receiptReferencedAttachmentIds(ids)) used.add(id);
@@ -66,7 +101,11 @@ async function referenced(ids: string[]) {
 }
 
 async function dropAttachment(row: AttachmentRow) {
-  if (row.bucket === CARD_ATTACHMENTS_BUCKET || row.bucket === TRANSFER_ASSETS_BUCKET) {
+  if (
+    row.bucket === CARD_ATTACHMENTS_BUCKET ||
+    row.bucket === TRANSFER_ASSETS_BUCKET ||
+    row.bucket === CONTACT_FILES_BUCKET
+  ) {
     await removeStoredObject(row.storage_path, row.bucket);
   }
   await deleteAttachment(row.id, row.owner_id);
@@ -350,13 +389,21 @@ export async function runPurge(): Promise<PurgeReport> {
   const orphanRows = await purgeOrphanRows();
   const looseCard = await sweepBucket(CARD_ATTACHMENTS_BUCKET);
   const looseTransfer = await sweepBucket(TRANSFER_ASSETS_BUCKET);
+  let looseContact = 0;
+  try {
+    looseContact = await sweepBucket(CONTACT_FILES_BUCKET);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!/bucket|not found|does not exist/i.test(message)) throw error;
+    console.error("[purge] contact files", message);
+  }
   const scrubbedGuests = await scrubOldGuests();
   return {
     purgedTrials,
     purgedAnon,
     expiredCodes,
     staleTransfers,
-    orphanFiles: orphanRows + looseCard + looseTransfer,
+    orphanFiles: orphanRows + looseCard + looseTransfer + looseContact,
     scrubbedGuests,
   };
 }

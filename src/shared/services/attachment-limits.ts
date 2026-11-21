@@ -12,6 +12,8 @@ export const BUFFERED_BODY_LIMIT = 16 * 1024 * 1024;
 
 export const CARD_ATTACHMENTS_BUCKET = "card-attachments";
 export const TRANSFER_ASSETS_BUCKET = "transfer-assets";
+/** Private files of a saved manual contact. Not served by /f. */
+export const CONTACT_FILES_BUCKET = "contact-files";
 
 /** Browser recordings are webm. file-type labels that container video/webm. */
 export const VOICE_NOTE_MIMES = [

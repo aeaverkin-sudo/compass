@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, Scan } from "lucide-react";
+import { ChevronDown, FileText, Mic, Scan, X } from "lucide-react";
+import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { TabBand } from "@main/components/tab-band";
 import { cn } from "@/lib/utils";
@@ -13,6 +15,9 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
 import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
+import { entryLineIsRed } from "@/shared/services/entry-line";
+import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
+import { CONTACT_FILE_LIMIT, CONTACT_LINK_LIMIT, CONTACT_LINK_MAX } from "@/features/contact-collect/contact-files";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
 import { QrScanner } from "@/features/contact-collect/qr-scanner";
 import { isIntlPhone, polishContactLine, telegramNickOf } from "@/features/contact-collect/view-lines";
@@ -26,7 +31,7 @@ import {
 } from "@/features/contact-collect/merge-contact-draft";
 import type { ContactReading } from "@/features/contact-collect/parse-contact";
 import { scanTextNeedsEnglish, type ScannedContact } from "@/features/contact-collect/scan-qr";
-import type { ContactSource, ExternalContact, HeaderField, LineFlag } from "@/features/contact-collect/types";
+import type { ContactFileRef, ContactLink, ContactSource, ExternalContact, HeaderField, LineFlag } from "@/features/contact-collect/types";
 
 const ROW = "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]";
 const SECTION = `${ROW} items-start border-b border-[var(--rule)] py-[18px]`;
@@ -58,6 +63,25 @@ const SAVE =
 const SAVE_BAND =
   "flex h-full min-h-11 items-center justify-center border-0 bg-transparent p-0 t-band uppercase disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 type Line = { id: string; value: string; flags: LineFlag[]; marked: boolean };
+type LinkDraft = { id: string; value: string; marked: boolean };
+
+function linkDrafts(links: ContactLink[] | undefined): LinkDraft[] {
+  const rows = (links ?? [])
+    .filter((link) => link.value.trim())
+    .map((link) => ({ id: crypto.randomUUID(), value: link.value, marked: false }));
+  if (rows.length >= CONTACT_LINK_LIMIT) return rows;
+  return [...rows, { id: crypto.randomUUID(), value: "", marked: false }];
+}
+
+function storedExtras(contact?: ExternalContact) {
+  if (!contact) return false;
+  return (
+    contact.web.some((link) => link.value.trim()) ||
+    contact.social.some((link) => link.value.trim()) ||
+    contact.about.trim().length > 0 ||
+    contact.files.length > 0
+  );
+}
 
 function blank(): Line {
   return { id: crypto.randomUUID(), value: "", flags: [], marked: false };
@@ -92,6 +116,80 @@ function contactPlaceholder(hasPhone: boolean, hasNick: boolean, hasEmail: boole
   return parts.join(", ");
 }
 
+function LinkRows({
+  rows,
+  zone,
+  placeholder,
+  onChange,
+}: {
+  rows: LinkDraft[];
+  zone: "web" | "social";
+  placeholder: string;
+  onChange: (rows: LinkDraft[]) => void;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-[14px]">
+      {rows.map((row, index) => (
+        <input
+          key={row.id}
+          value={row.value}
+          placeholder={row.value ? "" : placeholder}
+          aria-label={placeholder}
+          onChange={(event) => {
+            const value = event.target.value;
+            onChange(rows.map((item) => (item.id === row.id ? { ...item, value, marked: false } : item)));
+          }}
+          onBlur={() => {
+            const text = row.value.trim();
+            let next = rows.map((item) =>
+              item.id === row.id
+                ? {
+                    ...item,
+                    value: text,
+                    marked: Boolean(text) && (entryLineIsRed(zone, text) || text.length > CONTACT_LINK_MAX),
+                  }
+                : item,
+            );
+            const filled = next.filter((item) => item.value.trim()).length;
+            const last = next[next.length - 1];
+            if (text && index === rows.length - 1 && filled < CONTACT_LINK_LIMIT && last?.value.trim()) {
+              next = [...next, { id: crypto.randomUUID(), value: "", marked: false }];
+            }
+            onChange(next);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            event.currentTarget.blur();
+          }}
+          className={cn(FIELD, row.marked ? "text-[#E23B2F]" : "text-[var(--ink)]")}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MoreRow({ open, hint, onToggle }: { open: boolean; hint: string; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      className="grid w-full grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-0 bg-transparent p-0 py-[18px] text-left"
+      onClick={onToggle}
+    >
+      <span className="t-label">More</span>
+      <span className="flex min-w-0 items-center gap-3">
+        {open ? (
+          <span className="min-w-0 flex-1" />
+        ) : (
+          <span className="t-body min-w-0 flex-1 text-[var(--placeholder)]">{hint}</span>
+        )}
+        <ChevronDown className={cn("size-4 shrink-0 text-[var(--ink)]", open && "rotate-180")} strokeWidth={1.5} aria-hidden />
+      </span>
+    </button>
+  );
+}
+
 function keepEnter(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
   if (event.key !== "Enter") return;
   event.preventDefault();
@@ -113,6 +211,13 @@ export function NewContactForm({
   const [company, setCompany] = useState(initial?.company ?? "");
   const [headerField, setHeaderField] = useState<HeaderField | null>(initial?.headerField ?? null);
   const [note, setNote] = useState(initial?.note ?? "");
+  const keepExtras = useRef(storedExtras(initial));
+  const [webLinks, setWebLinks] = useState<LinkDraft[]>(() => linkDrafts(initial?.web));
+  const [socialLinks, setSocialLinks] = useState<LinkDraft[]>(() => linkDrafts(initial?.social));
+  const [about, setAbout] = useState(initial?.about ?? "");
+  const [contactFiles, setContactFiles] = useState<ContactFileRef[]>(() => initial?.files ?? []);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [lines, setLines] = useState<Line[]>(() => linesFrom(initial));
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
   const [keptPhoto, setKeptPhoto] = useState<string | null>(initial?.photoUrl ?? null);
@@ -134,7 +239,7 @@ export function NewContactForm({
     if (noteRef.current) fitNoteField(noteRef.current);
   }, [note]);
 
-  const ready = name.trim().length > 0 && !busy && !reading;
+  const ready = name.trim().length > 0 && !busy && !reading && !uploading;
   const headerTitle =
     headerField === "position" && position.trim()
       ? position.trim()
@@ -371,7 +476,30 @@ export function NewContactForm({
   const save = async (event: FormEvent) => {
     event.preventDefault();
     const displayName = name.trim();
-    if (!displayName || busy) return;
+    if (!displayName || busy || uploading) return;
+    const formHasExtras =
+      webLinks.some((row) => row.value.trim()) ||
+      socialLinks.some((row) => row.value.trim()) ||
+      about.trim().length > 0 ||
+      contactFiles.length > 0;
+    const sendExtras = editing && (keepExtras.current || formHasExtras);
+    const markLinks = (rows: LinkDraft[], zone: "web" | "social") =>
+      rows.map((row) => {
+        const text = row.value.trim();
+        return {
+          ...row,
+          value: text,
+          marked: Boolean(text) && (entryLineIsRed(zone, text) || text.length > CONTACT_LINK_MAX),
+        };
+      });
+    const nextWeb = markLinks(webLinks, "web");
+    const nextSocial = markLinks(socialLinks, "social");
+    if (sendExtras && (nextWeb.some((row) => row.marked) || nextSocial.some((row) => row.marked))) {
+      setWebLinks(nextWeb);
+      setSocialLinks(nextSocial);
+      setError("One link is not valid.");
+      return;
+    }
     const filled = lines.map((line) => ({ ...line, value: line.value.trim() })).filter((line) => line.value);
     const refused = filled.some((line) => externalLineIsRed(line.value));
     setLines((current) =>
@@ -410,6 +538,14 @@ export function NewContactForm({
           eventTag: editing ? (initial?.eventTag ?? "") : suggestedEvent,
           source: initial?.source ?? source,
           photoAttachmentId,
+          ...(sendExtras
+            ? {
+                web: nextWeb.filter((row) => row.value).map((row) => ({ value: row.value, type: "" })),
+                social: nextSocial.filter((row) => row.value).map((row) => ({ value: row.value, type: "" })),
+                about: about.trim(),
+                files: contactFiles,
+              }
+            : {}),
           lines: filled.map((line) => {
             const value = polishContactLine(line.value) || line.value.trim();
             const flags = isIntlPhone(value) ? line.flags : [];
@@ -449,6 +585,108 @@ export function NewContactForm({
   const hasEmail = lines.some((line) => detectContactType(line.value, "contact") === "email");
   const contactHint = contactPlaceholder(hasPhone, hasNick, hasEmail);
   const positionHint = editing ? "What you do" : "Role";
+  const pickFile = () => {
+    if (!initial || uploading || contactFiles.length >= CONTACT_FILE_LIMIT) return;
+    openContactAttachmentPicker((_dataUrl, file) => {
+      if (!file) return;
+      const kind = detectAttachmentType(file);
+      setUploading(true);
+      setError(null);
+      void uploadAttachment({ file, kind, contactId: initial.id })
+        .then((readyFile) => {
+          setContactFiles((current) => {
+            if (current.some((item) => item.id === readyFile.attachmentId) || current.length >= CONTACT_FILE_LIMIT) {
+              return current;
+            }
+            return [...current, { id: readyFile.attachmentId, name: file.name, type: kind }];
+          });
+        })
+        .catch((caught) => {
+          setError(caught instanceof Error ? caught.message : "Could not store the file");
+        })
+        .finally(() => setUploading(false));
+    });
+  };
+  const extraSections = [
+    {
+      id: "web",
+      number: "04",
+      title: "Web",
+      filled: webLinks.some((row) => row.value.trim()),
+      body: <LinkRows rows={webLinks} zone="web" placeholder="Website" onChange={setWebLinks} />,
+    },
+    {
+      id: "social",
+      number: "05",
+      title: "Social",
+      filled: socialLinks.some((row) => row.value.trim()),
+      body: (
+        <LinkRows rows={socialLinks} zone="social" placeholder="Link — Instagram, LinkedIn, etc." onChange={setSocialLinks} />
+      ),
+    },
+    {
+      id: "files",
+      number: "06",
+      title: "Files",
+      filled: contactFiles.length > 0,
+      body: (
+        <div className="flex min-w-0 flex-col gap-[14px]">
+          {contactFiles.map((file) => (
+            <div key={file.id} className="flex min-w-0 items-center gap-2">
+              <FileText className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+              <span className="min-w-0 flex-1 truncate t-body text-[var(--ink)]">{file.name}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${file.name}`}
+                className="border-0 bg-transparent p-0 text-[var(--ink)]"
+                onClick={() => setContactFiles((current) => current.filter((item) => item.id !== file.id))}
+              >
+                <X className="size-4" strokeWidth={1.5} aria-hidden />
+              </button>
+            </div>
+          ))}
+          {contactFiles.length < CONTACT_FILE_LIMIT ? (
+            <button
+              type="button"
+              className="flex items-center gap-2 border-0 bg-transparent p-0 text-left disabled:text-[var(--grey)]"
+              onClick={pickFile}
+              disabled={uploading}
+            >
+              <MarkPlus />
+              <span className="t-body text-[var(--placeholder)]">{uploading ? "Uploading" : "Add file"}</span>
+            </button>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      id: "about",
+      number: "07",
+      title: "About",
+      filled: about.trim().length > 0,
+      body: (
+        <textarea
+          value={about}
+          onChange={(event) => setAbout(event.target.value)}
+          rows={3}
+          placeholder="A line about you"
+          aria-label="About"
+          className={cn(FIELD, "resize-none whitespace-pre-wrap text-[var(--ink)]")}
+        />
+      ),
+    },
+  ];
+  const filledExtras = extraSections.filter((section) => section.filled);
+  const emptyExtras = extraSections.filter((section) => !section.filled);
+  const extraSection = (section: (typeof extraSections)[number]) => (
+    <section key={section.id} className={sectionClass}>
+      <div className="min-w-0">
+        <SectionNumber value={section.number} />
+        <span className="mt-[6px] block t-label text-[var(--grey)]">{section.title}</span>
+      </div>
+      {section.body}
+    </section>
+  );
 
   const nameHint = name.length === 0;
   const photoName = (
@@ -640,6 +878,19 @@ export function NewContactForm({
           className={cn(FIELD, "resize-none text-[var(--ink)]")}
         />
       </section>
+      {editing ? (
+        <>
+          {filledExtras.map(extraSection)}
+          {emptyExtras.length > 0 ? (
+            <MoreRow
+              open={moreOpen}
+              hint={emptyExtras.map((section) => section.title).join(", ")}
+              onToggle={() => setMoreOpen((current) => !current)}
+            />
+          ) : null}
+          {moreOpen ? emptyExtras.map(extraSection) : null}
+        </>
+      ) : null}
       <div className="mt-[18px] flex gap-3">
         <button type="button" className={editing ? GHOST : GHOST_CREATE} onClick={() => setScanning(true)}>
           {editing ? null : <Scan className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />}

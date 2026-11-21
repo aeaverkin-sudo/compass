@@ -1,7 +1,16 @@
 import { detectContactType } from "@/shared/services/contact-item";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import {
+  CONTACT_ABOUT_MAX,
+  CONTACT_FILE_LIMIT,
+  CONTACT_LINK_LIMIT,
+  CONTACT_LINK_MAX,
+  extraKeyMode,
+} from "@/features/contact-collect/contact-files";
+import {
   CONTACT_SOURCES,
+  type ContactFileRef,
+  type ContactLink,
   type ContactSource,
   type ExternalContactInput,
   type ExternalLine,
@@ -130,8 +139,86 @@ export function parseExternalContact(body: unknown): ParsedContact {
   }
   if (lines.length > LINES_MAX) return { ok: false, error: "Too many contact lines." };
 
+  const extras = extraKeyMode(record);
+  if (extras === "partial") return { ok: false, error: "Expected the extra sections." };
+  let web: ContactLink[] | undefined;
+  let social: ContactLink[] | undefined;
+  let about: string | undefined;
+  let files: ContactFileRef[] | undefined;
+  if (extras === "present") {
+    const webLines = linksOf(record.web, "web");
+    if (!Array.isArray(webLines)) return { ok: false, error: webLines.error };
+    const socialLines = linksOf(record.social, "social");
+    if (!Array.isArray(socialLines)) return { ok: false, error: socialLines.error };
+    const aboutText = field(record.about, CONTACT_ABOUT_MAX, "The description is too long.");
+    if (typeof aboutText !== "string") return { ok: false, error: aboutText.error };
+    const fileRows = filesOf(record.files);
+    if (!Array.isArray(fileRows)) return { ok: false, error: fileRows.error };
+    web = webLines;
+    social = socialLines;
+    about = aboutText;
+    files = fileRows;
+  }
+
   return {
     ok: true,
-    value: { displayName, position, company, headerField, note, eventTag, source, photoAttachmentId, lines },
+    value: {
+      displayName,
+      position,
+      company,
+      headerField,
+      note,
+      eventTag,
+      source,
+      photoAttachmentId,
+      lines,
+      web,
+      social,
+      about,
+      files,
+    },
   };
+}
+
+function linksOf(value: unknown, zone: "web" | "social"): ContactLink[] | { error: string } {
+  if (!Array.isArray(value)) return { error: "Expected links." };
+  const links: ContactLink[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") return { error: "Expected links." };
+    const raw = (entry as { value?: unknown }).value;
+    if (typeof raw !== "string") return { error: "Expected links." };
+    const text = raw.trim();
+    if (!text) continue;
+    if (text.length > CONTACT_LINK_MAX || /[\r\n]/.test(text)) return { error: "A link is too long." };
+    if (entryLineIsRed(zone, text)) return { error: "One link is not valid." };
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (links.length >= CONTACT_LINK_LIMIT) return { error: "Too many links." };
+    links.push({ value: text, type: detectContactType(text, zone) });
+  }
+  return links;
+}
+
+function filesOf(value: unknown): ContactFileRef[] | { error: string } {
+  if (!Array.isArray(value)) return { error: "Expected files." };
+  const files: ContactFileRef[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") return { error: "Expected files." };
+    const id = (entry as { id?: unknown }).id;
+    if (typeof id !== "string" || !UUID.test(id)) return { error: "File not found." };
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (files.length >= CONTACT_FILE_LIMIT) return { error: "Too many files." };
+    const name = (entry as { name?: unknown }).name;
+    const type = (entry as { type?: unknown }).type;
+    files.push({
+      id,
+      name: typeof name === "string" ? name.slice(0, 180) : "",
+      type: typeof type === "string" ? type.slice(0, 40) : "",
+    });
+  }
+  return files;
 }
