@@ -436,7 +436,10 @@ export function NewContactForm({
 
   const sectionClass = SECTION;
   const hasPhone = lines.some((line) => isIntlPhone(line.value) || detectContactPhone(line.value));
-  const hasNick = lines.some((line) => Boolean(telegramNickOf(line.value)));
+  const hasNick = lines.some((line) => {
+    if (detectContactType(line.value, "contact") !== "telegram") return false;
+    return Boolean(telegramNickOf(line.value));
+  });
   const hasEmail = lines.some((line) => detectContactType(line.value, "contact") === "email");
   const contactHint = contactPlaceholder(hasPhone, hasNick, hasEmail);
   const positionHint = editing ? "What you do" : "Role";
