@@ -20,21 +20,30 @@ const TEXT_MAX = 4000;
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
+const ASK_ENGLISH = `The source may be any language. Write every field value in English.
+Translate a job title and the free-text note into natural English and keep the meaning. Example: Основатель → Founder.
+For a person's name, a company, and an event title, use the Latin spelling from the source. If there is none, transliterate. Example: Антон Аверкин → Anton Averkin. Keep Northline Studio and Web Summit as written.
+Do not translate phones, emails, @nicks, or links. Keep a leading +, the digits, the domain, the nick, and the link address. Keep WhatsApp and Telegram marks.
+If a value was not given, leave it empty. Do not invent it.`;
+
 const ASK_DATA = `Read one person into JSON only, with no markdown.
 Shape: {"displayName":"","position":"","company":"","note":"","lines":[],"lineFlags":[]}
 lines are phones, emails, @telegram names, or links, each one string.
 lineFlags is optional: [{"value":"+44…","flags":["wa"]}] or ["tg"] when WhatsApp/Telegram is marked on the card.
 Copy only what is written. Do not invent a country code. Keep a leading + if it was there.
-Do not include sets. If there is no contact, return empty strings and an empty lines array.`;
+Do not include sets. If there is no contact, return empty strings and an empty lines array.
+${ASK_ENGLISH}`;
 
 const ASK_VOICE = `Turn one spoken contact update into JSON only, with no markdown.
 Shape: {"displayName":"","position":"","company":"","note":"","lines":[],"sets":{},"lineFlags":[]}
 Top-level fields and lines are ordinary fills: name, role, company, note, phones, emails, @nicks, links.
 sets is only for an explicit correction the speaker asked for, e.g. {"position":"Founder"} or {"line":{"from":"+44 7700 900123","to":"+44 7700 900999"}}.
+The same English rule applies to text values inside sets. Example: «исправь должность на генеральный директор» sets position to CEO and changes nothing else.
 If the target of a correction is unclear, omit that set field and still return the other clear data.
 lineFlags marks a number as WhatsApp or Telegram: [{"value":"+44…","flags":["wa"]}].
 Copy only what was said. Do not invent a country code, nick, or domain. Keep a leading + if it was there.
-If nothing useful was said, return empty strings and empty arrays.`;
+If nothing useful was said, return empty strings and empty arrays.
+${ASK_ENGLISH}`;
 
 export type ParseInput = {
   text?: string;
