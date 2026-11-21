@@ -378,7 +378,6 @@ export function NewContactForm({
             setPhoto(dataUrl && file ? { file, dataUrl } : null);
             setKeptPhoto(dataUrl ? keptPhoto : null);
             setPhotoId(null);
-            if (file && canReadRef.current) void readFile("image", file, file.name || "card.jpg");
           }}
           sizePx={128}
           borderRadiusPx={0}
@@ -580,6 +579,14 @@ export function NewContactForm({
               applyScan(found);
               setScanning(false);
             }}
+            onCapture={
+              canRead
+                ? (blob) => {
+                    setScanning(false);
+                    void readFile("image", blob, "scan.jpg");
+                  }
+                : undefined
+            }
           />
         ) : null}
       </main>
@@ -619,6 +626,14 @@ export function NewContactForm({
             applyScan(found);
             setScanning(false);
           }}
+          onCapture={
+            canRead
+              ? (blob) => {
+                  setScanning(false);
+                  void readFile("image", blob, "scan.jpg");
+                }
+              : undefined
+          }
         />
       ) : null}
     </main>
