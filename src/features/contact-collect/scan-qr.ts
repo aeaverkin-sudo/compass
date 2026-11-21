@@ -5,7 +5,15 @@ import { messengerUsername } from "@/shared/services/portfolio-catalog";
 export type ScannedContact = {
   name: string;
   lines: string[];
+  position?: string;
+  company?: string;
+  note?: string;
 };
+
+/** A letter outside the Latin script. Phones and emails do not match. */
+export function scanTextNeedsEnglish(value: string): boolean {
+  return /[^\p{Script=Latin}\p{N}\p{P}\p{S}\p{Z}]/u.test(value);
+}
 
 const NAME_MAX = 120;
 const LINE_MAX = 300;
@@ -32,6 +40,9 @@ function parseVCard(raw: string): ScannedContact | null {
   const body = raw.replace(/\r\n/g, "\n").replace(/\n[ \t]/g, "");
   let name = "";
   let structured = "";
+  let position = "";
+  let company = "";
+  let note = "";
   const lines: string[] = [];
   for (const row of body.split("\n")) {
     const split = row.indexOf(":");
@@ -42,6 +53,9 @@ function parseVCard(raw: string): ScannedContact | null {
     if (!value) continue;
     if (key === "FN" && !name) name = value;
     else if (key === "N" && !structured) structured = value;
+    else if (key === "TITLE" && !position) position = value;
+    else if (key === "ORG" && !company) company = value.split(";")[0]?.trim() ?? "";
+    else if (key === "NOTE" && !note) note = value;
     else if (key === "TEL" || key === "EMAIL") lines.push(value);
   }
   if (!name && structured) {
@@ -50,8 +64,17 @@ function parseVCard(raw: string): ScannedContact | null {
   }
   const kept = [...new Set(lines.map((line) => clip(line, LINE_MAX)).filter(Boolean))];
   const display = clip(name, NAME_MAX);
-  if (!display && kept.length === 0) return null;
-  return { name: display, lines: kept };
+  const role = clip(position, LINE_MAX);
+  const org = clip(company, LINE_MAX);
+  const about = clip(note, LINE_MAX);
+  if (!display && !role && !org && !about && kept.length === 0) return null;
+  return {
+    name: display,
+    lines: kept,
+    ...(role ? { position: role } : {}),
+    ...(org ? { company: org } : {}),
+    ...(about ? { note: about } : {}),
+  };
 }
 
 function asUrl(raw: string): URL | null {

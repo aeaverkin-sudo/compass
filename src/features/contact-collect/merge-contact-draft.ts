@@ -214,6 +214,9 @@ export function patchFromScan(found: ScannedContact): ContactDraftPatch {
   return {
     fills: {
       displayName: found.name,
+      position: found.position,
+      company: found.company,
+      note: found.note,
       lines: found.lines,
     },
   };

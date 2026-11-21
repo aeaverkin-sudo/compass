@@ -22,7 +22,7 @@ import {
   type ContactDraftPatch,
 } from "@/features/contact-collect/merge-contact-draft";
 import type { ContactReading } from "@/features/contact-collect/parse-contact";
-import type { ScannedContact } from "@/features/contact-collect/scan-qr";
+import { scanTextNeedsEnglish, type ScannedContact } from "@/features/contact-collect/scan-qr";
 import type { ContactSource, ExternalContact, HeaderField, LineFlag } from "@/features/contact-collect/types";
 
 const ROW = "grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px]";
@@ -189,7 +189,61 @@ export function NewContactForm({
 
   const applyScan = (found: ScannedContact) => {
     if (!initial) setSource("scan");
-    applyPatch(patchFromScan(found));
+    const foreign = [found.name, found.position, found.company, found.note].some(
+      (value) => Boolean(value && scanTextNeedsEnglish(value)),
+    );
+    if (!foreign || !canReadRef.current) {
+      applyPatch(patchFromScan(found));
+      return;
+    }
+    applyPatch(
+      patchFromScan({
+        ...found,
+        name: found.name && scanTextNeedsEnglish(found.name) ? "" : found.name,
+        position: found.position && scanTextNeedsEnglish(found.position) ? "" : found.position,
+        company: found.company && scanTextNeedsEnglish(found.company) ? "" : found.company,
+        note: found.note && scanTextNeedsEnglish(found.note) ? "" : found.note,
+      }),
+    );
+    void translateScan(found);
+  };
+
+  const translateScan = async (found: ScannedContact) => {
+    const text = [
+      found.name ? `Name: ${found.name}` : "",
+      found.position ? `Position: ${found.position}` : "",
+      found.company ? `Company: ${found.company}` : "",
+      found.note ? `Note: ${found.note}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+    setReading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/external-contacts/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const payload = (await response.json().catch(() => null)) as { draft?: ContactReading } | null;
+      if (!response.ok || !payload?.draft) {
+        applyPatch(patchFromScan(found));
+        return;
+      }
+      const patch = patchFromContactDraft(payload.draft, { allowSets: false });
+      applyPatch({
+        fills: {
+          displayName: patch.fills?.displayName,
+          position: patch.fills?.position,
+          company: patch.fills?.company,
+          note: patch.fills?.note,
+        },
+      });
+    } catch {
+      applyPatch(patchFromScan(found));
+    } finally {
+      setReading(false);
+    }
   };
 
   const applyDraft = (draft: ContactReading, kind: "voice" | "photo") => {
