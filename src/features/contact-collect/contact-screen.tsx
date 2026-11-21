@@ -132,17 +132,15 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
           </div>
         </section>
 
-        <section className={SECTION}>
-          <div className="min-w-0">
-            <SectionNumber value="04" />
-            <span className="mt-[6px] block t-label text-[var(--grey)]">Note</span>
-          </div>
-          {noteText ? (
+        {noteText ? (
+          <section className={SECTION}>
+            <div className="min-w-0">
+              <SectionNumber value="04" />
+              <span className="mt-[6px] block t-label text-[var(--grey)]">Note</span>
+            </div>
             <p className="m-0 whitespace-pre-wrap t-body text-[var(--ink)]">{noteText}</p>
-          ) : (
-            <span aria-hidden className="block min-h-[1.45em]" />
-          )}
-        </section>
+          </section>
+        ) : null}
 
         {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
           </div>
