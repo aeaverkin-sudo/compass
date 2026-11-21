@@ -17,6 +17,14 @@ import {
   isVideoMime,
 } from "@/shared/services/attachment-limits";
 import { CONTACT_FILE_LIMIT, contactFilePath } from "@/features/contact-collect/contact-files";
+import {
+  columnAttempts,
+  missingHeaderColumn,
+  missingMoreColumn,
+  missingOptionalColumn,
+  missingTable,
+  type ColumnSet,
+} from "@/features/contact-collect/store-columns";
 import type {
   ContactFileRef,
   ContactLink,
@@ -67,21 +75,6 @@ type DbRow = {
 };
 
 type DbError = { code?: string; message?: string };
-
-function missingTable(error: DbError) {
-  if (error.code === "PGRST205" || error.code === "42P01") return true;
-  const message = error.message ?? "";
-  return /external_contacts/i.test(message) && /schema cache|does not exist|could not find/i.test(message);
-}
-
-function missingHeaderColumn(error: DbError) {
-  return /header_field/i.test(error.message ?? "");
-}
-
-function missingMoreColumn(error: DbError) {
-  const message = error.message ?? "";
-  return /\b(web|social|about|files)\b/i.test(message) && /schema cache|does not exist|could not find/i.test(message);
-}
 
 function headerOf(value: string | null | undefined, position: string, company: string): HeaderField | null {
   if (value === "position" && position.trim()) return "position";
@@ -280,18 +273,37 @@ async function checkPhoto(ownerId: string, photoId: string | null, fallback: str
   return null;
 }
 
+const COLUMN_SQL: Record<ColumnSet, string> = {
+  more: COLUMNS_MORE,
+  header: COLUMNS,
+  base: COLUMNS_BASE,
+};
+
+/** The select that last succeeded. Avoids repeating a missing-column read on every tap. */
+let knownColumns: ColumnSet = "more";
+let knownAt = 0;
+const COLUMN_HOLD_MS = 5 * 60 * 1000;
+
 async function loadExternal(ownerId: string, id?: string) {
   const admin = createAdminSupabaseClient();
-  const run = (columns: string) => {
-    const query = admin.from("external_contacts").select(columns).eq("owner_id", ownerId);
+  const run = (set: ColumnSet) => {
+    const query = admin.from("external_contacts").select(COLUMN_SQL[set]).eq("owner_id", ownerId);
     if (!id) return query.order("created_at", { ascending: true });
     return query.eq("id", id).maybeSingle();
   };
-  const more = await run(COLUMNS_MORE);
-  if (!more.error || !missingMoreColumn(more.error)) return more;
-  const withHeader = await run(COLUMNS);
-  if (!withHeader.error || !missingHeaderColumn(withHeader.error)) return withHeader;
-  return run(COLUMNS_BASE);
+  const order = columnAttempts(knownColumns, Date.now() - knownAt > COLUMN_HOLD_MS);
+  let last: Awaited<ReturnType<typeof run>> | null = null;
+  for (const set of order) {
+    const result = await run(set);
+    if (!result.error) {
+      knownColumns = set;
+      knownAt = Date.now();
+      return result;
+    }
+    last = result;
+    if (!missingOptionalColumn(result.error)) return result;
+  }
+  return last!;
 }
 
 /** Upload may target a contact only after this owner already saved it. */

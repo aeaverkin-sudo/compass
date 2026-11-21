@@ -174,22 +174,30 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         photoLook: photoLookValue(contact.photoLook),
         searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
       }));
-      let collected: Contact[] = [];
+      let collected: Contact[] | null = null;
       try {
-        const probeBody = probe?.ok
-          ? ((await probe.json()) as { available?: boolean; contacts?: CollectedWire[] })
-          : null;
-        setCanCollect(probeBody?.available === true);
-        if (probeBody?.available === true && Array.isArray(probeBody.contacts)) {
-          collected = probeBody.contacts.flatMap((row) => {
-            const contact = collectedContact(row);
-            return contact ? [contact] : [];
-          });
+        if (probe?.ok) {
+          const probeBody = (await probe.json()) as { available?: boolean; contacts?: CollectedWire[] };
+          if (probeBody.available === false) {
+            setCanCollect(false);
+            collected = [];
+          } else if (probeBody.available === true) {
+            setCanCollect(true);
+            collected = Array.isArray(probeBody.contacts)
+              ? probeBody.contacts.flatMap((row) => {
+                  const contact = collectedContact(row);
+                  return contact ? [contact] : [];
+                })
+              : [];
+          }
         }
       } catch {
-        setCanCollect(false);
+        // A bad reply leaves the plus and the contacts already on screen.
       }
-      setContacts([...book, ...collected]);
+      setContacts((current) => {
+        const manual = collected ?? (current ?? []).filter((item) => item.collected);
+        return [...book, ...manual];
+      });
       setLoadError(false);
       markIncomingSeen(connections.filter((contact) => contact.state === "pending").map((contact) => contact.id));
     } catch {
@@ -783,6 +791,7 @@ function ContactRow({
       <Link
         href={contact.collected ? `/network/x/${contact.id}` : `/network/c/${contact.savedCardToken}`}
         className={rowClass}
+        prefetch={false}
         draggable={false}
         {...point}
       >
