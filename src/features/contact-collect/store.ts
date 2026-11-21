@@ -18,12 +18,15 @@ import {
 } from "@/shared/services/attachment-limits";
 import { CONTACT_FILE_LIMIT, contactFilePath } from "@/features/contact-collect/contact-files";
 import {
-  columnAttempts,
+  clockAfterAttempt,
+  clockAfterSuccess,
   missingHeaderColumn,
   missingMoreColumn,
   missingOptionalColumn,
   missingTable,
+  planColumns,
   type ColumnSet,
+  type SchemaClock,
 } from "@/features/contact-collect/store-columns";
 import type {
   ContactFileRef,
@@ -279,9 +282,8 @@ const COLUMN_SQL: Record<ColumnSet, string> = {
   base: COLUMNS_BASE,
 };
 
-/** The select that last succeeded. Avoids repeating a missing-column read on every tap. */
-let knownColumns: ColumnSet = "more";
-let knownAt = 0;
+/** Wide-select time, plus the set that last worked. Base reads must not move the time. */
+let schemaClock: SchemaClock = { known: "more", fullCheckAt: 0 };
 const COLUMN_HOLD_MS = 5 * 60 * 1000;
 
 async function loadExternal(ownerId: string, id?: string) {
@@ -291,13 +293,14 @@ async function loadExternal(ownerId: string, id?: string) {
     if (!id) return query.order("created_at", { ascending: true });
     return query.eq("id", id).maybeSingle();
   };
-  const order = columnAttempts(knownColumns, Date.now() - knownAt > COLUMN_HOLD_MS);
+  const now = Date.now();
+  const order = planColumns(schemaClock, now, COLUMN_HOLD_MS);
+  schemaClock = clockAfterAttempt(schemaClock, order, now);
   let last: Awaited<ReturnType<typeof run>> | null = null;
   for (const set of order) {
     const result = await run(set);
     if (!result.error) {
-      knownColumns = set;
-      knownAt = Date.now();
+      schemaClock = clockAfterSuccess(schemaClock, set);
       return result;
     }
     last = result;

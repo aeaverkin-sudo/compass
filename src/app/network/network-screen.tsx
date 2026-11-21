@@ -791,7 +791,7 @@ function ContactRow({
       <Link
         href={contact.collected ? `/network/x/${contact.id}` : `/network/c/${contact.savedCardToken}`}
         className={rowClass}
-        prefetch={false}
+        prefetch={contact.collected ? false : undefined}
         draggable={false}
         {...point}
       >
