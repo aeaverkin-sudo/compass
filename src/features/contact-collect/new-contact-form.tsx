@@ -6,6 +6,8 @@ import { Mic, Scan } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { TabBand } from "@main/components/tab-band";
 import { cn } from "@/lib/utils";
+import { HeroName } from "@/shared/components/hero-name";
+import { clampNameLines } from "@/shared/components/name-or-title-field";
 import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
@@ -31,6 +33,9 @@ const SECTION = `${ROW} items-start border-b border-[var(--rule)] py-[18px]`;
 const COMPACT = `${ROW} items-center border-b border-[var(--rule)] py-[10px]`;
 const FIELD =
   "min-w-0 w-full border-0 bg-transparent py-1 t-body outline-none placeholder:text-[var(--placeholder)]";
+
+/** One `t-body` line. The empty Name caret sits on this hint. */
+const NAME_HINT_LINE_PX = 15.5 * 1.45;
 
 /** Note stays one line until wrap, then grows to two. */
 function fitNoteField(node: HTMLTextAreaElement) {
@@ -103,7 +108,7 @@ export function NewContactForm({
   const editing = Boolean(initial);
   const lastLine = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
-  const [name, setName] = useState((initial?.displayName ?? "").replace(/\n/g, " "));
+  const [name, setName] = useState(clampNameLines(initial?.displayName ?? ""));
   const [position, setPosition] = useState(initial?.position ?? "");
   const [company, setCompany] = useState(initial?.company ?? "");
   const [headerField, setHeaderField] = useState<HeaderField | null>(initial?.headerField ?? null);
@@ -190,13 +195,14 @@ export function NewContactForm({
       },
       patch,
     );
-    setName(merged.displayName.replace(/\n/g, " "));
+    const displayName = clampNameLines(merged.displayName);
+    setName(displayName);
     setPosition(merged.position);
     setCompany(merged.company);
     setNote(merged.note);
     setLines([...merged.lines.map((line) => ({ ...line, marked: false })), blank()]);
     draftRef.current = {
-      name: merged.displayName.replace(/\n/g, " "),
+      name: displayName,
       position: merged.position,
       company: merged.company,
       note: merged.note,
@@ -444,9 +450,10 @@ export function NewContactForm({
   const contactHint = contactPlaceholder(hasPhone, hasNick, hasEmail);
   const positionHint = editing ? "What you do" : "Role";
 
+  const nameHint = name.length === 0;
   const photoName = (
     <div className="pt-[18px] pb-[18px]">
-      <div className="flex items-end gap-3">
+      <div className="flex shrink-0 items-stretch gap-3" style={{ height: 128 }}>
         <PhotoSlotPicker
           photo={photo?.dataUrl ?? keptPhoto}
           onPhotoChange={(dataUrl, file) => {
@@ -459,22 +466,43 @@ export function NewContactForm({
           photoLook="shadow"
           surfaceClassName="bg-white"
         />
-        <div className="flex min-w-0 flex-1 flex-col justify-end pb-1">
-          <div className={cn("min-w-0 w-full", !name.trim() && "border-b border-[var(--rule)]")}>
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value.replace(/\n/g, " "))}
-              onKeyDown={keepEnter}
-              placeholder="Name"
-              aria-label="Name"
-              autoCapitalize="words"
-              autoCorrect="off"
-              spellCheck={false}
-              className={cn(FIELD, "text-[var(--ink)]")}
-            />
-          </div>
+        <div className="relative flex h-full min-w-0 flex-1 flex-col">
+          <label
+            data-entry-name=""
+            className="relative flex h-full min-w-0 max-w-full flex-1 flex-col justify-end overflow-x-hidden"
+          >
+            <div
+              className={
+                nameHint ? "relative w-full min-w-0 max-w-full" : "absolute inset-0 min-w-0 overflow-x-hidden"
+              }
+            >
+              {nameHint ? (
+                <div aria-hidden className="pointer-events-none t-body text-[var(--placeholder)]">
+                  <div className="whitespace-nowrap border-b border-[var(--rule)] pb-[3px]">Name</div>
+                </div>
+              ) : null}
+              <div
+                className={
+                  nameHint
+                    ? "absolute inset-x-0 top-0"
+                    : "flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden"
+                }
+                style={nameHint ? { height: NAME_HINT_LINE_PX } : undefined}
+              >
+                <HeroName
+                  value={name}
+                  onChange={(value) => setName(clampNameLines(value))}
+                  placeholder="Name"
+                  ruled
+                  roleBelow={Boolean(headerTitle)}
+                />
+              </div>
+            </div>
+          </label>
           {headerTitle ? (
-            <p className="m-0 t-label uppercase text-[var(--grey)]">{headerTitle}</p>
+            <p className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden t-label uppercase text-[var(--grey)]">
+              {headerTitle}
+            </p>
           ) : null}
         </div>
       </div>
