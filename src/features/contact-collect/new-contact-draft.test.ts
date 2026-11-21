@@ -78,6 +78,25 @@ test("a draft keeps the newline, line order, and marks, and stays on its account
   assert.equal(readContactDraft(GRACE)?.company, "Other");
 });
 
+test("text and lines past the save limits come back whole", () => {
+  installStorage();
+  const line = "L".repeat(301);
+  const draft: ContactDraftRecord = {
+    ...emptyDraft(),
+    name: `${"N".repeat(121)}\n${"N".repeat(121)}`,
+    position: "P".repeat(161),
+    company: "C".repeat(161),
+    headerField: "company",
+    note: "n".repeat(501),
+    lines: Array.from({ length: 31 }, (_, index) => ({
+      value: index === 0 ? line : `row-${index}`,
+      flags: index === 1 ? ["wa"] : [],
+    })),
+  };
+  writeContactDraft(ADA, draft);
+  assert.deepEqual(readContactDraft(ADA), draft);
+});
+
 test("a broken record is dropped, and a bad photo does not drop the text", () => {
   installStorage();
   globalThis.localStorage.setItem(contactDraftKey(ADA), "{");

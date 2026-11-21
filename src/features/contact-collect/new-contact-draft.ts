@@ -1,12 +1,4 @@
-/** One unfinished New contact for this account, in this browser. No expiry. */
-
-const NAME_MAX = 120;
-const POSITION_MAX = 160;
-const COMPANY_MAX = 160;
-const NOTE_MAX = 500;
-const LINE_MAX = 300;
-const LINES_MAX = 30;
-const PHOTO_MAX = 1_500_000;
+/** One unfinished New contact for this account, in this browser. No expiry. Save limits are not applied here. */
 
 export type ContactDraftLine = { value: string; flags: Array<"wa" | "tg"> };
 
@@ -36,8 +28,8 @@ export function contactDraftIsEmpty(draft: ContactDraftRecord) {
   );
 }
 
-function clip(value: unknown, max: number) {
-  return typeof value === "string" ? value.slice(0, max) : "";
+function textOf(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
 function flagsOf(value: unknown): Array<"wa" | "tg"> {
@@ -50,12 +42,12 @@ function flagsOf(value: unknown): Array<"wa" | "tg"> {
 }
 
 function linesOf(value: unknown): ContactDraftLine[] | null {
-  if (!Array.isArray(value) || value.length > LINES_MAX) return null;
+  if (!Array.isArray(value)) return null;
   const lines: ContactDraftLine[] = [];
   for (const item of value) {
     if (!item || typeof item !== "object") return null;
     const record = item as { value?: unknown; flags?: unknown };
-    const text = clip(record.value, LINE_MAX);
+    const text = textOf(record.value);
     if (!text.trim()) continue;
     lines.push({ value: text, flags: flagsOf(record.flags) });
   }
@@ -64,7 +56,7 @@ function linesOf(value: unknown): ContactDraftLine[] | null {
 
 function photoOf(value: unknown): string | null {
   if (value == null || value === "") return null;
-  if (typeof value !== "string" || !value.startsWith("data:image/") || value.length > PHOTO_MAX) return null;
+  if (typeof value !== "string" || !value.startsWith("data:image/")) return null;
   return value;
 }
 
@@ -84,8 +76,8 @@ export function parseContactDraft(raw: string): ContactDraftRecord | null {
     record.source === "scan" || record.source === "voice" || record.source === "photo" || record.source === "manual"
       ? record.source
       : "manual";
-  const position = clip(record.position, POSITION_MAX);
-  const company = clip(record.company, COMPANY_MAX);
+  const position = textOf(record.position);
+  const company = textOf(record.company);
   const headerField =
     record.headerField === "position" && position.trim()
       ? "position"
@@ -93,11 +85,11 @@ export function parseContactDraft(raw: string): ContactDraftRecord | null {
         ? "company"
         : null;
   return {
-    name: clip(record.name, NAME_MAX),
+    name: textOf(record.name),
     position,
     company,
     headerField,
-    note: clip(record.note, NOTE_MAX),
+    note: textOf(record.note),
     lines,
     photo: photoOf(record.photo),
     source,

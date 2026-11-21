@@ -1066,7 +1066,11 @@ export function NewContactForm({
         </button>
         <button
           type="button"
-          className={cn(GHOST_CREATE, voicePhase === "recording" && "bg-sky", voicePhase === "processing" && "text-[#1a6a86]")}
+          className={cn(
+            editing ? GHOST : GHOST_CREATE,
+            voicePhase === "recording" && "bg-sky",
+            voicePhase === "processing" && "text-[#1a6a86]",
+          )}
           aria-pressed={voicePhase === "recording"}
           onPointerDown={beginVoice}
           onClick={() => {
@@ -1074,8 +1078,21 @@ export function NewContactForm({
           }}
           onContextMenu={(event) => event.preventDefault()}
         >
-          <VoiceMark phase={voicePhase} />
-          {voicePhase === "recording" ? "Recording..." : voicePhase === "processing" ? "Processing..." : "Voice"}
+          {voicePhase === "idle" ? (
+            editing ? (
+              "Voice"
+            ) : (
+              <>
+                <Mic className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+                Voice
+              </>
+            )
+          ) : (
+            <span className="inline-flex items-center justify-center gap-2">
+              <VoiceMark phase={voicePhase} />
+              {voicePhase === "recording" ? "Recording..." : "Processing..."}
+            </span>
+          )}
         </button>
       </div>
       {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
