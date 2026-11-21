@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { gptConfigured, parseContactInput } from "@/features/contact-collect/gpt-parse";
+import { contactReadAllowed, gptConfigured, parseContactInput } from "@/features/contact-collect/gpt-parse";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 
 export const runtime = "nodejs";
@@ -9,11 +9,15 @@ function noStore(body: unknown, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
 }
 
-/** Whether photo and voice reading is on. The key itself is never returned. */
+function readingOpen(ownerId: string) {
+  return gptConfigured() && contactReadAllowed(ownerId);
+}
+
+/** Whether photo and voice reading is on for this account. The key itself is never returned. */
 export async function GET() {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ error: owner.error }, owner.status);
-  return noStore({ available: gptConfigured() });
+  return noStore({ available: readingOpen(owner.id) });
 }
 
 async function bytesOf(value: FormDataEntryValue | null) {
@@ -25,14 +29,17 @@ async function bytesOf(value: FormDataEntryValue | null) {
 export async function POST(request: Request) {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ error: owner.error }, owner.status);
+  const openai = readingOpen(owner.id);
 
   const type = request.headers.get("content-type") ?? "";
   try {
     if (type.includes("multipart/form-data")) {
+      if (!openai) return noStore({ error: "Reading is not ready.", available: false }, 503);
       const form = await request.formData();
       const image = await bytesOf(form.get("image"));
       const audio = await bytesOf(form.get("audio"));
       const result = await parseContactInput({
+        openai: true,
         image: image ? { mime: image.mime, bytes: image.bytes } : undefined,
         audio: audio ? { mime: audio.mime, name: audio.name, bytes: audio.bytes } : undefined,
       });
@@ -47,7 +54,7 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => null)) as { text?: unknown } | null;
     const text = typeof body?.text === "string" ? body.text : "";
-    const result = await parseContactInput({ text });
+    const result = await parseContactInput({ text, openai });
     if (!result.ok) {
       return noStore(
         result.available === false ? { error: result.error, available: false } : { error: result.error },

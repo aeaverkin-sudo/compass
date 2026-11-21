@@ -40,7 +40,20 @@ export type ParseInput = {
   text?: string;
   image?: { mime: string; bytes: Uint8Array };
   audio?: { mime: string; bytes: Uint8Array; name: string };
+  /** Set by the route. False never calls OpenAI, even when a key is present. */
+  openai?: boolean;
 };
+
+/** Closed test. Empty CONTACT_READ_OWNER_IDS allows nobody. */
+export function contactReadAllowed(ownerId: string, list = process.env.CONTACT_READ_OWNER_IDS): boolean {
+  const id = ownerId.trim();
+  if (!id) return false;
+  const ids = (list ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return ids.includes(id);
+}
 
 export type ParseResult =
   | { ok: true; draft: ContactReading }
@@ -118,7 +131,7 @@ async function transcribe(audio: NonNullable<ParseInput["audio"]>): Promise<stri
   return typeof payload?.text === "string" ? payload.text.trim() : "";
 }
 
-/** GPT when the host has a key. Text without a key stays local. A photo or a recording never leaves without a key. */
+/** OpenAI only when the route passes openai. Text without it stays on the local reader. */
 export async function parseContactInput(input: ParseInput): Promise<ParseResult> {
   const text = input.text?.trim() ?? "";
   if (!input.image && !input.audio && !text) return { ok: false, status: 400, error: "Nothing to read." };
@@ -131,7 +144,7 @@ export async function parseContactInput(input: ParseInput): Promise<ParseResult>
   if (input.audio && input.audio.bytes.byteLength > AUDIO_MAX) {
     return { ok: false, status: 400, error: "That recording is too large." };
   }
-  if (!gptConfigured()) {
+  if (input.openai !== true || !gptConfigured()) {
     if (input.image || input.audio) return { ok: false, status: 503, error: "Reading is not ready.", available: false };
     return { ok: true, draft: contactReading(parseContactLocal(text), { allowSets: false }) };
   }
