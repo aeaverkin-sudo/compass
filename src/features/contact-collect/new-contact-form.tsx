@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, FileText, Mic, Scan, X } from "lucide-react";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
@@ -14,10 +14,19 @@ import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
 import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
+import { photoFileFromDraft } from "@/shared/lib/fill-place";
+import { prepareCardPhotoForStorage } from "@/shared/services/attachment-storage";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
 import { CONTACT_FILE_LIMIT, CONTACT_LINK_LIMIT, CONTACT_LINK_MAX } from "@/features/contact-collect/contact-files";
+import {
+  clearContactDraft,
+  contactDraftIsEmpty,
+  readContactDraft,
+  writeContactDraft,
+  type ContactDraftRecord,
+} from "@/features/contact-collect/new-contact-draft";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
 import { QrScanner } from "@/features/contact-collect/qr-scanner";
 import { isIntlPhone, polishContactLine, telegramNickOf } from "@/features/contact-collect/view-lines";
@@ -198,9 +207,12 @@ function keepEnter(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>)
 export function NewContactForm({
   suggestedEvent,
   initial,
+  ownerId,
 }: {
   suggestedEvent: string;
   initial?: ExternalContact;
+  /** Confirmed account. New contact keeps one local draft under this id. */
+  ownerId?: string;
 }) {
   const router = useRouter();
   const editing = Boolean(initial);
@@ -220,6 +232,7 @@ export function NewContactForm({
   const [uploading, setUploading] = useState(false);
   const [lines, setLines] = useState<Line[]>(() => linesFrom(initial));
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
+  const [draftPhoto, setDraftPhoto] = useState<string | null>(null);
   const [keptPhoto, setKeptPhoto] = useState<string | null>(initial?.photoUrl ?? null);
   const [photoId, setPhotoId] = useState<string | null>(initial?.photoAttachmentId ?? null);
   const [source, setSource] = useState<ContactSource>(initial?.source ?? "manual");
@@ -231,8 +244,36 @@ export function NewContactForm({
   const canReadRef = useRef(false);
   const voiceRef = useRef<{ released: boolean; recorder: MediaRecorder | null; started: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const photoTicket = useRef(0);
+  const persistDraftRef = useRef(true);
+  const [draftReady, setDraftReady] = useState(false);
   const draftRef = useRef({ name, position, company, note, lines });
   draftRef.current = { name, position, company, note, lines };
+  const draftRecord = useMemo<ContactDraftRecord>(() => {
+    const linesKept = lines
+      .filter((line) => line.value.trim())
+      .map((line) => ({
+        value: line.value,
+        flags: line.flags.filter((flag): flag is "wa" | "tg" => flag === "wa" || flag === "tg"),
+      }));
+    return {
+      name,
+      position,
+      company,
+      headerField:
+        headerField === "position" && position.trim()
+          ? "position"
+          : headerField === "company" && company.trim()
+            ? "company"
+            : null,
+      note,
+      lines: linesKept,
+      photo: draftPhoto,
+      source,
+    };
+  }, [name, position, company, headerField, note, lines, draftPhoto, source]);
+  const draftRecordRef = useRef(draftRecord);
+  draftRecordRef.current = draftRecord;
   useKeyboardLift(scrollRef);
 
   useEffect(() => {
@@ -256,6 +297,58 @@ export function NewContactForm({
   useEffect(() => {
     canReadRef.current = canRead;
   }, [canRead]);
+
+  useEffect(() => {
+    if (editing || !ownerId) {
+      setDraftReady(true);
+      return;
+    }
+    const stored = readContactDraft(ownerId);
+    if (stored) {
+      setName(clampNameLines(stored.name));
+      setPosition(stored.position);
+      setCompany(stored.company);
+      setHeaderField(stored.headerField);
+      setNote(stored.note);
+      setSource(stored.source);
+      setLines(
+        stored.lines.length === 0
+          ? [blank()]
+          : [
+              ...stored.lines.map((line) => ({
+                id: crypto.randomUUID(),
+                value: line.value,
+                flags: line.flags,
+                marked: false,
+              })),
+              blank(),
+            ],
+      );
+      const file = stored.photo ? photoFileFromDraft(stored.photo) : null;
+      if (stored.photo && file) {
+        setPhoto({ file, dataUrl: stored.photo });
+        setKeptPhoto(stored.photo);
+        setDraftPhoto(stored.photo);
+      }
+    }
+    setDraftReady(true);
+  }, [editing, ownerId]);
+
+  useEffect(() => {
+    if (!draftReady || editing || !ownerId) return;
+    const flush = () => {
+      if (!persistDraftRef.current) return;
+      const record = draftRecordRef.current;
+      if (contactDraftIsEmpty(record)) clearContactDraft(ownerId);
+      else writeContactDraft(ownerId, record);
+    };
+    flush();
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [draftReady, editing, ownerId, draftRecord]);
 
   useEffect(() => {
     let gone = false;
@@ -562,6 +655,10 @@ export function NewContactForm({
         setBusy(false);
         return;
       }
+      if (!initial && ownerId) {
+        persistDraftRef.current = false;
+        clearContactDraft(ownerId);
+      }
       const createdId = typeof saved?.contact?.id === "string" ? saved.contact.id : "";
       router.replace(
         initial
@@ -698,6 +795,22 @@ export function NewContactForm({
             setPhoto(dataUrl && file ? { file, dataUrl } : null);
             setKeptPhoto(dataUrl ? keptPhoto : null);
             setPhotoId(null);
+            if (editing || !ownerId) return;
+            const ticket = ++photoTicket.current;
+            if (!dataUrl || !file) {
+              setDraftPhoto(null);
+              return;
+            }
+            void prepareCardPhotoForStorage(file)
+              .then((stored) => {
+                if (photoTicket.current !== ticket || !stored.startsWith("data:image/")) return;
+                const record = { ...draftRecordRef.current, photo: stored };
+                draftRecordRef.current = record;
+                setDraftPhoto(stored);
+                if (!persistDraftRef.current) return;
+                writeContactDraft(ownerId, record);
+              })
+              .catch(() => undefined);
           }}
           sizePx={128}
           borderRadiusPx={0}

@@ -5,5 +5,5 @@ import { requireOwnerId } from "@/shared/services/attachment-api";
 export default async function NewContactPage() {
   const owner = await requireOwnerId();
   const eventTag = owner.ok ? await suggestedEventTag(owner.id) : "";
-  return <NewContactForm suggestedEvent={eventTag} />;
+  return <NewContactForm suggestedEvent={eventTag} ownerId={owner.ok ? owner.id : undefined} />;
 }
