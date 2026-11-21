@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { TabBand } from "@main/components/tab-band";
 import { HeroName } from "@/shared/components/hero-name";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
@@ -12,6 +13,8 @@ import type { ExternalContact } from "@/features/contact-collect/types";
 
 const SECTION =
   "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]";
+const BAND =
+  "press flex h-full min-h-11 w-full items-center border-0 bg-transparent p-0 t-band uppercase disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 
 export function ContactScreen({ contact }: { contact: ExternalContact }) {
   const router = useRouter();
@@ -49,29 +52,33 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
   };
 
   return (
-    <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
-      <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
-        <ScreenHeader title={contact.displayName.trim().split("\n")[0] || "Contact"} fallbackHref="/network" />
-        <div className="flex items-end gap-3 overflow-visible pb-[18px]" style={{ minHeight: 128 }}>
+    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
+      <div className="card-scroll-spring flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="compass-card-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-[var(--gutter)]">
+          <div>
+        <ScreenHeader title="" fallbackHref="/network" />
+        <div className="pb-[18px]">
+        <div className="relative flex shrink-0 items-stretch gap-3" style={{ height: 128 }}>
           <span className={cn("size-[128px] shrink-0 overflow-visible bg-white", photoSlotLookClass("shadow"))}>
             {contact.photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={contact.photoUrl} alt="" className="size-full object-cover" />
             ) : null}
           </span>
-          <div className="flex min-h-[128px] min-w-0 flex-1 flex-col justify-end">
-            <div className="min-h-0 min-w-0" style={{ height: headerTitle ? 112 : 128 }}>
-              <HeroName
-                value={contact.displayName}
-                placeholder="Name"
-                locked
-                roleBelow={Boolean(headerTitle)}
-              />
-            </div>
+          <div className="relative flex h-full min-w-0 flex-1 flex-col">
+            <HeroName
+              value={contact.displayName}
+              placeholder="Name"
+              locked
+              roleBelow={Boolean(headerTitle)}
+            />
             {headerTitle ? (
-              <p className="m-0 t-label uppercase text-[var(--grey)]">{headerTitle}</p>
+              <p className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden t-label uppercase text-[var(--grey)]">
+                {headerTitle}
+              </p>
             ) : null}
           </div>
+        </div>
         </div>
 
         <section className={SECTION}>
@@ -138,50 +145,59 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
         </section>
 
         {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
+          </div>
+        </div>
       </div>
-      <div className="flex border-t border-[var(--rule)] pb-[max(0px,env(safe-area-inset-bottom))]">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            if (!armed) {
-              setArmed(true);
-              return;
-            }
-            void remove();
-          }}
-          className="press min-h-11 flex-1 border-0 bg-transparent t-caps text-[var(--ink)] disabled:text-[var(--grey)]"
-        >
-          {armed ? "Delete?" : "Delete"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (armed) {
-              setArmed(false);
-              return;
-            }
-            router.push(`/network/x/${contact.id}/edit`);
-          }}
-          className="press min-h-11 flex-1 border-0 bg-transparent t-caps text-[var(--ink)]"
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          disabled={swapped}
-          onClick={() => {
-            if (armed) {
-              setArmed(false);
-              return;
-            }
-            router.push(`/network/x/${contact.id}/push`);
-          }}
-          className="press min-h-11 flex-1 border-0 bg-transparent t-caps text-[var(--ink)] disabled:text-[var(--grey)]"
-        >
-          Swap
-        </button>
-      </div>
+      <TabBand
+        label="Contact"
+        left={
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (!armed) {
+                setArmed(true);
+                return;
+              }
+              void remove();
+            }}
+            className={BAND}
+          >
+            {armed ? "Delete?" : "Delete"}
+          </button>
+        }
+        center={
+          <button
+            type="button"
+            onClick={() => {
+              if (armed) {
+                setArmed(false);
+                return;
+              }
+              router.push(`/network/x/${contact.id}/edit`);
+            }}
+            className={BAND}
+          >
+            Edit
+          </button>
+        }
+        right={
+          <button
+            type="button"
+            disabled={swapped}
+            onClick={() => {
+              if (armed) {
+                setArmed(false);
+                return;
+              }
+              router.push(`/network/x/${contact.id}/push`);
+            }}
+            className={BAND}
+          >
+            Swap
+          </button>
+        }
+      />
     </main>
   );
 }

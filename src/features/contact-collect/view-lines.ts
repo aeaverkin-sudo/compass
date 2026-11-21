@@ -21,6 +21,14 @@ export function polishContactLine(raw: string): string {
   return trimmed;
 }
 
+/** One nick from `@nick`, `Telegram / @nick`, or a repeated prefix. */
+export function telegramNickOf(value: string): string | null {
+  const marks = value.match(/@([A-Za-z][A-Za-z0-9_]*)/g);
+  const marked = marks?.[marks.length - 1]?.slice(1) ?? "";
+  if (marked && messengerUsername(marked)) return marked;
+  return messengerUsername(value);
+}
+
 /** A full international number: leading + and phone type. */
 export function isIntlPhone(raw: string): boolean {
   const trimmed = raw.trim();
@@ -65,12 +73,15 @@ export function viewContactLines(lines: ExternalLine[]): ViewLine[] {
       return;
     }
     if (type === "telegram" || detectContactType(value, "contact") === "telegram") {
-      const nick = messengerUsername(value) ?? value.replace(/^@/, "").trim();
-      const label = labeledEntryLine(value.startsWith("@") ? value : `@${nick}`, "telegram", "contact");
+      const nick = telegramNickOf(value);
+      if (!nick) {
+        rows.push({ key: `${index}-line`, label: value, href: null });
+        return;
+      }
       rows.push({
         key: `${index}-tg-nick`,
-        label: label.startsWith("Telegram") ? label : `Telegram / @${nick}`,
-        href: nick ? telegramLink(nick) : null,
+        label: `Telegram / @${nick}`,
+        href: telegramLink(nick),
       });
       return;
     }

@@ -13,7 +13,8 @@ import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { externalLineIsRed } from "@/features/contact-collect/lines";
 import { QrScanner } from "@/features/contact-collect/qr-scanner";
-import { isIntlPhone, polishContactLine } from "@/features/contact-collect/view-lines";
+import { isIntlPhone, polishContactLine, telegramNickOf } from "@/features/contact-collect/view-lines";
+import { detectContactType } from "@/shared/services/contact-item";
 import {
   mergeContactDraft,
   patchFromContactDraft,
@@ -68,6 +69,22 @@ function linesFrom(initial?: ExternalContact): Line[] {
     })),
     blank(),
   ];
+}
+
+function detectContactPhone(value: string) {
+  return detectContactType(value, "contact") === "phone";
+}
+
+/** What the empty contact row still asks for. A filled kind drops out and comes back when cleared. */
+function contactPlaceholder(hasPhone: boolean, hasNick: boolean, hasEmail: boolean) {
+  const parts: string[] = [];
+  if (!hasPhone) parts.push("Phone");
+  if (!hasNick) parts.push("@nick");
+  if (!hasEmail) parts.push("email");
+  if (hasPhone || hasNick || hasEmail) parts.push("link", "social");
+  if (parts.length === 0) return "Link, social";
+  parts[0] = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  return parts.join(", ");
 }
 
 function keepEnter(event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) {
@@ -418,7 +435,10 @@ export function NewContactForm({
   };
 
   const sectionClass = SECTION;
-  const contactHint = "Phone, @nick, email, link";
+  const hasPhone = lines.some((line) => isIntlPhone(line.value) || detectContactPhone(line.value));
+  const hasNick = lines.some((line) => Boolean(telegramNickOf(line.value)));
+  const hasEmail = lines.some((line) => detectContactType(line.value, "contact") === "email");
+  const contactHint = contactPlaceholder(hasPhone, hasNick, hasEmail);
   const positionHint = editing ? "What you do" : "Role";
 
   const photoName = (
@@ -613,16 +633,23 @@ export function NewContactForm({
 
   if (editing) {
     return (
-      <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
+      <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[var(--ink)]">
         <form
           onSubmit={(event) => void save(event)}
-          className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(24px,env(safe-area-inset-bottom))]"
+          className="card-scroll-spring flex min-h-0 flex-1 flex-col overflow-hidden"
         >
-          <ScreenHeader title="Edit" fallbackHref={`/network/x/${initial!.id}`} />
-          {fields}
-          <button type="submit" disabled={!ready} className={SAVE}>
-            Save contact
-          </button>
+          <div
+            ref={scrollRef}
+            className="compass-card-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-[var(--gutter)]"
+          >
+            <div className="pb-[max(24px,env(safe-area-inset-bottom))]">
+              <ScreenHeader title="Edit" fallbackHref={`/network/x/${initial!.id}`} />
+              {fields}
+              <button type="submit" disabled={!ready} className={SAVE}>
+                Save contact
+              </button>
+            </div>
+          </div>
         </form>
         {scanning ? (
           <QrScanner
