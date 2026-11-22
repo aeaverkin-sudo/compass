@@ -1274,40 +1274,40 @@ export function NewContactForm({
 }
 
 function VoiceWave() {
-  const bars = [
-    { x: 1.2, h: 8 },
-    { x: 25.5, h: 15 },
-    { x: 50, h: 25 },
-    { x: 74.5, h: 15 },
-    { x: 98.8, h: 8 },
-  ];
+  const heights = [4, 7, 10, 6, 13, 9, 17, 13, 21, 25, 18, 12, 17, 9, 12, 7, 9, 6, 4];
   return (
     <svg
       viewBox="0 0 100 29"
       preserveAspectRatio="none"
       aria-hidden
-      className="h-[29px] w-2/3 text-[var(--ink)]"
+      className="voice-dense-wave h-[29px] w-2/3 text-[var(--ink)]"
     >
-      {bars.map((bar, index) => (
-        <line
-          key={bar.x}
-          x1={bar.x}
-          x2={bar.x}
-          y1={14.5 - bar.h / 2}
-          y2={14.5 + bar.h / 2}
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-          className="motion-reduce:[animation:none]"
-          style={{
-            transformBox: "fill-box",
-            transformOrigin: "center",
-            animation: "voice-wave 0.9s ease-in-out infinite",
-            animationDelay: `${index * 0.12}s`,
-          }}
-        />
-      ))}
+      <style>
+        {`@media (prefers-reduced-motion: reduce) { .voice-dense-wave line { animation: none !important; } }`}
+      </style>
+      {heights.map((height, index) => {
+        const x = 1 + (index / (heights.length - 1)) * 98;
+        return (
+          <line
+            key={x}
+            x1={x}
+            x2={x}
+            y1={14.5 - height / 2}
+            y2={14.5 + height / 2}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            className="motion-reduce:[animation:none]"
+            style={{
+              transformBox: "fill-box",
+              transformOrigin: "center",
+              animation: "voice-wave 1s ease-in-out infinite",
+              animationDelay: `${index * 0.08}s`,
+            }}
+          />
+        );
+      })}
     </svg>
   );
 }
