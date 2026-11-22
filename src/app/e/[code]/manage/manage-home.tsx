@@ -224,11 +224,11 @@ export function ManageHome({
       ) : null}
       {isOwner ? (
         <div className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-          <Rule className="mt-[18px]" />
+          {list.length === 0 ? <Rule className="mt-[18px]" /> : null}
           <button
             type="button"
             onClick={() => setConfirmDelete(true)}
-            className="press mt-[18px] border-0 bg-transparent p-0 t-body text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+            className="press mt-[18px] border-0 bg-transparent p-0 t-caps text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
             style={{ marginLeft: VALUE_AXIS_PX }}
           >
             Delete event

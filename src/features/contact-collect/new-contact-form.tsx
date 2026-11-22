@@ -119,6 +119,57 @@ function linesFrom(initial?: ExternalContact): Line[] {
   ];
 }
 
+/** Stored values only. An empty row, focus, and opening More are not edits. */
+function contactSnapshot(input: {
+  name: string;
+  position: string;
+  company: string;
+  headerField: HeaderField | null;
+  about: string;
+  lines: { value: string; flags: LineFlag[] }[];
+  web: { value: string }[];
+  social: { value: string }[];
+  files: ContactFileRef[];
+  photo: { dataUrl: string } | null;
+  photoId: string | null;
+  keptPhoto: string | null;
+}): string {
+  const position = input.position.trim();
+  const company = input.company.trim();
+  const headerField =
+    input.headerField === "position" && position
+      ? "position"
+      : input.headerField === "company" && company
+        ? "company"
+        : null;
+  const lines = input.lines.flatMap((line) => {
+    const value = polishContactLine(line.value) || line.value.trim();
+    if (!value) return [];
+    const flags = isIntlPhone(value) ? (["wa", "tg"] as const).filter((flag) => line.flags.includes(flag)) : [];
+    return [{ value, flags }];
+  });
+  const links = (rows: { value: string }[]) => rows.map((row) => row.value.trim()).filter(Boolean);
+  const photo = input.photo
+    ? `new:${input.photo.dataUrl}`
+    : input.photoId
+      ? `id:${input.photoId}`
+      : input.keptPhoto
+        ? `url:${input.keptPhoto}`
+        : null;
+  return JSON.stringify({
+    name: input.name.trim(),
+    position,
+    company,
+    headerField,
+    about: input.about.trim(),
+    lines,
+    web: links(input.web),
+    social: links(input.social),
+    files: input.files.map((file) => ({ id: file.id, name: file.name, type: file.type })),
+    photo,
+  });
+}
+
 function detectContactPhone(value: string) {
   return detectContactType(value, "contact") === "phone";
 }
@@ -317,7 +368,41 @@ export function NewContactForm({
     return () => window.clearTimeout(timer);
   }, [error, hearTick]);
 
-  const ready = name.trim().length > 0 && !busy && !reading && !uploading;
+  const openedContact = useRef<string | null>(
+    initial
+      ? contactSnapshot({
+          name: clampNameLines(initial.displayName),
+          position: initial.position,
+          company: initial.company,
+          headerField: initial.headerField,
+          about: storedAboutText,
+          lines: linesFrom(initial),
+          web: linkDrafts(initial.web),
+          social: linkDrafts(initial.social),
+          files: initial.files,
+          photo: null,
+          photoId: initial.photoAttachmentId,
+          keptPhoto: initial.photoUrl,
+        })
+      : null,
+  );
+  const contactEdited =
+    openedContact.current !== null &&
+    contactSnapshot({
+      name,
+      position,
+      company,
+      headerField,
+      about: note,
+      lines,
+      web: webLinks,
+      social: socialLinks,
+      files: contactFiles,
+      photo,
+      photoId,
+      keptPhoto,
+    }) !== openedContact.current;
+  const ready = name.trim().length > 0 && !busy && !reading && !uploading && (!editing || contactEdited);
   const headerTitle =
     headerField === "position" && position.trim()
       ? position.trim()
@@ -652,6 +737,7 @@ export function NewContactForm({
     event.preventDefault();
     const displayName = name.trim();
     if (!displayName || busy || uploading) return;
+    if (editing && !contactEdited) return;
     const formHasExtras =
       webLinks.some((row) => row.value.trim()) ||
       socialLinks.some((row) => row.value.trim()) ||
