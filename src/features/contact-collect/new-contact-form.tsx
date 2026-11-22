@@ -63,12 +63,8 @@ function fitNoteField(node: HTMLTextAreaElement) {
   node.style.height = `${next}px`;
   node.style.overflowY = node.scrollHeight > max + 1 ? "auto" : "hidden";
 }
-const GHOST =
-  "press min-h-11 flex-1 border-0 bg-white t-caps text-[var(--ink)] shadow-[0_10px_22px_rgba(20,20,20,0.14)] [-webkit-tap-highlight-color:transparent]";
 const GHOST_CREATE =
   "press flex min-h-11 flex-1 items-center justify-center gap-2 border-0 bg-white t-caps text-[var(--ink)] shadow-[0_10px_22px_rgba(20,20,20,0.14)] [-webkit-tap-highlight-color:transparent]";
-const SAVE =
-  "press mt-[18px] w-full border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] shadow-none disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 const SAVE_BAND =
   "flex h-full min-h-11 items-center justify-center border-0 bg-transparent p-0 t-band uppercase disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 type Line = { id: string; value: string; flags: LineFlag[]; marked: boolean };
@@ -249,6 +245,8 @@ export function NewContactForm({
   const [reading, setReading] = useState(false);
   const [voicePhase, setVoicePhaseState] = useState<VoicePhase>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [hearTick, setHearTick] = useState(0);
+  const [armedDelete, setArmedDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const canReadRef = useRef(false);
   const readingRef = useRef(false);
@@ -296,6 +294,14 @@ export function NewContactForm({
   useEffect(() => {
     if (noteRef.current) fitNoteField(noteRef.current);
   }, [note]);
+
+  useEffect(() => {
+    if (error !== "Try again") return;
+    const timer = window.setTimeout(() => {
+      setError((current) => (current === "Try again" ? null : current));
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [error, hearTick]);
 
   const ready = name.trim().length > 0 && !busy && !reading && !uploading;
   const headerTitle =
@@ -484,10 +490,15 @@ export function NewContactForm({
     }
   };
 
+  const missHeard = () => {
+    setError("Try again");
+    setHearTick((tick) => tick + 1);
+  };
+
   const applyDraft = (draft: ContactReading, kind: "voice" | "photo") => {
     const patch = patchFromContactDraft(draft, { allowSets: kind === "voice" });
     if (!patchHasContent(patch)) {
-      if (kind === "voice") setError("Could not hear that.");
+      if (kind === "voice") missHeard();
       return;
     }
     setError(null);
@@ -504,12 +515,14 @@ export function NewContactForm({
       const response = await fetch("/api/external-contacts/parse", { method: "POST", body });
       const payload = (await response.json().catch(() => null)) as { error?: string; draft?: ContactReading } | null;
       if (!response.ok || !payload?.draft) {
-        setError(payload?.error || (field === "audio" ? "Could not hear that." : "Could not read that."));
+        if (field === "audio" && !payload?.error) missHeard();
+        else setError(payload?.error || "Could not read that.");
         return;
       }
       applyDraft(payload.draft, field === "audio" ? "voice" : "photo");
     } catch {
-      setError(field === "audio" ? "Could not hear that." : "Could not read that.");
+      if (field === "audio") missHeard();
+      else setError("Could not read that.");
     } finally {
       setReading(false);
       if (field === "audio") setVoicePhase("idle");
@@ -725,6 +738,57 @@ export function NewContactForm({
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save the contact.");
       setBusy(false);
+    }
+  };
+
+  const formDirty =
+    Boolean(name.trim() || position.trim() || company.trim() || note.trim() || photo || draftPhoto || keptPhoto) ||
+    lines.some((line) => line.value.trim());
+
+  const resetForm = () => {
+    photoTicket.current += 1;
+    draftRecordRef.current = {
+      name: "",
+      position: "",
+      company: "",
+      headerField: null,
+      note: "",
+      lines: [],
+      photo: null,
+      source: "manual",
+    };
+    setName("");
+    setPosition("");
+    setCompany("");
+    setHeaderField(null);
+    setNote("");
+    setLines([blank()]);
+    setSource("manual");
+    setPhoto(null);
+    setKeptPhoto(null);
+    setPhotoId(null);
+    setDraftPhoto(null);
+    setError(null);
+    if (ownerId) clearContactDraft(ownerId);
+  };
+
+  const removeContact = async () => {
+    if (!initial || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/external-contacts/${initial.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        setError("Could not delete the contact.");
+        setBusy(false);
+        setArmedDelete(false);
+        return;
+      }
+      router.replace("/network");
+    } catch {
+      setError("Could not delete the contact.");
+      setBusy(false);
+      setArmedDelete(false);
     }
   };
 
@@ -1060,42 +1124,37 @@ export function NewContactForm({
         </>
       ) : null}
       <div className="mt-[18px] flex gap-3">
-        <button type="button" className={editing ? GHOST : GHOST_CREATE} onClick={() => setScanning(true)}>
-          {editing ? null : <Scan className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />}
+        <button type="button" className={GHOST_CREATE} onClick={() => setScanning(true)}>
+          <Scan className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
           Scan
         </button>
-        <button
-          type="button"
-          className={cn(
-            editing ? GHOST : GHOST_CREATE,
-            voicePhase === "recording" && "bg-sky",
-            voicePhase === "processing" && "text-[#1a6a86]",
-          )}
-          aria-pressed={voicePhase === "recording"}
-          onPointerDown={beginVoice}
-          onClick={() => {
-            if (!canRead) lastLine.current?.focus();
-          }}
-          onContextMenu={(event) => event.preventDefault()}
-        >
-          {voicePhase === "idle" ? (
-            editing ? (
-              "Voice"
+        {editing ? null : (
+          <button
+            type="button"
+            className={cn(GHOST_CREATE, voicePhase === "recording" && "bg-sky")}
+            aria-pressed={voicePhase === "recording"}
+            onPointerDown={beginVoice}
+            onClick={() => {
+              if (!canRead) lastLine.current?.focus();
+            }}
+            onContextMenu={(event) => event.preventDefault()}
+          >
+            {voicePhase === "recording" ? (
+              <VoiceWave />
+            ) : voicePhase === "processing" ? (
+              <VoiceSpin />
             ) : (
               <>
                 <Mic className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
                 Voice
               </>
-            )
-          ) : (
-            <span className="inline-flex items-center justify-center gap-2">
-              <VoiceMark phase={voicePhase} />
-              {voicePhase === "recording" ? "Recording..." : "Processing..."}
-            </span>
-          )}
-        </button>
+            )}
+          </button>
+        )}
       </div>
-      {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
+      {error ? (
+        <p className={cn("mt-3 text-[#E23B2F]", error === "Try again" ? "t-caps" : "t-meta")}>{error}</p>
+      ) : null}
     </>
   );
 
@@ -1113,11 +1172,32 @@ export function NewContactForm({
             <div className="pb-[max(24px,env(safe-area-inset-bottom))]">
               <ScreenHeader title="Edit" fallbackHref={`/network/x/${initial!.id}`} />
               {fields}
-              <button type="submit" disabled={!ready} className={SAVE}>
-                Save contact
-              </button>
             </div>
           </div>
+          <TabBand
+            label="Edit"
+            left={
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  if (!armedDelete) {
+                    setArmedDelete(true);
+                    return;
+                  }
+                  void removeContact();
+                }}
+                className={SAVE_BAND}
+              >
+                {armedDelete ? "Delete?" : "Delete"}
+              </button>
+            }
+            right={
+              <button type="submit" disabled={!ready} className={SAVE_BAND}>
+                Save
+              </button>
+            }
+          />
         </form>
         {scanning ? (
           <QrScanner
@@ -1151,10 +1231,13 @@ export function NewContactForm({
           <div className="min-h-[calc(100%+1px)] pb-6">{fields}</div>
         </div>
         <TabBand
-          label="Save"
-          left={<span aria-hidden className="block w-px" />}
-          right={<span aria-hidden className="block w-px" />}
-          center={
+          label="New contact"
+          left={
+            <button type="button" disabled={!formDirty} onClick={resetForm} className={SAVE_BAND}>
+              Reset
+            </button>
+          }
+          right={
             <button type="submit" disabled={!ready} className={SAVE_BAND}>
               Save
             </button>
@@ -1182,20 +1265,58 @@ export function NewContactForm({
   );
 }
 
-function VoiceMark({ phase }: { phase: VoicePhase }) {
-  if (phase === "recording") {
-    return (
-      <span className="voice-wave" aria-hidden>
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-      </span>
-    );
-  }
-  if (phase === "processing") return <span className="voice-spin" aria-hidden />;
-  return <Mic className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />;
+function VoiceWave() {
+  const bars = [
+    { x: 1.6, h: 4 },
+    { x: 5.2, h: 8 },
+    { x: 8.8, h: 13 },
+    { x: 12.4, h: 8 },
+    { x: 16, h: 4 },
+  ];
+  return (
+    <svg width="18" height="16" viewBox="0 0 18 16" aria-hidden className="shrink-0 text-[var(--ink)]">
+      {bars.map((bar, index) => (
+        <line
+          key={bar.x}
+          x1={bar.x}
+          x2={bar.x}
+          y1={8 - bar.h / 2}
+          y2={8 + bar.h / 2}
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          className="motion-reduce:[animation:none]"
+          style={{
+            transformBox: "fill-box",
+            transformOrigin: "center",
+            animation: "voice-wave 0.9s ease-in-out infinite",
+            animationDelay: `${index * 0.12}s`,
+          }}
+        />
+      ))}
+    </svg>
+  );
+}
+
+function VoiceSpin() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      aria-hidden
+      className="shrink-0 animate-spin text-[var(--ink)] motion-reduce:animate-none"
+    >
+      <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.4" opacity="0.18" />
+      <path
+        d="M8 1.8a6.2 6.2 0 0 1 6.2 6.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
 
 function FlagButton({ on, onPress, children }: { on: boolean; onPress: () => void; children: string }) {
