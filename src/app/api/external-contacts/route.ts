@@ -44,7 +44,6 @@ export async function POST(request: Request) {
   if (
     parsed.value.web !== undefined ||
     parsed.value.social !== undefined ||
-    parsed.value.about !== undefined ||
     parsed.value.files !== undefined
   ) {
     return noStore({ error: "Save the contact first." }, 400);

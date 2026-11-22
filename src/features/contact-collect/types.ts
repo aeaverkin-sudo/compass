@@ -68,8 +68,8 @@ export type ExternalContactInput = {
   photoAttachmentId: string | null;
   lines: ExternalLine[];
   /**
-   * Absent on a short save and on an old client.
-   * Present only together: one update writes all four, or none of them.
+   * Web, Social, and Files are absent on a short save and present only together.
+   * About may be sent on its own. An absent about leaves the stored text alone.
    */
   web?: ContactLink[];
   social?: ContactLink[];

@@ -3,13 +3,39 @@
 export const CONTACT_LINK_LIMIT = 12;
 export const CONTACT_LINK_MAX = 2048;
 export const CONTACT_ABOUT_MAX = 2000;
+export const ABOUT_TOO_LONG = "About is too long.";
+
+export type AboutSave =
+  | { ok: true; note: string; about?: string }
+  | { ok: false; error: typeof ABOUT_TOO_LONG };
+
+/**
+ * New and changed text is written to about. An unchanged edit sends the old note and leaves about out,
+ * so a joined text longer than the column stays stored in the two old fields.
+ * Creating with an empty About omits the column, which keeps a base schema save working.
+ */
+export function aboutSave(input: {
+  editing: boolean;
+  changed: boolean;
+  text: string;
+  storedNote: string;
+}): AboutSave {
+  if (!input.editing || input.changed) {
+    const text = input.text.trim();
+    if (text.length > CONTACT_ABOUT_MAX) return { ok: false, error: ABOUT_TOO_LONG };
+    if (!input.editing && !text) return { ok: true, note: "" };
+    return { ok: true, note: "", about: text };
+  }
+  return { ok: true, note: input.storedNote };
+}
+
 export const CONTACT_FILE_LIMIT = 8;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const EXTRA_KEYS = ["web", "social", "about", "files"] as const;
+const EXTRA_KEYS = ["web", "social", "files"] as const;
 
-/** Absent keys leave stored extras alone. A partial body is refused. */
+/** Web, Social, and Files stay together. About is its own key and is not part of this count. */
 export function extraKeyMode(record: object): "omit" | "partial" | "present" {
   const count = EXTRA_KEYS.filter((key) => Object.prototype.hasOwnProperty.call(record, key)).length;
   if (count === 0) return "omit";

@@ -1,11 +1,8 @@
-/** Creation stays on the note column limit. Edit can hold both old texts and the blank line between them. */
-export const ABOUT_CREATE_MAX = 500;
-export const ABOUT_EDIT_MAX = 2502;
-
 /**
  * One About text for the contact screen and Edit.
  * Note comes first, then the old About, with a blank line between them.
  * The same text is kept once. An event tag is not part of this text.
+ * The joined text is not cut to the save limit.
  */
 export function joinAbout(note: string, about: string): string {
   const first = note.trim();

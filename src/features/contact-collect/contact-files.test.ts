@@ -17,7 +17,10 @@ const BUCKET = "contact-files";
 
 test("an old save without the new keys leaves extras untouched", () => {
   assert.equal(extraKeyMode({ displayName: "Ada" }), "omit");
+  assert.equal(extraKeyMode({ about: "met at the door" }), "omit");
   assert.equal(extraKeyMode({ web: [] }), "partial");
+  assert.equal(extraKeyMode({ about: "", web: [] }), "partial");
+  assert.equal(extraKeyMode({ web: [], social: [], files: [] }), "present");
   assert.equal(extraKeyMode({ web: [], social: [], about: "", files: [] }), "present");
 });
 

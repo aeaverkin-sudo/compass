@@ -19,8 +19,13 @@ import { prepareCardPhotoForStorage } from "@/shared/services/attachment-storage
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
-import { ABOUT_CREATE_MAX, ABOUT_EDIT_MAX, joinAbout } from "@/features/contact-collect/about-text";
-import { CONTACT_FILE_LIMIT, CONTACT_LINK_LIMIT, CONTACT_LINK_MAX } from "@/features/contact-collect/contact-files";
+import { joinAbout } from "@/features/contact-collect/about-text";
+import {
+  aboutSave,
+  CONTACT_FILE_LIMIT,
+  CONTACT_LINK_LIMIT,
+  CONTACT_LINK_MAX,
+} from "@/features/contact-collect/contact-files";
 import {
   clearContactDraft,
   contactDraftIsEmpty,
@@ -651,14 +656,17 @@ export function NewContactForm({
       webLinks.some((row) => row.value.trim()) ||
       socialLinks.some((row) => row.value.trim()) ||
       contactFiles.length > 0;
-    const noteChanged = editing && aboutEdited.current;
-    const noteValue = editing && !aboutEdited.current ? storedNote : note;
-    if (noteValue.trim().length > (editing ? ABOUT_EDIT_MAX : ABOUT_CREATE_MAX)) {
-      setError("The note is too long.");
+    const written = aboutSave({
+      editing,
+      changed: aboutEdited.current,
+      text: note,
+      storedNote,
+    });
+    if (!written.ok) {
+      setError(written.error);
       return;
     }
-    const clearAbout = noteChanged && storedAbout.trim().length > 0;
-    const sendExtras = editing && (keepExtras.current || formHasExtras || clearAbout);
+    const sendSections = editing && (keepExtras.current || formHasExtras);
     const markLinks = (rows: LinkDraft[], zone: "web" | "social") =>
       rows.map((row) => {
         const text = row.value.trim();
@@ -670,7 +678,7 @@ export function NewContactForm({
       });
     const nextWeb = markLinks(webLinks, "web");
     const nextSocial = markLinks(socialLinks, "social");
-    if (sendExtras && (nextWeb.some((row) => row.marked) || nextSocial.some((row) => row.marked))) {
+    if (sendSections && (nextWeb.some((row) => row.marked) || nextSocial.some((row) => row.marked))) {
       setWebLinks(nextWeb);
       setSocialLinks(nextSocial);
       setError("One link is not valid.");
@@ -710,15 +718,15 @@ export function NewContactForm({
               : headerField === "company" && company.trim()
                 ? "company"
                 : null,
-          note: noteValue,
+          note: written.note,
           eventTag: editing ? (initial?.eventTag ?? "") : suggestedEvent,
           source: initial?.source ?? source,
           photoAttachmentId,
-          ...(sendExtras
+          ...(written.about !== undefined ? { about: written.about } : {}),
+          ...(sendSections
             ? {
                 web: nextWeb.filter((row) => row.value).map((row) => ({ value: row.value, type: "" })),
                 social: nextSocial.filter((row) => row.value).map((row) => ({ value: row.value, type: "" })),
-                about: clearAbout ? "" : storedAbout,
                 files: contactFiles,
               }
             : {}),

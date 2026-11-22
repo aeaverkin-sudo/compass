@@ -353,20 +353,26 @@ export async function createExternalContact(
   if (photo) return photo;
   const admin = createAdminSupabaseClient();
   const id = crypto.randomUUID();
+  const aboutCols = input.about?.trim() ? { about: input.about } : {};
   const withHeader = await admin
     .from("external_contacts")
-    .insert({ id, owner_id: ownerId, ...rowValues(input, true) })
+    .insert({ id, owner_id: ownerId, ...rowValues(input, true), ...aboutCols })
     .select(COLUMNS)
     .single();
   const inserted =
-    withHeader.error && missingHeaderColumn(withHeader.error)
+    withHeader.error && missingHeaderColumn(withHeader.error) && !missingMoreColumn(withHeader.error)
       ? await admin
           .from("external_contacts")
-          .insert({ id, owner_id: ownerId, ...rowValues(input, false) })
+          .insert({ id, owner_id: ownerId, ...rowValues(input, false), ...aboutCols })
           .select(COLUMNS_BASE)
           .single()
       : withHeader;
-  if (inserted.error) return failed(inserted.error, "Could not save the contact.");
+  if (inserted.error) {
+    if (aboutCols.about && (missingMoreColumn(inserted.error) || missingHeaderColumn(inserted.error))) {
+      return { ok: false, status: 503, error: "Could not save the extra sections." };
+    }
+    return failed(inserted.error, "Could not save the contact.");
+  }
   return { ok: true, contact: mapRow(inserted.data as unknown as DbRow) };
 }
 
@@ -452,35 +458,42 @@ export async function updateExternalContact(
   if (!current.ok) return current;
   const photo = await checkPhoto(ownerId, input.photoAttachmentId, "Could not save the contact.");
   if (photo) return photo;
-  const wantsExtras =
-    input.web !== undefined || input.social !== undefined || input.about !== undefined || input.files !== undefined;
-  if (
-    wantsExtras &&
-    (input.web === undefined || input.social === undefined || input.about === undefined || input.files === undefined)
-  ) {
+  const wantsSections = input.web !== undefined || input.social !== undefined || input.files !== undefined;
+  if (wantsSections && (input.web === undefined || input.social === undefined || input.files === undefined)) {
     return { ok: false, status: 400, error: "Expected the extra sections." };
   }
+  const wantsAbout = input.about !== undefined;
   let files: ContactFileRef[] | null = null;
-  if (wantsExtras) {
+  if (wantsSections) {
     const bound = await boundFiles(ownerId, id, input.files ?? []);
     if (!Array.isArray(bound)) return bound;
     files = bound;
   }
   const admin = createAdminSupabaseClient();
-  const updated = wantsExtras
-    ? await admin
-        .from("external_contacts")
-        .update({
-          ...rowValues(input, true),
-          web: input.web,
-          social: input.social,
-          about: input.about,
-          files,
-        })
-        .eq("owner_id", ownerId)
-        .eq("id", id)
-        .select(COLUMNS_MORE)
-        .maybeSingle()
+  const extras = {
+    ...(wantsAbout ? { about: input.about } : {}),
+    ...(wantsSections ? { web: input.web, social: input.social, files } : {}),
+  };
+  const updated = wantsAbout || wantsSections
+    ? await (async () => {
+        const withHeader = await admin
+          .from("external_contacts")
+          .update({ ...rowValues(input, true), ...extras })
+          .eq("owner_id", ownerId)
+          .eq("id", id)
+          .select(COLUMNS_MORE)
+          .maybeSingle();
+        if (withHeader.error && missingHeaderColumn(withHeader.error) && !missingMoreColumn(withHeader.error)) {
+          return admin
+            .from("external_contacts")
+            .update({ ...rowValues(input, false), ...extras })
+            .eq("owner_id", ownerId)
+            .eq("id", id)
+            .select(COLUMNS_MORE)
+            .maybeSingle();
+        }
+        return withHeader;
+      })()
     : await (async () => {
         const withHeader = await admin
           .from("external_contacts")
@@ -501,7 +514,7 @@ export async function updateExternalContact(
         return withHeader;
       })();
   if (updated.error) {
-    if (wantsExtras && (missingMoreColumn(updated.error) || missingHeaderColumn(updated.error))) {
+    if ((wantsAbout || wantsSections) && (missingMoreColumn(updated.error) || missingHeaderColumn(updated.error))) {
       return { ok: false, status: 503, error: "Could not save the extra sections." };
     }
     return failed(updated.error, "Could not save the contact.");

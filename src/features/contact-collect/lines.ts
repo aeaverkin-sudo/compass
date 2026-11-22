@@ -1,6 +1,7 @@
 import { detectContactType } from "@/shared/services/contact-item";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import {
+  ABOUT_TOO_LONG,
   CONTACT_ABOUT_MAX,
   CONTACT_FILE_LIMIT,
   CONTACT_LINK_LIMIT,
@@ -67,10 +68,9 @@ function flagsOf(value: unknown): LineFlag[] | { error: string } {
 }
 
 /** Name, plain fields, and contact lines. Pushback fields in the body are ignored. */
-export function parseExternalContact(body: unknown, options?: { noteMax?: number }): ParsedContact {
+export function parseExternalContact(body: unknown): ParsedContact {
   if (!body || typeof body !== "object") return { ok: false, error: "Expected a contact." };
   const record = body as Record<string, unknown>;
-  const noteMax = options?.noteMax ?? NOTE_MAX;
 
   if (typeof record.displayName !== "string" || !record.displayName.trim()) {
     return { ok: false, error: "Add a name." };
@@ -82,7 +82,7 @@ export function parseExternalContact(body: unknown, options?: { noteMax?: number
   if (typeof position !== "string") return { ok: false, error: position.error };
   const company = field(record.company, COMPANY_MAX, "The company is too long.");
   if (typeof company !== "string") return { ok: false, error: company.error };
-  const note = field(record.note, noteMax, "The note is too long.");
+  const note = field(record.note, NOTE_MAX, "The note is too long.");
   if (typeof note !== "string") return { ok: false, error: note.error };
   const eventTag = field(record.eventTag, TAG_MAX, "The event is too long.");
   if (typeof eventTag !== "string") return { ok: false, error: eventTag.error };
@@ -140,24 +140,26 @@ export function parseExternalContact(body: unknown, options?: { noteMax?: number
   }
   if (lines.length > LINES_MAX) return { ok: false, error: "Too many contact lines." };
 
+  let about: string | undefined;
+  if (Object.prototype.hasOwnProperty.call(record, "about")) {
+    const aboutText = field(record.about, CONTACT_ABOUT_MAX, ABOUT_TOO_LONG);
+    if (typeof aboutText !== "string") return { ok: false, error: aboutText.error };
+    about = aboutText;
+  }
   const extras = extraKeyMode(record);
   if (extras === "partial") return { ok: false, error: "Expected the extra sections." };
   let web: ContactLink[] | undefined;
   let social: ContactLink[] | undefined;
-  let about: string | undefined;
   let files: ContactFileRef[] | undefined;
   if (extras === "present") {
     const webLines = linksOf(record.web, "web");
     if (!Array.isArray(webLines)) return { ok: false, error: webLines.error };
     const socialLines = linksOf(record.social, "social");
     if (!Array.isArray(socialLines)) return { ok: false, error: socialLines.error };
-    const aboutText = field(record.about, CONTACT_ABOUT_MAX, "The description is too long.");
-    if (typeof aboutText !== "string") return { ok: false, error: aboutText.error };
     const fileRows = filesOf(record.files);
     if (!Array.isArray(fileRows)) return { ok: false, error: fileRows.error };
     web = webLines;
     social = socialLines;
-    about = aboutText;
     files = fileRows;
   }
 

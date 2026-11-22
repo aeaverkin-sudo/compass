@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ABOUT_EDIT_MAX } from "@/features/contact-collect/about-text";
 import { parseExternalContact } from "@/features/contact-collect/lines";
 import { deleteExternalContact, readExternalContact, updateExternalContact } from "@/features/contact-collect/store";
 import { isUuid, requireOwnerId } from "@/shared/services/attachment-api";
@@ -46,7 +45,7 @@ export async function PUT(request: Request, context: RouteProps) {
   } catch {
     return noStore({ error: "Expected a contact." }, 400);
   }
-  const parsed = parseExternalContact(body, { noteMax: ABOUT_EDIT_MAX });
+  const parsed = parseExternalContact(body);
   if (!parsed.ok) return noStore({ error: parsed.error }, 400);
 
   try {
