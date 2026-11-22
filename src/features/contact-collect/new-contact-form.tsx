@@ -1148,12 +1148,12 @@ export function NewContactForm({
           {moreOpen ? emptyExtras.map(extraSection) : null}
         </>
       ) : null}
-      <div className="mt-[18px] flex gap-3">
-        <button type="button" className={GHOST_CREATE} onClick={() => setScanning(true)}>
-          <Scan className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-          Scan
-        </button>
-        {editing ? null : (
+      {editing ? null : (
+        <div className="mt-[18px] flex gap-3">
+          <button type="button" className={GHOST_CREATE} onClick={() => setScanning(true)}>
+            <Scan className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+            Scan
+          </button>
           <button
             type="button"
             className={cn(GHOST_CREATE, voicePhase === "recording" && "bg-sky")}
@@ -1175,8 +1175,8 @@ export function NewContactForm({
               </>
             )}
           </button>
-        )}
-      </div>
+        </div>
+      )}
       {error ? (
         <p className={cn("mt-3 text-[#E23B2F]", error === "Try again" ? "t-caps" : "t-meta")}>{error}</p>
       ) : null}
@@ -1224,23 +1224,6 @@ export function NewContactForm({
             }
           />
         </form>
-        {scanning ? (
-          <QrScanner
-            onClose={() => setScanning(false)}
-            onScan={(found) => {
-              applyScan(found);
-              setScanning(false);
-            }}
-            onCapture={
-              canRead
-                ? (blob) => {
-                    setScanning(false);
-                    void readFile("image", blob, "scan.jpg");
-                  }
-                : undefined
-            }
-          />
-        ) : null}
       </main>
     );
   }
