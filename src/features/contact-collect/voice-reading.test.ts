@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { register } from "node:module";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 import {
   mergeContactDraft,
   patchFromContactDraft,
@@ -7,6 +9,8 @@ import {
 } from "./merge-contact-draft.ts";
 import type { ContactReading } from "./parse-contact.ts";
 import { normalizeVoiceReading } from "./voice-reading.ts";
+
+register(new URL("./voice-reading.alias-hook.mjs", import.meta.url), pathToFileURL("./"));
 
 const PHONE = "плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать три";
 const PHONE_EN = "plus forty-four, seven thousand seven hundred, nine hundred, one hundred twenty-three";
@@ -92,9 +96,9 @@ test("digits dictated one by one keep a spoken plus and do not grow a country co
   assert.deepEqual(next.lines, [DIGITS, "9123456"]);
 });
 
-test("a short spoken number is left untouched", () => {
+test("a short spoken number is not kept as an address", () => {
   const next = reading({ lines: ["плюс сорок четыре"] });
-  assert.deepEqual(next.lines, ["плюс сорок четыре"]);
+  assert.deepEqual(next.lines, []);
   assert.equal(next.lineFlags, undefined);
 });
 
@@ -157,6 +161,53 @@ test("voice first does not get overwritten by a later camera or typed fill", () 
   assert.equal(state.company, "North Studio");
   assert.equal(state.lines[0]?.value, DIGITS);
   assert.equal(state.lines[1]?.value, "Telegram / @radiotest");
+});
+
+test("model json passes normalization, the contact check, and the draft merge", async () => {
+  const { contactReading } = await import("./parse-contact.ts");
+  const apply = (model: unknown, state = blank()) => {
+    const draft = contactReading(normalizeVoiceReading(model), { allowSets: true });
+    return mergeContactDraft(state, patchFromContactDraft(draft));
+  };
+
+  let state = apply({
+    displayName: "Jordan Ellis",
+    position: "Founder",
+    company: "North Studio",
+    lines: [PHONE, "WhatsApp", "jordan at example dot com", "Telegram Радиотест", "Instagram Радиотест"],
+  });
+  assert.deepEqual(
+    state.lines.map((line) => line.value),
+    [DIGITS, "jordan@example.com", "Telegram / @radiotest", "Instagram / @radiotest"],
+  );
+  assert.deepEqual(state.lines[0]?.flags, ["wa"]);
+  assert.equal(state.lines.filter((line) => line.value.replace(/\D/g, "") === "447700900123").length, 1);
+
+  state = apply(
+    { sets: { line: { to: "плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать четыре" } } },
+    state,
+  );
+  assert.equal(state.lines[0]?.value, "+447700900124");
+  assert.deepEqual(state.lines[0]?.flags, ["wa"]);
+  assert.equal(state.lines[1]?.value, "jordan@example.com");
+  assert.equal(state.displayName, "Jordan Ellis");
+
+  const spoken = apply({
+    lines: [
+      "plus one, six hundred fifty, five hundred fifty five, zero one two three",
+      "plus 1, six hundred fifty, five hundred fifty five, 0123",
+      "jordan-ellis+work at example dot com",
+      "Instagram https://instagram.com/jordan",
+      "Telegram Радиотест",
+      "plus one, two, three",
+      "Baker Street, 12",
+    ],
+  });
+  assert.deepEqual(
+    spoken.lines.map((line) => line.value),
+    ["+16505550123", "jordan-ellis+work@example.com", "https://instagram.com/jordan", "Telegram / @radiotest", "Baker Street, 12"],
+  );
+  assert.equal(spoken.lines.some((line) => /six hundred|httpsinstagram|jordanelliswork/i.test(line.value)), false);
 });
 
 test("an unclear number correction is skipped and the other data is kept", () => {

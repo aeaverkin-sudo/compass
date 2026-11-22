@@ -147,12 +147,27 @@ const EMAIL_HINT = /собачк|собак[ауи]|@|\sat\s|точка|\sdot\s/
 
 type Spoken =
   | { kind: "line"; line: string; flags: Flag[]; orphans: Flag[] }
-  | { kind: "mark"; flag: Flag };
+  | { kind: "mark"; flag: Flag }
+  | { kind: "drop" };
 
 function translitToken(token: string) {
   let out = "";
   for (const ch of token.toLowerCase()) {
     if (/[a-z0-9._]/.test(ch)) {
+      out += ch;
+      continue;
+    }
+    const mapped = RU[ch];
+    if (mapped) out += mapped;
+  }
+  return out;
+}
+
+/** Letters already in the address stay, including + and -. Only spoken at/dot are replaced. */
+function addressToken(token: string) {
+  let out = "";
+  for (const ch of token.toLowerCase()) {
+    if (/[a-z0-9._+-]/.test(ch)) {
       out += ch;
       continue;
     }
@@ -177,10 +192,24 @@ function spokenEmail(raw: string): string | null {
       parts.push(".");
       continue;
     }
-    parts.push(translitToken(token.replace(/^@+|@+$/g, "")));
+    parts.push(addressToken(token.replace(/^@+|@+$/g, "")));
   }
   const email = parts.join("").replace(/\.{2,}/g, ".").replace(/@{2,}/g, "@");
   return EMAIL.test(email) ? email : null;
+}
+
+function spokenLink(raw: string): string | null {
+  const match = raw.match(/https?:\/\/[^\s]+/i);
+  if (!match?.[0]) return null;
+  const url = match[0].replace(/[),.;]+$/, "");
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    if (!parsed.hostname.includes(".")) return null;
+    return url;
+  } catch {
+    return null;
+  }
 }
 
 function parseGroup(words: Num[]): string | null {
@@ -256,34 +285,81 @@ function splitNumberGroups(tokens: Num[]) {
   return groups;
 }
 
-/** Digits already written, or number-words. Null when a digit would have to be guessed. */
-function spokenPhone(raw: string): { digits: string; plus: boolean } | null {
+function phoneWord(token: string) {
+  const lower = token.toLowerCase();
+  if (lower === "и" || lower === "and" || lower === "плюс" || lower === "plus") return "skip" as const;
+  const bare = lower.startsWith("+") ? lower.slice(1) : lower;
+  if (/^\d+$/.test(bare)) return bare;
+  return NUMBER.get(lower) ?? null;
+}
+
+/** Every token is a digit, a number word, or a spoken plus. Nothing else to guess from. */
+function looksLikePhone(raw: string) {
+  const tokens = raw.trim().split(/[\s,;]+/).filter(Boolean);
+  if (!tokens.length) return false;
+  return tokens.every((token) => token.split("-").every((part) => phoneWord(part) !== null));
+}
+
+function hasSpokenNumber(raw: string) {
+  return raw
+    .trim()
+    .split(/[\s,;-]+/)
+    .some((token) => NUMBER.has(token.toLowerCase()));
+}
+
+/** One comma group. Digit tokens keep a leading zero. Word runs stay inside this group. */
+function parseSegment(segment: string): string | null {
+  const tokens = segment.trim().split(/[\s-]+/).filter(Boolean);
+  if (!tokens.length) return "";
+  let digits = "";
+  let words: Num[] = [];
+  const flush = () => {
+    if (!words.length) return true;
+    for (const group of splitNumberGroups(words)) {
+      const part = parseGroup(group);
+      if (part == null) return false;
+      digits += part;
+    }
+    words = [];
+    return true;
+  };
+  for (const token of tokens) {
+    const word = phoneWord(token);
+    if (word === "skip") continue;
+    if (word === null) return null;
+    if (typeof word === "string") {
+      if (!flush()) return null;
+      digits += word;
+      continue;
+    }
+    words.push(word);
+  }
+  if (!flush()) return null;
+  return digits;
+}
+
+/**
+ * A spoken phone, or "drop" when the line is a number phrase we cannot keep.
+ * Null means this line is not a phone. Commas are group boundaries.
+ */
+function spokenPhone(raw: string): { digits: string; plus: boolean } | "drop" | null {
   const trimmed = raw.trim();
   if (/^\+?[\d\s().-]+$/.test(trimmed)) {
     const digits = trimmed.replace(/\D/g, "");
     if (digits.length < 7 || digits.length > 15) return null;
     return { digits, plus: trimmed.startsWith("+") };
   }
+  const attempt = looksLikePhone(trimmed);
+  if (!attempt && !(hasSpokenNumber(trimmed) && /[,;]/.test(trimmed))) return null;
   const plus = /^\s*\+/.test(trimmed) || /(^|\s)(?:плюс|plus)(?=\s|,|$)/i.test(trimmed);
   const cleaned = trimmed.replace(/^\s*\+/, " ").replace(/(^|\s)(?:плюс|plus)(?=\s|,|$)/gi, " ");
-  const tokens: Num[] = [];
-  for (const group of cleaned.split(/[,;]+/)) {
-    for (const token of group.trim().split(/[\s-]+/)) {
-      const lower = token.toLowerCase();
-      if (!lower || lower === "и" || lower === "and") continue;
-      const num = NUMBER.get(lower);
-      if (!num) return null;
-      tokens.push(num);
-    }
-  }
-  if (!tokens.length) return null;
   let digits = "";
-  for (const group of splitNumberGroups(tokens)) {
-    const part = parseGroup(group);
-    if (part == null) return null;
+  for (const segment of cleaned.split(/[,;]+/)) {
+    const part = parseSegment(segment);
+    if (part == null) return "drop";
     digits += part;
   }
-  if (digits.length < 7 || digits.length > 15) return null;
+  if (digits.length < 7 || digits.length > 15) return "drop";
   return { digits, plus };
 }
 
@@ -341,9 +417,12 @@ function speakLine(raw: string): Spoken | null {
     return lead.flags.length === 1 && flag ? { kind: "mark", flag } : null;
   }
   const phone = spokenPhone(lead.rest);
+  if (phone === "drop") return { kind: "drop" };
   if (phone) {
     return { kind: "line", line: formatPhone(phone, lead.rest), flags: lead.flags, orphans: [] };
   }
+  const link = spokenLink(lead.rest);
+  if (link) return { kind: "line", line: link, flags: [], orphans: [] };
   const label = lead.labels.includes("Instagram")
     ? "Instagram"
     : lead.labels.includes("Telegram")
@@ -390,6 +469,7 @@ export function normalizeVoiceReading(value: unknown): unknown {
       if (raw.trim()) lines.push(raw.trim());
       return;
     }
+    if (spoken.kind === "drop") return;
     if (spoken.kind === "mark") {
       orphans.push(spoken.flag);
       return;
@@ -411,7 +491,8 @@ export function normalizeVoiceReading(value: unknown): unknown {
       const row = item as { value?: unknown; flags?: unknown };
       if (typeof row.value !== "string" || !Array.isArray(row.flags)) continue;
       const spoken = speakLine(row.value);
-      const line = spoken && spoken.kind === "line" ? spoken.line : row.value.trim();
+      if (spoken?.kind === "drop") continue;
+      const line = spoken?.kind === "line" ? spoken.line : row.value.trim();
       const mark = row.flags.filter((flag): flag is Flag => flag === "wa" || flag === "tg");
       if (line && mark.length) addFlag(flags, line, mark);
     }
@@ -431,7 +512,8 @@ export function normalizeVoiceReading(value: unknown): unknown {
       for (const key of ["from", "to"] as const) {
         if (typeof line[key] !== "string") continue;
         const spoken = speakLine(line[key]);
-        if (spoken && spoken.kind === "line") line[key] = spoken.line;
+        if (spoken?.kind === "line") line[key] = spoken.line;
+        else if (spoken?.kind === "drop") delete line[key];
       }
       sets.line = line;
     }
