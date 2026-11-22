@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { foldSearch } from "../../shared/lib/search-fold.ts";
+import { readColumnLadder } from "./store-columns.ts";
 
 const source = readFileSync(new URL("./store.ts", import.meta.url), "utf8");
 
@@ -62,6 +63,25 @@ test("the About update retry does not select header_field", () => {
   assert.match(source, /\.select\(updateReturning\(true, false\)\)/);
   assert.match(source, /\.update\(\{ \.\.\.rowValues\(input, false\), \.\.\.extras \}\)/);
   assert.match(source, /\.eq\("owner_id", ownerId\)/);
+});
+
+test("reading More without header_field returns About and Network can find it", async () => {
+  assert.match(source, /moreBase: COLUMNS_MORE_BASE/);
+  assert.match(source, /\.eq\("owner_id", ownerId\)/);
+  const row = { display_name: "Jordan", note: "", about: "Met over lunch" };
+  const opened = await readColumnLadder({ known: "more", fullCheckAt: 0 }, 0, 5 * 60 * 1000, async (set) => {
+    if (set === "moreBase") return { error: null, data: row };
+    if (set === "more") return { error: { message: "column header_field does not exist" }, data: null };
+    return { error: { message: "not used" }, data: null };
+  });
+  const saved = rules.savedAboutFields(opened.result.data ?? {});
+  assert.equal(saved.about, "Met over lunch");
+  assert.match(saved.searchText, /met over lunch/);
+});
+
+test("an empty About save on the base columns does not ask for about", () => {
+  assert.doesNotMatch(rules.insertReturning(false, true), /\babout\b/);
+  assert.doesNotMatch(rules.insertReturning(false, false), /\babout\b/);
 });
 
 test("a returned About is on the contact and in the search text", () => {

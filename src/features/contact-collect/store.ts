@@ -18,13 +18,10 @@ import {
 } from "@/shared/services/attachment-limits";
 import { CONTACT_FILE_LIMIT, contactFilePath } from "@/features/contact-collect/contact-files";
 import {
-  clockAfterAttempt,
-  clockAfterSuccess,
   missingHeaderColumn,
   missingMoreColumn,
-  missingOptionalColumn,
   missingTable,
-  planColumns,
+  readColumnLadder,
   type ColumnSet,
   type SchemaClock,
 } from "@/features/contact-collect/store-columns";
@@ -303,6 +300,7 @@ async function checkPhoto(ownerId: string, photoId: string | null, fallback: str
 
 const COLUMN_SQL: Record<ColumnSet, string> = {
   more: COLUMNS_MORE,
+  moreBase: COLUMNS_MORE_BASE,
   header: COLUMNS,
   base: COLUMNS_BASE,
 };
@@ -318,20 +316,15 @@ async function loadExternal(ownerId: string, id?: string) {
     if (!id) return query.order("created_at", { ascending: true });
     return query.eq("id", id).maybeSingle();
   };
-  const now = Date.now();
-  const order = planColumns(schemaClock, now, COLUMN_HOLD_MS);
-  schemaClock = clockAfterAttempt(schemaClock, order, now);
-  let last: Awaited<ReturnType<typeof run>> | null = null;
-  for (const set of order) {
+  const outcome = await readColumnLadder(schemaClock, Date.now(), COLUMN_HOLD_MS, async (set) => {
     const result = await run(set);
-    if (!result.error) {
-      schemaClock = clockAfterSuccess(schemaClock, set);
-      return result;
-    }
-    last = result;
-    if (!missingOptionalColumn(result.error)) return result;
-  }
-  return last!;
+    return {
+      error: result.error ? { code: result.error.code, message: result.error.message } : null,
+      data: result.data,
+    };
+  });
+  schemaClock = outcome.clock;
+  return outcome.result;
 }
 
 /** Upload may target a contact only after this owner already saved it. */
