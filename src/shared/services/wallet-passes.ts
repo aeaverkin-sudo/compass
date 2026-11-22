@@ -13,7 +13,6 @@ import { setPrimaryCard } from "@/shared/services/primary-card";
 import { buildPass, type PassField } from "@/shared/services/wallet-pass";
 import { passAuthenticationToken, walletSerialFor } from "@/shared/services/wallet-registration";
 import { walletNumber, walletStrip } from "@/shared/services/wallet-strip";
-import { publicCardPath } from "@/shared/services/public-card-url";
 import { walletCardQr, type WalletBackField } from "@/shared/services/wallet-pass-content";
 
 export type BuiltPass = { file: Buffer; name: string };
@@ -210,10 +209,6 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
     walletNumber(String(ordinal).padStart(2, "0")),
   ]);
   const about = cardAbout(sections);
-  const rawHandle = card.handle?.trim() ?? "";
-  const handle = rawHandle
-    ? publicCardPath({ publicToken: card.public_token, handle: rawHandle }).replace(/^\//, "")
-    : "";
   const service = origin.startsWith("https://")
     ? { webServiceURL: `${origin.replace(/\/$/, "")}/api/wallet/`, authenticationToken: passAuthenticationToken(serial) }
     : {};
@@ -223,7 +218,7 @@ export async function buildPersonalPass(cardId: string, ownerId: string, origin:
     description: name,
     ...service,
     logo,
-    headerFields: handle ? [{ key: "handle", label: "", value: handle }] : [],
+    headerFields: [],
     strip,
     secondaryFields: portfolioFields(sections),
     backFields: [
