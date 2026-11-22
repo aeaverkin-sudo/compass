@@ -1275,24 +1275,30 @@ export function NewContactForm({
 
 function VoiceWave() {
   const bars = [
-    { x: 1.6, h: 4 },
-    { x: 5.2, h: 8 },
-    { x: 8.8, h: 13 },
-    { x: 12.4, h: 8 },
-    { x: 16, h: 4 },
+    { x: 1.2, h: 8 },
+    { x: 25.5, h: 15 },
+    { x: 50, h: 25 },
+    { x: 74.5, h: 15 },
+    { x: 98.8, h: 8 },
   ];
   return (
-    <svg width="18" height="16" viewBox="0 0 18 16" aria-hidden className="shrink-0 text-[var(--ink)]">
+    <svg
+      viewBox="0 0 100 29"
+      preserveAspectRatio="none"
+      aria-hidden
+      className="h-[29px] w-2/3 text-[var(--ink)]"
+    >
       {bars.map((bar, index) => (
         <line
           key={bar.x}
           x1={bar.x}
           x2={bar.x}
-          y1={8 - bar.h / 2}
-          y2={8 + bar.h / 2}
+          y1={14.5 - bar.h / 2}
+          y2={14.5 + bar.h / 2}
           stroke="currentColor"
           strokeWidth="1.4"
           strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
           className="motion-reduce:[animation:none]"
           style={{
             transformBox: "fill-box",
@@ -1309,15 +1315,15 @@ function VoiceWave() {
 function VoiceSpin() {
   return (
     <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
+      width="22"
+      height="22"
+      viewBox="0 0 22 22"
       aria-hidden
       className="shrink-0 animate-spin text-[var(--ink)] motion-reduce:animate-none"
     >
-      <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.4" opacity="0.18" />
+      <circle cx="11" cy="11" r="8.5" fill="none" stroke="currentColor" strokeWidth="1.4" opacity="0.18" />
       <path
-        d="M8 1.8a6.2 6.2 0 0 1 6.2 6.2"
+        d="M11 2.5a8.5 8.5 0 0 1 8.5 8.5"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.4"
