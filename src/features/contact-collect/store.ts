@@ -50,6 +50,30 @@ const COLUMNS_BASE =
   "id, display_name, photo_attachment_id, position, company, note, event_tag, source, lines, created_at, updated_at, pushback_at, pushback_channel, pushback_card_id";
 const COLUMNS = `${COLUMNS_BASE}, header_field`;
 const COLUMNS_MORE = `${COLUMNS}, web, social, about, files`;
+const COLUMNS_MORE_BASE = `${COLUMNS_BASE}, web, social, about, files`;
+
+/** An insert that wrote About must return it. An empty About stays on the base columns. */
+export function insertReturning(wroteAbout: boolean, withHeader: boolean): string {
+  const columns = withHeader ? COLUMNS : COLUMNS_BASE;
+  return wroteAbout ? `${columns}, about` : columns;
+}
+
+/** The retry after a missing header_field must not ask for that column again. */
+export function updateReturning(widened: boolean, withHeader: boolean): string {
+  if (!widened) return withHeader ? COLUMNS : COLUMNS_BASE;
+  return withHeader ? COLUMNS_MORE : COLUMNS_MORE_BASE;
+}
+
+/** The About text returned by a save, and the search text that must contain it. */
+export function savedAboutFields(row: {
+  about?: string | null;
+  note?: string | null;
+  display_name?: string | null;
+}): { about: string; searchText: string } {
+  const about = row.about ?? "";
+  const searchText = foldSearch([row.display_name ?? "", row.note ?? "", about].filter(Boolean).join(" "));
+  return { about, searchText };
+}
 
 const NOT_READY = "Contacts are not ready.";
 
@@ -159,6 +183,7 @@ function mapRow(row: DbRow): ExternalContact {
   const photoAttachmentId = row.photo_attachment_id;
   const eventTag = row.event_tag ?? "";
   const eventBare = eventTag.replace(/^[#/]+/, "");
+  const savedAbout = savedAboutFields(row);
   const searchText = foldSearch(
     [
       row.display_name,
@@ -167,7 +192,7 @@ function mapRow(row: DbRow): ExternalContact {
       row.note,
       eventTag,
       eventBare,
-      row.about ?? "",
+      savedAbout.about,
       ...lines.map((line) => line.value),
       ...readLinks(row.web).map((link) => link.value),
       ...readLinks(row.social).map((link) => link.value),
@@ -193,7 +218,7 @@ function mapRow(row: DbRow): ExternalContact {
     lines,
     web: readLinks(row.web),
     social: readLinks(row.social),
-    about: row.about ?? "",
+    about: savedAbout.about,
     files: readFiles(row.files),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -354,17 +379,18 @@ export async function createExternalContact(
   const admin = createAdminSupabaseClient();
   const id = crypto.randomUUID();
   const aboutCols = input.about?.trim() ? { about: input.about } : {};
+  const wroteAbout = Boolean(aboutCols.about);
   const withHeader = await admin
     .from("external_contacts")
     .insert({ id, owner_id: ownerId, ...rowValues(input, true), ...aboutCols })
-    .select(COLUMNS)
+    .select(insertReturning(wroteAbout, true))
     .single();
   const inserted =
     withHeader.error && missingHeaderColumn(withHeader.error) && !missingMoreColumn(withHeader.error)
       ? await admin
           .from("external_contacts")
           .insert({ id, owner_id: ownerId, ...rowValues(input, false), ...aboutCols })
-          .select(COLUMNS_BASE)
+          .select(insertReturning(wroteAbout, false))
           .single()
       : withHeader;
   if (inserted.error) {
@@ -481,7 +507,7 @@ export async function updateExternalContact(
           .update({ ...rowValues(input, true), ...extras })
           .eq("owner_id", ownerId)
           .eq("id", id)
-          .select(COLUMNS_MORE)
+          .select(updateReturning(true, true))
           .maybeSingle();
         if (withHeader.error && missingHeaderColumn(withHeader.error) && !missingMoreColumn(withHeader.error)) {
           return admin
@@ -489,7 +515,7 @@ export async function updateExternalContact(
             .update({ ...rowValues(input, false), ...extras })
             .eq("owner_id", ownerId)
             .eq("id", id)
-            .select(COLUMNS_MORE)
+            .select(updateReturning(true, false))
             .maybeSingle();
         }
         return withHeader;
@@ -500,7 +526,7 @@ export async function updateExternalContact(
           .update(rowValues(input, true))
           .eq("owner_id", ownerId)
           .eq("id", id)
-          .select(COLUMNS)
+          .select(updateReturning(false, true))
           .maybeSingle();
         if (withHeader.error && missingHeaderColumn(withHeader.error)) {
           return admin
@@ -508,7 +534,7 @@ export async function updateExternalContact(
             .update(rowValues(input, false))
             .eq("owner_id", ownerId)
             .eq("id", id)
-            .select(COLUMNS_BASE)
+            .select(updateReturning(false, false))
             .maybeSingle();
         }
         return withHeader;
