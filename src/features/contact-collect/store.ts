@@ -445,7 +445,7 @@ async function boundFiles(
 
 async function fileStillLinked(attachmentId: string): Promise<boolean> {
   const admin = createAdminSupabaseClient();
-  const hit = await admin.from("external_contacts").select("id").contains("files", [{ id: attachmentId }]).limit(1);
+  const hit = await admin.from("external_contacts").select("id").contains("files", JSON.stringify([{ id: attachmentId }])).limit(1);
   if (hit.error) {
     if (missingMoreColumn(hit.error)) return false;
     console.error("[external-contacts] file", hit.error.message);

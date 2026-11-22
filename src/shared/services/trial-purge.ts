@@ -77,7 +77,7 @@ async function contactReferenced(ids: string[]) {
   );
   const fileIds: string[] = [];
   for (const id of ids) {
-    const hit = await admin.from("external_contacts").select("files").contains("files", [{ id }]).limit(1);
+    const hit = await admin.from("external_contacts").select("files").contains("files", JSON.stringify([{ id }])).limit(1);
     if (hit.error) {
       if (/\bfiles\b/i.test(hit.error.message) && missingContactColumn(hit.error.message)) break;
       throw new Error(hit.error.message);
