@@ -67,9 +67,10 @@ function flagsOf(value: unknown): LineFlag[] | { error: string } {
 }
 
 /** Name, plain fields, and contact lines. Pushback fields in the body are ignored. */
-export function parseExternalContact(body: unknown): ParsedContact {
+export function parseExternalContact(body: unknown, options?: { noteMax?: number }): ParsedContact {
   if (!body || typeof body !== "object") return { ok: false, error: "Expected a contact." };
   const record = body as Record<string, unknown>;
+  const noteMax = options?.noteMax ?? NOTE_MAX;
 
   if (typeof record.displayName !== "string" || !record.displayName.trim()) {
     return { ok: false, error: "Add a name." };
@@ -81,7 +82,7 @@ export function parseExternalContact(body: unknown): ParsedContact {
   if (typeof position !== "string") return { ok: false, error: position.error };
   const company = field(record.company, COMPANY_MAX, "The company is too long.");
   if (typeof company !== "string") return { ok: false, error: company.error };
-  const note = field(record.note, NOTE_MAX, "The note is too long.");
+  const note = field(record.note, noteMax, "The note is too long.");
   if (typeof note !== "string") return { ok: false, error: note.error };
   const eventTag = field(record.eventTag, TAG_MAX, "The event is too long.");
   if (typeof eventTag !== "string") return { ok: false, error: eventTag.error };

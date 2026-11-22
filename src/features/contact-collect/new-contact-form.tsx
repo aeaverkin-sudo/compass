@@ -19,6 +19,7 @@ import { prepareCardPhotoForStorage } from "@/shared/services/attachment-storage
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
+import { ABOUT_CREATE_MAX, ABOUT_EDIT_MAX, joinAbout } from "@/features/contact-collect/about-text";
 import { CONTACT_FILE_LIMIT, CONTACT_LINK_LIMIT, CONTACT_LINK_MAX } from "@/features/contact-collect/contact-files";
 import {
   clearContactDraft,
@@ -51,17 +52,17 @@ const FIELD =
 /** One `t-body` line. The empty Name caret sits on this hint. */
 const NAME_HINT_LINE_PX = 15.5 * 1.45;
 
-/** Note stays one line until wrap, then grows to two. */
-function fitNoteField(node: HTMLTextAreaElement) {
+/** New contact stays one line until wrap, then grows to two. Edit grows to the whole text. */
+function fitNoteField(node: HTMLTextAreaElement, limited: boolean) {
   node.style.height = "0px";
   const styles = getComputedStyle(node);
   const line = Number.parseFloat(styles.lineHeight) || 22;
   const pad =
     (Number.parseFloat(styles.paddingTop) || 0) + (Number.parseFloat(styles.paddingBottom) || 0);
   const max = line * 2 + pad;
-  const next = Math.min(node.scrollHeight, max);
+  const next = limited ? Math.min(node.scrollHeight, max) : node.scrollHeight;
   node.style.height = `${next}px`;
-  node.style.overflowY = node.scrollHeight > max + 1 ? "auto" : "hidden";
+  node.style.overflowY = limited && node.scrollHeight > max + 1 ? "auto" : "hidden";
 }
 const GHOST_CREATE =
   "press flex min-h-11 flex-1 items-center justify-center gap-2 border-0 bg-white t-caps text-[var(--ink)] shadow-[0_10px_22px_rgba(20,20,20,0.14)] [-webkit-tap-highlight-color:transparent]";
@@ -220,17 +221,20 @@ export function NewContactForm({
 }) {
   const router = useRouter();
   const editing = Boolean(initial);
+  const storedNote = initial?.note ?? "";
+  const storedAbout = initial?.about ?? "";
+  const storedAboutText = joinAbout(storedNote, storedAbout);
   const lastLine = useRef<HTMLInputElement>(null);
   const noteRef = useRef<HTMLTextAreaElement>(null);
+  const aboutEdited = useRef(false);
   const [name, setName] = useState(clampNameLines(initial?.displayName ?? ""));
   const [position, setPosition] = useState(initial?.position ?? "");
   const [company, setCompany] = useState(initial?.company ?? "");
   const [headerField, setHeaderField] = useState<HeaderField | null>(initial?.headerField ?? null);
-  const [note, setNote] = useState(initial?.note ?? "");
+  const [note, setNote] = useState(editing ? storedAboutText : "");
   const keepExtras = useRef(storedExtras(initial));
   const [webLinks, setWebLinks] = useState<LinkDraft[]>(() => linkDrafts(initial?.web));
   const [socialLinks, setSocialLinks] = useState<LinkDraft[]>(() => linkDrafts(initial?.social));
-  const [about, setAbout] = useState(initial?.about ?? "");
   const [contactFiles, setContactFiles] = useState<ContactFileRef[]>(() => initial?.files ?? []);
   const [moreOpen, setMoreOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -292,8 +296,13 @@ export function NewContactForm({
   useKeyboardLift(scrollRef);
 
   useEffect(() => {
-    if (noteRef.current) fitNoteField(noteRef.current);
-  }, [note]);
+    if (noteRef.current) fitNoteField(noteRef.current, !editing);
+  }, [note, editing]);
+
+  const writeNote = (value: string) => {
+    setNote(value);
+    if (editing) aboutEdited.current = value.trim() !== storedAboutText.trim();
+  };
 
   useEffect(() => {
     if (error !== "Try again") return;
@@ -420,7 +429,7 @@ export function NewContactForm({
     setName(displayName);
     setPosition(merged.position);
     setCompany(merged.company);
-    setNote(merged.note);
+    writeNote(merged.note);
     setLines([...merged.lines.map((line) => ({ ...line, marked: false })), blank()]);
     draftRef.current = {
       name: displayName,
@@ -641,9 +650,15 @@ export function NewContactForm({
     const formHasExtras =
       webLinks.some((row) => row.value.trim()) ||
       socialLinks.some((row) => row.value.trim()) ||
-      about.trim().length > 0 ||
       contactFiles.length > 0;
-    const sendExtras = editing && (keepExtras.current || formHasExtras);
+    const noteChanged = editing && aboutEdited.current;
+    const noteValue = editing && !aboutEdited.current ? storedNote : note;
+    if (noteValue.trim().length > (editing ? ABOUT_EDIT_MAX : ABOUT_CREATE_MAX)) {
+      setError("The note is too long.");
+      return;
+    }
+    const clearAbout = noteChanged && storedAbout.trim().length > 0;
+    const sendExtras = editing && (keepExtras.current || formHasExtras || clearAbout);
     const markLinks = (rows: LinkDraft[], zone: "web" | "social") =>
       rows.map((row) => {
         const text = row.value.trim();
@@ -695,7 +710,7 @@ export function NewContactForm({
               : headerField === "company" && company.trim()
                 ? "company"
                 : null,
-          note,
+          note: noteValue,
           eventTag: editing ? (initial?.eventTag ?? "") : suggestedEvent,
           source: initial?.source ?? source,
           photoAttachmentId,
@@ -703,7 +718,7 @@ export function NewContactForm({
             ? {
                 web: nextWeb.filter((row) => row.value).map((row) => ({ value: row.value, type: "" })),
                 social: nextSocial.filter((row) => row.value).map((row) => ({ value: row.value, type: "" })),
-                about: about.trim(),
+                about: clearAbout ? "" : storedAbout,
                 files: contactFiles,
               }
             : {}),
@@ -826,14 +841,14 @@ export function NewContactForm({
   const extraSections = [
     {
       id: "web",
-      number: "04",
+      number: "05",
       title: "Web",
       filled: webLinks.some((row) => row.value.trim()),
       body: <LinkRows rows={webLinks} zone="web" placeholder="Website" onChange={setWebLinks} />,
     },
     {
       id: "social",
-      number: "05",
+      number: "06",
       title: "Social",
       filled: socialLinks.some((row) => row.value.trim()),
       body: (
@@ -842,7 +857,7 @@ export function NewContactForm({
     },
     {
       id: "files",
-      number: "06",
+      number: "07",
       title: "Files",
       filled: contactFiles.length > 0,
       body: (
@@ -873,22 +888,6 @@ export function NewContactForm({
             </button>
           ) : null}
         </div>
-      ),
-    },
-    {
-      id: "about",
-      number: "07",
-      title: "About",
-      filled: about.trim().length > 0,
-      body: (
-        <textarea
-          value={about}
-          onChange={(event) => setAbout(event.target.value)}
-          rows={3}
-          placeholder="A line about you"
-          aria-label="About"
-          className={cn(FIELD, "resize-none whitespace-pre-wrap text-[var(--ink)]")}
-        />
       ),
     },
   ];
@@ -1098,18 +1097,36 @@ export function NewContactForm({
         </div>
         {contactLines}
       </section>
-      <section className={COMPACT}>
-        <span className="t-label text-[var(--grey)]">Note</span>
-        <textarea
-          ref={noteRef}
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          rows={1}
-          placeholder="Event name, short text"
-          aria-label="Note"
-          className={cn(FIELD, "resize-none text-[var(--ink)]")}
-        />
-      </section>
+      {editing ? (
+        <section className={sectionClass}>
+          <div className="min-w-0">
+            <SectionNumber value="04" />
+            <span className="mt-[6px] block t-label text-[var(--grey)]">About</span>
+          </div>
+          <textarea
+            ref={noteRef}
+            value={note}
+            onChange={(event) => writeNote(event.target.value)}
+            rows={1}
+            placeholder="Event name, short text"
+            aria-label="About"
+            className={cn(FIELD, "resize-none whitespace-pre-wrap text-[var(--ink)]")}
+          />
+        </section>
+      ) : (
+        <section className={COMPACT}>
+          <span className="t-label text-[var(--grey)]">About</span>
+          <textarea
+            ref={noteRef}
+            value={note}
+            onChange={(event) => writeNote(event.target.value)}
+            rows={1}
+            placeholder="Event name, short text"
+            aria-label="About"
+            className={cn(FIELD, "resize-none text-[var(--ink)]")}
+          />
+        </section>
+      )}
       {editing ? (
         <>
           {filledExtras.map(extraSection)}

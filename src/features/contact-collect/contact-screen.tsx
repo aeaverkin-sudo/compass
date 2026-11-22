@@ -11,6 +11,7 @@ import { SectionNumber } from "@/shared/components/section-number";
 import { photoSlotLookClass } from "@/shared/lib/photo-look";
 import { labeledEntryLine } from "@/shared/services/card-zones";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { joinAbout } from "@/features/contact-collect/about-text";
 import { viewContactLines } from "@/features/contact-collect/view-lines";
 import type { ContactLink, ExternalContact } from "@/features/contact-collect/types";
 
@@ -38,7 +39,7 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
       : contact.headerField === "company" && contact.company.trim()
         ? contact.company.trim()
         : "";
-  const noteText = [contact.note.trim(), contact.eventTag.trim()].filter(Boolean).join("\n");
+  const aboutText = joinAbout(contact.note, contact.about);
 
   const remove = async () => {
     if (busy) return;
@@ -141,16 +142,19 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
           </div>
         </section>
 
-        {noteText ? (
-          <section className="grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px] border-b border-[var(--rule)] py-[10px]">
-            <span className="t-label text-[var(--grey)]">Note</span>
-            <p className="m-0 whitespace-pre-wrap t-body text-[var(--ink)]">{noteText}</p>
+        {aboutText ? (
+          <section className={SECTION}>
+            <div className="min-w-0">
+              <SectionNumber value="04" />
+              <span className="mt-[6px] block t-label text-[var(--grey)]">About</span>
+            </div>
+            <p className="m-0 whitespace-pre-wrap t-body text-[var(--ink)]">{aboutText}</p>
           </section>
         ) : null}
         {contact.web.length > 0 ? (
           <section className={SECTION}>
             <div className="min-w-0">
-              <SectionNumber value="04" />
+              <SectionNumber value="05" />
               <span className="mt-[6px] block t-label text-[var(--grey)]">Web</span>
             </div>
             <div className="flex min-w-0 flex-col gap-[10px]">
@@ -178,7 +182,7 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
         {contact.social.length > 0 ? (
           <section className={SECTION}>
             <div className="min-w-0">
-              <SectionNumber value="05" />
+              <SectionNumber value="06" />
               <span className="mt-[6px] block t-label text-[var(--grey)]">Social</span>
             </div>
             <div className="flex min-w-0 flex-col gap-[10px]">
@@ -206,7 +210,7 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
         {contact.files.length > 0 ? (
           <section className={SECTION}>
             <div className="min-w-0">
-              <SectionNumber value="06" />
+              <SectionNumber value="07" />
               <span className="mt-[6px] block t-label text-[var(--grey)]">Files</span>
             </div>
             <div className="flex min-w-0 flex-col gap-[10px]">
@@ -225,16 +229,6 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
             </div>
           </section>
         ) : null}
-        {contact.about.trim() ? (
-          <section className={SECTION}>
-            <div className="min-w-0">
-              <SectionNumber value="07" />
-              <span className="mt-[6px] block t-label text-[var(--grey)]">About</span>
-            </div>
-            <p className="m-0 whitespace-pre-wrap t-body text-[var(--ink)]">{contact.about.trim()}</p>
-          </section>
-        ) : null}
-
         {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
           </div>
         </div>
