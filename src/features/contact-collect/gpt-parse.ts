@@ -5,6 +5,7 @@ import {
   parseContactLocal,
   type ContactReading,
 } from "@/features/contact-collect/parse-contact";
+import { normalizeVoiceReading } from "@/features/contact-collect/voice-reading";
 
 /**
  * Photo, voice, and messy text. The key stays in the host environment.
@@ -36,12 +37,21 @@ ${ASK_ENGLISH}`;
 
 const ASK_VOICE = `Turn one spoken contact update into JSON only, with no markdown.
 Shape: {"displayName":"","position":"","company":"","note":"","lines":[],"sets":{},"lineFlags":[]}
-Top-level fields and lines are ordinary fills: name, role, company, note, phones, emails, @nicks, links.
-sets is only for an explicit correction the speaker asked for, e.g. {"position":"Founder"} or {"line":{"from":"+44 7700 900123","to":"+44 7700 900999"}}.
-The same English rule applies to text values inside sets. Example: «исправь должность на генеральный директор» sets position to CEO and changes nothing else.
-If the target of a correction is unclear, omit that set field and still return the other clear data.
-lineFlags marks a number as WhatsApp or Telegram: [{"value":"+44…","flags":["wa"]}].
-Copy only what was said. Do not invent a country code, nick, or domain. Keep a leading + if it was there.
+One phrase can hold a name, a role, a company, a phone, an email, and nicks. Put each one in its own field or its own line.
+lines are finished rows only, with no spoken label left in the row:
+"+447700900123", "jordan@example.com", "Telegram / @radiotest", "Instagram / @radiotest".
+A phone may be dictated as digits or as groups. Keep every digit, in order, and a spoken plus.
+"плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать три" → "+447700900123".
+"plus forty-four, seven thousand seven hundred, nine hundred, one hundred twenty-three" is the same number.
+Do not add a missing digit or a country code.
+WhatsApp or Telegram named on that number is a mark, not a second row:
+[{"value":"+447700900123","flags":["wa"]}].
+"Telegram Радиотест" → "Telegram / @radiotest" even when "at" was not said. A nick spelled letter by letter keeps those letters.
+Instagram named as Instagram stays "Instagram / @nick".
+"jordan at example dot com" and "иордан собачка пример точка ком" are email rows: "jordan@example.com" and "iordan@primer.kom". No word "email", "at", "dot", "собачка", or "точка" in the row.
+sets is only an explicit correction, e.g. {"position":"Founder"} or {"line":{"to":"+447700900124"}}.
+«исправь должность на генеральный директор» sets position to CEO and changes nothing else.
+«исправь номер» replaces the phone only. If several numbers are on the form and the phrase does not say which one, omit that line change and still return the other clear data.
 If nothing useful was said, return empty strings and empty arrays.
 ${ASK_ENGLISH}`;
 
@@ -95,7 +105,11 @@ async function chat(content: unknown, allowSets: boolean): Promise<ParseResult> 
   } | null;
   const raw = body?.choices?.[0]?.message?.content ?? "";
   try {
-    return { ok: true, draft: contactReading(JSON.parse(raw) as unknown, { allowSets }) };
+    const parsed = JSON.parse(raw) as unknown;
+    return {
+      ok: true,
+      draft: contactReading(allowSets ? normalizeVoiceReading(parsed) : parsed, { allowSets }),
+    };
   } catch {
     return { ok: false, status: 502, error: "Could not read that." };
   }

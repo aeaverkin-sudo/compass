@@ -1,0 +1,178 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  mergeContactDraft,
+  patchFromContactDraft,
+  type ContactDraftState,
+} from "./merge-contact-draft.ts";
+import type { ContactReading } from "./parse-contact.ts";
+import { normalizeVoiceReading } from "./voice-reading.ts";
+
+const PHONE = "плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать три";
+const PHONE_EN = "plus forty-four, seven thousand seven hundred, nine hundred, one hundred twenty-three";
+const DIGITS = "+447700900123";
+
+function reading(value: unknown) {
+  return normalizeVoiceReading(value) as ContactReading;
+}
+
+function blank(partial: Partial<ContactDraftState> = {}): ContactDraftState {
+  return {
+    displayName: "",
+    position: "",
+    company: "",
+    note: "",
+    lines: [],
+    ...partial,
+  };
+}
+
+test("spoken groups and a telegram nick become contact rows", () => {
+  const raw = {
+    displayName: "Jordan Ellis",
+    position: "Founder",
+    company: "North Studio",
+    lines: [PHONE, "Telegram Радиотест", "WhatsApp"],
+  };
+  assert.equal(raw.lines.includes(DIGITS), false);
+  assert.equal(raw.lines.some((line) => line.startsWith("Telegram / @")), false);
+
+  const next = reading(raw);
+  assert.deepEqual(next.lines, [DIGITS, "Telegram / @radiotest"]);
+  assert.deepEqual(next.lineFlags, [{ value: DIGITS, flags: ["wa"] }]);
+  assert.equal(next.displayName, "Jordan Ellis");
+});
+
+test("one russian phrase fills every contact row once", () => {
+  const next = reading({
+    displayName: "Jordan Ellis",
+    position: "Founder",
+    company: "North Studio",
+    note: "Web Summit",
+    lines: [
+      PHONE,
+      "WhatsApp",
+      "jordan at example dot com",
+      "Telegram Радиотест",
+      "Instagram Радиотест",
+    ],
+  });
+  assert.equal(next.position, "Founder");
+  assert.deepEqual(next.lines, [
+    DIGITS,
+    "jordan@example.com",
+    "Telegram / @radiotest",
+    "Instagram / @radiotest",
+  ]);
+  assert.equal(next.lines.filter((line) => line.replace(/\D/g, "") === "447700900123").length, 1);
+  assert.deepEqual(next.lineFlags, [{ value: DIGITS, flags: ["wa"] }]);
+});
+
+test("groups stay in order when the commas are missing", () => {
+  const next = reading({
+    lines: [
+      "плюс сорок четыре семь тысяч семьсот девятьсот сто двадцать три",
+      "plus forty four seven thousand seven hundred nine hundred one hundred twenty three",
+    ],
+  });
+  assert.deepEqual(next.lines, [DIGITS, DIGITS]);
+});
+
+test("english groups, spelled nick, and a spoken email keep their letters", () => {
+  const next = reading({
+    lines: [PHONE_EN, "иордан собачка пример точка ком", "Telegram r a d i o t e s t"],
+  });
+  assert.deepEqual(next.lines, [DIGITS, "iordan@primer.kom", "Telegram / @radiotest"]);
+});
+
+test("digits dictated one by one keep a spoken plus and do not grow a country code", () => {
+  const next = reading({
+    lines: ["плюс четыре четыре семь семь ноль ноль девять ноль ноль один два три", "девять один два три четыре пять шесть"],
+  });
+  assert.deepEqual(next.lines, [DIGITS, "9123456"]);
+});
+
+test("a short spoken number is left untouched", () => {
+  const next = reading({ lines: ["плюс сорок четыре"] });
+  assert.deepEqual(next.lines, ["плюс сорок четыре"]);
+  assert.equal(next.lineFlags, undefined);
+});
+
+test("whatsapp and telegram marks share the one international number", () => {
+  const next = reading({
+    lines: ["ватсап и телеграм плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать три"],
+  });
+  assert.deepEqual(next.lines, [DIGITS]);
+  assert.deepEqual(next.lineFlags, [{ value: DIGITS, flags: ["wa", "tg"] }]);
+});
+
+test("a mark is not applied when more than one number was spoken", () => {
+  const next = reading({
+    lines: [DIGITS, "+33612345678", "WhatsApp"],
+  });
+  assert.deepEqual(next.lines, [DIGITS, "+33612345678"]);
+  assert.equal(next.lineFlags, undefined);
+});
+
+test("voice fills empty fields and the next correction changes only the number", () => {
+  const heard = reading({
+    lines: [PHONE, "Telegram Радиотест"],
+    lineFlags: [{ value: PHONE, flags: ["wa"] }],
+  });
+  let state = mergeContactDraft(
+    blank({ displayName: "Jordan Ellis", position: "Founder", company: "North Studio" }),
+    patchFromContactDraft(heard),
+  );
+  assert.equal(state.displayName, "Jordan Ellis");
+  assert.equal(state.position, "Founder");
+  assert.equal(state.company, "North Studio");
+  assert.equal(state.lines.length, 2);
+  assert.equal(state.lines[0]?.value, DIGITS);
+  assert.deepEqual(state.lines[0]?.flags, ["wa"]);
+  assert.equal(state.lines[1]?.value, "Telegram / @radiotest");
+
+  const corrected = reading({
+    sets: { line: { to: "плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать четыре" } },
+  });
+  state = mergeContactDraft(state, patchFromContactDraft(corrected));
+  assert.equal(state.lines[0]?.value, "+447700900124");
+  assert.deepEqual(state.lines[0]?.flags, ["wa"]);
+  assert.equal(state.lines[1]?.value, "Telegram / @radiotest");
+  assert.equal(state.displayName, "Jordan Ellis");
+  assert.equal(state.company, "North Studio");
+});
+
+test("voice first does not get overwritten by a later camera or typed fill", () => {
+  const heard = reading({
+    displayName: "Jordan Ellis",
+    position: "Founder",
+    lines: [PHONE, "Telegram Радиотест"],
+  });
+  let state = mergeContactDraft(blank(), patchFromContactDraft(heard));
+  state = mergeContactDraft(state, {
+    fills: { displayName: "Other Name", position: "Intern", company: "North Studio" },
+  });
+  assert.equal(state.displayName, "Jordan Ellis");
+  assert.equal(state.position, "Founder");
+  assert.equal(state.company, "North Studio");
+  assert.equal(state.lines[0]?.value, DIGITS);
+  assert.equal(state.lines[1]?.value, "Telegram / @radiotest");
+});
+
+test("an unclear number correction is skipped and the other data is kept", () => {
+  const start = blank({
+    displayName: "Jordan Ellis",
+    lines: [
+      { id: "1", value: DIGITS, flags: ["wa"] },
+      { id: "2", value: "+33612345678", flags: [] },
+    ],
+  });
+  const corrected = reading({
+    company: "North Studio",
+    sets: { line: { to: PHONE_EN } },
+  });
+  const state = mergeContactDraft(start, patchFromContactDraft(corrected));
+  assert.equal(state.company, "North Studio");
+  assert.equal(state.lines[0]?.value, DIGITS);
+  assert.equal(state.lines[1]?.value, "+33612345678");
+});
