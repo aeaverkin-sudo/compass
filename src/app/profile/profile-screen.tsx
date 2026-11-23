@@ -31,6 +31,11 @@ const ZONE_VALUE =
   "min-w-0 break-words t-body text-[var(--ink)]";
 
 const PORTFOLIOS_OPEN_KEY = "aded:profile-portfolios-open";
+/**
+ * ChevronRight draws its two legs at x=9 in a 24 box, stroke 1.5, shown at 20px.
+ * The button already sits on the value axis; this pulls the legs back onto it.
+ */
+const CHEVRON_LEG_INSET_PX = ((9 - 1.5 / 2) / 24) * 20;
 
 /** On: a card shared back arrives pending. Off: share-back writes nothing. */
 function ShareBackSetting() {
@@ -404,6 +409,7 @@ export function ProfileScreen() {
             aria-expanded={portfoliosOpen}
             onClick={togglePortfolios}
             className="press flex size-5 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+            style={{ marginLeft: -CHEVRON_LEG_INSET_PX }}
           >
             <ChevronRight
               aria-hidden
