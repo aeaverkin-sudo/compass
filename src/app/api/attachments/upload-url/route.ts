@@ -17,7 +17,6 @@ import {
   CARD_ATTACHMENTS_BUCKET,
   CONTACT_FILES_BUCKET,
   PDF_BYTE_LIMIT,
-  VIDEO_BYTE_LIMIT,
   isVideoMime,
 } from "@/shared/services/attachment-limits";
 
@@ -28,7 +27,7 @@ function jsonFail(status: number, error: string) {
 }
 
 /**
- * Video and PDF. Creates a pending row and a path-bound upload token.
+ * PDF. A video is refused before any row. Creates a pending row and a path-bound upload token.
  * The browser uploads straight to Storage, then calls finalize.
  */
 export async function POST(request: Request) {
@@ -51,15 +50,17 @@ export async function POST(request: Request) {
     contactId?: unknown;
   };
 
-  if (typeof mime !== "string" || (mime !== "application/pdf" && !isVideoMime(mime))) {
+  if (typeof mime === "string" && (mime.startsWith("video/") || isVideoMime(mime))) {
+    return jsonFail(415, "Add a video as a link.");
+  }
+  if (typeof mime !== "string" || mime !== "application/pdf") {
     return jsonFail(415, "Unsupported file type");
   }
   if (typeof byteSize !== "number" || !Number.isInteger(byteSize) || byteSize <= 0) {
     return jsonFail(400, "Expected a file size");
   }
-  const ceiling = mime === "application/pdf" ? PDF_BYTE_LIMIT : VIDEO_BYTE_LIMIT;
-  if (byteSize > ceiling) {
-    return jsonFail(413, mime === "application/pdf" ? "PDF is over 50 MB" : "Video is over 50 MB");
+  if (byteSize > PDF_BYTE_LIMIT) {
+    return jsonFail(413, "PDF is over 50 MB");
   }
 
   let used = 0;

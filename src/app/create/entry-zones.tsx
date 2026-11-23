@@ -12,7 +12,7 @@ import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, sugg
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import type { QuestionnaireZone } from "@/shared/lib/fill-place";
-import { detectAttachmentType } from "@/shared/services/portfolio-catalog";
+import { detectAttachmentType, isPortfolioVideoFile } from "@/shared/services/portfolio-catalog";
 import { isAttachmentType, type AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { WrapField, type WrapFieldHandle } from "@main/components/wrap-field";
 
@@ -371,7 +371,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
 
   const addFile = (zoneId: string) => {
     openContactAttachmentPicker((_dataUrl, file) => {
-      if (!file) return;
+      if (!file || isPortfolioVideoFile(file)) return;
       const type = detectAttachmentType(file);
       setZones((current) =>
         current.map((zone) =>

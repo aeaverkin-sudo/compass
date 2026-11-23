@@ -1,4 +1,5 @@
-import { CARD_ATTACHMENTS_BUCKET, isVideoMime } from "@/shared/services/attachment-limits";
+import { CARD_ATTACHMENTS_BUCKET } from "@/shared/services/attachment-limits";
+import { isPortfolioVideoFile } from "@/shared/services/portfolio-catalog";
 import { prepareImageUploadBlob } from "@/shared/services/attachment-storage";
 import type { ContactType } from "@/shared/types";
 
@@ -41,11 +42,11 @@ export async function uploadAttachment(input: {
   /** PDF and video only: whole percent of bytes sent. */
   onProgress?: (percent: number) => void;
 }): Promise<ReadyAttachment> {
+  if (input.kind === "video" || isPortfolioVideoFile(input.file)) {
+    throw new Error("Add a video as a link.");
+  }
   if (input.kind === "pdf") {
     return uploadSigned(input.file, "application/pdf", input.cardId, input.contactId, input.onProgress);
-  }
-  if (input.kind === "video" || isVideoMime(videoMime(input.file))) {
-    return uploadSigned(input.file, videoMime(input.file), input.cardId, input.contactId, input.onProgress);
   }
   return uploadBuffered(input.file, input.kind, input.cardId, input.contactId);
 }
@@ -69,15 +70,6 @@ async function uploadBuffered(
 
   const response = await fetch("/api/attachments", { method: "POST", body });
   return readReady(response);
-}
-
-function videoMime(file: File): string {
-  if (isVideoMime(file.type)) return file.type;
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  if (ext === "mov") return "video/quicktime";
-  if (ext === "webm") return "video/webm";
-  if (ext === "mp4" || ext === "m4v") return "video/mp4";
-  return file.type;
 }
 
 /** Server calls answer within this, or the row turns to Upload failed. */

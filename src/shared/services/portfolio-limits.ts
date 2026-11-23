@@ -1,4 +1,5 @@
 import type { Card, ContactItem, ContactType } from "@/shared/types";
+import { isPortfolioVideoFile } from "@/shared/services/portfolio-catalog";
 import {
   AUDIO_BYTE_LIMIT,
   DOCUMENT_BYTE_LIMIT,
@@ -105,6 +106,10 @@ export function validatePortfolioAttachment(
   items: ContactItem[],
   replacingItemId?: string,
 ): PortfolioValidationResult {
+  if (attachmentType === "video" || isPortfolioVideoFile(file)) {
+    return { ok: false, message: "Add a video as a link." };
+  }
+
   const perTypeLimit = PORTFOLIO_LIMITS.maxBytesByType[attachmentType];
   if (file.size > perTypeLimit) {
     return {

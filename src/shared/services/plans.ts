@@ -8,7 +8,7 @@ export type PlanLimits = {
 };
 
 export const PLANS: Record<PlanId, PlanLimits> = {
-  free: { portfolios: 3, bytes: 500 * 1024 * 1024 },
+  free: { portfolios: 3, bytes: 100 * 1024 * 1024 },
   paid: { portfolios: 10, bytes: 5 * 500 * 1024 * 1024 },
 };
 

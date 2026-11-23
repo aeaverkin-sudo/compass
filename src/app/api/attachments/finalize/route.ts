@@ -11,7 +11,7 @@ function jsonFail(status: number, error: string) {
 
 /**
  * Confirms a video or PDF object. See `finalizePending` for the checks.
- * A pending row that never reaches this route stays out of the 500 MB quota.
+ * A pending row that never reaches this route stays out of the account quota.
  */
 export async function POST(request: Request) {
   const owner = await requireOwnerId();

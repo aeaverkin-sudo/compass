@@ -1,4 +1,4 @@
-import { detectAttachmentType, PORTFOLIO_FILE_ACCEPT } from "@/shared/services/portfolio-catalog";
+import { detectAttachmentType, isPortfolioVideoFile, PORTFOLIO_FILE_ACCEPT } from "@/shared/services/portfolio-catalog";
 import {
   HIDDEN_INPUT,
   prepareAttachmentForStorage,
@@ -69,16 +69,15 @@ export function openNativePhotoPicker(onPhoto: PhotoHandler, onDismiss?: () => v
   openFileInputPicker("image/*", prepareCardPhotoForStorage, onPhoto, onDismiss);
 }
 
-function openPreparedAttachment(accept: string, onPhoto: PhotoHandler, onDismiss?: () => void) {
+/** Photos and documents. A video file is dropped before any row is created. */
+export function openContactAttachmentPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
   openFileInputPicker(
-    accept,
+    `image/*,${PORTFOLIO_FILE_ACCEPT}`,
     (file) => prepareAttachmentForStorage(file, detectAttachmentType(file)),
-    onPhoto,
+    (photo, file) => {
+      if (isPortfolioVideoFile(file)) return;
+      onPhoto(photo, file);
+    },
     onDismiss,
   );
-}
-
-/** One picker: gallery for photos and video, Files for documents. No camera capture flag. */
-export function openContactAttachmentPicker(onPhoto: PhotoHandler, onDismiss?: () => void) {
-  openPreparedAttachment(`image/*,video/*,${PORTFOLIO_FILE_ACCEPT}`, onPhoto, onDismiss);
 }

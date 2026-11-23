@@ -597,7 +597,6 @@ const MIME_TO_ATTACHMENT: ReadonlyArray<[string | RegExp, AttachmentContactType]
   ["text/csv", "spreadsheet"],
   ["text/tab-separated-values", "spreadsheet"],
   [/^audio\//, "audio"],
-  [/^video\//, "video"],
   [/^image\//, "photo"],
 ];
 
@@ -633,13 +632,19 @@ export const PORTFOLIO_GALLERY_ACCEPT = FILE_EXTENSIONS.photo.map((extension) =>
 
 /** Documents and media. Images stay on the gallery picker. */
 export const PORTFOLIO_FILE_ACCEPT = (
-  ["pdf", "presentation", "document", "spreadsheet", "audio", "video"] as const
+  ["pdf", "presentation", "document", "spreadsheet", "audio"] as const
 )
   .flatMap((type) => FILE_EXTENSIONS[type].map((extension) => `.${extension}`))
   .join(",");
 
 /** @deprecated Use PORTFOLIO_FILE_ACCEPT */
 export const PORTFOLIO_DOCUMENT_ACCEPT = PORTFOLIO_FILE_ACCEPT;
+
+/** A new video file. Old stored videos stay. Voice notes do not come through here. */
+export function isPortfolioVideoFile(file: { type: string; name: string }): boolean {
+  if (file.type.startsWith("video/")) return true;
+  return attachmentTypeForName(file.name) === "video";
+}
 
 export function detectAttachmentType(file: File): AttachmentContactType {
   for (const [mime, type] of MIME_TO_ATTACHMENT) {
