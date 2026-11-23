@@ -1,29 +1,6 @@
-import Link from "next/link";
-import { TabBand } from "@main/components/tab-band";
+import { MainTabs } from "@main/components/main-tabs";
 
-const ITEM =
-  "press touch-manipulation flex h-full min-h-11 w-full items-center uppercase [-webkit-tap-highlight-color:transparent]";
-
-/** Connections stays in the code, hidden on the bar. Event is the door. Data is the counts. The book stays at /network. */
+/** Connections stays in the code. The bar is the three main sections, none of them current. */
 export function NetworkTabs() {
-  return (
-    <TabBand
-      label="Network"
-      left={
-        <Link href="/network/event" className={ITEM}>
-          Event
-        </Link>
-      }
-      center={
-        <Link href="/network/connections" aria-hidden tabIndex={-1} className={`${ITEM} hidden justify-center`}>
-          Connections
-        </Link>
-      }
-      right={
-        <Link href="/network/data" className={`${ITEM} justify-end`}>
-          Data
-        </Link>
-      }
-    />
-  );
+  return <MainTabs />;
 }

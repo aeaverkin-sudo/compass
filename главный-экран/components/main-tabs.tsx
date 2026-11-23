@@ -28,7 +28,7 @@ const WORD =
  * Account, Portfolio, Network. One sky row on the three main screens.
  * The current word is semibold. The orange dot is only the Network signal.
  */
-export function MainTabs({ current }: { current: MainSection }) {
+export function MainTabs({ current }: { current?: MainSection }) {
   const router = useRouter();
   const networkDot = useNetworkDot();
 

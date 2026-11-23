@@ -24,7 +24,7 @@ export default async function EventJoinPage({ params }: PageProps) {
   if (!event) {
     return (
       <main className="compass-main fixed inset-0 overflow-y-auto bg-white">
-        <ScreenHeader title="Join" fallbackHref="/network/event" />
+        <ScreenHeader title="Join" fallbackHref="/network" />
         <div className="px-[var(--gutter)] pt-[18px]">
           <p className="mb-0 t-body text-[var(--grey)]">Event not found</p>
         </div>

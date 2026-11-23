@@ -3,6 +3,7 @@ import { requireOwnerId } from "@/shared/services/attachment-api";
 import { queuePosterSnapshot } from "@/shared/services/poster-snapshot";
 import { readEventForm } from "@/shared/event/read-event-form";
 import { createEvent, listMyEvents } from "@/shared/services/events";
+import { eventsDeskOpen } from "@/shared/services/desk-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ function noStore(body: unknown, status = 200) {
 export async function GET() {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ events: [] }, owner.status);
+  if (!eventsDeskOpen()) return noStore({ error: "Not available" }, 404);
   try {
     const events = await listMyEvents(owner.id);
     return noStore({ events });
@@ -28,6 +30,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ error: "Sign in to create an event." }, owner.status);
+  if (!eventsDeskOpen()) return noStore({ error: "Not available" }, 404);
 
   let form: FormData;
   try {

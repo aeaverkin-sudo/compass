@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 import { cardStatsSince, readCardData, resetCardStats } from "@/shared/services/card-stats";
+import { dataDeskOpen } from "@/shared/services/desk-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ function noStore(body: unknown, status = 200) {
 export async function GET(request: Request) {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ error: owner.error }, owner.status);
+  if (!dataDeskOpen()) return noStore({ error: "Not available" }, 404);
 
   try {
     const url = new URL(request.url);
@@ -29,6 +31,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const owner = await requireOwnerId();
   if (!owner.ok) return noStore({ ok: false }, owner.status);
+  if (!dataDeskOpen()) return noStore({ error: "Not available" }, 404);
 
   try {
     const card = new URL(request.url).searchParams.get("card");

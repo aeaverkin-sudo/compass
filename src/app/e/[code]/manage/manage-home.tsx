@@ -98,7 +98,7 @@ export function ManageHome({
         setDeleting(false);
         return;
       }
-      router.replace("/network/event");
+      router.replace("/network");
     } catch {
       setDeleteError("Could not delete the event.");
       deletingLock.current = false;
@@ -185,7 +185,7 @@ export function ManageHome({
   }
 
   return (
-    <ManageFrame title={eventTitleLine(name)} fallbackHref="/network/event" onBack={() => router.replace("/network/event")}>
+    <ManageFrame title={eventTitleLine(name)} fallbackHref="/network" onBack={() => router.replace("/network")}>
       {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
       <div className="pt-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
         <CoverButton event={poster} layout={cover.layout} themeId={cover.theme} variant="card" />

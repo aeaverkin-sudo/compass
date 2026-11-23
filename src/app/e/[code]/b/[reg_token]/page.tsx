@@ -46,7 +46,7 @@ export default async function EventBadgePage({ params }: PageProps) {
   if (opened.kind === "missing") {
     return (
       <main className="compass-main fixed inset-0 overflow-y-auto bg-white">
-        <ScreenHeader title="Check-in" fallbackHref="/network/event" />
+        <ScreenHeader title="Check-in" fallbackHref="/network" />
         <div className="px-[var(--gutter)] pt-[18px]">
           <p className="mb-0 t-body text-[var(--grey)]">Event badge not found</p>
         </div>

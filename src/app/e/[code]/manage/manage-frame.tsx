@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NetworkBand } from "@/app/network/network-band";
+import { MainTabs } from "@main/components/main-tabs";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ export function ManageFrame({
         <ScreenHeader title={title} fallbackHref={fallbackHref} onBack={onBack} />
         {children}
       </div>
-      <NetworkBand current="event" />
+      <MainTabs />
     </main>
   );
 }

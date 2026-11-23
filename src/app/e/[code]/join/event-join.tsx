@@ -171,7 +171,7 @@ function posterOf(event: EventInvite, price: string | null) {
 /** Open link: the poster already carries the name, date, place, description, and extra rows. */
 function EventPoster({ event, price }: { event: EventInvite; price: string | null }) {
   return (
-    <ManageFrame title={eventTitleLine(event.name)} fallbackHref="/network/event">
+    <ManageFrame title={eventTitleLine(event.name)} fallbackHref="/network">
       <div className="pt-[18px] pb-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
         <CoverButton variant="card" layout={event.layout} themeId={event.theme} event={posterOf(event, price)} />
       </div>
@@ -216,7 +216,7 @@ function EventPass({ lookup, event, portfolios, registration, pay }: EventPassPr
         setBusy(false);
         return;
       }
-      router.replace("/network/event");
+      router.replace("/network");
     } catch {
       setError("Could not save that.");
       setBusy(false);
@@ -254,7 +254,7 @@ function EventPass({ lookup, event, portfolios, registration, pay }: EventPassPr
   };
 
   return (
-    <ManageFrame title={eventTitleLine(event.name)} fallbackHref="/network/event">
+    <ManageFrame title={eventTitleLine(event.name)} fallbackHref="/network">
       <div className="pt-[18px] pb-[18px]" style={{ marginLeft: VALUE_AXIS_PX }}>
         <CoverButton variant="card" layout={event.layout} themeId={event.theme} event={poster} />
       </div>

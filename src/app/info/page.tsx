@@ -17,8 +17,6 @@ const TOC = [
   ["network", "Network"],
   ["hold", "Tap & hold"],
   ["account", "Account"],
-  ["data", "Data"],
-  ["events", "Events"],
 ] as const;
 
 const RAIL_LINES = [
@@ -97,28 +95,6 @@ const SECTIONS: Section[] = [
       "BW / C mode — black-and-white or colour.",
       "Cards shared back to you — accept cards in return or not.",
       "Information — how the app works.",
-    ],
-  },
-  {
-    id: "data",
-    title: "Data",
-    lines: [
-      "Shared — how many times you shared your card.",
-      "Opens — how many times it was opened, via QR and in total.",
-      "Saved — how many people saved you.",
-      "Link opens — which links on your card were opened.",
-    ],
-  },
-  {
-    id: "events",
-    title: "Events",
-    lines: [
-      "Create an event and its poster.",
-      "Guests — upload a list, paste guests, or an open link with a limit. Send passes, a reminder 24h before. See who opened and confirmed.",
-      "Payment — price, how to pay, upload a statement, mark paid.",
-      "Staff — up to 5 people with roles.",
-      "Check-in — scan passes at the door.",
-      "Statistics — registered, confirmed, checked in. Names are kept 90 days, then only numbers.",
     ],
   },
 ];

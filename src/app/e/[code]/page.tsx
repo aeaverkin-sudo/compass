@@ -113,7 +113,7 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
     return (
       <main className="compass-main fixed inset-0 overflow-y-auto bg-white text-[var(--ink)]">
         <div className="mx-auto min-h-dvh w-full max-w-[430px] px-[var(--gutter)]">
-          <ScreenHeader title="Join" fallbackHref="/network/event" />
+          <ScreenHeader title="Join" fallbackHref="/network" />
           <p className="pt-[18px] t-body">Event not found</p>
         </div>
       </main>
@@ -184,10 +184,10 @@ export default async function EventInvitePage({ params, searchParams }: PageProp
           style={{ height: "calc(env(safe-area-inset-top) + 44px)", paddingTop: "env(safe-area-inset-top)" }}
         >
           <Link
-            href="/network/event"
+            href="/network"
             className="press t-body text-[var(--ink)] no-underline [-webkit-tap-highlight-color:transparent]"
           >
-            ‹ Events
+            ‹ Network
           </Link>
         </div>
       ) : null}

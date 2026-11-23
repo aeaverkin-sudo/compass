@@ -27,7 +27,7 @@ export default async function EventPaidPage({ params }: PageProps) {
   const lookup = once(code);
   const invite = `/e/${encodeURIComponent(lookup)}`;
   const event = await loadEventInvite(lookup);
-  if (!event) redirect("/network/event");
+  if (!event) redirect("/network");
 
   const supabase = await createServerSupabaseClient();
   const { data } = await supabase.auth.getUser();

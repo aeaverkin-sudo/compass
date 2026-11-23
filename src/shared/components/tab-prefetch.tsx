@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-const ROUTES = ["/main", "/profile", "/network", "/network/data", "/network/event"];
+const ROUTES = ["/main", "/profile", "/network"];
 
 /** Load the tab routes with the shell, so the first tap does not wait for the chunk. */
 export function TabPrefetch() {
