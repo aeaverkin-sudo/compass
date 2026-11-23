@@ -59,6 +59,8 @@ export function HeroName({
   ruled = false,
   tone = "ink",
   locked = false,
+  measureWidthPx,
+  measureHeightPx,
 }: {
   value: string;
   onChange?: (displayName: string) => void;
@@ -74,6 +76,13 @@ export function HeroName({
   ruled?: boolean;
   /** A suggested name is the same size, drawn grey until the row is touched. */
   tone?: "ink" | "placeholder";
+  /**
+   * Fit letters to this width instead of the box.
+   * New Contact draws a full-width rule, but the name still sizes as it did beside the photo.
+   */
+  measureWidthPx?: number;
+  /** Fit letters to this height instead of the box, so a short empty row does not shrink the name. */
+  measureHeightPx?: number;
 }) {
   const centered = align === "center";
   const boxRef = useRef<HTMLDivElement>(null);
@@ -91,7 +100,7 @@ export function HeroName({
     const box = boxRef.current;
     if (!box) return;
     const fit = () => {
-      const width = box.clientWidth;
+      const width = measureWidthPx && measureWidthPx > 0 ? measureWidthPx : box.clientWidth;
       if (!value) {
         setWrapWord(false);
         setSize(fitToWidth(placeholder, Math.max(0, width - 4), 400, 19, 8));
@@ -105,10 +114,11 @@ export function HeroName({
         HERO_NAME_MAX_PX,
       );
       const gap = roleBelow ? HERO_ROLE_GAP_PX : 0;
-      const heightSize = Math.max(8, (box.clientHeight - gap) / (count + HERO_DESCENDER_OVERFLOW));
+      const heightBox = measureHeightPx && measureHeightPx > 0 ? measureHeightPx : box.clientHeight;
+      const heightSize = Math.max(8, (heightBox - gap) / (count + HERO_DESCENDER_OVERFLOW));
       let next = Math.min(HERO_NAME_MAX_PX, widthSize, heightSize);
       // The span measure stops a hair inside the column. The textarea still paints about half a glyph past it.
-      if (ruled && box.clientHeight > 40) {
+      if (ruled && heightBox > 40) {
         const area = box.querySelector("textarea");
         if (area instanceof HTMLTextAreaElement && width > 0) {
           area.style.fontWeight = "600";
@@ -116,7 +126,12 @@ export function HeroName({
           area.style.lineHeight = "1";
           area.style.fontSize = `${next}px`;
           const column = box.closest("[data-entry-name]");
-          const limit = column instanceof HTMLElement ? column.clientWidth : area.clientWidth;
+          const limit =
+            measureWidthPx && measureWidthPx > 0
+              ? measureWidthPx
+              : column instanceof HTMLElement
+                ? column.clientWidth
+                : area.clientWidth;
           const used = area.scrollWidth;
           if (limit > 8 && used > limit + 0.5) {
             const ratio = (limit - 1) / used;
@@ -142,7 +157,7 @@ export function HeroName({
       observer.disconnect();
       window.removeEventListener("orientationchange", onTurn);
     };
-  }, [maxLines, placeholder, roleBelow, ruled, value]);
+  }, [maxLines, measureHeightPx, measureWidthPx, placeholder, roleBelow, ruled, value]);
 
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
@@ -197,7 +212,8 @@ export function HeroName({
       ref={boxRef}
       data-card-content
       className={cn(
-        "relative flex min-h-0 w-full min-w-0 flex-1 overflow-x-hidden overflow-y-visible",
+        "relative flex w-full min-w-0 overflow-x-hidden overflow-y-visible",
+        measureHeightPx && measureHeightPx > 0 ? "h-auto shrink-0" : "min-h-0 flex-1",
         centered ? "items-center" : "items-end",
       )}
     >

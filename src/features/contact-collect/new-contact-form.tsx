@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, FileText, Mic, Scan, X } from "lucide-react";
-import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
+import { openContactAttachmentPicker, openNativePhotoPicker } from "@landing/components/photo-input-utils";
 import { MarkPlus } from "@/shared/components/mark-plus";
-import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
 import { TabBand } from "@main/components/tab-band";
 import { cn } from "@/lib/utils";
 import { HeroName } from "@/shared/components/hero-name";
@@ -56,6 +55,9 @@ const FIELD =
 
 /** One `t-body` line. The empty Name caret sits on this hint. */
 const NAME_HINT_LINE_PX = 15.5 * 1.45;
+/** The photo square this row used to reserve. Letters still fit to the width beside it. */
+const FORMER_PHOTO_PX = 128;
+const FORMER_PHOTO_GAP_PX = 12;
 
 /** New contact stays one line until wrap, then grows to two. Edit grows to the whole text. */
 function fitNoteField(node: HTMLTextAreaElement, limited: boolean) {
@@ -319,6 +321,17 @@ export function NewContactForm({
   };
   readingRef.current = reading;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const nameRowRef = useRef<HTMLDivElement>(null);
+  const [nameMeasure, setNameMeasure] = useState(0);
+  useLayoutEffect(() => {
+    const node = nameRowRef.current;
+    if (!node) return;
+    const read = () => setNameMeasure(Math.max(0, node.clientWidth - FORMER_PHOTO_PX - FORMER_PHOTO_GAP_PX));
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const photoTicket = useRef(0);
   const persistDraftRef = useRef(true);
   const [draftReady, setDraftReady] = useState(false);
@@ -910,6 +923,28 @@ export function NewContactForm({
   const hasEmail = lines.some((line) => detectContactType(line.value, "contact") === "email");
   const contactHint = contactPlaceholder(hasPhone, hasNick, hasEmail);
   const positionHint = editing ? "What you do" : "Role";
+  const choosePhoto = (dataUrl: string | null, file?: File) => {
+    setPhoto(dataUrl && file ? { file, dataUrl } : null);
+    setKeptPhoto(dataUrl ? keptPhoto : null);
+    setPhotoId(null);
+    if (editing || !ownerId) return;
+    const ticket = ++photoTicket.current;
+    if (!dataUrl || !file) {
+      setDraftPhoto(null);
+      return;
+    }
+    void prepareCardPhotoForStorage(file)
+      .then((stored) => {
+        if (photoTicket.current !== ticket || !stored.startsWith("data:image/")) return;
+        const record = { ...draftRecordRef.current, photo: stored };
+        draftRecordRef.current = record;
+        setDraftPhoto(stored);
+        if (!persistDraftRef.current) return;
+        writeContactDraft(ownerId, record);
+      })
+      .catch(() => undefined);
+  };
+  const pickContactPhoto = () => openNativePhotoPicker(choosePhoto);
   const pickFile = () => {
     if (!initial || uploading || contactFiles.length >= CONTACT_FILE_LIMIT) return;
     openContactAttachmentPicker((_dataUrl, file) => {
@@ -998,72 +1033,51 @@ export function NewContactForm({
   );
 
   const nameHint = name.length === 0;
+  const nameColumn = nameMeasure > 0 ? nameMeasure : undefined;
   const photoName = (
-    <div className="pt-[18px] pb-[18px]">
-      <div className="flex shrink-0 items-stretch gap-3" style={{ height: 128 }}>
-        <PhotoSlotPicker
-          photo={photo?.dataUrl ?? keptPhoto}
-          onPhotoChange={(dataUrl, file) => {
-            setPhoto(dataUrl && file ? { file, dataUrl } : null);
-            setKeptPhoto(dataUrl ? keptPhoto : null);
-            setPhotoId(null);
-            if (editing || !ownerId) return;
-            const ticket = ++photoTicket.current;
-            if (!dataUrl || !file) {
-              setDraftPhoto(null);
-              return;
-            }
-            void prepareCardPhotoForStorage(file)
-              .then((stored) => {
-                if (photoTicket.current !== ticket || !stored.startsWith("data:image/")) return;
-                const record = { ...draftRecordRef.current, photo: stored };
-                draftRecordRef.current = record;
-                setDraftPhoto(stored);
-                if (!persistDraftRef.current) return;
-                writeContactDraft(ownerId, record);
-              })
-              .catch(() => undefined);
-          }}
-          sizePx={128}
-          borderRadiusPx={0}
-          photoLook="shadow"
-          surfaceClassName="bg-white"
-        />
-        <div className="relative flex h-full min-w-0 flex-1 flex-col">
-          <label
-            data-entry-name=""
-            className="relative flex h-full min-w-0 max-w-full flex-1 flex-col justify-end overflow-x-hidden"
-          >
-            <div
-              className={
-                nameHint ? "relative w-full min-w-0 max-w-full" : "absolute inset-0 min-w-0 overflow-x-hidden"
-              }
-            >
-              {nameHint ? (
-                <div aria-hidden className="pointer-events-none t-body text-[var(--placeholder)]">
-                  <div className="whitespace-nowrap border-b border-[var(--rule)] pb-[3px]">Name</div>
-                </div>
-              ) : null}
-              <div
-                className={
-                  nameHint
-                    ? "absolute inset-x-0 top-0"
-                    : "flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden"
-                }
-                style={nameHint ? { height: NAME_HINT_LINE_PX } : undefined}
-              >
-                <HeroName
-                  value={name}
-                  onChange={(value) => setName(clampNameLines(value))}
-                  placeholder="Name"
-                  ruled
-                  roleBelow={Boolean(headerTitle)}
-                />
-              </div>
+    <div
+      ref={nameRowRef}
+      className={cn("pt-[18px] pb-[18px]", nameHint && "border-b border-[var(--rule)]")}
+    >
+      <div className={cn(ROW, "items-center")}>
+        <button
+          type="button"
+          aria-label={photo?.dataUrl || keptPhoto ? "Change photo" : "Add photo"}
+          onClick={pickContactPhoto}
+          className="flex items-center justify-start border-0 bg-transparent p-0 text-[var(--ink)]"
+        >
+          <MarkPlus />
+        </button>
+        <div className="relative min-w-0">
+          {nameHint ? (
+            <div aria-hidden className="pointer-events-none t-body text-[var(--placeholder)]">
+              Name
             </div>
-          </label>
+          ) : null}
+          <div
+            data-entry-name=""
+            className={nameHint ? "absolute top-0 left-0 overflow-x-hidden" : "min-w-0 overflow-x-hidden"}
+            style={
+              nameHint
+                ? { height: NAME_HINT_LINE_PX, width: nameColumn ?? "100%" }
+                : { width: nameColumn ?? "100%" }
+            }
+          >
+            <HeroName
+              value={name}
+              onChange={(value) => setName(clampNameLines(value))}
+              placeholder="Name"
+              ruled
+              roleBelow={Boolean(headerTitle)}
+              measureWidthPx={nameColumn}
+              measureHeightPx={FORMER_PHOTO_PX}
+            />
+          </div>
           {headerTitle ? (
-            <p className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden t-label uppercase text-[var(--grey)]">
+            <p
+              className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden t-label uppercase text-[var(--grey)]"
+              style={{ width: nameColumn ?? "100%" }}
+            >
               {headerTitle}
             </p>
           ) : null}
