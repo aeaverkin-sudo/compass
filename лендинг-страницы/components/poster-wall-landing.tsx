@@ -55,6 +55,7 @@ const CSS = `
 .pw-rf{font-size:2.6vw;letter-spacing:.04em;text-transform:uppercase;margin-top:1vw;font-weight:600;opacity:.9;}
 .pw-steps{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;}
 .pw-step{display:grid;grid-template-columns:16vw 1fr auto;gap:3vw;align-items:start;padding:3vw 0;border-top:.3vw solid #d8d5cd;}
+.pw-steps>.pw-step:first-child{border-top-color:transparent;}
 .pw-n{font-size:9vw;font-weight:800;letter-spacing:-.04em;line-height:.9;}
 .pw-st{font-size:3vw;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
 .pw-sd{font-size:3vw;color:#4a4740;margin-top:1vw;line-height:1.35;}
