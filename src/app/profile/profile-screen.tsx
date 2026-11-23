@@ -88,9 +88,11 @@ function ProfileShell({ children }: { children: ReactNode }) {
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
-        <ConsentRefresh />
-        <ScreenHeader title="Account" fallbackHref="/main" />
-        {children}
+        <div className="network-scroll-spring">
+          <ConsentRefresh />
+          <ScreenHeader title="Account" fallbackHref="/main" />
+          {children}
+        </div>
       </div>
       <MainTabs current="account" />
     </main>
@@ -374,7 +376,7 @@ export function ProfileScreen() {
         </Zone>
       )}
 
-      <Zone label="Information" rule>
+      <Zone label="Info" rule>
         <Link href="/info" className={`${ZONE_VALUE} underline`}>
           Info
         </Link>
@@ -389,7 +391,7 @@ export function ProfileScreen() {
             onClick={togglePortfolios}
             className="press flex items-center gap-1 border-0 bg-transparent p-0 t-label [-webkit-tap-highlight-color:transparent]"
           >
-            Portfolios
+            Portfolio
             <ChevronRight
               aria-hidden
               className={cn("size-3 shrink-0 transition-transform", portfoliosOpen && "rotate-90")}
