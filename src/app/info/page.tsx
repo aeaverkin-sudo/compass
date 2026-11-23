@@ -16,7 +16,7 @@ const TOC = [
   ["edit", "Edit"],
   ["network", "Network"],
   ["hold", "Tap & hold"],
-  ["profile", "Profile"],
+  ["account", "Account"],
   ["data", "Data"],
   ["events", "Events"],
 ] as const;
@@ -60,7 +60,7 @@ const SECTIONS: Section[] = [
     id: "edit",
     title: "Edit",
     lines: [
-      "Edit on the bar opens the editor.",
+      "The ⋮ beside the QR, or Edit under Add to Wallet, opens the editor.",
       "Small + in a section — add a row: link, file, text, contact.",
       "Big + under the portfolio — add a new section with any name.",
       "Library — everything you add is kept and can be used in other portfolios.",
@@ -90,14 +90,13 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    id: "profile",
-    title: "Profile",
+    id: "account",
+    title: "Account",
     lines: [
       "Your photo — tap and hold it to change it, remove it, or choose Frame or Shadow.",
       "BW / C mode — black-and-white or colour.",
-      "Share anonymous analytics — only an anonymous summary.",
       "Cards shared back to you — accept cards in return or not.",
-      "Plan and usage.",
+      "Information — how the app works.",
     ],
   },
   {

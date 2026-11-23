@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import { PhotoSlotPicker } from "@landing/components/photo-slot-picker";
-import { BottomNav } from "@main/components/bottom-nav";
+import { MainTabs } from "@main/components/main-tabs";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 import { AuthModeToggle } from "@/shared/components/auth-mode-toggle";
 import { BackButton } from "@/shared/components/back-button";
@@ -592,19 +592,6 @@ export function EntryPage({
     }
   };
 
-  const focusEmpty = () => {
-    const root = mainRef.current;
-    if (!root) return;
-    if (!name.trim()) {
-      const area = root.querySelector("[data-entry-name] textarea");
-      if (area instanceof HTMLTextAreaElement) {
-        area.focus();
-        return;
-      }
-    }
-    zonesRef.current?.focusFirstEmpty();
-  };
-
   const socialNext = input.event
     ? input.event.guestToken
       ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
@@ -1017,12 +1004,7 @@ export function EntryPage({
         <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div className="min-h-[calc(100%+1px)]">{sheet}</div>
         </main>
-        <BottomNav
-          showEdit={false}
-          onEdit={focusEmpty}
-          onProfile={() => router.push("/profile")}
-          onNetwork={() => router.push("/network")}
-        />
+        <MainTabs current="portfolio" />
       </div>
     );
   }

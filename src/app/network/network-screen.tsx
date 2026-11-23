@@ -37,7 +37,7 @@ import { RAIL_ICON_SCALE } from "@main/components/side-rail";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
 import { useAppStore } from "@/shared/store/app-store";
-import { NetworkBand } from "./network-band";
+import { MainTabs } from "@main/components/main-tabs";
 
 type SortMode = "recent" | "alphabet";
 
@@ -506,7 +506,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         </div>
       </div>
 
-      <NetworkBand current="network" />
+      <MainTabs current="network" />
       {menu && menuContact ? (
         <div
           ref={plaqueRef}

@@ -48,7 +48,7 @@ const HERO_PHOTO_PX = 128;
 const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
 /** Under the last line, centered on the screen. The tab bar stays below the card. */
-function AddToWallet({ cardId }: { cardId: string }) {
+function AddToWallet({ cardId, onEdit }: { cardId: string; onEdit?: () => void }) {
   const [off, setOff] = useState(false);
   const [status, setStatus] = useState<"add" | "in">("add");
   const read = useRef(0);
@@ -113,7 +113,7 @@ function AddToWallet({ cardId }: { cardId: string }) {
   if (off && status !== "in") return null;
   return (
     <section className="border-t border-[var(--rule)] pt-[10px] pb-[18px]">
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center">
         {status === "in" ? (
           <p className="inline-flex items-center py-[10.8px] t-caps text-[var(--grey)]">IN WALLET</p>
         ) : (
@@ -132,6 +132,16 @@ function AddToWallet({ cardId }: { cardId: string }) {
             Add to Wallet
           </TapButton>
         )}
+        {onEdit ? (
+          <TapButton
+            data-card-content
+            data-no-swipe
+            onTap={onEdit}
+            className="press mt-[10px] border-0 bg-transparent p-0 t-caps text-[var(--ink)]"
+          >
+            Edit
+          </TapButton>
+        ) : null}
       </div>
     </section>
   );
@@ -434,6 +444,8 @@ type BusinessCardProps = {
   deliveredNotes?: DeliveredNote[];
   /** Trial add slide: same empty start, taps ask to register. */
   onPortfolioStartBlocked?: () => void;
+  /** Owner card only. Edit under Add to Wallet. Absent on a public card. */
+  onEdit?: () => void;
   /** Print sheets of this same card. No QR, no share, no fixed screen height. */
   pdf?: boolean;
   /** Null paints every block. An array is one phone sheet. */
@@ -470,6 +482,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     shareFootnote,
     deliveredNotes = [],
     onPortfolioStartBlocked,
+    onEdit,
     pdf = false,
     pdfMask = null,
     sheetIndex,
@@ -777,7 +790,9 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           deliveredNotes={readOnly ? deliveredNotes : undefined}
         />
       ) : null}
-      {!compact && !editing && !readOnly && items.length > 0 ? <AddToWallet cardId={card.id} /> : null}
+      {!compact && !editing && !readOnly && items.length > 0 ? (
+        <AddToWallet cardId={card.id} onEdit={onEdit} />
+      ) : null}
       {!compact && !editing && (showShareFooter || shareFootnote) ? (
         <div
           className="mt-auto shrink-0 t-meta"

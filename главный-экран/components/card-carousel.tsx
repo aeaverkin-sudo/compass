@@ -33,6 +33,8 @@ type CardCarouselProps = {
   editing?: boolean;
   fillHint?: boolean;
   onFill?: (cardId: string, zoneId?: string) => void;
+  /** Opens the editor for the card under the tap. */
+  onEdit?: (cardId: string) => void;
   /** Guest event pass: the card's empty next section opens the add line. Absent for other cards. */
   addNextFor?: (card: Card) => (() => void) | undefined;
   composeOnMount?: boolean;
@@ -64,6 +66,7 @@ export const CardCarousel = memo(function CardCarousel({
   editing = false,
   fillHint = false,
   onFill,
+  onEdit,
   addNextFor,
   composeOnMount = false,
   openZone = null,
@@ -332,6 +335,7 @@ export const CardCarousel = memo(function CardCarousel({
       editing={editing && card.id !== ADD_SLIDE_ID}
       fillHint={hint}
       onFill={onFill ? (zoneId) => onFill(card.id, zoneId) : undefined}
+      onEdit={onEdit ? () => onEdit(card.id) : undefined}
       onAddNext={card.id === ADD_SLIDE_ID ? undefined : addNextFor?.(card)}
       composeOnMount={composeOnMount && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id}
       openZone={editing && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id ? openZone : null}
@@ -385,6 +389,7 @@ export const CardCarousel = memo(function CardCarousel({
         editing={editing}
         fillHint={fillHint && activeIndex === 0}
         onFill={onFill ? (zoneId) => onFill(activeCard.id, zoneId) : undefined}
+        onEdit={onEdit ? () => onEdit(activeCard.id) : undefined}
         onAddNext={addNextFor?.(activeCard)}
         composeOnMount={composeOnMount}
         openZone={editing ? openZone : null}

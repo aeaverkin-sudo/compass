@@ -1,8 +1,8 @@
 "use client";
 
-import { startTransition, useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { EllipsisVertical } from "lucide-react";
 import { flushSync } from "react-dom";
 import {
   BROWSE_QR_SIZE,
@@ -120,6 +120,7 @@ function CardDeck({
   addNextFor,
   onTrialSlot,
   onFill,
+  onEdit,
   onActiveIndexChange,
   onUpdateCard,
   cardLiftPx,
@@ -138,6 +139,7 @@ function CardDeck({
   addNextFor: (card: Card) => (() => void) | undefined;
   onTrialSlot: () => void;
   onFill: (cardId: string, zoneId?: string) => void;
+  onEdit: (cardId: string) => void;
   onActiveIndexChange: (index: number) => void;
   onUpdateCard: (id: string, data: Partial<Card>) => void;
   /** Real cards sit this far below the raised column, so they stay under the QR. */
@@ -167,6 +169,7 @@ function CardDeck({
       needsAccount={needsAccount}
       onTrialSlot={onTrialSlot}
       onFill={onFill}
+      onEdit={onEdit}
       onActiveIndexChange={onActiveIndexChange}
       onUpdateCard={onUpdateCard}
       cardLiftPx={cardLiftPx}
@@ -177,7 +180,6 @@ function CardDeck({
 }
 
 export function MainScreen() {
-  const router = useRouter();
   const cardCount = useAppStore((state) => state.cards.length);
   const currentCardIndex = useAppStore((state) => state.currentCardIndex);
   const setCurrentCardIndex = useAppStore((state) => state.setCurrentCardIndex);
@@ -374,12 +376,6 @@ export function MainScreen() {
   }, [firstFilled, emptyFillHintSeen, markEmptyFillHintSeen]);
 
   useEffect(() => {
-    router.prefetch("/profile");
-    router.prefetch("/network");
-    router.prefetch("/info");
-  }, [router]);
-
-  useEffect(() => {
     const leave = () => {
       if (editingRef.current) {
         const { cards, currentCardIndex: index } = useAppStore.getState();
@@ -451,12 +447,6 @@ export function MainScreen() {
     setComposeOnMount(true);
   }, [markPassAddHintSeen, noteEditName, rememberEdit, setCurrentCardIndex]);
 
-  const onProfile = useCallback(() => {
-    startTransition(() => router.push("/profile"));
-  }, [router]);
-  const onNetwork = useCallback(() => {
-    startTransition(() => router.push("/network"));
-  }, [router]);
   const onRemove = useCallback(() => setRemoveOpen(true), []);
   const endEdit = useCallback(() => {
     const { snap, warned } = takeSnap();
@@ -502,14 +492,14 @@ export function MainScreen() {
     setEditing(true);
     if (cardId) rememberEdit(cardId);
   }, [needsAccount, noteEditName, portfolioLimit, rememberEdit, renamePending, showGate, updateSecondCardDraft]);
-  const onAdd = useCallback(() => {
-    const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
-    if (needsAccount && !liveCards[index]) {
-      showGate();
-      return;
+  const onEditCard = useCallback((cardId: string) => {
+    const index = useAppStore.getState().cards.findIndex((entry) => entry.id === cardId);
+    if (index >= 0) {
+      setBrowseIndex(index);
+      setCurrentCardIndex(index);
     }
-    openAddRef.current?.();
-  }, [needsAccount, showGate]);
+    onEdit();
+  }, [onEdit, setCurrentCardIndex]);
   const onFill = useCallback((cardId: string, zoneId?: string) => {
     const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
     const index = liveCards.findIndex((card) => card.id === cardId);
@@ -613,25 +603,23 @@ export function MainScreen() {
             <QrZone url={cardUrl} visible={cardReady && !editing} topOffsetPx={layout.qrTop} scale={layout.headerScale} />
         ) : null}
       </div>
-      {layout && cardReady && !editing ? (
+      {layout && cardReady && !editing && !viewingAddSlide ? (
         <button
           type="button"
-          aria-label="Info"
-          onClick={() => router.push("/info")}
+          aria-label="Edit"
+          onClick={onEdit}
           className="absolute z-30 border-0 bg-transparent p-0 text-[var(--ink)]"
           style={{ top: layoutTop(layout.qrTop), left: counterRightCss }}
         >
-          <span
-            className="block text-center leading-none"
+          <EllipsisVertical
+            aria-hidden
+            className="block"
+            strokeWidth={1.5}
             style={{
-              fontSize: (MARK_VISIBLE_PX * RAIL_ICON_SCALE) / 0.714,
-              fontWeight: 400,
-              textTransform: "none",
-              clipPath: "inset(0 0 0.18em 0)",
+              width: (MARK_VISIBLE_PX * RAIL_ICON_SCALE) / 0.714,
+              height: (MARK_VISIBLE_PX * RAIL_ICON_SCALE) / 0.714,
             }}
-          >
-            i
-          </span>
+          />
           <span aria-hidden className="absolute top-1/2 left-1/2 size-11 -translate-x-1/2 -translate-y-1/2" />
         </button>
       ) : null}
@@ -649,7 +637,7 @@ export function MainScreen() {
       ) : null}
 
       {passwordHint && !composing ? (
-        <InfoNotice text="You can change your password in Profile." onDone={dismissPasswordHint} />
+        <InfoNotice text="You can change your password in Account." onDone={dismissPasswordHint} />
       ) : null}
 
       {passAddHint ? <SkyHint text={PASS_ADD_HINT} onDone={markPassAddHintSeen} /> : null}
@@ -724,6 +712,7 @@ export function MainScreen() {
             addNextFor={(card) => (passes.has(card.id) ? () => addToPass(card.id) : undefined)}
             onTrialSlot={showGate}
             onFill={onFill}
+            onEdit={onEditCard}
             onActiveIndexChange={onActiveIndexChange}
             onUpdateCard={updateCard}
             cardLiftPx={cardLiftPx}
@@ -733,16 +722,7 @@ export function MainScreen() {
       ) : null}
       </div>
       {layout && !composing && !keyboardUp ? (
-        <BottomNav
-          editing={editing}
-          showEdit={nameReady}
-          onRemove={onRemove}
-          onProfile={onProfile}
-          onNetwork={onNetwork}
-          onEdit={onEdit}
-          onAdd={onAdd}
-          onDone={onDone}
-        />
+        <BottomNav editing={editing} onRemove={onRemove} onDone={onDone} />
       ) : null}
     </main>
   );

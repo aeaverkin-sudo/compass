@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
+import { MainTabs } from "@main/components/main-tabs";
 import { Zone } from "@/shared/components/zone";
 import { ConsentRefresh } from "@/shared/components/consent-refresh";
 import { KeepProfileButton } from "@/shared/components/keep-profile-button";
@@ -29,64 +30,7 @@ import { cn } from "@/lib/utils";
 const ZONE_VALUE =
   "min-w-0 break-words t-body text-[var(--ink)]";
 
-const PAID_TIER_ENABLED = false;
-
 const PORTFOLIOS_OPEN_KEY = "aded:profile-portfolios-open";
-
-function formatBytes(bytes: number) {
-  if (bytes <= 0) return "0 MB";
-  const megabytes = bytes / (1024 * 1024);
-  if (megabytes < 10) return `${megabytes.toFixed(megabytes < 1 ? 1 : 0)} MB`;
-  return `${Math.round(megabytes)} MB`;
-}
-
-function storageLine(used: number, limit: number) {
-  return `${formatBytes(used)} of ${formatBytes(limit)}`;
-}
-
-function planTitle(plan: "free" | "paid") {
-  return plan === "paid" ? "Paid" : "Free";
-}
-
-type Sharing = { analytics: boolean; connections: boolean };
-
-/** Anonymous analytics for every event registration. Allow connections stays stored, without a switch. */
-function SharingSettings({ initial }: { initial: Sharing }) {
-  const [analytics, setAnalytics] = useState(initial.analytics);
-
-  const save = (next: boolean) => {
-    const previous = analytics;
-    setAnalytics(next);
-    void fetch("/api/account/sharing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analytics: next, connections: initial.connections }),
-    })
-      .then((response) => {
-        if (!response.ok) setAnalytics(previous);
-      })
-      .catch(() => setAnalytics(previous));
-  };
-
-  return (
-    <div className="flex items-start gap-3">
-      <Switch
-        checked={analytics}
-        onCheckedChange={(checked) => save(checked === true)}
-        aria-labelledby="profile-sharing-analytics"
-        className="mt-[2px] shrink-0"
-      />
-      <span className="min-w-0">
-        <span id="profile-sharing-analytics" className="block t-body text-[var(--ink)]">
-          Share anonymous analytics
-        </span>
-        <span className="mt-1 block t-meta text-[var(--grey)]">
-          Nobody sees your personal details — only an anonymous business summary.
-        </span>
-      </span>
-    </div>
-  );
-}
 
 /** On: a card shared back arrives pending. Off: share-back writes nothing. */
 function ShareBackSetting() {
@@ -142,10 +86,13 @@ function ShareBackSetting() {
 
 function ProfileShell({ children }: { children: ReactNode }) {
   return (
-    <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[#111]">
-      <ConsentRefresh />
-      <ScreenHeader title="Profile" fallbackHref="/main" />
-      {children}
+    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white text-[#111]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
+        <ConsentRefresh />
+        <ScreenHeader title="Account" fallbackHref="/main" />
+        {children}
+      </div>
+      <MainTabs current="account" />
     </main>
   );
 }
@@ -344,11 +291,6 @@ export function ProfileScreen() {
   }, []);
 
   useEffect(() => {
-    if (window.location.hash !== "#subscription") return;
-    document.getElementById("subscription")?.scrollIntoView();
-  }, [account]);
-
-  useEffect(() => {
     if (window.location.hash !== "#portfolios") return;
     setPortfoliosOpen(true);
     try {
@@ -367,7 +309,7 @@ export function ProfileScreen() {
         {!account ? (
           ready ? (
             <div className="py-[18px]">
-              <p className={ZONE_VALUE}>Sign in to open your profile.</p>
+              <p className={ZONE_VALUE}>Sign in to open your account.</p>
               <Link
                 href={`/register?signin=1&next=${encodeURIComponent("/profile")}`}
                 className="mt-6 inline-block border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)]"
@@ -395,10 +337,6 @@ export function ProfileScreen() {
       </ProfileShell>
     );
   }
-
-  const nearPortfolio = portfolioLimit !== null && portfolioLimit - cards.length === 1;
-  const nearStorage =
-    account.bytesLimit > 0 && account.bytesUsed / account.bytesLimit >= 0.8 && account.bytesUsed < account.bytesLimit;
 
   return (
     <ProfileShell>
@@ -436,33 +374,10 @@ export function ProfileScreen() {
         </Zone>
       )}
 
-      <Zone id="subscription" label="Plan" rule>
-        <p className={ZONE_VALUE}>{planTitle(account.plan)}</p>
-        <ul className="mt-2 space-y-1 t-body text-[var(--ink)]">
-          <li>
-            Free — {account.catalog.free.portfolios} portfolios, {formatBytes(account.catalog.free.bytes)}
-          </li>
-          {PAID_TIER_ENABLED ? (
-            <li>
-              Paid — {account.catalog.paid.portfolios} portfolios, {formatBytes(account.catalog.paid.bytes)}
-            </li>
-          ) : null}
-        </ul>
-        {PAID_TIER_ENABLED ? (
-          <>
-            <button
-              type="button"
-              disabled
-              className="mt-4 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:opacity-100"
-            >
-              Upgrade
-            </button>
-            <p className="mt-2 t-meta text-[var(--ink)]">Coming soon</p>
-          </>
-        ) : null}
-        {/* Stripe seam: Manage subscription and payment history.
-            Checkout and the customer portal will write profiles.plan from a webhook.
-            Do not collect card details here. */}
+      <Zone label="Information" rule>
+        <Link href="/info" className={`${ZONE_VALUE} underline`}>
+          Info
+        </Link>
       </Zone>
 
       <Zone
@@ -556,19 +471,6 @@ export function ProfileScreen() {
         </button>
       </Zone>
 
-      <Zone label="Usage" rule>
-        <p className={ZONE_VALUE}>{storageLine(account.bytesUsed, account.bytesLimit)}</p>
-        <p className="mt-1 t-body text-[var(--ink)]">
-          {cards.length} of {portfolioLimit ?? "…"} portfolios
-        </p>
-        {nearPortfolio ? (
-          <p className="mt-2 t-meta text-[var(--ink)]">One portfolio left on this plan.</p>
-        ) : null}
-        {nearStorage ? (
-          <p className="mt-2 t-meta text-[var(--ink)]">Storage is nearly full.</p>
-        ) : null}
-      </Zone>
-
       <Zone label="Color" rule>
         <div className="flex items-center gap-3">
           <span className="t-caps text-[var(--grey)]">
@@ -583,10 +485,6 @@ export function ProfileScreen() {
             BW mode
           </span>
         </div>
-      </Zone>
-
-      <Zone label="Sharing" align="start" rule>
-        <SharingSettings initial={account.sharing ?? { analytics: true, connections: true }} />
       </Zone>
 
       <Zone label="Network" align="start" rule>
