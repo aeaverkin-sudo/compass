@@ -47,11 +47,34 @@ const HERO_PHOTO_PX = 128;
 /** Apple's registration arrives after the file opens. A few reads, then stop. */
 const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
-/** Under the last line, centered on the screen. The tab bar stays below the card. */
+/** Grey status under the Edit button. The tab bar stays below the card. */
 const WALLET_CAPTION =
   "inline-flex items-center border-0 bg-transparent py-[10.8px] t-caps text-[var(--grey)]";
 
-function AddToWallet({ cardId, onEdit }: { cardId: string; onEdit?: () => void }) {
+const SKY_ACTION =
+  "press inline-flex items-center border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]";
+
+/** Apple Wallet is an iPhone row. Android does not get the button or the status. */
+function useAndroidDevice() {
+  const [android, setAndroid] = useState(false);
+  useLayoutEffect(() => {
+    if (/Android/i.test(navigator.userAgent)) setAndroid(true);
+  }, []);
+  return android;
+}
+
+function EditPortfolioButton({ onEdit }: { onEdit: () => void }) {
+  return (
+    <div className="flex justify-center py-[18px]">
+      <TapButton data-card-content data-no-swipe onTap={onEdit} className={SKY_ACTION}>
+        Edit portfolio
+      </TapButton>
+    </div>
+  );
+}
+
+function AddToWallet({ cardId }: { cardId: string }) {
+  const android = useAndroidDevice();
   const [off, setOff] = useState(false);
   const [status, setStatus] = useState<"add" | "in">("add");
   const read = useRef(0);
@@ -113,41 +136,28 @@ function AddToWallet({ cardId, onEdit }: { cardId: string; onEdit?: () => void }
       window.removeEventListener("focus", onReturn);
     };
   }, [refresh]);
-  if (off && status !== "in") return null;
+  if (android || (off && status !== "in")) return null;
   return (
-    <section className="border-t border-[var(--rule)] pt-[10px] pb-[18px]">
-      <div className="flex flex-col items-center">
-        {status === "in" ? (
-          <p className={WALLET_CAPTION}>IN WALLET</p>
-        ) : (
-          <TapButton
-            data-card-content
-            data-no-swipe
-            onTap={() => {
-              void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
-                if (!opened) return;
-                watchRegistration();
-              });
-            }}
-            className="press inline-flex items-center gap-2 border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]"
-          >
-            <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
-            Add to Wallet
-          </TapButton>
-        )}
-        {onEdit ? (
-          <button
-            type="button"
-            data-card-content
-            data-no-swipe
-            onClick={onEdit}
-            className={`press ${WALLET_CAPTION}`}
-          >
-            Edit portfolio
-          </button>
-        ) : null}
-      </div>
-    </section>
+    <div className="flex justify-center pb-[18px]">
+      {status === "in" ? (
+        <p className={WALLET_CAPTION}>IN WALLET</p>
+      ) : (
+        <TapButton
+          data-card-content
+          data-no-swipe
+          onTap={() => {
+            void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
+              if (!opened) return;
+              watchRegistration();
+            });
+          }}
+          className={`${SKY_ACTION} gap-2`}
+        >
+          <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
+          Add to Wallet
+        </TapButton>
+      )}
+    </div>
   );
 }
 
@@ -448,7 +458,7 @@ type BusinessCardProps = {
   deliveredNotes?: DeliveredNote[];
   /** Trial add slide: same empty start, taps ask to register. */
   onPortfolioStartBlocked?: () => void;
-  /** Owner card only. Edit under Add to Wallet. Absent on a public card. */
+  /** Owner card only. The Edit portfolio button. Absent on a public card. */
   onEdit?: () => void;
   /** Print sheets of this same card. No QR, no share, no fixed screen height. */
   pdf?: boolean;
@@ -687,6 +697,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           <div>
             <EmptyCardZones />
             <NotesRubric ownerNotes={nextScanAddons} />
+            {onEdit ? <EditPortfolioButton onEdit={onEdit} /> : null}
           </div>
         </div>
       ) : null}
@@ -794,9 +805,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           deliveredNotes={readOnly ? deliveredNotes : undefined}
         />
       ) : null}
-      {!compact && !editing && !readOnly && items.length > 0 ? (
-        <AddToWallet cardId={card.id} onEdit={cardIsReady(card) ? onEdit : undefined} />
-      ) : null}
+      {!bare && !compact && !editing && !readOnly && onEdit ? <EditPortfolioButton onEdit={onEdit} /> : null}
+      {!compact && !editing && !readOnly && items.length > 0 ? <AddToWallet cardId={card.id} /> : null}
       {!compact && !editing && (showShareFooter || shareFootnote) ? (
         <div
           className="mt-auto shrink-0 t-meta"

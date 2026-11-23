@@ -58,7 +58,7 @@ const SECTIONS: Section[] = [
     id: "edit",
     title: "Edit",
     lines: [
-      "The ⋮ beside the QR, or Edit portfolio under Add to Wallet, opens the editor.",
+      "The ⋮ beside the QR, or Edit portfolio after the last section, opens the editor.",
       "Small + in a section — add a row: link, file, text, contact.",
       "Big + under the portfolio — add a new section with any name.",
       "Library — everything you add is kept and can be used in other portfolios.",
