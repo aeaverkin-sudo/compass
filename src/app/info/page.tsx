@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Scan, Share } from "lucide-react";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { MarkPlus, MARK_PX, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
-import { HEADER_ROW_PX } from "@/shared/layout/axes";
-import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
 const RAIL_W = "var(--gutter)";
 
@@ -141,17 +139,24 @@ function ToolbarFigure() {
 }
 
 export default function InfoPage() {
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string>(TOC[0][0]);
+  const scrollerRef = useRef<HTMLDivElement>(null);
 
   const go = (id: string) => {
     setOpen(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    const root = scrollerRef.current;
+    const target = root?.querySelector<HTMLElement>(`#${id}`);
+    const heading = target?.querySelector<HTMLElement>("h2") ?? target;
+    if (!root || !heading) return;
+    const top = heading.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    root.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
   };
 
   return (
-    <main className="compass-main h-dvh overflow-y-auto bg-white px-[var(--gutter)] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[var(--ink)]">
+    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white px-[var(--gutter)] text-[var(--ink)]">
       <ScreenHeader title="Info" fallbackHref="/main" />
-      <div className="pt-[18px] grid grid-cols-3 gap-1.5">
+      <div className="grid shrink-0 grid-cols-3 gap-1.5 pt-[18px]">
         {TOC.map(([id, label]) => {
           const on = open === id;
           return (
@@ -162,8 +167,9 @@ export default function InfoPage() {
               className="flex items-center justify-center border-0 px-1 text-center"
               style={{
                 height: 34.2,
-                background: on ? "var(--ink)" : "var(--sky)",
-                color: on ? "#fff" : "var(--ink)",
+                background: on ? "var(--sky)" : "#fff",
+                color: "var(--ink)",
+                boxShadow: on ? "none" : "0 2px 8px rgba(17,17,17,0.16)",
                 fontSize: 13,
                 whiteSpace: "normal",
                 fontWeight: 400,
@@ -177,31 +183,36 @@ export default function InfoPage() {
           );
         })}
       </div>
-      {SECTIONS.map((section, index) => (
-        <section
-          key={section.id}
-          id={section.id}
-          className={index === 0 ? "mt-8" : "mt-8 border-t border-[var(--rule)] pt-4"}
-          style={{ scrollMarginTop: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX + HEADER_ROW_PX + 12}px)` }}
-        >
-          <h2
-            className="text-center font-bold text-[var(--ink)]"
-            style={{ fontSize: 22, lineHeight: 1.15, letterSpacing: "-0.02em" }}
+      <div
+        ref={scrollerRef}
+        className="min-h-0 flex-1 overflow-y-auto pb-[max(2.5rem,env(safe-area-inset-bottom))]"
+      >
+        {SECTIONS.map((section, index) => (
+          <section
+            key={section.id}
+            id={section.id}
+            className={index === 0 ? "mt-8" : "mt-8 border-t border-[var(--rule)] pt-4"}
           >
-            {section.title}
-          </h2>
-          {section.id === "toolbar" ? (
-            <div className="mt-4">
-              <ToolbarFigure />
-            </div>
-          ) : null}
-          <ul className="mt-3 flex flex-col gap-2">
-            {section.lines.map((text) => (
-              <Line key={text} text={text} />
-            ))}
-          </ul>
-        </section>
-      ))}
+            <h2
+              className="text-center font-bold text-[var(--ink)]"
+              style={{ fontSize: 22, lineHeight: 1.15, letterSpacing: "-0.02em" }}
+            >
+              {section.title}
+            </h2>
+            {section.id === "toolbar" ? (
+              <div className="mt-4">
+                <ToolbarFigure />
+              </div>
+            ) : null}
+            <ul className="mt-3 flex flex-col gap-2">
+              {section.lines.map((text) => (
+                <Line key={text} text={text} />
+              ))}
+            </ul>
+          </section>
+        ))}
+        <div aria-hidden className="h-[70vh] shrink-0" />
+      </div>
     </main>
   );
 }
