@@ -389,23 +389,33 @@ export function ProfileScreen() {
             type="button"
             aria-expanded={portfoliosOpen}
             onClick={togglePortfolios}
-            className="press flex items-center gap-1 border-0 bg-transparent p-0 t-label [-webkit-tap-highlight-color:transparent]"
+            className="press border-0 bg-transparent p-0 t-label [-webkit-tap-highlight-color:transparent]"
           >
             Portfolio
-            <ChevronRight
-              aria-hidden
-              className={cn("size-3 shrink-0 transition-transform", portfoliosOpen && "rotate-90")}
-              strokeWidth={1.5}
-            />
           </button>
         }
         align="start"
         rule
       >
-        <p className="text-right t-label text-[var(--grey)]">
-          <span className="text-[var(--ink)]">{cards.length}</span>
-          {` / ${portfolioLimit ?? "…"}`}
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <button
+            type="button"
+            aria-label="Portfolio"
+            aria-expanded={portfoliosOpen}
+            onClick={togglePortfolios}
+            className="press flex size-5 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
+          >
+            <ChevronRight
+              aria-hidden
+              className={cn("size-5 transition-transform", portfoliosOpen && "rotate-90")}
+              strokeWidth={1.5}
+            />
+          </button>
+          <p className="text-right t-label text-[var(--grey)]">
+            <span className="text-[var(--ink)]">{cards.length}</span>
+            {` / ${portfolioLimit ?? "…"}`}
+          </p>
+        </div>
         {portfoliosOpen ? (
         <ul className="mb-6 space-y-6">
           {cards.map((card) => {
@@ -475,17 +485,13 @@ export function ProfileScreen() {
 
       <Zone label="Color" rule>
         <div className="flex items-center gap-3">
-          <span className="t-caps text-[var(--grey)]">
-            C mode
-          </span>
+          <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">C mode</span>
           <Switch
             checked={Boolean(monochrome)}
             onCheckedChange={(checked) => setMonochrome(checked === true)}
             aria-label={monochrome ? "BW mode" : "C mode"}
           />
-          <span className="t-caps text-[var(--grey)]">
-            BW mode
-          </span>
+          <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">BW mode</span>
         </div>
       </Zone>
 
