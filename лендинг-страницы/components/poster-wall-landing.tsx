@@ -744,8 +744,9 @@ export function PosterWallLanding() {
             <section className="pw-asec">
               <h2 className="pw-alabel">Network</h2>
               <p className="pw-abody">
-                Scan someone&apos;s QR and their card is saved in your Network. Everyone you scanned, and everyone who
-                shared a card with you, in one list. Search by name, role or company.
+                The built-in scanner saves a card from an ADED QR. Add a contact by hand, by scanning a card or a
+                badge, or by voice. Everyone you scanned, and everyone who shared a card with you, in one list. Search
+                by name, role or company.
               </p>
             </section>
             <p className="pw-afoot">
