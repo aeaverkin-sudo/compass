@@ -603,7 +603,7 @@ export function MainScreen() {
             <QrZone url={cardUrl} visible={cardReady && !editing} topOffsetPx={layout.qrTop} scale={layout.headerScale} />
         ) : null}
       </div>
-      {layout && cardReady && !editing && !viewingAddSlide ? (
+      {layout && nameReady && !editing && !composing && !keyboardUp && !viewingAddSlide ? (
         <button
           type="button"
           aria-label="Edit"

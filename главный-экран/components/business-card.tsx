@@ -48,6 +48,9 @@ const HERO_PHOTO_PX = 128;
 const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
 /** Under the last line, centered on the screen. The tab bar stays below the card. */
+const WALLET_CAPTION =
+  "inline-flex items-center border-0 bg-transparent py-[10.8px] t-caps text-[var(--grey)]";
+
 function AddToWallet({ cardId, onEdit }: { cardId: string; onEdit?: () => void }) {
   const [off, setOff] = useState(false);
   const [status, setStatus] = useState<"add" | "in">("add");
@@ -115,7 +118,7 @@ function AddToWallet({ cardId, onEdit }: { cardId: string; onEdit?: () => void }
     <section className="border-t border-[var(--rule)] pt-[10px] pb-[18px]">
       <div className="flex flex-col items-center">
         {status === "in" ? (
-          <p className="inline-flex items-center py-[10.8px] t-caps text-[var(--grey)]">IN WALLET</p>
+          <p className={WALLET_CAPTION}>IN WALLET</p>
         ) : (
           <TapButton
             data-card-content
@@ -133,14 +136,15 @@ function AddToWallet({ cardId, onEdit }: { cardId: string; onEdit?: () => void }
           </TapButton>
         )}
         {onEdit ? (
-          <TapButton
+          <button
+            type="button"
             data-card-content
             data-no-swipe
-            onTap={onEdit}
-            className="press mt-[10px] border-0 bg-transparent p-0 t-caps text-[var(--ink)]"
+            onClick={onEdit}
+            className={`press ${WALLET_CAPTION}`}
           >
-            Edit
-          </TapButton>
+            Edit portfolio
+          </button>
         ) : null}
       </div>
     </section>
@@ -791,7 +795,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         />
       ) : null}
       {!compact && !editing && !readOnly && items.length > 0 ? (
-        <AddToWallet cardId={card.id} onEdit={onEdit} />
+        <AddToWallet cardId={card.id} onEdit={cardIsReady(card) ? onEdit : undefined} />
       ) : null}
       {!compact && !editing && (showShareFooter || shareFootnote) ? (
         <div
