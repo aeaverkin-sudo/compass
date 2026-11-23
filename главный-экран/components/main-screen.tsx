@@ -2,7 +2,6 @@
 
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
-import { EllipsisVertical } from "lucide-react";
 import { flushSync } from "react-dom";
 import {
   BROWSE_QR_SIZE,
@@ -30,8 +29,7 @@ import { PortfolioDeleteDialog } from "./portfolio-delete";
 import { PortfolioRenameDialog } from "./portfolio-rename";
 import { WalletUpdatePlaque } from "./wallet-update-plaque";
 import { useRenamePrompt } from "./use-rename-prompt";
-import { RAIL_ICON_SCALE, SideRail } from "./side-rail";
-import { MARK_VISIBLE_PX } from "@/shared/components/mark-plus";
+import { SideRail } from "./side-rail";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { editTapBlocked } from "@/shared/lib/card-share-guard";
@@ -603,27 +601,6 @@ export function MainScreen() {
             <QrZone url={cardUrl} visible={cardReady && !editing} topOffsetPx={layout.qrTop} scale={layout.headerScale} />
         ) : null}
       </div>
-      {layout && nameReady && !editing && !composing && !keyboardUp && !viewingAddSlide ? (
-        <button
-          type="button"
-          aria-label="Edit"
-          onClick={onEdit}
-          className="absolute z-30 border-0 bg-transparent p-0 text-[var(--ink)]"
-          style={{ top: layoutTop(layout.qrTop), left: counterRightCss }}
-        >
-          <EllipsisVertical
-            aria-hidden
-            className="block"
-            strokeWidth={1.5}
-            style={{
-              width: (MARK_VISIBLE_PX * RAIL_ICON_SCALE) / 0.714,
-              height: (MARK_VISIBLE_PX * RAIL_ICON_SCALE) / 0.714,
-            }}
-          />
-          <span aria-hidden className="absolute top-1/2 left-1/2 size-11 -translate-x-1/2 -translate-y-1/2" />
-        </button>
-      ) : null}
-
       {layout && cardReady && railCard ? (
         <SideRail
           qrTop={layout.qrTop}
