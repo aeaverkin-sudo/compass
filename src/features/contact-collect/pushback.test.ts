@@ -18,6 +18,7 @@ const {
   meetingSubject,
   noteSwapBlur,
   noteSwapHandoffLeft,
+  shouldRecordSwapLeave,
   noteSwapHidden,
   portfolioBody,
   clearSwapHandoff,
@@ -226,6 +227,12 @@ test("Mail's Chrome return opens Network only for that contact and attempt", () 
   assert.equal(swapRestore(readSwapHandoffFrom(store), "ada", null), "network");
   clearSwapHandoff(store);
   assert.equal(readSwapHandoffFrom(store), null);
+});
+
+test("a browser reload hides the page and still does not count as leaving", () => {
+  assert.equal(shouldRecordSwapLeave(false), false);
+  assert.equal(shouldRecordSwapLeave(null), true);
+  assert.equal(shouldRecordSwapLeave(true), true);
 });
 
 test("a refresh after a tap that never left stays on the same Swap", () => {

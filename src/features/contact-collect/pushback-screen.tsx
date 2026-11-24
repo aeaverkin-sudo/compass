@@ -22,6 +22,7 @@ import {
   swapCardOffered,
   swapFooter,
   swapHandoffMatches,
+  shouldRecordSwapLeave,
   swapRestore,
   swapWake,
   visibleDraft,
@@ -135,9 +136,16 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     const onHide = () => {
       markLeft();
     };
+    let unloadPersisted: boolean | null = null;
     const onVisibility = () => {
-      if (document.visibilityState === "hidden") onHide();
-      else comeBack();
+      if (document.visibilityState !== "hidden") {
+        comeBack();
+        return;
+      }
+      queueMicrotask(() => {
+        if (!shouldRecordSwapLeave(unloadPersisted)) return;
+        onHide();
+      });
     };
     const onBlur = () => {
       handoff.current = noteSwapBlur(handoff.current, Date.now());
@@ -162,6 +170,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     document.addEventListener("freeze", onHide);
     document.addEventListener("resume", onResume);
     const onPageHide = (event: PageTransitionEvent) => {
+      unloadPersisted = event.persisted;
       if (event.persisted) onHide();
     };
     window.addEventListener("pagehide", onPageHide);

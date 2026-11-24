@@ -279,6 +279,14 @@ export function swapWake(input: {
   return "network";
 }
 
+/**
+ * A reload reports the page hidden after `pagehide` with `persisted === false`.
+ * That is the document going away, not Mail. `null` means the page is still there.
+ */
+export function shouldRecordSwapLeave(unloadPersisted: boolean | null): boolean {
+  return unloadPersisted !== false;
+}
+
 /** The Swap page was loaded again. Network only if this attempt had already left the page. */
 export function swapRestore(mark: SwapHandoff | null, contactId: string, attempt: string | null): "network" | "stay" {
   if (!mark || mark.contactId !== contactId || attempt || !mark.left) return "stay";
