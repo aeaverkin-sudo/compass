@@ -4,7 +4,7 @@ Effective 24 November 2026 · Version 1.4
 
 ## 1. Who is responsible for your data
 
-The person who runs ADED ME is responsible for the personal data processed for this service. For questions, reports or privacy requests, contact support@adedme.com. You do not need an ADED ME account to write.
+ADED ME is operated by Anton Averkin, who is responsible for the processing of personal data described in this Privacy Policy. For privacy questions or requests, contact support@adedme.com.
 
 ## 2. What we use and why
 
