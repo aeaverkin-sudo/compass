@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective 24 November 2026 · Version 1.4
+Version 1.4
 
 ## 1. Who is responsible for your data
 
@@ -8,50 +8,60 @@ ADED ME is operated by Anton Averkin, who is responsible for the processing of p
 
 ## 2. What we use and why
 
-**Account and sign-in.** We use your email address, account identifier and sign-in information to create, administer and protect your account. For email registration or recovery, we may email a verification code or a reset link when needed. The verification code expires after 30 minutes, works once, and is not your password. We do not email your reusable password. Supabase Auth manages account passwords and stores them as hashes. When you sign in with Google or Apple, we receive the email address and, when the provider sends it, the name. Apple may supply a relay address if you use Hide My Email. We do not receive your Google or Apple password.
+**Account and sign-in.** We use your email address, account identifier and sign-in information to create and protect your account. We may email a verification code or link when needed. We do not email your reusable password. Supabase Auth stores account passwords as hashes. If you use Google or Apple, we use the account identifier and email address they provide and your name if they supply it. Apple may provide a relay email address if you choose Hide My Email. Your Google or Apple password stays with that provider.
 
-**Portfolios and sharing.** We process the names, roles, company names, descriptions, links, images and files you add to build and share your portfolio. People who have the public link or QR code can see what you publish. We make the selected card available to people you choose to share it with. Replacing the public address can disable the previous address and QR codes that use it. A link that uses the portfolio token, an attachment link, a card already exchanged, and a file already delivered can still open. It does not remove copies already held by others.
+**Portfolios and sharing.** We use the names, job details, descriptions, links, photos and files you add to provide your portfolio. People with your public link or QR code can see what you publish. When you send a card, the selected card becomes available to the recipient. People can keep copies of what you share. Changing the public address does not remove those copies.
 
-**Saved contacts and recognition.** We process the contact details you choose to save so they are available in your account. Details may come from a user who types them, scans a card or badge, or dictates them. When you use recognition, we may send the image, audio or text you submit to OpenAI to suggest contact fields. In Voice, the audio may be transcribed and the transcript used to identify the fields. You can review the suggested details before saving. We do not publish your saved address book, sell these details or use them for audience statistics. If another person has saved your details, you can contact us about them without an ADED ME account.
+**Saved contacts.** A user may save another person’s name, job details, phone number, email, social links, notes or files. Details can come from manual entry, a card or badge, or dictation. We use saved contacts to provide the address book and contact features the user requests. We do not publish the address book or use it to build a contact database for others. If someone has saved your details, you can contact us about them without an ADED ME account.
 
-**Running the service and support.** We use limited technical and service records to operate the service, protect accounts, detect abuse and resolve faults. If you contact Support, we use what you send to handle your request. We do not run product analytics or count visits, opens or shares for statistics. Records needed to carry out activities you request, such as a delivery or security check, are used for those purposes.
+**Recognition.** When you use Scan, Voice or text recognition, we may send the photo, audio or text you submit to the OpenAI API to suggest entries. For Voice, audio is transcribed and the transcript may be sent to a separate model to identify contact fields. You can review the result before saving.
+
+**Technical records and support.** We use limited records to run the service, protect accounts, prevent abuse, deliver requested features and investigate faults. If you contact Support, we use your message and attachments to handle the request. This version does not collect product analytics or count visits, opens or shares for statistics. Records needed to complete actions you request, such as delivering a card or checking sign-in, are used for those purposes.
 
 ## 3. Legal bases
 
-Where the GDPR applies, we use account, portfolio and sharing information to provide the service you request. We rely on legitimate interests where appropriate to operate and secure the service and respond to support requests. We process data where needed to comply with legal obligations. When you save another person’s details, or when you send an image, audio or text for recognition, we process that information to carry out the action you asked for. Where we rely on consent, we explain the purpose and ask separately. You can withdraw consent at any time. Accepting these terms or reading this policy is not consent to optional analytics. We do not run that analytics.
+Where the GDPR applies, we use account and portfolio information to provide the service you request. We rely on legitimate interests where appropriate to operate and secure the service and respond to support requests. We use data when necessary to comply with legal obligations. Where we rely on consent, we explain the purpose and ask separately. You can withdraw consent at any time.
 
-## 4. Who can receive information
+## 4. Who receives information
 
-We do not sell personal information or share it for targeted advertising. We do not provide your address book to advertisers, data brokers or business partners for their own use.
+We do not sell personal data, use saved contacts for audience statistics or provide your address book to advertisers, data brokers or business partners for their own use. We do not share personal data for targeted advertising.
 
-We share portfolio information as described above. We use Render for web hosting, Supabase for authentication, databases and file storage, Resend for service email, and OpenAI for contact recognition when you use the feature. Providers handle the information needed for their work. If you choose Google or Apple sign-in or open an external app or website, the external provider’s own privacy rules apply to its separate activities.
+We use the following providers to operate the service:
 
-We may disclose specific information to a competent authority where applicable law requires it or in response to a valid, binding order. We verify the request and limit disclosure to what is required. We may also disclose information where lawfully necessary to address a serious and imminent threat to someone’s safety. The countries where these providers store data, and the safeguard used for a transfer outside the EEA, are not stated in this policy. You can ask support@adedme.com for the information we have about them. We assess requests from foreign authorities under applicable transfer rules.
+- Render hosts the web application and processes requests and associated operational information.
+- Supabase provides sign-in, database and file storage. It handles account records, portfolio content, saved contacts and files as needed to provide those features.
+- Resend delivers service emails and processes recipient addresses, message content and delivery information. Resend stores this data in the United States. Its standard Free, Pro and Scale plans retain email and log data for 30 days.
+- OpenAI processes the material you submit when you use contact recognition. Under its default API settings, OpenAI does not use API content to train its models. Its standard audio transcription endpoint has no default abuse-monitoring retention. A separate extraction request, which may include an image, text or transcript, may be retained for abuse monitoring for up to 30 days by default, subject to applicable exceptions.
+- Google and Apple handle sign-in if you select them. If you open an external app to send a card or use Apple Wallet, the external service applies its own privacy rules to its activities.
 
-## 5. Browser storage
+We may disclose specific information to a competent authority when required by applicable law or a valid, binding order. We check the request and limit disclosure to what is required. We may also disclose information when lawfully necessary to address a serious and imminent threat to someone’s safety.
 
-We use browser storage for requested functions such as signing in, remembering settings and restoring a draft.
+## 5. International processing
 
-A sign-in cookie keeps you signed in until you sign out or the session ends. On this device we may remember that you used a password account, and the email address you last used for that, until you sign out or delete the account. A half-typed sign-in email is kept for two hours. A portfolio edit is kept on the device for two hours. A registration draft stays in this tab until the tab closes and does not include the password. We may also keep small settings, such as a display choice or which list you last opened, until you change them or clear the browser.
+Some providers process or access data outside the European Economic Area. Resend stores service email data in the United States. Supabase describes some transfers to the United States and Singapore even when a project uses a European region. Where required, applicable safeguards can include the European Commission’s Standard Contractual Clauses, which are included in the relevant provider data processing terms. Contact support@adedme.com for information about a particular transfer and how to obtain a copy of the applicable safeguards. We assess foreign authority requests under applicable data protection and transfer rules.
 
-We do not store a visitor identifier for statistics. If an older copy remains in the browser, the next visit removes it. We do not use advertising or product-analytics scripts. We do not read a Do Not Track or Global Privacy Control signal. Clearing a local draft does not delete a contact already saved in your account.
+## 6. Browser storage
 
-## 6. Retention and deletion
+We use browser storage to support requested features such as signing in, remembering settings and restoring an unfinished form. Clearing a local draft does not delete a contact already saved in your account.
 
-We keep a portfolio for as long as you choose to keep it in your account. You can delete it at any time. We keep saved contacts and other account content while needed to provide the requested features, until you delete them or close your account. Deleting your portfolio or account does not remove copies saved by others.
+## 7. How long we keep data
 
-The product does not set a fixed number of days for backups, server logs, support messages, or the image, audio and text sent for recognition. Where legally necessary to meet an obligation, resolve a dispute or protect the service, we may retain limited information for that purpose. Older statistics rows already stored are not used for new counts and are not deleted on a timer by the product.
+We keep your portfolio for as long as you choose to keep it in your account. You can delete a portfolio, remove a saved contact or request account deletion. Copies saved by other people may remain with them.
 
-## 7. Security and incidents
+We keep support and technical records for as long as needed to handle the request, resolve a fault, prevent abuse or meet a legal obligation. Provider copies, including backups, service emails and material submitted for recognition, are subject to the applicable provider retention rules. We may keep limited records for longer where needed to meet a legal obligation, resolve a dispute or protect the service.
 
-We use HTTPS, Supabase Auth and account access checks for private contact files. Supabase provides encryption in transit and at rest on its hosted platform. We take steps to contain and investigate incidents and notify affected people and authorities where the law requires it. Contact support@adedme.com if you suspect unauthorised access.
+## 8. Security and incidents
 
-## 8. Your choices and rights
+We use HTTPS to protect information sent between your browser and ADED ME. We use Supabase Auth for sign-in and check account access before serving private contact files. Supabase provides encryption in transit and at rest on its hosted platform.
 
-In Account you can download the data available through the export tool or request account deletion. Contact us with privacy requests even if you do not have an account. We may ask for the information needed to verify your request.
+We take steps to contain and investigate security incidents and notify affected people and authorities when the law requires it. Contact support@adedme.com if you suspect unauthorised access.
 
-Depending on applicable law, you may have rights to access, correct or delete your personal data, receive a copy, restrict or object to its use, or withdraw consent. You can complain to your local data protection authority, including Portugal’s CNPD. If the law where you live gives you a right this policy does not name, you can contact us and use it. Registration does not ask your age, and we do not offer a separate child account.
+## 9. Your choices and rights
 
-## 9. Updates
+In Account, you can download the data available through the export tool or request account deletion. For other privacy requests, email support@adedme.com. We may ask for enough information to verify the request.
 
-We publish the effective date and notify you of material changes where required. When a new purpose requires consent, we ask separately.
+Where the law provides these rights, you may access, correct or delete personal data, receive a copy, restrict or object to its use, or withdraw consent. You can complain to your local data protection authority, including Portugal’s CNPD.
+
+## 10. Updates
+
+We publish the effective date and notify you of material changes where required. If a new purpose requires consent, we ask for it separately.
