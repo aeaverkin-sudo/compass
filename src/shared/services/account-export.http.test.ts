@@ -458,6 +458,14 @@ test("two accounts download by HTTP without a short page, a dropped id, or a fil
     assert.match(unsigned.headers.get("content-type") ?? "", /json/);
     assert.equal((await unsigned.json()).error, "Sign in to download your data.");
 
+    const again = readAccount(await readResponse(await fetch(`${origin}/api/account/export?owner=${OWNER_A}`)));
+    assert.equal(again.document.account.email, "a-owner@example.com");
+    assert.equal(again.document.account.id, OWNER_A);
+    assert.deepEqual(
+      again.document.files.map((entry) => entry.path).sort(),
+      [`contacts/${READY}/Mine.pdf`, `files/${BIG}/Library.bin`].sort(),
+    );
+
     const oldSchema = await fetch(`${origin}/api/account/export?owner=${OWNER_BROKEN}`);
     assert.equal(oldSchema.status, 500);
     assert.match(oldSchema.headers.get("content-type") ?? "", /json/);
