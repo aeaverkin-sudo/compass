@@ -19,10 +19,13 @@ import {
   clearFillPlace,
   clearQuestionnaire,
   clearQuestionnaireOAuth,
+  markOAuthAttemptUsed,
   markQuestionnaireOAuth,
   oauthPortfolioDraft,
-  oauthReturnHref,
   photoFileFromDraft,
+  readOAuthAttempt,
+  readOAuthBind,
+  readUsedOAuthAttempt,
   portfolioFields,
   readQuestionnaire,
   readQuestionnairePhoto,
@@ -258,27 +261,38 @@ export function EntryPage({
     let cancel = false;
     const here = window.location.pathname + window.location.search;
     const saved = readQuestionnaire();
-    const attemptHref = account ? oauthReturnHref(here) : null;
-    const returned = account
-      ? oauthPortfolioDraft({ saved, here, attemptHref, resume: attemptHref !== null })
-      : null;
+    const attempt = account ? readOAuthAttempt() : null;
+    const bind = account ? readOAuthBind() : null;
+    const usedAttemptId = readUsedOAuthAttempt();
     void (async () => {
       let uid = "";
+      let confirmed = false;
       if (account) {
         try {
-          const supabase = createBrowserSupabaseClient();
-          const { data } = await supabase.auth.getUser();
-          uid = data.user && !data.user.is_anonymous ? data.user.id : "";
-          if (!uid) {
-            const session = await supabase.auth.getSession();
-            const user = session.data.session?.user;
-            if (user && !user.is_anonymous) uid = user.id;
+          const { data } = await createBrowserSupabaseClient().auth.getUser();
+          const user = data.user;
+          if (user && !user.is_anonymous && user.email_confirmed_at) {
+            uid = user.id;
+            confirmed = true;
           }
         } catch {
           uid = "";
+          confirmed = false;
         }
       }
       if (cancel) return;
+      const returned = account
+        ? oauthPortfolioDraft({
+            saved,
+            here,
+            attempt,
+            bind,
+            sessionUserId: uid || null,
+            confirmed,
+            usedAttemptId,
+            now: Date.now(),
+          })
+        : null;
       ownerRef.current = uid;
       if (!account) {
         if (saved && saved.href === here) {
@@ -296,9 +310,10 @@ export function EntryPage({
           setPasswordValue((current) => current ?? passwordNow());
         }
         clearQuestionnaireOAuth();
-      } else if (returned) {
-        applyPortfolio(returned, returned.href);
+      } else if (returned && attempt && saved) {
+        applyPortfolio(saved, returned.photoHref);
         setPasswordValue((current) => current ?? passwordNow());
+        markOAuthAttemptUsed(attempt.id);
         clearQuestionnaireOAuth();
       } else if (saved && saved.href === here && saved.ownerId && saved.ownerId === uid) {
         applyPortfolio(saved, here);

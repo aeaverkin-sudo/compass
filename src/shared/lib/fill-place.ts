@@ -89,25 +89,37 @@ export function createHref(href: string) {
 
 const OAUTH_QUERY = new Set(["account", "saved"]);
 const OAUTH_ATTEMPT = "aded-oauth-attempt";
+const OAUTH_USED = "aded-oauth-used";
 const OAUTH_TRY = "aded_oauth_try";
-const OAUTH_FROM = "aded_oauth_from";
+const OAUTH_BIND = "aded_oauth_bind";
+const ATTEMPT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** The same questionnaire. `account` and `saved` are the return, not a different door. */
+export const OAUTH_RETURN_MS = 10 * 60 * 1000;
+
+export type OAuthAttempt = { id: string; href: string; at: number };
+export type OAuthBind = { attemptId: string; userId: string; at: number };
+
+function doorPairs(href: string): [string, string][] | null {
+  const safe = createHref(href);
+  if (!safe) return null;
+  let url: URL;
+  try {
+    url = new URL(safe, "https://adedme.com");
+  } catch {
+    return null;
+  }
+  if (url.pathname !== "/create") return null;
+  return [...url.searchParams.entries()]
+    .filter(([key]) => !OAUTH_QUERY.has(key))
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
+}
+
+/** The same questionnaire. `account` and `saved` may differ. Each parameter keeps its own value. */
 export function sameCreateDoor(left: string, right: string): boolean {
-  const door = (href: string) => {
-    const safe = createHref(href);
-    if (!safe) return null;
-    const url = new URL(safe, "https://adedme.com");
-    if (url.pathname !== "/create") return null;
-    return [...url.searchParams.entries()]
-      .filter(([key]) => !OAUTH_QUERY.has(key))
-      .sort(([aKey, aVal], [bKey, bVal]) => aKey.localeCompare(bKey) || aVal.localeCompare(bVal))
-      .map(([key, value]) => `${key}=${value}`)
-      .join("&");
-  };
-  const a = door(left);
-  const b = door(right);
-  return a !== null && a === b;
+  const a = doorPairs(left);
+  const b = doorPairs(right);
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((pair, index) => pair[0] === b[index]?.[0] && pair[1] === b[index]?.[1]);
 }
 
 /** Fields typed into the portfolio. The sign-in email, password and consent box stay out. */
@@ -123,20 +135,34 @@ export function portfolioFields(place: QuestionnairePlace) {
   };
 }
 
+function freshAttempt(at: number, now: number): boolean {
+  return Number.isFinite(at) && Number.isFinite(now) && at <= now + 60_000 && now - at <= OAUTH_RETURN_MS;
+}
+
 /**
- * The guest draft, only for the OAuth attempt that left this tab and returned
- * through the create callback. The query alone is not enough.
+ * The guest portfolio, only when this tab's unused attempt was finished by
+ * that same confirmed account. A shared "create" flag or a matching address is not enough.
+ * The photo stays with the original draft address.
  */
 export function oauthPortfolioDraft(input: {
   saved: QuestionnairePlace | null;
   here: string;
-  attemptHref: string | null;
-  resume: boolean;
-}): QuestionnairePlace | null {
-  if (!input.resume || !input.attemptHref || !input.saved) return null;
-  if (!sameCreateDoor(input.saved.href, input.attemptHref)) return null;
-  if (!sameCreateDoor(input.saved.href, input.here)) return null;
-  return input.saved;
+  attempt: OAuthAttempt | null;
+  bind: OAuthBind | null;
+  sessionUserId: string | null;
+  confirmed: boolean;
+  usedAttemptId: string | null;
+  now: number;
+}): { fields: ReturnType<typeof portfolioFields>; photoHref: string } | null {
+  const { saved, attempt, bind } = input;
+  if (!saved || !attempt || !bind) return null;
+  if (!input.confirmed || !input.sessionUserId) return null;
+  if (input.sessionUserId !== bind.userId) return null;
+  if (!ATTEMPT_ID.test(attempt.id) || attempt.id !== bind.attemptId) return null;
+  if (input.usedAttemptId === attempt.id) return null;
+  if (!freshAttempt(attempt.at, input.now) || !freshAttempt(bind.at, input.now)) return null;
+  if (!sameCreateDoor(saved.href, attempt.href) || !sameCreateDoor(attempt.href, input.here)) return null;
+  return { fields: portfolioFields(saved), photoHref: saved.href };
 }
 
 function cookieValue(name: string): string | null {
@@ -166,41 +192,71 @@ function clearCookie(name: string) {
 /** This tab is leaving for Google or Apple from the questionnaire now on screen. */
 export function markQuestionnaireOAuth(href: string) {
   if (typeof window === "undefined" || !createHref(href)) return;
-  const id = crypto.randomUUID();
+  const attempt: OAuthAttempt = { id: crypto.randomUUID(), href, at: Date.now() };
   try {
-    window.sessionStorage.setItem(OAUTH_ATTEMPT, JSON.stringify({ id, href }));
+    window.sessionStorage.setItem(OAUTH_ATTEMPT, JSON.stringify(attempt));
   } catch {
     return;
   }
-  writeCookie(OAUTH_TRY, id);
+  writeCookie(OAUTH_TRY, attempt.id);
 }
 
-function readOAuthAttempt(): { id: string; href: string } | null {
+export function readOAuthAttempt(): OAuthAttempt | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(OAUTH_ATTEMPT);
     if (!raw) return null;
-    const attempt = JSON.parse(raw) as { id?: unknown; href?: unknown };
-    if (typeof attempt.id !== "string" || !createHref(typeof attempt.href === "string" ? attempt.href : "")) return null;
-    return { id: attempt.id, href: attempt.href as string };
+    const attempt = JSON.parse(raw) as { id?: unknown; href?: unknown; at?: unknown };
+    const href = typeof attempt.href === "string" ? attempt.href : "";
+    if (typeof attempt.id !== "string" || !ATTEMPT_ID.test(attempt.id) || !createHref(href)) return null;
+    if (typeof attempt.at !== "number") return null;
+    return { id: attempt.id, href, at: attempt.at };
   } catch {
     return null;
   }
 }
 
-/** True only when this tab's click and the create callback agree. */
-export function oauthReturnHref(here: string): string | null {
-  const attempt = readOAuthAttempt();
-  if (!attempt || cookieValue(OAUTH_TRY) !== attempt.id || cookieValue(OAUTH_FROM) !== "create") return null;
-  if (!sameCreateDoor(attempt.href, here)) return null;
-  return attempt.href;
+/** The callback's record of which confirmed account finished this tab's attempt. */
+export function readOAuthBind(): OAuthBind | null {
+  const raw = cookieValue(OAUTH_BIND);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { attemptId?: unknown; userId?: unknown; at?: unknown };
+    if (typeof parsed.attemptId !== "string" || !ATTEMPT_ID.test(parsed.attemptId)) return null;
+    if (typeof parsed.userId !== "string" || !parsed.userId || parsed.userId.length > 128) return null;
+    if (typeof parsed.at !== "number") return null;
+    return { attemptId: parsed.attemptId, userId: parsed.userId, at: parsed.at };
+  } catch {
+    return null;
+  }
+}
+
+export function readUsedOAuthAttempt(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const id = window.sessionStorage.getItem(OAUTH_USED);
+    return id && ATTEMPT_ID.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+export function markOAuthAttemptUsed(id: string) {
+  if (typeof window === "undefined" || !ATTEMPT_ID.test(id)) return;
+  try {
+    window.sessionStorage.setItem(OAUTH_USED, id);
+  } catch {
+    // A used attempt that cannot be stored must not be replayed from the cookie.
+    clearCookie(OAUTH_BIND);
+    clearCookie(OAUTH_TRY);
+  }
 }
 
 export function clearQuestionnaireOAuth() {
   const attempt = readOAuthAttempt();
   if (attempt && cookieValue(OAUTH_TRY) === attempt.id) {
     clearCookie(OAUTH_TRY);
-    clearCookie(OAUTH_FROM);
+    clearCookie(OAUTH_BIND);
   }
   if (typeof window === "undefined") return;
   try {
