@@ -43,7 +43,7 @@ function AccountChapter({ number, title }: { number: string; title: string }) {
   return (
     <h2 className="flex items-center gap-[14px] border-b border-[var(--rule)] py-[18px]">
       <span className={NUMBER_CLASS}>{number}</span>
-      <span className="text-[15px] font-normal uppercase leading-none tracking-[0.12em] text-[var(--ink)]">{title}</span>
+      <span className="t-caps text-[var(--ink)]">{title}</span>
     </h2>
   );
 }
@@ -403,7 +403,7 @@ export function ProfileScreen() {
             type="button"
             disabled={busy}
             onClick={() => void signOut()}
-            className="mt-3 underline disabled:opacity-40"
+            className="mt-3 t-body underline disabled:opacity-40"
           >
             Sign out
           </button>
