@@ -104,7 +104,7 @@ export async function POST(request: Request, context: RouteProps) {
     }
 
     if (channel === "whatsapp") return noStore({ ok: true, channel, open: whatsappLink(address, text) });
-    if (channel === "telegram") return noStore({ ok: true, channel, open: telegramLink(address), text, copy: true });
+    if (channel === "telegram") return noStore({ ok: true, channel, open: telegramLink(address, text) });
     return noStore({ ok: true, channel });
   } catch (error) {
     console.error("[external-contacts] pushback", error);

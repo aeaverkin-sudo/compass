@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
-import { SkyToast } from "@/shared/components/sky-toast";
 import { useNamedShareCards } from "@/shared/components/share-pick";
 import { pushTargets } from "@/features/contact-collect/pushback";
 import type { ExternalContact, PushbackChannel } from "@/features/contact-collect/types";
@@ -22,7 +21,6 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const [channel, setChannel] = useState<PushbackChannel | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   /** Messenger URL when a new context could not be opened after OK. */
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
 
@@ -92,8 +90,6 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
       const body = (await response.json().catch(() => null)) as {
         error?: string;
         open?: string;
-        text?: string;
-        copy?: boolean;
       } | null;
       if (response.status === 409) {
         handoff?.close();
@@ -104,20 +100,6 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
         handoff?.close();
         setError(body?.error || "Could not send.");
         setBusy(false);
-        return;
-      }
-      if (body?.copy && body.text) {
-        let copied = false;
-        try {
-          await navigator.clipboard.writeText(body.text);
-          copied = true;
-        } catch {
-          copied = false;
-        }
-        const opened = body.open ? openInHandoff(handoff, body.open) : true;
-        if (!opened && body.open) setHandoffUrl(body.open);
-        setToast(copied ? "Text copied — paste it in Telegram" : "Could not copy the text.");
-        if (!opened) setBusy(false);
         return;
       }
       if (body?.open) {
@@ -223,16 +205,6 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
           </button>
         )}
       </div>
-      {toast ? (
-        <SkyToast
-          text={toast}
-          onDone={() => {
-            setToast(null);
-            if (handoffUrl) return;
-            goNetwork();
-          }}
-        />
-      ) : null}
     </main>
   );
 }

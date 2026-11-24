@@ -7,7 +7,7 @@ export type PushTarget = {
   label: "Email" | "WhatsApp" | "Telegram";
   /** What the row shows. */
   value: string;
-  /** Email, WhatsApp digits, or a Telegram nick. */
+  /** Email, WhatsApp digits, or a Telegram nick or +number. */
   address: string;
 };
 
@@ -17,8 +17,8 @@ function emailAddress(value: string): string | null {
   return trimmed;
 }
 
-/** A phone is WhatsApp only when the country code was typed. */
-function whatsappDigits(value: string): string | null {
+/** Messenger phone links require an explicit international number. */
+function internationalPhoneDigits(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed.startsWith("+")) return null;
   if (detectContactType(trimmed, "contact") !== "phone") return null;
@@ -44,7 +44,7 @@ function telegramNick(value: string): string | null {
   }
 }
 
-/** Email, a + phone, and a Telegram nick. One row each. A marked WhatsApp number wins over another + phone. */
+/** One row per channel. Prefer a marked WhatsApp number and an explicit Telegram nick. */
 export function pushTargets(lines: ExternalLine[]): PushTarget[] {
   const targets: PushTarget[] = [];
   const email = lines.find((line) => emailAddress(line.value));
@@ -52,16 +52,22 @@ export function pushTargets(lines: ExternalLine[]): PushTarget[] {
     const address = emailAddress(email.value)!;
     targets.push({ channel: "email", label: "Email", value: address, address });
   }
-  const phones = lines.filter((line) => whatsappDigits(line.value));
+  const phones = lines.filter((line) => internationalPhoneDigits(line.value));
   const phone = phones.find((line) => line.flags?.includes("wa")) ?? phones[0];
   if (phone) {
-    const address = whatsappDigits(phone.value)!;
+    const address = internationalPhoneDigits(phone.value)!;
     targets.push({ channel: "whatsapp", label: "WhatsApp", value: phone.value.trim(), address });
   }
   const telegram = lines.find((line) => telegramNick(line.value));
   if (telegram) {
     const address = telegramNick(telegram.value)!;
     targets.push({ channel: "telegram", label: "Telegram", value: `@${address}`, address });
+  } else {
+    const telegramPhone = phones.find((line) => line.flags?.includes("tg"));
+    if (telegramPhone) {
+      const address = `+${internationalPhoneDigits(telegramPhone.value)!}`;
+      targets.push({ channel: "telegram", label: "Telegram", value: telegramPhone.value.trim(), address });
+    }
   }
   return targets;
 }
@@ -78,7 +84,6 @@ export function whatsappLink(digits: string, text: string) {
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
 
-/** Telegram does not take the text in the link. The text is copied, then this chat opens. */
-export function telegramLink(nick: string) {
-  return `https://t.me/${nick}`;
+export function telegramLink(address: string, text?: string) {
+  return `https://t.me/${address}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
 }
