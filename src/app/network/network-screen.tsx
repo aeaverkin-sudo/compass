@@ -545,15 +545,13 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                 },
                 {
                   label: "Swap",
-                  tone: menuContact.pushed ? "grey" : "ink",
-                  disabled: Boolean(menuContact.pushed),
+                  tone: "ink",
                   onPress: () => {
                     pressMenu(() => {
                       if (menu.confirmDelete) {
                         setMenu({ ...menu, confirmDelete: false });
                         return;
                       }
-                      if (menuContact.pushed) return;
                       setMenu(null);
                       router.push(`/network/x/${menu.id}/push`);
                     });

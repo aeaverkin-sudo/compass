@@ -80,6 +80,57 @@ export function portfolioText(name: string, url: string) {
   return `${name}\n${url}`;
 }
 
+/** The guest can open this card. `listed` is not what makes it public. */
+export function pushCardIsServed(row: {
+  is_public: boolean;
+  status: string;
+  display_name: string | null;
+}): boolean {
+  if (!row.is_public) return false;
+  if (row.status === "archived" || row.status === "suspended") return false;
+  return Boolean(row.display_name?.trim());
+}
+
+export const PORTFOLIO_SUBJECT = "My portfolio";
+
+/** Neutral draft. A display name is not used until the owner has confirmed it. */
+export function portfolioBody(url: string) {
+  return `Here's my portfolio:\n${url}`;
+}
+
+/**
+ * One recipient, subject, and body. The address keeps its @. Header fields are encoded on their own.
+ * A comma, a second header, or a control character is rejected.
+ */
+export function mailtoHref(address: string, subject: string, body: string): string | null {
+  const to = address.trim();
+  if (!to || to.length > 320) return null;
+  if (/[\u0000-\u0020\u007F]/.test(to)) return null;
+  if (/[,;?&#<>()[\]\\"]/.test(to)) return null;
+  if ((to.match(/@/g) ?? []).length !== 1) return null;
+  const [local, domain] = to.split("@");
+  if (!local || !domain || domain.startsWith(".") || domain.endsWith(".") || domain.includes("..")) return null;
+  if (to.includes("%")) return null;
+  const safeSubject = subject.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim();
+  const safeBody = body.replace(/\r\n|\r|\n/g, "\n").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
+  if (!safeSubject || !safeBody) return null;
+  const encodedBody = encodeURIComponent(safeBody.replace(/\n/g, "\r\n"));
+  return `mailto:${to}?subject=${encodeURIComponent(safeSubject)}&body=${encodedBody}`;
+}
+
+/** A prepared draft belongs only to the selection that asked for it. */
+export function draftStillCurrent(
+  started: { contactId: string; cardId: string; channel: string },
+  current: { contactId: string; cardId: string; channel: string } | null,
+): boolean {
+  if (!current) return false;
+  return (
+    started.contactId === current.contactId &&
+    started.cardId === current.cardId &&
+    started.channel === current.channel
+  );
+}
+
 export function whatsappLink(digits: string, text: string) {
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }

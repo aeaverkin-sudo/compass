@@ -27,6 +27,7 @@ import {
   type ColumnSet,
   type SchemaClock,
 } from "@/features/contact-collect/store-columns";
+import { pushCardIsServed } from "@/features/contact-collect/pushback";
 import type {
   ContactFileRef,
   ContactLink,
@@ -555,7 +556,7 @@ export async function updateExternalContact(
   return { ok: true, contact: mapRow(updated.data as unknown as DbRow) };
 }
 
-/** The owner's own portfolio, for the link in a pushback. Not a connection. */
+/** The owner's own portfolio, for the link in a Swap draft. Not a connection. A private card is refused. */
 export async function readOwnedPortfolio(
   ownerId: string,
   cardId: string,
@@ -563,63 +564,29 @@ export async function readOwnedPortfolio(
   const admin = createAdminSupabaseClient();
   const loaded = await admin
     .from("cards")
-    .select("display_name, public_token, handle")
+    .select("display_name, public_token, handle, is_public, status")
     .eq("id", cardId)
     .eq("owner_id", ownerId)
     .maybeSingle();
   if (loaded.error) return failed(loaded.error, "Could not read the portfolio.");
-  const row = loaded.data as { display_name?: unknown; public_token?: unknown; handle?: unknown } | null;
+  const row = loaded.data as {
+    display_name?: unknown;
+    public_token?: unknown;
+    handle?: unknown;
+    is_public?: unknown;
+    status?: unknown;
+  } | null;
   const name = typeof row?.display_name === "string" ? row.display_name.trim() : "";
   const publicToken = typeof row?.public_token === "string" ? row.public_token.trim() : "";
-  if (!name || !publicToken) return { ok: false, status: 404, error: "Portfolio not found." };
+  const status = typeof row?.status === "string" ? row.status : "";
+  if (
+    !publicToken ||
+    !pushCardIsServed({ is_public: row?.is_public === true, status, display_name: name || null })
+  ) {
+    return { ok: false, status: 404, error: "Portfolio not found." };
+  }
   const handle = typeof row?.handle === "string" ? row.handle.trim() : "";
   return { ok: true, name, publicToken, handle: handle || null };
-}
-
-/** One pushback. A second one loses to the row that already has pushback_at. */
-export async function markPushback(
-  ownerId: string,
-  id: string,
-  channel: PushbackChannel,
-  cardId: string,
-): Promise<{ ok: true } | StoreError> {
-  const current = await readExternalContact(ownerId, id);
-  if (!current.ok) return current;
-  if (current.contact.pushbackAt) return { ok: false, status: 409, error: "Already sent." };
-  const admin = createAdminSupabaseClient();
-  const stamped = await admin
-    .from("external_contacts")
-    .update({
-      pushback_at: new Date().toISOString(),
-      pushback_channel: channel,
-      pushback_card_id: cardId,
-    })
-    .eq("owner_id", ownerId)
-    .eq("id", id)
-    .is("pushback_at", null)
-    .select("id")
-    .maybeSingle();
-  if (stamped.error) return failed(stamped.error, "Could not send.");
-  if (!stamped.data) return { ok: false, status: 409, error: "Already sent." };
-  return { ok: true };
-}
-
-/** Drop a stamp when the email itself failed, so Swap stays available. */
-export async function clearPushback(
-  ownerId: string,
-  id: string,
-  channel: PushbackChannel,
-  cardId: string,
-): Promise<void> {
-  const admin = createAdminSupabaseClient();
-  const cleared = await admin
-    .from("external_contacts")
-    .update({ pushback_at: null, pushback_channel: null, pushback_card_id: null })
-    .eq("owner_id", ownerId)
-    .eq("id", id)
-    .eq("pushback_channel", channel)
-    .eq("pushback_card_id", cardId);
-  if (cleared.error) console.error("[external-contacts]", cleared.error.message);
 }
 
 export async function deleteExternalContact(ownerId: string, id: string): Promise<{ ok: true } | StoreError> {

@@ -31,7 +31,6 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const swapped = Boolean(contact.pushbackAt);
   const lines = viewContactLines(contact.lines);
   const headerTitle =
     contact.headerField === "position" && contact.position.trim()
@@ -269,7 +268,6 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
         right={
           <button
             type="button"
-            disabled={swapped}
             onClick={() => {
               if (armed) {
                 setArmed(false);

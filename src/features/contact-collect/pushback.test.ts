@@ -1,7 +1,23 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { register } from "node:module";
 import test from "node:test";
-import { portfolioText, pushAddress, pushTargets, telegramLink } from "./pushback.ts";
+import { pathToFileURL } from "node:url";
 import type { ExternalLine } from "./types.ts";
+
+register(new URL("./voice-reading.alias-hook.mjs", import.meta.url), pathToFileURL("./"));
+
+const {
+  draftStillCurrent,
+  mailtoHref,
+  portfolioBody,
+  portfolioText,
+  PORTFOLIO_SUBJECT,
+  pushAddress,
+  pushCardIsServed,
+  pushTargets,
+  telegramLink,
+} = await import("./pushback.ts");
 
 const phone: ExternalLine = { type: "phone", value: "+44 7700 900123" };
 const nick: ExternalLine = { type: "telegram", value: "@sample_contact" };
@@ -20,6 +36,27 @@ test("Telegram prefers a saved nick and ignores unmarked or national numbers", (
   assert.equal(pushAddress([{ ...phone, value: "07700 900123", flags: ["tg"] }], "telegram"), null);
 });
 
+test("WhatsApp prefers a marked number and otherwise uses an international number", () => {
+  const marked = "+44 7700 900111";
+  const plain = "+44 7700 900222";
+  const lines: ExternalLine[] = [
+    { type: "phone", value: plain },
+    { type: "phone", value: marked, flags: ["wa"] },
+  ];
+  assert.equal(pushAddress(lines, "whatsapp"), "447700900111");
+  assert.equal(pushAddress([{ type: "phone", value: plain }], "whatsapp"), "447700900222");
+  assert.equal(pushAddress([{ type: "phone", value: "07700 900123", flags: ["wa"] }], "whatsapp"), null);
+});
+
+test("Telegram prefers a nick and uses a number only when it is marked TG", () => {
+  const phone: ExternalLine = { type: "phone", value: "+44 7700 900123", flags: ["tg"] };
+  const nick: ExternalLine = { type: "telegram", value: "@sample_contact" };
+  assert.equal(pushAddress([phone, nick], "telegram"), "sample_contact");
+  assert.equal(pushAddress([phone], "telegram"), "+447700900123");
+  assert.equal(pushAddress([{ type: "phone", value: "+44 7700 900123" }], "telegram"), null);
+  assert.equal(pushAddress([{ type: "phone", value: "07700 900123", flags: ["tg"] }], "telegram"), null);
+});
+
 test("Telegram drafts use the saved number or nickname and preserve plain contact links", () => {
   for (const address of ["+447700900123", "sample_contact"]) {
     const url = new URL(telegramLink(address, draft));
@@ -28,4 +65,67 @@ test("Telegram drafts use the saved number or nickname and preserve plain contac
     assert.equal(url.searchParams.get("text"), draft);
   }
   assert.equal(telegramLink("sample_contact"), "https://t.me/sample_contact");
+});
+
+test("the email draft is one encoded mailto and does not use an unconfirmed name", () => {
+  const url = "https://example.com/c/token";
+  const text = portfolioBody(url);
+  const href = mailtoHref("ada@example.com", PORTFOLIO_SUBJECT, text);
+  assert.ok(href);
+  const cut = href.indexOf("?");
+  assert.equal(href.slice("mailto:".length, cut), "ada@example.com");
+  const params = new URLSearchParams(href.slice(cut + 1));
+  assert.equal(params.get("subject"), "My portfolio");
+  assert.equal(params.get("body")?.replace(/\r\n/g, "\n"), text);
+  assert.equal(text, "Here's my portfolio:\nhttps://example.com/c/token");
+  assert.equal(href.includes("%0D%0A"), true);
+  assert.equal(href.includes("Ada"), false);
+  assert.equal(params.get("cc"), null);
+  assert.equal(params.get("bcc"), null);
+  assert.equal(mailtoHref("ada@example.com,bee@example.com", PORTFOLIO_SUBJECT, text), null);
+  assert.equal(mailtoHref("ada@example.com\nbee@example.com", PORTFOLIO_SUBJECT, text), null);
+  assert.equal(mailtoHref("ada@example.com?bcc=bee@example.com", PORTFOLIO_SUBJECT, text), null);
+});
+
+test("a late draft cannot replace a newer selection", () => {
+  const started = { contactId: "contact", cardId: "card-a", channel: "email" };
+  assert.equal(draftStillCurrent(started, { ...started }), true);
+  assert.equal(draftStillCurrent(started, { ...started, cardId: "card-b" }), false);
+  assert.equal(draftStillCurrent(started, { ...started, channel: "whatsapp" }), false);
+  assert.equal(draftStillCurrent(started, null), false);
+});
+
+test("a private or archived portfolio is not offered, and listed is not enough", () => {
+  const named = { display_name: "Ada", status: "published" };
+  assert.equal(pushCardIsServed({ ...named, is_public: true }), true);
+  assert.equal(pushCardIsServed({ ...named, is_public: false }), false);
+  assert.equal(pushCardIsServed({ is_public: true, status: "archived", display_name: "Ada" }), false);
+  assert.equal(pushCardIsServed({ is_public: true, status: "suspended", display_name: "Ada" }), false);
+  assert.equal(pushCardIsServed({ is_public: true, status: "published", display_name: "  " }), false);
+});
+
+test("the route prepares a draft and does not send mail or mark a send", () => {
+  const route = readFileSync(new URL("../../app/api/external-contacts/[id]/pushback/route.ts", import.meta.url), "utf8");
+  const handler = readFileSync(new URL("./pushback-request.ts", import.meta.url), "utf8");
+  const screen = readFileSync(new URL("./pushback-screen.tsx", import.meta.url), "utf8");
+  const store = readFileSync(new URL("./store.ts", import.meta.url), "utf8");
+  const card = readFileSync(new URL("./contact-screen.tsx", import.meta.url), "utf8");
+  const network = readFileSync(new URL("../../app/network/network-screen.tsx", import.meta.url), "utf8");
+  assert.equal(route.includes("sendHtmlMail"), false);
+  assert.equal(route.includes("markPushback"), false);
+  assert.equal(handler.includes("sendHtmlMail"), false);
+  assert.equal(handler.includes("pushback_at"), false);
+  assert.equal(/status:\s*409|,\s*409\b/.test(handler), false);
+  assert.match(handler, /Update ADED ME to open the draft/);
+  assert.equal(store.includes("markPushback"), false);
+  assert.equal(store.includes("clearPushback"), false);
+  assert.match(store, /pushCardIsServed/);
+  assert.match(screen, /<a href=\{mailHref\}/);
+  assert.match(screen, /Copy message/);
+  assert.match(screen, /draftStillCurrent/);
+  assert.equal(screen.includes("Already sent"), false);
+  assert.equal(screen.includes("window.open"), false);
+  assert.equal(screen.includes("preventDefault"), false);
+  assert.equal(card.includes("disabled={swapped}"), false);
+  assert.equal(network.includes("menuContact.pushed"), false);
 });
