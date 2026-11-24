@@ -5,6 +5,7 @@ import { doorNext } from "@/app/create/door";
 import { cn } from "@/lib/utils";
 import { clearGooglePending, markGooglePending, socialSignInBlocked, track } from "@/shared/lib/funnel";
 import { photoSlotLookClass } from "@/shared/lib/photo-look";
+import { readOAuthAttempt } from "@/shared/lib/fill-place";
 import { cancelOAuthReplaceLocal, markOAuthReplaceLocal } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
 
@@ -26,6 +27,10 @@ function startSocialSignIn(provider: SocialProvider, from: SocialFrom, next?: st
   const safe = next ? doorNext(next) : undefined;
   if (safe) query.set("next", safe);
   query.set("provider", provider);
+  if (from === "create") {
+    const attempt = readOAuthAttempt();
+    if (attempt) query.set("attempt", attempt.id);
+  }
   const redirectTo = `${window.location.origin}/auth/callback?${query.toString()}`;
   const failed = () => {
     clearGooglePending();

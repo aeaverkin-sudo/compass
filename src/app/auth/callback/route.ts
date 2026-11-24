@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { doorNext, questionnaireHref } from "@/app/create/door";
+import { oauthCallbackBind } from "@/shared/lib/fill-place";
 import { publicOrigin } from "@/shared/lib/public-origin";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { createServerSupabaseClient } from "@/shared/lib/supabase/server";
@@ -12,24 +13,6 @@ import { clearTrialClock } from "@/shared/services/trial";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const ATTEMPT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function requestCookie(request: Request, name: string): string | null {
-  const header = request.headers.get("cookie");
-  if (!header) return null;
-  for (const part of header.split(";")) {
-    const trimmed = part.trim();
-    const cut = trimmed.indexOf("=");
-    if (cut === -1 || trimmed.slice(0, cut) !== name) continue;
-    try {
-      return decodeURIComponent(trimmed.slice(cut + 1));
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
 
 /** Where a finished Google sign-in may land. Anything else is the portfolio. */
 function destination(origin: string, next: string | null) {
@@ -156,18 +139,19 @@ export async function GET(request: Request) {
   });
 
   const response = NextResponse.redirect(landing.url);
-  const attemptId = requestCookie(request, "aded_oauth_try");
-  if (
-    from === "create" &&
-    !landing.portfolio &&
-    landing.url.pathname === "/create" &&
-    attemptId &&
-    ATTEMPT_ID.test(attemptId) &&
-    user.email_confirmed_at
-  ) {
+  const bind = oauthCallbackBind({
+    queryAttemptId: url.searchParams.get("attempt"),
+    cookieAttemptId: null,
+    userId: user.id,
+    confirmed: Boolean(user.email_confirmed_at),
+    fromCreate: from === "create",
+    questionnaire: !landing.portfolio && landing.url.pathname === "/create",
+    now: Date.now(),
+  });
+  if (bind) {
     response.cookies.set({
       name: "aded_oauth_bind",
-      value: JSON.stringify({ attemptId, userId: user.id, at: Date.now() }),
+      value: JSON.stringify(bind),
       path: "/",
       maxAge: 120,
       sameSite: "lax",

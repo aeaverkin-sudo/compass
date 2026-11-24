@@ -135,6 +135,27 @@ export function portfolioFields(place: QuestionnairePlace) {
   };
 }
 
+/**
+ * The attempt id is the one baked into that OAuth start. A newer cookie must not
+ * rename the sign-in that is already coming back.
+ */
+export function oauthCallbackBind(input: {
+  queryAttemptId: string | null;
+  cookieAttemptId: string | null;
+  userId: string | null;
+  confirmed: boolean;
+  fromCreate: boolean;
+  questionnaire: boolean;
+  now: number;
+}): OAuthBind | null {
+  if (!input.fromCreate || !input.questionnaire || !input.confirmed || !input.userId) return null;
+  if (!Number.isFinite(input.now)) return null;
+  const attemptId = input.queryAttemptId?.trim() ?? "";
+  if (!ATTEMPT_ID.test(attemptId)) return null;
+  // cookieAttemptId is not the source. A newer shared cookie must not rename this return.
+  return { attemptId, userId: input.userId, at: input.now };
+}
+
 function freshAttempt(at: number, now: number): boolean {
   return Number.isFinite(at) && Number.isFinite(now) && at <= now + 60_000 && now - at <= OAUTH_RETURN_MS;
 }

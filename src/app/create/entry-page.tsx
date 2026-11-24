@@ -315,7 +315,7 @@ export function EntryPage({
         setPasswordValue((current) => current ?? passwordNow());
         markOAuthAttemptUsed(attempt.id);
         clearQuestionnaireOAuth();
-      } else if (saved && saved.href === here && saved.ownerId && saved.ownerId === uid) {
+      } else if (confirmed && saved && saved.href === here && saved.ownerId === uid) {
         applyPortfolio(saved, here);
         setPasswordValue((current) => current ?? passwordNow());
         clearQuestionnaireOAuth();
