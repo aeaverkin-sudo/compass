@@ -63,7 +63,10 @@ export function ConsentRefresh() {
     <>
       <div className="fixed inset-0 z-40 bg-transparent" />
       <div className="fixed top-1/2 left-1/2 z-50 w-max max-w-[min(100%-48px,280px)] -translate-x-1/2 -translate-y-1/2 bg-sky px-5 py-4 text-center">
-        <p className="t-body text-[var(--ink)]">We&apos;ve updated our Terms and Privacy Policy.</p>
+        <p className="t-body text-[var(--ink)]">
+          We&apos;ve updated our Terms and Privacy Policy. Daily totals are not required to sign in, and you can object
+          to totals linked to your account.
+        </p>
         <div className="mt-3 flex items-start justify-center gap-2 text-left">
           <Checkbox
             id="consent-refresh"
