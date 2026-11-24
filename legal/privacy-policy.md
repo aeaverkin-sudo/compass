@@ -12,7 +12,7 @@ Effective 24 November 2026 · Version 1.5
 
 **Recognition.** When you use Scan, Voice or text recognition, we may send the photo, audio or text you submit to the OpenAI API to suggest entries. For Voice, audio is transcribed and the transcript may be sent to a separate model to identify contact fields. You can review the result before saving.
 
-**Technical records and support.** We use limited records to run the service, protect accounts, prevent abuse, deliver requested features and investigate faults. If you contact Support, we use your message and attachments to handle the request. We use daily totals of completed registrations, saved contacts, and how portfolios are shared and opened to understand and improve ADED ME. Some totals are linked to an account or portfolio for internal product analysis. These statistics do not identify portfolio visitors. We do not use analytics cookies or store visitor identifiers, IP addresses, or contact details in these statistics. The statistics are for internal use. We do not sell them, share them with others for their own purposes, or use them for advertising. Records needed to complete actions you request, such as delivering a card or checking sign-in, are used for those purposes.
+**Technical records and support.** We use limited records to run the service, protect accounts, prevent abuse, deliver requested features and investigate faults. If you contact Support, we use your message and attachments to handle the request. We use daily totals of completed registrations, saved contacts, and how portfolios are shared and opened to understand and improve ADED ME. Some totals are linked to an account or portfolio for internal product analysis. These statistics do not identify portfolio visitors. We do not use analytics cookies or store visitor identifiers, IP addresses, or contact details in these statistics. The statistics are for internal use. We do not sell them, share them with others for their own purposes, or use them for advertising. Records needed to complete actions you request, such as delivering a card or checking sign-in, are used for those purposes. You can also object to statistics linked to your account.
 
 ## 2. Legal bases
 
@@ -58,7 +58,7 @@ We take steps to contain and investigate security incidents and notify affected 
 
 In Account, you can download the data available through the export tool or request account deletion. For other privacy requests, email support@adedme.com. We may ask for enough information to verify the request.
 
-Where the law provides these rights, you may access, correct or delete personal data, receive a copy, restrict or object to its use, or withdraw consent. You can object to daily product totals linked to your account. We delete those totals and do not add new ones. Totals that are not linked to a person cannot be matched to a visitor. You can complain to your local data protection authority, including Portugal’s CNPD. You can also object to statistics linked to your account.
+Where the law provides these rights, you may access, correct or delete personal data, receive a copy, restrict or object to its use, or withdraw consent. You can object to daily product totals linked to your account. We delete those totals and do not add new ones. Totals that are not linked to a person cannot be matched to a visitor. You can complain to your local data protection authority, including Portugal’s CNPD.
 
 ## 9. Updates
 

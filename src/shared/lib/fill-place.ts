@@ -114,12 +114,34 @@ function doorPairs(href: string): [string, string][] | null {
     .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
 }
 
+function pairsMatch(left: [string, string][], right: [string, string][]): boolean {
+  return left.length === right.length && left.every((pair, index) => pair[0] === right[index]?.[0] && pair[1] === right[index]?.[1]);
+}
+
 /** The same questionnaire. `account` and `saved` may differ. Each parameter keeps its own value. */
 export function sameCreateDoor(left: string, right: string): boolean {
   const a = doorPairs(left);
   const b = doorPairs(right);
-  if (!a || !b || a.length !== b.length) return false;
-  return a.every((pair, index) => pair[0] === b[index]?.[0] && pair[1] === b[index]?.[1]);
+  if (!a || !b) return false;
+  return pairsMatch(a, b);
+}
+
+/**
+ * Scan opens `/create?card=…&pick=1`. The OAuth return of that same card drops
+ * `pick` and adds `account` and `saved`. No other `pick` value is ignored.
+ */
+function sameScanReturn(attemptHref: string, here: string): boolean {
+  if (sameCreateDoor(attemptHref, here)) return true;
+  const attemptPairs = doorPairs(attemptHref);
+  const herePairs = doorPairs(here);
+  if (!attemptPairs || !herePairs) return false;
+  const pick = attemptPairs.filter(([key]) => key === "pick");
+  if (pick.length !== 1 || pick[0]?.[1] !== "1") return false;
+  if (herePairs.some(([key]) => key === "pick")) return false;
+  const rest = attemptPairs.filter(([key]) => key !== "pick");
+  const card = rest.find(([key]) => key === "card")?.[1] ?? "";
+  if (!card) return false;
+  return pairsMatch(rest, herePairs);
 }
 
 /** Fields typed into the portfolio. The sign-in email, password and consent box stay out. */
@@ -205,7 +227,7 @@ export function oauthPortfolioDraft(input: {
   if (!ATTEMPT_ID.test(attempt.id) || attempt.id !== bind.attemptId) return null;
   if (input.usedAttemptId === attempt.id) return null;
   if (!freshAttempt(attempt.at, input.now) || !freshAttempt(bind.at, input.now)) return null;
-  if (!sameCreateDoor(saved.href, attempt.href) || !sameCreateDoor(attempt.href, input.here)) return null;
+  if (!sameCreateDoor(saved.href, attempt.href) || !sameScanReturn(attempt.href, input.here)) return null;
   return { fields: portfolioFields(saved), photoHref: saved.href };
 }
 

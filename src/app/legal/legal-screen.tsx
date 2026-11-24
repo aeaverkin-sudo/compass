@@ -16,23 +16,16 @@ const OFF_SENTENCE = "Statistics linked to your account are off.";
 
 export function LegalScreen({ terms, privacy }: { terms: string; privacy: string }) {
   const [open, setOpen] = useState<(typeof PLAQUES)[number][0]>("terms");
-  const [consent, setConsent] = useState<string | null>(null);
   const [objected, setObjected] = useState<boolean | null>(null);
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
+  const skipSpy = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/account/status", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok || cancelled) return;
-        const body = (await response.json()) as { consentVersion?: string | null };
-        if (!cancelled) setConsent(body.consentVersion?.trim() || "");
-      })
-      .catch(() => undefined);
     void fetch("/api/account/product-count-objection", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok || cancelled) {
@@ -58,8 +51,33 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
     if (!root || !heading) return;
     const top = heading.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    skipSpy.current = true;
     root.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
+    window.setTimeout(() => {
+      skipSpy.current = false;
+    }, reduce ? 0 : 800);
   };
+
+  useEffect(() => {
+    const root = scrollerRef.current;
+    if (!root) return;
+    const place = () => {
+      if (skipSpy.current) return;
+      const node = root.querySelector<HTMLElement>("#privacy");
+      if (!node) return;
+      const top = node.getBoundingClientRect().top - root.getBoundingClientRect().top;
+      setOpen(top <= 12 ? "privacy" : "terms");
+    };
+    const release = () => {
+      skipSpy.current = false;
+    };
+    root.addEventListener("scroll", place, { passive: true });
+    root.addEventListener("pointerdown", release);
+    return () => {
+      root.removeEventListener("scroll", place);
+      root.removeEventListener("pointerdown", release);
+    };
+  }, []);
 
   const confirm = async () => {
     if (busyRef.current) return;
@@ -132,13 +150,7 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
           );
         })}
       </div>
-      <p className="m-0 shrink-0 pt-3 t-meta text-[var(--grey)]">
-        {consent === null ? "…" : consent ? `Consent v${consent}` : "Not recorded"}
-      </p>
-      <p className="m-0 max-w-md shrink-0 pt-2 t-meta text-[var(--grey)]">
-        Download data in Account is your copy of this account. For a broader request about your personal data, email support@adedme.com. We confirm it is you and reply within one month.
-      </p>
-      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto pt-[18px] pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         <div id="terms">
           <LegalDocument source={terms} />
         </div>

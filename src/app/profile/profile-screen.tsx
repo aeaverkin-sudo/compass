@@ -94,7 +94,10 @@ function ShareBackSetting() {
         </span>
       </div>
       <span className="col-start-2 mt-1 block pl-12 t-meta text-[var(--grey)]">
-        On — arrive as pending, you say Yes/No. Off — nobody can send their card back.
+        <span className={accept ? "font-semibold text-[var(--ink)]" : undefined}>On</span>
+        {" — arrive as pending, you say Yes/No. "}
+        <span className={accept ? undefined : "font-semibold text-[var(--ink)]"}>Off</span>
+        {" — nobody can send their card back."}
       </span>
     </>
   );

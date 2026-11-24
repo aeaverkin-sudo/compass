@@ -68,6 +68,115 @@ test("parameter values keep their boundaries, and only account and saved may dif
   assert.equal(sameCreateDoor("/create?next=save%2Fa%26b", "/create?next=save%2Fa&b="), false);
 });
 
+test("a scanned card returns after pick=1 on the same confirmed attempt", () => {
+  const card = "scanCardToken01";
+  const entry = `/create?card=${card}&pick=1`;
+  const back = `/create?card=${card}&account=1&saved=1`;
+  const saved = draft(entry);
+  const returned = oauthPortfolioDraft({
+    saved,
+    here: back,
+    attempt: attempt(ATTEMPT, entry),
+    bind: bind(ATTEMPT, USER),
+    sessionUserId: USER,
+    confirmed: true,
+    usedAttemptId: null,
+    now: NOW,
+  });
+  assert.ok(returned);
+  assert.equal(returned.fields.name, "Ada");
+  assert.equal(returned.fields.zones[0]?.rows[0]?.value, "Hello");
+  assert.equal(returned.fields.editText, "note");
+  assert.equal(returned.photoHref, entry);
+  assert.equal("email" in returned.fields, false);
+  assert.equal("password" in returned.fields, false);
+  assert.equal("agreed" in returned.fields, false);
+  assert.equal(JSON.stringify(returned).includes("ada@example.com"), false);
+  assert.equal(JSON.stringify(returned).includes("secret-password"), false);
+
+  const otherCard = "otherCardToken1";
+  const otherEntry = `/create?card=${otherCard}&pick=1`;
+  assert.equal(
+    oauthPortfolioDraft({
+      saved,
+      here: `/create?card=${otherCard}&account=1&saved=1`,
+      attempt: attempt(ATTEMPT, entry),
+      bind: bind(ATTEMPT, USER),
+      sessionUserId: USER,
+      confirmed: true,
+      usedAttemptId: null,
+      now: NOW,
+    }),
+    null,
+  );
+  const other = oauthPortfolioDraft({
+    saved: draft(otherEntry),
+    here: `/create?card=${otherCard}&account=1&saved=1`,
+    attempt: attempt(ATTEMPT, otherEntry),
+    bind: bind(ATTEMPT, USER),
+    sessionUserId: USER,
+    confirmed: true,
+    usedAttemptId: null,
+    now: NOW,
+  });
+  assert.equal(other?.fields.name, "Ada");
+  assert.equal(other?.photoHref, otherEntry);
+  assert.equal(
+    oauthPortfolioDraft({
+      saved,
+      here: back,
+      attempt: attempt(ATTEMPT, `/create?card=${card}`),
+      bind: bind(ATTEMPT, USER),
+      sessionUserId: USER,
+      confirmed: true,
+      usedAttemptId: null,
+      now: NOW,
+    }),
+    null,
+  );
+  assert.equal(oauthPortfolioDraft({
+    saved,
+    here: back,
+    attempt: attempt(OTHER, entry),
+    bind: bind(ATTEMPT, USER),
+    sessionUserId: USER,
+    confirmed: true,
+    usedAttemptId: null,
+    now: NOW,
+  }), null);
+  assert.equal(oauthPortfolioDraft({
+    saved,
+    here: back,
+    attempt: attempt(ATTEMPT, entry),
+    bind: bind(ATTEMPT, USER),
+    sessionUserId: OTHER,
+    confirmed: true,
+    usedAttemptId: null,
+    now: NOW,
+  }), null);
+  const pickTwo = `/create?card=${card}&pick=2`;
+  assert.equal(oauthPortfolioDraft({
+    saved: draft(pickTwo),
+    here: `/create?card=${card}&account=1&saved=1`,
+    attempt: attempt(ATTEMPT, pickTwo),
+    bind: bind(ATTEMPT, USER),
+    sessionUserId: USER,
+    confirmed: true,
+    usedAttemptId: null,
+    now: NOW,
+  }), null);
+  assert.equal(oauthPortfolioDraft({
+    saved: draft("/create?pick=1"),
+    here: "/create?account=1&saved=1",
+    attempt: attempt(ATTEMPT, "/create?pick=1"),
+    bind: bind(ATTEMPT, USER),
+    sessionUserId: USER,
+    confirmed: true,
+    usedAttemptId: null,
+    now: NOW,
+  }), null);
+});
+
 test("the same attempt and confirmed account restore the typed portfolio and its photo", () => {
   const returned = restore();
   assert.ok(returned);

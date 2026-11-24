@@ -7,10 +7,9 @@ import { TapButton } from "@/shared/components/tap-button";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
+import { shareBackOffer } from "@/shared/lib/share-back-offer";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { deleteConnectionRemote } from "@/shared/lib/delete-connection";
-import { useAppStore } from "@/shared/store/app-store";
-
 const ITEM =
   "press touch-manipulation flex h-full min-h-11 w-full items-center whitespace-nowrap border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
 
@@ -30,7 +29,6 @@ export function ContactActions({
   const phase = useShareBack(token);
   const shareCards = useNamedShareCards();
   const cardsReady = useCardsHydrated();
-  const cardCount = useAppStore((state) => state.cards.length);
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -103,12 +101,20 @@ export function ContactActions({
     router.push("/network");
   };
 
-  const canSwap = shareCards.length > 0 && !theyHaveMe && !shareBackPending && phase === "idle";
-  const swapLocked = cardsReady && cardCount === 0 && !theyHaveMe && !shareBackPending && phase === "idle";
+  const offer = shareBackOffer(
+    shareCards.length,
+    !theyHaveMe && !shareBackPending && phase === "idle",
+    cardsReady,
+  );
+  const canSwap = offer === "send";
+  const swapLocked = offer === "create";
 
   const shareCard = async (card: SharePickCard) => {
     const sent = await sendShareBack(token, card.id);
-    if (sent === "failed") return;
+    if (sent === "failed") {
+      setNotice("Could not swap.");
+      return;
+    }
     setPicking(false);
     setNotice(sent === "declined" ? "Not accepting swaps." : `${card.name} shared back`);
   };

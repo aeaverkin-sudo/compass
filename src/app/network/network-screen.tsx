@@ -34,9 +34,9 @@ import { photoLookValue, photoSlotLookClass, shownPhotoLook, type StoredPhotoLoo
 import { cn } from "@/lib/utils";
 import { MARK_PX, MarkPlus, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { RAIL_ICON_SCALE } from "@main/components/side-rail";
+import { shareBackOffer } from "@/shared/lib/share-back-offer";
 import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
-import { useAppStore } from "@/shared/store/app-store";
 import { MainTabs } from "@main/components/main-tabs";
 
 type SortMode = "recent" | "alphabet";
@@ -138,7 +138,6 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const [pickUp, setPickUp] = useState(false);
   const shareCards = useNamedShareCards();
   const cardsReady = useCardsHydrated();
-  const cardCount = useAppStore((state) => state.cards.length);
   const [notice, setNotice] = useState<string | null>(
     addedName ? `${addedName} — just added to your contacts` : null,
   );
@@ -294,23 +293,16 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const people = shown.filter((contact) => !isRequest(contact, decisions.accepting));
   const menuContact = menu ? book.find((contact) => contact.id === menu.id) ?? null : null;
   const sharePhase = useShareBack(menuContact?.savedCardToken ?? "");
-  const canSwap = Boolean(
-    shareCards.length > 0 &&
-      menuContact &&
+  const exchangeOpen = Boolean(
+    menuContact &&
       !menuContact.collected &&
       !menuContact.theyHaveMe &&
       !menuContact.shareBackPending &&
       sharePhase === "idle",
   );
-  const swapLocked = Boolean(
-    cardsReady &&
-      cardCount === 0 &&
-      menuContact &&
-      !menuContact.collected &&
-      !menuContact.theyHaveMe &&
-      !menuContact.shareBackPending &&
-      sharePhase === "idle",
-  );
+  const offer = shareBackOffer(shareCards.length, exchangeOpen, cardsReady);
+  const canSwap = offer === "send";
+  const swapLocked = offer === "create";
 
   const readyOwnerId = async () => {
     if (ownerId.current) return ownerId.current;
@@ -361,7 +353,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     }
   };
 
-  const empty = contacts !== null && people.length === 0 && requests.length === 0;
+  const bookEmpty = contacts !== null && book.length === 0;
 
   const removeCollected = async (id: string) => {
     const index = contacts?.findIndex((contact) => contact.id === id) ?? -1;
@@ -398,7 +390,12 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     const contact = menuContact;
     if (!contact || contact.collected) return;
     const sent = await sendShareBack(contact.savedCardToken, card.id);
-    if (sent === "failed") return;
+    if (sent === "failed") {
+      setPickUp(false);
+      setMenu(null);
+      setNotice("Could not swap.");
+      return;
+    }
     setPickUp(false);
     setMenu(null);
     setNotice(sent === "declined" ? "Not accepting swaps." : `${card.name} shared back`);
@@ -490,11 +487,11 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                 <RotateCw size={MARK_PX * RAIL_ICON_SCALE} strokeWidth={RAIL_STROKE_PX} aria-hidden />
               </button>
             </div>
-          ) : empty ? (
+          ) : bookEmpty ? (
             <section className="pt-4">
               <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Contacts</p>
               <p className="t-body text-[var(--grey)]">No contacts yet.</p>
-              <p className="mt-1 t-meta text-[var(--grey)]">Exchange a card and your first contact appears here.</p>
+              <p className="t-body text-[var(--grey)]">Swap cards or collect a contact to add someone to your network.</p>
             </section>
           ) : people.length > 0 ? (
             sort === "alphabet" ? (

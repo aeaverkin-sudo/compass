@@ -90,7 +90,12 @@ test("the write asks Postgres to increment once and to honour an objection", () 
   assert.doesNotMatch(notice, /agree to (the )?(daily|product|statistics|stats)/i);
   const privacy = readFileSync(new URL("../../../legal/privacy-policy.md", import.meta.url), "utf8");
   const legal = readFileSync(new URL("../../app/legal/legal-screen.tsx", import.meta.url), "utf8");
-  assert.match(privacy, /You can also object to statistics linked to your account\./);
+  assert.equal(privacy.split("object to statistics linked to your account").length - 1, 1);
+  const stats = privacy.slice(privacy.indexOf("Technical records and support"), privacy.indexOf("## 2."));
+  assert.match(stats, /You can also object to statistics linked to your account\./);
+  assert.equal(privacy.slice(privacy.indexOf("## 8.")).includes("You can also object to statistics linked to your account."), false);
+  assert.doesNotMatch(legal, /Consent v/);
+  assert.doesNotMatch(legal, /Download data in Account/);
   assert.match(legal, /Statistics linked to your account are off\./);
   assert.doesNotMatch(legal, /Object to totals linked to your account/);
   assert.equal(privacy.includes("Turn off account-linked statistics?"), false);

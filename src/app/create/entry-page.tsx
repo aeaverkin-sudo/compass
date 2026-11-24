@@ -832,30 +832,13 @@ export function EntryPage({
   const sheet = (
     <>
       {account ? (
-        <>
-          <button
-            type="button"
-            aria-label="Info"
-            onClick={() => router.push("/info")}
-            className="touch-manipulation fixed z-30 flex w-11 items-center justify-start text-[#111]"
-            style={{
-              top: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px - ${HEADER_ROW_PX / 2}px)`,
-              left: "var(--gutter)",
-              height: HEADER_ROW_PX,
-            }}
-          >
-            <span className="block leading-none" style={{ fontSize: 22, fontWeight: 400 }}>
-              i
-            </span>
-          </button>
-          <div
-            aria-hidden
-            className="shrink-0"
-            style={{
-              height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px + ${HEADER_ROW_PX / 2}px + 30px)`,
-            }}
-          />
-        </>
+        <div
+          aria-hidden
+          className="shrink-0"
+          style={{
+            height: `calc(env(safe-area-inset-top) + ${SCREEN_TOP_AXIS_PX}px + ${HEADER_ROW_PX / 2}px + 30px)`,
+          }}
+        />
       ) : (
         <>
           <BackButton
