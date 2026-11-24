@@ -16,10 +16,13 @@ import {
   noteSwapBlur,
   noteSwapHidden,
   pushTargets,
+  readSwapHandoff,
   rememberSwapHandoff,
   swapCardOffered,
   swapFooter,
-  swapHandoffPending,
+  swapHandoffMatches,
+  swapRestore,
+  swapWake,
   visibleDraft,
   type DraftChoice,
   type SwapReturn,
@@ -51,6 +54,9 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const handoff = useRef<SwapReturn>({ armed: false, left: false, blurredAt: null, armedAt: 0 });
+  const attempt = useRef<string | null>(null);
+  const contactId = useRef(contact.id);
+  contactId.current = contact.id;
   const offeredIds = cards.map((card) => card.id);
   const soleId = offeredIds.length === 1 ? offeredIds[0] : null;
   if (soleId && !cardId && soleId !== declinedSole) setCardId(soleId);
@@ -73,7 +79,14 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   selection.current = current;
   const live = visibleDraft(draft, current);
 
+  const dropMark = () => {
+    if (swapHandoffMatches(readSwapHandoff(), contactId.current, attempt.current)) forgetSwapHandoff();
+    attempt.current = null;
+    handoff.current = { armed: false, left: false, blurredAt: null, armedAt: 0 };
+  };
+
   const leave = () => {
+    dropMark();
     if (fresh) {
       router.replace(`/network?added=${encodeURIComponent(contact.displayName.trim() || "Contact")}`);
       return;
@@ -82,17 +95,38 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   };
 
   useEffect(() => {
+    if (swapRestore(readSwapHandoff(), contact.id, attempt.current) !== "network") return;
+    forgetSwapHandoff();
+    router.replace("/network");
+  }, [contact.id, router]);
+
+  useEffect(() => {
+    return () => {
+      if (swapHandoffMatches(readSwapHandoff(), contactId.current, attempt.current)) forgetSwapHandoff();
+    };
+  }, []);
+
+  useEffect(() => {
     const stillHere = () => document.visibilityState === "visible" && document.hasFocus();
     const comeBack = () => {
       if (!stillHere()) return;
       const step = finishSwapReturn(handoff.current, Date.now());
       handoff.current = step.state;
-      if (!step.openNetwork) return;
+      if (swapWake({
+        mark: readSwapHandoff(),
+        contactId: contact.id,
+        attempt: attempt.current,
+        left: step.openNetwork,
+      }) !== "network") {
+        return;
+      }
       forgetSwapHandoff();
+      attempt.current = null;
       router.replace("/network");
     };
     const markLeft = () => {
-      if (!handoff.current.armed && swapHandoffPending()) handoff.current = armSwapReturn(Date.now());
+      if (!swapHandoffMatches(readSwapHandoff(), contact.id, attempt.current)) return;
+      if (!handoff.current.armed) handoff.current = armSwapReturn(Date.now());
       handoff.current = noteSwapHidden(handoff.current);
     };
     const onHide = () => {
@@ -115,7 +149,10 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     };
     const timer = window.setInterval(() => {
       const next = expireSwapReturn(handoff.current, Date.now(), stillHere());
-      if (handoff.current.armed && !next.armed) forgetSwapHandoff();
+      if (handoff.current.armed && !next.armed) {
+        if (swapHandoffMatches(readSwapHandoff(), contact.id, attempt.current)) forgetSwapHandoff();
+        attempt.current = null;
+      }
       handoff.current = next;
     }, 200);
     document.addEventListener("visibilitychange", onVisibility);
@@ -135,7 +172,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", comeBack);
     };
-  }, [router]);
+  }, [contact.id, router]);
 
   useEffect(() => {
     if (!activeCardId || !channel) {
@@ -183,9 +220,10 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const openHref = live && live.channel !== "email" ? live.open : undefined;
 
   const armReturn = () => {
-    const now = Date.now();
-    handoff.current = armSwapReturn(now);
-    rememberSwapHandoff(now);
+    const id = crypto.randomUUID();
+    attempt.current = id;
+    handoff.current = armSwapReturn(Date.now());
+    rememberSwapHandoff({ contactId: contact.id, attempt: id });
   };
   const changing = shownKey !== selectionKey;
   const shownError = changing ? null : error;

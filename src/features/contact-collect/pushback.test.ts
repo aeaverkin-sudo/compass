@@ -19,7 +19,12 @@ const {
   noteSwapBlur,
   noteSwapHidden,
   portfolioBody,
+  clearSwapHandoff,
+  readSwapHandoffFrom,
   swapFooter,
+  swapRestore,
+  swapWake,
+  writeSwapHandoff,
   portfolioText,
   pushAddress,
   pushCardIsServed,
@@ -204,6 +209,42 @@ test("a failed Swap tap does not leave, and a real handoff returns after send or
   assert.equal(finishSwapReturn(state, 700).openNetwork, true);
 });
 
+test("Mail's Chrome return opens Network only for that contact and attempt", () => {
+  const memory = new Map<string, string>();
+  const store = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => memory.set(key, value),
+    removeItem: (key: string) => memory.delete(key),
+  };
+  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1" });
+  assert.equal(swapWake({ mark: readSwapHandoffFrom(store), contactId: "ada", attempt: "open-1", left: true }), "network");
+  clearSwapHandoff(store);
+  assert.equal(readSwapHandoffFrom(store), null);
+  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1" });
+  assert.equal(swapRestore(readSwapHandoffFrom(store), "ada", null), "network");
+  clearSwapHandoff(store);
+  assert.equal(readSwapHandoffFrom(store), null);
+});
+
+test("a cancelled open does not move the next contact's Swap", () => {
+  const memory = new Map<string, string>();
+  const store = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => memory.set(key, value),
+    removeItem: (key: string) => memory.delete(key),
+  };
+  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1" });
+  clearSwapHandoff(store);
+  assert.equal(readSwapHandoffFrom(store), null);
+  assert.equal(swapWake({ mark: null, contactId: "bea", attempt: null, left: true }), "stay");
+  assert.equal(swapRestore(null, "bea", null), "stay");
+  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1" });
+  const leftover = readSwapHandoffFrom(store);
+  assert.equal(swapWake({ mark: leftover, contactId: "bea", attempt: "open-1", left: true }), "stay");
+  assert.equal(swapRestore(leftover, "bea", null), "stay");
+  assert.equal(swapWake({ mark: leftover, contactId: "ada", attempt: "open-2", left: true }), "stay");
+});
+
 test("the bottom of Swap is one action, and OK stays only until a channel is chosen", () => {
   assert.equal(swapFooter({ cardSelected: true, channel: null, ready: false, failed: false }), "leave");
   assert.equal(swapFooter({ cardSelected: false, channel: "telegram", ready: false, failed: false }), "need-card");
@@ -240,6 +281,9 @@ test("the route prepares a draft and does not send mail or mark a send", () => {
   assert.match(screen, /router\.replace\("\/network"\)/);
   assert.match(screen, /Choose a portfolio\./);
   assert.match(screen, /swapFooter/);
+  assert.match(screen, /contactId: contact\.id/);
+  assert.match(screen, /swapHandoffMatches/);
+  assert.match(screen, /forgetSwapHandoff/);
   assert.match(screen, /visibleDraft/);
   assert.match(screen, /keptSwapCard/);
   assert.match(screen, /draftStillCurrent/);

@@ -191,32 +191,80 @@ export const SWAP_RETURN_ARM_MS = 8000;
 
 const SWAP_HANDOFF_KEY = "aded-swap-handoff";
 
-/** The link was opened. A restored page can still see this after Chrome comes back. */
-export function rememberSwapHandoff(now: number) {
-  if (typeof sessionStorage === "undefined") return;
+export type SwapHandoff = { contactId: string; attempt: string };
+
+type HandoffStore = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+};
+
+export function writeSwapHandoff(store: HandoffStore, mark: SwapHandoff) {
+  store.setItem(SWAP_HANDOFF_KEY, JSON.stringify({ contactId: mark.contactId, attempt: mark.attempt }));
+}
+
+export function readSwapHandoffFrom(store: HandoffStore): SwapHandoff | null {
+  const raw = store.getItem(SWAP_HANDOFF_KEY);
+  if (!raw) return null;
   try {
-    sessionStorage.setItem(SWAP_HANDOFF_KEY, String(now));
+    const parsed = JSON.parse(raw) as Partial<SwapHandoff>;
+    if (!parsed || typeof parsed.contactId !== "string" || typeof parsed.attempt !== "string") return null;
+    if (!parsed.contactId || !parsed.attempt) return null;
+    return { contactId: parsed.contactId, attempt: parsed.attempt };
   } catch {
-    // A private tab still has the in-memory arm.
+    return null;
   }
+}
+
+export function clearSwapHandoff(store: HandoffStore) {
+  store.removeItem(SWAP_HANDOFF_KEY);
+}
+
+function browserHandoffStore(): HandoffStore | null {
+  try {
+    if (typeof sessionStorage === "undefined") return null;
+    return sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** The link was opened for this contact and this attempt. */
+export function rememberSwapHandoff(mark: SwapHandoff) {
+  const store = browserHandoffStore();
+  if (store) writeSwapHandoff(store, mark);
+}
+
+export function readSwapHandoff(): SwapHandoff | null {
+  const store = browserHandoffStore();
+  return store ? readSwapHandoffFrom(store) : null;
 }
 
 export function forgetSwapHandoff() {
-  if (typeof sessionStorage === "undefined") return;
-  try {
-    sessionStorage.removeItem(SWAP_HANDOFF_KEY);
-  } catch {
-    // Nothing to clear.
-  }
+  const store = browserHandoffStore();
+  if (store) clearSwapHandoff(store);
 }
 
-export function swapHandoffPending(): boolean {
-  if (typeof sessionStorage === "undefined") return false;
-  try {
-    return sessionStorage.getItem(SWAP_HANDOFF_KEY) !== null;
-  } catch {
-    return false;
-  }
+/** An old mark does not count for another contact or another open attempt. */
+export function swapHandoffMatches(mark: SwapHandoff | null, contactId: string, attempt: string | null): boolean {
+  return Boolean(mark && attempt && mark.contactId === contactId && mark.attempt === attempt);
+}
+
+/** Chrome is back. Network only if this contact's open attempt actually left. */
+export function swapWake(input: {
+  mark: SwapHandoff | null;
+  contactId: string;
+  attempt: string | null;
+  left: boolean;
+}): "network" | "stay" {
+  if (!input.left || !swapHandoffMatches(input.mark, input.contactId, input.attempt)) return "stay";
+  return "network";
+}
+
+/** The Swap page was loaded again. A leftover mark for this contact is the Mail return. */
+export function swapRestore(mark: SwapHandoff | null, contactId: string, attempt: string | null): "network" | "stay" {
+  if (!mark || mark.contactId !== contactId || attempt) return "stay";
+  return "network";
 }
 
 export type SwapFooter = "leave" | "need-card" | "preparing" | "retry" | "email" | "whatsapp" | "telegram";
