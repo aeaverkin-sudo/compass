@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type MouseEvent } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,7 +15,21 @@ import { ROW_LINE_TRIM, SOCIAL_SIGNIN, SocialSignInRows } from "@/shared/compone
 import { TapButton } from "@/shared/components/tap-button";
 import { Checkbox } from "@/shared/components/ui/checkbox";
 import { HEADER_ROW_PX, VALUE_AXIS_PX } from "@/shared/layout/axes";
-import { clearFillPlace, photoFileFromDraft, readQuestionnaire, readQuestionnairePhoto, writeQuestionnaire, writeQuestionnairePhoto, type QuestionnairePlace } from "@/shared/lib/fill-place";
+import {
+  clearFillPlace,
+  clearQuestionnaire,
+  clearQuestionnaireOAuth,
+  markQuestionnaireOAuth,
+  oauthPortfolioDraft,
+  oauthReturnHref,
+  photoFileFromDraft,
+  portfolioFields,
+  readQuestionnaire,
+  readQuestionnairePhoto,
+  writeQuestionnaire,
+  writeQuestionnairePhoto,
+  type QuestionnairePlace,
+} from "@/shared/lib/fill-place";
 import { track } from "@/shared/lib/funnel";
 import { markNewContact } from "@/shared/lib/new-contact";
 import { rememberOpenProfile } from "@/shared/lib/open-profile-return";
@@ -182,6 +196,7 @@ export function EntryPage({
   fields.current = { name, email, password: passwordShown, agreed };
   const photoRef = useRef(photo);
   photoRef.current = photo;
+  const ownerRef = useRef("");
 
   const flushPlace = () => {
     if (!keepPlace.current || passwordValue === null) return;
@@ -192,8 +207,25 @@ export function EntryPage({
       href,
       ...fields.current,
       ...place,
+      ...(account && ownerRef.current ? { ownerId: ownerRef.current } : {}),
     });
     writeQuestionnairePhoto(href, photoRef.current?.dataUrl ?? null);
+  };
+
+  const applyPortfolio = (saved: QuestionnairePlace, photoHref: string) => {
+    const typed = portfolioFields(saved);
+    setName(typed.name);
+    setNameLive(true);
+    zonesRef.current?.restore(typed);
+    const dataUrl = readQuestionnairePhoto(photoHref);
+    const file = dataUrl ? photoFileFromDraft(dataUrl) : null;
+    if (dataUrl && file) setPhoto({ file, dataUrl });
+  };
+
+  const beginOAuth = (event: MouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Element) || !event.target.closest("button")) return;
+    flushPlace();
+    markQuestionnaireOAuth(window.location.pathname + window.location.search);
   };
 
   useEffect(() => {
@@ -223,25 +255,68 @@ export function EntryPage({
   };
 
   useEffect(() => {
-    const saved = readQuestionnaire();
+    let cancel = false;
     const here = window.location.pathname + window.location.search;
-    if (saved && saved.href === here) {
-      setName(saved.name);
-      setNameLive(true);
-      setEmail(saved.email);
-      setEmailLive(true);
-      setPasswordValue((current) => current ?? passwordNow());
-      setAgreed(saved.agreed);
-      zonesRef.current?.restore(saved);
-      const dataUrl = readQuestionnairePhoto(here);
-      const file = dataUrl ? photoFileFromDraft(dataUrl) : null;
-      if (dataUrl && file) setPhoto({ file, dataUrl });
-    } else {
-      setPasswordValue((current) => current ?? passwordNow());
-    }
-    setPlaceReady(true);
-    track("create_view");
-  }, []);
+    const saved = readQuestionnaire();
+    const attemptHref = account ? oauthReturnHref(here) : null;
+    const returned = account
+      ? oauthPortfolioDraft({ saved, here, attemptHref, resume: attemptHref !== null })
+      : null;
+    void (async () => {
+      let uid = "";
+      if (account) {
+        try {
+          const supabase = createBrowserSupabaseClient();
+          const { data } = await supabase.auth.getUser();
+          uid = data.user && !data.user.is_anonymous ? data.user.id : "";
+          if (!uid) {
+            const session = await supabase.auth.getSession();
+            const user = session.data.session?.user;
+            if (user && !user.is_anonymous) uid = user.id;
+          }
+        } catch {
+          uid = "";
+        }
+      }
+      if (cancel) return;
+      ownerRef.current = uid;
+      if (!account) {
+        if (saved && saved.href === here) {
+          setName(saved.name);
+          setNameLive(true);
+          setEmail(saved.email);
+          setEmailLive(true);
+          setPasswordValue((current) => current ?? passwordNow());
+          setAgreed(saved.agreed);
+          zonesRef.current?.restore(saved);
+          const dataUrl = readQuestionnairePhoto(here);
+          const file = dataUrl ? photoFileFromDraft(dataUrl) : null;
+          if (dataUrl && file) setPhoto({ file, dataUrl });
+        } else {
+          setPasswordValue((current) => current ?? passwordNow());
+        }
+        clearQuestionnaireOAuth();
+      } else if (returned) {
+        applyPortfolio(returned, returned.href);
+        setPasswordValue((current) => current ?? passwordNow());
+        clearQuestionnaireOAuth();
+      } else if (saved && saved.href === here && saved.ownerId && saved.ownerId === uid) {
+        applyPortfolio(saved, here);
+        setPasswordValue((current) => current ?? passwordNow());
+        clearQuestionnaireOAuth();
+      } else {
+        if (saved && saved.href === here && saved.ownerId && uid && saved.ownerId !== uid) clearQuestionnaire();
+        else clearQuestionnaireOAuth();
+        setPasswordValue((current) => current ?? passwordNow());
+      }
+      if (cancel) return;
+      setPlaceReady(true);
+      track("create_view");
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [account]);
 
   useEffect(() => {
     if (!placeReady) return;
@@ -629,7 +704,9 @@ export function EntryPage({
                   <span className="mt-[6px] block t-label text-[var(--grey)]">With</span>
                 </div>
                 <div className="min-w-0">
-                  <SocialSignInRows from="create" next={socialNext} />
+                  <div onClickCapture={beginOAuth}>
+                    <SocialSignInRows from="create" next={socialNext} />
+                  </div>
                   <p className="m-0 t-meta text-[var(--grey)]">
                     By continuing you agree to{" "}
                     <Link href="/terms" className="underline">
@@ -780,18 +857,20 @@ export function EntryPage({
                     <span className="mt-[6px] block t-label text-[var(--grey)]">With</span>
                   </div>
                   <div className="min-w-0">
-                    <SocialSignInRows
-                      from="create"
-                      next={
-                        input.event
-                          ? input.event.guestToken
-                            ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
-                            : `/e/${encodeURIComponent(input.event.lookup)}`
-                          : input.sourceToken
-                            ? `/save/${input.sourceToken}`
-                            : input.next
-                      }
-                    />
+                    <div onClickCapture={beginOAuth}>
+                      <SocialSignInRows
+                        from="create"
+                        next={
+                          input.event
+                            ? input.event.guestToken
+                              ? `/e/${encodeURIComponent(input.event.lookup)}?g=${encodeURIComponent(input.event.guestToken)}&go=1`
+                              : `/e/${encodeURIComponent(input.event.lookup)}`
+                            : input.sourceToken
+                              ? `/save/${input.sourceToken}`
+                              : input.next
+                        }
+                      />
+                    </div>
                     <p className="m-0 t-meta text-[var(--grey)]">
                       By continuing you agree to{" "}
                       <Link href="/terms" className="underline">

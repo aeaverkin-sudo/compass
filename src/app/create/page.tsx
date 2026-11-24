@@ -65,11 +65,6 @@ export default async function CreatePage({ searchParams }: PageProps) {
       account = true;
       const consent = await admin.from("consents").select("id").eq("user_id", user.id).limit(1).maybeSingle();
       needsConsent = Boolean(consent.error) || !consent.data;
-      if (!name) {
-        const meta = user.user_metadata as { full_name?: unknown; name?: unknown } | undefined;
-        const given = typeof meta?.full_name === "string" ? meta.full_name : typeof meta?.name === "string" ? meta.name : "";
-        name = given.trim() || undefined;
-      }
     }
   }
   return (

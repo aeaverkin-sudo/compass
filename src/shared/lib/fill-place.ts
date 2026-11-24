@@ -56,6 +56,8 @@ export type QuestionnairePlace = {
   email: string;
   password: string;
   agreed: boolean;
+  /** The signed-in account that continued this form. A guest draft has none. */
+  ownerId?: string;
   zones: QuestionnaireZone[];
   headerKey: string | null;
   editKey: string | null;
@@ -85,6 +87,129 @@ export function createHref(href: string) {
   return href;
 }
 
+const OAUTH_QUERY = new Set(["account", "saved"]);
+const OAUTH_ATTEMPT = "aded-oauth-attempt";
+const OAUTH_TRY = "aded_oauth_try";
+const OAUTH_FROM = "aded_oauth_from";
+
+/** The same questionnaire. `account` and `saved` are the return, not a different door. */
+export function sameCreateDoor(left: string, right: string): boolean {
+  const door = (href: string) => {
+    const safe = createHref(href);
+    if (!safe) return null;
+    const url = new URL(safe, "https://adedme.com");
+    if (url.pathname !== "/create") return null;
+    return [...url.searchParams.entries()]
+      .filter(([key]) => !OAUTH_QUERY.has(key))
+      .sort(([aKey, aVal], [bKey, bVal]) => aKey.localeCompare(bKey) || aVal.localeCompare(bVal))
+      .map(([key, value]) => `${key}=${value}`)
+      .join("&");
+  };
+  const a = door(left);
+  const b = door(right);
+  return a !== null && a === b;
+}
+
+/** Fields typed into the portfolio. The sign-in email, password and consent box stay out. */
+export function portfolioFields(place: QuestionnairePlace) {
+  return {
+    name: place.name,
+    zones: place.zones,
+    headerKey: place.headerKey,
+    editKey: place.editKey,
+    editText: place.editText,
+    seedId: place.seedId,
+    seedText: place.seedText,
+  };
+}
+
+/**
+ * The guest draft, only for the OAuth attempt that left this tab and returned
+ * through the create callback. The query alone is not enough.
+ */
+export function oauthPortfolioDraft(input: {
+  saved: QuestionnairePlace | null;
+  here: string;
+  attemptHref: string | null;
+  resume: boolean;
+}): QuestionnairePlace | null {
+  if (!input.resume || !input.attemptHref || !input.saved) return null;
+  if (!sameCreateDoor(input.saved.href, input.attemptHref)) return null;
+  if (!sameCreateDoor(input.saved.href, input.here)) return null;
+  return input.saved;
+}
+
+function cookieValue(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const parts = document.cookie.split("; ");
+  const match = parts.find((part) => part.startsWith(`${name}=`));
+  if (!match) return null;
+  const value = match.slice(name.length + 1);
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
+}
+
+function writeCookie(name: string, value: string) {
+  if (typeof document === "undefined") return;
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=600; SameSite=Lax${secure}`;
+}
+
+function clearCookie(name: string) {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
+
+/** This tab is leaving for Google or Apple from the questionnaire now on screen. */
+export function markQuestionnaireOAuth(href: string) {
+  if (typeof window === "undefined" || !createHref(href)) return;
+  const id = crypto.randomUUID();
+  try {
+    window.sessionStorage.setItem(OAUTH_ATTEMPT, JSON.stringify({ id, href }));
+  } catch {
+    return;
+  }
+  writeCookie(OAUTH_TRY, id);
+}
+
+function readOAuthAttempt(): { id: string; href: string } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(OAUTH_ATTEMPT);
+    if (!raw) return null;
+    const attempt = JSON.parse(raw) as { id?: unknown; href?: unknown };
+    if (typeof attempt.id !== "string" || !createHref(typeof attempt.href === "string" ? attempt.href : "")) return null;
+    return { id: attempt.id, href: attempt.href as string };
+  } catch {
+    return null;
+  }
+}
+
+/** True only when this tab's click and the create callback agree. */
+export function oauthReturnHref(here: string): string | null {
+  const attempt = readOAuthAttempt();
+  if (!attempt || cookieValue(OAUTH_TRY) !== attempt.id || cookieValue(OAUTH_FROM) !== "create") return null;
+  if (!sameCreateDoor(attempt.href, here)) return null;
+  return attempt.href;
+}
+
+export function clearQuestionnaireOAuth() {
+  const attempt = readOAuthAttempt();
+  if (attempt && cookieValue(OAUTH_TRY) === attempt.id) {
+    clearCookie(OAUTH_TRY);
+    clearCookie(OAUTH_FROM);
+  }
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(OAUTH_ATTEMPT);
+  } catch {
+    // The attempt leaves with the tab.
+  }
+}
+
 function readQuestionnaireRaw(): QuestionnairePlace | null {
   retireSharedQuestionnaire();
   if (typeof window === "undefined") return null;
@@ -104,7 +229,8 @@ function readQuestionnaireRaw(): QuestionnairePlace | null {
         // The old password leaves on the next write.
       }
     }
-    return { ...place, password: "" };
+    const ownerId = typeof place.ownerId === "string" && place.ownerId ? place.ownerId : undefined;
+    return { ...place, password: "", ...(ownerId ? { ownerId } : {}) };
   } catch {
     return null;
   }
@@ -149,10 +275,17 @@ export function readPortfolio(): PortfolioPlace | null {
 export function writeQuestionnaire(place: Omit<QuestionnairePlace, "kind" | "at">) {
   if (!createHref(place.href) || typeof window === "undefined") return;
   retireSharedQuestionnaire();
+  const ownerId = typeof place.ownerId === "string" && place.ownerId ? place.ownerId : undefined;
   try {
     window.sessionStorage.setItem(
       KEY,
-      JSON.stringify({ ...place, password: "", kind: "questionnaire", at: Date.now() }),
+      JSON.stringify({
+        ...place,
+        password: "",
+        ...(ownerId ? { ownerId } : { ownerId: undefined }),
+        kind: "questionnaire",
+        at: Date.now(),
+      }),
     );
   } catch {
     // A full tab keeps the live page. Closing it starts empty.
@@ -266,6 +399,7 @@ export function clearQuestionnaire() {
     // The questionnaire leaves with the tab.
   }
   dropSessionPhoto();
+  clearQuestionnaireOAuth();
 }
 
 export function clearFillPlace() {
