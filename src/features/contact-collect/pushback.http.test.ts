@@ -99,48 +99,42 @@ test("the draft route refuses an old request, prepares a mailto, and rejects a f
     assert.equal(prepared.status, 200);
     assert.equal(prepared.headers.get("cache-control"), "no-store");
     const draft = (await prepared.json()) as { mailto?: string; text?: string; channel?: string };
-    const plain = emailDraft(PORTFOLIO_URL, STORED_NAME, null);
+    const plain = emailDraft(PORTFOLIO_URL, STORED_NAME);
     assert.equal(draft.channel, "email");
     assert.equal(draft.text, plain.text);
     assert.equal(draft.text, portfolioBody(PORTFOLIO_URL));
     assert.equal(draft.mailto?.startsWith("mailto:ada@example.com?"), true);
     assert.equal(draft.mailto?.includes("evil.example"), false);
     assert.equal(draft.mailto?.includes("other@example.com"), false);
-    assert.equal(draft.mailto?.includes("Ada"), false);
+    assert.equal(draft.text.includes(STORED_NAME), false);
     const params = new URLSearchParams(draft.mailto?.slice(draft.mailto.indexOf("?") + 1));
-    assert.equal(params.get("subject"), plain.subject);
+    assert.equal(params.get("subject"), "We've just met. Ada Lovelace's portfolio");
     assert.equal(params.get("body")?.replace(/\r\n/g, "\n"), draft.text);
+    assert.equal(params.get("cc"), null);
+    assert.equal(params.get("bcc"), null);
 
-    const named = await post(CONTACT, { cardId: CARD, channel: "email", prepare: true, name: STORED_NAME });
+    const named = await post(CONTACT, { cardId: CARD, channel: "email", prepare: true, name: "Not the server name" });
     const namedDraft = (await named.json()) as { mailto?: string; text?: string };
-    const namedMail = emailDraft(PORTFOLIO_URL, STORED_NAME, STORED_NAME);
     assert.equal(named.status, 200);
-    assert.equal(namedDraft.text, namedMail.text);
-    assert.equal(namedDraft.text, `Hi, I\u2019m ${STORED_NAME}. Here\u2019s my portfolio:\n${PORTFOLIO_URL}`);
+    assert.equal(namedDraft.text, plain.text);
     const namedParams = new URLSearchParams(namedDraft.mailto?.slice((namedDraft.mailto ?? "").indexOf("?") + 1));
-    assert.equal(namedParams.get("subject"), "Ada Lovelace \u2014 portfolio");
-    assert.equal(namedParams.get("body")?.replace(/\r\n/g, "\n"), namedDraft.text);
-
-    const changed = await post(CONTACT, { cardId: CARD, channel: "email", prepare: true, name: "Ada" });
-    const changedDraft = (await changed.json()) as { text?: string; mailto?: string };
-    assert.equal(changed.status, 200);
-    assert.equal(changedDraft.text, plain.text);
-    assert.equal(changedDraft.mailto?.includes("Ada"), false);
+    assert.equal(namedParams.get("subject"), plain.subject);
+    assert.equal(namedParams.get("subject")?.includes("Not the server name"), false);
 
     const whatsapp = await post(CONTACT, { cardId: CARD, channel: "whatsapp", prepare: true, name: "Wrong" });
     const whatsappDraft = (await whatsapp.json()) as { open?: string };
     const whatsappUrl = new URL(whatsappDraft.open ?? "");
     assert.equal(whatsappUrl.origin, "https://wa.me");
     assert.equal(whatsappUrl.pathname, "/447700900111");
-    assert.equal(whatsappUrl.searchParams.get("text"), portfolioText(STORED_NAME, PORTFOLIO_URL));
-    assert.equal(whatsappUrl.searchParams.get("text")?.includes("My portfolio"), false);
+    assert.equal(whatsappUrl.searchParams.get("text"), portfolioText(PORTFOLIO_URL));
+    assert.equal(whatsappUrl.searchParams.get("text")?.includes(STORED_NAME), false);
 
     const telegram = await post(CONTACT, { cardId: CARD, channel: "telegram", prepare: true });
     const telegramDraft = (await telegram.json()) as { open?: string };
     const telegramUrl = new URL(telegramDraft.open ?? "");
     assert.equal(telegramUrl.origin, "https://t.me");
     assert.equal(telegramUrl.pathname, "/sample_contact");
-    assert.equal(telegramUrl.searchParams.get("text"), portfolioText(STORED_NAME, PORTFOLIO_URL));
+    assert.equal(telegramUrl.searchParams.get("text"), portfolioText(PORTFOLIO_URL));
 
     const foreign = await post(OTHER, { cardId: CARD, channel: "email", prepare: true });
     assert.equal(foreign.status, 404);

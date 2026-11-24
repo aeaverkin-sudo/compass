@@ -49,13 +49,11 @@ export async function handlePushback(request: Request, id: string, deps: Pushbac
   let cardId = "";
   let channel: PushbackChannel | null = null;
   let prepare = false;
-  let seenName: string | null = null;
   try {
-    const body = (await request.json()) as { cardId?: unknown; channel?: unknown; prepare?: unknown; name?: unknown };
+    const body = (await request.json()) as { cardId?: unknown; channel?: unknown; prepare?: unknown };
     cardId = typeof body.cardId === "string" ? body.cardId : "";
     channel = channelOf(body.channel);
     prepare = body.prepare === true;
-    seenName = typeof body.name === "string" ? body.name : null;
   } catch {
     prepare = false;
   }
@@ -77,12 +75,12 @@ export async function handlePushback(request: Request, id: string, deps: Pushbac
     if (!portfolio.ok) return noStore({ error: portfolio.error }, portfolio.status);
 
     if (channel === "email") {
-      const mail = emailDraft(portfolio.url, portfolio.name, seenName);
+      const mail = emailDraft(portfolio.url, portfolio.name);
       const mailto = mailtoHref(address, mail.subject, mail.text);
       if (!mailto) return noStore({ error: "No address for that." }, 400);
       return noStore({ ok: true, channel, mailto, text: mail.text });
     }
-    const text = portfolioText(portfolio.name, portfolio.url);
+    const text = portfolioText(portfolio.url);
     if (channel === "whatsapp") return noStore({ ok: true, channel, open: whatsappLink(address, text) });
     if (channel === "telegram") return noStore({ ok: true, channel, open: telegramLink(address, text) });
     return noStore({ error: "Choose a portfolio and where to send it." }, 400);

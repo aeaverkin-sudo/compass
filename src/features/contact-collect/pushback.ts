@@ -76,8 +76,8 @@ export function pushAddress(lines: ExternalLine[], channel: PushbackChannel): st
   return pushTargets(lines).find((target) => target.channel === channel)?.address ?? null;
 }
 
-export function portfolioText(name: string, url: string) {
-  return `${name}\n${url}`;
+export function portfolioText(url: string) {
+  return `We've just met. Here's my portfolio:\n${url}`;
 }
 
 /** The guest can open this card. `listed` is not what makes it public. */
@@ -91,27 +91,24 @@ export function pushCardIsServed(row: {
   return Boolean(row.display_name?.trim());
 }
 
-export const PORTFOLIO_SUBJECT = "My portfolio";
+/** Drop a trailing full stop so the subject does not read "Name.'s portfolio". */
+export function subjectName(storedName: string): string {
+  return storedName.trim().replace(/\.+$/g, "").trim();
+}
 
-/** Neutral draft. A display name is not used until the owner has confirmed it. */
+export function meetingSubject(storedName: string): string {
+  const name = subjectName(storedName);
+  if (!name) return "We've just met. My portfolio.";
+  return `We've just met. ${name}'s portfolio`;
+}
+
+/** The body never carries the name. The subject does, from the server's display name. */
 export function portfolioBody(url: string) {
   return `Here's my portfolio:\n${url}`;
 }
 
-/**
- * Email only. The name is the server's display name, and only when it is exactly
- * the name the owner just confirmed. Any other seen name stays the neutral draft.
- */
-export function emailDraft(url: string, storedName: string, seenName: string | null): { subject: string; text: string } {
-  const stored = storedName.trim();
-  const seen = seenName?.trim() ?? "";
-  if (stored && seen === stored) {
-    return {
-      subject: `${stored} \u2014 portfolio`,
-      text: `Hi, I\u2019m ${stored}. Here\u2019s my portfolio:\n${url}`,
-    };
-  }
-  return { subject: PORTFOLIO_SUBJECT, text: portfolioBody(url) };
+export function emailDraft(url: string, storedName: string): { subject: string; text: string } {
+  return { subject: meetingSubject(storedName), text: portfolioBody(url) };
 }
 
 /** A private card is not offered. `listed` does not decide this. */
@@ -177,4 +174,49 @@ export function whatsappLink(digits: string, text: string) {
 
 export function telegramLink(address: string, text?: string) {
   return `https://t.me/${address}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+}
+
+export type SwapReturn = {
+  armed: boolean;
+  left: boolean;
+  blurredAt: number | null;
+  armedAt: number;
+};
+
+/** A tap that is still focused after this did not open Mail, WhatsApp, or Telegram. */
+export const SWAP_RETURN_ARM_MS = 700;
+/** A blur this short is the tap itself, not the mail or messenger sheet. */
+export const SWAP_RETURN_BLUR_MS = 400;
+
+const SWAP_IDLE: SwapReturn = { armed: false, left: false, blurredAt: null, armedAt: 0 };
+
+export function armSwapReturn(now: number): SwapReturn {
+  return { armed: true, left: false, blurredAt: null, armedAt: now };
+}
+
+export function noteSwapHidden(state: SwapReturn): SwapReturn {
+  if (!state.armed) return state;
+  return { ...state, left: true };
+}
+
+export function noteSwapBlur(state: SwapReturn, now: number): SwapReturn {
+  if (!state.armed || state.left || state.blurredAt !== null) return state;
+  return { ...state, blurredAt: now };
+}
+
+/** Send and closing the draft are the same return: the other app had the screen, then ADED is back. */
+export function finishSwapReturn(state: SwapReturn, now: number): { state: SwapReturn; openNetwork: boolean } {
+  if (!state.armed) return { state, openNetwork: false };
+  if (state.left) return { state: SWAP_IDLE, openNetwork: true };
+  if (state.blurredAt !== null && now - state.blurredAt >= SWAP_RETURN_BLUR_MS) {
+    return { state: SWAP_IDLE, openNetwork: true };
+  }
+  if (state.blurredAt !== null) return { state: { ...state, blurredAt: null }, openNetwork: false };
+  return { state, openNetwork: false };
+}
+
+export function expireSwapReturn(state: SwapReturn, now: number, stillHere: boolean): SwapReturn {
+  if (!state.armed || state.left || state.blurredAt !== null || !stillHere) return state;
+  if (now - state.armedAt < SWAP_RETURN_ARM_MS) return state;
+  return SWAP_IDLE;
 }

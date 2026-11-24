@@ -8,16 +8,23 @@ import type { ExternalLine } from "./types.ts";
 register(new URL("./voice-reading.alias-hook.mjs", import.meta.url), pathToFileURL("./"));
 
 const {
+  armSwapReturn,
   draftStillCurrent,
   emailDraft,
+  expireSwapReturn,
+  finishSwapReturn,
   keptSwapCard,
   mailtoHref,
+  meetingSubject,
+  noteSwapBlur,
+  noteSwapHidden,
   portfolioBody,
   portfolioText,
-  PORTFOLIO_SUBJECT,
   pushAddress,
   pushCardIsServed,
   pushTargets,
+  SWAP_RETURN_ARM_MS,
+  SWAP_RETURN_BLUR_MS,
   swapCardOffered,
   telegramLink,
   visibleDraft,
@@ -25,7 +32,7 @@ const {
 
 const phone: ExternalLine = { type: "phone", value: "+44 7700 900123" };
 const nick: ExternalLine = { type: "telegram", value: "@sample_contact" };
-const draft = portfolioText("Sample portfolio", "https://example.com/portfolio");
+const draft = portfolioText("https://example.com/portfolio");
 
 test("a number marked for both messengers offers WhatsApp and Telegram", () => {
   const lines: ExternalLine[] = [{ ...phone, flags: ["wa", "tg"] }];
@@ -74,21 +81,21 @@ test("Telegram drafts use the saved number or nickname and preserve plain contac
 test("the email draft is one encoded mailto and does not use an unconfirmed name", () => {
   const url = "https://example.com/c/token";
   const text = portfolioBody(url);
-  const href = mailtoHref("ada@example.com", PORTFOLIO_SUBJECT, text);
+  const href = mailtoHref("ada@example.com", meetingSubject("Anton Averkin."), text);
   assert.ok(href);
   const cut = href.indexOf("?");
   assert.equal(href.slice("mailto:".length, cut), "ada@example.com");
   const params = new URLSearchParams(href.slice(cut + 1));
-  assert.equal(params.get("subject"), "My portfolio");
+  assert.equal(params.get("subject"), "We've just met. Anton Averkin's portfolio");
   assert.equal(params.get("body")?.replace(/\r\n/g, "\n"), text);
   assert.equal(text, "Here's my portfolio:\nhttps://example.com/c/token");
   assert.equal(href.includes("%0D%0A"), true);
-  assert.equal(href.includes("Ada"), false);
+  assert.equal(params.get("body")?.includes("Anton"), false);
   assert.equal(params.get("cc"), null);
   assert.equal(params.get("bcc"), null);
-  assert.equal(mailtoHref("ada@example.com,bee@example.com", PORTFOLIO_SUBJECT, text), null);
-  assert.equal(mailtoHref("ada@example.com\nbee@example.com", PORTFOLIO_SUBJECT, text), null);
-  assert.equal(mailtoHref("ada@example.com?bcc=bee@example.com", PORTFOLIO_SUBJECT, text), null);
+  assert.equal(mailtoHref("ada@example.com,bee@example.com", meetingSubject("Anton Averkin"), text), null);
+  assert.equal(mailtoHref("ada@example.com\nbee@example.com", meetingSubject("Anton Averkin"), text), null);
+  assert.equal(mailtoHref("ada@example.com?bcc=bee@example.com", meetingSubject("Anton Averkin"), text), null);
 });
 
 test("a ready draft leaves the screen when the selection changes, and a late reply cannot replace it", () => {
@@ -133,17 +140,16 @@ test("a ready draft disappears when the selected card becomes private", () => {
   assert.equal(draftStillCurrent(ready, gone), false);
 });
 
-test("email uses the confirmed server name, and a changed name stays neutral", () => {
+test("the subject uses the server name, and an empty name stays generic", () => {
   const url = "https://example.com/c/token";
-  const named = emailDraft(url, "Ada Lovelace", "Ada Lovelace");
-  const plain = emailDraft(url, "Ada Lovelace", "Ada");
-  const untouched = emailDraft(url, "Ada Lovelace", null);
-  assert.equal(named.subject, "Ada Lovelace \u2014 portfolio");
-  assert.equal(named.text, "Hi, I\u2019m Ada Lovelace. Here\u2019s my portfolio:\nhttps://example.com/c/token");
-  assert.equal(plain.subject, PORTFOLIO_SUBJECT);
+  const named = emailDraft(url, "Anton Averkin.");
+  const plain = emailDraft(url, " . ");
+  assert.equal(named.subject, "We've just met. Anton Averkin's portfolio");
+  assert.equal(named.text, portfolioBody(url));
+  assert.equal(named.text.includes("Anton"), false);
+  assert.equal(plain.subject, "We've just met. My portfolio.");
   assert.equal(plain.text, portfolioBody(url));
-  assert.equal(plain.text.includes("Ada"), false);
-  assert.equal(untouched.text, plain.text);
+  assert.equal(portfolioText(url), "We've just met. Here's my portfolio:\nhttps://example.com/c/token");
   for (const mail of [named, plain]) {
     const href = mailtoHref("ada@example.com", mail.subject, mail.text);
     assert.ok(href);
@@ -170,6 +176,28 @@ test("a private or archived portfolio is not offered, and listed is not enough",
   assert.equal(pushCardIsServed({ is_public: true, status: "published", display_name: "  " }), false);
 });
 
+test("a failed Swap tap does not leave, and a real handoff returns after send or close", () => {
+  let state = armSwapReturn(0);
+  assert.equal(finishSwapReturn(state, 0).openNetwork, false);
+  state = expireSwapReturn(state, SWAP_RETURN_ARM_MS, true);
+  state = noteSwapHidden(state);
+  assert.equal(finishSwapReturn(state, SWAP_RETURN_ARM_MS).openNetwork, false);
+
+  state = armSwapReturn(0);
+  state = noteSwapBlur(state, 20);
+  state = finishSwapReturn(state, 20 + 50).state;
+  assert.equal(state.armed, true);
+  state = expireSwapReturn(state, SWAP_RETURN_ARM_MS, true);
+  state = noteSwapHidden(state);
+  assert.equal(finishSwapReturn(state, SWAP_RETURN_ARM_MS + 1).openNetwork, false);
+
+  state = noteSwapHidden(armSwapReturn(0));
+  assert.equal(finishSwapReturn(state, 5).openNetwork, true);
+  state = noteSwapBlur(armSwapReturn(0), 10);
+  assert.equal(expireSwapReturn(state, SWAP_RETURN_ARM_MS, true).armed, true);
+  assert.equal(finishSwapReturn(state, 10 + SWAP_RETURN_BLUR_MS).openNetwork, true);
+});
+
 test("the route prepares a draft and does not send mail or mark a send", () => {
   const route = readFileSync(new URL("../../app/api/external-contacts/[id]/pushback/route.ts", import.meta.url), "utf8");
   const handler = readFileSync(new URL("./pushback-request.ts", import.meta.url), "utf8");
@@ -187,8 +215,11 @@ test("the route prepares a draft and does not send mail or mark a send", () => {
   assert.equal(store.includes("clearPushback"), false);
   assert.match(store, /pushCardIsServed/);
   assert.match(screen, /<a href=\{mailHref\}/);
-  assert.match(screen, /Copy message/);
-  assert.match(screen, /Use this name/);
+  assert.equal(screen.includes("Copy message"), false);
+  assert.equal(screen.includes("Use this name"), false);
+  assert.match(screen, /visibilitychange/);
+  assert.match(screen, /expireSwapReturn/);
+  assert.match(screen, /router\.replace\("\/network"\)/);
   assert.match(screen, /visibleDraft/);
   assert.match(screen, /keptSwapCard/);
   assert.match(screen, /draftStillCurrent/);

@@ -6,7 +6,20 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { useAppStore } from "@/shared/store/app-store";
-import { draftStillCurrent, keptSwapCard, pushTargets, swapCardOffered, visibleDraft, type DraftChoice } from "@/features/contact-collect/pushback";
+import {
+  armSwapReturn,
+  draftStillCurrent,
+  expireSwapReturn,
+  finishSwapReturn,
+  keptSwapCard,
+  noteSwapBlur,
+  noteSwapHidden,
+  pushTargets,
+  swapCardOffered,
+  visibleDraft,
+  type DraftChoice,
+  type SwapReturn,
+} from "@/features/contact-collect/pushback";
 import type { ExternalContact, PushbackChannel } from "@/features/contact-collect/types";
 
 const SECTION = "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]";
@@ -29,22 +42,18 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const targets = pushTargets(contact.lines);
   const [cardId, setCardId] = useState<string | null>(null);
   const [channel, setChannel] = useState<PushbackChannel | null>(null);
-  const [confirmedFor, setConfirmedFor] = useState<{ cardId: string; name: string } | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copyError, setCopyError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  const handoff = useRef<SwapReturn>({ armed: false, left: false, blurredAt: null, armedAt: 0 });
   const activeCardId = keptSwapCard(cardId, cards.map((card) => card.id));
   if (cardId && !activeCardId) setCardId(null);
-  const selected = cards.find((card) => card.id === activeCardId) ?? null;
-  const seenName = selected?.name ?? "";
-  const confirmedName = confirmedFor && confirmedFor.cardId === cardId && confirmedFor.name === seenName ? seenName : "";
   const current: DraftChoice = {
     contactId: contact.id,
     cardId: activeCardId ?? "",
     channel: channel ?? "",
-    name: confirmedName,
+    name: "",
   };
   const selectionKey = `${current.contactId}\n${current.cardId}\n${current.channel}\n${current.name}`;
   const [shownKey, setShownKey] = useState(selectionKey);
@@ -52,7 +61,6 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     setShownKey(selectionKey);
     setDraft(null);
     setError(null);
-    setCopyError(null);
     setWaiting(Boolean(current.cardId && current.channel));
   }
   const selection = useRef(current);
@@ -68,17 +76,52 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   };
 
   useEffect(() => {
+    const stillHere = () => document.visibilityState === "visible" && document.hasFocus();
+    const comeBack = () => {
+      if (!stillHere()) return;
+      const step = finishSwapReturn(handoff.current, Date.now());
+      handoff.current = step.state;
+      if (step.openNetwork) router.replace("/network");
+    };
+    const onHide = () => {
+      handoff.current = noteSwapHidden(handoff.current);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") onHide();
+      else comeBack();
+    };
+    const onBlur = () => {
+      handoff.current = noteSwapBlur(handoff.current, Date.now());
+    };
+    const timer = window.setInterval(() => {
+      handoff.current = expireSwapReturn(handoff.current, Date.now(), stillHere());
+    }, 200);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("pageshow", comeBack);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("focus", comeBack);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("pageshow", comeBack);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", comeBack);
+    };
+  }, [router]);
+
+  useEffect(() => {
     if (!activeCardId || !channel) {
       setDraft(null);
       setWaiting(false);
       return;
     }
-    const started: DraftChoice = { contactId: contact.id, cardId: activeCardId, channel, name: confirmedName };
+    const started: DraftChoice = { contactId: contact.id, cardId: activeCardId, channel, name: "" };
     let cancel = false;
     setDraft(null);
     setWaiting(true);
     setError(null);
-    setCopyError(null);
     void (async () => {
       try {
         const response = await fetch(`/api/external-contacts/${contact.id}/pushback`, {
@@ -89,7 +132,6 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
             cardId: activeCardId,
             channel,
             prepare: true,
-            ...(channel === "email" && confirmedName ? { name: confirmedName } : {}),
           }),
         });
         const body = (await response.json().catch(() => null)) as { mailto?: string; open?: string; text?: string; error?: string } | null;
@@ -114,20 +156,14 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     return () => {
       cancel = true;
     };
-  }, [activeCardId, channel, confirmedName, contact.id, retry]);
+  }, [activeCardId, channel, contact.id, retry]);
 
   const partial = Boolean(activeCardId) !== Boolean(channel);
   const mailHref = live?.channel === "email" ? live.mailto : undefined;
   const openHref = live && live.channel !== "email" ? live.open : undefined;
 
-  const copy = async () => {
-    if (!live?.text) return;
-    try {
-      await navigator.clipboard.writeText(live.text);
-      setCopyError(null);
-    } catch {
-      setCopyError("Could not copy the message.");
-    }
+  const armReturn = () => {
+    handoff.current = armSwapReturn(Date.now());
   };
 
   return (
@@ -162,16 +198,6 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
                     )}
                     <span className="min-w-0 truncate t-body">{card.name}</span>
                   </button>
-                  {on && channel === "email" ? (
-                    <button
-                      type="button"
-                      aria-pressed={confirmedName === card.name}
-                      onClick={() => setConfirmedFor(confirmedName === card.name ? null : { cardId: card.id, name: card.name })}
-                      className="press mt-1 border-0 bg-transparent px-2 py-1 t-meta text-[var(--ink)] underline [-webkit-tap-highlight-color:transparent]"
-                    >
-                      Use this name
-                    </button>
-                  ) : null}
                 </div>
               );
             })}
@@ -205,18 +231,12 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
           </div>
         </section>
         {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
-        {copyError ? <p className="mt-3 t-meta text-[#E23B2F]">{copyError}</p> : null}
-        {mailHref && live?.text ? (
-          <>
-            <a href={mailHref} className={OK}>
-              Open email draft
-            </a>
-            <button type="button" onClick={() => void copy()} className={OK}>
-              Copy message
-            </button>
-          </>
+        {mailHref ? (
+          <a href={mailHref} className={OK} onClick={armReturn}>
+            Open email draft
+          </a>
         ) : openHref ? (
-          <a href={openHref} className={OK}>
+          <a href={openHref} className={OK} onClick={armReturn}>
             {channel === "telegram" ? "Open Telegram" : "Open WhatsApp"}
           </a>
         ) : waiting ? (
