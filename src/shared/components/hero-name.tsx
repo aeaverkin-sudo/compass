@@ -14,6 +14,12 @@ const HERO_ROLE_GAP_PX = 4;
  */
 const HERO_DESCENDER_OVERFLOW = 0.09;
 
+/** The box a fitted name occupies, including the descender under the last line. */
+export function heroNameBoxPx(size: number, lines = 1, roleBelow = false) {
+  const descender = size * HERO_DESCENDER_OVERFLOW;
+  return size * lines + descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);
+}
+
 function splitHeroLines(name: string, maxLines: number) {
   const parts = name.split("\n");
   if (parts.length === 1) return [name];
@@ -61,6 +67,7 @@ export function HeroName({
   locked = false,
   measureWidthPx,
   measureHeightPx,
+  maxPx,
 }: {
   value: string;
   onChange?: (displayName: string) => void;
@@ -83,6 +90,8 @@ export function HeroName({
   measureWidthPx?: number;
   /** Fit letters to this height instead of the box, so a short empty row does not shrink the name. */
   measureHeightPx?: number;
+  /** Cap the hero size. Other screens keep the 78px maximum. */
+  maxPx?: number;
 }) {
   const centered = align === "center";
   const boxRef = useRef<HTMLDivElement>(null);
@@ -100,6 +109,7 @@ export function HeroName({
     const box = boxRef.current;
     if (!box) return;
     const fit = () => {
+      const max = maxPx && maxPx > 0 ? maxPx : HERO_NAME_MAX_PX;
       const width = measureWidthPx && measureWidthPx > 0 ? measureWidthPx : box.clientWidth;
       if (!value) {
         setWrapWord(false);
@@ -110,13 +120,13 @@ export function HeroName({
       const measured = value.includes("\n") ? parts.filter((line) => line.length > 0) : [value];
       const count = value.includes("\n") ? parts.length : 1;
       const widthSize = measured.reduce(
-        (tightest, line) => Math.min(tightest, fitToWidth(line, Math.max(0, width - 2), 600, HERO_NAME_MAX_PX, 8)),
-        HERO_NAME_MAX_PX,
+        (tightest, line) => Math.min(tightest, fitToWidth(line, Math.max(0, width - 2), 600, max, 8)),
+        max,
       );
       const gap = roleBelow ? HERO_ROLE_GAP_PX : 0;
       const heightBox = measureHeightPx && measureHeightPx > 0 ? measureHeightPx : box.clientHeight;
       const heightSize = Math.max(8, (heightBox - gap) / (count + HERO_DESCENDER_OVERFLOW));
-      let next = Math.min(HERO_NAME_MAX_PX, widthSize, heightSize);
+      let next = Math.min(max, widthSize, heightSize);
       // The span measure stops a hair inside the column. The textarea still paints about half a glyph past it.
       if (ruled && heightBox > 40) {
         const area = box.querySelector("textarea");
@@ -157,7 +167,7 @@ export function HeroName({
       observer.disconnect();
       window.removeEventListener("orientationchange", onTurn);
     };
-  }, [maxLines, measureHeightPx, measureWidthPx, placeholder, roleBelow, ruled, value]);
+  }, [maxLines, maxPx, measureHeightPx, measureWidthPx, placeholder, roleBelow, ruled, value]);
 
   const descender = size * HERO_DESCENDER_OVERFLOW;
   const rolePad = descender + (roleBelow ? HERO_ROLE_GAP_PX : 0);

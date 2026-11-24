@@ -7,7 +7,7 @@ import { openContactAttachmentPicker, openNativePhotoPicker } from "@landing/com
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { TabBand } from "@main/components/tab-band";
 import { cn } from "@/lib/utils";
-import { HeroName } from "@/shared/components/hero-name";
+import { HeroName, heroNameBoxPx } from "@/shared/components/hero-name";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
 import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { ScreenHeader } from "@/shared/components/screen-header";
@@ -58,6 +58,8 @@ const NAME_HINT_LINE_PX = 15.5 * 1.45;
 /** The photo square this row used to reserve. Letters still fit to the width beside it. */
 const FORMER_PHOTO_PX = 128;
 const FORMER_PHOTO_GAP_PX = 12;
+/** New Contact only. Other screens keep HeroName's own maximum. */
+const CONTACT_NAME_MAX_PX = 32;
 
 /** New contact stays one line until wrap, then grows to two. Edit grows to the whole text. */
 function fitNoteField(node: HTMLTextAreaElement, limited: boolean) {
@@ -1034,10 +1036,11 @@ export function NewContactForm({
 
   const nameHint = name.length === 0;
   const nameColumn = nameMeasure > 0 ? nameMeasure : undefined;
+  const oneNameLine = !editing && !name.includes("\n");
   const photoName = (
     <div
       ref={nameRowRef}
-      className={cn("pt-[18px] pb-[18px]", nameHint && "border-b border-[var(--rule)]")}
+      className={cn("pt-[18px] pb-[18px]", (!editing || nameHint) && "border-b border-[var(--rule)]")}
     >
       <div className={cn(ROW, "items-center")}>
         <button
@@ -1049,29 +1052,35 @@ export function NewContactForm({
           <MarkPlus />
         </button>
         <div className="relative min-w-0">
-          {nameHint ? (
-            <div aria-hidden className="pointer-events-none t-body text-[var(--placeholder)]">
-              Name
-            </div>
-          ) : null}
           <div
-            data-entry-name=""
-            className={nameHint ? "absolute top-0 left-0 overflow-x-hidden" : "min-w-0 overflow-x-hidden"}
-            style={
-              nameHint
-                ? { height: NAME_HINT_LINE_PX, width: nameColumn ?? "100%" }
-                : { width: nameColumn ?? "100%" }
-            }
+            className={cn("relative min-w-0", (nameHint || oneNameLine) && "flex flex-col justify-end")}
+            style={oneNameLine ? { minHeight: heroNameBoxPx(CONTACT_NAME_MAX_PX) } : undefined}
           >
-            <HeroName
-              value={name}
-              onChange={(value) => setName(clampNameLines(value))}
-              placeholder="Name"
-              ruled
-              roleBelow={Boolean(headerTitle)}
-              measureWidthPx={nameColumn}
-              measureHeightPx={FORMER_PHOTO_PX}
-            />
+            {nameHint ? (
+              <div aria-hidden className="pointer-events-none t-body text-[var(--placeholder)]">
+                Name
+              </div>
+            ) : null}
+            <div
+              data-entry-name=""
+              className={nameHint ? "absolute inset-x-0 bottom-0 overflow-x-hidden" : "min-w-0 overflow-x-hidden"}
+              style={
+                nameHint
+                  ? { height: NAME_HINT_LINE_PX, width: nameColumn ?? "100%" }
+                  : { width: nameColumn ?? "100%" }
+              }
+            >
+              <HeroName
+                value={name}
+                onChange={(value) => setName(clampNameLines(value))}
+                placeholder="Name"
+                ruled
+                roleBelow={Boolean(headerTitle)}
+                measureWidthPx={nameColumn}
+                measureHeightPx={FORMER_PHOTO_PX}
+                maxPx={editing ? undefined : CONTACT_NAME_MAX_PX}
+              />
+            </div>
           </div>
           {headerTitle ? (
             <p
