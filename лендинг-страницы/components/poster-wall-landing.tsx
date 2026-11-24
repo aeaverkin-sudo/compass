@@ -85,6 +85,8 @@ const CSS = `
 .pw-alabel{margin:0;font-size:3.4vw;font-weight:800;letter-spacing:.06em;line-height:1.2;text-transform:uppercase;}
 .pw-abody{margin:1.4vw 0 0;font-size:4.2vw;font-weight:400;line-height:1.45;}
 .pw-afoot{margin:7vw 0 0;font-size:4.2vw;font-weight:400;line-height:1.45;}
+.pw-alegal{margin:3.2vw 0 0;font-size:4.2vw;font-weight:400;line-height:1.45;}
+.pw-alegal a,.pw-alegal a:visited,.pw-alegal a:hover,.pw-alegal a:active{color:#141210;text-decoration:underline;}
 `;
 
 function Mark({ big, light }: { big?: boolean; light?: boolean }) {
@@ -743,15 +745,20 @@ export function PosterWallLanding() {
               </p>
             </section>
             <section className="pw-asec">
-              <h2 className="pw-alabel">Network</h2>
+              <h2 className="pw-alabel">Collect</h2>
               <p className="pw-abody">
-                The built-in scanner saves a card from an ADED QR. Add a contact by hand, by scanning a card or a
-                badge, or by voice. Everyone you scanned, and everyone who shared a card with you, in one list. Search
-                by name, role or company.
+                Collect contacts your way. Scan an ADED QR code to swap portfolios in the app. To add anyone else, scan
+                a business card or badge, say their details, or type them in. ADED fills in the form for you when you
+                scan or speak. Save the contact and share your card back.
               </p>
             </section>
             <p className="pw-afoot">
               Works in your browser. Add it to your home screen and it opens like an app.
+            </p>
+            <p className="pw-alegal">
+              <a href="/privacy">Privacy Policy</a>
+              {" · "}
+              <a href="/terms">Terms & Conditions</a>
             </p>
           </div>
           <div className="pw-sheet-bar" />
