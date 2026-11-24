@@ -20,8 +20,10 @@ import {
   clearQuestionnaire,
   clearQuestionnaireOAuth,
   markOAuthAttemptUsed,
+  guestQuestionnaireDraft,
   markQuestionnaireOAuth,
   oauthPortfolioDraft,
+  ownedQuestionnaireDraft,
   photoFileFromDraft,
   readOAuthAttempt,
   readOAuthBind,
@@ -293,16 +295,20 @@ export function EntryPage({
             now: Date.now(),
           })
         : null;
+      const owned = account
+        ? ownedQuestionnaireDraft({ saved, here, sessionUserId: uid || null, confirmed })
+        : null;
       ownerRef.current = uid;
       if (!account) {
-        if (saved && saved.href === here) {
-          setName(saved.name);
+        const guest = guestQuestionnaireDraft(saved, here);
+        if (guest) {
+          setName(guest.name);
           setNameLive(true);
-          setEmail(saved.email);
+          setEmail(guest.email);
           setEmailLive(true);
           setPasswordValue((current) => current ?? passwordNow());
-          setAgreed(saved.agreed);
-          zonesRef.current?.restore(saved);
+          setAgreed(guest.agreed);
+          zonesRef.current?.restore(guest);
           const dataUrl = readQuestionnairePhoto(here);
           const file = dataUrl ? photoFileFromDraft(dataUrl) : null;
           if (dataUrl && file) setPhoto({ file, dataUrl });
@@ -315,8 +321,8 @@ export function EntryPage({
         setPasswordValue((current) => current ?? passwordNow());
         markOAuthAttemptUsed(attempt.id);
         clearQuestionnaireOAuth();
-      } else if (confirmed && saved && saved.href === here && saved.ownerId === uid) {
-        applyPortfolio(saved, here);
+      } else if (owned && saved) {
+        applyPortfolio(saved, owned.photoHref);
         setPasswordValue((current) => current ?? passwordNow());
         clearQuestionnaireOAuth();
       } else {

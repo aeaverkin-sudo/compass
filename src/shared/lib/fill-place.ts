@@ -160,9 +160,32 @@ function freshAttempt(at: number, now: number): boolean {
   return Number.isFinite(at) && Number.isFinite(now) && at <= now + 60_000 && now - at <= OAUTH_RETURN_MS;
 }
 
+/** The guest form restores a draft only when no account owns it, and only on the same address. */
+export function guestQuestionnaireDraft(
+  saved: QuestionnairePlace | null,
+  here: string,
+): QuestionnairePlace | null {
+  if (!saved || saved.ownerId || saved.href !== here) return null;
+  return saved;
+}
+
+/** An account draft reopens only for the confirmed account that owns it. */
+export function ownedQuestionnaireDraft(input: {
+  saved: QuestionnairePlace | null;
+  here: string;
+  sessionUserId: string | null;
+  confirmed: boolean;
+}): { fields: ReturnType<typeof portfolioFields>; photoHref: string } | null {
+  const { saved } = input;
+  if (!saved || !saved.ownerId || !input.confirmed || !input.sessionUserId) return null;
+  if (saved.ownerId !== input.sessionUserId || saved.href !== input.here) return null;
+  return { fields: portfolioFields(saved), photoHref: saved.href };
+}
+
 /**
  * The guest portfolio, only when this tab's unused attempt was finished by
- * that same confirmed account. A shared "create" flag or a matching address is not enough.
+ * that same confirmed account and the draft has no owner yet.
+ * A shared "create" flag or a matching address is not enough.
  * The photo stays with the original draft address.
  */
 export function oauthPortfolioDraft(input: {
@@ -176,7 +199,7 @@ export function oauthPortfolioDraft(input: {
   now: number;
 }): { fields: ReturnType<typeof portfolioFields>; photoHref: string } | null {
   const { saved, attempt, bind } = input;
-  if (!saved || !attempt || !bind) return null;
+  if (!saved || saved.ownerId || !attempt || !bind) return null;
   if (!input.confirmed || !input.sessionUserId) return null;
   if (input.sessionUserId !== bind.userId) return null;
   if (!ATTEMPT_ID.test(attempt.id) || attempt.id !== bind.attemptId) return null;

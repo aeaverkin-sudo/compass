@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  guestQuestionnaireDraft,
   oauthCallbackBind,
   oauthPortfolioDraft,
+  ownedQuestionnaireDraft,
   sameCreateDoor,
   type OAuthAttempt,
   type OAuthBind,
@@ -135,6 +137,38 @@ test("a late callback confirms the attempt it started, not the newer one", () =>
   assert.equal(JSON.stringify(original).includes("secret-password"), false);
 });
 
+test("a guest screen does not restore an account draft on the same address", () => {
+  const href = "/create?card=card-a";
+  const owned = { ...draft(href), ownerId: USER };
+  assert.equal(guestQuestionnaireDraft(owned, href), null);
+  const guest = guestQuestionnaireDraft(draft(href), href);
+  assert.equal(guest?.name, "Ada");
+  assert.equal(guest?.zones[0]?.rows[0]?.value, "Hello");
+});
+
+test("the oauth return does not restore a draft that already has an owner", () => {
+  const href = "/create?card=card-a";
+  assert.equal(restore({ saved: { ...draft(href), ownerId: USER } }), null);
+  assert.equal(restore({ saved: { ...draft(href), ownerId: OTHER } }), null);
+});
+
+test("the owner reopens their own draft, and another account does not", () => {
+  const here = "/create?account=1";
+  const saved = { ...draft(here), ownerId: USER };
+  const opened = ownedQuestionnaireDraft({ saved, here, sessionUserId: USER, confirmed: true });
+  assert.ok(opened);
+  assert.equal(opened.fields.name, "Ada");
+  assert.equal(opened.fields.zones[0]?.rows[0]?.value, "Hello");
+  assert.equal(opened.fields.editText, "note");
+  assert.equal(opened.photoHref, here);
+  assert.equal("email" in opened.fields, false);
+  assert.equal("password" in opened.fields, false);
+  assert.equal("agreed" in opened.fields, false);
+  assert.equal(ownedQuestionnaireDraft({ saved, here, sessionUserId: OTHER, confirmed: true }), null);
+  assert.equal(ownedQuestionnaireDraft({ saved, here, sessionUserId: USER, confirmed: false }), null);
+  assert.equal(ownedQuestionnaireDraft({ saved: draft(here), here, sessionUserId: USER, confirmed: true }), null);
+});
+
 test("cancel and a second open do not count as that return", () => {
   assert.equal(restore({ bind: null, here: "/create?card=card-a" }), null);
   const once = restore();
@@ -157,6 +191,8 @@ test("sign-in binds the return to the confirmed account and does not create a po
   assert.match(callback, /aded_oauth_bind/);
   assert.match(callback, /email_confirmed_at/);
   assert.match(callback, /userId: user\.id/);
+  assert.match(screen, /guestQuestionnaireDraft/);
+  assert.match(screen, /ownedQuestionnaireDraft/);
   assert.match(screen, /confirmed/);
   assert.match(screen, /readUsedOAuthAttempt/);
   assert.match(screen, /markOAuthAttemptUsed/);
