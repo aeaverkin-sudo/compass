@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Version 1.4
+Effective 24 November 2026 · Version 1.4
 
 ## 1. Who is responsible for your data
 
