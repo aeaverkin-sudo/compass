@@ -129,8 +129,6 @@ export function ProfileScreen() {
   const [portfolioBusy, setPortfolioBusy] = useState(false);
   const [portfoliosOpen, setPortfoliosOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [walletOff, setWalletOff] = useState(false);
   const [linkCardId, setLinkCardId] = useState<string | null>(null);
   const [linkBusy, setLinkBusy] = useState(false);
@@ -189,33 +187,6 @@ export function ProfileScreen() {
     setPortfolioBusy(true);
     updateSecondCardDraft({ displayName: "" }, portfolioLimit);
     router.push("/main");
-  };
-
-  const downloadData = async () => {
-    if (downloading) return;
-    setDownloading(true);
-    setDownloadError(null);
-    try {
-      const response = await fetch("/api/account/export", { cache: "no-store" });
-      if (!response.ok) {
-        setDownloadError("Could not download your data. Try again.");
-        setDownloading(false);
-        return;
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      const named = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "");
-      link.download = named?.[1] || "aded-account.zip";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      setDownloadError("Could not download your data. Try again.");
-    }
-    setDownloading(false);
   };
 
   const togglePortfolios = () => {
@@ -590,14 +561,12 @@ export function ProfileScreen() {
       <section className="border-b border-[var(--rule)] py-[18px]">
         <button
           type="button"
-          disabled={downloading}
-          onClick={() => void downloadData()}
+          disabled
           className="flex w-full items-center border-0 bg-transparent p-0 text-left disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
         >
           <span className="t-label">Download data</span>
           <Download aria-hidden className="ml-auto size-5 text-[var(--ink)]" strokeWidth={1.5} />
         </button>
-        {downloadError ? <p className="mt-3 mb-0 t-meta text-[#E23B2F]">{downloadError}</p> : null}
       </section>
       <p className="mb-[18px] mt-8 text-center">
         <Link href="/account/delete" className="t-body text-[var(--ink)]">
