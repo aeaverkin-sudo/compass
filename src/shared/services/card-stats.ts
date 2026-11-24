@@ -234,14 +234,7 @@ export async function resetCardStats(ownerId: string, cardId: string): Promise<(
   return { ...data, since };
 }
 
-/** The owner tapped Share and the link or file actually left. A cancelled sheet does not count. */
-export async function recordCardShare(ownerId: string, cardId: string): Promise<boolean> {
-  if (!isUuid(cardId)) return false;
-  const admin = createAdminSupabaseClient();
-  const owned = await admin.from("cards").select("id").eq("id", cardId).eq("owner_id", ownerId).maybeSingle();
-  if (owned.error) throw new Error(owned.error.message);
-  if (!owned.data) return false;
-  const { error } = await admin.from("card_events").insert({ card_id: cardId, type: "share" });
-  if (error) throw new Error(error.message);
-  return true;
+/** Share counting is off. The sheet itself is unchanged. */
+export async function recordCardShare(_ownerId: string, cardId: string): Promise<boolean> {
+  return isUuid(cardId);
 }

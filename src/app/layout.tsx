@@ -5,6 +5,7 @@ import { MonochromeSync } from "@/shared/components/monochrome-sync";
 import { ImagePreviewHost } from "@/shared/components/image-preview-host";
 import { PdfPreviewHost } from "@/shared/components/pdf-preview-host";
 import { ServiceWorker } from "@/shared/components/service-worker";
+import { ViewerMirror } from "@/shared/components/viewer-mirror";
 import { SupabaseSession } from "@/shared/components/supabase-session";
 import { FillPlaceResume } from "@/shared/components/fill-place-resume";
 import { TabPrefetch } from "@/shared/components/tab-prefetch";
@@ -106,6 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <TabPrefetch />
         <FillPlaceResume />
         <ServiceWorker />
+        <ViewerMirror />
         {children}
       </body>
     </html>

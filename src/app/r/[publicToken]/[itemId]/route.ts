@@ -34,19 +34,6 @@ function destination(item: ItemRow, attachmentReady: boolean): string | null {
   return safeTarget(item.url) ?? safeTarget(item.value);
 }
 
-async function recordOpen(cardId: string, itemId: string) {
-  try {
-    const admin = createAdminSupabaseClient();
-    const { error } = await admin
-      .from("card_events")
-      .insert({ card_id: cardId, type: "attachment_open", item_id: itemId });
-    if (!error) return;
-    await admin.from("card_events").insert({ card_id: cardId, type: "attachment_open" });
-  } catch (error) {
-    console.error("[r] attachment_open", error);
-  }
-}
-
 export async function GET(
   request: Request,
   context: { params: Promise<{ publicToken: string; itemId: string }> },
@@ -81,8 +68,6 @@ export async function GET(
 
   const target = destination(item.data as ItemRow, attachmentReady);
   if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  await recordOpen(card.data.id as string, itemId);
 
   const location = target.startsWith("/") ? new URL(target, publicOrigin(request)) : target;
   return NextResponse.redirect(location, {

@@ -455,20 +455,8 @@ export async function consumePendingNotes(
   return finishDelivered(cardId, transferId, via);
 }
 
-async function logConsumed(cardId: string, via?: "share" | "qr"): Promise<void> {
-  try {
-    const event: { card_id: string; type: string; via?: string } = {
-      card_id: cardId,
-      type: "transfer_consumed",
-    };
-    if (via) event.via = via;
-    const { error: eventError } = await admin().from("card_events").insert(event);
-    if (eventError && via) {
-      await admin().from("card_events").insert({ card_id: cardId, type: "transfer_consumed" });
-    }
-  } catch {
-    // Visit already counted; delivery is what matters.
-  }
+async function logConsumed(_cardId: string, _via?: "share" | "qr"): Promise<void> {
+  // Delivery is the transfer row. The statistics row is not written.
 }
 
 async function finishDelivered(cardId: string, transferId: string, via?: "share" | "qr"): Promise<DeliveredNote[]> {

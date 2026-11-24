@@ -1,26 +1,26 @@
 "use client";
 
 import { useEffect } from "react";
-import { VIEWER_COOKIE, viewerId } from "@/shared/lib/viewer";
+import { VIEWER_COOKIE } from "@/shared/lib/viewer";
 
-const YEAR_SECONDS = 60 * 60 * 24 * 400;
+const FUNNEL_KEY = "aded-funnel";
+const OAUTH_MARK = "aded-google-pending";
 
-/** Keep the same anonymous id in localStorage when the cookie is already set. */
+/** Drop the old visit counter. Sign-in cookies, settings and drafts stay. */
 export function ViewerMirror() {
   useEffect(() => {
-    const fromCookie = viewerId(
-      document.cookie
-        .split("; ")
-        .find((part) => part.startsWith(`${VIEWER_COOKIE}=`))
-        ?.slice(VIEWER_COOKIE.length + 1),
-    );
-    if (fromCookie) {
-      localStorage.setItem(VIEWER_COOKIE, fromCookie);
-      return;
+    try {
+      localStorage.removeItem(VIEWER_COOKIE);
+    } catch {
+      // Storage can be closed. The cookie clear below still runs.
     }
-    const stored = viewerId(localStorage.getItem(VIEWER_COOKIE));
-    if (!stored) return;
-    document.cookie = `${VIEWER_COOKIE}=${stored}; path=/; max-age=${YEAR_SECONDS}; samesite=lax`;
+    try {
+      sessionStorage.removeItem(FUNNEL_KEY);
+      sessionStorage.removeItem(OAUTH_MARK);
+    } catch {
+      // A private tab may have nothing stored.
+    }
+    document.cookie = `${VIEWER_COOKIE}=; path=/; max-age=0; samesite=lax`;
   }, []);
   return null;
 }

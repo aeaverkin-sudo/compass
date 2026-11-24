@@ -2,9 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isPublicCardPath } from "@/shared/lib/public-card-path";
 import { storedSessionNeedsRefresh } from "@/shared/lib/supabase/access-token";
-import { VIEWER_COOKIE, VIEWER_HEADER, viewerId } from "@/shared/lib/viewer";
-
-const YEAR_SECONDS = 60 * 60 * 24 * 400;
+import { VIEWER_COOKIE } from "@/shared/lib/viewer";
 
 function isPublicCard(pathname: string) {
   return isPublicCardPath(pathname);
@@ -27,15 +25,9 @@ function leavesSessionAlone(pathname: string) {
   );
 }
 
-function viewerFor(request: NextRequest) {
-  if (!isPublicCard(request.nextUrl.pathname)) return { id: undefined as string | undefined, fresh: false };
-  const existing = viewerId(request.cookies.get(VIEWER_COOKIE)?.value);
-  return { id: existing ?? crypto.randomUUID(), fresh: !existing };
-}
-
-function forward(request: NextRequest, viewer: string | undefined) {
+function forward(request: NextRequest) {
   const headers = new Headers(request.headers);
-  if (viewer) headers.set(VIEWER_HEADER, viewer);
+  headers.delete("x-aded-viewer");
   const cookie = request.cookies
     .getAll()
     .map((entry) => `${entry.name}=${entry.value}`)
@@ -44,29 +36,44 @@ function forward(request: NextRequest, viewer: string | undefined) {
   return NextResponse.next({ request: { headers } });
 }
 
-function rememberViewer(response: NextResponse, request: NextRequest, viewer: string | undefined, fresh: boolean) {
-  if (!fresh || !viewer) return;
+function dropViewer(response: NextResponse, request: NextRequest) {
+  if (!request.cookies.get(VIEWER_COOKIE)) return;
   response.cookies.set({
     name: VIEWER_COOKIE,
-    value: viewer,
+    value: "",
     path: "/",
-    maxAge: YEAR_SECONDS,
+    maxAge: 0,
     sameSite: "lax",
-    secure: request.nextUrl.protocol === "https:",
   });
 }
 
+function closedEvent(request: NextRequest): NextResponse | null {
+  const path = request.nextUrl.pathname;
+  if (path === "/api/events" || path.startsWith("/api/events/")) {
+    return NextResponse.json({ error: "Not available" }, { status: 404, headers: { "Cache-Control": "no-store" } });
+  }
+  if (path === "/e" || path.startsWith("/e/")) {
+    return NextResponse.redirect(new URL("/network", request.url));
+  }
+  return null;
+}
+
 export async function proxy(request: NextRequest) {
+  const closed = closedEvent(request);
+  if (closed) {
+    dropViewer(closed, request);
+    return closed;
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const viewer = viewerFor(request);
   if (!url || !anonKey) {
-    const response = forward(request, viewer.id);
-    rememberViewer(response, request, viewer.id, viewer.fresh);
+    const response = forward(request);
+    dropViewer(response, request);
     return response;
   }
 
-  let supabaseResponse = forward(request, viewer.id);
+  let supabaseResponse = forward(request);
   const pathname = request.nextUrl.pathname;
   const h = request.headers;
   const isDocument = h.get("sec-fetch-dest") === "document" || (h.get("accept") ?? "").includes("text/html");
@@ -95,7 +102,7 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
-          supabaseResponse = forward(request, viewer.id);
+          supabaseResponse = forward(request);
           cookiesToSet.forEach(({ name, value, options }) => {
             supabaseResponse.cookies.set(name, value, options);
           });
@@ -109,7 +116,7 @@ export async function proxy(request: NextRequest) {
     await supabase.auth.getUser();
   }
 
-  rememberViewer(supabaseResponse, request, viewer.id, viewer.fresh);
+  dropViewer(supabaseResponse, request);
   return supabaseResponse;
 }
 
