@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective 24 November 2026 · Version 1.4
+Effective 24 November 2026 · Version 1.5
 
 ## 1. What we use and why
 
@@ -12,11 +12,11 @@ Effective 24 November 2026 · Version 1.4
 
 **Recognition.** When you use Scan, Voice or text recognition, we may send the photo, audio or text you submit to the OpenAI API to suggest entries. For Voice, audio is transcribed and the transcript may be sent to a separate model to identify contact fields. You can review the result before saving.
 
-**Technical records and support.** We use limited records to run the service, protect accounts, prevent abuse, deliver requested features and investigate faults. If you contact Support, we use your message and attachments to handle the request. This version does not collect product analytics or count visits, opens or shares for statistics. Records needed to complete actions you request, such as delivering a card or checking sign-in, are used for those purposes.
+**Technical records and support.** We use limited records to run the service, protect accounts, prevent abuse, deliver requested features and investigate faults. If you contact Support, we use your message and attachments to handle the request. We use daily totals of completed registrations, saved contacts, and how portfolios are shared and opened to understand and improve ADED ME. Some totals are linked to an account or portfolio for internal product analysis. These statistics do not identify portfolio visitors. We do not use analytics cookies or store visitor identifiers, IP addresses, or contact details in these statistics. The statistics are for internal use. We do not sell them, share them with others for their own purposes, or use them for advertising. Records needed to complete actions you request, such as delivering a card or checking sign-in, are used for those purposes.
 
 ## 2. Legal bases
 
-Where the GDPR applies, we use account and portfolio information to provide the service you request. We rely on legitimate interests where appropriate to operate and secure the service and respond to support requests. We use data when necessary to comply with legal obligations. Where we rely on consent, we explain the purpose and ask separately. You can withdraw consent at any time.
+Where the GDPR applies, we use account and portfolio information to provide the service you request. We rely on legitimate interests where appropriate to operate and secure the service, respond to support requests, and keep daily product totals that are linked to an account or portfolio. Daily totals that are not linked to a person do not identify a visitor. We use data when necessary to comply with legal obligations. Where we rely on consent, we explain the purpose and ask separately. You can withdraw consent at any time. The daily product totals do not rely on consent.
 
 ## 3. Who receives information
 
@@ -46,7 +46,7 @@ We use browser storage to support requested features such as signing in, remembe
 
 We keep your portfolio for as long as you choose to keep it in your account. You can delete a portfolio, remove a saved contact or request account deletion. Copies saved by other people may remain with them.
 
-We keep support and technical records for as long as needed to handle the request, resolve a fault, prevent abuse or meet a legal obligation. Provider copies, including backups, service emails and material submitted for recognition, are subject to the applicable provider retention rules. We may keep limited records for longer where needed to meet a legal obligation, resolve a dispute or protect the service.
+We keep support and technical records for as long as needed to handle the request, resolve a fault, prevent abuse or meet a legal obligation. We keep the daily product totals for 90 days and then delete them. Your account, portfolios and saved contacts stay until you delete them. Provider copies, including backups, service emails and material submitted for recognition, are subject to the applicable provider retention rules. We may keep limited records for longer where needed to meet a legal obligation, resolve a dispute or protect the service.
 
 ## 7. Security and incidents
 
@@ -58,7 +58,7 @@ We take steps to contain and investigate security incidents and notify affected 
 
 In Account, you can download the data available through the export tool or request account deletion. For other privacy requests, email support@adedme.com. We may ask for enough information to verify the request.
 
-Where the law provides these rights, you may access, correct or delete personal data, receive a copy, restrict or object to its use, or withdraw consent. You can complain to your local data protection authority, including Portugal’s CNPD.
+Where the law provides these rights, you may access, correct or delete personal data, receive a copy, restrict or object to its use, or withdraw consent. You can object to daily product totals linked to your account, and we will delete those totals. Totals that are not linked to a person cannot be matched to a visitor. You can complain to your local data protection authority, including Portugal’s CNPD.
 
 ## 9. Updates
 
