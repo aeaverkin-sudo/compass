@@ -97,6 +97,8 @@ export interface Card {
    * A new portfolio is created private (`false`): the column default is true.
    */
   listed?: boolean;
+  /** Guest visibility from `cards.is_public`. Absent until that row is read. Not `listed`. */
+  isPublic?: boolean;
   /**
    * When true, people who saved this card can search its visible fields.
    * Absent means on, matching the column default.

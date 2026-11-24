@@ -8,7 +8,7 @@ import type { PushbackDeps } from "./pushback-request.ts";
 
 register(new URL("./voice-reading.alias-hook.mjs", import.meta.url), pathToFileURL("./"));
 
-const { portfolioBody, pushCardIsServed } = await import("./pushback.ts");
+const { emailDraft, portfolioBody, portfolioText, pushCardIsServed } = await import("./pushback.ts");
 const { handlePushback, UPDATE_APP } = await import("./pushback-request.ts");
 
 const OWNER = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -18,7 +18,14 @@ const CARD = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 const PRIVATE = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const PORTFOLIO_URL = "https://example.com/c/tokenpublictoken1234";
 
-const lines: ExternalLine[] = [{ type: "email", value: "ada@example.com" }];
+const lines: ExternalLine[] = [
+  { type: "email", value: "ada@example.com" },
+  { type: "phone", value: "+44 7700 900222" },
+  { type: "phone", value: "+44 7700 900111", flags: ["wa"] },
+  { type: "telegram", value: "@sample_contact" },
+  { type: "phone", value: "+44 7700 900333", flags: ["tg"] },
+];
+const STORED_NAME = "Ada Lovelace";
 
 function deps(): PushbackDeps & { reads: number } {
   const state = { reads: 0 };
@@ -35,12 +42,12 @@ function deps(): PushbackDeps & { reads: number } {
     portfolio: async (_ownerId, cardId) => {
       const row =
         cardId === CARD
-          ? { is_public: true, status: "published", display_name: "Ada Lovelace", public_token: "tokenpublictoken1234" }
+          ? { is_public: true, status: "published", display_name: STORED_NAME, public_token: "tokenpublictoken1234" }
           : cardId === PRIVATE
-            ? { is_public: false, status: "published", display_name: "Ada Lovelace", public_token: "tokenpublictoken1234" }
+            ? { is_public: false, status: "published", display_name: STORED_NAME, public_token: "tokenpublictoken1234" }
             : null;
       if (!row || !pushCardIsServed(row)) return { ok: false, status: 404, error: "Portfolio not found." };
-      return { ok: true, url: PORTFOLIO_URL };
+      return { ok: true, url: PORTFOLIO_URL, name: STORED_NAME };
     },
   };
 }
@@ -92,14 +99,48 @@ test("the draft route refuses an old request, prepares a mailto, and rejects a f
     assert.equal(prepared.status, 200);
     assert.equal(prepared.headers.get("cache-control"), "no-store");
     const draft = (await prepared.json()) as { mailto?: string; text?: string; channel?: string };
+    const plain = emailDraft(PORTFOLIO_URL, STORED_NAME, null);
     assert.equal(draft.channel, "email");
+    assert.equal(draft.text, plain.text);
     assert.equal(draft.text, portfolioBody(PORTFOLIO_URL));
     assert.equal(draft.mailto?.startsWith("mailto:ada@example.com?"), true);
     assert.equal(draft.mailto?.includes("evil.example"), false);
     assert.equal(draft.mailto?.includes("other@example.com"), false);
     assert.equal(draft.mailto?.includes("Ada"), false);
     const params = new URLSearchParams(draft.mailto?.slice(draft.mailto.indexOf("?") + 1));
+    assert.equal(params.get("subject"), plain.subject);
     assert.equal(params.get("body")?.replace(/\r\n/g, "\n"), draft.text);
+
+    const named = await post(CONTACT, { cardId: CARD, channel: "email", prepare: true, name: STORED_NAME });
+    const namedDraft = (await named.json()) as { mailto?: string; text?: string };
+    const namedMail = emailDraft(PORTFOLIO_URL, STORED_NAME, STORED_NAME);
+    assert.equal(named.status, 200);
+    assert.equal(namedDraft.text, namedMail.text);
+    assert.equal(namedDraft.text, `Hi, I\u2019m ${STORED_NAME}. Here\u2019s my portfolio:\n${PORTFOLIO_URL}`);
+    const namedParams = new URLSearchParams(namedDraft.mailto?.slice((namedDraft.mailto ?? "").indexOf("?") + 1));
+    assert.equal(namedParams.get("subject"), "Ada Lovelace \u2014 portfolio");
+    assert.equal(namedParams.get("body")?.replace(/\r\n/g, "\n"), namedDraft.text);
+
+    const changed = await post(CONTACT, { cardId: CARD, channel: "email", prepare: true, name: "Ada" });
+    const changedDraft = (await changed.json()) as { text?: string; mailto?: string };
+    assert.equal(changed.status, 200);
+    assert.equal(changedDraft.text, plain.text);
+    assert.equal(changedDraft.mailto?.includes("Ada"), false);
+
+    const whatsapp = await post(CONTACT, { cardId: CARD, channel: "whatsapp", prepare: true, name: "Wrong" });
+    const whatsappDraft = (await whatsapp.json()) as { open?: string };
+    const whatsappUrl = new URL(whatsappDraft.open ?? "");
+    assert.equal(whatsappUrl.origin, "https://wa.me");
+    assert.equal(whatsappUrl.pathname, "/447700900111");
+    assert.equal(whatsappUrl.searchParams.get("text"), portfolioText(STORED_NAME, PORTFOLIO_URL));
+    assert.equal(whatsappUrl.searchParams.get("text")?.includes("My portfolio"), false);
+
+    const telegram = await post(CONTACT, { cardId: CARD, channel: "telegram", prepare: true });
+    const telegramDraft = (await telegram.json()) as { open?: string };
+    const telegramUrl = new URL(telegramDraft.open ?? "");
+    assert.equal(telegramUrl.origin, "https://t.me");
+    assert.equal(telegramUrl.pathname, "/sample_contact");
+    assert.equal(telegramUrl.searchParams.get("text"), portfolioText(STORED_NAME, PORTFOLIO_URL));
 
     const foreign = await post(OTHER, { cardId: CARD, channel: "email", prepare: true });
     assert.equal(foreign.status, 404);

@@ -6,21 +6,20 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { useAppStore } from "@/shared/store/app-store";
-import { draftStillCurrent, pushTargets } from "@/features/contact-collect/pushback";
+import { draftStillCurrent, pushTargets, swapCardOffered, visibleDraft, type DraftChoice } from "@/features/contact-collect/pushback";
 import type { ExternalContact, PushbackChannel } from "@/features/contact-collect/types";
 
 const SECTION = "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]";
 const OK =
   "press mt-[18px] block w-full border-0 bg-sky px-6 py-3 text-center t-caps text-[var(--ink)] no-underline shadow-none disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 
-type Draft = { mailto?: string; open?: string; text?: string };
+type Draft = DraftChoice & { mailto?: string; open?: string; text?: string };
 
 function useSwapPortfolios() {
   const cards = useAppStore((state) => state.cards);
   return cards.flatMap((card) => {
-    const name = card.displayName.trim();
-    if (!name || card.status === "archived" || card.status === "suspended") return [];
-    return [{ id: card.id, name, photo: cardPhotoSrc(card) }];
+    if (!swapCardOffered(card)) return [];
+    return [{ id: card.id, name: card.displayName.trim(), photo: cardPhotoSrc(card) }];
   });
 }
 
@@ -30,13 +29,33 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const targets = pushTargets(contact.lines);
   const [cardId, setCardId] = useState<string | null>(null);
   const [channel, setChannel] = useState<PushbackChannel | null>(null);
+  const [confirmedFor, setConfirmedFor] = useState<{ cardId: string; name: string } | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
-  const selection = useRef({ contactId: contact.id, cardId: "", channel: "" });
-  selection.current = { contactId: contact.id, cardId: cardId ?? "", channel: channel ?? "" };
+  const selected = cards.find((card) => card.id === cardId) ?? null;
+  const seenName = selected?.name ?? "";
+  const confirmedName = confirmedFor && confirmedFor.cardId === cardId && confirmedFor.name === seenName ? seenName : "";
+  const current: DraftChoice = {
+    contactId: contact.id,
+    cardId: cardId ?? "",
+    channel: channel ?? "",
+    name: confirmedName,
+  };
+  const selectionKey = `${current.contactId}\n${current.cardId}\n${current.channel}\n${current.name}`;
+  const [shownKey, setShownKey] = useState(selectionKey);
+  if (shownKey !== selectionKey) {
+    setShownKey(selectionKey);
+    setDraft(null);
+    setError(null);
+    setCopyError(null);
+    setWaiting(Boolean(current.cardId && current.channel));
+  }
+  const selection = useRef(current);
+  selection.current = current;
+  const live = visibleDraft(draft, current);
 
   const leave = () => {
     if (fresh) {
@@ -52,7 +71,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
       setWaiting(false);
       return;
     }
-    const started = { contactId: contact.id, cardId, channel };
+    const started: DraftChoice = { contactId: contact.id, cardId, channel, name: confirmedName };
     let cancel = false;
     setDraft(null);
     setWaiting(true);
@@ -64,9 +83,14 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
           method: "POST",
           headers: { "Content-Type": "application/json" },
           cache: "no-store",
-          body: JSON.stringify({ cardId, channel, prepare: true }),
+          body: JSON.stringify({
+            cardId,
+            channel,
+            prepare: true,
+            ...(channel === "email" && confirmedName ? { name: confirmedName } : {}),
+          }),
         });
-        const body = (await response.json().catch(() => null)) as (Draft & { error?: string }) | null;
+        const body = (await response.json().catch(() => null)) as { mailto?: string; open?: string; text?: string; error?: string } | null;
         if (cancel || !draftStillCurrent(started, selection.current)) return;
         const mailto = body?.mailto;
         const open = body?.open;
@@ -76,7 +100,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
           setError(channel === "email" ? "Could not prepare the email draft" : body?.error || "Could not prepare the draft.");
           return;
         }
-        setDraft({ mailto, open, text: body?.text });
+        setDraft({ ...started, mailto, open, text: body?.text });
         setWaiting(false);
       } catch {
         if (cancel || !draftStillCurrent(started, selection.current)) return;
@@ -88,16 +112,16 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     return () => {
       cancel = true;
     };
-  }, [cardId, channel, contact.id, retry]);
+  }, [cardId, channel, confirmedName, contact.id, retry]);
 
   const partial = Boolean(cardId) !== Boolean(channel);
-  const mailHref = channel === "email" ? draft?.mailto : undefined;
-  const openHref = channel && channel !== "email" ? draft?.open : undefined;
+  const mailHref = live?.channel === "email" ? live.mailto : undefined;
+  const openHref = live && live.channel !== "email" ? live.open : undefined;
 
   const copy = async () => {
-    if (!draft?.text) return;
+    if (!live?.text) return;
     try {
-      await navigator.clipboard.writeText(draft.text);
+      await navigator.clipboard.writeText(live.text);
       setCopyError(null);
     } catch {
       setCopyError("Could not copy the message.");
@@ -118,24 +142,35 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
             {cards.map((card) => {
               const on = card.id === cardId;
               return (
-                <button
-                  key={card.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => {
-                    setError(null);
-                    setCardId(on ? null : card.id);
-                  }}
-                  className={`press flex w-full min-w-0 items-center gap-3 border-0 px-2 py-2 text-left [-webkit-tap-highlight-color:transparent] ${on ? "bg-sky" : "bg-transparent"}`}
-                >
-                  {card.photo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={card.photo} alt="" className="size-12 shrink-0 object-cover" />
-                  ) : (
-                    <span className="size-12 shrink-0 bg-[#d9d9d9]" aria-hidden />
-                  )}
-                  <span className="min-w-0 truncate t-body">{card.name}</span>
-                </button>
+                <div key={card.id} className="min-w-0">
+                  <button
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => {
+                      setError(null);
+                      setCardId(on ? null : card.id);
+                    }}
+                    className={`press flex w-full min-w-0 items-center gap-3 border-0 px-2 py-2 text-left [-webkit-tap-highlight-color:transparent] ${on ? "bg-sky" : "bg-transparent"}`}
+                  >
+                    {card.photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={card.photo} alt="" className="size-12 shrink-0 object-cover" />
+                    ) : (
+                      <span className="size-12 shrink-0 bg-[#d9d9d9]" aria-hidden />
+                    )}
+                    <span className="min-w-0 truncate t-body">{card.name}</span>
+                  </button>
+                  {on && channel === "email" ? (
+                    <button
+                      type="button"
+                      aria-pressed={confirmedName === card.name}
+                      onClick={() => setConfirmedFor(confirmedName === card.name ? null : { cardId: card.id, name: card.name })}
+                      className="press mt-1 border-0 bg-transparent px-2 py-1 t-meta text-[var(--ink)] underline [-webkit-tap-highlight-color:transparent]"
+                    >
+                      Use this name
+                    </button>
+                  ) : null}
+                </div>
               );
             })}
           </div>
@@ -169,7 +204,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
         </section>
         {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
         {copyError ? <p className="mt-3 t-meta text-[#E23B2F]">{copyError}</p> : null}
-        {mailHref && draft?.text ? (
+        {mailHref && live?.text ? (
           <>
             <a href={mailHref} className={OK}>
               Open email draft

@@ -9,6 +9,7 @@ register(new URL("./voice-reading.alias-hook.mjs", import.meta.url), pathToFileU
 
 const {
   draftStillCurrent,
+  emailDraft,
   mailtoHref,
   portfolioBody,
   portfolioText,
@@ -16,7 +17,9 @@ const {
   pushAddress,
   pushCardIsServed,
   pushTargets,
+  swapCardOffered,
   telegramLink,
+  visibleDraft,
 } = await import("./pushback.ts");
 
 const phone: ExternalLine = { type: "phone", value: "+44 7700 900123" };
@@ -87,12 +90,50 @@ test("the email draft is one encoded mailto and does not use an unconfirmed name
   assert.equal(mailtoHref("ada@example.com?bcc=bee@example.com", PORTFOLIO_SUBJECT, text), null);
 });
 
-test("a late draft cannot replace a newer selection", () => {
-  const started = { contactId: "contact", cardId: "card-a", channel: "email" };
-  assert.equal(draftStillCurrent(started, { ...started }), true);
-  assert.equal(draftStillCurrent(started, { ...started, cardId: "card-b" }), false);
-  assert.equal(draftStillCurrent(started, { ...started, channel: "whatsapp" }), false);
-  assert.equal(draftStillCurrent(started, null), false);
+test("a ready draft leaves the screen when the selection changes, and a late reply cannot replace it", () => {
+  const ready = {
+    contactId: "contact",
+    cardId: "card-a",
+    channel: "email",
+    name: "",
+    mailto: "mailto:ada@example.com?subject=My%20portfolio",
+    text: "Here's my portfolio:\nhttps://example.com/c/token",
+  };
+  assert.equal(visibleDraft(ready, ready)?.mailto, ready.mailto);
+  assert.equal(visibleDraft(ready, { ...ready, cardId: "card-b" }), null);
+  assert.equal(visibleDraft(ready, { ...ready, channel: "whatsapp" }), null);
+  assert.equal(visibleDraft(ready, { ...ready, contactId: "other" }), null);
+  assert.equal(visibleDraft(ready, { ...ready, name: "Ada" }), null);
+  assert.equal(draftStillCurrent(ready, { ...ready, cardId: "card-b" }), false);
+  assert.equal(draftStillCurrent(ready, null), false);
+});
+
+test("email uses the confirmed server name, and a changed name stays neutral", () => {
+  const url = "https://example.com/c/token";
+  const named = emailDraft(url, "Ada Lovelace", "Ada Lovelace");
+  const plain = emailDraft(url, "Ada Lovelace", "Ada");
+  const untouched = emailDraft(url, "Ada Lovelace", null);
+  assert.equal(named.subject, "Ada Lovelace \u2014 portfolio");
+  assert.equal(named.text, "Hi, I\u2019m Ada Lovelace. Here\u2019s my portfolio:\nhttps://example.com/c/token");
+  assert.equal(plain.subject, PORTFOLIO_SUBJECT);
+  assert.equal(plain.text, portfolioBody(url));
+  assert.equal(plain.text.includes("Ada"), false);
+  assert.equal(untouched.text, plain.text);
+  for (const mail of [named, plain]) {
+    const href = mailtoHref("ada@example.com", mail.subject, mail.text);
+    assert.ok(href);
+    const params = new URLSearchParams(href.slice(href.indexOf("?") + 1));
+    assert.equal(params.get("subject"), mail.subject);
+    assert.equal(params.get("body")?.replace(/\r\n/g, "\n"), mail.text);
+  }
+});
+
+test("a private card is not offered, and listed is not the check", () => {
+  assert.equal(swapCardOffered({ displayName: "Ada", status: "published", isPublic: true }), true);
+  assert.equal(swapCardOffered({ displayName: "Ada", status: "published", isPublic: false }), false);
+  assert.equal(swapCardOffered({ displayName: "Ada", status: "archived", isPublic: true }), false);
+  assert.equal(swapCardOffered({ displayName: "Ada", status: "suspended", isPublic: true }), false);
+  assert.equal(swapCardOffered({ displayName: "Ada", status: "published" }), true);
 });
 
 test("a private or archived portfolio is not offered, and listed is not enough", () => {
@@ -122,7 +163,10 @@ test("the route prepares a draft and does not send mail or mark a send", () => {
   assert.match(store, /pushCardIsServed/);
   assert.match(screen, /<a href=\{mailHref\}/);
   assert.match(screen, /Copy message/);
+  assert.match(screen, /Use this name/);
+  assert.match(screen, /visibleDraft/);
   assert.match(screen, /draftStillCurrent/);
+  assert.match(route, /name: portfolio\.name/);
   assert.equal(screen.includes("Already sent"), false);
   assert.equal(screen.includes("window.open"), false);
   assert.equal(screen.includes("preventDefault"), false);

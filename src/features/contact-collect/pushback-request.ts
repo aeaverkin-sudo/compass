@@ -1,7 +1,7 @@
 import {
+  emailDraft,
   mailtoHref,
-  portfolioBody,
-  PORTFOLIO_SUBJECT,
+  portfolioText,
   pushAddress,
   telegramLink,
   whatsappLink,
@@ -18,7 +18,9 @@ export type PushbackContact =
   | { ok: true; lines: ExternalLine[] }
   | { ok: false; status: number; error: string; available?: false };
 
-export type PushbackPortfolio = { ok: true; url: string } | { ok: false; status: number; error: string };
+export type PushbackPortfolio =
+  | { ok: true; url: string; name: string }
+  | { ok: false; status: number; error: string };
 
 export type PushbackDeps = {
   owner: () => Promise<PushbackOwner>;
@@ -47,11 +49,13 @@ export async function handlePushback(request: Request, id: string, deps: Pushbac
   let cardId = "";
   let channel: PushbackChannel | null = null;
   let prepare = false;
+  let seenName: string | null = null;
   try {
-    const body = (await request.json()) as { cardId?: unknown; channel?: unknown; prepare?: unknown };
+    const body = (await request.json()) as { cardId?: unknown; channel?: unknown; prepare?: unknown; name?: unknown };
     cardId = typeof body.cardId === "string" ? body.cardId : "";
     channel = channelOf(body.channel);
     prepare = body.prepare === true;
+    seenName = typeof body.name === "string" ? body.name : null;
   } catch {
     prepare = false;
   }
@@ -72,12 +76,13 @@ export async function handlePushback(request: Request, id: string, deps: Pushbac
     const portfolio = await deps.portfolio(owner.id, cardId);
     if (!portfolio.ok) return noStore({ error: portfolio.error }, portfolio.status);
 
-    const text = portfolioBody(portfolio.url);
     if (channel === "email") {
-      const mailto = mailtoHref(address, PORTFOLIO_SUBJECT, text);
+      const mail = emailDraft(portfolio.url, portfolio.name, seenName);
+      const mailto = mailtoHref(address, mail.subject, mail.text);
       if (!mailto) return noStore({ error: "No address for that." }, 400);
-      return noStore({ ok: true, channel, mailto, text });
+      return noStore({ ok: true, channel, mailto, text: mail.text });
     }
+    const text = portfolioText(portfolio.name, portfolio.url);
     if (channel === "whatsapp") return noStore({ ok: true, channel, open: whatsappLink(address, text) });
     if (channel === "telegram") return noStore({ ok: true, channel, open: telegramLink(address, text) });
     return noStore({ error: "Choose a portfolio and where to send it." }, 400);

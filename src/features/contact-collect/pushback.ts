@@ -99,6 +99,36 @@ export function portfolioBody(url: string) {
 }
 
 /**
+ * Email only. The name is the server's display name, and only when it is exactly
+ * the name the owner just confirmed. Any other seen name stays the neutral draft.
+ */
+export function emailDraft(url: string, storedName: string, seenName: string | null): { subject: string; text: string } {
+  const stored = storedName.trim();
+  const seen = seenName?.trim() ?? "";
+  if (stored && seen === stored) {
+    return {
+      subject: `${stored} \u2014 portfolio`,
+      text: `Hi, I\u2019m ${stored}. Here\u2019s my portfolio:\n${url}`,
+    };
+  }
+  return { subject: PORTFOLIO_SUBJECT, text: portfolioBody(url) };
+}
+
+/** A private card is not offered. `listed` does not decide this. */
+export function swapCardOffered(card: { displayName: string; status: string; isPublic?: boolean }): boolean {
+  if (card.isPublic === false) return false;
+  if (card.status === "archived" || card.status === "suspended") return false;
+  return Boolean(card.displayName.trim());
+}
+
+export type DraftChoice = {
+  contactId: string;
+  cardId: string;
+  channel: string;
+  name: string;
+};
+
+/**
  * One recipient, subject, and body. The address keeps its @. Header fields are encoded on their own.
  * A comma, a second header, or a control character is rejected.
  */
@@ -118,17 +148,21 @@ export function mailtoHref(address: string, subject: string, body: string): stri
   return `mailto:${to}?subject=${encodeURIComponent(safeSubject)}&body=${encodedBody}`;
 }
 
-/** A prepared draft belongs only to the selection that asked for it. */
-export function draftStillCurrent(
-  started: { contactId: string; cardId: string; channel: string },
-  current: { contactId: string; cardId: string; channel: string } | null,
-): boolean {
+/** A prepared draft belongs only to the selection that asked for it, including the confirmed name. */
+export function draftStillCurrent(started: DraftChoice, current: DraftChoice | null): boolean {
   if (!current) return false;
   return (
     started.contactId === current.contactId &&
     started.cardId === current.cardId &&
-    started.channel === current.channel
+    started.channel === current.channel &&
+    started.name === current.name
   );
+}
+
+/** Hide a draft that was already on screen as soon as the selection changes. */
+export function visibleDraft<T extends DraftChoice>(draft: T | null, current: DraftChoice): T | null {
+  if (!draft || !draftStillCurrent(draft, current)) return null;
+  return draft;
 }
 
 export function whatsappLink(digits: string, text: string) {

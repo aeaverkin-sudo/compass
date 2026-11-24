@@ -24,7 +24,7 @@ export async function POST(request: Request, context: RouteProps) {
       const portfolio = await readOwnedPortfolio(ownerId, cardId);
       if (!portfolio.ok) return portfolio;
       const url = `${origin}${publicCardPath({ publicToken: portfolio.publicToken, handle: portfolio.handle ?? undefined })}`;
-      return { ok: true, url };
+      return { ok: true, url, name: portfolio.name };
     },
   });
 }

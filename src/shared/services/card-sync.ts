@@ -116,6 +116,7 @@ function overlayScalars(local: Card, row: CardRow): Card {
     photoAttachmentId: remotePhotoId ?? local.photoAttachmentId,
     photo: remotePhotoId ? undefined : local.photo,
     listed: row.listed ?? local.listed,
+    isPublic: row.is_public,
     searchable: row.searchable ?? local.searchable ?? true,
     rubricOrder: keptField(
       local.updatedAt > row.updated_at,
@@ -154,6 +155,7 @@ function shellFromRow(row: CardRow): Card {
     qrVersion: row.qr_version,
     photoAttachmentId: row.photo_attachment_id ?? undefined,
     listed: row.listed ?? undefined,
+    isPublic: row.is_public,
     searchable: row.searchable ?? true,
     rubricOrder: normalizeRubricOrder(row.rubric_order),
     rubricLabels: normalizeRubricLabels(row.rubric_labels),
@@ -224,6 +226,7 @@ function scalarsEqual(a: Card, b: Card) {
     a.photoAttachmentId === b.photoAttachmentId &&
     a.photo === b.photo &&
     a.listed === b.listed &&
+    a.isPublic === b.isPublic &&
     (a.searchable !== false) === (b.searchable !== false) &&
     sameRubricOrder(a.rubricOrder, b.rubricOrder) &&
     sameRecord(a.rubricLabels, b.rubricLabels) &&
