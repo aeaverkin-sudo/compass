@@ -56,4 +56,8 @@ test("welcome is delivered once, and the mark is not written before acceptance",
   assert.ok(source.indexOf("sendHtmlMail") > 0);
   assert.match(once, /WELCOME_KEY_MS = 24 \* 60 \* 60 \* 1000/);
   assert.ok(once.indexOf("input.send") < once.indexOf("WELCOME_MAIL_AT]: new Date"));
+  assert.match(source, /welcomeVariant/);
+  assert.match(source, /appMetadataPatch/);
+  const firstPortfolio = readFileSync(new URL("../../app/api/portfolio/first/route.ts", import.meta.url), "utf8");
+  assert.equal(firstPortfolio.includes("sendWelcomeMail"), false);
 });

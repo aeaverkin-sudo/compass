@@ -1,6 +1,12 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { welcomeMail, type WelcomeAccess } from "@/shared/mail/welcome-mail";
-import { deliverWelcome, welcomeIdempotencyKey, type WelcomePost } from "@/shared/mail/welcome-once";
+import {
+  appMetadataPatch,
+  classifyWelcomeFailure,
+  deliverWelcome,
+  welcomeIdempotencyKey,
+  welcomeVariant,
+} from "@/shared/mail/welcome-once";
 import { MailPostError, mailConfigured, sendHtmlMail } from "@/shared/services/mail";
 
 const WELCOME_SENT = "welcome_mail_at";
@@ -28,16 +34,18 @@ export async function sendWelcomeMail(
   const existing = (await admin.auth.admin.getUserById(userId)).data.user;
   const to = existing?.email?.trim().toLowerCase() ?? "";
   if (!existing || !to) return false;
+  const variant = welcomeVariant(existing.app_metadata ?? {}, portfolio);
   const site = siteOrigin(origin);
   const mail = welcomeMail({
     logoSrc: `${site}/brand/aded-grid-mail.png`,
     access,
-    portfolio,
+    portfolio: variant,
     siteLabel: site.replace(/^https?:\/\//, ""),
   });
   const step = await deliverWelcome({
     now: Date.now(),
     key,
+    claim: { welcome_claim_portfolio: variant ? "1" : "0" },
     read: async () => {
       const user = (await admin.auth.admin.getUserById(userId)).data.user;
       const email = user?.email?.trim().toLowerCase() ?? "";
@@ -50,7 +58,9 @@ export async function sendWelcomeMail(
       const current = { ...(user.app_metadata ?? {}) };
       const next = recipe(current);
       if (next[WELCOME_SENT] && current[WELCOME_SENT]) return true;
-      const marked = await admin.auth.admin.updateUserById(userId, { app_metadata: next });
+      const patch = appMetadataPatch(current, next);
+      if (!patch) return true;
+      const marked = await admin.auth.admin.updateUserById(userId, { app_metadata: patch });
       if (marked.error) {
         console.error("[mail] welcome mark");
         return false;
@@ -63,15 +73,11 @@ export async function sendWelcomeMail(
           { to, subject: mail.subject, html: mail.html, text: mail.text },
           idempotencyKey,
         );
-        return id ? { accepted: true, id } : { accepted: false, inFlight: false };
+        return id ? { accepted: true, id } : { accepted: false, inFlight: false, unknown: true };
       } catch (error) {
         const code = error instanceof MailPostError ? error.code : "";
         console.error("[mail] welcome", code || "send failed");
-        const post: WelcomePost =
-          code === "concurrent_idempotent_requests"
-            ? { accepted: false, inFlight: true }
-            : { accepted: false, inFlight: false };
-        return post;
+        return classifyWelcomeFailure(code);
       }
     },
   });
