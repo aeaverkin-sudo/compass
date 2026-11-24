@@ -3,7 +3,7 @@ import path from "node:path";
 import type { Metadata } from "next";
 import { LegalScreen } from "./legal-screen";
 
-export const metadata: Metadata = { title: "Legal — ADED" };
+export const metadata: Metadata = { title: "Legal — ADED", robots: { index: false } };
 
 export default function LegalPage() {
   const terms = readFileSync(path.join(process.cwd(), "legal/terms-and-conditions.md"), "utf8");

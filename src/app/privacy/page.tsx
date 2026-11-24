@@ -7,7 +7,7 @@ import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { PRIVACY_VERSION } from "@/shared/services/consent";
 import { SCREEN_TOP_AXIS_PX } from "@main/layout";
 
-export const metadata: Metadata = { title: "Privacy — ADED" };
+export const metadata: Metadata = { title: "Privacy — ADED", robots: { index: false } };
 
 export default function PrivacyPage() {
   const source = readFileSync(path.join(process.cwd(), "legal/privacy-policy.md"), "utf8");
