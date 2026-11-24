@@ -18,6 +18,15 @@ async function send(to: string, subject: string, text: string) {
   if (error) throw new Error(error.message);
 }
 
+export class MailPostError extends Error {
+  readonly code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = "MailPostError";
+    this.code = code;
+  }
+}
+
 export type HtmlMail = {
   to: string;
   subject: string;
@@ -41,12 +50,12 @@ function payload(mail: HtmlMail) {
   };
 }
 
-/** One laid-out mail. Returns the Resend id. */
-export async function sendHtmlMail(mail: HtmlMail): Promise<string | null> {
+/** One laid-out mail. `idempotencyKey` makes Resend return the first result for 24 hours. */
+export async function sendHtmlMail(mail: HtmlMail, idempotencyKey?: string): Promise<string | null> {
   if (!mailConfigured()) throw new Error("mail_not_configured");
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { data, error } = await resend.emails.send(payload(mail));
-  if (error) throw new Error(error.message);
+  const { data, error } = await resend.emails.send(payload(mail), idempotencyKey ? { idempotencyKey } : {});
+  if (error) throw new MailPostError(error.message, error.name);
   return data?.id ?? null;
 }
 

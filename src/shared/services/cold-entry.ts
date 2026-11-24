@@ -1,6 +1,7 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { mailConfigured, sendHtmlMail } from "@/shared/services/mail";
 import { welcomeMail, type WelcomeAccess } from "@/shared/mail/welcome-mail";
+import { deliverWelcome, welcomeIdempotencyKey, type WelcomePost } from "@/shared/mail/welcome-once";
+import { MailPostError, mailConfigured, sendHtmlMail } from "@/shared/services/mail";
 
 const WELCOME_SENT = "welcome_mail_at";
 
@@ -10,8 +11,8 @@ function siteOrigin(origin: string): string {
 }
 
 /**
- * Once per account. `portfolio` is true only when that account's portfolio was saved.
- * A later card, a second sign-in, or a repeated callback does not send another letter.
+ * Once per account, across app instances. The mark is written only after Resend
+ * has accepted the letter. A lost mark is retried with the same idempotency key.
  * The password is not an argument and is not mailed.
  */
 export async function sendWelcomeMail(
@@ -21,19 +22,12 @@ export async function sendWelcomeMail(
   portfolio: boolean,
 ): Promise<boolean> {
   if (!mailConfigured()) return false;
+  const key = welcomeIdempotencyKey(userId);
+  if (!key) return false;
   const admin = createAdminSupabaseClient();
-  const user = (await admin.auth.admin.getUserById(userId)).data.user;
-  const email = user?.email?.trim().toLowerCase();
-  if (!user || !email || user.app_metadata?.[WELCOME_SENT]) return false;
-
-  const marked = await admin.auth.admin.updateUserById(userId, {
-    app_metadata: { ...user.app_metadata, [WELCOME_SENT]: new Date().toISOString() },
-  });
-  if (marked.error) {
-    console.error("[mail] welcome mark", marked.error.message);
-    return false;
-  }
-
+  const existing = (await admin.auth.admin.getUserById(userId)).data.user;
+  const to = existing?.email?.trim().toLowerCase() ?? "";
+  if (!existing || !to) return false;
   const site = siteOrigin(origin);
   const mail = welcomeMail({
     logoSrc: `${site}/brand/aded-grid-mail.png`,
@@ -41,13 +35,45 @@ export async function sendWelcomeMail(
     portfolio,
     siteLabel: site.replace(/^https?:\/\//, ""),
   });
-  try {
-    await sendHtmlMail({ to: email, subject: mail.subject, html: mail.html, text: mail.text });
-  } catch (error) {
-    console.error("[mail] welcome", error instanceof Error ? error.message : "send failed");
-    const { [WELCOME_SENT]: _sent, ...rest } = user.app_metadata ?? {};
-    await admin.auth.admin.updateUserById(userId, { app_metadata: rest }).catch(() => undefined);
-    return false;
-  }
-  return true;
+  const step = await deliverWelcome({
+    now: Date.now(),
+    key,
+    read: async () => {
+      const user = (await admin.auth.admin.getUserById(userId)).data.user;
+      const email = user?.email?.trim().toLowerCase() ?? "";
+      if (!user || !email) return null;
+      return { email, metadata: { ...(user.app_metadata ?? {}) } };
+    },
+    write: async (recipe) => {
+      const user = (await admin.auth.admin.getUserById(userId)).data.user;
+      if (!user) return false;
+      const current = { ...(user.app_metadata ?? {}) };
+      const next = recipe(current);
+      if (next[WELCOME_SENT] && current[WELCOME_SENT]) return true;
+      const marked = await admin.auth.admin.updateUserById(userId, { app_metadata: next });
+      if (marked.error) {
+        console.error("[mail] welcome mark");
+        return false;
+      }
+      return true;
+    },
+    send: async (idempotencyKey) => {
+      try {
+        const id = await sendHtmlMail(
+          { to, subject: mail.subject, html: mail.html, text: mail.text },
+          idempotencyKey,
+        );
+        return id ? { accepted: true, id } : { accepted: false, inFlight: false };
+      } catch (error) {
+        const code = error instanceof MailPostError ? error.code : "";
+        console.error("[mail] welcome", code || "send failed");
+        const post: WelcomePost =
+          code === "concurrent_idempotent_requests"
+            ? { accepted: false, inFlight: true }
+            : { accepted: false, inFlight: false };
+        return post;
+      }
+    },
+  });
+  return step === "sent";
 }

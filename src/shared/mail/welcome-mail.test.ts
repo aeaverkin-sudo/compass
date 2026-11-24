@@ -1,13 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import {
-  ACCOUNT_WELCOME_LINE,
-  ACCOUNT_WELCOME_SUBJECT,
-  PORTFOLIO_WELCOME_LINE,
-  PORTFOLIO_WELCOME_SUBJECT,
-  welcomeMail,
-  welcomeSignInLine,
-} from "./welcome-mail.ts";
+import { WELCOME_FOOTER, WELCOME_SUBJECT, welcomeHeading, welcomeLines, welcomeMail } from "./welcome-mail.ts";
 
 const SECRET = "ABCD-2345";
 
@@ -20,34 +14,46 @@ function letter(portfolio: boolean, access: "password" | "google" | "apple") {
   });
 }
 
-test("the subject follows the saved portfolio, not the sign-in method", () => {
+test("google, apple, and email get the same welcome, with or without a portfolio", () => {
+  const account = letter(false, "google");
   for (const access of ["password", "google", "apple"] as const) {
-    const account = letter(false, access);
-    const portfolio = letter(true, access);
-    assert.equal(account.subject, ACCOUNT_WELCOME_SUBJECT);
-    assert.equal(portfolio.subject, PORTFOLIO_WELCOME_SUBJECT);
-    assert.match(account.text, new RegExp(`^${ACCOUNT_WELCOME_LINE}`));
-    assert.match(portfolio.text, new RegExp(`^${PORTFOLIO_WELCOME_LINE}`));
-    assert.equal(account.html.includes(ACCOUNT_WELCOME_LINE), true);
-    assert.equal(portfolio.html.includes(PORTFOLIO_WELCOME_LINE), true);
+    const ready = letter(false, access);
+    const saved = letter(true, access);
+    assert.equal(ready.subject, WELCOME_SUBJECT);
+    assert.equal(saved.subject, WELCOME_SUBJECT);
+    assert.equal(ready.text, account.text);
+    assert.equal(ready.html, account.html);
+    assert.equal(saved.text, letter(true, "password").text);
+    assert.match(ready.text, new RegExp(`^${welcomeHeading(false)}`));
+    assert.match(saved.text, new RegExp(`^${welcomeHeading(true)}`));
+    for (const line of welcomeLines(false)) assert.equal(ready.html.includes(line), true);
+    for (const line of welcomeLines(true)) assert.equal(saved.html.includes(line), true);
+    assert.equal(ready.text.includes(WELCOME_FOOTER), true);
+    assert.equal(saved.html.includes(WELCOME_FOOTER), true);
+    assert.equal(ready.html.includes("aded-grid-mail.png"), true);
+  }
+  assert.equal(welcomeLines(true)[0], "Edit your portfolio anytime.");
+  assert.equal(welcomeLines(false)[0], "Create your portfolio.");
+  assert.deepEqual(welcomeLines(true).slice(1), welcomeLines(false).slice(1));
+});
+
+test("the welcome has no password, code, or another person's card", () => {
+  for (const mail of [letter(false, "password"), letter(true, "apple"), letter(true, "google")]) {
+    assert.equal(mail.html.includes(SECRET), false);
+    assert.equal(mail.text.includes(SECRET), false);
+    assert.equal(/password/i.test(mail.text), false);
+    assert.equal(mail.text.includes("QR code"), true);
+    assert.equal(mail.text.includes("privaterelay"), false);
   }
 });
 
-test("the sign-in line names the provider, and a password is never written", () => {
-  const email = letter(false, "password");
-  const google = letter(true, "google");
-  const apple = letter(false, "apple");
-  assert.equal(welcomeSignInLine("password"), "Sign in with your email and password.");
-  assert.equal(welcomeSignInLine("google"), "Use Continue with Google to sign in.");
-  assert.equal(welcomeSignInLine("apple"), "Use Continue with Apple to sign in.");
-  assert.match(email.text, /Sign in with your email and password\./);
-  assert.match(google.text, /Use Continue with Google to sign in\./);
-  assert.match(apple.text, /Use Continue with Apple to sign in\./);
-  for (const mail of [email, google, apple]) {
-    assert.equal(mail.html.includes(SECRET), false);
-    assert.equal(mail.text.includes(SECRET), false);
-    assert.equal(/wallet/i.test(mail.text), false);
-  }
-  assert.equal(/share/i.test(email.text), false);
-  assert.equal(/share/i.test(apple.text), false);
+test("welcome is delivered once, and the mark is not written before acceptance", () => {
+  const source = readFileSync(new URL("../services/cold-entry.ts", import.meta.url), "utf8");
+  const once = readFileSync(new URL("./welcome-once.ts", import.meta.url), "utf8");
+  assert.match(source, /deliverWelcome/);
+  assert.match(source, /welcomeIdempotencyKey/);
+  assert.match(source, /welcome_mail_at/);
+  assert.ok(source.indexOf("sendHtmlMail") > 0);
+  assert.match(once, /WELCOME_KEY_MS = 24 \* 60 \* 60 \* 1000/);
+  assert.ok(once.indexOf("input.send") < once.indexOf("WELCOME_MAIL_AT]: new Date"));
 });
