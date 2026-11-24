@@ -109,6 +109,16 @@ const FIELD =
 const PRIMARY =
   "press border-0 bg-sky px-6 py-3 t-caps text-[var(--ink)] shadow-none disabled:text-[var(--grey)] [-webkit-tap-highlight-color:transparent]";
 const UNDERLINE = "underline decoration-[0.5px] underline-offset-[3px]";
+const PASSWORD_MIN = 8;
+const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function suggestedPassword() {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  let raw = "";
+  for (const byte of bytes) raw += PASSWORD_ALPHABET[byte % PASSWORD_ALPHABET.length] ?? "A";
+  return `${raw.slice(0, 4)}-${raw.slice(4)}`;
+}
 
 function Message({ text }: { text: string | null }) {
   if (!text) return null;
@@ -145,6 +155,7 @@ export function RegisterScreen() {
   }
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(
@@ -180,6 +191,10 @@ export function RegisterScreen() {
       cancelled = true;
     };
   }, [signinOnly, sessionExpired, sessionReady, nextRaw, router]);
+
+  useEffect(() => {
+    setSignupPassword((current) => current || suggestedPassword());
+  }, []);
 
   useEffect(() => {
     if (!emailed) return;
@@ -268,7 +283,7 @@ export function RegisterScreen() {
       const response = await fetch("/api/auth/email/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
+        body: JSON.stringify({ email, code, password: signupPassword }),
       });
       const body = (await response.json()) as { mode?: string; hasCard?: boolean; error?: string };
       if (!response.ok) {
@@ -284,10 +299,10 @@ export function RegisterScreen() {
       await supabase.auth.signOut({ scope: "local" });
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
-        password: code.trim(),
+        password: signupPassword,
       });
       if (error || !data.session) {
-        router.push(signInHref(nextPath, "The code is your password. Sign in with it."));
+        router.push(signInHref(nextPath, "Confirmed. Sign in with your email and password."));
         return;
       }
       markRegisteredDevice();
@@ -437,7 +452,7 @@ export function RegisterScreen() {
                 </button>
               </span>
               <p className="mt-2 t-meta text-[var(--grey)]">
-                Password not changed? It is in your first email from ADED.
+                Use the password you set. If you forgot it, reset it below.
               </p>
               <button type="submit" disabled={busy} className={`${PRIMARY} mt-[18px] w-full`}>
                 Sign in
@@ -505,30 +520,53 @@ export function RegisterScreen() {
                 className={FIELD}
               />
             ) : (
-              <input
-                id="register-email-field"
-                ref={emailRef}
-                type="email"
-                autoCapitalize="none"
-                autoComplete="email"
-                aria-label="Email"
-                placeholder="name@mail.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={FIELD}
-              />
+              <>
+                <input
+                  id="register-email-field"
+                  ref={emailRef}
+                  type="email"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  aria-label="Email"
+                  placeholder="name@mail.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className={FIELD}
+                />
+                <span className="mt-[14px] flex min-w-0 items-center gap-2 border-b border-[var(--rule)] pb-[3px]">
+                  <input
+                    type={passwordVisible ? "text" : "password"}
+                    autoCapitalize="none"
+                    autoComplete="new-password"
+                    name="new-password"
+                    aria-label="Password"
+                    placeholder="Password"
+                    value={signupPassword}
+                    onChange={(event) => setSignupPassword(event.target.value)}
+                    className={FIELD}
+                  />
+                  <button
+                    type="button"
+                    aria-label={passwordVisible ? "Hide password" : "Show password"}
+                    className="shrink-0 border-0 bg-transparent p-0 text-[var(--ink)]"
+                    onClick={() => setPasswordVisible((current) => !current)}
+                  >
+                    {passwordVisible ? <Eye className="size-4" strokeWidth={1.5} /> : <EyeOff className="size-4" strokeWidth={1.5} />}
+                  </button>
+                </span>
+              </>
             )}
             <p className="mt-2 t-meta text-[var(--grey)]">
               {onCode
-                ? `Sent to ${email.trim()}. This code is your password. You can change it in your profile.`
-                : "We will send you a code. This code is your password. You can change it in your profile."}
+                ? `Sent to ${email.trim()}. Enter the code to confirm this address. It is not your password.`
+                : "We will send a code to confirm this address. The code is not your password. You can change the password later in Profile."}
             </p>
           </Zone>
           <Rule />
           <Zone label="">
             <button
               type="submit"
-              disabled={busy || (onCode ? code.trim() === "" : email.trim() === "")}
+              disabled={busy || (onCode ? code.trim() === "" : email.trim() === "" || signupPassword.trim().length < PASSWORD_MIN)}
               className={PRIMARY}
             >
               Continue

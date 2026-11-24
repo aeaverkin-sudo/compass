@@ -82,13 +82,17 @@ async function writeProviderPortfolio(
 async function afterGoogle(origin: string, userId: string, name: string, next: string | null) {
   const admin = createAdminSupabaseClient();
   const cards = await admin.from("cards").select("id", { count: "exact", head: true }).eq("owner_id", userId);
-  if (cards.error || (cards.count ?? 0) > 0) return destination(origin, next);
+  if (cards.error || (cards.count ?? 0) > 0) {
+    return { url: destination(origin, next), portfolio: !cards.error && (cards.count ?? 0) > 0 };
+  }
   const saved = await keepScannedCard(admin, userId, next);
-  if (name && (await writeProviderPortfolio(admin, userId, name))) return destination(origin, next);
+  if (name && (await writeProviderPortfolio(admin, userId, name))) {
+    return { url: destination(origin, next), portfolio: true };
+  }
   const url = new URL(questionnaireHref(doorNext(next) ?? null), origin);
   url.searchParams.set("account", "1");
   if (saved) url.searchParams.set("saved", "1");
-  return url;
+  return { url, portfolio: false };
 }
 
 /** The card they opened, saved into this session before the questionnaire. A miss does not stop sign-in. */
@@ -183,10 +187,18 @@ export async function GET(request: Request) {
     console.error("[auth] callback");
   }
   await bindSessionReceipts(user.id);
+  const asked = url.searchParams.get("provider");
   const providers = new Set((user.identities ?? []).map((identity) => identity.provider));
-  void sendWelcomeMail(user.id, "", origin, providers.has("apple") ? "apple" : "google").catch((error) => {
-    console.error("[mail] welcome", error instanceof Error ? error.message : error);
+  const access =
+    (asked === "apple" || asked === "google") && (providers.size === 0 || providers.has(asked))
+      ? asked
+      : providers.has("apple") && !providers.has("google")
+        ? "apple"
+        : "google";
+  const landing = await afterGoogle(origin, user.id, providerName(user), next);
+  void sendWelcomeMail(user.id, origin, access, landing.portfolio).catch((error) => {
+    console.error("[mail] welcome", error instanceof Error ? error.message : "send failed");
   });
 
-  return NextResponse.redirect(await afterGoogle(origin, user.id, providerName(user), next));
+  return NextResponse.redirect(landing.url);
 }

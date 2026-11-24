@@ -1,6 +1,6 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { mailConfigured, sendHtmlMail } from "@/shared/services/mail";
-import { WELCOME_SUBJECT, welcomeMail } from "@/shared/mail/welcome-mail";
+import { welcomeMail, type WelcomeAccess } from "@/shared/mail/welcome-mail";
 
 const WELCOME_SENT = "welcome_mail_at";
 
@@ -9,12 +9,16 @@ function siteOrigin(origin: string): string {
   return site && /^https?:\/\//i.test(site) ? site : origin;
 }
 
-/** Once per account, when the account is created. No card and no sign-in link. */
+/**
+ * Once per account. `portfolio` is true only when that account's portfolio was saved.
+ * A later card, a second sign-in, or a repeated callback does not send another letter.
+ * The password is not an argument and is not mailed.
+ */
 export async function sendWelcomeMail(
   userId: string,
-  password: string,
   origin: string,
-  access: "password" | "google" | "apple" = "password",
+  access: WelcomeAccess,
+  portfolio: boolean,
 ): Promise<boolean> {
   if (!mailConfigured()) return false;
   const admin = createAdminSupabaseClient();
@@ -22,20 +26,28 @@ export async function sendWelcomeMail(
   const email = user?.email?.trim().toLowerCase();
   if (!user || !email || user.app_metadata?.[WELCOME_SENT]) return false;
 
-  const providers = new Set((user.identities ?? []).map((identity) => identity.provider));
-  const social = access === "password" ? "password" : providers.has("apple") ? "apple" : "google";
-  const site = siteOrigin(origin);
-  const mail = welcomeMail({
-    logoSrc: `${site}/brand/aded-grid-mail.png`,
-    password: password.trim(),
-    ...(social === "google" ? { access: "google" as const } : {}),
-    ...(social === "apple" ? { access: "apple" as const } : {}),
-    siteLabel: site.replace(/^https?:\/\//, ""),
-  });
-  await sendHtmlMail({ to: email, subject: WELCOME_SUBJECT, html: mail.html, text: mail.text });
   const marked = await admin.auth.admin.updateUserById(userId, {
     app_metadata: { ...user.app_metadata, [WELCOME_SENT]: new Date().toISOString() },
   });
-  if (marked.error) console.error("[mail] welcome mark", marked.error.message);
+  if (marked.error) {
+    console.error("[mail] welcome mark", marked.error.message);
+    return false;
+  }
+
+  const site = siteOrigin(origin);
+  const mail = welcomeMail({
+    logoSrc: `${site}/brand/aded-grid-mail.png`,
+    access,
+    portfolio,
+    siteLabel: site.replace(/^https?:\/\//, ""),
+  });
+  try {
+    await sendHtmlMail({ to: email, subject: mail.subject, html: mail.html, text: mail.text });
+  } catch (error) {
+    console.error("[mail] welcome", error instanceof Error ? error.message : "send failed");
+    const { [WELCOME_SENT]: _sent, ...rest } = user.app_metadata ?? {};
+    await admin.auth.admin.updateUserById(userId, { app_metadata: rest }).catch(() => undefined);
+    return false;
+  }
   return true;
 }

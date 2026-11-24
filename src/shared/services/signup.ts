@@ -353,8 +353,8 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
     const door = await keepSourceCard(admin, userId, body.sourceToken);
     await bindSessionReceipts(userId);
     if (origin) {
-      void sendWelcomeMail(userId, password, origin).catch((error) => {
-        console.error("[mail] welcome", error instanceof Error ? error.message : error);
+      void sendWelcomeMail(userId, origin, "password", false).catch((error) => {
+        console.error("[mail] welcome", error instanceof Error ? error.message : "send failed");
       });
     }
     return { ok: true, status: 201, ...door };

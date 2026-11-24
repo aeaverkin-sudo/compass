@@ -230,8 +230,7 @@ export function EntryPage({
       setNameLive(true);
       setEmail(saved.email);
       setEmailLive(true);
-      issuedPassword = saved.password;
-      setPasswordValue(saved.password);
+      setPasswordValue((current) => current ?? passwordNow());
       setAgreed(saved.agreed);
       zonesRef.current?.restore(saved);
       const dataUrl = readQuestionnairePhoto(here);

@@ -99,6 +99,7 @@ export async function verifyEmailCode(
   userId: string,
   rawEmail: string,
   code: string,
+  password: string,
 ): Promise<EmailBranch | { mode: "ok" }> {
   const email = normalizeEmail(rawEmail);
   const admin = createAdminSupabaseClient();
@@ -122,10 +123,12 @@ export async function verifyEmailCode(
       .eq("user_id", userId);
     throw new Error("wrong_code");
   }
+  const chosen = password.trim();
+  if (chosen.length < 8) throw new Error("short_password");
 
   const { error: updateError } = await admin.auth.admin.updateUserById(userId, {
     email,
-    password: code.trim(),
+    password: chosen,
     email_confirm: true,
   });
   if (updateError) {

@@ -97,7 +97,14 @@ function readQuestionnaireRaw(): QuestionnairePlace | null {
       dropSessionPhoto();
       return null;
     }
-    return place;
+    if (typeof place.password === "string" && place.password) {
+      try {
+        window.sessionStorage.setItem(KEY, JSON.stringify({ ...place, password: "" }));
+      } catch {
+        // The old password leaves on the next write.
+      }
+    }
+    return { ...place, password: "" };
   } catch {
     return null;
   }
@@ -143,7 +150,10 @@ export function writeQuestionnaire(place: Omit<QuestionnairePlace, "kind" | "at"
   if (!createHref(place.href) || typeof window === "undefined") return;
   retireSharedQuestionnaire();
   try {
-    window.sessionStorage.setItem(KEY, JSON.stringify({ ...place, kind: "questionnaire", at: Date.now() }));
+    window.sessionStorage.setItem(
+      KEY,
+      JSON.stringify({ ...place, password: "", kind: "questionnaire", at: Date.now() }),
+    );
   } catch {
     // A full tab keeps the live page. Closing it starts empty.
   }

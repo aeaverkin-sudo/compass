@@ -25,6 +25,7 @@ function startSocialSignIn(provider: SocialProvider, from: SocialFrom, next?: st
   query.set("from", from);
   const safe = next ? doorNext(next) : undefined;
   if (safe) query.set("next", safe);
+  query.set("provider", provider);
   const redirectTo = `${window.location.origin}/auth/callback?${query.toString()}`;
   const failed = () => {
     clearGooglePending();

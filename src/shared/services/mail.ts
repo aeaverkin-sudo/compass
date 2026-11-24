@@ -77,8 +77,8 @@ export async function sendHtmlBatch(mails: HtmlMail[], idempotencyKey?: string):
 export async function sendStarterCode(to: string, code: string) {
   await send(
     to,
-    "Your passcode",
-    `Your passcode is ${code}.\n\nIt is your password until you change it. Keep it safe.\n\nCheers,\nADED team`,
+    "Verify your email",
+    `Your code is ${code}.\n\nIt expires in 30 minutes and works once. It is not your password.\n\nCheers,\nADED team`,
   );
 }
 
