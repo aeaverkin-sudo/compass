@@ -71,6 +71,9 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
       <p className="m-0 shrink-0 pt-3 t-meta text-[var(--grey)]">
         {consent === null ? "…" : consent ? `Consent v${consent}` : "Not recorded"}
       </p>
+      <p className="m-0 max-w-md shrink-0 pt-2 t-meta text-[var(--grey)]">
+        Download data in Account is your copy of this account. For a broader request about your personal data, email support@adedme.com. We confirm it is you and reply within one month.
+      </p>
       <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         <div id="terms">
           <LegalDocument source={terms} />
