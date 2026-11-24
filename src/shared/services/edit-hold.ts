@@ -234,6 +234,13 @@ export function commitEditHold(cards: Card[], contactItems: ContactItem[]) {
   void sendThenCatchUp();
 }
 
+/** The portfolio is gone. Do not restore it from the edit snapshot. */
+export function forgetEditHold() {
+  if (!held) return;
+  held = null;
+  storeHeld();
+}
+
 /** Back without Save: the portfolio returns to how it was when Edit opened. The photo and the notes stay as they are. */
 export function discardEditHold(
   cards: Card[],

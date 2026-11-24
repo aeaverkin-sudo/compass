@@ -19,6 +19,7 @@ const {
   noteSwapBlur,
   noteSwapHidden,
   portfolioBody,
+  swapFooter,
   portfolioText,
   pushAddress,
   pushCardIsServed,
@@ -196,6 +197,20 @@ test("a failed Swap tap does not leave, and a real handoff returns after send or
   state = noteSwapBlur(armSwapReturn(0), 10);
   assert.equal(expireSwapReturn(state, SWAP_RETURN_ARM_MS, true).armed, true);
   assert.equal(finishSwapReturn(state, 10 + SWAP_RETURN_BLUR_MS).openNetwork, true);
+
+  state = armSwapReturn(0);
+  assert.equal(expireSwapReturn(state, 700, true).armed, true);
+  state = noteSwapHidden(state);
+  assert.equal(finishSwapReturn(state, 700).openNetwork, true);
+});
+
+test("the bottom of Swap is one action, and OK stays only until a channel is chosen", () => {
+  assert.equal(swapFooter({ cardSelected: true, channel: null, ready: false, failed: false }), "leave");
+  assert.equal(swapFooter({ cardSelected: false, channel: "telegram", ready: false, failed: false }), "need-card");
+  assert.equal(swapFooter({ cardSelected: true, channel: "telegram", ready: false, failed: false }), "preparing");
+  assert.equal(swapFooter({ cardSelected: true, channel: "telegram", ready: true, failed: false }), "telegram");
+  assert.equal(swapFooter({ cardSelected: true, channel: "email", ready: true, failed: false }), "email");
+  assert.equal(swapFooter({ cardSelected: true, channel: "whatsapp", ready: false, failed: true }), "retry");
 });
 
 test("the route prepares a draft and does not send mail or mark a send", () => {
@@ -218,8 +233,13 @@ test("the route prepares a draft and does not send mail or mark a send", () => {
   assert.equal(screen.includes("Copy message"), false);
   assert.equal(screen.includes("Use this name"), false);
   assert.match(screen, /visibilitychange/);
+  assert.match(screen, /freeze/);
+  assert.match(screen, /resume/);
+  assert.match(screen, /event\.persisted/);
   assert.match(screen, /expireSwapReturn/);
   assert.match(screen, /router\.replace\("\/network"\)/);
+  assert.match(screen, /Choose a portfolio\./);
+  assert.match(screen, /swapFooter/);
   assert.match(screen, /visibleDraft/);
   assert.match(screen, /keptSwapCard/);
   assert.match(screen, /draftStillCurrent/);
@@ -227,6 +247,15 @@ test("the route prepares a draft and does not send mail or mark a send", () => {
   assert.equal(screen.includes("Already sent"), false);
   assert.equal(screen.includes("window.open"), false);
   assert.equal(screen.includes("preventDefault"), false);
+  const deleted = readFileSync(new URL("../../../главный-экран/components/portfolio-delete.tsx", import.meta.url), "utf8");
+  const main = readFileSync(new URL("../../app/main/page.tsx", import.meta.url), "utf8");
+  const deck = readFileSync(new URL("../../../главный-экран/components/main-screen.tsx", import.meta.url), "utf8");
+  assert.match(deleted, /router\.replace\("\/create\?account=1"\)/);
+  assert.match(deleted, /forgetEditHold/);
+  assert.match(main, /deviceWasRegistered\(\)/);
+  assert.match(deck, /deviceWasRegistered\(\)/);
+  assert.match(card, /ContactIdentityRow/);
+  assert.equal(card.includes("size-[128px]"), false);
   assert.equal(card.includes("disabled={swapped}"), false);
   assert.equal(network.includes("menuContact.pushed"), false);
 });

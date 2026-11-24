@@ -11,11 +11,15 @@ import {
   draftStillCurrent,
   expireSwapReturn,
   finishSwapReturn,
+  forgetSwapHandoff,
   keptSwapCard,
   noteSwapBlur,
   noteSwapHidden,
   pushTargets,
+  rememberSwapHandoff,
   swapCardOffered,
+  swapFooter,
+  swapHandoffPending,
   visibleDraft,
   type DraftChoice,
   type SwapReturn,
@@ -41,13 +45,16 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const cards = useSwapPortfolios();
   const targets = pushTargets(contact.lines);
   const [cardId, setCardId] = useState<string | null>(null);
+  const [declinedSole, setDeclinedSole] = useState<string | null>(null);
   const [channel, setChannel] = useState<PushbackChannel | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const handoff = useRef<SwapReturn>({ armed: false, left: false, blurredAt: null, armedAt: 0 });
-  const activeCardId = keptSwapCard(cardId, cards.map((card) => card.id));
+  const offeredIds = cards.map((card) => card.id);
+  const soleId = offeredIds.length === 1 ? offeredIds[0] : null;
+  if (soleId && !cardId && soleId !== declinedSole) setCardId(soleId);
+  const activeCardId = keptSwapCard(cardId, offeredIds);
   if (cardId && !activeCardId) setCardId(null);
   const current: DraftChoice = {
     contactId: contact.id,
@@ -61,7 +68,6 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     setShownKey(selectionKey);
     setDraft(null);
     setError(null);
-    setWaiting(Boolean(current.cardId && current.channel));
   }
   const selection = useRef(current);
   selection.current = current;
@@ -81,10 +87,16 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
       if (!stillHere()) return;
       const step = finishSwapReturn(handoff.current, Date.now());
       handoff.current = step.state;
-      if (step.openNetwork) router.replace("/network");
+      if (!step.openNetwork) return;
+      forgetSwapHandoff();
+      router.replace("/network");
+    };
+    const markLeft = () => {
+      if (!handoff.current.armed && swapHandoffPending()) handoff.current = armSwapReturn(Date.now());
+      handoff.current = noteSwapHidden(handoff.current);
     };
     const onHide = () => {
-      handoff.current = noteSwapHidden(handoff.current);
+      markLeft();
     };
     const onVisibility = () => {
       if (document.visibilityState === "hidden") onHide();
@@ -93,19 +105,33 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     const onBlur = () => {
       handoff.current = noteSwapBlur(handoff.current, Date.now());
     };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) markLeft();
+      comeBack();
+    };
+    const onResume = () => {
+      markLeft();
+      comeBack();
+    };
     const timer = window.setInterval(() => {
-      handoff.current = expireSwapReturn(handoff.current, Date.now(), stillHere());
+      const next = expireSwapReturn(handoff.current, Date.now(), stillHere());
+      if (handoff.current.armed && !next.armed) forgetSwapHandoff();
+      handoff.current = next;
     }, 200);
     document.addEventListener("visibilitychange", onVisibility);
+    document.addEventListener("freeze", onHide);
+    document.addEventListener("resume", onResume);
     window.addEventListener("pagehide", onHide);
-    window.addEventListener("pageshow", comeBack);
+    window.addEventListener("pageshow", onPageShow);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", comeBack);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("freeze", onHide);
+      document.removeEventListener("resume", onResume);
       window.removeEventListener("pagehide", onHide);
-      window.removeEventListener("pageshow", comeBack);
+      window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", comeBack);
     };
@@ -114,13 +140,11 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   useEffect(() => {
     if (!activeCardId || !channel) {
       setDraft(null);
-      setWaiting(false);
       return;
     }
     const started: DraftChoice = { contactId: contact.id, cardId: activeCardId, channel, name: "" };
     let cancel = false;
     setDraft(null);
-    setWaiting(true);
     setError(null);
     void (async () => {
       try {
@@ -140,16 +164,13 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
         const open = body?.open;
         if (!response.ok || (channel === "email" ? !mailto : !open)) {
           setDraft(null);
-          setWaiting(false);
           setError(channel === "email" ? "Could not prepare the email draft" : body?.error || "Could not prepare the draft.");
           return;
         }
         setDraft({ ...started, mailto, open, text: body?.text });
-        setWaiting(false);
       } catch {
         if (cancel || !draftStillCurrent(started, selection.current)) return;
         setDraft(null);
-        setWaiting(false);
         setError(channel === "email" ? "Could not prepare the email draft" : "Could not prepare the draft.");
       }
     })();
@@ -158,13 +179,22 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     };
   }, [activeCardId, channel, contact.id, retry]);
 
-  const partial = Boolean(activeCardId) !== Boolean(channel);
   const mailHref = live?.channel === "email" ? live.mailto : undefined;
   const openHref = live && live.channel !== "email" ? live.open : undefined;
 
   const armReturn = () => {
-    handoff.current = armSwapReturn(Date.now());
+    const now = Date.now();
+    handoff.current = armSwapReturn(now);
+    rememberSwapHandoff(now);
   };
+  const changing = shownKey !== selectionKey;
+  const shownError = changing ? null : error;
+  const footer = swapFooter({
+    cardSelected: Boolean(activeCardId),
+    channel,
+    ready: Boolean(mailHref || openHref),
+    failed: Boolean(shownError && activeCardId && channel),
+  });
 
   return (
     <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
@@ -186,7 +216,13 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
                     aria-pressed={on}
                     onClick={() => {
                       setError(null);
-                      setCardId(on ? null : card.id);
+                      if (on) {
+                        if (cards.length === 1) setDeclinedSole(card.id);
+                        setCardId(null);
+                        return;
+                      }
+                      setDeclinedSole(null);
+                      setCardId(card.id);
                     }}
                     className={`press flex w-full min-w-0 items-center gap-3 border-0 px-2 py-2 text-left [-webkit-tap-highlight-color:transparent] ${on ? "bg-sky" : "bg-transparent"}`}
                   >
@@ -230,35 +266,27 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
             })}
           </div>
         </section>
-        {error ? <p className="mt-3 t-meta text-[#E23B2F]">{error}</p> : null}
-        {mailHref ? (
+        {shownError && footer === "retry" ? <p className="mt-3 t-meta text-[#E23B2F]">{shownError}</p> : null}
+        {footer === "email" && mailHref ? (
           <a href={mailHref} className={OK} onClick={armReturn}>
             Open email draft
           </a>
-        ) : openHref ? (
+        ) : (footer === "whatsapp" || footer === "telegram") && openHref ? (
           <a href={openHref} className={OK} onClick={armReturn}>
-            {channel === "telegram" ? "Open Telegram" : "Open WhatsApp"}
+            {footer === "telegram" ? "Open Telegram" : "Open WhatsApp"}
           </a>
-        ) : waiting ? (
+        ) : footer === "preparing" ? (
           <button type="button" disabled className={OK}>
             Preparing
           </button>
-        ) : error && cardId && channel ? (
+        ) : footer === "retry" ? (
           <button type="button" onClick={() => setRetry((value) => value + 1)} className={OK}>
             Try again
           </button>
+        ) : footer === "need-card" ? (
+          <p className="mt-[18px] t-body text-[var(--grey)]">Choose a portfolio.</p>
         ) : (
-          <button
-            type="button"
-            onClick={() => {
-              if (partial) {
-                setError("Choose a portfolio and where to send it, or leave both empty.");
-                return;
-              }
-              leave();
-            }}
-            className={OK}
-          >
+          <button type="button" onClick={leave} className={OK}>
             OK
           </button>
         )}

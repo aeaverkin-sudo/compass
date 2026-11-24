@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { TabBand } from "@main/components/tab-band";
-import { HeroName } from "@/shared/components/hero-name";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
-import { photoSlotLookClass } from "@/shared/lib/photo-look";
+import { forgetAnswerRow } from "@/shared/lib/last-answer";
+import { ContactIdentityRow } from "@/features/contact-collect/contact-identity-row";
 import { labeledEntryLine } from "@/shared/services/card-zones";
 import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
 import { joinAbout } from "@/features/contact-collect/about-text";
@@ -52,6 +51,7 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
         setArmed(false);
         return;
       }
+      forgetAnswerRow("connections", contact.id);
       router.replace("/network");
     } catch {
       setError("Could not delete the contact.");
@@ -66,29 +66,7 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
         <div className="compass-card-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-[var(--gutter)]">
           <div>
         <ScreenHeader title="" fallbackHref="/network" />
-        <div className="pb-[18px]">
-        <div className="relative flex shrink-0 items-stretch gap-3" style={{ height: 128 }}>
-          <span className={cn("size-[128px] shrink-0 overflow-visible bg-white", photoSlotLookClass("shadow"))}>
-            {contact.photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={contact.photoUrl} alt="" className="size-full object-cover" />
-            ) : null}
-          </span>
-          <div className="relative flex h-full min-w-0 flex-1 flex-col">
-            <HeroName
-              value={contact.displayName}
-              placeholder="Name"
-              locked
-              roleBelow={Boolean(headerTitle)}
-            />
-            {headerTitle ? (
-              <p className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden t-label uppercase text-[var(--grey)]">
-                {headerTitle}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        </div>
+        <ContactIdentityRow name={contact.displayName} photoUrl={contact.photoUrl} headerTitle={headerTitle} />
 
         <section className={SECTION}>
           <div className="min-w-0">

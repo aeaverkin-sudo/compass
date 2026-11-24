@@ -8,6 +8,7 @@ import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { useRegistrationRequired, useSessionBootstrap } from "@/shared/hooks/use-session-bootstrap";
 import { useStoreHydrated } from "@/shared/hooks/use-store-hydrated";
 import { signInPath } from "@/shared/lib/registered-device";
+import { deviceWasRegistered } from "@/shared/lib/registered-device";
 import { registeredSession } from "@/shared/lib/session-bootstrap";
 import { useAppStore } from "@/shared/store/app-store";
 
@@ -54,7 +55,7 @@ export default function MainPage() {
       return;
     }
     if (!cardsReady) return;
-    if (cardCount === 0 && registeredSession()) {
+    if (cardCount === 0 && (registeredSession() || deviceWasRegistered())) {
       router.replace("/create?account=1");
       return;
     }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { cardInWallet } from "@/shared/lib/wallet-client";
 import { dropPendingCardUpsert } from "@/shared/services/card-sync";
+import { forgetEditHold } from "@/shared/services/edit-hold";
 import { useAppStore } from "@/shared/store/app-store";
 import type { Card } from "@/shared/types";
 
@@ -12,11 +14,15 @@ export function PortfolioDeleteDialog({
   card,
   open,
   onOpenChange,
+  onKept,
 }: {
   card: Card;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Other portfolios remain. Leave Edit and show one of them. */
+  onKept?: () => void;
 }) {
+  const router = useRouter();
   const removeCard = useAppStore((state) => state.removeCard);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,22 +46,21 @@ export function PortfolioDeleteDialog({
     setError(null);
     try {
       const response = await fetch(`/api/cards/${encodeURIComponent(card.id)}`, { method: "DELETE" });
-      if (response.status === 404) {
+      if (response.status === 404 || response.ok) {
+        forgetEditHold();
         dropPendingCardUpsert(card.id);
         removeCard(card.id);
+        const left = useAppStore.getState().cards.length;
         setBusy(false);
         onOpenChange(false);
+        if (left === 0) router.replace("/create?account=1");
+        else onKept?.();
         return;
       }
       const body = (await response.json()) as { error?: string };
-      if (!response.ok) {
-        setError(body.error ?? "Could not delete the portfolio.");
-        setBusy(false);
-        return;
-      }
+      setError(body.error ?? "Could not delete the portfolio.");
       setBusy(false);
-      onOpenChange(false);
-      removeCard(card.id);
+      return;
     } catch {
       setError("Could not delete the portfolio.");
       setBusy(false);

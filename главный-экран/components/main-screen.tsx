@@ -16,6 +16,7 @@ import { useMainLayout } from "../hooks/use-main-layout";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { groupEditSections } from "@/shared/services/card-zones";
 import { publicCardUrl } from "@/shared/services/public-card-url";
+import { deviceWasRegistered } from "@/shared/lib/registered-device";
 import { registeredSession } from "@/shared/lib/session-bootstrap";
 import {
   canAddMoreCards,
@@ -309,7 +310,7 @@ export function MainScreen() {
 
   useEffect(() => {
     if (!cardsHydrated || cardCount > 0 || portfolioLimit === null || draftStarted.current) return;
-    if (registeredSession()) return;
+    if (registeredSession() || deviceWasRegistered()) return;
     draftStarted.current = true;
     updateSecondCardDraft({ displayName: "" }, portfolioLimit);
   }, [cardsHydrated, cardCount, portfolioLimit, updateSecondCardDraft]);
@@ -628,7 +629,7 @@ export function MainScreen() {
       />
 
       {editing && activeId ? (
-        <DeleteSlot cardId={activeId} open={removeOpen} onOpenChange={setRemoveOpen} />
+        <DeleteSlot cardId={activeId} open={removeOpen} onOpenChange={setRemoveOpen} onKept={leaveEdit} />
       ) : null}
       {renameOpen && renameCardId ? (
         <PortfolioRenameDialog
@@ -709,10 +710,12 @@ function DeleteSlot({
   cardId,
   open,
   onOpenChange,
+  onKept,
 }: {
   cardId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onKept: () => void;
 }) {
   const card = useAppStore((state) => {
     const found = state.cards.find((entry) => entry.id === cardId) ?? null;
@@ -723,7 +726,7 @@ function DeleteSlot({
     return found;
   });
   if (!card) return null;
-  return <PortfolioDeleteDialog card={card} open={open} onOpenChange={onOpenChange} />;
+  return <PortfolioDeleteDialog card={card} open={open} onOpenChange={onOpenChange} onKept={onKept} />;
 }
 
 function InfoNotice({ text, onDone }: { text: string; onDone: () => void }) {

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type PointerEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, FileText, Mic, Scan, X } from "lucide-react";
 import { openContactAttachmentPicker, openNativePhotoPicker } from "@landing/components/photo-input-utils";
 import { MarkPlus } from "@/shared/components/mark-plus";
+import { forgetAnswerRow } from "@/shared/lib/last-answer";
+import { ContactIdentityRow } from "@/features/contact-collect/contact-identity-row";
 import { TabBand } from "@main/components/tab-band";
 import { cn } from "@/lib/utils";
-import { HeroName, heroNameBoxPx } from "@/shared/components/hero-name";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
 import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { ScreenHeader } from "@/shared/components/screen-header";
@@ -52,14 +53,6 @@ const SECTION = `${ROW} items-start border-b border-[var(--rule)] py-[18px]`;
 const COMPACT = `${ROW} items-center border-b border-[var(--rule)] py-[10px]`;
 const FIELD =
   "min-w-0 w-full border-0 bg-transparent py-1 t-body outline-none placeholder:text-[var(--placeholder)]";
-
-/** One `t-body` line. The empty Name caret sits on this hint. */
-const NAME_HINT_LINE_PX = 15.5 * 1.45;
-/** The photo square this row used to reserve. Letters still fit to the width beside it. */
-const FORMER_PHOTO_PX = 128;
-const FORMER_PHOTO_GAP_PX = 12;
-/** New Contact only. Other screens keep HeroName's own maximum. */
-const CONTACT_NAME_MAX_PX = 32;
 
 /** New contact stays one line until wrap, then grows to two. Edit grows to the whole text. */
 function fitNoteField(node: HTMLTextAreaElement, limited: boolean) {
@@ -323,17 +316,6 @@ export function NewContactForm({
   };
   readingRef.current = reading;
   const scrollRef = useRef<HTMLDivElement>(null);
-  const nameRowRef = useRef<HTMLDivElement>(null);
-  const [nameMeasure, setNameMeasure] = useState(0);
-  useLayoutEffect(() => {
-    const node = nameRowRef.current;
-    if (!node) return;
-    const read = () => setNameMeasure(Math.max(0, node.clientWidth - FORMER_PHOTO_PX - FORMER_PHOTO_GAP_PX));
-    read();
-    const observer = new ResizeObserver(read);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
   const photoTicket = useRef(0);
   const persistDraftRef = useRef(true);
   const [draftReady, setDraftReady] = useState(false);
@@ -908,6 +890,7 @@ export function NewContactForm({
         setArmedDelete(false);
         return;
       }
+      forgetAnswerRow("connections", initial.id);
       router.replace("/network");
     } catch {
       setError("Could not delete the contact.");
@@ -1034,65 +1017,15 @@ export function NewContactForm({
     </section>
   );
 
-  const nameHint = name.length === 0;
-  const nameColumn = nameMeasure > 0 ? nameMeasure : undefined;
-  const oneNameLine = !editing && !name.includes("\n");
   const photoName = (
-    <div
-      ref={nameRowRef}
-      className={cn("pt-[18px] pb-[18px]", (!editing || nameHint) && "border-b border-[var(--rule)]")}
-    >
-      <div className={cn(ROW, "items-center")}>
-        <button
-          type="button"
-          aria-label={photo?.dataUrl || keptPhoto ? "Change photo" : "Add photo"}
-          onClick={pickContactPhoto}
-          className="flex items-center justify-start border-0 bg-transparent p-0 text-[var(--ink)]"
-        >
-          <MarkPlus />
-        </button>
-        <div className="relative min-w-0">
-          <div
-            className={cn("relative min-w-0", (nameHint || oneNameLine) && "flex flex-col justify-end")}
-            style={oneNameLine ? { minHeight: heroNameBoxPx(CONTACT_NAME_MAX_PX) } : undefined}
-          >
-            {nameHint ? (
-              <div aria-hidden className="pointer-events-none t-body text-[var(--placeholder)]">
-                Name
-              </div>
-            ) : null}
-            <div
-              data-entry-name=""
-              className={nameHint ? "absolute inset-x-0 bottom-0 overflow-x-hidden" : "min-w-0 overflow-x-hidden"}
-              style={
-                nameHint
-                  ? { height: NAME_HINT_LINE_PX, width: nameColumn ?? "100%" }
-                  : { width: nameColumn ?? "100%" }
-              }
-            >
-              <HeroName
-                value={name}
-                onChange={(value) => setName(clampNameLines(value))}
-                placeholder="Name"
-                ruled
-                roleBelow={Boolean(headerTitle)}
-                measureWidthPx={nameColumn}
-                measureHeightPx={FORMER_PHOTO_PX}
-                maxPx={editing ? undefined : CONTACT_NAME_MAX_PX}
-              />
-            </div>
-          </div>
-          {headerTitle ? (
-            <p
-              className="m-0 line-clamp-3 min-w-0 shrink-0 overflow-hidden t-label uppercase text-[var(--grey)]"
-              style={{ width: nameColumn ?? "100%" }}
-            >
-              {headerTitle}
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </div>
+    <ContactIdentityRow
+      name={name}
+      onNameChange={setName}
+      photoUrl={photo?.dataUrl || draftPhoto || keptPhoto}
+      onPhoto={pickContactPhoto}
+      headerTitle={headerTitle}
+      editing={editing}
+    />
   );
 
   const contactLines = (

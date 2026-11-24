@@ -30,3 +30,14 @@ export function rememberAnswer<T>(key: string, value: T) {
   watch();
   memory.set(key, value);
 }
+
+/** Drop one row from a remembered list, so a return does not flash a contact that was just deleted. */
+export function forgetAnswerRow(key: string, id: string) {
+  watch();
+  const current = memory.get(key);
+  if (!Array.isArray(current)) return;
+  memory.set(
+    key,
+    current.filter((item) => !(item && typeof item === "object" && "id" in item && item.id === id)),
+  );
+}

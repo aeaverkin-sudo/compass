@@ -183,8 +183,58 @@ export type SwapReturn = {
   armedAt: number;
 };
 
-/** A tap that is still focused after this did not open Mail, WhatsApp, or Telegram. */
-export const SWAP_RETURN_ARM_MS = 700;
+/**
+ * A tap that is still focused after this did not open Mail, WhatsApp, or Telegram.
+ * Chrome on iPhone can sit on the page for a moment before Mail actually takes it.
+ */
+export const SWAP_RETURN_ARM_MS = 8000;
+
+const SWAP_HANDOFF_KEY = "aded-swap-handoff";
+
+/** The link was opened. A restored page can still see this after Chrome comes back. */
+export function rememberSwapHandoff(now: number) {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(SWAP_HANDOFF_KEY, String(now));
+  } catch {
+    // A private tab still has the in-memory arm.
+  }
+}
+
+export function forgetSwapHandoff() {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(SWAP_HANDOFF_KEY);
+  } catch {
+    // Nothing to clear.
+  }
+}
+
+export function swapHandoffPending(): boolean {
+  if (typeof sessionStorage === "undefined") return false;
+  try {
+    return sessionStorage.getItem(SWAP_HANDOFF_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+export type SwapFooter = "leave" | "need-card" | "preparing" | "retry" | "email" | "whatsapp" | "telegram";
+
+/** One bottom action. OK only while no channel is chosen. */
+export function swapFooter(input: {
+  cardSelected: boolean;
+  channel: "email" | "whatsapp" | "telegram" | null;
+  ready: boolean;
+  failed: boolean;
+}): SwapFooter {
+  if (!input.channel) return "leave";
+  if (!input.cardSelected) return "need-card";
+  if (input.ready) return input.channel;
+  if (input.failed) return "retry";
+  return "preparing";
+}
+
 /** A blur this short is the tap itself, not the mail or messenger sheet. */
 export const SWAP_RETURN_BLUR_MS = 400;
 
