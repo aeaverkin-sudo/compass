@@ -155,7 +155,7 @@ export default function InfoPage() {
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white px-[var(--gutter)] text-[var(--ink)]">
-      <ScreenHeader title="Info" fallbackHref="/main" />
+      <ScreenHeader title="User Guide" fallbackHref="/main" />
       <div className="grid shrink-0 grid-cols-3 gap-1.5 pt-[18px]">
         {TOC.map(([id, label]) => {
           const on = open === id;

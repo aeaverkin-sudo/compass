@@ -1,0 +1,84 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { ScreenHeader } from "@/shared/components/screen-header";
+import { LegalDocument } from "@/shared/components/legal-document";
+
+const PLAQUES = [
+  ["terms", "Terms & Conditions"],
+  ["privacy", "Privacy Policy"],
+] as const;
+
+export function LegalScreen({ terms, privacy }: { terms: string; privacy: string }) {
+  const [open, setOpen] = useState<(typeof PLAQUES)[number][0]>("terms");
+  const [consent, setConsent] = useState<string | null>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/account/status", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok || cancelled) return;
+        const body = (await response.json()) as { consentVersion?: string | null };
+        if (!cancelled) setConsent(body.consentVersion?.trim() || "");
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const go = (id: (typeof PLAQUES)[number][0]) => {
+    setOpen(id);
+    const root = scrollerRef.current;
+    const target = root?.querySelector<HTMLElement>(`#${id}`);
+    const heading = target?.querySelector<HTMLElement>("h1") ?? target;
+    if (!root || !heading) return;
+    const top = heading.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    root.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
+  };
+
+  return (
+    <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white px-[var(--gutter)] text-[var(--ink)]">
+      <ScreenHeader title="Legal" fallbackHref="/profile" />
+      <div className="grid shrink-0 grid-cols-2 gap-1.5 pt-[18px]">
+        {PLAQUES.map(([id, label]) => {
+          const on = open === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => go(id)}
+              className="flex items-center justify-center border-0 px-2 text-center"
+              style={{
+                minHeight: 34.2,
+                background: on ? "var(--sky)" : "#fff",
+                color: "var(--ink)",
+                boxShadow: on ? "none" : "0 2px 8px rgba(17,17,17,0.16)",
+                fontSize: 13,
+                fontWeight: 400,
+                letterSpacing: "0.12em",
+                lineHeight: 1.1,
+                textTransform: "uppercase",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="m-0 shrink-0 pt-3 t-meta text-[var(--grey)]">
+        {consent === null ? "…" : consent ? `Consent v${consent}` : "Not recorded"}
+      </p>
+      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto pb-[max(2.5rem,env(safe-area-inset-bottom))]">
+        <div id="terms">
+          <LegalDocument source={terms} />
+        </div>
+        <div id="privacy">
+          <LegalDocument source={privacy} />
+        </div>
+      </div>
+    </main>
+  );
+}

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Download } from "lucide-react";
+import { MarkPlus } from "@/shared/components/mark-plus";
+import { NUMBER_CLASS } from "@/shared/components/section-number";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { MainTabs } from "@main/components/main-tabs";
 import { Zone } from "@/shared/components/zone";
@@ -25,17 +27,26 @@ import { handleWithNewCode } from "@/shared/services/card-handle";
 import { NewLinkDialog } from "./new-link-dialog";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { canAddMoreCards, isCardReady, useAppStore } from "@/shared/store/app-store";
+import { COLUMN_GAP_PX, LABEL_COLUMN_PX } from "@/shared/layout/axes";
 import { cn } from "@/lib/utils";
 
 const ZONE_VALUE =
   "min-w-0 break-words t-body text-[var(--ink)]";
 
 const PORTFOLIOS_OPEN_KEY = "aded:profile-portfolios-open";
-/**
- * ChevronRight draws its two legs at x=9 in a 24 box, stroke 1.5, shown at 20px.
- * The button already sits on the value axis; this pulls the legs back onto it.
- */
-const CHEVRON_LEG_INSET_PX = ((9 - 1.5 / 2) / 24) * 20;
+const ROW = {
+  gridTemplateColumns: `${LABEL_COLUMN_PX}px minmax(0, 1fr)`,
+  columnGap: COLUMN_GAP_PX,
+} as const;
+
+function AccountChapter({ number, title }: { number: string; title: string }) {
+  return (
+    <h2 className="flex items-center gap-[14px] border-b border-[var(--rule)] py-[18px]">
+      <span className={NUMBER_CLASS}>{number}</span>
+      <span className="text-[15px] font-normal uppercase leading-none tracking-[0.12em] text-[var(--ink)]">{title}</span>
+    </h2>
+  );
+}
 
 /** On: a card shared back arrives pending. Off: share-back writes nothing. */
 function ShareBackSetting() {
@@ -116,7 +127,10 @@ export function ProfileScreen() {
   const [busy, setBusy] = useState(false);
   const creatingPortfolio = useRef(false);
   const [portfolioBusy, setPortfolioBusy] = useState(false);
-  const [portfoliosOpen, setPortfoliosOpen] = useState(true);
+  const [portfoliosOpen, setPortfoliosOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [walletOff, setWalletOff] = useState(false);
   const [linkCardId, setLinkCardId] = useState<string | null>(null);
   const [linkBusy, setLinkBusy] = useState(false);
@@ -165,9 +179,44 @@ export function ProfileScreen() {
 
   useEffect(() => {
     if (window.location.hash === "#portfolios") return;
-    if (window.localStorage.getItem(PORTFOLIOS_OPEN_KEY) !== "0") return;
-    void Promise.resolve().then(() => setPortfoliosOpen(false));
+    if (window.localStorage.getItem(PORTFOLIOS_OPEN_KEY) !== "1") return;
+    void Promise.resolve().then(() => setPortfoliosOpen(true));
   }, []);
+
+  const createPortfolio = () => {
+    if (creatingPortfolio.current || portfolioLimit === null || !canAddMoreCards(cards, portfolioLimit)) return;
+    creatingPortfolio.current = true;
+    setPortfolioBusy(true);
+    updateSecondCardDraft({ displayName: "" }, portfolioLimit);
+    router.push("/main");
+  };
+
+  const downloadData = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const response = await fetch("/api/account/export", { cache: "no-store" });
+      if (!response.ok) {
+        setDownloadError("Could not download your data. Try again.");
+        setDownloading(false);
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const named = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "");
+      link.download = named?.[1] || "aded-account.zip";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setDownloadError("Could not download your data. Try again.");
+    }
+    setDownloading(false);
+  };
 
   const togglePortfolios = () => {
     const next = !portfoliosOpen;
@@ -358,136 +407,126 @@ export function ProfileScreen() {
           <KeepProfileButton className="mt-6" />
           {eventPass.keepByTap ? <p className="mt-2 mb-0 t-meta text-[var(--grey)]">Free. One tap — no password.</p> : null}
         </Zone>
-      ) : (
-        <Zone label="Account" rule>
-          {account.email ? (
-            <>
-              <p className={`${ZONE_VALUE} mb-0 whitespace-nowrap`}>Signed in as</p>
-              <p className={`${ZONE_VALUE} mt-1 mb-0`}>{account.email}</p>
-            </>
-          ) : (
-            <p className={ZONE_VALUE}>Signed in.</p>
-          )}
-          <p className="mt-3 flex gap-4 t-body">
-            {canChangePassword ? (
-              <Link href="/account/password" className="underline">
-                Change password
+      ) : null}
+
+      <AccountChapter number="01" title="Settings" />
+      {signedIn ? (
+        <Zone label="Signed in" align="start" rule>
+          <p className={`${ZONE_VALUE} mb-0`}>{account.email ?? "Signed in."}</p>
+          {account.provider === "email" ? (
+            <p className="mt-3 t-body">
+              <Link href="/account/email" className="underline">
+                Change email
               </Link>
-            ) : null}
-            <button type="button" disabled={busy} onClick={() => void signOut()} className="underline disabled:opacity-40">
-              Sign out
-            </button>
-          </p>
+              {canChangePassword ? (
+                <>
+                  {" · "}
+                  <Link href="/account/password" className="underline">
+                    Change password
+                  </Link>
+                </>
+              ) : null}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void signOut()}
+            className="mt-3 underline disabled:opacity-40"
+          >
+            Sign out
+          </button>
         </Zone>
-      )}
+      ) : null}
 
-      <Zone label="Info" rule>
-        <Link href="/info" className={`${ZONE_VALUE} underline`}>
-          Info
-        </Link>
-      </Zone>
-
-      <Zone
-        id="portfolios"
-        label={
-          <button
-            type="button"
-            aria-expanded={portfoliosOpen}
-            onClick={togglePortfolios}
-            className="press border-0 bg-transparent p-0 t-label [-webkit-tap-highlight-color:transparent]"
-          >
-            Portfolio
-          </button>
-        }
-        align="start"
-        rule
-      >
-        <div className="flex items-start justify-between gap-3">
-          <button
-            type="button"
-            aria-label="Portfolio"
-            aria-expanded={portfoliosOpen}
-            onClick={togglePortfolios}
-            className="press flex size-5 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-[var(--ink)] [-webkit-tap-highlight-color:transparent]"
-            style={{ marginLeft: -CHEVRON_LEG_INSET_PX }}
-          >
-            <ChevronRight
-              aria-hidden
-              className={cn("size-5 transition-transform", portfoliosOpen && "rotate-90")}
-              strokeWidth={1.5}
-            />
-          </button>
-          <p className="text-right t-label text-[var(--grey)]">
-            <span className="text-[var(--ink)]">{cards.length}</span>
-            {` / ${portfolioLimit ?? "…"}`}
-          </p>
-        </div>
-        {portfoliosOpen ? (
-        <ul className="mb-6 space-y-6">
-          {cards.map((card) => {
-            const ready = isCardReady(card);
-            const photo = cardPhotoSrc(card);
-            return (
-              <li key={card.id} className="flex gap-4">
-                {photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photo} alt="" className={cn("size-12 object-cover", photoSlotLookClass("shadow"))} />
-                ) : (
-                  <span className={cn("size-12 shrink-0 bg-white", photoSlotLookClass("shadow"))} />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate t-body">
-                    {card.displayName.trim() || "Untitled"}
-                  </p>
-                  {ready ? (
-                    <>
-                      {walletOff && inWallet[card.id] !== true ? null : inWallet[card.id] === true ? (
-                        <p className="mt-1 t-label">IN WALLET</p>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => putInWallet(card.id)}
-                          className="mt-1 border-0 bg-transparent p-0 t-label underline"
-                        >
-                          PUT IN WALLET
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (linkCardId) return;
-                          setLinkCardId(card.id);
-                        }}
-                        className="mt-1 block border-0 bg-transparent p-0 text-left t-label underline"
-                      >
-                        NEW LINK
-                      </button>
-                    </>
-                  ) : (
-                    <p className="mt-1 t-meta text-[var(--ink)]">Inactive until you add a name.</p>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-        ) : null}
+      <section id="portfolios" className="scroll-mt-16 border-b border-[var(--rule)] py-[18px]">
         <button
           type="button"
-          disabled={!canAddMoreCards(cards, portfolioLimit) || portfolioBusy}
-          className="border-0 bg-sky px-[21.6px] py-[10.8px] t-label text-[var(--ink)] disabled:opacity-40"
-          style={{ color: "var(--ink)" }}
-          onClick={() => {
-            if (creatingPortfolio.current || portfolioLimit === null || !canAddMoreCards(cards, portfolioLimit)) return;
-            creatingPortfolio.current = true;
-            setPortfolioBusy(true);
-            updateSecondCardDraft({ displayName: "" }, portfolioLimit);
-            router.push("/main");
-          }}
+          aria-expanded={portfoliosOpen}
+          onClick={togglePortfolios}
+          className="grid w-full items-center border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
+          style={ROW}
         >
-          Create New Portfolio
+          <span className="t-label">Portfolio</span>
+          <span className="flex min-w-0 items-center">
+            <span className="t-body text-[var(--ink)]">
+              {cards.length}
+              {` / ${portfolioLimit ?? "…"}`}
+            </span>
+            <ChevronRight
+              aria-hidden
+              className={cn("ml-auto size-5 shrink-0 text-[var(--ink)] transition-transform", portfoliosOpen && "rotate-90")}
+              strokeWidth={1.5}
+            />
+          </span>
         </button>
-      </Zone>
+        {portfoliosOpen ? (
+          <div className="pt-[18px]" style={{ paddingLeft: LABEL_COLUMN_PX + COLUMN_GAP_PX }}>
+            <ul className="space-y-6">
+              {cards.map((card) => {
+                const ready = isCardReady(card);
+                const photo = cardPhotoSrc(card);
+                return (
+                  <li key={card.id} className="flex gap-4">
+                    {photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photo} alt="" className={cn("size-12 object-cover", photoSlotLookClass("shadow"))} />
+                    ) : (
+                      <span className={cn("size-12 shrink-0 bg-white", photoSlotLookClass("shadow"))} />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate t-body">{card.displayName.trim() || "Untitled"}</p>
+                      {ready ? (
+                        <>
+                          {walletOff && inWallet[card.id] !== true ? null : inWallet[card.id] === true ? (
+                            <p className="mt-1 t-label">IN WALLET</p>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => putInWallet(card.id)}
+                              className="mt-1 border-0 bg-transparent p-0 t-label underline"
+                            >
+                              PUT IN WALLET
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (linkCardId) return;
+                              setLinkCardId(card.id);
+                            }}
+                            className="mt-1 block border-0 bg-transparent p-0 text-left t-label underline"
+                          >
+                            NEW LINK
+                          </button>
+                        </>
+                      ) : (
+                        <p className="mt-1 t-meta text-[var(--ink)]">Inactive until you add a name.</p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {portfolioLimit !== null && canAddMoreCards(cards, portfolioLimit) ? (
+              <div className={cn("flex flex-col items-start gap-4", cards.length > 0 && "mt-6")}>
+                {Array.from({ length: portfolioLimit - cards.length }, (_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    aria-label="Create portfolio"
+                    disabled={portfolioBusy}
+                    onClick={createPortfolio}
+                    className="border-0 bg-transparent p-0 text-[var(--ink)] disabled:opacity-40"
+                  >
+                    <MarkPlus />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
 
       <Zone label="Color" rule>
         <div className="flex items-center gap-3">
@@ -505,41 +544,66 @@ export function ProfileScreen() {
         <ShareBackSetting />
       </Zone>
 
-      <Zone label="Manage" rule>
-        {account.provider === "email" ? (
-          <p className={ZONE_VALUE}>
-            <Link href="/account/email" className="underline">
-              Change email
-            </Link>
-          </p>
+      <AccountChapter number="02" title="Info & legal" />
+      <Link
+        href="/info"
+        className="flex items-center border-b border-[var(--rule)] py-[18px] [-webkit-tap-highlight-color:transparent]"
+      >
+        <span className="t-label">User guide</span>
+        <ChevronRight aria-hidden className="ml-auto size-5 text-[var(--ink)]" strokeWidth={1.5} />
+      </Link>
+      <Link
+        href="/legal"
+        className="flex items-center border-b border-[var(--rule)] py-[18px] [-webkit-tap-highlight-color:transparent]"
+      >
+        <span className="t-label">Legal</span>
+        <ChevronRight aria-hidden className="ml-auto size-5 text-[var(--ink)]" strokeWidth={1.5} />
+      </Link>
+      <section className="border-b border-[var(--rule)] py-[18px]">
+        <button
+          type="button"
+          aria-expanded={supportOpen}
+          onClick={() => setSupportOpen((open) => !open)}
+          className="flex w-full items-center border-0 bg-transparent p-0 text-left [-webkit-tap-highlight-color:transparent]"
+        >
+          <span className="t-label">Support</span>
+          <ChevronRight
+            aria-hidden
+            className={cn("ml-auto size-5 text-[var(--ink)] transition-transform", supportOpen && "rotate-90")}
+            strokeWidth={1.5}
+          />
+        </button>
+        {supportOpen ? (
+          <div className="pt-[18px]" style={{ paddingLeft: LABEL_COLUMN_PX + COLUMN_GAP_PX }}>
+            <p className="m-0 t-body">
+              Have a question, need help, or found a bug? Email us. If you're reporting an issue, tell us what happened and attach a screenshot if you can.
+            </p>
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="mt-3 block t-body underline">
+              {SUPPORT_EMAIL}
+            </a>
+            <p className="mt-3 mb-0 t-meta text-[var(--grey)]">App {APP_VERSION}</p>
+          </div>
         ) : null}
-        <p className={account.provider === "email" ? "mt-3 t-body" : ZONE_VALUE}>
-          <Link href="/account/delete" className="underline">
-            Delete account
-          </Link>
-        </p>
-      </Zone>
+      </section>
 
-      <Zone label="About">
-        <p className={ZONE_VALUE}>
-          <Link href="/terms" className="underline">
-            Terms
-          </Link>
-          {" · "}
-          <Link href="/privacy" className="underline">
-            Privacy
-          </Link>
-        </p>
-        <p className="mt-2 t-body text-[var(--ink)]">
-          {account.consentVersion ? `Consent v${account.consentVersion}` : "Not recorded"}
-        </p>
-        <p className="mt-1 t-body text-[var(--ink)]">App {APP_VERSION}</p>
-        <p className="mt-1 t-body text-[var(--ink)]">
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
-            {SUPPORT_EMAIL}
-          </a>
-        </p>
-      </Zone>
+      <AccountChapter number="03" title="Your data" />
+      <section className="border-b border-[var(--rule)] py-[18px]">
+        <button
+          type="button"
+          disabled={downloading}
+          onClick={() => void downloadData()}
+          className="flex w-full items-center border-0 bg-transparent p-0 text-left disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+        >
+          <span className="t-label">Download data</span>
+          <Download aria-hidden className="ml-auto size-5 text-[var(--ink)]" strokeWidth={1.5} />
+        </button>
+        {downloadError ? <p className="mt-3 mb-0 t-meta text-[#E23B2F]">{downloadError}</p> : null}
+      </section>
+      <p className="mb-[18px] mt-8 text-center">
+        <Link href="/account/delete" className="t-body text-[var(--ink)]">
+          Delete account
+        </Link>
+      </p>
       {linkCardId ? (
         <NewLinkDialog
           cardId={linkCardId}
