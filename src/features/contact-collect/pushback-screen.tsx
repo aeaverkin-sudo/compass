@@ -134,7 +134,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   return (
     <main className="compass-main flex flex-col overflow-hidden bg-white text-[var(--ink)]">
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)] pb-[max(24px,env(safe-area-inset-bottom))]">
-        <ScreenHeader title="Pushback" fallbackHref={fresh ? "/network" : `/network/x/${contact.id}`} />
+        <ScreenHeader title="Swap" fallbackHref={fresh ? "/network" : `/network/x/${contact.id}`} />
         {sent ? (
           <p className="m-0 t-body">Already sent.</p>
         ) : (
