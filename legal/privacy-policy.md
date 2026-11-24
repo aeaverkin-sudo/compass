@@ -58,7 +58,7 @@ We take steps to contain and investigate security incidents and notify affected 
 
 In Account, you can download the data available through the export tool or request account deletion. For other privacy requests, email support@adedme.com. We may ask for enough information to verify the request.
 
-Where the law provides these rights, you may access, correct or delete personal data, receive a copy, restrict or object to its use, or withdraw consent. You can object to daily product totals linked to your account. We delete those totals and do not add new ones. Totals that are not linked to a person cannot be matched to a visitor. You can complain to your local data protection authority, including Portugal’s CNPD.
+Where the law provides these rights, you may access, correct or delete personal data, receive a copy, restrict or object to its use, or withdraw consent. You can object to daily product totals linked to your account. We delete those totals and do not add new ones. Totals that are not linked to a person cannot be matched to a visitor. You can complain to your local data protection authority, including Portugal’s CNPD. You can also object to statistics linked to your account.
 
 ## 9. Updates
 

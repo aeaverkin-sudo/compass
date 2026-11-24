@@ -175,6 +175,20 @@ try {
   assert(raced.rows[0].n === 0, "an open that started with the objection left a total");
   assert(raceMark.rows[0].n === 1, "the overlapping objection was not saved");
 
+  const keptOwner = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  const keptCard = "abababab-abab-4aba-8aba-abababababab";
+  await admin.query("select bump_product_count($1::date, $2, $3::uuid, $4::uuid)", [DAY, "share_link", keptCard, keptOwner]);
+  const beforeCancel = await admin.query("select total from product_daily_counts where owner_id = $1", [keptOwner]);
+  assert(Number(beforeCancel.rows[0]?.total) === 1, "the second account did not count");
+  const still = await admin.query("select total from product_daily_counts where owner_id = $1", [keptOwner]);
+  assert(Number(still.rows[0]?.total) === 1, "leaving the dialog removed the second account");
+  await admin.query("select bump_product_count($1::date, $2, $3::uuid, $4::uuid)", [DAY, "open_qr", keptCard, keptOwner]);
+  const again = await admin.query(
+    "select total from product_daily_counts where action = 'open_qr' and owner_id = $1",
+    [keptOwner],
+  );
+  assert(Number(again.rows[0]?.total) === 1, "the second account stopped counting");
+
   await admin.query(
     "insert into product_daily_counts (day, action, card_id, owner_id, total) values ($1::date, 'card_saved', null, null, 3)",
     ["2026-08-25"],

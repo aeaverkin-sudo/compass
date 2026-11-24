@@ -1,24 +1,44 @@
-import type { ReactNode } from "react";
+import { cloneElement, isValidElement, type ReactNode } from "react";
 
-function inline(text: string): ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*|_[^_]+_)/g);
-  return parts.map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return (
-        <strong key={index} className="font-medium">
-          {part.slice(2, -2)}
-        </strong>
-      );
+function marks(text: string, key: string): ReactNode {
+  if (text.startsWith("**") && text.endsWith("**")) {
+    return (
+      <strong key={key} className="font-medium">
+        {text.slice(2, -2)}
+      </strong>
+    );
+  }
+  if (text.startsWith("_") && text.endsWith("_")) {
+    return <em key={key}>{text.slice(1, -1)}</em>;
+  }
+  return <span key={key}>{text}</span>;
+}
+
+function inline(text: string, phrase?: string, phraseNode?: ReactNode): ReactNode[] {
+  const marked = text.split(/(\*\*[^*]+\*\*|_[^_]+_)/g);
+  return marked.flatMap((part, index) => {
+    if ((part.startsWith("**") && part.endsWith("**")) || (part.startsWith("_") && part.endsWith("_"))) {
+      return [marks(part, `m-${index}`)];
     }
-    if (part.startsWith("_") && part.endsWith("_")) {
-      return <em key={index}>{part.slice(1, -1)}</em>;
-    }
-    return <span key={index}>{part}</span>;
+    if (!phrase || !phraseNode || !part.includes(phrase)) return [marks(part, `t-${index}`)];
+    const [before, after] = part.split(phrase);
+    const keyed = isValidElement(phraseNode) ? cloneElement(phraseNode, { key: `p-${index}` }) : phraseNode;
+    return [before ? <span key={`b-${index}`}>{before}</span> : null, keyed, after ? <span key={`a-${index}`}>{after}</span> : null].filter(
+      (node) => node !== null,
+    );
   });
 }
 
 /** Renders the legal markdown we actually ship: headings, paragraphs, bold, italics, lists. */
-export function LegalDocument({ source }: { source: string }) {
+export function LegalDocument({
+  source,
+  phrase,
+  phraseNode,
+}: {
+  source: string;
+  phrase?: string;
+  phraseNode?: ReactNode;
+}) {
   const blocks: ReactNode[] = [];
   const lines = source.replace(/\r\n/g, "\n").split("\n");
   let list: string[] = [];
@@ -30,7 +50,7 @@ export function LegalDocument({ source }: { source: string }) {
     blocks.push(
       <ul key={`list-${blocks.length}`} className="mt-3 list-disc space-y-2 pl-5 t-body">
         {items.map((item) => (
-          <li key={item}>{inline(item)}</li>
+          <li key={item}>{inline(item, phrase, phraseNode)}</li>
         ))}
       </ul>,
     );
@@ -46,7 +66,7 @@ export function LegalDocument({ source }: { source: string }) {
     if (line.startsWith("# ")) {
       blocks.push(
         <h1 key={`h1-${blocks.length}`} className="t-name">
-          {inline(line.slice(2))}
+          {inline(line.slice(2), phrase, phraseNode)}
         </h1>,
       );
       continue;
@@ -54,14 +74,14 @@ export function LegalDocument({ source }: { source: string }) {
     if (line.startsWith("## ")) {
       blocks.push(
         <h2 key={`h2-${blocks.length}`} className="mt-8 t-body">
-          {inline(line.slice(3))}
+          {inline(line.slice(3), phrase, phraseNode)}
         </h2>,
       );
       continue;
     }
     blocks.push(
       <p key={`p-${blocks.length}`} className="mt-3 t-body">
-        {inline(line)}
+        {inline(line, phrase, phraseNode)}
       </p>,
     );
   }

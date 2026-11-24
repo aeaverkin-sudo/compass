@@ -37,6 +37,17 @@ export async function noteProductCount(input: {
   }
 }
 
+/** True when this account already asked to stop totals linked to it. A missing table is not an objection. */
+export async function productCountsObjected(ownerId: string): Promise<boolean> {
+  const admin = createAdminSupabaseClient();
+  const row = await admin.from("product_count_objections").select("owner_id").eq("owner_id", ownerId).maybeSingle();
+  if (row.error) {
+    if (missingStats(row.error.message)) return false;
+    throw new Error(row.error.message);
+  }
+  return Boolean(row.data);
+}
+
 /**
  * Saves the objection, deletes totals linked to this account, and later bumps do not add new ones.
  * Throws when the mark cannot be saved, so the request is not reported as done.
