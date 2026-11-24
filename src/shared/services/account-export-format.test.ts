@@ -51,6 +51,18 @@ test("a missing photo_attachment_id does not drop id", () => {
     "photo_look",
   );
   assert.equal(optionalColumnToDrop('column "id" does not exist', fields, optional), null);
+  assert.equal(
+    optionalColumnToDrop("column external_contacts.header_field does not exist", [...fields, "header_field", "position"], optional),
+    "header_field",
+  );
+  assert.equal(
+    optionalColumnToDrop("column external_contacts.position does not exist", [...fields, "header_field", "position"], optional),
+    null,
+  );
+  assert.equal(
+    optionalColumnToDrop("column external_contacts.photo_attachment_id does not exist", fields, optional),
+    null,
+  );
 });
 
 test("rows are read until a short page and a later page error fails the read", async () => {

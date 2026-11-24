@@ -206,7 +206,7 @@ function brokenTables(): Record<string, Table> {
   };
 }
 
-function createFake(tables: Record<string, Table>, selects: string[], ranges: string[]): ExportDatabase {
+function createFake(tables: Record<string, Table>, selects: string[], ranges: string[], errors: string[]): ExportDatabase {
   return {
     from(table: string) {
       return {
@@ -218,8 +218,9 @@ function createFake(tables: Record<string, Table>, selects: string[], ranges: st
           const message = !spec
             ? `relation "${table}" does not exist`
             : missing
-              ? `column "${missing}" of relation "${table}" does not exist`
+              ? `column ${table}.${missing} does not exist`
               : null;
+          if (message && missing) errors.push(message);
           const filters: ((row: Row) => boolean)[] = [];
           const orders: string[] = [];
           let limit: number | null = null;
@@ -312,9 +313,11 @@ function zipEntries(zip: Uint8Array) {
 test("two accounts download by HTTP without a short page, a dropped id, or a file the zip does not contain", async () => {
   const selects: string[] = [];
   const ranges: string[] = [];
+  const errors: string[] = [];
   const brokenSelects: string[] = [];
-  const live = createFake(liveTables(), selects, ranges);
-  const broken = createFake(brokenTables(), brokenSelects, []);
+  const brokenErrors: string[] = [];
+  const live = createFake(liveTables(), selects, ranges, errors);
+  const broken = createFake(brokenTables(), brokenSelects, [], brokenErrors);
   const users = new Map([
     [OWNER_A, { id: OWNER_A, email: "a-owner@example.com", identities: [{ provider: "email" }] }],
     [OWNER_B, { id: OWNER_B, email: "b-owner@example.com", identities: [{ provider: "email" }] }],
@@ -435,6 +438,7 @@ test("two accounts download by HTTP without a short page, a dropped id, or a fil
     assert.ok(fields(contactSelects.at(-1) ?? "").includes("id"));
     assert.equal(fields(contactSelects.at(-1) ?? "").includes("pushback_card_id"), false);
     assert.ok(fields(contactSelects.at(-1) ?? "").includes("photo_attachment_id"));
+    assert.ok(errors.includes("column external_contacts.header_field does not exist"));
 
     const beeZip = await readResponse(await fetch(`${origin}/api/account/export?owner=${OWNER_B}`));
     const bee = readAccount(beeZip);
@@ -461,6 +465,7 @@ test("two accounts download by HTTP without a short page, a dropped id, or a fil
     assert.equal(brokenCards.length, 1);
     assert.ok(fields(brokenCards[0] ?? "").includes("id"));
     assert.ok(fields(brokenCards[0] ?? "").includes("photo_attachment_id"));
+    assert.ok(brokenErrors.includes("column cards.photo_attachment_id does not exist"));
 
     const unread = await readResponse(await fetch(`${origin}/api/account/export?owner=${OWNER_UNREADABLE}`));
     assert.deepEqual(zipEntries(unread).map((entry) => entry.name), ["README.txt"]);

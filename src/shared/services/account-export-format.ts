@@ -71,16 +71,24 @@ export function optionalColumnToDrop(
     if (!selected.includes(column) || PROTECTED_COLUMNS.has(column)) continue;
     allowed.set(column.toLowerCase(), column);
   }
-  const named = [
-    ...message.matchAll(/column\s+"([A-Za-z_][A-Za-z0-9_]*)"/g),
-    ...message.matchAll(/'([A-Za-z_][A-Za-z0-9_]*)'\s+column/g),
-    ...message.matchAll(/\bcolumn\s+([A-Za-z_][A-Za-z0-9_]*)\b/g),
-  ];
-  for (const match of named) {
-    const column = allowed.get(match[1].toLowerCase());
+  for (const name of columnNames(message)) {
+    const column = allowed.get(name.toLowerCase());
     if (column) return column;
   }
   return null;
+}
+
+/** The column is the last identifier. `external_contacts.header_field` names header_field, not the table. */
+function columnNames(message: string) {
+  const names: string[] = [];
+  const take = (token: string) => {
+    const column = token.split(".").pop()?.replace(/"/g, "") ?? "";
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(column)) names.push(column);
+  };
+  for (const match of message.matchAll(/column\s+"([^"]+)"/gi)) take(match[1]);
+  for (const match of message.matchAll(/'([^']+)'\s+column/gi)) take(match[1]);
+  for (const match of message.matchAll(/\bcolumn\s+([A-Za-z_][A-Za-z0-9_.]*)/gi)) take(match[1]);
+  return names;
 }
 
 export const EXPORT_README = [
