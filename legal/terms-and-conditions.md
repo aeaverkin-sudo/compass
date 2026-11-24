@@ -1,76 +1,59 @@
-# ADED ME — Terms of Service
+# Terms and Conditions
 
-_Launch-ready draft (v1.2). Plain, GDPR/DSA-aware. Qualified lawyer to sign off before public launch. Only placeholder: operator's full legal name / registration — disclosed on request (sole proprietor)._
+Effective 24 November 2026 · Version 1.3
 
-**Last updated: 18 November 2026 · Version 1.2**
+## 1. Who we are
 
-## 1. About ADED ME
-ADED ME ("ADED", "the Service", "we", "us") is a tool for building and sharing a **living digital portfolio** — a personal card. You add contacts, links, social profiles, files (portfolios, decks, CVs) and other content to one library, and share the version of yourself you choose — via QR code, link, or generated PDF — with the people you decide to show it to. ADED lets you keep more than one portfolio from the same library, save the people you connect with, and, where offered, take part in events. Accessible at www.adedme.com. ADED does not create your content and is not a party to any relationship, transaction or meeting arising from sharing your card. We provide the interface; you decide what to publish and with whom.
+ADED ME is the service at adedme.com. These terms cover your use of adedme.com and the ADED ME service. You can contact us at support@adedme.com.
 
-## 2. Acceptance
-By creating a card or otherwise using the Service, you accept these Terms and our Privacy Policy. If you do not agree, do not use the Service. We record which version you accepted and when.
+## 2. The service
 
-## 3. Your account, sign-in and security
-You create an account with your email. At creation we show a one-time code that acts as your password; you can change it then or later in your profile. You sign in with that code or with a link we send to your email. You may also sign in with Google or Apple. In that case you have no ADED password: Google or Apple confirms who you are, and we receive your email address and, where they provide it, your name. There are no temporary accounts: joining an event creates the same permanent ADED account. One email is one account; we do not create a second account for the same address. You are responsible for the security of your account, device and credentials. Notify support@adedme.com of any unauthorised access.
+ADED ME lets you create and share web portfolios, exchange cards and save contacts. The service is currently free. Features such as Apple Wallet depend on device and service availability. If we introduce a paid feature, we will show its price and terms before you choose to buy it.
 
-## 4. Your content and ownership
-You keep ownership of everything you add (text, links, images, files, audio — "Your Content"). You are solely responsible for Your Content and for sharing it. You confirm that: you have the right to upload and share it; it does not infringe anyone's rights and is not illegal; you decide voluntarily what to include and with whom. You grant us a limited, non-exclusive licence to store, process, display, transmit and format Your Content solely to operate the Service for you (render your card, generate a PDF, deliver a one-time share, show your public portfolio). The licence ends when you delete the content or account, subject to limited legal retention.
+## 3. Your account
 
-## 5. The Service is a host, not the author
-We store and transmit user-provided content. We do not endorse it and, to the extent permitted by law, are not responsible for it. Your card may link to third-party services (messengers, websites, social networks, payment or streaming); we do not control and are not responsible for those. ADED cannot verify or guarantee the accuracy, quality, legality or safety of any content, claim, contact or file shared. People interact at their own risk; disputes are resolved between users, though we may assist at our discretion.
+You can register or sign in by email, Google or Apple. One email registration sends a starter code. After you confirm it, that code is your password. The code is valid for 30 minutes. Another registration sets a password on the portfolio screen. That screen can suggest a password, and you can change it before you continue. The welcome email includes that password. You can change your password later or ask for a reset link. Keep your sign-in details and account emails private. If you use Google or Apple, you sign in with that provider and we do not receive your password for that provider. Contact us promptly if you suspect someone has accessed your account.
 
-## 6. Acceptable use and prohibited content
-You must not use the Service for illegal or harmful content, including without limitation: pornography and any sexual content involving minors; weapons, illegal drugs, resale of prescription/medical products; sanctioned, stolen or counterfeit goods and other restricted items; impersonation of any person, company or brand, or misrepresenting affiliation; content infringing intellectual property or other rights; malware, phishing, hacking tools, or disruption of the Service; hate speech, harassment, or content unlawful where the Service is used. The list is not exhaustive; we may remove violating content at our discretion.
+## 4. Your content and saved contacts
 
-## 7. Public sharing and voluntary disclosure
-The purpose of the Service is to share what you choose with whom you choose. The details you add are typically already public and included by your voluntary choice. We ask you not to share sensitive data you would not want seen. You are solely responsible for personal data you make public in your cards, files or communications; ADED is not liable for the exposure or use of voluntarily disclosed information.
+You keep your rights in what you add. You give us a limited, non-exclusive permission to store, process, format, display and send your content as necessary to provide the service, follow your sharing choices and meet our legal obligations. This permission lasts only as long as needed for those purposes.
 
-## 8. Artificial intelligence and automated tools
-The Service uses AI and automated systems to help operate and improve it, including to process and classify content for safety and convenience. Automated results are for convenience only; ADED does not guarantee their accuracy, completeness or reliability, and they are not professional, expert or legal verification. You remain responsible for your content. We disclaim liability for errors or consequences of automated features.
+You are responsible for the content you upload, publish or send and for respecting other people’s rights. Make sure you have the necessary rights and a lawful basis to collect or share another person’s details. Check any information suggested by Scan, Voice or text recognition before saving it or sending a card. These tools can misread what you submit.
 
-## 9. Moderation, notice and takedown
-At a basic level we do not scan content — actions are voluntary and public cards are public by nature; we do not proactively monitor everything. Where specific words or signals raise a reasonable suspicion of illegal use, we reserve the right to review the specific item concerned (not your whole card). We respond to valid reports and legal notices at support@adedme.com and act promptly to remove illegal content once aware. If content is removed, you may request a statement of reasons and appeal.
+## 5. Sharing your portfolio and changing its address
 
-## 10. Verification and cooperation with authorities
-We operate as a fully legal and ethical service. Where required by law (e.g. the EU Digital Services Act), we may request legal identification or registration details, which may be shared with authorities on lawful request. We comply with applicable laws and cooperate with authorities, and may disclose user data when required by court order or law enforcement.
+People with the link or QR code can view what you make public in a portfolio. They can save, copy or forward what they receive. You choose the content you publish and the card you send when you share one back.
 
-## 11. Plans, subscriptions and event payments
-The Service offers a free tier and paid plans with additional features and higher limits (portfolios, storage). Plan features/limits are described in the app and may change. Billing for paid plans is handled by a third-party payment provider; we do not store full card or bank details. Paid plans renew for the period selected until cancelled. Nothing here affects mandatory consumer rights, including statutory withdrawal/refund rights.
+When you rename a portfolio that already has an address, you can keep the old links and QR codes working, or not. If you do not keep them, the previous address and the QR codes that use it stop opening that portfolio. Creating a new link from Account does the same for that portfolio. This does not delete screenshots, downloaded files, saved copies or messages that already reached someone. A person who already saved the portfolio in Network can still see that saved copy. A link that does not use the changed address can keep working. A pass already in Apple Wallet can still contain an older QR code. Remove and add the pass again if the screen asks you to.
 
-Event tickets and fees are paid to the organiser outside ADED — a payment link or a transfer that includes your pay code. ADED does not take or store payment cards for events. We only record the organiser's confirmation of payment.
+## 6. Prohibited use
 
-## 12. Connections and events
-The Service may let you save Connections and, where offered, take part in events. You join through an open link or a personal invitation: you create a portfolio or sign in to an existing account. When you join, the organiser may act as a separate data controller and receive your name, contact, attendance, payment status, and the card fields you chose to share, scoped to that event; shown at join time, requires consent, withdrawable. See the Privacy Policy.
+Do not use ADED ME to:
 
-Some events are run with a partner: the partner handles registration; ADED is used only for networking. We do not pass your ADED data to the partner's platform.
+- Upload, share or link to pornography, child sexual abuse material or non-consensual intimate images.
+- Offer, promote or facilitate transactions involving weapons, ammunition, illegal drugs or other unlawful goods or services.
+- Threaten, harass or exploit people, promote violence, or distribute unlawful hate or terrorist content.
+- Commit fraud, impersonate someone, spread malware, send spam or gain unauthorised access to accounts or systems.
+- Scrape, harvest or share personal data without a lawful basis, expose someone’s private details to harm them, or infringe intellectual property or other legal rights.
 
-We send transactional mail: the invitation, a welcome message with your code, a reminder before the event, and a way to unsubscribe.
+## 7. Reports and moderation
 
-An Apple Wallet pass may be offered. A Wallet link in the welcome mail works for 30 days without signing in. Once added, the pass then lives in Wallet on its own.
+Anyone can report illegal content or a violation of these terms by emailing support@adedme.com, with or without an account. Identify the content and explain why you are reporting it. If you report material involving the sexual abuse or exploitation of a child, share the location or link where appropriate and avoid sending copies.
 
-## 13. Intellectual property
-The name ADED, with its logo, interface logic, card/portfolio system, design identity and communication style, is the intellectual property of the founder(s), protected under applicable law. A trademark application has been submitted. Use grants you no right to copy, reproduce or exploit any part of the concept or branding without written permission. Third-party trademarks are used for identification only and belong to their owners.
+There is no separate report form in the product. Email to that address is the channel. We may remove or restrict content, disable a public link, or suspend or close an account where that is reasonably necessary to address a violation, protect people or the service, or comply with law. These terms do not, by themselves, show that a particular report has been reviewed. You can email support@adedme.com to ask about a restriction. A restriction is explained where the law requires an explanation. We may cooperate with competent authorities as described in the Privacy Policy.
 
-## 14. Disclaimers
-The Service is provided "as is" and "as available", without warranties of any kind, to the maximum extent permitted by law.
+## 8. External services and interruptions
 
-## 15. Limitation of liability
-To the maximum extent permitted by law, ADED, its founder(s), partners and affiliates are not liable for indirect, incidental or consequential damages, loss of content, or damages from user interactions, third-party services, fraud, or the quality or legality of anything shared. You use the Service at your own risk. Nothing limits liability that cannot be limited by law, or affects mandatory consumer rights.
+External websites and services you choose to use, such as a messaging app, have their own terms and privacy policies. To the extent allowed by law, we are not responsible for their independent operation or for what other people do with copies of a portfolio they receive.
 
-## 16. Indemnification
-You agree to indemnify and hold harmless ADED, its founder(s), partners and affiliates from any claims, liabilities, damages, losses and reasonable expenses (including legal fees) arising from: your use of the Service; your violation of these Terms; your infringement of third-party rights (including IP); or any dispute with another user.
+The service can be interrupted. To the extent allowed by law, we are not liable for delay or interruption to the extent caused by an event outside our reasonable control that we could not reasonably prevent or overcome, including an external infrastructure outage that meets those conditions. We take reasonable steps to limit the impact and restore the service.
 
-## 17. Termination and deletion
-You may stop using the Service and delete your content or account at any time. We may suspend or terminate access for violations. On deletion we erase your data, subject to limited legal retention (see Privacy Policy).
+## 9. Limits and your rights
 
-## 18. Changes to these Terms
-We may update these Terms. We record the version and acceptance date. On material changes we bump the version and re-request acceptance in the app. Continued use after changes take effect constitutes acceptance.
+To the extent allowed by law, we are not liable for loss caused solely by your violation of these terms, or solely by another person’s actions outside our control. These terms preserve our own legal duties and any liability that the law does not allow us to exclude or limit, including applicable responsibility for intentional misconduct or gross negligence. Your mandatory consumer and data protection rights and remedies remain available.
 
-## 19. Dispute resolution
-Disputes shall first be addressed amicably via support@adedme.com. If unresolved, they shall be submitted to the competent courts where ADED is legally established (Portugal), which shall have exclusive jurisdiction, without prejudice to mandatory consumer protections in your country of residence.
+## 10. Closing your account, changes and applicable law
 
-## 20. Governing law
-Governed by the laws of Portugal and the European Union, without prejudice to mandatory consumer protections in your country of residence. If any provision is unenforceable, the remainder stays valid.
+You can stop using ADED ME, download the data available through the Account export and request account deletion. The Privacy Policy explains retention and deletion. We will give notice of material changes to these terms as required by law and ask you to agree again where needed.
 
-## 21. Contact
-Operated by a sole proprietor established in Portugal. Full legal name and registration details available on request with a legitimate reason. Contact: support@adedme.com — include a clear subject line. Rights holders, complainants and authorities may use the same address.
+Portuguese law governs these terms, subject to mandatory protections that apply where you live. You can bring a claim in any court available to you under applicable consumer law.
