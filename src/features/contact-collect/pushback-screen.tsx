@@ -6,7 +6,7 @@ import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
 import { cardPhotoSrc } from "@/shared/services/card-photo";
 import { useAppStore } from "@/shared/store/app-store";
-import { draftStillCurrent, pushTargets, swapCardOffered, visibleDraft, type DraftChoice } from "@/features/contact-collect/pushback";
+import { draftStillCurrent, keptSwapCard, pushTargets, swapCardOffered, visibleDraft, type DraftChoice } from "@/features/contact-collect/pushback";
 import type { ExternalContact, PushbackChannel } from "@/features/contact-collect/types";
 
 const SECTION = "grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]";
@@ -35,12 +35,14 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const [error, setError] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
-  const selected = cards.find((card) => card.id === cardId) ?? null;
+  const activeCardId = keptSwapCard(cardId, cards.map((card) => card.id));
+  if (cardId && !activeCardId) setCardId(null);
+  const selected = cards.find((card) => card.id === activeCardId) ?? null;
   const seenName = selected?.name ?? "";
   const confirmedName = confirmedFor && confirmedFor.cardId === cardId && confirmedFor.name === seenName ? seenName : "";
   const current: DraftChoice = {
     contactId: contact.id,
-    cardId: cardId ?? "",
+    cardId: activeCardId ?? "",
     channel: channel ?? "",
     name: confirmedName,
   };
@@ -66,12 +68,12 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   };
 
   useEffect(() => {
-    if (!cardId || !channel) {
+    if (!activeCardId || !channel) {
       setDraft(null);
       setWaiting(false);
       return;
     }
-    const started: DraftChoice = { contactId: contact.id, cardId, channel, name: confirmedName };
+    const started: DraftChoice = { contactId: contact.id, cardId: activeCardId, channel, name: confirmedName };
     let cancel = false;
     setDraft(null);
     setWaiting(true);
@@ -84,7 +86,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
           headers: { "Content-Type": "application/json" },
           cache: "no-store",
           body: JSON.stringify({
-            cardId,
+            cardId: activeCardId,
             channel,
             prepare: true,
             ...(channel === "email" && confirmedName ? { name: confirmedName } : {}),
@@ -112,9 +114,9 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     return () => {
       cancel = true;
     };
-  }, [cardId, channel, confirmedName, contact.id, retry]);
+  }, [activeCardId, channel, confirmedName, contact.id, retry]);
 
-  const partial = Boolean(cardId) !== Boolean(channel);
+  const partial = Boolean(activeCardId) !== Boolean(channel);
   const mailHref = live?.channel === "email" ? live.mailto : undefined;
   const openHref = live && live.channel !== "email" ? live.open : undefined;
 

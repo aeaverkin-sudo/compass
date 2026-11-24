@@ -121,6 +121,12 @@ export function swapCardOffered(card: { displayName: string; status: string; isP
   return Boolean(card.displayName.trim());
 }
 
+/** A card that has left the Swap list is no longer selected. */
+export function keptSwapCard(cardId: string | null, offeredIds: readonly string[]): string | null {
+  if (!cardId || !offeredIds.includes(cardId)) return null;
+  return cardId;
+}
+
 export type DraftChoice = {
   contactId: string;
   cardId: string;

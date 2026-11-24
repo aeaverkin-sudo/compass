@@ -10,6 +10,7 @@ register(new URL("./voice-reading.alias-hook.mjs", import.meta.url), pathToFileU
 const {
   draftStillCurrent,
   emailDraft,
+  keptSwapCard,
   mailtoHref,
   portfolioBody,
   portfolioText,
@@ -108,6 +109,30 @@ test("a ready draft leaves the screen when the selection changes, and a late rep
   assert.equal(draftStillCurrent(ready, null), false);
 });
 
+test("a ready draft disappears when the selected card becomes private", () => {
+  const ready = {
+    contactId: "contact",
+    cardId: "card-a",
+    channel: "email",
+    name: "Ada",
+    mailto: "mailto:ada@example.com?subject=My%20portfolio",
+    open: "https://wa.me/447700900111",
+    text: "Here's my portfolio:\nhttps://example.com/c/token",
+  };
+  const visible = { displayName: "Ada", status: "published", isPublic: true };
+  const hidden = { displayName: "Ada", status: "published", isPublic: false };
+  assert.equal(swapCardOffered(visible), true);
+  assert.equal(swapCardOffered(hidden), false);
+  assert.equal(keptSwapCard("card-a", ["card-a"]), "card-a");
+  const still = { ...ready, cardId: keptSwapCard("card-a", ["card-a"]) ?? "" };
+  assert.equal(visibleDraft(ready, still)?.mailto, ready.mailto);
+  assert.equal(visibleDraft(ready, still)?.text, ready.text);
+  const gone = { ...ready, cardId: keptSwapCard("card-a", []) ?? "", name: "" };
+  assert.equal(gone.cardId, "");
+  assert.equal(visibleDraft(ready, gone), null);
+  assert.equal(draftStillCurrent(ready, gone), false);
+});
+
 test("email uses the confirmed server name, and a changed name stays neutral", () => {
   const url = "https://example.com/c/token";
   const named = emailDraft(url, "Ada Lovelace", "Ada Lovelace");
@@ -165,6 +190,7 @@ test("the route prepares a draft and does not send mail or mark a send", () => {
   assert.match(screen, /Copy message/);
   assert.match(screen, /Use this name/);
   assert.match(screen, /visibleDraft/);
+  assert.match(screen, /keptSwapCard/);
   assert.match(screen, /draftStillCurrent/);
   assert.match(route, /name: portfolio\.name/);
   assert.equal(screen.includes("Already sent"), false);
