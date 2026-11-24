@@ -4,7 +4,7 @@ Effective 24 November 2026 · Version 1.5
 
 ## 1. What we use and why
 
-**Account and sign-in.** We use your email address, account identifier and sign-in information to create and protect your account. We may email a verification code or link when needed. We do not email your reusable password. Supabase Auth stores account passwords as hashes. If you use Google or Apple, we use the account identifier and email address they provide and your name if they supply it. Apple may provide a relay email address if you choose Hide My Email. Your Google or Apple password stays with that provider.
+**Account and sign-in.** We use your email address, account identifier and sign-in information to create and protect your account. We may email a verification code or link when needed. We do not email your reusable password. Supabase Auth stores account passwords as hashes. If you use Google or Apple, we use the account identifier and email address they provide to sign you in. They may also supply your name. We do not use that name to create or prefill a portfolio. Apple may provide a relay email address if you choose Hide My Email. Your Google or Apple password stays with that provider.
 
 **Portfolios and sharing.** We use the names, job details, descriptions, links, photos and files you add to provide your portfolio. People with your public link or QR code can see what you publish. When you send a card, the selected card becomes available to the recipient. People can keep copies of what you share. Changing the public address does not remove those copies.
 
