@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { cache } from "react";
 import { unstable_noStore as noStore } from "next/cache";
 import { HANDLE_RE, splitCodedHandle } from "@/shared/services/card-handle";
@@ -7,7 +6,8 @@ import { asCardStatus } from "@/shared/lib/card-status";
 import { shownPhotoLook, photoLookValue } from "@/shared/lib/photo-look";
 import { normalizeItemZones, normalizeRubricLabels, normalizeRubricOrder } from "@/shared/services/card-zones";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
-import { VIEWER_HEADER, viewerId } from "@/shared/lib/viewer";
+import { noteProductCount } from "@/shared/services/product-stats-record";
+import { openCountAction } from "@/shared/services/product-stats";
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
 const CARD_PUBLIC_COLUMNS =
   "id, owner_id, display_name, title, status, public_token, is_public, photo_attachment_id, created_at, updated_at";
@@ -277,15 +277,11 @@ export function cardOpenKind(value: string | string[] | undefined): "card_open" 
   return raw === "qr" ? "qr_open" : "card_open";
 }
 
-export async function publicViewer(): Promise<string | undefined> {
-  const headerStore = await headers();
-  return viewerId(headerStore.get(VIEWER_HEADER));
-}
-
-/** Opens are no longer counted. The card itself still loads. */
+/** One open of this card. A repeat open counts again. The visitor is not stored. */
 export async function logPublicCardOpen(
-  _cardId: string,
-  _ownerId: string,
-  _kind: "card_open" | "qr_open",
-  _viewer?: string,
-): Promise<void> {}
+  cardId: string,
+  ownerId: string,
+  kind: "card_open" | "qr_open",
+): Promise<void> {
+  await noteProductCount({ action: openCountAction(kind), cardId, ownerId });
+}

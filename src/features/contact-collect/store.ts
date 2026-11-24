@@ -1,6 +1,8 @@
 import "server-only";
 
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { noteProductCount } from "@/shared/services/product-stats-record";
+import { contactCountAction } from "@/shared/services/product-stats";
 import { foldSearch } from "@/shared/lib/search-fold";
 import {
   deleteAttachment,
@@ -392,7 +394,10 @@ export async function createExternalContact(
     }
     return failed(inserted.error, "Could not save the contact.");
   }
-  return { ok: true, contact: mapRow(inserted.data as unknown as DbRow) };
+  const saved = mapRow(inserted.data as unknown as DbRow);
+  const action = contactCountAction(saved.source);
+  if (action) await noteProductCount({ action });
+  return { ok: true, contact: saved };
 }
 
 function fileTypeOf(mime: string): string | null {

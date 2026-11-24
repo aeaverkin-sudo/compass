@@ -1,5 +1,7 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { planCatalog, planId, planLimits, type PlanId } from "@/shared/services/plans";
+import { noteProductCount } from "@/shared/services/product-stats-record";
+import { registrationCountAction, type RegistrationMethod } from "@/shared/services/product-stats";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -131,8 +133,11 @@ export function eventGuestEnd(event: { date: string | null; endsAt: string | nul
   return acceptedAt;
 }
 
-export async function clearTrialClock(userId: string): Promise<void> {
+export async function clearTrialClock(userId: string, method: RegistrationMethod | null = null): Promise<void> {
   const admin = createAdminSupabaseClient();
+  const prior = await admin.from("profiles").select("registered_at").eq("id", userId).maybeSingle();
+  const row = !prior.error && prior.data ? prior.data : null;
+  const first = row !== null && !row.registered_at;
   const now = new Date().toISOString();
   const { error } = await admin
     .from("profiles")
@@ -143,4 +148,6 @@ export async function clearTrialClock(userId: string): Promise<void> {
     })
     .eq("id", userId);
   if (error) throw new Error(error.message);
+  const action = first ? registrationCountAction(null, method) : null;
+  if (action) await noteProductCount({ action });
 }

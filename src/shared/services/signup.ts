@@ -13,6 +13,7 @@ import { ATTACHMENT_TYPES, type AttachmentContactType } from "@/shared/services/
 import { bindSessionReceipts } from "@/shared/services/bind-note-receipts";
 import { saveConnection } from "@/shared/services/save-connection";
 import { sendWelcomeMail } from "@/shared/services/cold-entry";
+import { noteProductCount } from "@/shared/services/product-stats-record";
 import { isProseValue } from "@/shared/services/card-zones";
 
 export const MIN_PASSWORD = 8;
@@ -357,6 +358,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
         console.error("[mail] welcome", error instanceof Error ? error.message : "send failed");
       });
     }
+    await noteProductCount({ action: "registration_email" });
     return { ok: true, status: 201, ...door };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);

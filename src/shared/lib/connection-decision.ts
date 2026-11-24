@@ -75,11 +75,13 @@ function pause() {
 }
 
 async function writeActive(id: string) {
-  const userId = await ownerId();
-  const { error } = userId
-    ? await createBrowserSupabaseClient().from("connections").update({ state: "active" }).eq("id", id).eq("owner_id", userId)
-    : { error: { message: "signed out" } };
-  return error;
+  const response = await fetch("/api/connections/accept", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  if (!response.ok) return { message: "again" };
+  return null;
 }
 
 async function removeRow(id: string) {

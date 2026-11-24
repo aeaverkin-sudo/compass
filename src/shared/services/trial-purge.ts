@@ -13,6 +13,7 @@ import {
   receiptReferencedAttachmentIds,
   transferIdsHeldByCopying,
 } from "@/shared/services/note-receipts";
+import { purgeProductCounts } from "@/shared/services/product-stats-record";
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -43,6 +44,7 @@ export type PurgeReport = {
   staleTransfers: number;
   orphanFiles: number;
   scrubbedGuests: number;
+  purgedProductCounts: number;
 };
 
 async function idsOf(table: "cards" | "items" | "transfer_items" | "events", column: string, ids: string[]) {
@@ -398,6 +400,7 @@ export async function runPurge(): Promise<PurgeReport> {
     console.error("[purge] contact files", message);
   }
   const scrubbedGuests = await scrubOldGuests();
+  const purgedProductCounts = await purgeProductCounts();
   return {
     purgedTrials,
     purgedAnon,
@@ -405,5 +408,6 @@ export async function runPurge(): Promise<PurgeReport> {
     staleTransfers,
     orphanFiles: orphanRows + looseCard + looseTransfer + looseContact,
     scrubbedGuests,
+    purgedProductCounts,
   };
 }

@@ -9,6 +9,7 @@ import { CONSENT_VERSION } from "@/shared/services/consent";
 import { bindSessionReceipts } from "@/shared/services/bind-note-receipts";
 import { saveConnection } from "@/shared/services/save-connection";
 import { sendWelcomeMail } from "@/shared/services/cold-entry";
+import { registrationMethod } from "@/shared/services/product-stats";
 import { clearTrialClock } from "@/shared/services/trial";
 
 export const runtime = "nodejs";
@@ -176,8 +177,16 @@ export async function GET(request: Request) {
     return NextResponse.redirect(back(origin, from, next));
   }
 
+  const asked = url.searchParams.get("provider");
+  const providers = new Set((user.identities ?? []).map((identity) => identity.provider));
+  const access =
+    (asked === "apple" || asked === "google") && (providers.size === 0 || providers.has(asked))
+      ? asked
+      : providers.has("apple") && !providers.has("google")
+        ? "apple"
+        : "google";
   try {
-    await clearTrialClock(user.id);
+    await clearTrialClock(user.id, registrationMethod(asked, [...providers]));
   } catch {
     console.error("[auth] callback");
   }
@@ -187,14 +196,6 @@ export async function GET(request: Request) {
     console.error("[auth] callback");
   }
   await bindSessionReceipts(user.id);
-  const asked = url.searchParams.get("provider");
-  const providers = new Set((user.identities ?? []).map((identity) => identity.provider));
-  const access =
-    (asked === "apple" || asked === "google") && (providers.size === 0 || providers.has(asked))
-      ? asked
-      : providers.has("apple") && !providers.has("google")
-        ? "apple"
-        : "google";
   const landing = await afterGoogle(origin, user.id, providerName(user), next);
   void sendWelcomeMail(user.id, origin, access, landing.portfolio).catch((error) => {
     console.error("[mail] welcome", error instanceof Error ? error.message : "send failed");

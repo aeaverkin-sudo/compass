@@ -8,7 +8,6 @@ import {
   loadPublicCardByCode,
   loadPublicCardByHandle,
   logPublicCardOpen,
-  publicViewer,
   type PublicCard,
 } from "@/shared/services/public-card";
 import { metadataForPublicCard } from "@/shared/services/public-card-meta";
@@ -80,12 +79,7 @@ export default async function PublicHandlePage({ params, searchParams }: PagePro
   }
 
   const query = await searchParams;
-  await logPublicCardOpen(
-    loaded.card.id,
-    loaded.ownerId,
-    cardOpenKind(query.src ?? query.via),
-    await publicViewer(),
-  );
+  await logPublicCardOpen(loaded.card.id, loaded.ownerId, cardOpenKind(query.src ?? query.via));
 
   return (
     <main className="min-h-lvh bg-white">

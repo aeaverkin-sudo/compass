@@ -38,14 +38,12 @@ export function useCardShare(card: Card) {
       });
     }
     const url = code ? publicCardUrlWithNote(live, code) : publicCardUrl(live);
-    void shareCardChoice({ title, url }).then((sent) => {
-      if (!sent) return;
-      void fetch("/api/network/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardId: live.id }),
-      });
+    void fetch("/api/network/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cardId: live.id }),
     });
+    void shareCardChoice({ title, url });
   };
 
   return { primeShare, handleShare };

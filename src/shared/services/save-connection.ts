@@ -1,5 +1,7 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import { eventHappeningFor } from "@/shared/services/event-now";
+import { noteProductCount } from "@/shared/services/product-stats-record";
+import { connectionCountAction } from "@/shared/services/product-stats";
 
 export type SaveConnectionResult = { ok: true } | { ok: false; own: boolean; message: string };
 
@@ -61,7 +63,10 @@ async function place(
     state: wanted,
     ...(sourceEventId ? { source_event_id: sourceEventId } : {}),
   });
-  if (!inserted.error) return { ok: true };
+  if (!inserted.error) {
+    if (wanted === "active") await noteProductCount({ action: connectionCountAction("saved") });
+    return { ok: true };
+  }
   if (inserted.error.code === "23505") return "again";
   return failed(inserted.error);
 }
@@ -78,8 +83,11 @@ async function promote(
     .from("connections")
     .update({ state: "active" })
     .eq("owner_id", input.ownerId)
-    .eq("saved_card_id", input.cardId);
+    .eq("saved_card_id", input.cardId)
+    .eq("state", "pending")
+    .select("id");
   if (updated.error) return failed(updated.error);
+  if ((updated.data ?? []).length > 0) await noteProductCount({ action: connectionCountAction("accepted") });
   return { ok: true };
 }
 

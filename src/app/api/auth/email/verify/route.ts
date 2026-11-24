@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   try {
     const branch = await verifyEmailCode(owner.id, email, code, password);
     if (branch.mode === "ok") {
-      await clearTrialClock(owner.id);
+      await clearTrialClock(owner.id, "email");
       const hasCard = await sessionHasCard(owner.id).catch(() => false);
       void sendWelcomeMail(owner.id, publicOrigin(request), "password", hasCard).catch((error) => {
         console.error("[mail] welcome", error instanceof Error ? error.message : "send failed");

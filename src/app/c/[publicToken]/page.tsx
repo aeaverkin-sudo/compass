@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicCardClient } from "@main/components/public-card-client";
 import { ViewerMirror } from "@/shared/components/viewer-mirror";
-import { cardOpenKind, loadPublicCard, logPublicCardOpen, publicViewer } from "@/shared/services/public-card";
+import { cardOpenKind, loadPublicCard, logPublicCardOpen } from "@/shared/services/public-card";
 import { metadataForPublicCard } from "@/shared/services/public-card-meta";
 import { publicCardPath } from "@/shared/services/public-card-url";
 
@@ -26,12 +26,7 @@ export default async function PublicCardPage({ params, searchParams }: PageProps
   if (!loaded) notFound();
 
   const query = await searchParams;
-  await logPublicCardOpen(
-    loaded.card.id,
-    loaded.ownerId,
-    cardOpenKind(query.src ?? query.via),
-    await publicViewer(),
-  );
+  await logPublicCardOpen(loaded.card.id, loaded.ownerId, cardOpenKind(query.src ?? query.via));
 
   return (
     <main className="min-h-lvh bg-white">

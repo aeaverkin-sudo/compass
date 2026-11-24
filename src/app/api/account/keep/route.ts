@@ -18,7 +18,7 @@ export async function POST() {
 
   try {
     if ((await readAccountStatus(user.id)).registered) return noStore({ kept: true });
-    await clearTrialClock(user.id);
+    await clearTrialClock(user.id, "email");
     const admin = createAdminSupabaseClient();
     const marked = await admin.from("profiles").update({ event_trial: false }).eq("id", user.id);
     if (marked.error && !/event_trial/i.test(marked.error.message)) throw new Error(marked.error.message);
