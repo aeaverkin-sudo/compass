@@ -81,22 +81,22 @@ function ShareBackSetting() {
   };
 
   return (
-    <div className="flex items-start gap-3">
-      <Switch
-        checked={accept}
-        onCheckedChange={(checked) => save(checked === true)}
-        aria-labelledby="profile-share-back"
-        className="mt-[2px] shrink-0"
-      />
-      <span className="min-w-0">
-        <span id="profile-share-back" className="block t-body text-[var(--ink)]">
+    <>
+      <div className="flex min-w-0 items-center gap-3">
+        <Switch
+          checked={accept}
+          onCheckedChange={(checked) => save(checked === true)}
+          aria-labelledby="profile-share-back"
+          className="shrink-0"
+        />
+        <span id="profile-share-back" className="min-w-0 t-body text-[var(--ink)]">
           Cards shared back to you
         </span>
-        <span className="mt-1 block t-meta text-[var(--grey)]">
-          On — arrive as pending, you say Yes/No. Off — nobody can send their card back.
-        </span>
+      </div>
+      <span className="col-start-2 mt-1 block pl-12 t-meta text-[var(--grey)]">
+        On — arrive as pending, you say Yes/No. Off — nobody can send their card back.
       </span>
-    </div>
+    </>
   );
 }
 
@@ -382,32 +382,35 @@ export function ProfileScreen() {
 
       <AccountChapter number="01" title="Settings" />
       {signedIn ? (
-        <Zone label="Signed in" align="start" rule>
-          <p className={`${ZONE_VALUE} mb-0`}>{account.email ?? "Signed in."}</p>
-          {account.provider === "email" ? (
-            <p className="mt-3 t-body">
-              <Link href="/account/email" className="underline">
-                Change email
-              </Link>
-              {canChangePassword ? (
-                <>
-                  {" · "}
-                  <Link href="/account/password" className="underline">
-                    Change password
-                  </Link>
-                </>
-              ) : null}
-            </p>
-          ) : null}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void signOut()}
-            className="mt-3 t-body underline disabled:opacity-40"
-          >
-            Sign out
-          </button>
-        </Zone>
+        <section className="min-w-0 border-b border-[var(--rule)] py-[18px]">
+          <div className="grid items-center" style={ROW}>
+            <span className="t-label">Signed in</span>
+            <p className={`${ZONE_VALUE} mb-0`}>{account.email ?? "Signed in."}</p>
+            {account.provider === "email" ? (
+              <p className="col-start-2 mt-3 mb-0 justify-self-start t-body">
+                <Link href="/account/email" className="underline">
+                  Change email
+                </Link>
+                {canChangePassword ? (
+                  <>
+                    {" · "}
+                    <Link href="/account/password" className="underline">
+                      Change password
+                    </Link>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void signOut()}
+              className="col-start-2 mt-3 justify-self-start t-body underline disabled:opacity-40"
+            >
+              Sign out
+            </button>
+          </div>
+        </section>
       ) : null}
 
       <section id="portfolios" className="scroll-mt-16 border-b border-[var(--rule)] py-[18px]">
@@ -511,9 +514,12 @@ export function ProfileScreen() {
         </div>
       </Zone>
 
-      <Zone label="Network" align="start" rule>
-        <ShareBackSetting />
-      </Zone>
+      <section className="min-w-0 border-b border-[var(--rule)] py-[18px]">
+        <div className="grid items-center" style={ROW}>
+          <span className="t-label">Network</span>
+          <ShareBackSetting />
+        </div>
+      </section>
 
       <AccountChapter number="02" title="Info & legal" />
       <Link
