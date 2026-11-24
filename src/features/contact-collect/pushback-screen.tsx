@@ -13,6 +13,7 @@ import {
   finishSwapReturn,
   forgetSwapHandoff,
   keptSwapCard,
+  markSwapHandoffLeft,
   noteSwapBlur,
   noteSwapHidden,
   pushTargets,
@@ -102,7 +103,8 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
 
   useEffect(() => {
     return () => {
-      if (swapHandoffMatches(readSwapHandoff(), contactId.current, attempt.current)) forgetSwapHandoff();
+      const mark = readSwapHandoff();
+      if (swapHandoffMatches(mark, contactId.current, attempt.current) && !mark?.left) forgetSwapHandoff();
     };
   }, []);
 
@@ -126,6 +128,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     };
     const markLeft = () => {
       if (!swapHandoffMatches(readSwapHandoff(), contact.id, attempt.current)) return;
+      markSwapHandoffLeft(contact.id, attempt.current);
       if (!handoff.current.armed) handoff.current = armSwapReturn(Date.now());
       handoff.current = noteSwapHidden(handoff.current);
     };
@@ -158,7 +161,10 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     document.addEventListener("visibilitychange", onVisibility);
     document.addEventListener("freeze", onHide);
     document.addEventListener("resume", onResume);
-    window.addEventListener("pagehide", onHide);
+    const onPageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) onHide();
+    };
+    window.addEventListener("pagehide", onPageHide);
     window.addEventListener("pageshow", onPageShow);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", comeBack);
@@ -167,7 +173,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
       document.removeEventListener("visibilitychange", onVisibility);
       document.removeEventListener("freeze", onHide);
       document.removeEventListener("resume", onResume);
-      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", comeBack);
@@ -223,7 +229,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     const id = crypto.randomUUID();
     attempt.current = id;
     handoff.current = armSwapReturn(Date.now());
-    rememberSwapHandoff({ contactId: contact.id, attempt: id });
+    rememberSwapHandoff({ contactId: contact.id, attempt: id, left: false });
   };
   const changing = shownKey !== selectionKey;
   const shownError = changing ? null : error;

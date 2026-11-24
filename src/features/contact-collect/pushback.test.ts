@@ -17,6 +17,7 @@ const {
   mailtoHref,
   meetingSubject,
   noteSwapBlur,
+  noteSwapHandoffLeft,
   noteSwapHidden,
   portfolioBody,
   clearSwapHandoff,
@@ -216,14 +217,31 @@ test("Mail's Chrome return opens Network only for that contact and attempt", () 
     setItem: (key: string, value: string) => memory.set(key, value),
     removeItem: (key: string) => memory.delete(key),
   };
-  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1" });
+  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1", left: false });
   assert.equal(swapWake({ mark: readSwapHandoffFrom(store), contactId: "ada", attempt: "open-1", left: true }), "network");
   clearSwapHandoff(store);
   assert.equal(readSwapHandoffFrom(store), null);
-  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1" });
+  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1", left: false });
+  noteSwapHandoffLeft(store, "ada", "open-1");
   assert.equal(swapRestore(readSwapHandoffFrom(store), "ada", null), "network");
   clearSwapHandoff(store);
   assert.equal(readSwapHandoffFrom(store), null);
+});
+
+test("a refresh after a tap that never left stays on the same Swap", () => {
+  const memory = new Map<string, string>();
+  const store = {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => memory.set(key, value),
+    removeItem: (key: string) => memory.delete(key),
+  };
+  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1", left: false });
+  assert.equal(swapRestore(readSwapHandoffFrom(store), "ada", null), "stay");
+  noteSwapHandoffLeft(store, "ada", "open-2");
+  assert.equal(readSwapHandoffFrom(store)?.left, false);
+  assert.equal(swapRestore(readSwapHandoffFrom(store), "ada", null), "stay");
+  noteSwapHandoffLeft(store, "ada", "open-1");
+  assert.equal(swapRestore(readSwapHandoffFrom(store), "ada", null), "network");
 });
 
 test("a cancelled open does not move the next contact's Swap", () => {
@@ -233,12 +251,12 @@ test("a cancelled open does not move the next contact's Swap", () => {
     setItem: (key: string, value: string) => memory.set(key, value),
     removeItem: (key: string) => memory.delete(key),
   };
-  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1" });
+  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1", left: false });
   clearSwapHandoff(store);
   assert.equal(readSwapHandoffFrom(store), null);
   assert.equal(swapWake({ mark: null, contactId: "bea", attempt: null, left: true }), "stay");
   assert.equal(swapRestore(null, "bea", null), "stay");
-  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1" });
+  writeSwapHandoff(store, { contactId: "ada", attempt: "open-1", left: true });
   const leftover = readSwapHandoffFrom(store);
   assert.equal(swapWake({ mark: leftover, contactId: "bea", attempt: "open-1", left: true }), "stay");
   assert.equal(swapRestore(leftover, "bea", null), "stay");

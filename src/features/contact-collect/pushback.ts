@@ -191,7 +191,7 @@ export const SWAP_RETURN_ARM_MS = 8000;
 
 const SWAP_HANDOFF_KEY = "aded-swap-handoff";
 
-export type SwapHandoff = { contactId: string; attempt: string };
+export type SwapHandoff = { contactId: string; attempt: string; left: boolean };
 
 type HandoffStore = {
   getItem(key: string): string | null;
@@ -200,7 +200,10 @@ type HandoffStore = {
 };
 
 export function writeSwapHandoff(store: HandoffStore, mark: SwapHandoff) {
-  store.setItem(SWAP_HANDOFF_KEY, JSON.stringify({ contactId: mark.contactId, attempt: mark.attempt }));
+  store.setItem(
+    SWAP_HANDOFF_KEY,
+    JSON.stringify({ contactId: mark.contactId, attempt: mark.attempt, left: mark.left === true }),
+  );
 }
 
 export function readSwapHandoffFrom(store: HandoffStore): SwapHandoff | null {
@@ -210,10 +213,20 @@ export function readSwapHandoffFrom(store: HandoffStore): SwapHandoff | null {
     const parsed = JSON.parse(raw) as Partial<SwapHandoff>;
     if (!parsed || typeof parsed.contactId !== "string" || typeof parsed.attempt !== "string") return null;
     if (!parsed.contactId || !parsed.attempt) return null;
-    return { contactId: parsed.contactId, attempt: parsed.attempt };
+    return { contactId: parsed.contactId, attempt: parsed.attempt, left: parsed.left === true };
   } catch {
     return null;
   }
+}
+
+/** The page actually left. A tap alone does not set this. */
+export function noteSwapHandoffLeft(store: HandoffStore, contactId: string, attempt: string | null): SwapHandoff | null {
+  const mark = readSwapHandoffFrom(store);
+  if (!mark || !swapHandoffMatches(mark, contactId, attempt)) return mark;
+  if (mark.left) return mark;
+  const next = { ...mark, left: true };
+  writeSwapHandoff(store, next);
+  return next;
 }
 
 export function clearSwapHandoff(store: HandoffStore) {
@@ -245,6 +258,11 @@ export function forgetSwapHandoff() {
   if (store) clearSwapHandoff(store);
 }
 
+export function markSwapHandoffLeft(contactId: string, attempt: string | null) {
+  const store = browserHandoffStore();
+  if (store) noteSwapHandoffLeft(store, contactId, attempt);
+}
+
 /** An old mark does not count for another contact or another open attempt. */
 export function swapHandoffMatches(mark: SwapHandoff | null, contactId: string, attempt: string | null): boolean {
   return Boolean(mark && attempt && mark.contactId === contactId && mark.attempt === attempt);
@@ -261,9 +279,9 @@ export function swapWake(input: {
   return "network";
 }
 
-/** The Swap page was loaded again. A leftover mark for this contact is the Mail return. */
+/** The Swap page was loaded again. Network only if this attempt had already left the page. */
 export function swapRestore(mark: SwapHandoff | null, contactId: string, attempt: string | null): "network" | "stay" {
-  if (!mark || mark.contactId !== contactId || attempt) return "stay";
+  if (!mark || mark.contactId !== contactId || attempt || !mark.left) return "stay";
   return "network";
 }
 
