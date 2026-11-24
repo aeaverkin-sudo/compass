@@ -5,6 +5,12 @@
 
 export const PRODUCT_COUNT_RETENTION_DAYS = 90;
 
+/**
+ * Collection stays off while Privacy and the objection button go out.
+ * Installing the SQL does not start writes. Turn this on only after that check.
+ */
+export const PRODUCT_COUNTS_ENABLED = false;
+
 const CARD_ACTIONS = ["share_link", "open_qr", "open_other"] as const;
 
 export const COUNT_ACTIONS = [

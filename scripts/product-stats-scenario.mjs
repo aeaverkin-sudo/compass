@@ -144,6 +144,37 @@ try {
   );
   assert(Number(other.rows[0]?.total) === 1, "another account was blocked");
 
+  const raceOwner = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const raceCard = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+  const hold = await connect("stats");
+  const bumper = await connect("stats");
+  const objector = await connect("stats");
+  await hold.query("select pg_advisory_lock(hashtextextended($1::text, 0))", [raceOwner]);
+  const bumping = bumper.query("select bump_product_count($1::date, $2, $3::uuid, $4::uuid)", [
+    DAY,
+    "open_qr",
+    raceCard,
+    raceOwner,
+  ]);
+  const objecting = objector.query("select object_to_product_counts($1::uuid)", [raceOwner]);
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  const waiting = await hold.query(
+    "select count(*)::int as n from pg_locks where locktype = 'advisory' and not granted",
+  );
+  assert(waiting.rows[0].n >= 2, "the open and the objection were not waiting together");
+  await hold.query("select pg_advisory_unlock(hashtextextended($1::text, 0))", [raceOwner]);
+  await bumping;
+  await objecting;
+  await bumper.end();
+  await objector.end();
+  await hold.end();
+  const raced = await admin.query("select count(*)::int as n from product_daily_counts where owner_id = $1", [raceOwner]);
+  const raceMark = await admin.query("select count(*)::int as n from product_count_objections where owner_id = $1", [
+    raceOwner,
+  ]);
+  assert(raced.rows[0].n === 0, "an open that started with the objection left a total");
+  assert(raceMark.rows[0].n === 1, "the overlapping objection was not saved");
+
   await admin.query(
     "insert into product_daily_counts (day, action, card_id, owner_id, total) values ($1::date, 'card_saved', null, null, 3)",
     ["2026-08-25"],
@@ -161,7 +192,7 @@ try {
   assert(operator > 0, "operator could not read the totals");
 
   await admin.end();
-  console.log("scenario ok: account and guest cannot read, objection sticks, parallel opens summed, old rows deleted");
+  console.log("scenario ok: account and guest cannot read, objection sticks, an overlapping open left nothing, parallel opens summed, old rows deleted");
 } finally {
   await postgres.stop().catch(() => undefined);
   await rm(directory, { recursive: true, force: true });

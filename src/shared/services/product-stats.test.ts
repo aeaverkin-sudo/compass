@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  PRODUCT_COUNTS_ENABLED,
   contactCountAction,
   openCountAction,
   productCountBumpArgs,
@@ -70,6 +71,8 @@ test("daily totals older than 90 days are the ones the purge removes", () => {
 test("the write asks Postgres to increment once and to honour an objection", () => {
   const record = readFileSync(new URL("./product-stats-record.ts", import.meta.url), "utf8");
   const sql = readFileSync(new URL("../../../docs/phaseN-product-counts.sql", import.meta.url), "utf8");
+  assert.equal(PRODUCT_COUNTS_ENABLED, false);
+  assert.ok(record.indexOf("if (!PRODUCT_COUNTS_ENABLED) return") < record.indexOf('rpc("bump_product_count"'));
   assert.match(record, /rpc\("bump_product_count"/);
   assert.match(record, /rpc\("object_to_product_counts"/);
   assert.doesNotMatch(record, /for \(let attempt/);

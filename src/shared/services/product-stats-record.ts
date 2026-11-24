@@ -1,5 +1,6 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import {
+  PRODUCT_COUNTS_ENABLED,
   productCountBumpArgs,
   productCountCutoff,
   productCountDay,
@@ -14,8 +15,9 @@ function missingStats(message: string): boolean {
 }
 
 /**
- * Records one action. The database checks an objection and increments in one statement.
+ * Records one action once collection is on. The database checks an objection and increments in one statement.
  * A failure, or a table that is not created yet, never blocks the registration, save, share, or open.
+ * Objection works while this is off, so Privacy can ship before any total is written.
  */
 export async function noteProductCount(input: {
   action: CountAction;
@@ -23,6 +25,7 @@ export async function noteProductCount(input: {
   ownerId?: string | null;
   now?: Date;
 }): Promise<void> {
+  if (!PRODUCT_COUNTS_ENABLED) return;
   const args = productCountBumpArgs(input);
   if (!args) return;
   try {
