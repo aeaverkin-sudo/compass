@@ -4,7 +4,9 @@ import { crc32 } from "node:zlib";
 import {
   contactFileRefs,
   fileBelongsToOwner,
+  optionalColumnToDrop,
   ownedAttachmentId,
+  readAllPages,
   zipStored,
 } from "./account-export-format.ts";
 
@@ -17,17 +19,62 @@ test("a file is exported only for its owner and only from that owner's path", ()
   assert.equal(fileBelongsToOwner(OWNER, { owner_id: OWNER, storage_path: `${OTHER}/card/file` }), false);
 });
 
-test("a manual contact keeps its own file and marks someone else's as not included", () => {
-  const owned = new Set(["mine"]);
+test("a manual contact lists a packed file and omits anyone else's", () => {
+  const packed = new Set(["mine"]);
   assert.deepEqual(
-    contactFileRefs(OWNER, [{ id: "mine", name: "Mine.pdf" }, { id: "theirs", name: "Secret.pdf" }], owned),
-    [
-      { id: "mine", name: "Mine.pdf", included: true },
-      { id: "theirs", name: "Secret.pdf", included: false },
-    ],
+    contactFileRefs(
+      OWNER,
+      [
+        { id: "mine", name: "Mine.pdf" },
+        { id: "theirs", name: "Secret.pdf" },
+        { id: "pending", name: "Waiting.pdf" },
+      ],
+      packed,
+    ),
+    [{ id: "mine", name: "Mine.pdf", included: true }],
   );
-  assert.equal(ownedAttachmentId("mine", owned), "mine");
-  assert.equal(ownedAttachmentId("theirs", owned), null);
+  assert.equal(ownedAttachmentId("mine", packed), "mine");
+  assert.equal(ownedAttachmentId("theirs", packed), null);
+  assert.equal(ownedAttachmentId("pending", packed), null);
+});
+
+test("a missing photo_attachment_id does not drop id", () => {
+  const fields = ["id", "photo_attachment_id", "photo_look", "pushback_card_id"];
+  const optional = ["photo_look", "handle", "pushback_card_id", "header_field"];
+  assert.equal(
+    optionalColumnToDrop('column "photo_attachment_id" of relation "cards" does not exist', fields, optional),
+    null,
+  );
+  assert.equal(optionalColumnToDrop('column "pushback_card_id" does not exist', fields, optional), "pushback_card_id");
+  assert.equal(
+    optionalColumnToDrop("Could not find the 'photo_look' column of 'cards' in the schema cache", fields, optional),
+    "photo_look",
+  );
+  assert.equal(optionalColumnToDrop('column "id" does not exist', fields, optional), null);
+});
+
+test("rows are read until a short page and a later page error fails the read", async () => {
+  const seen: [number, number][] = [];
+  const rows = await readAllPages(async (from, to) => {
+    seen.push([from, to]);
+    const all = [1, 2, 3, 4, 5].map((id) => ({ id }));
+    return { data: all.slice(from, to + 1), error: null };
+  }, 2);
+  assert.deepEqual(seen, [
+    [0, 1],
+    [2, 3],
+    [4, 5],
+  ]);
+  assert.equal(rows.length, 5);
+
+  await assert.rejects(
+    () =>
+      readAllPages(async (from) => {
+        if (from > 0) return { data: null, error: { message: "page failed" } };
+        return { data: [{ id: "a" }, { id: "b" }], error: null };
+      }, 2),
+    /page failed/,
+  );
 });
 
 test("the zip stores the readme and a file under their names", () => {

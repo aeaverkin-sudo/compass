@@ -12,19 +12,75 @@ export function ownedAttachmentId(id: unknown, owned: ReadonlySet<string>) {
 
 export type ExportFileRef = { id: string; name: string; included: boolean };
 
-/** Keep a contact's own files. A file owned by someone else is named, not copied. */
+/** A contact file is listed only when its bytes are in this zip. Other people's files are omitted. */
 export function contactFileRefs(
   ownerId: string,
   files: { id?: unknown; name?: unknown }[],
-  owned: ReadonlySet<string>,
+  packed: ReadonlySet<string>,
 ): ExportFileRef[] {
+  if (!ownerId) return [];
   const refs: ExportFileRef[] = [];
   for (const file of files) {
-    if (!file || typeof file.id !== "string") continue;
+    if (!file || typeof file.id !== "string" || !packed.has(file.id)) continue;
     const name = typeof file.name === "string" && file.name.trim() ? file.name.trim() : "File";
-    refs.push({ id: file.id, name, included: owned.has(file.id) && Boolean(ownerId) });
+    refs.push({ id: file.id, name, included: true });
   }
   return refs;
+}
+
+/** PostgREST stops a select at the project row cap. Read until a short page, and fail if a page errors. */
+export const EXPORT_PAGE_SIZE = 1000;
+
+export async function readAllPages(
+  query: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
+  pageSize = EXPORT_PAGE_SIZE,
+): Promise<Record<string, unknown>[]> {
+  if (pageSize < 1) throw new Error("Could not read your data.");
+  const rows: Record<string, unknown>[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const loaded = await query(from, from + pageSize - 1);
+    if (loaded.error) throw new Error(loaded.error.message);
+    const page = loaded.data ?? [];
+    for (const row of page) rows.push(row as Record<string, unknown>);
+    if (page.length < pageSize) return rows;
+  }
+}
+
+const PROTECTED_COLUMNS = new Set([
+  "id",
+  "owner_id",
+  "user_id",
+  "card_id",
+  "item_id",
+  "attachment_id",
+  "photo_attachment_id",
+]);
+
+/**
+ * Drop a column only when Postgres or PostgREST names that exact optional column.
+ * `id` is not a match for `photo_attachment_id`. Links and ids are never dropped.
+ */
+export function optionalColumnToDrop(
+  message: string,
+  selected: readonly string[],
+  optional: readonly string[],
+): string | null {
+  if (!/column|schema/i.test(message)) return null;
+  const allowed = new Map<string, string>();
+  for (const column of optional) {
+    if (!selected.includes(column) || PROTECTED_COLUMNS.has(column)) continue;
+    allowed.set(column.toLowerCase(), column);
+  }
+  const named = [
+    ...message.matchAll(/column\s+"([A-Za-z_][A-Za-z0-9_]*)"/g),
+    ...message.matchAll(/'([A-Za-z_][A-Za-z0-9_]*)'\s+column/g),
+    ...message.matchAll(/\bcolumn\s+([A-Za-z_][A-Za-z0-9_]*)\b/g),
+  ];
+  for (const match of named) {
+    const column = allowed.get(match[1].toLowerCase());
+    if (column) return column;
+  }
+  return null;
 }
 
 export const EXPORT_README = [
@@ -37,7 +93,8 @@ export const EXPORT_README = [
   "",
   "files/ holds the original portfolio and library files.",
   "contacts/ holds the original files of contacts you added by hand.",
-  "A file is included only when it belongs to this account.",
+  "account.json names a file only when that file is in this zip.",
+  "A file is included only when it belongs to this account and its bytes were packed.",
   "",
   "Other people's portfolios are not in this copy, even if they are in your Network.",
   "Their files are not included.",

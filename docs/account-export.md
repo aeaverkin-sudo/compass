@@ -9,9 +9,10 @@
 - profile: id, email, sign-in provider, registration time, accepted consent version
 - portfolios this account owns
 - library rows this account owns, and which portfolio they sit on
-- contacts this account added by hand, including their text and the files it owns
+- contacts this account added by hand, including their text
+- the files whose bytes are in this zip (`files`), and no others
 
-`files/` holds portfolio and library originals. `contacts/` holds originals uploaded for a hand-added contact. A file that belongs to someone else is left out of both folders. A contact can still name that file with `included: false`.
+`files/` holds portfolio and library originals. `contacts/` holds originals uploaded for a hand-added contact. `account.json` lists a file only when its bytes are in the zip. Someone else's file is omitted entirely, including its name and id. A pending upload is omitted too. Rows are read page by page, and a failed page fails the download instead of returning a short archive.
 
 Other people's portfolios, including cards saved in Network, are not queried and are not in the zip.
 

@@ -559,14 +559,13 @@ export function ProfileScreen() {
 
       <AccountChapter number="03" title="Your data" />
       <section className="border-b border-[var(--rule)] py-[18px]">
-        <button
-          type="button"
-          disabled
-          className="flex w-full items-center border-0 bg-transparent p-0 text-left disabled:opacity-40 [-webkit-tap-highlight-color:transparent]"
+        <a
+          href="/api/account/export"
+          className="flex w-full items-center border-0 bg-transparent p-0 text-left no-underline [-webkit-tap-highlight-color:transparent]"
         >
           <span className="t-label">Download data</span>
           <Download aria-hidden className="ml-auto size-5 text-[var(--ink)]" strokeWidth={1.5} />
-        </button>
+        </a>
       </section>
       <p className="mb-[18px] mt-8 text-center">
         <Link href="/account/delete" className="t-body text-[var(--ink)]">
