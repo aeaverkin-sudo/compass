@@ -12,6 +12,7 @@ const PLAQUES = [
 export function LegalScreen({ terms, privacy }: { terms: string; privacy: string }) {
   const [open, setOpen] = useState<(typeof PLAQUES)[number][0]>("terms");
   const [consent, setConsent] = useState<string | null>(null);
+  const [objection, setObjection] = useState<"idle" | "busy" | "saved" | "failed">("idle");
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,6 +75,24 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
       <p className="m-0 max-w-md shrink-0 pt-2 t-meta text-[var(--grey)]">
         Download data in Account is your copy of this account. For a broader request about your personal data, email support@adedme.com. We confirm it is you and reply within one month.
       </p>
+      <button
+        type="button"
+        disabled={objection === "busy" || objection === "saved"}
+        onClick={() => {
+          if (objection === "busy" || objection === "saved") return;
+          setObjection("busy");
+          void fetch("/api/account/product-count-objection", { method: "POST" })
+            .then((response) => setObjection(response.ok ? "saved" : "failed"))
+            .catch(() => setObjection("failed"));
+        }}
+        className="m-0 mt-2 max-w-md shrink-0 border-0 bg-transparent p-0 text-left t-meta text-[var(--ink)] underline disabled:no-underline"
+      >
+        {objection === "saved"
+          ? "Totals linked to your account will not be added."
+          : objection === "failed"
+            ? "Could not save the objection. Email support@adedme.com."
+            : "Object to totals linked to your account"}
+      </button>
       <div ref={scrollerRef} className="min-h-0 flex-1 overflow-y-auto pb-[max(2.5rem,env(safe-area-inset-bottom))]">
         <div id="terms">
           <LegalDocument source={terms} />

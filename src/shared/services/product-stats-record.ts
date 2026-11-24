@@ -1,35 +1,47 @@
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
 import {
-  bumpProductCount,
+  productCountBumpArgs,
   productCountCutoff,
   productCountDay,
   type CountAction,
-  type CountClient,
-  type CountError,
 } from "@/shared/services/product-stats";
 
-function missingTable(error: CountError): boolean {
-  const message = error.message ?? "";
-  return /product_daily_counts/i.test(message) && /schema cache|does not exist|could not find/i.test(message);
+function missingStats(message: string): boolean {
+  return (
+    /bump_product_count|object_to_product_counts|product_daily_counts|product_count_objections/i.test(message) &&
+    /schema cache|does not exist|could not find/i.test(message)
+  );
 }
 
-/** Records one action. A failure never blocks the registration, save, share, or open. */
+/**
+ * Records one action. The database checks an objection and increments in one statement.
+ * A failure, or a table that is not created yet, never blocks the registration, save, share, or open.
+ */
 export async function noteProductCount(input: {
   action: CountAction;
   cardId?: string | null;
   ownerId?: string | null;
   now?: Date;
 }): Promise<void> {
+  const args = productCountBumpArgs(input);
+  if (!args) return;
   try {
-    await bumpProductCount(createAdminSupabaseClient() as unknown as CountClient, {
-      day: productCountDay(input.now),
-      action: input.action,
-      cardId: input.cardId,
-      ownerId: input.ownerId,
-    });
+    const admin = createAdminSupabaseClient();
+    const wrote = await admin.rpc("bump_product_count", args);
+    if (wrote.error && !missingStats(wrote.error.message)) console.error("[product-count]");
   } catch {
     console.error("[product-count]");
   }
+}
+
+/**
+ * Saves the objection, deletes totals linked to this account, and later bumps do not add new ones.
+ * Throws when the mark cannot be saved, so the request is not reported as done.
+ */
+export async function objectToProductCounts(ownerId: string): Promise<void> {
+  const admin = createAdminSupabaseClient();
+  const saved = await admin.rpc("object_to_product_counts", { p_owner_id: ownerId });
+  if (saved.error) throw new Error(saved.error.message);
 }
 
 /** Deletes daily totals older than 90 days. A table that is not created yet is left alone. */
@@ -39,13 +51,13 @@ export async function purgeProductCounts(now = new Date()): Promise<number> {
     const cutoff = productCountCutoff(productCountDay(now));
     const removed = await admin.from("product_daily_counts").delete({ count: "exact" }).lt("day", cutoff);
     if (removed.error) {
-      if (missingTable(removed.error)) return 0;
+      if (missingStats(removed.error.message)) return 0;
       throw new Error(removed.error.message);
     }
     return removed.count ?? 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
-    if (missingTable({ message })) return 0;
+    if (missingStats(message)) return 0;
     throw error;
   }
 }
