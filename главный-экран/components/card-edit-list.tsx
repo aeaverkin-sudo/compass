@@ -141,7 +141,9 @@ function LibraryCheck({ onCard, onToggle }: { onCard: boolean; onToggle: () => v
       data-no-swipe
       aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
       className="relative z-10 -mr-[11px] -mt-[11px]"
+      style={{ touchAction: "pan-y" }}
       onPointerDown={(event) => {
+        event.preventDefault();
         viaPointer.current = false;
         origin.current = { x: event.clientX, y: event.clientY };
       }}
@@ -421,6 +423,11 @@ export const CardEditList = memo(function CardEditList({
   const pendingDraft = useRef<{ rowId: string | null; sectionId: string | null; rowText: string | null } | null>(null);
   const draftTimer = useRef<number | null>(null);
   const [seedText, setSeedText] = useState("");
+  const composerRefs = useRef(new Map<string, WrapFieldHandle>());
+  const composerIncluded = useRef(new Map<string, boolean>());
+  const composerHold = useRef(false);
+  const [composerText, setComposerText] = useState<Record<string, string>>({});
+  const [composerEpoch, setComposerEpoch] = useState(0);
 
   const writeRow = useCallback((rowId: string | null, sectionId: string | null, rowText: string | null) => {
     if (draftTimer.current !== null) {
@@ -498,6 +505,8 @@ export const CardEditList = memo(function CardEditList({
       if (place.sectionId && place.rowText !== null) {
         setSeedText(place.rowText);
         setSeedZoneId(place.sectionId);
+        setComposerText({ [place.sectionId]: place.rowText });
+        setComposerEpoch((epoch) => epoch + 1);
         return;
       }
       if (place.sectionId) setSectionEditId(place.sectionId);
@@ -577,9 +586,9 @@ export const CardEditList = memo(function CardEditList({
   const seeding = Boolean(seedZoneId);
 
   useLayoutEffect(() => {
-    if (!seeding) return;
+    if (!seeding || !seedZoneId) return;
     if (sectionEditId && sectionEditId === seedZoneId) return;
-    extraValueRef.current?.focusEnd();
+    composerRefs.current.get(seedZoneId)?.focusEnd();
   }, [seeding, sectionEditId, seedZoneId]);
 
   useEffect(() => {
@@ -696,7 +705,7 @@ export const CardEditList = memo(function CardEditList({
 
   const seedGuard = useRef(false);
   const seedItem = (zoneId: string, raw: string) => {
-    if (seedGuard.current) return;
+    if (seedGuard.current) return false;
     seedGuard.current = true;
     queueMicrotask(() => {
       seedGuard.current = false;
@@ -705,28 +714,49 @@ export const CardEditList = memo(function CardEditList({
     if (!value) {
       writeRow(null, null, null);
       endSeed(zoneId);
-      return;
+      return false;
     }
     const twin = findIdenticalItem(useAppStore.getState().contactItems, value);
     if (twin) {
       refuseDuplicate(twin.id);
-      return;
+      return false;
     }
     const id = addContactItem();
     if (!id) {
       endSeed(zoneId);
-      return;
+      return false;
     }
     updateContactItem(id, { value });
     const item = useAppStore.getState().contactItems.find((row) => row.id === id);
     if (!item || !isContactFilled(item)) {
       deleteContactItem(id);
       endSeed(zoneId);
-      return;
+      return false;
     }
     addItemToCard(card.id, id, zoneId);
     endSeed(zoneId);
     writeRow(null, null, null);
+    return true;
+  };
+
+  const resetComposer = (zoneId: string, keepFocus: boolean) => {
+    composerIncluded.current.set(zoneId, true);
+    setComposerText((prev) => ({ ...prev, [zoneId]: "" }));
+    const field = composerRefs.current.get(zoneId);
+    field?.clear();
+    if (keepFocus) field?.focusEnd();
+  };
+
+  const commitOpen = (zoneId: string, raw: string, keepFocus: boolean) => {
+    const value = raw.trim();
+    if (!value) return;
+    const included = composerIncluded.current.get(zoneId) !== false;
+    if (!included) {
+      const field = composerRefs.current.get(zoneId);
+      if (keepFocus) field?.focusEnd();
+      return;
+    }
+    if (seedItem(zoneId, value)) resetComposer(zoneId, keepFocus);
   };
 
   const addSeedFile = (zoneId: string) => {
@@ -787,15 +817,6 @@ export const CardEditList = memo(function CardEditList({
         const zoneHint = isExtraZoneId(section.id) ? "Skills, projects, experience, etc." : (ZONE_HINTS[section.id] ?? "");
         const promotable = section.id === "position" || section.id === "company";
         const custom = isExtraZoneId(section.id);
-        const files = section.id === "files" || isExtraZoneId(section.id);
-        const startSeed = () => {
-          setTextEditId(null);
-          setSectionEditId(null);
-          setDeleteReadyId(null);
-          setHideReadyId(null);
-          setSeedText("");
-          setSeedZoneId(section.id);
-        };
         return (
           <section
             key={section.id}
@@ -834,7 +855,7 @@ export const CardEditList = memo(function CardEditList({
                       advanceSeedRef.current = true;
                       const name = next.trim();
                       if (name) setRubricLabel(card.id, section.id, name);
-                      extraValueRef.current?.focusEnd();
+                      composerRefs.current.get(section.id)?.focusEnd();
                       setSectionEditId(null);
                     }}
                     onEdit={() => {
@@ -852,7 +873,7 @@ export const CardEditList = memo(function CardEditList({
                         advanceSeedRef.current = false;
                         keepExtraRef.current = false;
                         if (name) setRubricLabel(card.id, section.id, next);
-                        extraValueRef.current?.focusEnd();
+                        composerRefs.current.get(section.id)?.focusEnd();
                         setSectionEditId(null);
                         return;
                       }
@@ -874,7 +895,7 @@ export const CardEditList = memo(function CardEditList({
                       keepExtraRef.current = false;
                       setRubricLabel(card.id, section.id, next);
                       if (seedZoneId === section.id) {
-                        extraValueRef.current?.focusEnd();
+                        composerRefs.current.get(section.id)?.focusEnd();
                         setSectionEditId(null);
                         return;
                       }
@@ -884,6 +905,75 @@ export const CardEditList = memo(function CardEditList({
                 </div>
               </div>
               <ValueCap className="flex min-w-0 flex-col gap-[6px]">
+                {section.id === "files" ? null : (
+                  <div className="relative min-w-0" data-entry-composer={section.id}>
+                    <div className={composerText[section.id]?.trim() ? "mr-[26px]" : undefined}>
+                      <WrapField
+                        key={`${section.id}:${composerEpoch}`}
+                        ref={(handle) => {
+                          if (handle) composerRefs.current.set(section.id, handle);
+                          else composerRefs.current.delete(section.id);
+                        }}
+                        initial={section.id === seedZoneId ? seedText : ""}
+                        label={zoneHint || "Value"}
+                        placeholder={zoneHint}
+                        multiline={section.id === "about"}
+                        breakButton={false}
+                        wrapPlaceholder
+                        placeholderClassName="t-body text-[var(--placeholder)]"
+                        onFocus={() => {
+                          const live = composerRefs.current.get(section.id)?.text() ?? composerText[section.id] ?? "";
+                          writeRow(null, section.id, live);
+                        }}
+                        onTextChange={(next) => {
+                          setComposerText((prev) => ({ ...prev, [section.id]: next }));
+                          if (!next.trim()) {
+                            composerIncluded.current.set(section.id, true);
+                            writeRow(null, null, null);
+                            return;
+                          }
+                          queueRow(null, section.id, next);
+                        }}
+                        onDone={(next) => {
+                          if (section.id === "about") return;
+                          commitOpen(section.id, next, true);
+                        }}
+                        onBlur={(next) => {
+                          if (composerHold.current) return;
+                          commitOpen(section.id, next, false);
+                        }}
+                        className="t-body min-h-11 bg-transparent text-[var(--ink)] caret-[var(--ink)]"
+                      />
+                    </div>
+                    {composerText[section.id]?.trim() ? (
+                      <div
+                        className="absolute top-0 right-0"
+                        style={{ touchAction: "pan-y" }}
+                        onPointerDownCapture={(event) => {
+                          event.preventDefault();
+                          composerHold.current = true;
+                        }}
+                        onPointerUpCapture={() => {
+                          queueMicrotask(() => {
+                            composerHold.current = false;
+                          });
+                        }}
+                        onPointerCancelCapture={() => {
+                          composerHold.current = false;
+                        }}
+                      >
+                        <LibraryCheck
+                          onCard={composerIncluded.current.get(section.id) !== false}
+                          onToggle={() => {
+                            const on = composerIncluded.current.get(section.id) !== false;
+                            composerIncluded.current.set(section.id, !on);
+                            setComposerText((prev) => ({ ...prev }));
+                          }}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                )}
                 {section.rows.map(({ row, onCard }) => {
                   const item = row.item;
                   if (!item) return null;
@@ -930,82 +1020,25 @@ export const CardEditList = memo(function CardEditList({
                     />
                   );
                 })}
-                {seedingThis ? (
-                  <div className="flex min-w-0 items-start gap-[11px]">
-                    {files ? (
-                      <FileAddButton
-                        onPointerDown={() => {
-                          advanceSeedRef.current = true;
-                        }}
-                        onClick={() => addSeedFile(section.id)}
-                      />
+                {section.id === "files" ? (
+                  <>
+                    {section.rows.length === 0 ? (
+                      <p className="t-body min-h-11" style={{ color: OFF_CARD }}>
+                        {zoneHint}
+                      </p>
                     ) : null}
-                    <WrapField
-                      ref={extraValueRef}
-                      initial={seedText}
-                      label={section.rows.length === 0 ? zoneHint : "Value"}
-                      placeholder={section.rows.length === 0 ? zoneHint : ""}
-                      wrapPlaceholder={section.rows.length === 0}
-                      placeholderClassName="t-body text-[var(--placeholder)]"
-                      autoFocus={!isExtraZoneId(section.id) || Boolean(section.title.trim())}
-                      onPointerDown={() => {
-                        advanceSeedRef.current = true;
-                      }}
-                      onFocus={() => {
-                        const live = extraValueRef.current?.text();
-                        writeRow(null, section.id, live ?? seedText);
-                      }}
-                      onTextChange={(next) => queueRow(null, section.id, next)}
-                      onDone={(next) => seedItem(section.id, next)}
-                      onEmptyDelete={() => {
-                        if (extraValueRef.current?.text().trim()) return;
-                        if (isExtraZoneId(section.id) && !section.title.trim() && section.rows.length === 0) {
-                          hideZone(card.id, section.id);
-                        }
-                        writeRow(null, null, null);
-                        endSeed(section.id);
-                      }}
-                      onBlur={(next, event) => {
-                        if (stayInSeed(event)) return;
-                        if (!next.trim()) {
-                          if (!section.title.trim()) hideZone(card.id, section.id);
-                          writeRow(null, null, null);
-                          endSeed(section.id);
-                          return;
-                        }
-                        seedItem(section.id, next);
-                      }}
-                      className={cn(
-                        "bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]",
-                        section.rows.length === 0 && "min-h-11",
-                      )}
-                    />
-                    <div className="pointer-events-none">
-                      <LibraryCheck onCard={false} onToggle={() => undefined} />
-                    </div>
-                  </div>
-                ) : section.rows.length === 0 ? (
-                  <button
-                    type="button"
-                    data-no-swipe
-                    className="t-body min-h-11 w-full bg-transparent text-left"
-                    style={{ color: OFF_CARD }}
-                    onClick={startSeed}
-                  >
-                    {zoneHint}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    data-no-swipe
-                    data-zone-add=""
-                    aria-label="Add to section"
-                    className="flex w-full border-0 bg-transparent p-0 text-left text-[var(--ink)]"
-                    onClick={startSeed}
-                  >
-                    <MarkPlus size={16} strokeWidth={1.25} />
-                  </button>
-                )}
+                    <button
+                      type="button"
+                      data-no-swipe
+                      aria-label="Add file"
+                      className="flex w-full border-0 bg-transparent p-0 text-left text-[var(--ink)]"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => addSeedFile(section.id)}
+                    >
+                      <MarkPlus size={16} strokeWidth={1.25} />
+                    </button>
+                  </>
+                ) : null}
               </ValueCap>
             </div>
           </section>

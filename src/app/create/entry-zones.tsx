@@ -8,8 +8,12 @@ import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
-import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
-import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle, groupLibrary } from "@/shared/services/card-zones";
+import { createEmptyContactItem, isContactFilled, normalizeContactItem } from "@/shared/services/contact-item";
+import { commitComposerLine, toggleLibraryPick } from "@/app/create/composer-line";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import { useAppStore } from "@/shared/store/app-store";
+import type { Card, ContactItem } from "@/shared/types";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import type { QuestionnaireZone } from "@/shared/lib/fill-place";
 import { detectAttachmentType, isPortfolioVideoFile } from "@/shared/services/portfolio-catalog";
@@ -88,7 +92,11 @@ export type EntryZonesHandle = {
 
 type EntryZonesProps = {
   onChange?: () => void;
+  /** Second portfolio and a signed-in first form. A guest form leaves this off. */
+  library?: boolean;
 };
+
+type OpenDraft = { text: string; included: boolean };
 
 function blankCustom(zones: EntryZone[]) {
   return zones.find((zone) => zone.custom && !zone.title.trim() && zone.rows.length === 0) ?? null;
@@ -118,13 +126,30 @@ function zoneFilled(zone: EntryZone) {
   return zone.rows.some((row) => row.value.trim().length > 0);
 }
 
+function libraryRows(zoneId: string, items: ContactItem[], cards: Card[]) {
+  const placements = cards.map((card) => ({
+    id: card.id,
+    contactItemIds: card.contactItemIds,
+    itemZones: card.itemZones,
+    rubricLabels: card.rubricLabels,
+    hiddenZones: card.hiddenZones,
+    rubricOrder: card.rubricOrder,
+  }));
+  const grouped = groupLibrary(
+    items.filter(isContactFilled),
+    { contactItemIds: [] },
+    placements,
+  );
+  return grouped.find((section) => section.id === zoneId)?.rows ?? [];
+}
+
 function titled(zone: EntryZone, value: string, fileType?: AttachmentContactType | null): EntryZone {
   if (zone.title.trim()) return zone;
   const title = suggestedSectionTitle(value, fileType);
   return title ? { ...zone, title } : zone;
 }
 
-export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function EntryZones({ onChange }, ref) {
+export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function EntryZones({ onChange, library = false }, ref) {
   const [zones, setZones] = useState<EntryZone[]>(STARTERS);
   const [seedId, setSeedId] = useState<string | null>(null);
   const [seedText, setSeedText] = useState("");
@@ -144,8 +169,14 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const seedTextRef = useRef("");
   const moreOpenRef = useRef(false);
   const titleRef = useRef<HTMLTextAreaElement>(null);
-  const valueRef = useRef<WrapFieldHandle>(null);
-  const focusValue = useRef(false);
+  const draftsRef = useRef<Record<string, OpenDraft>>({});
+  const [drafts, setDrafts] = useState<Record<string, OpenDraft>>({});
+  const composerRefs = useRef(new Map<string, WrapFieldHandle>());
+  const typingHold = useRef(false);
+  const [composerEpoch, setComposerEpoch] = useState(0);
+  const libraryItems = useAppStore((state) => state.contactItems);
+  const libraryCards = useAppStore((state) => state.cards);
+  const [picked, setPicked] = useState<readonly string[]>([]);
   const onChangeRef = useRef(onChange);
   zonesRef.current = zones;
   editKeyRef.current = editKey;
@@ -160,6 +191,51 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
     setHeaderKey(key);
   };
 
+  const setDraft = (zoneId: string, draft: OpenDraft) => {
+    draftsRef.current = { ...draftsRef.current, [zoneId]: draft };
+    setDrafts(draftsRef.current);
+  };
+
+  const commitComposer = (zoneId: string, text: string, keepFocus: boolean) => {
+    const typed = text.trim();
+    if (!typed) return;
+    const included = draftsRef.current[zoneId]?.included !== false;
+    const key = nanoid();
+    const field = composerRefs.current.get(zoneId);
+    const nextZones = zonesRef.current.map((zone) => {
+      if (zone.id !== zoneId) return zone;
+      const next = commitComposerLine(
+        zone.rows.map((row) => ({ key: row.key, value: row.value })),
+        typed,
+        included,
+        key,
+      );
+      if (next.length === zone.rows.length) return zone;
+      const value = storedLine(typed, zoneId);
+      return { ...titled(zone, value), rows: [...zone.rows, { key, value }] };
+    });
+    if (nextZones === zonesRef.current || nextZones.every((zone, index) => zone === zonesRef.current[index])) {
+      if (keepFocus) field?.focusEnd();
+      return;
+    }
+    const red = entryLineIsRed(zoneId, typed);
+    setMarked((current) => {
+      const next = new Set(current);
+      if (red) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+    zonesRef.current = nextZones;
+    setZones(nextZones);
+    setDraft(zoneId, { text: "", included: true });
+    field?.clear();
+    if (keepFocus) field?.focusEnd();
+  };
+
+  const toggleLibrary = (id: string) => {
+    setPicked((current) => toggleLibraryPick(current, id));
+  };
+
   useImperativeHandle(
     ref,
     () => ({
@@ -170,13 +246,17 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
           id: zone.id,
           title: zone.title,
           custom: zone.custom,
-          rows: zone.rows.map((row) => ({ key: row.key, value: row.value, ...(row.type ? { type: row.type } : {}) })),
+          rows: zone.rows.map((row) => ({
+            key: row.key,
+            value: row.value,
+            ...(row.type ? { type: row.type } : {}),
+          })),
         })),
         headerKey: headerRef.current,
         editKey: editKeyRef.current,
         editText: editTextRef.current,
-        seedId: seedIdRef.current,
-        seedText: seedTextRef.current,
+        seedId: Object.entries(draftsRef.current).find(([, draft]) => draft.text.trim())?.[0] ?? seedIdRef.current,
+        seedText: Object.entries(draftsRef.current).find(([, draft]) => draft.text.trim())?.[1]?.text ?? seedTextRef.current,
       }),
       restore: (place) => {
         const zones = place.zones.map((zone) => ({
@@ -196,7 +276,11 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         setEditText(place.editText);
         setSeedId(place.seedId);
         setSeedText(place.seedText);
-        if (place.editKey || place.seedId) focusValue.current = true;
+        const drafts: Record<string, OpenDraft> = {};
+        if (place.seedId && place.seedText.trim()) drafts[place.seedId] = { text: place.seedText, included: true };
+        draftsRef.current = drafts;
+        setDrafts(drafts);
+        setComposerEpoch((epoch) => epoch + 1);
       },
       markProblems: () => {
         const bad: string[] = [];
@@ -210,8 +294,10 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
             if (!first) first = row.key;
           }
         }
-        const seedZone = seedIdRef.current;
-        const seedBad = Boolean(seedZone && entryLineIsRed(seedZone, seedTextRef.current));
+        const open = Object.entries(draftsRef.current).find(([, draft]) => draft.text.trim());
+        const seedZone = open?.[0] ?? seedIdRef.current;
+        const seedText = open?.[1]?.text ?? seedTextRef.current;
+        const seedBad = Boolean(seedZone && entryLineIsRed(seedZone, seedText));
         if (seedBad && seedZone && !first) first = `seed:${seedZone}`;
         setMarked(new Set(bad));
         if (first && !moreOpenRef.current) {
@@ -227,16 +313,11 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         const id = FIRST.find((zoneId) => {
           const zone = zonesRef.current.find((entry) => entry.id === zoneId);
           if (!zone) return true;
-          return !zoneHasText(zone, seedIdRef.current, seedTextRef.current, editKeyRef.current, editTextRef.current);
+          const open = draftsRef.current[zoneId]?.text ?? (seedIdRef.current === zoneId ? seedTextRef.current : "");
+          return !zoneHasText(zone, zoneId, open, editKeyRef.current, editTextRef.current);
         });
         if (!id) return;
-        if (seedIdRef.current === id && !seedTextRef.current.trim()) {
-          valueRef.current?.focusEnd();
-          return;
-        }
-        focusValue.current = true;
-        setSeedId(id);
-        setSeedText("");
+        composerRefs.current.get(id)?.focusEnd();
       },
       lines: () => zonesRef.current.map((zone) => ({ id: zone.id, rows: zone.rows })),
     }),
@@ -266,18 +347,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
     node.focus();
   }, [titleId, titleText]);
 
-  useEffect(() => {
-    if (!focusValue.current) return;
-    focusValue.current = false;
-    valueRef.current?.focusEnd();
-  }, [seedId, zones]);
-
-  const discardEmpty = (zoneId: string) => {
-    setSeedId(null);
-    setSeedText("");
-    setZones((current) => current.filter((zone) => !(zone.id === zoneId && !zone.title.trim() && zone.rows.length === 0)));
-  };
-
   const releaseHeader = (key: string) => {
     if (headerRef.current !== key) return;
     rememberHeader(null);
@@ -305,21 +374,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
       else next.delete(key);
       return next;
     });
-  };
-
-  const commitSeed = (zoneId: string, text: string) => {
-    const typed = text.trim();
-    const value = typed ? storedLine(typed, zoneId) : "";
-    setSeedId(null);
-    setSeedText("");
-    if (!value) return;
-    const key = nanoid();
-    setZones((current) =>
-      current.map((zone) =>
-        zone.id === zoneId ? { ...titled(zone, value), rows: [...zone.rows, { key, value }] } : zone,
-      ),
-    );
-    paintRow(key, zoneId, typed);
   };
 
   const commitEdit = (key: string, text: string) => {
@@ -410,8 +464,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const section = (zone: EntryZone, index: number) => {
         const hint = zone.custom ? NEW_HINT : HINTS[zone.id];
         const about = zone.id === "about";
-        const files = zone.id === "files" || zone.custom;
-        const seeding = seedId === zone.id;
         const promotable = zone.id === "position" || zone.id === "company";
         return (
           <section key={zone.id} className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
@@ -456,8 +508,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                       if (event.key !== "Enter") return;
                       event.preventDefault();
                       commitTitle(zone.id, titleText);
-                      setSeedId(zone.id);
-                      focusValue.current = true;
+                      composerRefs.current.get(zone.id)?.focusEnd();
                     }}
                     onBlur={() => {
                       if (!zonesRef.current.some((entry) => entry.id === zone.id)) return;
@@ -488,6 +539,31 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
               </div>
             </div>
             <div className="flex min-w-0 flex-col gap-[10px]">
+              {zone.id === "files" ? null : (
+                <SectionComposer
+                  key={`${zone.id}:${composerEpoch}`}
+                  zoneId={zone.id}
+                  hint={hint}
+                  about={about}
+                  text={drafts[zone.id]?.text ?? ""}
+                  checked={drafts[zone.id]?.included !== false}
+                  initial={draftsRef.current[zone.id]?.text ?? ""}
+                  onText={(next) => {
+                    const prev = draftsRef.current[zone.id] ?? { text: "", included: true };
+                    setDraft(zone.id, { text: next, included: next.trim() ? prev.included !== false : true });
+                  }}
+                  onToggle={() => {
+                    const prev = draftsRef.current[zone.id] ?? { text: "", included: true };
+                    setDraft(zone.id, { text: prev.text, included: prev.included === false });
+                  }}
+                  onCommit={(value, keepFocus) => commitComposer(zone.id, value, keepFocus)}
+                  holdRef={typingHold}
+                  bind={(handle) => {
+                    if (handle) composerRefs.current.set(zone.id, handle);
+                    else composerRefs.current.delete(zone.id);
+                  }}
+                />
+              )}
               {zone.rows.map((row) =>
                 editKey === row.key ? (
                   <div key={row.key} data-entry-row={row.key} className="min-w-0">
@@ -525,77 +601,61 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                     onArm={() => setArmed(row.key)}
                     onDelete={() => {
                       releaseHeader(row.key);
-                      setZones((current) =>
-                        current.map((entry) =>
-                          entry.id === zone.id ? { ...entry, rows: entry.rows.filter((item) => item.key !== row.key) } : entry,
-                        ),
+                      const nextZones = zonesRef.current.map((entry) =>
+                        entry.id === zone.id ? { ...entry, rows: entry.rows.filter((item) => item.key !== row.key) } : entry,
                       );
+                      zonesRef.current = nextZones;
+                      setZones(nextZones);
                       setArmed(null);
                     }}
                   />
                 ),
               )}
-              {seeding ? (
-                <div data-entry-seed={zone.id} className="flex min-w-0 items-start gap-[11px]">
-                  {files ? (
-                    <button
-                      type="button"
-                      aria-label="Add file"
-                      className="shrink-0 border-0 bg-transparent p-0 text-[var(--ink)]"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => addFile(zone.id)}
-                    >
-                      <MarkPlus className="text-[var(--ink)]" />
-                    </button>
+              {library
+                ? libraryRows(zone.id, libraryItems, libraryCards).map((row) => {
+                    const item = row.item;
+                    if (!item) return null;
+                    const checked = picked.includes(item.id);
+                    return (
+                      <div key={item.id} className="relative min-w-0">
+                        <p
+                          className={cn(
+                            "t-body mr-[26px] whitespace-pre-wrap break-words",
+                            checked ? "text-[var(--ink)]" : "text-[var(--placeholder)]",
+                          )}
+                        >
+                          {row.value}
+                        </p>
+                        <LineCheck
+                          checked={checked}
+                          label={checked ? "Remove from portfolio" : "Add to portfolio"}
+                          onHold={(down) => {
+                            typingHold.current = down;
+                          }}
+                          onToggle={() => toggleLibrary(item.id)}
+                        />
+                      </div>
+                    );
+                  })
+                : null}
+              {zone.id === "files" ? (
+                <>
+                  {zone.rows.length === 0 ? (
+                    <p className="t-body min-h-11 text-[var(--placeholder)]">
+                      <HintLine text={hint} />
+                    </p>
                   ) : null}
-                  <div className="relative min-w-0 flex-1">
-                    {zone.rows.length === 0 && !seedText.trim() ? (
-                      <span
-                        aria-hidden
-                        className="pointer-events-none absolute inset-x-0 top-0 t-body text-[var(--placeholder)]"
-                      >
-                        <HintLine text={hint} />
-                      </span>
-                    ) : null}
-                    <Field
-                      about={about}
-                      value={seedText}
-                      placeholder=""
-                      roomy={zone.rows.length === 0}
-                      marked={false}
-                      inputRef={valueRef}
-                      onChange={setSeedText}
-                      onCommit={(text) => commitSeed(zone.id, text)}
-                      onDiscardEmpty={() => discardEmpty(zone.id)}
-                    />
-                  </div>
-                </div>
-              ) : zone.rows.length === 0 ? (
-                <button
-                  type="button"
-                  className="t-body min-h-11 w-full border-0 bg-transparent p-0 text-left text-[var(--placeholder)]"
-                  onClick={() => {
-                    focusValue.current = true;
-                    setSeedId(zone.id);
-                    setSeedText("");
-                  }}
-                >
-                  <HintLine text={hint} />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  aria-label="Add row"
-                  className="border-0 bg-transparent p-0 text-left text-[var(--ink)]"
-                  onClick={() => {
-                    focusValue.current = true;
-                    setSeedId(zone.id);
-                    setSeedText("");
-                  }}
-                >
-                  <MarkPlus className="text-[var(--ink)]" />
-                </button>
-              )}
+                  <button
+                    type="button"
+                    aria-label="Add file"
+                    className="border-0 bg-transparent p-0 text-left text-[var(--ink)]"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => addFile(zone.id)}
+                  >
+                    <MarkPlus className="text-[var(--ink)]" />
+                  </button>
+                </>
+              ) : null}
             </div>
           </section>
         );
@@ -779,6 +839,7 @@ function RowButton({
   rowKey,
   text,
   marked,
+  quiet = false,
   armed,
   onPick,
   onEdit,
@@ -788,6 +849,7 @@ function RowButton({
   rowKey: string;
   text: string;
   marked: boolean;
+  quiet?: boolean;
   armed: boolean;
   onPick?: () => void;
   onEdit: () => void;
@@ -801,7 +863,7 @@ function RowButton({
         type="button"
         className={cn(
           "t-body min-w-0 flex-1 border-0 bg-transparent p-0 text-left whitespace-pre-wrap break-words",
-          marked ? "text-[#E23B2F]" : "text-[var(--ink)]",
+          marked ? "text-[#E23B2F]" : quiet ? "text-[var(--placeholder)]" : "text-[var(--ink)]",
         )}
         {...press}
         onClick={(event) => {
@@ -817,6 +879,120 @@ function RowButton({
         <button type="button" data-entry-delete="" aria-label="Delete row" className="shrink-0 border-0 bg-transparent p-0" onClick={onDelete}>
           <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
         </button>
+      ) : null}
+    </div>
+  );
+}
+
+function LineCheck({
+  checked,
+  label,
+  onToggle,
+  onHold,
+}: {
+  checked: boolean;
+  label: string;
+  onToggle: () => void;
+  onHold?: (down: boolean) => void;
+}) {
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  return (
+    <div
+      className="absolute top-0 right-0"
+      style={{ touchAction: "pan-y" }}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onHold?.(true);
+        origin.current = { x: event.clientX, y: event.clientY };
+      }}
+      onPointerUp={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const start = origin.current;
+        origin.current = null;
+        const moved = start
+          ? (event.clientX - start.x) ** 2 + (event.clientY - start.y) ** 2 > 12 * 12
+          : false;
+        if (!moved) onToggle();
+        onHold?.(false);
+      }}
+      onPointerCancel={() => {
+        origin.current = null;
+        onHold?.(false);
+      }}
+    >
+      <Checkbox
+        variant="library"
+        checked={checked}
+        aria-label={label}
+        tabIndex={-1}
+        data-no-swipe
+        className="pointer-events-none relative z-10 -mr-[11px] -mt-[11px]"
+      />
+    </div>
+  );
+}
+
+function SectionComposer({
+  zoneId,
+  hint,
+  about,
+  text,
+  checked,
+  initial,
+  onText,
+  onToggle,
+  onCommit,
+  holdRef,
+  bind,
+}: {
+  zoneId: string;
+  hint: string;
+  about: boolean;
+  text: string;
+  checked: boolean;
+  initial: string;
+  onText: (value: string) => void;
+  onToggle: () => void;
+  onCommit: (value: string, keepFocus: boolean) => void;
+  holdRef: RefObject<boolean>;
+  bind: (handle: WrapFieldHandle | null) => void;
+}) {
+  const showBox = text.trim().length > 0;
+  return (
+    <div className="relative min-w-0" data-entry-seed={zoneId} data-entry-composer={zoneId}>
+      <div className={showBox ? "mr-[26px]" : undefined}>
+        <WrapField
+          ref={bind}
+          initial={initial}
+          label={hint}
+          placeholder={hint}
+          multiline={about}
+          breakButton={false}
+          wrapPlaceholder
+          placeholderClassName="t-body text-[var(--placeholder)]"
+          onTextChange={onText}
+          onDone={(value) => {
+            if (about) return;
+            onCommit(value, true);
+          }}
+          onBlur={(value) => {
+            if (holdRef.current) return;
+            onCommit(value, false);
+          }}
+          className="t-body min-h-11 bg-transparent text-[var(--ink)] caret-[var(--ink)]"
+        />
+      </div>
+      {showBox ? (
+        <LineCheck
+          checked={checked}
+          label={checked ? "Remove from portfolio" : "Add to portfolio"}
+          onHold={(down) => {
+            holdRef.current = down;
+          }}
+          onToggle={onToggle}
+        />
       ) : null}
     </div>
   );
