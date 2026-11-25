@@ -1,6 +1,6 @@
 # Terms and Conditions
 
-Version 1.6
+Effective 25 November 2026 · Version 1.6
 
 ## 1. ADED ME and your account
 

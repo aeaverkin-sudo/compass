@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Version 1.6
+Effective 25 November 2026 · Version 1.6
 
 ## 1. Who is responsible for your data
 
@@ -31,10 +31,6 @@ An ADED ME user may save your details in their private address book even if you 
 We process this information to provide the address book and the contact features the user requests. We do not publish users’ private address books as a directory or use the contacts in them to build advertising audiences. Information a person independently makes public in a portfolio is available according to the visibility of that portfolio.
 
 For our own processing of a private address book, we rely on our legitimate interest in keeping the contacts a user chooses to save and showing that book only to that user. We do not publish the book or use it for advertising. You can object to this processing. We consider your request and the circumstances in which the information is held.
-
-Where we did not obtain the details from you, ADED ME sends the notice. We email the address already stored in that record, from support@adedme.com, within one month of storing the record, and sooner if those details are disclosed to another recipient before then. The email says: ADED ME is operated by Anton Averkin. A user stored contact details about you in a private address book. We keep those details so that user can use the book. We do not publish the book or use it for advertising. Email support@adedme.com to ask what we hold, to correct or delete it, or to object. You do not need an account. You can also complain to Portugal’s Comissão Nacional de Proteção de Dados (CNPD).
-
-We do not send that email when the record has no email address, or when the details leave ADED ME before an address exists. That includes Scan or Voice sending material to the recognition provider, and a user opening an email or messaging app for that contact. A page on this site is not that notice. You can still email support@adedme.com without an account.
 
 To ask whether we hold information about you, request access or correction, ask for deletion or object to processing, email support@adedme.com. Explain what you would like us to do. If needed, we may ask for enough information to locate the record and reasonably verify your request. We provide available source information as required by law and take account of the rights and freedoms of other people.
 

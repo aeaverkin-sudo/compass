@@ -130,13 +130,14 @@ test("the write asks Postgres to increment once and to honour an objection", () 
   const route = readFileSync(new URL("../../app/api/account/product-count-objection/route.ts", import.meta.url), "utf8");
   assert.match(route, /objectionGet\(\{ signedIn: true, failed: true \}\)/);
   assert.match(privacy, /Collection of daily totals is off\./);
-  assert.match(privacy, /^Version 1\.6$/m);
-  assert.doesNotMatch(privacy, /^Effective /m);
+  assert.match(privacy, /^Effective 25 November 2026 · Version 1\.6$/m);
   assert.equal(privacy.split("You can also object to statistics linked to your account.").length - 1, 1);
   const section4 = privacy.slice(privacy.indexOf("## 4. Saved contacts"), privacy.indexOf("## 5."));
   assert.match(section4, /legitimate interest/);
-  assert.match(section4, /ADED ME sends the notice/);
-  assert.match(section4, /from support@adedme\.com, within one month/);
+  assert.doesNotMatch(section4, /sends the notice/);
+  assert.doesNotMatch(section4, /The email says/);
+  const terms = readFileSync(new URL("../../../legal/terms-and-conditions.md", import.meta.url), "utf8");
+  assert.match(terms, /^Effective 25 November 2026 · Version 1\.6$/m);
   assert.match(legal, /phrase=\{phrase \? ASK_SENTENCE : undefined\}/);
   assert.doesNotMatch(legal, /Consent v/);
   assert.doesNotMatch(legal, /Download data in Account/);
