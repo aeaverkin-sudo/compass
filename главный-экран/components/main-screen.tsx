@@ -112,6 +112,7 @@ function CardDeck({
   fillHint,
   composeOnMount,
   openZone,
+  openItemId,
   openAddRef,
   onComposingChange,
   needsAccount,
@@ -131,13 +132,14 @@ function CardDeck({
   fillHint: boolean;
   composeOnMount: boolean;
   openZone: string | null;
+  openItemId: string | null;
   openAddRef: RefObject<(() => void) | null>;
   onComposingChange: (open: boolean) => void;
   needsAccount: boolean;
   shareFootnote: (card: Card) => ReactNode;
   addNextFor: (card: Card) => (() => void) | undefined;
   onTrialSlot: () => void;
-  onFill: (cardId: string, zoneId?: string) => void;
+  onFill: (cardId: string, zoneId?: string, itemId?: string) => void;
   onEdit: (cardId: string) => void;
   onActiveIndexChange: (index: number) => void;
   onUpdateCard: (id: string, data: Partial<Card>) => void;
@@ -161,6 +163,7 @@ function CardDeck({
       fillHint={fillHint}
       composeOnMount={composeOnMount}
       openZone={openZone}
+      openItemId={openItemId}
       openAddRef={openAddRef}
       onComposingChange={onComposingChange}
       shareFootnote={shareFootnote}
@@ -194,6 +197,7 @@ export function MainScreen() {
   const editingRef = useRef(false);
   const [composeOnMount, setComposeOnMount] = useState(false);
   const [openZone, setOpenZone] = useState<string | null>(null);
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
   const {
     open: renameOpen,
@@ -434,6 +438,7 @@ export function MainScreen() {
 
   /** Opens the add line inside the tap, so the keyboard comes up in Safari and in-app browsers. */
   const addToPass = useCallback((cardId: string) => {
+    if (editTapBlocked() || renamePending()) return;
     markPassAddHintSeen();
     const index = useAppStore.getState().cards.findIndex((entry) => entry.id === cardId);
     noteEditName(cardId);
@@ -444,13 +449,14 @@ export function MainScreen() {
     });
     rememberEdit(cardId);
     setComposeOnMount(true);
-  }, [markPassAddHintSeen, noteEditName, rememberEdit, setCurrentCardIndex]);
+  }, [markPassAddHintSeen, noteEditName, rememberEdit, renamePending, setCurrentCardIndex]);
 
   const onRemove = useCallback(() => setRemoveOpen(true), []);
   const endEdit = useCallback(() => {
     const { snap, warned } = takeSnap();
     setComposeOnMount(false);
     setOpenZone(null);
+    setOpenItemId(null);
     clearFillPlace();
     setEditing(false);
     revealPlaque(snap, warned);
@@ -488,6 +494,7 @@ export function MainScreen() {
     noteEditName(cardId);
     setComposeOnMount(false);
     setOpenZone(null);
+    setOpenItemId(null);
     setEditing(true);
     if (cardId) rememberEdit(cardId);
   }, [needsAccount, noteEditName, portfolioLimit, rememberEdit, renamePending, showGate, updateSecondCardDraft]);
@@ -499,22 +506,31 @@ export function MainScreen() {
     }
     onEdit();
   }, [onEdit, setCurrentCardIndex]);
-  const onFill = useCallback((cardId: string, zoneId?: string) => {
+  const onFill = useCallback((cardId: string, zoneId?: string, itemId?: string) => {
+    if (editTapBlocked() || renamePending()) return;
     const { cards: liveCards, contactItems: liveItems } = useAppStore.getState();
     const index = liveCards.findIndex((card) => card.id === cardId);
-    if (index === 0) markEmptyFillHintSeen();
-    if (index > 0) setCurrentCardIndex(index);
-    if (zoneId) {
-      setComposeOnMount(false);
-      setOpenZone(zoneId);
-    } else {
-      setOpenZone(null);
-      setComposeOnMount(!liveItems.some(isContactFilled));
+    if (needsAccount && index < 0) {
+      showGate();
+      return;
     }
+    if (index < 0) return;
+    if (index === 0) markEmptyFillHintSeen();
     noteEditName(cardId);
-    setEditing(true);
+    flushSync(() => {
+      if (index > 0) setCurrentCardIndex(index);
+      setComposeOnMount(false);
+      setOpenItemId(itemId ?? null);
+      if (itemId) setOpenZone(null);
+      else if (zoneId) setOpenZone(zoneId);
+      else {
+        setOpenZone(null);
+        setComposeOnMount(!liveItems.some(isContactFilled));
+      }
+      setEditing(true);
+    });
     rememberEdit(cardId);
-  }, [markEmptyFillHintSeen, noteEditName, rememberEdit, setCurrentCardIndex]);
+  }, [markEmptyFillHintSeen, needsAccount, noteEditName, rememberEdit, renamePending, setCurrentCardIndex, showGate]);
   const onActiveIndexChange = useCallback((index: number) => {
     setBrowseIndex(index);
     if (index < useAppStore.getState().cards.length) setCurrentCardIndex(index);
@@ -668,6 +684,7 @@ export function MainScreen() {
             fillHint={!emptyFillHintSeen}
             composeOnMount={composeOnMount}
             openZone={openZone}
+            openItemId={openItemId}
             openAddRef={openAddRef}
             onComposingChange={onComposingChange}
             needsAccount={needsAccount}

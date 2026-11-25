@@ -377,6 +377,7 @@ export const CardEditList = memo(function CardEditList({
   items: _items,
   composeOnMount = false,
   openZone = null,
+  openItemId = null,
   openAddRef,
   onComposingChange,
 }: {
@@ -385,6 +386,8 @@ export const CardEditList = memo(function CardEditList({
   composeOnMount?: boolean;
   /** A tap on an empty zone of a live card. Absent when Edit itself is opened. */
   openZone?: string | null;
+  /** A double tap on an existing row. The cursor starts there. */
+  openItemId?: string | null;
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
 }) {
@@ -403,9 +406,11 @@ export const CardEditList = memo(function CardEditList({
   const addContactItem = useAppStore((state) => state.addContactItem);
   const deleteContactItem = useAppStore((state) => state.deleteContactItem);
   const openNewZoneRef = useRef<() => void>(() => {});
-  const [textEditId, setTextEditId] = useState<string | null>(null);
+  const [textEditId, setTextEditId] = useState<string | null>(openItemId);
   const [sectionEditId, setSectionEditId] = useState<string | null>(null);
-  const [seedZoneId, setSeedZoneId] = useState<string | null>(() => (openZone ? canonZoneId(openZone) ?? null : null));
+  const [seedZoneId, setSeedZoneId] = useState<string | null>(() =>
+    openItemId ? null : openZone ? canonZoneId(openZone) ?? null : null,
+  );
   const advanceSeedRef = useRef(false);
   const [deleteReadyId, setDeleteReadyId] = useState<string | null>(null);
   const [hideReadyId, setHideReadyId] = useState<string | null>(null);
@@ -484,6 +489,10 @@ export const CardEditList = memo(function CardEditList({
   useEffect(() => {
     if (placeSkip.current) {
       placeSkip.current = false;
+      if (openItemId) {
+        setTextEditId(openItemId);
+        return;
+      }
       const place = readPortfolio();
       if (!place || place.cardId !== card.id) return;
       if (place.rowId) {
@@ -511,7 +520,19 @@ export const CardEditList = memo(function CardEditList({
     const rowText = textEditId ? place.rowText : null;
     if (place.rowId === textEditId && place.sectionId === sectionId && place.rowText === rowText) return;
     writePortfolio({ cardId: card.id, rowId: textEditId, sectionId, rowText });
-  }, [textEditId, sectionEditId, card.id]);
+  }, [textEditId, sectionEditId, card.id, openItemId]);
+
+  useLayoutEffect(() => {
+    const root = listRef.current;
+    if (!root) return;
+    if (openItemId) {
+      root.querySelector<HTMLElement>(`[data-item-row="${CSS.escape(openItemId)}"]`)?.scrollIntoView({ block: "center" });
+      return;
+    }
+    if (!openZone) return;
+    const zone = canonZoneId(openZone) ?? openZone;
+    root.querySelector<HTMLElement>(`[data-zone="${CSS.escape(zone)}"]`)?.scrollIntoView({ block: "center" });
+  }, [openItemId, openZone]);
 
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 

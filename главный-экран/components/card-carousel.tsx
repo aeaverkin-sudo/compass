@@ -32,13 +32,15 @@ type CardCarouselProps = {
   onEmptyAreaTap: () => void;
   editing?: boolean;
   fillHint?: boolean;
-  onFill?: (cardId: string, zoneId?: string) => void;
+  onFill?: (cardId: string, zoneId?: string, itemId?: string) => void;
   /** Opens the editor for the card under the tap. */
   onEdit?: (cardId: string) => void;
   /** Guest event pass: the card's empty next section opens the add line. Absent for other cards. */
   addNextFor?: (card: Card) => (() => void) | undefined;
   composeOnMount?: boolean;
   openZone?: string | null;
+  /** The row a double tap asked to put the cursor in. */
+  openItemId?: string | null;
   /** The visible card's add line. The plate's + calls it inside the tap. */
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
@@ -70,6 +72,7 @@ export const CardCarousel = memo(function CardCarousel({
   addNextFor,
   composeOnMount = false,
   openZone = null,
+  openItemId = null,
   openAddRef,
   onComposingChange,
   needsAccount = false,
@@ -334,11 +337,12 @@ export const CardCarousel = memo(function CardCarousel({
       onCardUpdate={onUpdate}
       editing={editing && card.id !== ADD_SLIDE_ID}
       fillHint={hint}
-      onFill={onFill ? (zoneId) => onFill(card.id, zoneId) : undefined}
+      onFill={onFill ? (zoneId, itemId) => onFill(card.id, zoneId, itemId) : undefined}
       onEdit={onEdit ? () => onEdit(card.id) : undefined}
       onAddNext={card.id === ADD_SLIDE_ID ? undefined : addNextFor?.(card)}
       composeOnMount={composeOnMount && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id}
       openZone={editing && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id ? openZone : null}
+      openItemId={editing && card.id !== ADD_SLIDE_ID && cards[activeIndex]?.id === card.id ? openItemId : null}
       openAddRef={cards[activeIndex]?.id === card.id ? openAddRef : undefined}
       onComposingChange={cards[activeIndex]?.id === card.id ? onComposingChange : undefined}
       shareFootnote={card.id === ADD_SLIDE_ID ? undefined : footnoteFor(card)}
@@ -388,11 +392,12 @@ export const CardCarousel = memo(function CardCarousel({
         onCardUpdate={(data) => onUpdateCard(activeCard.id, data)}
         editing={editing}
         fillHint={fillHint && activeIndex === 0}
-        onFill={onFill ? (zoneId) => onFill(activeCard.id, zoneId) : undefined}
+        onFill={onFill ? (zoneId, itemId) => onFill(activeCard.id, zoneId, itemId) : undefined}
         onEdit={onEdit ? () => onEdit(activeCard.id) : undefined}
         onAddNext={addNextFor?.(activeCard)}
         composeOnMount={composeOnMount}
         openZone={editing ? openZone : null}
+        openItemId={editing ? openItemId : null}
         openAddRef={openAddRef}
         onComposingChange={onComposingChange}
         shareFootnote={footnoteFor(activeCard)}

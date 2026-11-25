@@ -442,12 +442,14 @@ type BusinessCardProps = {
   onCardUpdate?: (data: Partial<Card>) => void;
   editing?: boolean;
   fillHint?: boolean;
-  onFill?: (zoneId: string) => void;
+  onFill?: (zoneId: string, itemId?: string) => void;
   /** Guest event pass: the empty next section under the rows. */
   onAddNext?: () => void;
   composeOnMount?: boolean;
   /** Set only by a tap on an empty zone. Edit on the band does not pass it. */
   openZone?: string | null;
+  /** The row a double tap asked to put the cursor in. */
+  openItemId?: string | null;
   openAddRef?: RefObject<(() => void) | null>;
   onComposingChange?: (open: boolean) => void;
   /** Public /c/ page: same card, no QR, plus, or share link. */
@@ -490,6 +492,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
     onAddNext,
     composeOnMount = false,
     openZone = null,
+    openItemId = null,
     openAddRef,
     onComposingChange,
     readOnly = false,
@@ -662,6 +665,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
             }
           : {
               height: readOnly ? "100%" : editing ? editCardHeight() : browseCardHeight(),
+              touchAction: readOnly ? undefined : "manipulation",
             }
       }
     >
@@ -695,7 +699,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
       {bare && !readOnly ? (
         <div className={cn("compass-card-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto", sidePad && "px-[var(--gutter)]")}>
           <div>
-            <EmptyCardZones />
+            <EmptyCardZones onOpenZone={!readOnly && onFill ? (zoneId) => onFill(zoneId) : undefined} />
             <NotesRubric ownerNotes={nextScanAddons} />
             {onEdit ? <EditPortfolioButton onEdit={onEdit} /> : null}
           </div>
@@ -747,6 +751,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           items={library}
           composeOnMount={composeOnMount}
           openZone={openZone}
+          openItemId={openItemId}
           openAddRef={openAddRef}
           onComposingChange={onComposingChange}
         />
@@ -795,6 +800,7 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         publicToken={card.publicToken}
         onRetryFile={!compact && !readOnly && onCardUpdate ? retryFile : undefined}
         onAddNext={!compact && !readOnly ? onAddNext : undefined}
+        onOpenLine={!compact && !readOnly && !editing && onFill ? (zoneId, itemId) => onFill(zoneId, itemId) : undefined}
       />
       </div>
       )}

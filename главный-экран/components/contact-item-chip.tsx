@@ -190,6 +190,23 @@ function holdFileInApp(event: MouseEvent, row: CardDisplayRow) {
   }
 }
 
+/** The same destinations as a tap on the row, replayed after the owner’s short wait. */
+function followRow(row: CardDisplayRow) {
+  const url = row.url;
+  const item = row.item;
+  if (!url || !item) return;
+  if (item.type === "photo") {
+    openAttachmentImage(url, row.value || "Image");
+    return;
+  }
+  if (item.type === "pdf" && openHomeScreenAttachmentPdf(url, row.value || "PDF")) return;
+  if (/^(tel:|mailto:)/i.test(url)) {
+    window.location.assign(url);
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function ContactItemChipRow({
   row,
   size,
@@ -197,6 +214,7 @@ function ContactItemChipRow({
   style,
   className,
   onChooseHeader,
+  ownerTap,
 }: {
   row: CardDisplayRow;
   size: ContactItemChipSize;
@@ -204,6 +222,8 @@ function ContactItemChipRow({
   style?: CSSProperties;
   className?: string;
   onChooseHeader?: (itemId: string) => void;
+  /** Owner showcase: run the tap after a short wait, so a second tap can take the row instead. */
+  ownerTap?: (event: MouseEvent, run: () => void) => void;
 }) {
   const compact = size === "compact";
   const motion = typeof window !== "undefined" && prefersMotion();
@@ -228,7 +248,13 @@ function ContactItemChipRow({
         href={row.url}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={(event: MouseEvent) => holdFileInApp(event, row)}
+        onClick={(event: MouseEvent) => {
+          if (!ownerTap) {
+            holdFileInApp(event, row);
+            return;
+          }
+          ownerTap(event, () => followRow(row));
+        }}
         className={classNames}
         style={style}
       >
@@ -244,8 +270,13 @@ function ContactItemChipRow({
       onClick={
         isHeaderRole(row) && onChooseHeader && row.item
           ? (event) => {
-              event.stopPropagation();
-              onChooseHeader(row.item!.id);
+              const id = row.item!.id;
+              if (!ownerTap) {
+                event.stopPropagation();
+                onChooseHeader(id);
+                return;
+              }
+              ownerTap(event, () => onChooseHeader(id));
             }
           : undefined
       }
@@ -268,6 +299,7 @@ function EditorialValue({
   onRetryFile,
   canvas = false,
   zoneId,
+  ownerTap,
 }: {
   row: CardDisplayRow;
   onChooseHeader?: (itemId: string) => void;
@@ -278,6 +310,8 @@ function EditorialValue({
   /** About: the value is a paragraph, not one clipped line. */
   canvas?: boolean;
   zoneId?: CardZoneId;
+  /** Owner showcase: run the tap after a short wait, so a second tap can take the row instead. */
+  ownerTap?: (event: MouseEvent, run: () => void) => void;
 }) {
   const itemId = row.item?.id;
   const fileStatus = useUploadStatus((state) => (itemId ? state.byItem[itemId] : undefined));
@@ -320,9 +354,14 @@ function EditorialValue({
       <button
         type="button"
         data-card-content
+        data-owner-tap=""
         onClick={(event) => {
-          event.stopPropagation();
-          onRetryFile(failedId);
+          if (!ownerTap) {
+            event.stopPropagation();
+            onRetryFile(failedId);
+            return;
+          }
+          ownerTap(event, () => onRetryFile(failedId));
         }}
         className="block w-full min-w-0 text-left"
       >
@@ -338,7 +377,13 @@ function EditorialValue({
         href={row.url}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={(event) => holdFileInApp(event, row)}
+        onClick={(event) => {
+          if (!ownerTap) {
+            holdFileInApp(event, row);
+            return;
+          }
+          ownerTap(event, () => followRow(row));
+        }}
         className="block min-w-0 no-underline"
       >
         {body}
@@ -352,8 +397,13 @@ function EditorialValue({
       onClick={
         choose && row.item
           ? (event) => {
-              event.stopPropagation();
-              onChooseHeader?.(row.item!.id);
+              const id = row.item!.id;
+              if (!ownerTap) {
+                event.stopPropagation();
+                onChooseHeader?.(id);
+                return;
+              }
+              ownerTap(event, () => onChooseHeader?.(id));
             }
           : undefined
       }
@@ -382,6 +432,7 @@ export function ContactItemChipList({
   markPdfBlocks = false,
   onRetryFile,
   onAddNext,
+  onOpenLine,
 }: {
   items: ContactItem[];
   size: ContactItemChipSize;
@@ -409,6 +460,8 @@ export function ContactItemChipList({
   onRetryFile?: (itemId: string) => void;
   /** Guest event pass: an empty next section and a + under the filled ones. */
   onAddNext?: () => void;
+  /** Owner showcase: a double tap opens this row, or this section when the tap was not on a row. */
+  onOpenLine?: (zoneId: string, itemId?: string) => void;
 }) {
   const compact = size === "compact";
   const listRef = useRef<HTMLDivElement>(null);
@@ -434,6 +487,68 @@ export function ContactItemChipList({
   const lastMoveRef = useRef(0);
   const edgeScrolling = useRef(false);
   const suppressClick = useRef(false);
+  const downRef = useRef<{ id: number; x: number; y: number } | null>(null);
+  const tapRef = useRef<{ at: number; x: number; y: number } | null>(null);
+  const actTimer = useRef<number | null>(null);
+  const swallowClick = useRef(false);
+  const slippedRef = useRef(false);
+  const TAP_WAIT_MS = 250;
+  const TAP_SPAN_PX = 30;
+  const clearAct = () => {
+    if (actTimer.current !== null) {
+      window.clearTimeout(actTimer.current);
+      actTimer.current = null;
+    }
+  };
+  const ownerTap = (event: MouseEvent, run: () => void) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!onOpenLine) {
+      run();
+      return;
+    }
+    if (swallowClick.current) {
+      swallowClick.current = false;
+      return;
+    }
+    if (slippedRef.current) return;
+    clearAct();
+    actTimer.current = window.setTimeout(() => {
+      actTimer.current = null;
+      tapRef.current = null;
+      run();
+    }, TAP_WAIT_MS);
+  };
+  const noteOwnerTap = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!onOpenLine) return;
+    if (holdRef.current?.active || arrangingRef.current) return;
+    const down = downRef.current;
+    if (!down || down.id !== event.pointerId) return;
+    if (slippedRef.current || Math.hypot(event.clientX - down.x, event.clientY - down.y) > REORDER_SLOP_PX) {
+      tapRef.current = null;
+      return;
+    }
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target || target.closest("[data-row-handle], [data-rubric-handle], [data-arrange-chrome]")) return;
+    if (target.closest("button") && !target.closest("[data-owner-tap]")) return;
+    const now = Date.now();
+    const prev = tapRef.current;
+    if (prev && now - prev.at <= TAP_WAIT_MS && Math.hypot(event.clientX - prev.x, event.clientY - prev.y) <= TAP_SPAN_PX) {
+      tapRef.current = null;
+      clearAct();
+      swallowClick.current = true;
+      if (target.closest("[data-next-section]")) {
+        onAddNext?.();
+        return;
+      }
+      const zoneId = target.closest<HTMLElement>("[data-rubric]")?.dataset.rubric;
+      if (!zoneId) return;
+      const itemId = target.closest<HTMLElement>("[data-reorder-row]")?.dataset.reorderRow;
+      onOpenLine(zoneId, itemId);
+      return;
+    }
+    tapRef.current = { at: now, x: event.clientX, y: event.clientY };
+  };
   const detachGesture = useRef<(() => void) | null>(null);
   const cancelGrabRef = useRef<() => void>(() => {});
   const dragBlockEl = useRef<HTMLElement | null>(null);
@@ -855,7 +970,11 @@ export function ContactItemChipList({
       const dx = native.clientX - startX;
       const dy = native.clientY - startY;
       if (!current?.active || current.pointerId !== pointerId) {
-        if (Math.hypot(dx, dy) > REORDER_SLOP_PX) clearEntry();
+        if (Math.hypot(dx, dy) > REORDER_SLOP_PX) {
+          slippedRef.current = true;
+          clearAct();
+          clearEntry();
+        }
         return;
       }
       if (current.settling) return;
@@ -1057,7 +1176,13 @@ export function ContactItemChipList({
         data-arranging={arranging ? "" : undefined}
         data-no-swipe={hold?.active || arranging ? "" : undefined}
         data-reordering={hold?.active ? "" : undefined}
-        onPointerDown={canReorder ? onBrowsePointerDown : undefined}
+        onPointerDown={(event) => {
+          swallowClick.current = false;
+          downRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
+          slippedRef.current = false;
+          if (canReorder) onBrowsePointerDown(event);
+        }}
+        onPointerUp={noteOwnerTap}
         onClickCapture={swallowReorderClick}
         onContextMenu={(event) => {
           if (canReorder) event.preventDefault();
@@ -1174,6 +1299,7 @@ export function ContactItemChipList({
                             onRetryFile={onRetryFile}
                             zoneId={zone.id}
                             canvas={zone.id === "about"}
+                            ownerTap={onOpenLine ? ownerTap : undefined}
                           />
                         </div>
                         {arranging ? (
@@ -1277,14 +1403,31 @@ export function ContactItemChipList({
   );
 }
 
-/** The next empty section of a guest's pass. A tap opens the add line inside the same gesture. */
+/** The next empty section. A single tap does nothing; a double tap opens its field. The + stays a tap. */
 function NextSection({ number, onAdd }: { number: string; onAdd: () => void }) {
+  const down = useRef<{ id: number; x: number; y: number } | null>(null);
+  const last = useRef<{ at: number; x: number; y: number } | null>(null);
   return (
     <div data-no-swipe onPointerDown={(event) => event.stopPropagation()}>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="block w-full border-0 border-t border-[var(--rule)] bg-transparent p-0 py-[18px] text-left"
+      <div
+        data-next-section=""
+        className="block w-full border-t border-[var(--rule)] py-[18px] text-left"
+        onPointerDown={(event) => {
+          down.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        }}
+        onPointerUp={(event) => {
+          const start = down.current;
+          if (!start || start.id !== event.pointerId) return;
+          if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > REORDER_SLOP_PX) return;
+          const now = Date.now();
+          const prev = last.current;
+          if (prev && now - prev.at <= 250 && Math.hypot(event.clientX - prev.x, event.clientY - prev.y) <= 30) {
+            last.current = null;
+            onAdd();
+            return;
+          }
+          last.current = { at: now, x: event.clientX, y: event.clientY };
+        }}
       >
         <span className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px]">
           <SectionNumber value={number} />
@@ -1292,7 +1435,7 @@ function NextSection({ number, onAdd }: { number: string; onAdd: () => void }) {
             <span className="block t-body text-[var(--placeholder)]">{NEXT_SECTION_HINT}</span>
           </ValueCap>
         </span>
-      </button>
+      </div>
       <div className="flex justify-center">
         <button
           type="button"
