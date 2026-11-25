@@ -8,8 +8,12 @@ import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
-import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
-import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { canonZoneId, isProseValue, labeledEntryLine, librarySpare, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
+import { createEmptyContactItem, findIdenticalItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { useAppStore } from "@/shared/store/app-store";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import { REORDER_SLOP_PX } from "@/shared/lib/reorder-hold";
+import type { ContactItem } from "@/shared/types";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import type { QuestionnaireZone } from "@/shared/lib/fill-place";
 import { detectAttachmentType, isPortfolioVideoFile } from "@/shared/services/portfolio-catalog";
@@ -27,6 +31,8 @@ export type EntryRow = {
   value: string;
   file?: File;
   type?: AttachmentContactType;
+  /** A library row placed on this draft. The library keeps the one original. */
+  itemId?: string;
 };
 
 export type EntryZone = {
@@ -88,6 +94,8 @@ export type EntryZonesHandle = {
 
 type EntryZonesProps = {
   onChange?: () => void;
+  /** Second portfolio: a tap opens the shared library. The first questionnaire leaves this off. */
+  library?: boolean;
 };
 
 function blankCustom(zones: EntryZone[]) {
@@ -124,7 +132,7 @@ function titled(zone: EntryZone, value: string, fileType?: AttachmentContactType
   return title ? { ...zone, title } : zone;
 }
 
-export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function EntryZones({ onChange }, ref) {
+export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function EntryZones({ onChange, library = false }, ref) {
   const [zones, setZones] = useState<EntryZone[]>(STARTERS);
   const [seedId, setSeedId] = useState<string | null>(null);
   const [seedText, setSeedText] = useState("");
@@ -146,6 +154,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef<WrapFieldHandle>(null);
   const focusValue = useRef(false);
+  const holdLibraryRef = useRef(false);
   const onChangeRef = useRef(onChange);
   zonesRef.current = zones;
   editKeyRef.current = editKey;
@@ -154,6 +163,8 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   seedTextRef.current = seedText;
   moreOpenRef.current = moreOpen;
   onChangeRef.current = onChange;
+  const libraryItems = useAppStore((state) => state.contactItems);
+  const libraryCards = useAppStore((state) => state.cards);
 
   const rememberHeader = (key: string | null) => {
     headerRef.current = key;
@@ -307,8 +318,48 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
     });
   };
 
+  const takeLibrary = (zoneId: string, item: ContactItem) => {
+    if (zonesRef.current.some((zone) => zone.rows.some((row) => row.itemId === item.id))) return;
+    const key = nanoid();
+    const type = isAttachmentType(item.type) ? item.type : undefined;
+    setZones((current) =>
+      current.map((zone) => {
+        if (zone.id !== zoneId) return zone;
+        if (zone.rows.some((row) => row.itemId === item.id)) return zone;
+        return {
+          ...titled(zone, item.value, type ?? null),
+          rows: [...zone.rows, { key, value: item.value, itemId: item.id, ...(type ? { type } : {}) }],
+        };
+      }),
+    );
+  };
+
+  const releaseLibrary = (itemId: string) => {
+    for (const zone of zonesRef.current) {
+      const row = zone.rows.find((entry) => entry.itemId === itemId);
+      if (row) releaseHeader(row.key);
+    }
+    setZones((current) =>
+      current.flatMap((zone) => {
+        const rows = zone.rows.filter((row) => row.itemId !== itemId);
+        if (rows.length === zone.rows.length) return [zone];
+        if (zone.custom && !zone.title.trim() && rows.length === 0) return [];
+        return [{ ...zone, rows }];
+      }),
+    );
+  };
+
   const commitSeed = (zoneId: string, text: string) => {
     const typed = text.trim();
+    if (library && typed) {
+      const twin = findIdenticalItem(useAppStore.getState().contactItems, typed);
+      if (twin) {
+        takeLibrary(zoneId, twin);
+        setSeedId(null);
+        setSeedText("");
+        return;
+      }
+    }
     const value = typed ? storedLine(typed, zoneId) : "";
     setSeedId(null);
     setSeedText("");
@@ -413,6 +464,11 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         const files = zone.id === "files" || zone.custom;
         const seeding = seedId === zone.id;
         const promotable = zone.id === "position" || zone.id === "company";
+        const zoneKey = library ? canonZoneId(zone.id) : undefined;
+        const taken = library
+          ? new Set(zones.flatMap((entry) => entry.rows.flatMap((row) => (row.itemId ? [row.itemId] : []))))
+          : null;
+        const spare = zoneKey && taken && seeding ? librarySpare(zoneKey, taken, libraryItems, libraryCards) : [];
         return (
           <section key={zone.id} className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
             <div className="min-w-0">
@@ -489,7 +545,20 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
             </div>
             <div className="flex min-w-0 flex-col gap-[10px]">
               {zone.rows.map((row) =>
-                editKey === row.key ? (
+                row.itemId ? (
+                  <LibraryLine
+                    key={row.key}
+                    text={lineOf(row, zone.id)}
+                    checked
+                    onHold={() => {
+                      holdLibraryRef.current = true;
+                    }}
+                    onRelease={() => {
+                      holdLibraryRef.current = false;
+                    }}
+                    onToggle={() => releaseLibrary(row.itemId!)}
+                  />
+                ) : editKey === row.key ? (
                   <div key={row.key} data-entry-row={row.key} className="min-w-0">
                     <Field
                       about={about}
@@ -535,6 +604,25 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                   />
                 ),
               )}
+              {spare.map((row) => {
+                const item = row.item;
+                if (!item) return null;
+                const text = row.axis ? `${row.axis} / ${row.value}` : row.value;
+                return (
+                  <LibraryLine
+                    key={item.id}
+                    text={text}
+                    checked={false}
+                    onHold={() => {
+                      holdLibraryRef.current = true;
+                    }}
+                    onRelease={() => {
+                      holdLibraryRef.current = false;
+                    }}
+                    onToggle={() => takeLibrary(zone.id, item)}
+                  />
+                );
+              })}
               {seeding ? (
                 <div data-entry-seed={zone.id} className="flex min-w-0 items-start gap-[11px]">
                   {files ? (
@@ -549,7 +637,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                     </button>
                   ) : null}
                   <div className="relative min-w-0 flex-1">
-                    {zone.rows.length === 0 && !seedText.trim() ? (
+                    {zone.rows.length === 0 && spare.length === 0 && !seedText.trim() ? (
                       <span
                         aria-hidden
                         className="pointer-events-none absolute inset-x-0 top-0 t-body text-[var(--placeholder)]"
@@ -563,12 +651,18 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                       placeholder=""
                       roomy={zone.rows.length === 0}
                       marked={false}
+                      holdLibrary={library ? holdLibraryRef : undefined}
                       inputRef={valueRef}
                       onChange={setSeedText}
                       onCommit={(text) => commitSeed(zone.id, text)}
                       onDiscardEmpty={() => discardEmpty(zone.id)}
                     />
                   </div>
+                  {library ? (
+                    <div className="pointer-events-none">
+                      <LibraryPick checked={false} label="Add to portfolio" onToggle={() => undefined} />
+                    </div>
+                  ) : null}
                 </div>
               ) : zone.rows.length === 0 ? (
                 <button
@@ -677,6 +771,7 @@ function Field({
   placeholder,
   roomy = false,
   marked = false,
+  holdLibrary,
   onChange,
   onCommit,
   onDiscardEmpty,
@@ -687,6 +782,8 @@ function Field({
   placeholder?: string;
   roomy?: boolean;
   marked?: boolean;
+  /** Set while the pointer is on a library row, so that tap does not close the line. */
+  holdLibrary?: RefObject<boolean>;
   onChange: (value: string) => void;
   onCommit: (value: string) => void;
   onDiscardEmpty?: () => void;
@@ -715,7 +812,12 @@ function Field({
       onTextChange={onChange}
       onDone={finish}
       onEmptyDelete={discard}
-      onBlur={(text) => finish(text)}
+      onBlur={(text, event) => {
+        if (holdLibrary?.current) return;
+        const next = event.relatedTarget;
+        if (next instanceof Element && next.closest("[data-entry-library]")) return;
+        finish(text);
+      }}
       placeholderClassName="t-body text-[var(--placeholder)]"
       className={cn(
         "t-body bg-transparent caret-[var(--ink)]",
@@ -818,6 +920,117 @@ function RowButton({
           <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
         </button>
       ) : null}
+    </div>
+  );
+}
+
+/** The same library checkbox as Edit. A swipe does not flip it, and it does not steal the open line. */
+function LibraryPick({
+  checked,
+  label,
+  onToggle,
+  onDone,
+}: {
+  checked: boolean;
+  label: string;
+  onToggle: () => void;
+  onDone?: () => void;
+}) {
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const viaPointer = useRef(false);
+  return (
+    <Checkbox
+      variant="library"
+      checked={checked}
+      data-no-swipe
+      aria-label={label}
+      className="relative z-10 -mr-[11px] -mt-[11px]"
+      onPointerDown={(event) => {
+        event.preventDefault();
+        viaPointer.current = false;
+        origin.current = { x: event.clientX, y: event.clientY };
+      }}
+      onPointerUp={(event) => {
+        event.stopPropagation();
+        const start = origin.current;
+        origin.current = null;
+        const release = () => onDone?.();
+        if (event.pointerType === "mouse" && event.button !== 0) {
+          release();
+          return;
+        }
+        if (start) {
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (dx * dx + dy * dy > REORDER_SLOP_PX * REORDER_SLOP_PX) {
+            release();
+            return;
+          }
+        }
+        viaPointer.current = true;
+        onToggle();
+        release();
+      }}
+      onPointerCancel={() => {
+        origin.current = null;
+        viaPointer.current = false;
+        onDone?.();
+      }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (viaPointer.current) {
+          viaPointer.current = false;
+          return;
+        }
+        if (event.detail === 0) {
+          onToggle();
+          onDone?.();
+        }
+      }}
+      onCheckedChange={() => undefined}
+    />
+  );
+}
+
+function LibraryLine({
+  text,
+  checked,
+  onHold,
+  onRelease,
+  onToggle,
+}: {
+  text: string;
+  checked: boolean;
+  onHold: () => void;
+  onRelease: () => void;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      data-entry-library=""
+      className="relative min-w-0"
+      onPointerDown={(event) => {
+        onHold();
+        event.preventDefault();
+      }}
+      onPointerUp={onRelease}
+      onPointerCancel={onRelease}
+    >
+      <p
+        className="t-body mr-[26px] min-w-0 whitespace-pre-wrap break-words"
+        style={{ color: checked ? "var(--ink)" : "var(--placeholder)" }}
+      >
+        {text}
+      </p>
+      <div className="absolute top-0 right-0 flex items-start">
+        <LibraryPick
+          checked={checked}
+          label={checked ? "Remove from portfolio" : "Add to portfolio"}
+          onToggle={onToggle}
+          onDone={onRelease}
+        />
+      </div>
     </div>
   );
 }

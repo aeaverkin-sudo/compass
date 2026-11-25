@@ -23,17 +23,22 @@ function readFile(file: File) {
   });
 }
 
+const NAME_MARK_MS = 3000;
+
 /**
  * The add slide. Text stays here until Create. A reload drops it.
  * A failed save keeps it and the card id, so the next Create finishes the same card.
  */
 export function AddPortfolioSlide({
   portfolioLimit,
+  active,
   locked,
   onBlocked,
   onShow,
 }: {
   portfolioLimit: number | null;
+  /** False once the swipe leaves this slide. The name mark goes out immediately. */
+  active: boolean;
   locked?: boolean;
   onBlocked?: () => void;
   /** Bring the add slide back into view after a failed save. */
@@ -47,6 +52,7 @@ export function AddPortfolioSlide({
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState<{ file: File; dataUrl: string } | null>(null);
   const [nameMarked, setNameMarked] = useState(false);
+  const markTimer = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
@@ -57,19 +63,71 @@ export function AddPortfolioSlide({
     return bindKeyboardLift(node);
   }, [formKey]);
 
+  const clearNameMark = () => {
+    if (markTimer.current !== null) {
+      window.clearTimeout(markTimer.current);
+      markTimer.current = null;
+    }
+    setNameMarked(false);
+  };
+
+  const flashName = () => {
+    if (markTimer.current !== null) window.clearTimeout(markTimer.current);
+    setNameMarked(true);
+    markTimer.current = window.setTimeout(() => {
+      markTimer.current = null;
+      setNameMarked(false);
+    }, NAME_MARK_MS);
+  };
+
+  useEffect(() => {
+    if (active) return;
+    if (markTimer.current !== null) {
+      window.clearTimeout(markTimer.current);
+      markTimer.current = null;
+    }
+    setNameMarked(false);
+  }, [active]);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry || entry.isIntersecting) return;
+        if (markTimer.current !== null) {
+          window.clearTimeout(markTimer.current);
+          markTimer.current = null;
+        }
+        setNameMarked(false);
+      },
+      { threshold: 0.6 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [formKey]);
+
+  useEffect(() => () => {
+    if (markTimer.current !== null) window.clearTimeout(markTimer.current);
+  }, []);
+
   const create = async () => {
     if (locked) {
       onBlocked?.();
       return;
     }
     if (busy || creating.current) return;
-    const active = document.activeElement;
-    if (active instanceof HTMLElement) flushSync(() => active.blur());
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement) flushSync(() => focused.blur());
     const zones = zonesRef.current;
     if (!zones) return;
     const nameMissing = !name.trim();
-    setNameMarked(nameMissing);
-    if (nameMissing) return;
+    if (nameMissing) {
+      flashName();
+      return;
+    }
+    clearNameMark();
     if (zones.markProblems()) return;
 
     creating.current = true;
@@ -115,6 +173,14 @@ export function AddPortfolioSlide({
       for (const zone of zones.lines()) {
         for (const row of zone.rows) {
           if (placed.current.has(row.key)) continue;
+          if (row.itemId) {
+            const linked = store.contactItems.find((entry) => entry.id === row.itemId);
+            if (!linked) continue;
+            store.addItemToCard(id!, row.itemId, zone.id);
+            rowItems.current.set(row.key, row.itemId);
+            placed.current.add(row.key);
+            continue;
+          }
           const itemId = store.addContactItem();
           if (!itemId) throw new Error("save");
           if (row.file) {
@@ -162,7 +228,7 @@ export function AddPortfolioSlide({
       rowItems.current = new Map();
       setName("");
       setPhoto(null);
-      setNameMarked(false);
+      clearNameMark();
       setFormKey((key) => key + 1);
     } catch {
       setError("Could not save this portfolio. Try again.");
@@ -206,7 +272,7 @@ export function AddPortfolioSlide({
               onBlocked?.();
               return;
             }
-            setNameMarked(false);
+            clearNameMark();
             setName(next);
           }}
           onTouch={() => {
@@ -214,7 +280,7 @@ export function AddPortfolioSlide({
           }}
         />
       </div>
-      <EntryZones ref={zonesRef} />
+      <EntryZones ref={zonesRef} library />
       <div className="flex justify-center pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]">
         <TapButton
           type="button"

@@ -1,5 +1,5 @@
 import type { ContactItem, ContactType } from "@/shared/types";
-import { createEmptyContactItem, detectContactType, itemDisplayValue, normalizeContactItem } from "./contact-item";
+import { createEmptyContactItem, detectContactType, isContactFilled, itemDisplayValue, normalizeContactItem } from "./contact-item";
 import { isAttachmentType } from "./portfolio-limits";
 import { typeLabel } from "./portfolio-catalog";
 
@@ -388,6 +388,25 @@ export function groupLibrary(
     pushDisplayed(buckets, item, undefined, scope, zone);
   }
   return sectionsFrom(buckets, scope);
+}
+
+/**
+ * Rows of one section for a portfolio that is not saved yet.
+ * A row already sitting on the draft is left out. The library row itself is not copied.
+ */
+export function librarySpare(
+  zoneId: CardZoneId,
+  takenIds: ReadonlySet<string>,
+  items: ContactItem[],
+  placements: CardZonePlacement[] = [],
+): CardDisplayRow[] {
+  const grouped = groupLibrary(
+    items.filter(isContactFilled),
+    { contactItemIds: [] },
+    placements,
+  );
+  const section = grouped.find((entry) => entry.id === zoneId);
+  return (section?.rows ?? []).filter((row) => row.item && !takenIds.has(row.item.id));
 }
 
 /** Company follows Position when an older card never stored that shelf. */

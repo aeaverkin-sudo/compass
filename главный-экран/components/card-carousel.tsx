@@ -354,6 +354,7 @@ export const CardCarousel = memo(function CardCarousel({
       return (
         <AddPortfolioSlide
           portfolioLimit={portfolioLimit}
+          active={index === activeIndex}
           locked={needsAccount}
           onBlocked={onTrialSlot}
           onShow={onActiveIndexChange}
