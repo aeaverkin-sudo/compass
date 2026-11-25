@@ -45,7 +45,7 @@ export type QuestionnaireZone = {
   id: string;
   title: string;
   custom: boolean;
-  rows: { key: string; value: string; type?: string }[];
+  rows: { key: string; value: string; type?: string; onCard?: boolean; itemId?: string }[];
 };
 
 export type QuestionnairePlace = {
@@ -64,6 +64,8 @@ export type QuestionnairePlace = {
   editText: string;
   seedId: string | null;
   seedText: string;
+  /** Library rows ticked for this portfolio. Absent in drafts saved before ticks were kept. */
+  picked?: string[];
 };
 
 export type PortfolioPlace = {
@@ -154,6 +156,7 @@ export function portfolioFields(place: QuestionnairePlace) {
     editText: place.editText,
     seedId: place.seedId,
     seedText: place.seedText,
+    picked: place.picked ?? [],
   };
 }
 

@@ -26,16 +26,19 @@ import {
   type CardZoneId,
 } from "@/shared/services/card-zones";
 import {
+  createEmptyContactItem,
   detectContactType,
   findIdenticalItem,
   isContactFilled,
   messengerCountryHint,
+  normalizeContactItem,
 } from "@/shared/services/contact-item";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import { lineAtEditStart } from "@/shared/services/edit-hold";
 import { customDisplayName } from "@/shared/services/link-display";
 import { MarkPlus } from "@/shared/components/mark-plus";
+import { SectionWriteLine } from "@/shared/components/section-write-line";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useAppStore } from "@/shared/store/app-store";
@@ -47,6 +50,28 @@ import { useFinePointer, useKeyboardDock } from "@main/hooks/use-keyboard-dock";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
 
 const OFF_CARD = "var(--placeholder)";
+
+let skipEditCommit = false;
+
+/** Back was pressed. An open line must not be written after the edit is discarded. */
+export function armEditBack() {
+  skipEditCommit = true;
+}
+
+export function clearEditBack() {
+  skipEditCommit = false;
+}
+
+let flushEditLines: (() => void) | null = null;
+
+/** Save: write every leftover line the way Enter does, before the red check. */
+export function commitOpenEditLines() {
+  flushEditLines?.();
+}
+
+function backSkipsEdit() {
+  return skipEditCommit;
+}
 const DELETE_RED = "#E23B2F";
 const ADD_PLACEHOLDER = "Add link, file, text, contact…";
 const NEW_ZONE_TITLE = "Title";
@@ -422,6 +447,7 @@ export const CardEditList = memo(function CardEditList({
   const placeSkip = useRef(true);
   const extraBlockRef = useRef<HTMLDivElement>(null);
   const extraValueRef = useRef<WrapFieldHandle>(null);
+  const writeRefs = useRef(new Map<string, WrapFieldHandle>());
   const keepExtraRef = useRef(false);
   const pendingDraft = useRef<{ rowId: string | null; sectionId: string | null; rowText: string | null } | null>(null);
   const draftTimer = useRef<number | null>(null);
@@ -723,14 +749,16 @@ export const CardEditList = memo(function CardEditList({
       seedGuard.current = false;
     });
     const value = raw.trim();
-    if (!value) {
-      writeRow(null, null, null);
-      endSeed(zoneId);
-      return;
-    }
-    const twin = findIdenticalItem(useAppStore.getState().contactItems, value);
+    if (!value) return;
+    const formed = normalizeContactItem(createEmptyContactItem(0), value, zoneId).value;
+    const twin = findIdenticalItem(useAppStore.getState().contactItems, formed);
     if (twin) {
-      refuseDuplicate(twin.id);
+      if (!card.contactItemIds.includes(twin.id)) {
+        const home = useAppStore.getState().cards.map((entry) => entry.itemZones?.[twin.id]).find(Boolean);
+        addItemToCard(card.id, twin.id, home ?? zoneId);
+      }
+      writeRefs.current.get(zoneId)?.clear();
+      writeRefs.current.get(zoneId)?.focusEnd();
       return;
     }
     const id = addContactItem();
@@ -746,8 +774,15 @@ export const CardEditList = memo(function CardEditList({
       return;
     }
     addItemToCard(card.id, id, zoneId);
-    endSeed(zoneId);
     writeRow(null, null, null);
+    writeRefs.current.get(zoneId)?.clear();
+    writeRefs.current.get(zoneId)?.focusEnd();
+  };
+  flushEditLines = () => {
+    for (const [zoneId, handle] of writeRefs.current) {
+      const text = handle.text();
+      if (text.trim()) seedItem(zoneId, text);
+    }
   };
 
   const addSeedFile = (zoneId: string) => {
@@ -809,14 +844,6 @@ export const CardEditList = memo(function CardEditList({
         const promotable = section.id === "position" || section.id === "company";
         const custom = isExtraZoneId(section.id);
         const files = section.id === "files" || isExtraZoneId(section.id);
-        const startSeed = () => {
-          setTextEditId(null);
-          setSectionEditId(null);
-          setDeleteReadyId(null);
-          setHideReadyId(null);
-          setSeedText("");
-          setSeedZoneId(section.id);
-        };
         return (
           <section
             key={section.id}
@@ -904,7 +931,8 @@ export const CardEditList = memo(function CardEditList({
                   />
                 </div>
               </div>
-              <ValueCap className="flex min-w-0 flex-col gap-[6px]">
+              <ValueCap className="flex min-w-0 flex-col">
+                <div className="flex min-w-0 flex-col gap-[10px]">
                 {section.rows.map(({ row, onCard }) => {
                   const item = row.item;
                   if (!item) return null;
@@ -951,8 +979,18 @@ export const CardEditList = memo(function CardEditList({
                     />
                   );
                 })}
-                {seedingThis ? (
-                  <div className="flex min-w-0 items-start gap-[11px]">
+                </div>
+                {section.id === "files" ? (
+                  <div className={section.rows.length > 0 ? "mt-[18px]" : undefined}>
+                    {section.rows.length === 0 ? (
+                      <p className="t-body min-h-11 text-left" style={{ color: OFF_CARD }}>
+                        {zoneHint}
+                      </p>
+                    ) : null}
+                    <FileAddButton onClick={() => addSeedFile(section.id)} />
+                  </div>
+                ) : (
+                  <div className={section.rows.length > 0 ? "mt-[18px]" : undefined}>
                     {files ? (
                       <FileAddButton
                         onPointerDown={() => {
@@ -961,84 +999,49 @@ export const CardEditList = memo(function CardEditList({
                         onClick={() => addSeedFile(section.id)}
                       />
                     ) : null}
-                    <WrapField
-                      ref={extraValueRef}
-                      initial={seedText}
-                      label={section.rows.length === 0 ? zoneHint : "Value"}
-                      placeholder={section.rows.length === 0 ? zoneHint : ""}
-                      wrapPlaceholder={section.rows.length === 0}
-                      placeholderClassName="t-body text-[var(--placeholder)]"
-                      autoFocus={!isExtraZoneId(section.id) || Boolean(section.title.trim())}
-                      onPointerDown={() => {
-                        advanceSeedRef.current = true;
+                    <SectionWriteLine
+                      zoneId={section.id}
+                      hint={zoneHint}
+                      about={section.id === "about"}
+                      autoFocus={seedZoneId === section.id}
+                      initial={seedingThis ? seedText : ""}
+                      inputRef={(handle) => {
+                        if (handle) writeRefs.current.set(section.id, handle);
+                        else writeRefs.current.delete(section.id);
                       }}
                       onFocus={() => {
-                        const live = extraValueRef.current?.text();
-                        writeRow(null, section.id, live ?? seedText);
+                        const live = writeRefs.current.get(section.id)?.text();
+                        writeRow(null, section.id, live ?? (seedingThis ? seedText : ""));
                       }}
                       onTextChange={(next) => queueRow(null, section.id, next)}
-                      onDone={(next) => seedItem(section.id, next)}
-                      onEmptyDelete={() => {
-                        if (extraValueRef.current?.text().trim()) return;
-                        if (isExtraZoneId(section.id) && !section.title.trim() && section.rows.length === 0) {
-                          hideZone(card.id, section.id);
-                        }
-                        writeRow(null, null, null);
-                        endSeed(section.id);
+                      onCommit={(next) => {
+                        if (backSkipsEdit()) return;
+                        seedItem(section.id, next);
                       }}
-                      onBlur={(next, event) => {
-                        if (stayInSeed(event)) return;
+                      onBlur={(next) => {
+                        if (backSkipsEdit()) return;
                         if (!next.trim()) {
-                          if (!section.title.trim()) hideZone(card.id, section.id);
-                          writeRow(null, null, null);
-                          endSeed(section.id);
+                          if (isExtraZoneId(section.id) && !section.title.trim() && section.rows.length === 0) {
+                            hideZone(card.id, section.id);
+                          }
                           return;
                         }
                         seedItem(section.id, next);
                       }}
-                      className={cn(
-                        "bg-transparent t-body text-[var(--ink)] caret-[var(--ink)]",
-                        section.rows.length === 0 && "min-h-11",
-                      )}
                     />
-                    <div className="pointer-events-none">
-                      <LibraryCheck onCard={false} onToggle={() => undefined} />
-                    </div>
                   </div>
-                ) : section.rows.length === 0 ? (
-                  <button
-                    type="button"
-                    data-no-swipe
-                    className="t-body min-h-11 w-full bg-transparent text-left"
-                    style={{ color: OFF_CARD }}
-                    onClick={startSeed}
-                  >
-                    {zoneHint}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    data-no-swipe
-                    data-zone-add=""
-                    aria-label="Add to section"
-                    className="flex w-full border-0 bg-transparent p-0 text-left text-[var(--ink)]"
-                    onClick={startSeed}
-                  >
-                    <MarkPlus size={16} strokeWidth={1.25} />
-                  </button>
                 )}
               </ValueCap>
             </div>
           </section>
         );
       })}
-      <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] border-t border-[var(--rule)] py-[18px]">
-        <span />
+      <div className="flex justify-center border-t border-[var(--rule)] py-[18px]">
         <button
           type="button"
           data-no-swipe
           aria-label="Add section"
-          className="border-0 bg-transparent p-0 text-left text-[var(--ink)]"
+          className="border-0 bg-transparent p-0 text-[var(--ink)]"
           onClick={() => openNewZoneRef.current()}
         >
           <MarkPlus />

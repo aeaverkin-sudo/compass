@@ -40,6 +40,8 @@ import { firstSessionRed } from "@main/components/card-edit-list";
 import { flushPendingUpserts } from "@/shared/services/card-sync";
 import { dropPendingItemUpserts, flushPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { BackButton } from "@/shared/components/back-button";
+import { cancelQuestionnaireCommit, releaseQuestionnaireCommit } from "@/app/create/entry-zones";
+import { armEditBack, clearEditBack, commitOpenEditLines } from "./card-edit-list";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { UploadNotice } from "@/shared/components/upload-notice";
@@ -462,6 +464,7 @@ export function MainScreen() {
     revealPlaque(snap, warned);
   }, [revealPlaque, takeSnap]);
   const onDone = useCallback(() => {
+    commitOpenEditLines();
     const active = document.activeElement;
     if (active instanceof HTMLElement) flushSync(() => active.blur());
     const cardId = useAppStore.getState().cards[useAppStore.getState().currentCardIndex]?.id;
@@ -481,6 +484,7 @@ export function MainScreen() {
     endEdit();
   }, [endEdit]);
   const onEdit = useCallback(() => {
+    clearEditBack();
     if (editTapBlocked() || renamePending()) return;
     const { cards: liveCards, currentCardIndex: index } = useAppStore.getState();
     if (needsAccount && !liveCards[index]) {
@@ -605,12 +609,24 @@ export function MainScreen() {
   return (
     <main className="compass-main fixed inset-x-0 top-0 flex h-svh flex-col overflow-hidden bg-background">
       {editing ? (
-        <ScreenHeader title="Edit" fallbackHref="/main" onBack={leaveEdit} spacer={false} />
+        <div
+          onPointerDownCapture={() => armEditBack()}
+          onPointerUpCapture={() => window.setTimeout(clearEditBack, 0)}
+          onPointerCancelCapture={() => window.setTimeout(clearEditBack, 0)}
+        >
+          <ScreenHeader title="Edit" fallbackHref="/main" onBack={leaveEdit} spacer={false} />
+        </div>
       ) : viewingAddSlide ? (
-        <BackButton
-          fallbackHref="/main"
-          onBack={() => onActiveIndexChange(Math.max(cardCount - 1, 0))}
-        />
+        <div
+          onPointerDownCapture={() => cancelQuestionnaireCommit()}
+          onPointerUpCapture={() => window.setTimeout(releaseQuestionnaireCommit, 0)}
+          onPointerCancelCapture={() => window.setTimeout(releaseQuestionnaireCommit, 0)}
+        >
+          <BackButton
+            fallbackHref="/main"
+            onBack={() => onActiveIndexChange(Math.max(cardCount - 1, 0))}
+          />
+        </div>
       ) : null}
       <div ref={columnRef} className="relative min-h-0 flex-1">
       <div className="pointer-events-none absolute inset-0 z-0 bg-background">

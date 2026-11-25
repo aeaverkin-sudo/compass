@@ -64,13 +64,28 @@ export function AddPortfolioSlide({
     }
     if (busy || creating.current) return;
     const active = document.activeElement;
-    if (active instanceof HTMLElement) flushSync(() => active.blur());
     const zones = zonesRef.current;
     if (!zones) return;
+    zones.commitOpen();
+    if (active instanceof HTMLElement) flushSync(() => active.blur());
     const nameMissing = !name.trim();
     setNameMarked(nameMissing);
-    if (nameMissing) return;
-    if (zones.markProblems()) return;
+    const first = zones.markProblems();
+    if (nameMissing || first) {
+      if (first) {
+        const mark = first;
+        requestAnimationFrame(() => {
+          const root = scrollRef.current;
+          const target = !root
+            ? null
+            : mark.startsWith("seed:")
+              ? root.querySelector(`[data-entry-seed="${CSS.escape(mark.slice(5))}"]`)
+              : root.querySelector(`[data-entry-row="${CSS.escape(mark)}"]`);
+          target?.scrollIntoView({ block: "center" });
+        });
+      }
+      return;
+    }
 
     creating.current = true;
     setBusy(true);
@@ -112,9 +127,19 @@ export function AddPortfolioSlide({
       }
 
       const store = useAppStore.getState();
+      for (const pick of zones.picks()) {
+        if (placed.current.has(pick.id)) continue;
+        store.addItemToCard(id!, pick.id, pick.zoneId);
+        placed.current.add(pick.id);
+      }
       for (const zone of zones.lines()) {
         for (const row of zone.rows) {
           if (placed.current.has(row.key)) continue;
+          if (row.itemId) {
+            if (row.onCard !== false) store.addItemToCard(id!, row.itemId, zone.id);
+            placed.current.add(row.key);
+            continue;
+          }
           const itemId = store.addContactItem();
           if (!itemId) throw new Error("save");
           if (row.file) {
@@ -132,7 +157,8 @@ export function AddPortfolioSlide({
               throw new Error("save");
             }
           }
-          store.addItemToCard(id!, itemId, zone.id);
+          if (row.onCard !== false) store.addItemToCard(id!, itemId, zone.id);
+          else store.setItemZone(id!, itemId, zone.id);
           rowItems.current.set(row.key, itemId);
           placed.current.add(row.key);
         }

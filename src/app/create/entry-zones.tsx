@@ -8,8 +8,12 @@ import { MarkPlus } from "@/shared/components/mark-plus";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
-import { isProseValue, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
-import { createEmptyContactItem, normalizeContactItem } from "@/shared/services/contact-item";
+import { decideComposerLine } from "@/app/create/composer-line";
+import { LibraryLine, SectionWriteLine } from "@/shared/components/section-write-line";
+import { Checkbox } from "@/shared/components/ui/checkbox";
+import { isProseValue, groupLibrary, labeledEntryLine, nextExtraZoneId, nextHeaderChoice, suggestedSectionTitle } from "@/shared/services/card-zones";
+import { createEmptyContactItem, isContactFilled, normalizeContactItem } from "@/shared/services/contact-item";
+import { useAppStore } from "@/shared/store/app-store";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import type { QuestionnaireZone } from "@/shared/lib/fill-place";
 import { detectAttachmentType, isPortfolioVideoFile } from "@/shared/services/portfolio-catalog";
@@ -27,7 +31,22 @@ export type EntryRow = {
   value: string;
   file?: File;
   type?: AttachmentContactType;
+  /** False: the line stays in the library and is not on this portfolio. */
+  onCard?: boolean;
+  /** A library row that was ticked, not typed again. */
+  itemId?: string;
 };
+
+let skipQuestionnaireCommit = false;
+
+/** Back was pressed. The open line must not become a row. */
+export function cancelQuestionnaireCommit() {
+  skipQuestionnaireCommit = true;
+}
+
+export function releaseQuestionnaireCommit() {
+  skipQuestionnaireCommit = false;
+}
 
 export type EntryZone = {
   id: string;
@@ -69,6 +88,7 @@ export type EntryZonesHandle = {
     editText: string;
     seedId: string | null;
     seedText: string;
+    picked: string[];
   };
   restore: (place: {
     zones: QuestionnaireZone[];
@@ -77,6 +97,7 @@ export type EntryZonesHandle = {
     editText: string;
     seedId: string | null;
     seedText: string;
+    picked?: string[];
   }) => void;
   /** Paints refused values and returns the first one. `seed:` is an open line. */
   markProblems: () => string | null;
@@ -84,6 +105,10 @@ export type EntryZonesHandle = {
   focusFirstEmpty: () => void;
   /** Live rows, including a file that has not been uploaded. The questionnaire does not call this. */
   lines: () => { id: string; rows: EntryRow[] }[];
+  /** Write every leftover line the way Enter does, before the red check. */
+  commitOpen: () => void;
+  /** Library rows ticked for this portfolio, with the section they belong to. */
+  picks: () => { zoneId: string; id: string; value: string }[];
 };
 
 type EntryZonesProps = {
@@ -136,6 +161,10 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const [headerKey, setHeaderKey] = useState<string | null>(null);
   const [marked, setMarked] = useState<ReadonlySet<string>>(() => new Set());
   const [moreOpen, setMoreOpen] = useState(false);
+  const [opened, setOpened] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const libraryItems = useAppStore((state) => state.contactItems);
+  const libraryCards = useAppStore((state) => state.cards);
   const zonesRef = useRef(zones);
   const headerRef = useRef<string | null>(null);
   const editKeyRef = useRef<string | null>(null);
@@ -145,6 +174,9 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const moreOpenRef = useRef(false);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const valueRef = useRef<WrapFieldHandle>(null);
+  const composerRefs = useRef(new Map<string, WrapFieldHandle>());
+  const pickedRef = useRef<string[]>([]);
+  const commitLineRef = useRef<(zoneId: string, text: string) => void>(() => undefined);
   const focusValue = useRef(false);
   const onChangeRef = useRef(onChange);
   zonesRef.current = zones;
@@ -153,6 +185,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   seedIdRef.current = seedId;
   seedTextRef.current = seedText;
   moreOpenRef.current = moreOpen;
+  pickedRef.current = picked;
   onChangeRef.current = onChange;
 
   const rememberHeader = (key: string | null) => {
@@ -170,27 +203,40 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
           id: zone.id,
           title: zone.title,
           custom: zone.custom,
-          rows: zone.rows.map((row) => ({ key: row.key, value: row.value, ...(row.type ? { type: row.type } : {}) })),
+          rows: zone.rows.map((row) => ({
+            key: row.key,
+            value: row.value,
+            ...(row.type ? { type: row.type } : {}),
+            ...(row.onCard === false ? { onCard: false } : {}),
+            ...(row.itemId ? { itemId: row.itemId } : {}),
+          })),
         })),
         headerKey: headerRef.current,
         editKey: editKeyRef.current,
         editText: editTextRef.current,
         seedId: seedIdRef.current,
         seedText: seedTextRef.current,
+        picked: pickedRef.current,
       }),
       restore: (place) => {
         const zones = place.zones.map((zone) => ({
           id: zone.id,
           title: zone.title,
           custom: zone.custom,
-          rows: zone.rows.map((row) => ({
+            rows: zone.rows.map((row) => ({
             key: row.key,
             value: row.value,
             ...(row.type ? { type: row.type as AttachmentContactType } : {}),
+            ...(row.onCard === false ? { onCard: false } : {}),
+            ...(row.itemId ? { itemId: row.itemId } : {}),
           })),
         }));
         zonesRef.current = zones;
         setZones(zones);
+        const ticks = place.picked ?? [];
+        pickedRef.current = ticks;
+        setPicked(ticks);
+        if (zones.some((zone) => zone.rows.length > 0) || ticks.length > 0) setOpened(true);
         rememberHeader(place.headerKey);
         setEditKey(place.editKey);
         setEditText(place.editText);
@@ -239,13 +285,43 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         setSeedText("");
       },
       lines: () => zonesRef.current.map((zone) => ({ id: zone.id, rows: zone.rows })),
+      commitOpen: () => {
+        for (const zone of zonesRef.current) {
+          if (zone.id === "files") continue;
+          const text = composerRefs.current.get(zone.id)?.text() ?? "";
+          if (text.trim()) commitLineRef.current(zone.id, text);
+        }
+      },
+      picks: () => {
+        const wanted = new Set(pickedRef.current);
+        if (wanted.size === 0) return [];
+        const grouped = groupLibrary(
+          useAppStore.getState().contactItems.filter(isContactFilled),
+          { contactItemIds: [] },
+          useAppStore.getState().cards.map((card) => ({
+            id: card.id,
+            contactItemIds: card.contactItemIds,
+            itemZones: card.itemZones,
+            rubricLabels: card.rubricLabels,
+            hiddenZones: card.hiddenZones,
+            rubricOrder: card.rubricOrder,
+          })),
+        );
+        return grouped.flatMap((section) =>
+          section.rows.flatMap((row) => {
+            const item = row.item;
+            if (!item || !wanted.has(item.id)) return [];
+            return [{ zoneId: section.id, id: item.id, value: item.value.trim() }];
+          }),
+        );
+      },
     }),
     [],
   );
 
   useEffect(() => {
     onChangeRef.current?.();
-  }, [zones, editKey, editText, seedId, seedText, headerKey]);
+  }, [zones, editKey, editText, seedId, seedText, headerKey, picked]);
 
   useEffect(() => {
     if (!armed) return;
@@ -266,11 +342,14 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
     node.focus();
   }, [titleId, titleText]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!focusValue.current) return;
+    const id = seedIdRef.current;
+    const field = id ? composerRefs.current.get(id) : null;
+    if (!field) return;
     focusValue.current = false;
-    valueRef.current?.focusEnd();
-  }, [seedId, zones]);
+    field.focusEnd();
+  }, [seedId, opened, zones]);
 
   const discardEmpty = (zoneId: string) => {
     setSeedId(null);
@@ -306,6 +385,58 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
       return next;
     });
   };
+
+  const finishLine = (zoneId: string) => {
+    const field = composerRefs.current.get(zoneId);
+    field?.clear();
+    field?.focusEnd();
+    if (seedIdRef.current === zoneId) {
+      seedTextRef.current = "";
+      setSeedText("");
+    }
+  };
+
+  const commitLine = (zoneId: string, text: string) => {
+    const value = text.trim() ? storedLine(text, zoneId) : "";
+    if (!value) return;
+    const zone = zonesRef.current.find((entry) => entry.id === zoneId);
+    const library = libraryItems.filter(isContactFilled).map((item) => ({ id: item.id, value: item.value }));
+    const decision = decideComposerLine(
+      value,
+      (zone?.rows ?? []).map((row) => ({ key: row.key, value: row.value, onCard: row.onCard !== false })),
+      library,
+    );
+    if (decision.kind === "empty") return;
+    if (decision.kind === "library") {
+      setPicked((current) => {
+        const next = current.includes(decision.id) ? current : [...current, decision.id];
+        pickedRef.current = next;
+        return next;
+      });
+      finishLine(zoneId);
+      return;
+    }
+    if (decision.kind === "local") {
+      const next = zonesRef.current.map((entry) =>
+        entry.id === zoneId
+          ? { ...entry, rows: entry.rows.map((row) => (row.key === decision.key ? { ...row, onCard: true } : row)) }
+          : entry,
+      );
+      zonesRef.current = next;
+      setZones(next);
+      finishLine(zoneId);
+      return;
+    }
+    const key = nanoid();
+    const next = zonesRef.current.map((entry) =>
+      entry.id === zoneId ? { ...titled(entry, value), rows: [...entry.rows, { key, value, onCard: true }] } : entry,
+    );
+    zonesRef.current = next;
+    setZones(next);
+    paintRow(key, zoneId, text.trim());
+    finishLine(zoneId);
+  };
+  commitLineRef.current = commitLine;
 
   const commitSeed = (zoneId: string, text: string) => {
     const typed = text.trim();
@@ -407,12 +538,35 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const custom = zones.filter((zone) => zone.custom);
   const showMore = emptyFold.length > 0;
   const showRest = !showMore || moreOpen;
+  const libraryGroups = opened
+    ? groupLibrary(
+        libraryItems.filter(isContactFilled),
+        { contactItemIds: [] },
+        libraryCards.map((card) => ({
+          id: card.id,
+          contactItemIds: card.contactItemIds,
+          itemZones: card.itemZones,
+          rubricLabels: card.rubricLabels,
+          hiddenZones: card.hiddenZones,
+          rubricOrder: card.rubricOrder,
+        })),
+      )
+    : [];
+  const openSection = (zoneId: string) => {
+    setOpened(true);
+    focusValue.current = true;
+    setSeedId(zoneId);
+    setSeedText("");
+  };
   const section = (zone: EntryZone, index: number) => {
         const hint = zone.custom ? NEW_HINT : HINTS[zone.id];
         const about = zone.id === "about";
         const files = zone.id === "files" || zone.custom;
-        const seeding = seedId === zone.id;
         const promotable = zone.id === "position" || zone.id === "company";
+        const spareCount = opened
+          ? (libraryGroups.find((group) => group.id === zone.id)?.rows.length ?? 0)
+          : 0;
+        const above = zone.rows.length + spareCount > 0;
         return (
           <section key={zone.id} className="grid grid-cols-[86px_minmax(0,1fr)] items-start gap-x-[14px] border-b border-[var(--rule)] py-[18px]">
             <div className="min-w-0">
@@ -487,114 +641,164 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                 )}
               </div>
             </div>
-            <div className="flex min-w-0 flex-col gap-[10px]">
-              {zone.rows.map((row) =>
-                editKey === row.key ? (
-                  <div key={row.key} data-entry-row={row.key} className="min-w-0">
-                    <Field
-                      about={about}
-                      value={editText}
-                      placeholder=""
-                      marked={false}
-                      onChange={setEditText}
-                      onCommit={(text) => commitEdit(row.key, text)}
-                      onDiscardEmpty={() => discardRow(zone.id, row.key)}
-                    />
-                  </div>
-                ) : (
-                  <RowButton
-                    key={row.key}
-                    rowKey={row.key}
-                    text={lineOf(row, zone.id)}
-                    marked={marked.has(row.key)}
-                    armed={armed === row.key}
-                    onPick={
-                      promotable && !isProseValue(row.value)
-                        ? () => rememberHeader(headerKey === row.key ? null : row.key)
-                        : undefined
-                    }
-                    onEdit={() => {
-                      if (row.file || (row.type != null && isAttachmentType(row.type))) {
-                        setArmed(row.key);
-                        return;
-                      }
-                      setEditKey(row.key);
-                      setEditText(row.value);
-                      setArmed(null);
-                    }}
-                    onArm={() => setArmed(row.key)}
-                    onDelete={() => {
-                      releaseHeader(row.key);
-                      setZones((current) =>
-                        current.map((entry) =>
-                          entry.id === zone.id ? { ...entry, rows: entry.rows.filter((item) => item.key !== row.key) } : entry,
-                        ),
-                      );
-                      setArmed(null);
-                    }}
-                  />
-                ),
-              )}
-              {seeding ? (
-                <div data-entry-seed={zone.id} className="flex min-w-0 items-start gap-[11px]">
-                  {files ? (
-                    <button
-                      type="button"
-                      aria-label="Add file"
-                      className="shrink-0 border-0 bg-transparent p-0 text-[var(--ink)]"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => addFile(zone.id)}
-                    >
-                      <MarkPlus className="text-[var(--ink)]" />
-                    </button>
-                  ) : null}
-                  <div className="relative min-w-0 flex-1">
-                    {zone.rows.length === 0 && !seedText.trim() ? (
-                      <span
-                        aria-hidden
-                        className="pointer-events-none absolute inset-x-0 top-0 t-body text-[var(--placeholder)]"
-                      >
-                        <HintLine text={hint} />
-                      </span>
-                    ) : null}
-                    <Field
-                      about={about}
-                      value={seedText}
-                      placeholder=""
-                      roomy={zone.rows.length === 0}
-                      marked={false}
-                      inputRef={valueRef}
-                      onChange={setSeedText}
-                      onCommit={(text) => commitSeed(zone.id, text)}
-                      onDiscardEmpty={() => discardEmpty(zone.id)}
-                    />
-                  </div>
-                </div>
-              ) : zone.rows.length === 0 ? (
+            <div className="flex min-w-0 flex-col">
+              {!opened && zone.rows.length === 0 ? (
                 <button
                   type="button"
                   className="t-body min-h-11 w-full border-0 bg-transparent p-0 text-left text-[var(--placeholder)]"
-                  onClick={() => {
-                    focusValue.current = true;
-                    setSeedId(zone.id);
-                    setSeedText("");
-                  }}
+                  onClick={() => openSection(zone.id)}
                 >
                   <HintLine text={hint} />
                 </button>
               ) : (
-                <button
-                  type="button"
-                  aria-label="Add row"
-                  className="border-0 bg-transparent p-0 text-left text-[var(--ink)]"
-                  onClick={() => {
-                    focusValue.current = true;
-                    setSeedId(zone.id);
-                    setSeedText("");
-                  }}
-                >
-                  <MarkPlus className="text-[var(--ink)]" />
-                </button>
+                <>
+                  <div className="flex flex-col gap-[10px]">
+                    {opened
+                      ? (libraryGroups.find((group) => group.id === zone.id)?.rows ?? []).flatMap((row) => {
+                          const item = row.item;
+                          if (!item || zone.rows.some((entry) => entry.itemId === item.id)) return [];
+                          const checked = picked.includes(item.id);
+                          return [
+                            <LibraryLine
+                              key={item.id}
+                              text={row.value}
+                              checked={checked}
+                              onToggle={() =>
+                                setPicked((current) => {
+                                  const next = current.includes(item.id)
+                                    ? current.filter((id) => id !== item.id)
+                                    : [...current, item.id];
+                                  pickedRef.current = next;
+                                  return next;
+                                })
+                              }
+                            />,
+                          ];
+                        })
+                      : null}
+                    {zone.rows.map((row) =>
+                      editKey === row.key ? (
+                        <div key={row.key} data-entry-row={row.key} className="min-w-0">
+                          <Field
+                            about={about}
+                            value={editText}
+                            placeholder=""
+                            marked={false}
+                            onChange={setEditText}
+                            onCommit={(text) => commitEdit(row.key, text)}
+                            onDiscardEmpty={() => discardRow(zone.id, row.key)}
+                          />
+                        </div>
+                      ) : (
+                        <RowButton
+                          key={row.key}
+                          rowKey={row.key}
+                          text={lineOf(row, zone.id)}
+                          marked={marked.has(row.key)}
+                          onCard={row.onCard !== false}
+                          armed={armed === row.key}
+                          onToggle={() =>
+                            setZones((current) =>
+                              current.map((entry) =>
+                                entry.id === zone.id
+                                  ? {
+                                      ...entry,
+                                      rows: entry.rows.map((item) =>
+                                        item.key === row.key ? { ...item, onCard: item.onCard === false } : item,
+                                      ),
+                                    }
+                                  : entry,
+                              ),
+                            )
+                          }
+                          onPick={
+                            promotable && !isProseValue(row.value)
+                              ? () => rememberHeader(headerKey === row.key ? null : row.key)
+                              : undefined
+                          }
+                          onEdit={() => {
+                            if (row.file || (row.type != null && isAttachmentType(row.type))) {
+                              setArmed(row.key);
+                              return;
+                            }
+                            setEditKey(row.key);
+                            setEditText(row.value);
+                            setArmed(null);
+                          }}
+                          onArm={() => setArmed(row.key)}
+                          onDelete={() => {
+                            releaseHeader(row.key);
+                            setZones((current) =>
+                              current.map((entry) =>
+                                entry.id === zone.id
+                                  ? { ...entry, rows: entry.rows.filter((item) => item.key !== row.key) }
+                                  : entry,
+                              ),
+                            );
+                            setArmed(null);
+                          }}
+                        />
+                      ),
+                    )}
+                  </div>
+                  {zone.id === "files" ? (
+                    <div className={above ? "mt-[18px]" : undefined}>
+                      {zone.rows.length === 0 ? (
+                        <p className="t-body min-h-11 text-[var(--placeholder)]">
+                          <HintLine text={hint} />
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        aria-label="Add file"
+                        className="border-0 bg-transparent p-0 text-left text-[var(--ink)]"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => addFile(zone.id)}
+                      >
+                        <MarkPlus className="text-[var(--ink)]" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={above ? "mt-[18px]" : undefined}>
+                      {files ? (
+                        <button
+                          type="button"
+                          aria-label="Add file"
+                          className="mb-[10px] border-0 bg-transparent p-0 text-left text-[var(--ink)]"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => addFile(zone.id)}
+                        >
+                          <MarkPlus className="text-[var(--ink)]" />
+                        </button>
+                      ) : null}
+                      <SectionWriteLine
+                        zoneId={zone.id}
+                        hint={hint}
+                        about={about}
+                        initial={seedId === zone.id ? seedText : ""}
+                        autoFocus={seedId === zone.id && titleId !== zone.id}
+                        inputRef={(handle) => {
+                          if (handle) composerRefs.current.set(zone.id, handle);
+                          else composerRefs.current.delete(zone.id);
+                        }}
+                        onTextChange={(text) => {
+                          seedIdRef.current = zone.id;
+                          seedTextRef.current = text;
+                          setSeedId(zone.id);
+                          setSeedText(text);
+                        }}
+                        onCommit={(text) => {
+                          if (skipQuestionnaireCommit) return;
+                          commitLine(zone.id, text);
+                        }}
+                        onBlur={(text) => {
+                          if (skipQuestionnaireCommit) return;
+                          commitLine(zone.id, text);
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </section>
@@ -619,9 +823,8 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         ? custom.map((zone, index) => section(zone, restStart + emptyFold.length + index))
         : null}
       {showRest ? (
-        <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-[14px] py-[18px]">
-          <span />
-          <button type="button" aria-label="Add section" className="border-0 bg-transparent p-0 text-left text-[var(--ink)]" onClick={addZone}>
+        <div className="flex justify-center py-[18px]">
+          <button type="button" aria-label="Add section" className="border-0 bg-transparent p-0 text-[var(--ink)]" onClick={addZone}>
             <MarkPlus />
           </button>
         </div>
@@ -779,7 +982,9 @@ function RowButton({
   rowKey,
   text,
   marked,
+  onCard = true,
   armed,
+  onToggle,
   onPick,
   onEdit,
   onArm,
@@ -788,21 +993,22 @@ function RowButton({
   rowKey: string;
   text: string;
   marked: boolean;
+  onCard?: boolean;
   armed: boolean;
+  onToggle?: () => void;
   onPick?: () => void;
   onEdit: () => void;
   onArm: () => void;
   onDelete: () => void;
 }) {
   const press = useLongPress(onArm, HOLD_MS);
+  const color = marked ? "#E23B2F" : onCard ? "var(--ink)" : "var(--placeholder)";
   return (
-    <div data-entry-row={rowKey} className="flex min-w-0 items-start gap-2">
+    <div data-entry-row={rowKey} className="relative min-w-0">
       <button
         type="button"
-        className={cn(
-          "t-body min-w-0 flex-1 border-0 bg-transparent p-0 text-left whitespace-pre-wrap break-words",
-          marked ? "text-[#E23B2F]" : "text-[var(--ink)]",
-        )}
+        className="t-body mr-[26px] min-w-0 border-0 bg-transparent p-0 text-left whitespace-pre-wrap break-words"
+        style={{ color }}
         {...press}
         onClick={(event) => {
           press.onClick(event);
@@ -814,9 +1020,23 @@ function RowButton({
         {text}
       </button>
       {armed ? (
-        <button type="button" data-entry-delete="" aria-label="Delete row" className="shrink-0 border-0 bg-transparent p-0" onClick={onDelete}>
+        <button type="button" data-entry-delete="" aria-label="Delete row" className="absolute top-0 right-0 shrink-0 border-0 bg-transparent p-0" onClick={onDelete}>
           <X className="size-4" strokeWidth={1.5} style={{ color: DELETE_RED }} aria-hidden />
         </button>
+      ) : onToggle ? (
+        <div className="absolute top-0 right-0">
+          <Checkbox
+            variant="library"
+            checked={onCard}
+            data-no-swipe
+            aria-label={onCard ? "Remove from portfolio" : "Add to portfolio"}
+            className="relative z-10 -mr-[11px] -mt-[11px]"
+            onCheckedChange={(next) => {
+              if (Boolean(next) === onCard) return;
+              onToggle();
+            }}
+          />
+        </div>
       ) : null}
     </div>
   );

@@ -41,7 +41,7 @@ import { rememberOpenProfile } from "@/shared/lib/open-profile-return";
 import { deviceWasRegistered, markRegisteredDevice, rememberAccountEmail, rememberedEmail } from "@/shared/lib/registered-device";
 import { clearRegistrationRequired, ignoreNextSignedOut } from "@/shared/lib/session-bootstrap";
 import { createBrowserSupabaseClient } from "@/shared/lib/supabase/browser";
-import { isAccountEmail } from "@/shared/services/contact-item";
+import { createEmptyContactItem, isAccountEmail, normalizeContactItem } from "@/shared/services/contact-item";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { recordConsent } from "@/shared/services/consent-client";
 import { scheduleItemUpsert } from "@/shared/services/card-items-sync";
@@ -53,7 +53,7 @@ import { useUploadStatus } from "@/shared/store/upload-status";
 import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { signInHref, type EntryInput } from "./door";
 import { EntryName } from "./entry-name";
-import { ENTRY_MARK, EntryZones, RequiredStar, type EntryZonesHandle } from "./entry-zones";
+import { ENTRY_MARK, EntryZones, RequiredStar, cancelQuestionnaireCommit, releaseQuestionnaireCommit, type EntryZonesHandle } from "./entry-zones";
 
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const PASSWORD_MIN = 8;
@@ -110,6 +110,7 @@ function questionnaireFilled(saved: QuestionnairePlace, offeredName: string, off
     saved.name.trim() !== offeredName ||
     saved.email.trim().toLowerCase() !== offeredEmail ||
     Boolean(saved.editText.trim() || saved.seedText.trim()) ||
+    (saved.picked?.length ?? 0) > 0 ||
     saved.zones.some((zone) => zone.custom || zone.rows.some((row) => row.value.trim())) ||
     photo()
   );
@@ -362,6 +363,7 @@ export function EntryPage({
 
   const submit = async () => {
     if (busy || !ready || submitLock.current) return;
+    zonesRef.current?.commitOpen();
     const active = document.activeElement;
     if (active instanceof HTMLElement) flushSync(() => active.blur());
     track("create_submit");
@@ -499,9 +501,19 @@ export function EntryPage({
             zones: zones.map((zone) => ({
               id: zone.id,
               title: zone.title.trim(),
-              rows: zone.rows
-                .filter((row) => row.value.trim())
-                .map((row) => ({ key: row.key, value: row.value.trim(), ...(row.type ? { type: row.type } : {}) })),
+              rows: [
+                ...zone.rows
+                  .filter((row) => row.value.trim())
+                  .map((row) => ({
+                    key: row.key,
+                    value: row.value.trim(),
+                    ...(row.type ? { type: row.type } : {}),
+                    ...(row.onCard === false ? { onCard: false } : {}),
+                  })),
+                ...(zonesRef.current?.picks() ?? [])
+                  .filter((pick) => pick.zoneId === zone.id)
+                  .map((pick) => ({ key: pick.id, value: pick.value, itemId: pick.id, onCard: true })),
+              ],
             })),
           },
         }),
@@ -573,6 +585,22 @@ export function EntryPage({
       }
       const now = new Date().toISOString();
       const givenHandle = reply.handle?.trim().toLowerCase() ?? "";
+      const picks = zonesRef.current?.picks() ?? [];
+      const sent = zones.flatMap((zone) => [
+        ...zone.rows
+          .filter((row) => row.value.trim())
+          .map((row) => ({ value: row.value, onCard: row.onCard !== false, itemId: row.itemId, zoneId: zone.id })),
+        ...picks
+          .filter((pick) => pick.zoneId === zone.id)
+          .map((pick) => ({ value: pick.value, onCard: true, itemId: pick.id, zoneId: zone.id })),
+      ]);
+      const ids = reply.itemIds ?? [];
+      const attached = sent.flatMap((row, index) => (row.onCard && ids[index] ? [ids[index]] : []));
+      const remembered = sent.flatMap((row, index) => {
+        const id = ids[index];
+        if (!id || row.itemId) return [];
+        return [{ ...normalizeContactItem(createEmptyContactItem(index), row.value, row.zoneId), id }];
+      });
       const portfolio: Card = ensureCardIdentity({
         id: cardId,
         displayName: titleValue,
@@ -584,7 +612,7 @@ export function EntryPage({
         publicToken: reply.publicToken ?? "",
         ...(givenHandle && HANDLE_RE.test(givenHandle) ? { handle: givenHandle } : {}),
         qrVersion: 1,
-        contactItemIds: reply.itemIds ?? [],
+        contactItemIds: attached,
         rubricOrder: zones.map((zone) => zone.id),
         rubricLabels: Object.fromEntries(zones.flatMap((zone) => (zone.title.trim() ? [[zone.id, zone.title.trim()]] : []))),
         itemZones: reply.itemZones,
@@ -596,11 +624,13 @@ export function EntryPage({
       if (account) {
         markRegisteredDevice();
         const user = useAppStore.getState().user;
+        const previous = useAppStore.getState().contactItems;
+        const seen = new Set(remembered.map((item) => item.id));
         useAppStore.setState({
           user: { ...user, onboarded: true },
           cards: [portfolio],
           currentCardIndex: 0,
-          contactItems: [],
+          contactItems: [...previous.filter((item) => !seen.has(item.id)), ...remembered],
         });
       } else {
         useAppStore.getState().resetApp();
@@ -611,7 +641,7 @@ export function EntryPage({
           user: { ...useAppStore.getState().user, onboarded: true },
           cards: [portfolio],
           currentCardIndex: 0,
-          contactItems: [],
+          contactItems: remembered,
         });
       }
       const rows = zones.flatMap((zone) => zone.rows);
@@ -698,7 +728,13 @@ export function EntryPage({
   if (!account) {
     return (
       <main ref={mainRef} className="compass-main h-[100svh] overflow-y-auto overscroll-contain bg-background text-[var(--ink)]">
-        <BackButton fallbackHref="/" onBack={() => router.replace("/")} />
+        <div
+          onPointerDownCapture={() => cancelQuestionnaireCommit()}
+          onPointerUpCapture={() => window.setTimeout(releaseQuestionnaireCommit, 0)}
+          onPointerCancelCapture={() => window.setTimeout(releaseQuestionnaireCommit, 0)}
+        >
+          <BackButton fallbackHref="/" onBack={() => router.replace("/")} />
+        </div>
         <AuthModeToggle
           mode="up"
           pinned={false}

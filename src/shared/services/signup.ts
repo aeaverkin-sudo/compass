@@ -20,7 +20,7 @@ export const MIN_PASSWORD = 8;
 
 const ZONE_ID = /^(?:name|age|company|position|background|education|location|languages|web|social|contact|files|lifestyle|about|extra-\d+)$/;
 
-type SignupRow = { key?: unknown; value?: unknown; type?: unknown };
+type SignupRow = { key?: unknown; value?: unknown; type?: unknown; onCard?: unknown; itemId?: unknown };
 type SignupZone = { id?: unknown; title?: unknown; rows?: unknown };
 
 const PUBLIC_TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
@@ -66,7 +66,9 @@ function attachmentKind(type: unknown): AttachmentContactType | null {
   return (ATTACHMENT_TYPES as readonly string[]).includes(type) ? (type as AttachmentContactType) : null;
 }
 
-function readZones(input: unknown): { id: string; title: string; rows: { key: string; value: string; type: AttachmentContactType | null }[] }[] | null {
+const ITEM_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function readZones(input: unknown): { id: string; title: string; rows: { key: string; value: string; type: AttachmentContactType | null; onCard: boolean; itemId: string | null }[] }[] | null {
   if (!Array.isArray(input)) return [];
   const zones = [];
   const seenKeys = new Set<string>();
@@ -86,7 +88,8 @@ function readZones(input: unknown): { id: string; title: string; rows: { key: st
       seenKeys.add(key);
       const type = attachmentKind(row.type);
       if (row.type != null && row.type !== "" && !type) return null;
-      rows.push({ key, value: value.slice(0, 2000), type });
+      const itemId = typeof row.itemId === "string" && ITEM_ID.test(row.itemId) ? row.itemId : null;
+      rows.push({ key, value: value.slice(0, 2000), type, onCard: row.onCard !== false, itemId });
     }
     zones.push({ id, title, rows });
   }
@@ -241,6 +244,20 @@ export async function writeFirstPortfolio(
   let sort = 0;
   for (const zone of zones) {
     for (const row of zone.rows) {
+      if (row.itemId) {
+        itemZones[row.itemId] = zone.id;
+        itemIds.push(row.itemId);
+        if (!row.onCard) continue;
+        const link = await admin.from("card_items").insert({
+          card_id: cardId,
+          item_id: row.itemId,
+          sort_order: sort,
+          visible: true,
+        });
+        if (link.error) throw new Error(link.error.message);
+        sort += 1;
+        continue;
+      }
       const id = crypto.randomUUID();
       if (row.type) {
         const saved = await admin.from("items").insert({
@@ -267,7 +284,8 @@ export async function writeFirstPortfolio(
         if (saved.error) throw new Error(saved.error.message);
         itemZones[normalized.id] = zone.id;
         itemIds.push(normalized.id);
-        if (headerRow && row.key === headerRow.key) headerItemId = normalized.id;
+        if (row.onCard && headerRow && row.key === headerRow.key) headerItemId = normalized.id;
+        if (!row.onCard) continue;
         const link = await admin.from("card_items").insert({
           card_id: cardId,
           item_id: normalized.id,
@@ -278,6 +296,9 @@ export async function writeFirstPortfolio(
         sort += 1;
         continue;
       }
+      itemZones[id] = zone.id;
+      itemIds.push(id);
+      if (!row.onCard) continue;
       const link = await admin.from("card_items").insert({
         card_id: cardId,
         item_id: id,
@@ -285,8 +306,6 @@ export async function writeFirstPortfolio(
         visible: true,
       });
       if (link.error) throw new Error(link.error.message);
-      itemZones[id] = zone.id;
-      itemIds.push(id);
       sort += 1;
     }
   }
