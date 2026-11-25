@@ -10,6 +10,7 @@ import {
   objectionConfirm,
   objectionGet,
   objectionRead,
+  objectedFromQuery,
   registrationCountAction,
   registrationMethod,
 } from "./product-stats.ts";
@@ -110,6 +111,23 @@ test("the write asks Postgres to increment once and to honour an objection", () 
   assert.equal(objectionRead(true, open.body), "off");
   assert.equal(objectionConfirm("off"), true);
   assert.equal(objectionConfirm("loading"), false);
+  const missing = { error: { message: "Could not find the table 'public.product_count_objections' in the schema cache" }, data: null };
+  assert.throws(() => objectedFromQuery(missing));
+  assert.equal(objectedFromQuery({ error: null, data: null }), false);
+  let readFailure;
+  try {
+    readFailure = objectionGet({ signedIn: true, objected: objectedFromQuery(missing) });
+  } catch {
+    readFailure = objectionGet({ signedIn: true, failed: true });
+  }
+  assert.equal(readFailure.status, 503);
+  assert.equal(objectionRead(false, readFailure.body), "unknown");
+  assert.equal(objectionConfirm(objectionRead(false, readFailure.body)), false);
+  const reader = record.slice(record.indexOf("function productCountsObjected"), record.indexOf("function objectToProductCounts"));
+  assert.match(reader, /return objectedFromQuery\(row\)/);
+  assert.doesNotMatch(reader, /return false/);
+  const route = readFileSync(new URL("../../app/api/account/product-count-objection/route.ts", import.meta.url), "utf8");
+  assert.match(route, /objectionGet\(\{ signedIn: true, failed: true \}\)/);
   assert.match(privacy, /Collection of daily totals is off\./);
   assert.doesNotMatch(privacy, /We use daily totals/);
   assert.equal(privacy.split("object to statistics linked to your account").length - 1, 1);

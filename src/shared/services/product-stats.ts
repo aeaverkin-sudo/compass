@@ -53,6 +53,12 @@ export function objectionRead(ok: boolean, body: { objected?: unknown; signedIn?
   return body.objected ? "on" : "off";
 }
 
+/** False only when the query succeeded and returned no row. Any Supabase error is a failure. */
+export function objectedFromQuery(result: { error: { message: string } | null; data: unknown }): boolean {
+  if (result.error) throw new Error(result.error.message);
+  return result.data != null;
+}
+
 /** Confirm exists only after a signed-in read that returned objected: false. */
 export function objectionConfirm(read: ObjectionRead | "loading"): boolean {
   return read === "off";
