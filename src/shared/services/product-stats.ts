@@ -30,6 +30,33 @@ export const COUNT_ACTIONS = [
 
 export type CountAction = (typeof COUNT_ACTIONS)[number];
 export type RegistrationMethod = "email" | "google" | "apple";
+export type ObjectionRead = "guest" | "on" | "off" | "unknown";
+
+export type ObjectionGet =
+  | { status: 200; body: { signedIn: false } }
+  | { status: 200; body: { objected: boolean } }
+  | { status: 503; body: { error: string } };
+
+/** No session is not a database answer. A failed read is not "this account has not objected". */
+export function objectionGet(input: { signedIn: boolean; objected?: boolean; failed?: boolean }): ObjectionGet {
+  if (!input.signedIn) return { status: 200, body: { signedIn: false } };
+  if (input.failed || typeof input.objected !== "boolean") {
+    return { status: 503, body: { error: "Could not read the objection." } };
+  }
+  return { status: 200, body: { objected: input.objected } };
+}
+
+export function objectionRead(ok: boolean, body: { objected?: unknown; signedIn?: unknown } | null): ObjectionRead {
+  if (!ok || !body) return "unknown";
+  if (body.signedIn === false) return "guest";
+  if (typeof body.objected !== "boolean") return "unknown";
+  return body.objected ? "on" : "off";
+}
+
+/** Confirm exists only after a signed-in read that returned objected: false. */
+export function objectionConfirm(read: ObjectionRead | "loading"): boolean {
+  return read === "off";
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

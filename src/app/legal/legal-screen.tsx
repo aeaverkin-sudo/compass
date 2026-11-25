@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { LegalDocument } from "@/shared/components/legal-document";
+import { objectionConfirm, objectionRead, type ObjectionRead } from "@/shared/services/product-stats";
 
 const PLAQUES = [
   ["terms", "Terms & Conditions"],
@@ -13,10 +14,11 @@ const PLAQUES = [
 const ASK_SENTENCE = "You can also object to statistics linked to your account.";
 const ASK_PHRASE = "object to statistics linked to your account";
 const OFF_SENTENCE = "Statistics linked to your account are off.";
+const UNAVAILABLE_SENTENCE = "We could not read whether statistics linked to your account are off.";
 
 export function LegalScreen({ terms, privacy }: { terms: string; privacy: string }) {
   const [open, setOpen] = useState<(typeof PLAQUES)[number][0]>("terms");
-  const [objected, setObjected] = useState<boolean | null>(null);
+  const [read, setRead] = useState<ObjectionRead | "loading">("loading");
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,15 +30,16 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
     let cancelled = false;
     void fetch("/api/account/product-count-objection", { cache: "no-store" })
       .then(async (response) => {
-        if (!response.ok || cancelled) {
-          if (!cancelled) setObjected(false);
-          return;
+        let body: { objected?: unknown } | null = null;
+        try {
+          body = (await response.json()) as { objected?: unknown };
+        } catch {
+          body = null;
         }
-        const body = (await response.json()) as { objected?: boolean };
-        if (!cancelled) setObjected(body.objected === true);
+        if (!cancelled) setRead(objectionRead(response.ok, body));
       })
       .catch(() => {
-        if (!cancelled) setObjected(false);
+        if (!cancelled) setRead("unknown");
       });
     return () => {
       cancelled = true;
@@ -87,7 +90,7 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
     try {
       const response = await fetch("/api/account/product-count-objection", { method: "POST" });
       if (!response.ok) throw new Error("again");
-      setObjected(true);
+      setRead("on");
       setAsk(false);
     } catch {
       setError("Could not turn statistics off.");
@@ -98,7 +101,7 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
   };
 
   const phrase: ReactNode =
-    objected === false ? (
+    objectionConfirm(read) ? (
       <span
         role="button"
         tabIndex={0}
@@ -119,7 +122,11 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
     ) : undefined;
 
   const privacySource =
-    objected === true ? privacy.replace(ASK_SENTENCE, OFF_SENTENCE) : privacy;
+    read === "on"
+      ? privacy.replace(ASK_SENTENCE, OFF_SENTENCE)
+      : read === "unknown"
+        ? privacy.replace(ASK_SENTENCE, UNAVAILABLE_SENTENCE)
+        : privacy;
 
   return (
     <main className="compass-main flex h-dvh flex-col overflow-hidden bg-white px-[var(--gutter)] text-[var(--ink)]">

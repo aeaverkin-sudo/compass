@@ -7,6 +7,9 @@ import {
   openCountAction,
   productCountBumpArgs,
   productCountCutoff,
+  objectionConfirm,
+  objectionGet,
+  objectionRead,
   registrationCountAction,
   registrationMethod,
 } from "./product-stats.ts";
@@ -90,6 +93,25 @@ test("the write asks Postgres to increment once and to honour an objection", () 
   assert.doesNotMatch(notice, /agree to (the )?(daily|product|statistics|stats)/i);
   const privacy = readFileSync(new URL("../../../legal/privacy-policy.md", import.meta.url), "utf8");
   const legal = readFileSync(new URL("../../app/legal/legal-screen.tsx", import.meta.url), "utf8");
+  const guest = objectionGet({ signedIn: false });
+  assert.deepEqual(guest, { status: 200, body: { signedIn: false } });
+  assert.equal(objectionRead(guest.status === 200, guest.body), "guest");
+  assert.equal(objectionConfirm("guest"), false);
+  const failed = objectionGet({ signedIn: true, failed: true });
+  assert.equal(failed.status, 503);
+  assert.equal(objectionRead(false, failed.body), "unknown");
+  assert.equal(objectionConfirm("unknown"), false);
+  const saved = objectionGet({ signedIn: true, objected: true });
+  assert.deepEqual(saved, { status: 200, body: { objected: true } });
+  assert.equal(objectionRead(true, saved.body), "on");
+  assert.equal(objectionConfirm("on"), false);
+  const open = objectionGet({ signedIn: true, objected: false });
+  assert.deepEqual(open, { status: 200, body: { objected: false } });
+  assert.equal(objectionRead(true, open.body), "off");
+  assert.equal(objectionConfirm("off"), true);
+  assert.equal(objectionConfirm("loading"), false);
+  assert.match(privacy, /Collection of daily totals is off\./);
+  assert.doesNotMatch(privacy, /We use daily totals/);
   assert.equal(privacy.split("object to statistics linked to your account").length - 1, 1);
   const stats = privacy.slice(privacy.indexOf("Technical records and support"), privacy.indexOf("## 2."));
   assert.match(stats, /You can also object to statistics linked to your account\./);
@@ -97,6 +119,11 @@ test("the write asks Postgres to increment once and to honour an objection", () 
   assert.doesNotMatch(legal, /Consent v/);
   assert.doesNotMatch(legal, /Download data in Account/);
   assert.match(legal, /Statistics linked to your account are off\./);
+  assert.match(legal, /We could not read whether statistics linked to your account are off\./);
+  assert.match(legal, /objectionConfirm\(read\)/);
+  assert.equal(PRODUCT_COUNTS_ENABLED, false);
+  assert.match(privacy, /Version 1\.5/);
+  assert.doesNotMatch(legal, /setObjected\(false\)/);
   assert.doesNotMatch(legal, /Object to totals linked to your account/);
   assert.equal(privacy.includes("Turn off account-linked statistics?"), false);
 });

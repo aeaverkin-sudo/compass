@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sessionUser } from "@/shared/lib/supabase/session-user";
+import { objectionGet } from "@/shared/services/product-stats";
 import { objectToProductCounts, productCountsObjected } from "@/shared/services/product-stats-record";
 
 export const runtime = "nodejs";
@@ -12,12 +13,17 @@ function noStore(body: unknown, status = 200) {
 /** Whether this account has already turned the linked totals off. */
 export async function GET() {
   const user = await sessionUser();
-  if (!user || user.is_anonymous) return noStore({ objected: false });
+  if (!user || user.is_anonymous) {
+    const guest = objectionGet({ signedIn: false });
+    return noStore(guest.body, guest.status);
+  }
   try {
-    return noStore({ objected: await productCountsObjected(user.id) });
+    const read = objectionGet({ signedIn: true, objected: await productCountsObjected(user.id) });
+    return noStore(read.body, read.status);
   } catch {
     console.error("[product-count] objection");
-    return noStore({ error: "Could not read the objection." }, 503);
+    const failed = objectionGet({ signedIn: true, failed: true });
+    return noStore(failed.body, failed.status);
   }
 }
 
