@@ -214,7 +214,7 @@ export function AddPortfolioSlide({
           }}
         />
       </div>
-      <EntryZones ref={zonesRef} library />
+      <EntryZones ref={zonesRef} />
       <div className="flex justify-center pt-[18px] pb-[max(24px,env(safe-area-inset-bottom))]">
         <TapButton
           type="button"

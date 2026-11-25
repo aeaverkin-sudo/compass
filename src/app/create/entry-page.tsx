@@ -940,7 +940,6 @@ export function EntryPage({
         </div>
         <EntryZones
           ref={zonesRef}
-          library={account}
           onChange={() => {
             flushPlace();
           }}
