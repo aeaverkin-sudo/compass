@@ -15,6 +15,7 @@ import { saveConnection } from "@/shared/services/save-connection";
 import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { noteProductCount } from "@/shared/services/product-stats-record";
 import { isProseValue } from "@/shared/services/card-zones";
+import { libraryZonesBeforeCard } from "@/shared/services/signup-library";
 
 export const MIN_PASSWORD = 8;
 
@@ -208,6 +209,13 @@ export async function writeFirstPortfolio(
   const base = slugFromName(displayName);
   let handle: string | null = base ? codedHandle(base) : null;
   const publicToken = nanoid(21);
+  const writing = await libraryZonesBeforeCard(zones, async (ids) => {
+    const found = await admin.from("items").select("id").in("id", ids).eq("owner_id", userId);
+    return {
+      data: found.data as { id: string }[] | null,
+      error: found.error ? { message: found.error.message } : null,
+    };
+  });
   const insertCard = (nextHandle: string | null) =>
     admin.from("cards").insert({
       id: cardId,
@@ -242,7 +250,7 @@ export async function writeFirstPortfolio(
   const fileItems: SignupFileItem[] = [];
   let headerItemId = "";
   let sort = 0;
-  for (const zone of zones) {
+  for (const zone of writing) {
     for (const row of zone.rows) {
       if (row.itemId) {
         itemZones[row.itemId] = zone.id;
