@@ -491,7 +491,6 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
             <section className="pt-4">
               <p className={`m-0 pb-1 ${ZONE_LABEL}`}>Contacts</p>
               <p className="t-body text-[var(--grey)]">No contacts yet.</p>
-              <p className="t-body text-[var(--grey)]">Swap cards or collect a contact to add someone to your network.</p>
             </section>
           ) : people.length > 0 ? (
             sort === "alphabet" ? (
