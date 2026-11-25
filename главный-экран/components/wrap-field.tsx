@@ -213,6 +213,7 @@ export function WrapField({
               return;
             }
             if (event.key !== "Enter" || multiline) return;
+            if (event.nativeEvent.isComposing || event.keyCode === 229) return;
             event.preventDefault();
             onDone(read());
           }}

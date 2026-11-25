@@ -276,7 +276,7 @@ export const CardCarousel = memo(function CardCarousel({
       }
       return;
     }
-    if (node.querySelector("textarea:focus, input:focus")) return;
+    if (node.querySelector("textarea:focus, input:focus, [contenteditable]:focus")) return;
     const step = slideWidthPx + slideGapPx;
     const viewportCenter = node.scrollLeft + node.clientWidth / 2;
 
