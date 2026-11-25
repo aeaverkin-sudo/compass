@@ -72,9 +72,14 @@ export function LegalDocument({
       continue;
     }
     if (line.startsWith("## ")) {
+      const heading = line.slice(3);
       blocks.push(
-        <h2 key={`h2-${blocks.length}`} className="mt-8 t-body">
-          {inline(line.slice(3), phrase, phraseNode)}
+        <h2
+          key={`h2-${blocks.length}`}
+          id={heading === "4. Saved contacts and people without an account" ? "not-a-user" : undefined}
+          className="mt-8 t-body"
+        >
+          {inline(heading, phrase, phraseNode)}
         </h2>,
       );
       continue;

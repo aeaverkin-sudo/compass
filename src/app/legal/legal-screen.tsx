@@ -102,23 +102,27 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
 
   const phrase: ReactNode =
     objectionConfirm(read) ? (
-      <span
-        role="button"
-        tabIndex={0}
-        className="cursor-pointer font-[inherit] t-body text-inherit underline"
-        onClick={() => {
-          setError(null);
-          setAsk(true);
-        }}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          event.preventDefault();
-          setError(null);
-          setAsk(true);
-        }}
-      >
-        {ASK_PHRASE}
-      </span>
+      <>
+        You can also{" "}
+        <span
+          role="button"
+          tabIndex={0}
+          className="cursor-pointer font-[inherit] t-body text-inherit underline"
+          onClick={() => {
+            setError(null);
+            setAsk(true);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            setError(null);
+            setAsk(true);
+          }}
+        >
+          {ASK_PHRASE}
+        </span>
+        .
+      </>
     ) : undefined;
 
   const privacySource =
@@ -162,7 +166,7 @@ export function LegalScreen({ terms, privacy }: { terms: string; privacy: string
           <LegalDocument source={terms} />
         </div>
         <div id="privacy">
-          <LegalDocument source={privacySource} phrase={phrase ? ASK_PHRASE : undefined} phraseNode={phrase} />
+          <LegalDocument source={privacySource} phrase={phrase ? ASK_SENTENCE : undefined} phraseNode={phrase} />
         </div>
       </div>
       <Dialog.Root
