@@ -76,7 +76,7 @@ export function LegalDocument({
       blocks.push(
         <h2
           key={`h2-${blocks.length}`}
-          id={heading === "4. Saved contacts and people without an account" ? "not-a-user" : undefined}
+          id={heading === "3. Saved contacts and people without an account" ? "not-a-user" : undefined}
           className="mt-8 t-body"
         >
           {inline(heading, phrase, phraseNode)}

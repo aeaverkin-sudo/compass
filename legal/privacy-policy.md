@@ -2,11 +2,7 @@
 
 Effective 25 November 2026 · Version 1.6
 
-## 1. Who is responsible for your data
-
-ADED ME is operated by Anton Averkin, who is responsible for the processing of personal data described in this Policy. For privacy questions, requests or reports, email support@adedme.com. You can contact us without an ADED ME account.
-
-## 2. Accounts and sign-in
+## 1. Accounts and sign-in
 
 We use your email address, account identifier and sign-in information to create, authenticate and protect your account. If you register or sign in by email, we may send a verification code or link. We do not send your reusable password in an email. Email passwords are handled by Supabase Auth and stored as hashes.
 
@@ -14,7 +10,7 @@ When you use Google or Apple, we receive the account information needed for sign
 
 You need to provide the sign-in information required by the method you choose to use an account. You can view public portfolios without creating an account where they are available to guests. Profile details, recognition inputs and public sharing are features you choose to use.
 
-## 3. Portfolios, public sharing and Swap
+## 2. Portfolios, public sharing and Swap
 
 We process the information you choose to add to your portfolio, such as your name, professional details, descriptions, links, photos and files. Signing in alone does not create or publish a portfolio.
 
@@ -24,7 +20,7 @@ When you use Swap, we use the selected contact address and public portfolio link
 
 If you follow a link from a user’s portfolio, the external site handles the information you provide there under its own privacy rules.
 
-## 4. Saved contacts and people without an account
+## 3. Saved contacts and people without an account
 
 An ADED ME user may save your details in their private address book even if you do not have an account. The information may come from the user’s own entry, a card or badge they scan, material they dictate or provide, or a portfolio they save. It may include names, job titles, companies, phone numbers, email addresses, social links, notes or associated files.
 
@@ -34,7 +30,7 @@ For our own processing of a private address book, we rely on our legitimate inte
 
 To ask whether we hold information about you, request access or correction, ask for deletion or object to processing, email support@adedme.com. Explain what you would like us to do. If needed, we may ask for enough information to locate the record and reasonably verify your request. We provide available source information as required by law and take account of the rights and freedoms of other people.
 
-## 5. Scan, Voice and text recognition
+## 4. Scan, Voice and text recognition
 
 When you choose to use recognition, we may send the photo, audio or text you submit to the OpenAI API so that it can suggest contact fields. For Voice, the audio is transcribed and the transcript may be sent to a separate model to extract contact fields. You can review the suggestions before you decide what to save.
 
@@ -42,7 +38,7 @@ Under OpenAI’s standard API settings, API content is not used for model traini
 
 Recognition is optional. You can enter contacts manually.
 
-## 6. Technical information, browser storage and product statistics
+## 5. Technical information, browser storage and product statistics
 
 We process technical information needed to run, secure and troubleshoot the service, such as request information, account and session records, delivery records and error logs. We use browser storage and cookies for requested functions such as signing in, keeping settings and restoring unfinished forms. Clearing a draft on your device does not delete a contact or portfolio already saved to your account.
 
@@ -52,7 +48,7 @@ Some sharing and opening totals are linked to the account that owns the portfoli
 
 We do not sell personal data or share it for targeted advertising. We do not give users’ address books to advertisers, data brokers or business partners for their own purposes.
 
-## 7. Why we process personal data
+## 6. Why we process personal data
 
 Where the GDPR applies, we process account information and the data you provide for your own portfolio and features as necessary to provide the service you request and perform our agreement with you.
 
@@ -60,7 +56,7 @@ We rely on legitimate interests, where the relevant conditions are met, to run a
 
 We process information where necessary to comply with a legal obligation. If a particular use requires consent, we explain that use and ask for consent separately. You can withdraw that consent at any time. Accepting the Terms does not constitute consent to product statistics.
 
-## 8. Who receives information and where it is processed
+## 7. Who receives information and where it is processed
 
 We use providers to run specific parts of ADED ME:
 
@@ -74,11 +70,13 @@ People can access what you make public through your portfolio. External apps rec
 
 Some providers process or access information outside the European Economic Area. Resend processes service email information in the United States. Supabase describes some processing in Singapore and the United States, including support or operations that may involve access outside the selected project region. We use the applicable legal safeguards for transfers, including the European Commission’s Standard Contractual Clauses where relevant. For details of a transfer or a copy of the applicable safeguards, contact support@adedme.com.
 
+ADED ME is operated by Anton Averkin, who is responsible for the processing of personal data described in this Policy. For privacy questions, requests or reports, email support@adedme.com. You can contact us without an ADED ME account.
+
 We may disclose specific information to a competent authority when required by law or a valid, binding order. We assess the request and limit disclosure to what is required. We may also disclose necessary information where the law permits it to address a serious and imminent threat to someone’s safety.
 
 If we receive a report, we may share information needed to explain a decision or allow a response where appropriate and lawful. We take account of the privacy of reporters and other affected people.
 
-## 9. Retention, deletion and export
+## 8. Retention, deletion and export
 
 Account records remain while the account is maintained. Portfolios, contacts and files saved in your account remain while you keep them or until the relevant records are deleted. You can delete a portfolio, remove a saved contact or request account deletion in Account.
 
@@ -88,7 +86,7 @@ Where collected, daily product totals are subject to a 90-day retention period. 
 
 Download Data in Account provides the data covered by the export tool. You can contact us separately about a privacy access or portability request, or if you cannot use the export or deletion tools.
 
-## 10. Reports, security and incidents
+## 9. Reports, security and incidents
 
 We use the information needed to address reports of impersonation, scams, unwanted messages, unlawful content, copyright or other rights violations, harassment and exposure of private information. This may include a link, the report and contact information needed to respond. We use reports to investigate, protect users, make and review decisions, and meet legal obligations.
 
@@ -96,7 +94,7 @@ We use HTTPS for traffic between your browser and ADED ME and check access befor
 
 If you suspect unauthorised access, a false portfolio using your identity, or continued access through a link you meant to disable, contact support@adedme.com. Do not send passwords or verification codes.
 
-## 11. Your choices and rights
+## 10. Your choices and rights
 
 Where applicable, you can ask for access, correction, deletion, restriction or portability, or object to processing. If we rely on consent, you can withdraw it. To make a request, email support@adedme.com. You can use this address even without an account or if you cannot sign in. We may ask for information necessary to verify your identity and locate the relevant data.
 
@@ -106,6 +104,6 @@ If you object to statistics linked to your account, we delete the totals linked 
 
 You can complain to Portugal’s Comissão Nacional de Proteção de Dados (CNPD) or another competent data protection authority.
 
-## 12. Updates
+## 11. Updates
 
 We publish the effective date of this Policy and inform you of material changes where required. If a new use requires your consent, we ask for it separately.
