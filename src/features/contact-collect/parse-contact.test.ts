@@ -54,7 +54,7 @@ test("sets-only and lineFlags-only patches have content", () => {
     lines: [],
     lineFlags: [{ value: "+44 7700 900123", flags: ["wa"] }],
   });
-  assert.equal(patchHasContent(setsOnly), true);
+  assert.equal(patchHasContent(setsOnly), false);
   assert.equal(patchHasContent(flagsOnly), true);
 });
 
@@ -74,7 +74,7 @@ test("WhatsApp mark adds flag without duplicating the phone", () => {
   assert.deepEqual(state.lines[0]?.flags, ["wa"]);
 });
 
-test("explicit position and phone sets change only the target", () => {
+test("a photo draft does not apply sets, and a fill line is still added", () => {
   const state = mergeContactDraft(
     blank({
       displayName: "Jordan",
@@ -89,7 +89,7 @@ test("explicit position and phone sets change only the target", () => {
       position: "",
       company: "",
       note: "",
-      lines: ["should not matter for sets"],
+      lines: ["met near the north gate"],
       sets: {
         position: "Founder",
         line: { from: "+44 7700 900123", to: "+44 7700 900999" },
@@ -97,10 +97,11 @@ test("explicit position and phone sets change only the target", () => {
     }),
   );
   assert.equal(state.displayName, "Jordan");
-  assert.equal(state.position, "Founder");
-  assert.equal(state.lines[0]?.value, "+44 7700 900999");
+  assert.equal(state.position, "Designer");
+  assert.equal(state.lines[0]?.value, "+44 7700 900123");
   assert.deepEqual(state.lines[0]?.flags, ["wa"]);
   assert.equal(state.lines[1]?.value, "jordan@example.com");
+  assert.equal(state.lines[2]?.value, "met near the north gate");
 });
 
 test("ambiguous phone set is dropped; clear data still applies", () => {
@@ -118,11 +119,10 @@ test("ambiguous phone set is dropped; clear data still applies", () => {
       ],
     }),
     {
-      sets,
       fills: { company: "North Studio" },
     },
   );
-  assert.equal(state.position, "Founder");
+  assert.equal(state.position, "Designer");
   assert.equal(state.company, "North Studio");
   assert.equal(state.lines[0]?.value, "+44 7700 900123");
   assert.equal(state.lines[1]?.value, "+33 612 345 678");
@@ -160,9 +160,7 @@ test("photo extras drop sets even if the model sent them", () => {
       lines: [],
       ...extras,
     },
-    { allowSets: false },
   );
-  assert.equal(patch.sets, undefined);
   assert.equal(patchHasContent(patch), true);
 });
 

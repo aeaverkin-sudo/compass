@@ -405,6 +405,15 @@ function nickHandle(rest: string, label: "Telegram" | "Instagram") {
   return pattern.test(handle) ? handle : null;
 }
 
+/** One spoken row. "keep" means the text is already a finished value. */
+export function speakContactValue(raw: string): { value: string; flags: Flag[] } | "drop" | "keep" {
+  const spoken = speakLine(raw);
+  if (!spoken) return "keep";
+  if (spoken.kind === "drop") return "drop";
+  if (spoken.kind === "mark") return { value: "", flags: [spoken.flag] };
+  return { value: spoken.line, flags: [...spoken.flags] };
+}
+
 function speakLine(raw: string): Spoken | null {
   const text = raw.replace(/\s+/g, " ").trim();
   if (!text) return null;
@@ -503,33 +512,6 @@ export function normalizeVoiceReading(value: unknown): unknown {
   if (unique.length === 1) {
     const value = lines.find((line) => phoneKey(line) === unique[0]) ?? unique[0];
     addFlag(flags, value, orphans);
-  }
-
-  if (record.sets && typeof record.sets === "object" && !Array.isArray(record.sets)) {
-    const sets = { ...(record.sets as Record<string, unknown>) };
-    if (sets.line && typeof sets.line === "object" && !Array.isArray(sets.line)) {
-      const line = { ...(sets.line as Record<string, unknown>) };
-      for (const key of ["from", "to"] as const) {
-        if (typeof line[key] !== "string") continue;
-        const spoken = speakLine(line[key]);
-        if (spoken?.kind === "line") line[key] = spoken.line;
-        else if (spoken?.kind === "drop") delete line[key];
-      }
-      sets.line = line;
-    }
-    record.sets = sets;
-  }
-
-  if (Array.isArray(record.lineOps)) {
-    record.lineOps = record.lineOps.map((item) => {
-      if (!item || typeof item !== "object") return item;
-      const op = { ...(item as Record<string, unknown>) };
-      if (typeof op.value !== "string") return op;
-      const spoken = speakLine(op.value);
-      if (spoken?.kind === "line") op.value = spoken.line;
-      else if (spoken?.kind === "drop") delete op.value;
-      return op;
-    });
   }
 
   record.lines = lines;

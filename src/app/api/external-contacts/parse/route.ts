@@ -50,6 +50,11 @@ export async function POST(request: Request) {
           result.status,
         );
       }
+      if ("voice" in result) {
+        return noStore(
+          typeof result.words === "number" ? { voice: result.voice, words: result.words } : { voice: result.voice },
+        );
+      }
       return noStore(
         typeof result.words === "number" ? { draft: result.draft, words: result.words } : { draft: result.draft },
       );
@@ -64,6 +69,7 @@ export async function POST(request: Request) {
         result.status,
       );
     }
+    if (!("draft" in result)) return noStore({ error: "Could not read that." }, 502);
     return noStore({ draft: result.draft });
   } catch (error) {
     console.error("[external-contacts] parse", error instanceof Error ? error.name : "parse");

@@ -1,12 +1,12 @@
 import "server-only";
 
+import { readVoiceReply, voiceResponseFormat, type VoiceReply } from "@/features/contact-collect/apply-voice-form";
 import {
   contactReading,
   parseContactLocal,
   type ContactReading,
 } from "@/features/contact-collect/parse-contact";
-import { normalizeVoiceReading } from "@/features/contact-collect/voice-reading";
-import { spokenWordCount, tightenVoicePayload, type VoiceForm } from "@/features/contact-collect/voice-dialog";
+import { spokenWordCount, type VoiceForm } from "@/features/contact-collect/voice-dialog";
 
 /**
  * Photo, voice, and messy text. The key stays in the host environment.
@@ -36,36 +36,18 @@ Copy only what is written. Do not invent a country code. Keep a leading + if it 
 Do not include sets. If there is no contact, return empty strings and an empty lines array.
 ${ASK_ENGLISH}`;
 
-const ASK_VOICE = `Turn one spoken contact update into JSON only, with no markdown.
-The user message is the current form as JSON, then the transcript of this recording only. Earlier recordings are not included.
-Return only what this recording changes. Do not echo a field the speaker did not name. A value already on the form, including a hand edit, must stay unless this recording changes it.
-Shape: {"displayName":"","position":"","company":"","note":"","lines":[],"sets":{},"lineOps":[],"lineFlags":[]}
-One phrase can hold a name, a role, a company, a phone, an email, and nicks. Put each one in its own field or its own line.
-lines are finished rows only, with no spoken label left in the row:
-"+447700900123", "jordan@example.com", "Telegram / @radiotest", "Instagram / @radiotest".
-A phone may be dictated as digits or as groups. Keep every digit, in order, and a spoken plus.
-"плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать три" → "+447700900123".
-"plus forty-four, seven thousand seven hundred, nine hundred, one hundred twenty-three" is the same number.
-Do not add a missing digit or a country code.
-WhatsApp or Telegram named on that number is a mark, not a second row:
-[{"value":"+447700900123","flags":["wa"]}].
-"Telegram Радиотест" → "Telegram / @radiotest" even when "at" was not said. Letters spelled one by one are glued into one nick.
-Instagram named as Instagram stays "Instagram / @nick".
-"jordan at example dot com" and "иордан собачка пример точка ком" are email rows: "jordan@example.com" and "iordan@primer.kom". No word "email", "at", "dot", "собачка", or "точка" in the row.
-A named or corrected name, role, or company goes in sets, which replaces that field: {"displayName":"Jordan Ellis"} or {"position":"Founder"}.
-«исправь должность на генеральный директор» sets position to CEO and changes nothing else.
-Lines change through lineOps. Do not send the whole list back.
-{"op":"replace","n":1,"value":"+447700900124"} replaces form line n when the new value is the same kind of row.
-{"op":"replace","value":"jordan@example.com"} with no n: use it when the form has one row of that kind, or lastVoiceLine is that kind. Otherwise {"op":"add","value":"…"}.
-{"op":"remove","n":2} only when the speaker explicitly says to delete that row. At most one remove.
-«исправь номер», «исправь почту», or «исправь телеграм» replaces that kind. If the form has several and lastVoiceLine is not that kind, add the new value and do not pick a row.
-«нет, не так», «неправильно», or «исправь» with no field name refers to lastVoiceLine when it is set, otherwise lastVoiceField.
-«слитно», «в одно слово», «без пробелов», «без дефиса», "one word", "no spaces", or "no hyphens": write the address or nick with no spaces and no hyphens. A hyphen, a dot, or an underscore stays only when it is named as a word. «через икс», «с двумя эс», and «на конце апостроф» apply to the word that was named. Do not guess a word you did not hear.
-When the speaker names an event or a place, note is an object: {"event":"","place":"","context":"","replace":false}.
-event and place are the name only. Do not keep service words such as event, at, in, на, or в. Do not translate the name and do not invent one.
-context is the rest of what was said about it. replace is true only for «исправь заметку» or «убери из заметки».
-If nothing useful was said, return empty strings and empty arrays.
-${ASK_ENGLISH}`;
+const ASK_VOICE = `Extract contact details from the transcript and apply them to the current form.
+Ignore filler words and false starts. Follow the latest explicit correction.
+Keep spoken phone digits and number groups in order. Never add a digit or a country code.
+For emails and handles, follow spelled letters, digits, and punctuation exactly.
+Add a new line when the speaker gives a second number. Replace only the line they identify.
+Keep existing values unless the speaker changes them.
+Put named events and places in the note.
+If a value is unclear, keep that field as it is and list it in "unclear".
+${ASK_ENGLISH}
+{"lineId":null,"kind":"phone","value":"+447700900123","flags":["wa"]}
+{"lineId":null,"kind":"telegram","value":"Telegram / @radiotest","flags":[]}
+{"event":"","place":"","context":"","replace":false}`;
 
 export type ParseInput = {
   text?: string;
@@ -79,6 +61,7 @@ export type ParseInput = {
 
 export type ParseResult =
   | { ok: true; draft: ContactReading; words?: number }
+  | { ok: true; voice: VoiceReply; words?: number }
   | { ok: false; status: number; error: string; available?: false };
 
 export function gptConfigured() {
@@ -95,15 +78,30 @@ const EMPTY_FORM: VoiceForm = {
   company: "",
   note: "",
   lines: [],
-  lastVoiceLine: null,
-  lastVoiceField: null,
 };
 
+const VOICE_KINDS = new Set(["phone", "email", "telegram", "whatsapp", "instagram", "link", "other"]);
+
 function voiceUserContent(transcript: string, form: VoiceForm | null | undefined) {
-  return `Current form JSON:\n${JSON.stringify(form ?? EMPTY_FORM)}\n\nSpoken transcript:\n${transcript}`;
+  const current = form ?? EMPTY_FORM;
+  const prompt = {
+    displayName: current.displayName,
+    position: current.position,
+    company: current.company,
+    contacts: current.lines.map((line) => ({
+      lineId: line.lineId,
+      kind: VOICE_KINDS.has(line.kind) ? line.kind : "other",
+      value: line.value,
+      flags: line.flags,
+    })),
+    note: { event: "", place: "", context: current.note, replace: false },
+    removed: [],
+    unclear: [],
+  };
+  return `Current form JSON:\n${JSON.stringify(prompt)}\n\nSpoken transcript:\n${transcript}`;
 }
 
-async function chat(content: unknown, allowSets: boolean, transcript?: string): Promise<ParseResult> {
+async function complete(system: string, content: unknown, voice: boolean): Promise<unknown | ParseResult> {
   let response: Response;
   try {
     response = await fetch(CHAT_URL, {
@@ -112,10 +110,10 @@ async function chat(content: unknown, allowSets: boolean, transcript?: string): 
       body: JSON.stringify({
         model: MODEL,
         temperature: 0,
-        response_format: { type: "json_object" },
+        response_format: voice ? voiceResponseFormat() : { type: "json_object" },
         messages: [
-          { role: "system", content: allowSets ? ASK_VOICE : ASK_DATA },
-          { role: "user", content: transcript != null ? voiceUserContent(transcript, content as VoiceForm | null) : content },
+          { role: "system", content: system },
+          { role: "user", content },
         ],
       }),
       signal: AbortSignal.timeout(25000),
@@ -133,16 +131,28 @@ async function chat(content: unknown, allowSets: boolean, transcript?: string): 
   } | null;
   const raw = body?.choices?.[0]?.message?.content ?? "";
   try {
-    const parsed = JSON.parse(raw) as unknown;
-    const normalized = allowSets ? normalizeVoiceReading(parsed) : parsed;
-    const tightened = transcript != null ? tightenVoicePayload(normalized, transcript) : normalized;
-    return {
-      ok: true,
-      draft: contactReading(tightened, { allowSets }),
-    };
+    return JSON.parse(raw) as unknown;
   } catch {
     return { ok: false, status: 502, error: "Could not read that." };
   }
+}
+
+function isFailure(value: unknown): value is Extract<ParseResult, { ok: false }> {
+  return Boolean(value && typeof value === "object" && "ok" in value && (value as { ok?: boolean }).ok === false);
+}
+
+async function chat(content: unknown): Promise<ParseResult> {
+  const parsed = await complete(ASK_DATA, content, false);
+  if (isFailure(parsed)) return parsed;
+  return { ok: true, draft: contactReading(parsed, { allowSets: false }) };
+}
+
+async function chatVoice(form: VoiceForm | null, transcript: string): Promise<ParseResult> {
+  const parsed = await complete(ASK_VOICE, voiceUserContent(transcript, form), true);
+  if (isFailure(parsed)) return parsed;
+  const voice = readVoiceReply(parsed, transcript);
+  if (!voice) return { ok: false, status: 502, error: "Could not read that." };
+  return { ok: true, voice };
 }
 
 async function transcribe(audio: NonNullable<ParseInput["audio"]>): Promise<string | ParseResult> {
@@ -194,19 +204,16 @@ export async function parseContactInput(input: ParseInput): Promise<ParseResult>
     const heard = await transcribe(input.audio);
     if (typeof heard !== "string") return heard;
     if (!heard) return { ok: false, status: 422, error: "Could not hear that." };
-    const result = await chat(input.voiceForm ?? null, true, heard);
+    const result = await chatVoice(input.voiceForm ?? null, heard);
     if (!result.ok) return result;
     return { ...result, words: spokenWordCount(heard) };
   }
   if (input.image) {
     const base64 = Buffer.from(input.image.bytes).toString("base64");
-    return chat(
-      [
-        { type: "text", text: "Read this card or badge." },
-        { type: "image_url", image_url: { url: `data:${input.image.mime};base64,${base64}` } },
-      ],
-      false,
-    );
+    return chat([
+      { type: "text", text: "Read this card or badge." },
+      { type: "image_url", image_url: { url: `data:${input.image.mime};base64,${base64}` } },
+    ]);
   }
-  return chat(text, false);
+  return chat(text);
 }

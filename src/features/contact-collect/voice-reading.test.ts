@@ -12,6 +12,8 @@ import { normalizeVoiceReading } from "./voice-reading.ts";
 
 register(new URL("./voice-reading.alias-hook.mjs", import.meta.url), pathToFileURL("./"));
 
+const { applyVoiceForm, readVoiceReply } = await import("./apply-voice-form.ts");
+
 const PHONE = "плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать три";
 const PHONE_EN = "plus forty-four, seven thousand seven hundred, nine hundred, one hundred twenty-three";
 const DIGITS = "+447700900123";
@@ -135,10 +137,36 @@ test("voice fills empty fields and the next correction changes only the number",
   assert.deepEqual(state.lines[0]?.flags, ["wa"]);
   assert.equal(state.lines[1]?.value, "Telegram / @radiotest");
 
-  const corrected = reading({
-    sets: { line: { to: "плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать четыре" } },
-  });
-  state = mergeContactDraft(state, patchFromContactDraft(corrected));
+  const corrected = readVoiceReply(
+    {
+      displayName: "Jordan Ellis",
+      position: "Founder",
+      company: "North Studio",
+      contacts: [
+        {
+          lineId: state.lines[0]!.id,
+          kind: "phone",
+          value: "плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать четыре",
+          flags: [],
+        },
+      ],
+      note: { event: "", place: "", context: "", replace: false },
+      removed: [],
+      unclear: [],
+    },
+    "",
+  );
+  assert.ok(corrected);
+  state = applyVoiceForm(
+    {
+      displayName: state.displayName,
+      position: state.position,
+      company: state.company,
+      note: state.note,
+      lines: state.lines,
+    },
+    corrected,
+  ).state;
   assert.equal(state.lines[0]?.value, "+447700900124");
   assert.deepEqual(state.lines[0]?.flags, ["wa"]);
   assert.equal(state.lines[1]?.value, "Telegram / @radiotest");
@@ -183,10 +211,36 @@ test("model json passes normalization, the contact check, and the draft merge", 
   assert.deepEqual(state.lines[0]?.flags, ["wa"]);
   assert.equal(state.lines.filter((line) => line.value.replace(/\D/g, "") === "447700900123").length, 1);
 
-  state = apply(
-    { sets: { line: { to: "плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать четыре" } } },
-    state,
+  const heard = readVoiceReply(
+    {
+      displayName: "Jordan Ellis",
+      position: "Founder",
+      company: "North Studio",
+      contacts: [
+        {
+          lineId: state.lines[0]!.id,
+          kind: "phone",
+          value: "плюс сорок четыре, семь тысяч семьсот, девятьсот, сто двадцать четыре",
+          flags: [],
+        },
+      ],
+      note: { event: "", place: "", context: "", replace: false },
+      removed: [],
+      unclear: [],
+    },
+    "",
   );
+  assert.ok(heard);
+  state = applyVoiceForm(
+    {
+      displayName: state.displayName,
+      position: state.position,
+      company: state.company,
+      note: state.note,
+      lines: state.lines,
+    },
+    heard,
+  ).state;
   assert.equal(state.lines[0]?.value, "+447700900124");
   assert.deepEqual(state.lines[0]?.flags, ["wa"]);
   assert.equal(state.lines[1]?.value, "jordan@example.com");

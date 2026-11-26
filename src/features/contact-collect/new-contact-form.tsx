@@ -38,6 +38,7 @@ import { externalLineIsRed } from "@/features/contact-collect/lines";
 import { QrScanner } from "@/features/contact-collect/qr-scanner";
 import { isIntlPhone, polishContactLine, telegramNickOf } from "@/features/contact-collect/view-lines";
 import { detectContactType } from "@/shared/services/contact-item";
+import { applyVoiceForm, type VoiceReply } from "@/features/contact-collect/apply-voice-form";
 import {
   draftLineKind,
   mergeContactDraft,
@@ -45,7 +46,6 @@ import {
   patchFromScan,
   patchHasContent,
   type ContactDraftPatch,
-  type VoiceCursor,
 } from "@/features/contact-collect/merge-contact-draft";
 import type { ContactReading } from "@/features/contact-collect/parse-contact";
 import { addVoiceWords, VOICE_WORD_LIMIT } from "@/features/contact-collect/voice-dialog";
@@ -325,7 +325,6 @@ export function NewContactForm({
   const [draftReady, setDraftReady] = useState(false);
   const draftRef = useRef({ name, position, company, note, lines });
   draftRef.current = { name, position, company, note, lines };
-  const voiceCursorRef = useRef<VoiceCursor>({ line: null, field: null });
   const voiceWordsRef = useRef(0);
   const [voiceWords, setVoiceWords] = useState(0);
   const [voiceLimitToast, setVoiceLimitToast] = useState(0);
@@ -508,7 +507,7 @@ export function NewContactForm({
     if (andNext && polished) window.setTimeout(() => lastLine.current?.focus(), 0);
   };
 
-  const applyPatch = (patch: ContactDraftPatch, cursor?: VoiceCursor) => {
+  const applyPatch = (patch: ContactDraftPatch) => {
     const current = draftRef.current;
     const merged = mergeContactDraft(
       {
@@ -521,7 +520,6 @@ export function NewContactForm({
           .map((line) => ({ id: line.id, value: line.value, flags: line.flags })),
       },
       patch,
-      cursor,
     );
     const displayName = clampNameLines(merged.displayName);
     setName(displayName);
@@ -581,7 +579,7 @@ export function NewContactForm({
         applyPatch(patchFromScan(found));
         return;
       }
-      const patch = patchFromContactDraft(payload.draft, { allowSets: false });
+      const patch = patchFromContactDraft(payload.draft);
       applyPatch({
         fills: {
           displayName: patch.fills?.displayName,
@@ -602,15 +600,53 @@ export function NewContactForm({
     setHearTick((tick) => tick + 1);
   };
 
-  const applyDraft = (draft: ContactReading, kind: "voice" | "photo") => {
-    const patch = patchFromContactDraft(draft, { allowSets: kind === "voice" });
-    if (!patchHasContent(patch)) {
-      if (kind === "voice") missHeard();
-      return;
-    }
+  const filledLines = () =>
+    draftRef.current.lines
+      .filter((line) => line.value.trim())
+      .map((line) => ({
+        id: line.id,
+        value: line.value,
+        flags: line.flags.filter((flag): flag is "wa" | "tg" => flag === "wa" || flag === "tg"),
+      }));
+
+  const applyDraft = (draft: ContactReading) => {
+    const patch = patchFromContactDraft(draft);
+    if (!patchHasContent(patch)) return;
     setError(null);
-    if (!initial) setSource(kind);
-    applyPatch(patch, kind === "voice" ? voiceCursorRef.current : undefined);
+    if (!initial) setSource("photo");
+    applyPatch(patch);
+  };
+
+  const applyVoice = (reply: VoiceReply) => {
+    const current = draftRef.current;
+    const { state, changed } = applyVoiceForm(
+      {
+        displayName: current.name,
+        position: current.position,
+        company: current.company,
+        note: current.note,
+        lines: filledLines(),
+      },
+      reply,
+    );
+    if (!changed) return false;
+    const displayName = clampNameLines(state.displayName);
+    setName(displayName);
+    setPosition(state.position);
+    setCompany(state.company);
+    writeNote(state.note);
+    const lines = [...state.lines.map((line) => ({ ...line, marked: false })), blank()];
+    setLines(lines);
+    draftRef.current = {
+      name: displayName,
+      position: state.position,
+      company: state.company,
+      note: state.note,
+      lines,
+    };
+    setError(null);
+    if (!initial) setSource("voice");
+    return true;
   };
 
   const readFile = async (field: "image" | "audio", file: Blob, filename: string) => {
@@ -621,8 +657,7 @@ export function NewContactForm({
       body.set(field, file, filename);
       if (field === "audio") {
         const current = draftRef.current;
-        const cursor = voiceCursorRef.current;
-        const filled = current.lines.filter((line) => line.value.trim());
+        const voiceKinds = new Set(["phone", "email", "telegram", "whatsapp", "instagram", "link", "other"]);
         body.set(
           "form",
           JSON.stringify({
@@ -630,13 +665,15 @@ export function NewContactForm({
             position: current.position,
             company: current.company,
             note: current.note,
-            lines: filled.map((line, index) => ({
-              n: index + 1,
-              kind: draftLineKind(line.value),
-              value: line.value,
-            })),
-            lastVoiceLine: cursor.line,
-            lastVoiceField: cursor.field,
+            lines: filledLines().map((line) => {
+              const kind = draftLineKind(line.value);
+              return {
+                lineId: line.id,
+                kind: voiceKinds.has(kind) ? kind : "other",
+                value: line.value,
+                flags: line.flags,
+              };
+            }),
           }),
         );
       }
@@ -644,23 +681,34 @@ export function NewContactForm({
       const payload = (await response.json().catch(() => null)) as {
         error?: string;
         draft?: ContactReading;
+        voice?: VoiceReply;
         words?: number;
       } | null;
-      if (!response.ok || !payload?.draft) {
-        if (field === "audio" && !payload?.error) missHeard();
-        else setError(payload?.error || "Could not read that.");
+      if (!response.ok || !payload) {
+        setError(payload?.error || "Could not read that.");
         return;
       }
-      applyDraft(payload.draft, field === "audio" ? "voice" : "photo");
-      if (field === "audio" && typeof payload.words === "number") {
-        const next = addVoiceWords(voiceWordsRef.current, payload.words);
-        voiceWordsRef.current = next.total;
-        setVoiceWords(next.total);
-        if (next.reached) showVoiceLimit();
+      if (field === "audio") {
+        if (!payload.voice) {
+          setError(payload.error || "Could not read that.");
+          return;
+        }
+        if (!applyVoice(payload.voice)) missHeard();
+        if (typeof payload.words === "number") {
+          const next = addVoiceWords(voiceWordsRef.current, payload.words);
+          voiceWordsRef.current = next.total;
+          setVoiceWords(next.total);
+          if (next.reached) showVoiceLimit();
+        }
+        return;
       }
+      if (!payload.draft) {
+        setError(payload.error || "Could not read that.");
+        return;
+      }
+      applyDraft(payload.draft);
     } catch {
-      if (field === "audio") missHeard();
-      else setError("Could not read that.");
+      setError("Could not read that.");
     } finally {
       setReading(false);
       if (field === "audio") setVoicePhase("idle");
@@ -922,7 +970,6 @@ export function NewContactForm({
     setPhotoId(null);
     setDraftPhoto(null);
     setError(null);
-    voiceCursorRef.current = { line: null, field: null };
     voiceWordsRef.current = 0;
     setVoiceWords(0);
     if (ownerId) clearContactDraft(ownerId);
