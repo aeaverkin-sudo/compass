@@ -93,7 +93,8 @@ const SECTIONS: Section[] = [
     id: "account",
     title: "Account",
     lines: [
-      "BW / C mode — black-and-white or colour.",
+      "Color on — colour or black-and-white.",
+      "Card view — your portfolios open folded.",
       "Cards shared back to you — accept cards in return or not.",
       "Information — how the app works.",
     ],

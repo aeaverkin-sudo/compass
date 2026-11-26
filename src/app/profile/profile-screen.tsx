@@ -82,18 +82,18 @@ function ShareBackSetting() {
 
   return (
     <>
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center">
+        <span id="profile-share-back" className="min-w-0 t-body text-[var(--ink)]">
+          Cards shared back to you
+        </span>
         <Switch
           checked={accept}
           onCheckedChange={(checked) => save(checked === true)}
           aria-labelledby="profile-share-back"
-          className="shrink-0"
+          className="ml-auto shrink-0"
         />
-        <span id="profile-share-back" className="min-w-0 t-body text-[var(--ink)]">
-          Cards shared back to you
-        </span>
       </div>
-      <span className="col-start-2 mt-1 block pl-12 t-meta text-[var(--grey)]">
+      <span className="col-start-2 mt-1 block t-meta text-[var(--grey)]">
         <span className={accept ? "font-semibold text-[var(--ink)]" : undefined}>On</span>
         {" — arrive as pending, you say Yes/No. "}
         <span className={accept ? undefined : "font-semibold text-[var(--ink)]"}>Off</span>
@@ -508,22 +508,23 @@ export function ProfileScreen() {
       </section>
 
       <Zone label={COMPACT_DECK ? "Mode" : "Color"} rule>
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">C mode</span>
+        <div className="flex items-center">
+          <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">Color on</span>
           <Switch
-            checked={Boolean(monochrome)}
-            onCheckedChange={(checked) => setMonochrome(checked === true)}
-            aria-label={monochrome ? "BW mode" : "C mode"}
+            checked={!monochrome}
+            onCheckedChange={(checked) => setMonochrome(checked !== true)}
+            aria-label="Color on"
+            className="ml-auto"
           />
-          <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">BW mode</span>
         </div>
         {COMPACT_DECK ? (
-          <div className="mt-3 flex items-center gap-3">
-            <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">Compact view</span>
+          <div className="mt-3 flex items-center">
+            <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">Card view</span>
             <Switch
               checked={Boolean(compactView)}
               onCheckedChange={(checked) => setCompactView(checked === true)}
-              aria-label="Compact view"
+              aria-label="Card view"
+              className="ml-auto"
             />
           </div>
         ) : null}
