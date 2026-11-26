@@ -62,7 +62,6 @@ const SECTIONS: Section[] = [
       "Big + under the portfolio — add a new section with any name.",
       "Library — everything you add is kept and can be used in other portfolios.",
       "Save when done. Delete removes a portfolio.",
-      "Swipe right to go back from Edit or Account.",
     ],
   },
   {

@@ -27,7 +27,6 @@ import { handleWithNewCode } from "@/shared/services/card-handle";
 import { NewLinkDialog } from "./new-link-dialog";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
 import { COMPACT_DECK, canAddMoreCards, isCardReady, useAppStore } from "@/shared/store/app-store";
-import { useSwipeBack } from "@/shared/lib/use-swipe-back";
 import { COLUMN_GAP_PX, LABEL_COLUMN_PX } from "@/shared/layout/axes";
 import { cn } from "@/lib/utils";
 
@@ -121,10 +120,6 @@ function ProfileShell({ children }: { children: ReactNode }) {
 
 export function ProfileScreen() {
   const router = useRouter();
-  const openPortfolio = useCallback(() => {
-    router.push("/main");
-  }, [router]);
-  useSwipeBack(true, openPortfolio, () => false);
   const { status: account, ready } = useAccountRead();
   const cards = useAppStore((state) => state.cards);
   const setMonochrome = useAppStore((state) => state.setMonochrome);
