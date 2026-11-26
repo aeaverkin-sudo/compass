@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { plusShiftPx } from "./contact-plus-shift.ts";
+
+test("the plus moves by half the difference between the digits and the 20px box", () => {
+  assert.equal(plusShiftPx(36), 8);
+  assert.equal(plusShiftPx(20), 0);
+});
+
+test("a missing measurement does not move the plus", () => {
+  assert.equal(plusShiftPx(0), 0);
+  assert.equal(plusShiftPx(Number.NaN), 0);
+});

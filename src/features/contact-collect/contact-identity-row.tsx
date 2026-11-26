@@ -5,6 +5,7 @@ import { HeroName, heroNameBoxPx } from "@/shared/components/hero-name";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { clampNameLines } from "@/shared/components/name-or-title-field";
 import { cn } from "@/lib/utils";
+import { plusShiftPx } from "@/features/contact-collect/contact-plus-shift";
 
 const ROW = "grid grid-cols-[86px_minmax(0,1fr)] items-center gap-x-[14px]";
 /** One `t-body` line. The empty Name caret sits on this hint. */
@@ -14,6 +15,41 @@ const FORMER_PHOTO_PX = 128;
 const FORMER_PHOTO_GAP_PX = 12;
 /** Same cap on create, view, and edit. A long name wraps to a second line. */
 const CONTACT_NAME_MAX_PX = 32;
+
+/** Width of the painted "01", not the 86px column the block fills. */
+function liveDigitWidth(): number {
+  const digit = document.querySelector("[data-section-number]");
+  if (!(digit instanceof HTMLElement)) return 0;
+  const range = document.createRange();
+  range.selectNodeContents(digit);
+  return range.getBoundingClientRect().width;
+}
+
+function usePlusShift(on: boolean) {
+  const [shift, setShift] = useState(0);
+  useLayoutEffect(() => {
+    if (!on) return;
+    let cancel = false;
+    const apply = () => {
+      if (cancel) return;
+      const width = liveDigitWidth();
+      if (width <= 0) return;
+      const next = plusShiftPx(width);
+      setShift((current) => (Math.abs(current - next) < 0.05 ? current : next));
+    };
+    apply();
+    const ready = document.fonts?.ready.then(apply);
+    const digit = document.querySelector("[data-section-number]");
+    const observer = digit ? new ResizeObserver(apply) : null;
+    if (digit) observer?.observe(digit);
+    return () => {
+      cancel = true;
+      observer?.disconnect();
+      void ready;
+    };
+  }, [on]);
+  return on ? shift : 0;
+}
 
 function PhotoMark({ url }: { url: string | null }) {
   if (!url) return <MarkPlus />;
@@ -55,7 +91,10 @@ export function ContactIdentityRow({
   const nameHint = name.length === 0;
   const nameColumn = nameMeasure > 0 ? nameMeasure : undefined;
   const oneNameLine = !editing && !name.includes("\n");
+  const plus = !photoUrl;
+  const shift = usePlusShift(plus);
   const mark = <PhotoMark url={photoUrl} />;
+  const place = plus ? { marginLeft: shift } : undefined;
 
   return (
     <div ref={nameRowRef} className="border-b border-[var(--rule)] pt-[18px] pb-[18px]">
@@ -65,12 +104,20 @@ export function ContactIdentityRow({
             type="button"
             aria-label={photoUrl ? "Change photo" : "Add photo"}
             onClick={onPhoto}
+            data-photo-plus={plus ? "" : undefined}
+            style={place}
             className="flex items-center justify-start border-0 bg-transparent p-0 text-[var(--ink)]"
           >
             {mark}
           </button>
         ) : (
-          <span className="flex items-center justify-start text-[var(--ink)]">{mark}</span>
+          <span
+            data-photo-plus={plus ? "" : undefined}
+            style={place}
+            className="flex items-center justify-start text-[var(--ink)]"
+          >
+            {mark}
+          </span>
         )}
         <div className="relative min-w-0">
           <div
