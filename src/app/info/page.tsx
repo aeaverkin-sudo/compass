@@ -123,7 +123,7 @@ function ToolbarFigure() {
           <Scan size={MARK_PX} strokeWidth={RAIL_STROKE_PX} aria-hidden />
         </span>
         <span className={glyph}>
-          <MarkPlus />
+          <MarkPlus size={23} />
         </span>
         <span className={`${glyph} t-caps font-light leading-none`}>1/3</span>
       </div>

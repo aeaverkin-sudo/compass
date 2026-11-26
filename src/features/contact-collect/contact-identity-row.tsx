@@ -52,7 +52,7 @@ function usePlusShift(on: boolean) {
 }
 
 function PhotoMark({ url }: { url: string | null }) {
-  if (!url) return <MarkPlus />;
+  if (!url) return <MarkPlus size={23} />;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={url} alt="" className="size-8 shrink-0 object-cover" />

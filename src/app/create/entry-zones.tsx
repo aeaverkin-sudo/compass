@@ -750,11 +750,11 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                       <button
                         type="button"
                         aria-label="Add file"
-                        className="border-0 bg-transparent p-0 text-left text-[var(--ink)]"
+                        className="relative size-5 border-0 bg-transparent p-0 text-left text-[var(--ink)]"
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => addFile(zone.id)}
                       >
-                        <MarkPlus className="text-[var(--ink)]" />
+                        <MarkPlus size={23} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--ink)]" />
                       </button>
                     </div>
                   ) : (
@@ -812,8 +812,8 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
         : null}
       {showRest ? (
         <div className="flex justify-center py-[18px]">
-          <button type="button" aria-label="Add section" className="border-0 bg-transparent p-0 text-[var(--ink)]" onClick={addZone}>
-            <MarkPlus />
+          <button type="button" aria-label="Add section" className="relative size-5 border-0 bg-transparent p-0 text-[var(--ink)]" onClick={addZone}>
+            <MarkPlus size={23} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           </button>
         </div>
       ) : null}

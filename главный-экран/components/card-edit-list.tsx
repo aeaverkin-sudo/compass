@@ -228,7 +228,7 @@ function FileAddButton({
       onClick={onClick}
       className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[var(--ink)]"
     >
-      <Plus className="size-7 text-[var(--ink)]" strokeWidth={1} aria-hidden />
+      <Plus size={23} className="shrink-0 text-[var(--ink)]" strokeWidth={1} aria-hidden />
     </button>
   );
 }
@@ -1032,10 +1032,10 @@ export const CardEditList = memo(function CardEditList({
           type="button"
           data-no-swipe
           aria-label="Add section"
-          className="border-0 bg-transparent p-0 text-[var(--ink)]"
+          className="relative size-5 border-0 bg-transparent p-0 text-[var(--ink)]"
           onClick={() => openNewZoneRef.current()}
         >
-          <MarkPlus />
+          <MarkPlus size={23} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
         </button>
       </div>
       <AddLine

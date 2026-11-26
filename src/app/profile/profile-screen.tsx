@@ -494,9 +494,9 @@ export function ProfileScreen() {
                     aria-label="Create portfolio"
                     disabled={portfolioBusy}
                     onClick={createPortfolio}
-                    className="border-0 bg-transparent p-0 text-[var(--ink)] disabled:opacity-40"
+                    className="relative size-5 border-0 bg-transparent p-0 text-[var(--ink)] disabled:opacity-40"
                   >
-                    <MarkPlus />
+                    <MarkPlus size={23} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                   </button>
                 ))}
               </div>

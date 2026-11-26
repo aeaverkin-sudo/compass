@@ -997,7 +997,9 @@ export function NewContactForm({
               onClick={pickFile}
               disabled={uploading}
             >
-              <MarkPlus />
+              <span className="relative size-5 shrink-0">
+                <MarkPlus size={23} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              </span>
               <span className="t-body text-[var(--placeholder)]">{uploading ? "Uploading" : "Add file"}</span>
             </button>
           ) : null}
