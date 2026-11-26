@@ -571,8 +571,14 @@ export const CardCarousel = memo(function CardCarousel({
   return (
     <div className="relative h-full overflow-hidden">
       {pullLabel ? (
-        <p className="pointer-events-none absolute left-[var(--gutter)] top-1/2 z-[-1] -translate-y-1/2 t-caps text-[var(--grey)]">
-          New contact
+        <p
+          className="pointer-events-none absolute top-1/2 z-[-1] whitespace-nowrap t-caps text-[var(--grey)]"
+          style={{
+            left: "calc(var(--gutter) / 2)",
+            transform: "translate(-50%, -50%) rotate(-90deg)",
+          }}
+        >
+          Hold for new contact
         </p>
       ) : null}
       <div
