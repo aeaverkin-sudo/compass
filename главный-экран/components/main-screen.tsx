@@ -41,6 +41,7 @@ import { flushPendingUpserts } from "@/shared/services/card-sync";
 import { dropPendingItemUpserts, flushPendingItemUpserts } from "@/shared/services/card-items-sync";
 import { BackButton } from "@/shared/components/back-button";
 import { cancelQuestionnaireCommit, releaseQuestionnaireCommit } from "@/app/create/entry-zones";
+import { resetAddPortfolioForm } from "./add-portfolio-slide";
 import { armEditBack, clearEditBack, commitOpenEditLines } from "./card-edit-list";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
@@ -624,7 +625,10 @@ export function MainScreen() {
         >
           <BackButton
             fallbackHref="/main"
-            onBack={() => onActiveIndexChange(Math.max(cardCount - 1, 0))}
+            onBack={() => {
+              resetAddPortfolioForm();
+              onActiveIndexChange(Math.max(cardCount - 1, 0));
+            }}
           />
         </div>
       ) : null}

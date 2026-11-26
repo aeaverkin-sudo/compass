@@ -11,6 +11,13 @@ import { uploadAttachment } from "@/shared/services/attachment-upload";
 import { isContactFilled } from "@/shared/services/contact-item";
 import { useAppStore } from "@/shared/store/app-store";
 
+let rebuildAddSlide = () => {};
+
+/** Back leaves this slide mounted. Build the form again: name, photo, sections, library, More. */
+export function resetAddPortfolioForm() {
+  rebuildAddSlide();
+}
+
 function readFile(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -56,6 +63,22 @@ export function AddPortfolioSlide({
     if (!node) return;
     return bindKeyboardLift(node);
   }, [formKey]);
+  useEffect(() => {
+    rebuildAddSlide = () => {
+      if (creating.current) return;
+      cardId.current = null;
+      placed.current = new Set();
+      rowItems.current = new Map();
+      setName("");
+      setPhoto(null);
+      setNameMarked(false);
+      setError(null);
+      setFormKey((key) => key + 1);
+    };
+    return () => {
+      rebuildAddSlide = () => {};
+    };
+  }, []);
 
   const create = async () => {
     if (locked) {
