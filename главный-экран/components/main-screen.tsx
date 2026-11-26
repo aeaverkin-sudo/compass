@@ -43,6 +43,7 @@ import { BackButton } from "@/shared/components/back-button";
 import { cancelQuestionnaireCommit, releaseQuestionnaireCommit } from "@/app/create/entry-zones";
 import { resetAddPortfolioForm } from "./add-portfolio-slide";
 import { armEditBack, clearEditBack, commitOpenEditLines } from "./card-edit-list";
+import { useSwipeBack } from "@/shared/lib/use-swipe-back";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { HEADER_ROW_PX } from "@/shared/layout/axes";
 import { UploadNotice } from "@/shared/components/upload-notice";
@@ -580,6 +581,8 @@ export function MainScreen() {
       window.removeEventListener("orientationchange", sync);
     };
   }, [cardCount]);
+
+  useSwipeBack(editing, leaveEdit, () => keyboardUp);
 
   if (cardCount === 0) {
     return (
