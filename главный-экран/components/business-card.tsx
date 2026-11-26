@@ -48,8 +48,9 @@ const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
 /** Two white buttons under the card. Same shadow as the photo square. The gap is 12px. */
 const CARD_BAR_SHADOW = "shadow-[0_2px_8px_rgba(17,17,17,0.16)]";
-const CARD_BAR_BUTTON =
-  "press flex w-0 min-w-0 flex-1 basis-0 items-center justify-center whitespace-nowrap border-0 bg-white px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]";
+const CARD_BAR_BOX =
+  "flex w-0 min-w-0 flex-1 basis-0 items-center justify-center whitespace-nowrap border-0 bg-white px-[21.6px] py-[10.8px] t-caps";
+const CARD_BAR_BUTTON = cn("press", CARD_BAR_BOX, "text-[var(--ink)]");
 
 /** Apple Wallet is an iPhone row. Android does not get the button or the status. */
 function useAndroidDevice() {
@@ -155,7 +156,7 @@ function OwnerCardBar({
       ) : (
         <>
           {offer === "in" ? (
-            <p className="m-0 flex w-0 min-w-0 flex-1 basis-0 items-center justify-center whitespace-nowrap px-[21.6px] py-[10.8px] t-caps text-[var(--grey)]">
+            <p className={cn(CARD_BAR_BOX, CARD_BAR_SHADOW, "m-0 text-[var(--grey)]")}>
               In Wallet
             </p>
           ) : offer === "add" ? (
