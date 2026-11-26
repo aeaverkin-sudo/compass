@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  draftLineKind,
   mergeContactDraft,
   patchFromContactDraft,
   patchFromScan,
@@ -116,7 +117,7 @@ test("explicit line replace with clear from", () => {
   assert.equal(state.lines[1]?.value, "jordan@example.com");
 });
 
-test("ambiguous or empty set is skipped", () => {
+test("a line without a clear target is added, not written over another", () => {
   const start = blank({
     position: "Designer",
     lines: [
@@ -133,8 +134,50 @@ test("ambiguous or empty set is skipped", () => {
   });
   assert.equal(state.position, "Designer");
   assert.equal(state.company, "North Studio");
+  assert.deepEqual(
+    state.lines.map((line) => line.value),
+    ["+44 7700 900123", "+33 612 345 678", "+44 7000 000000"],
+  );
+});
+
+test("an email correction does not replace the phone", () => {
+  const state = mergeContactDraft(
+    blank({
+      lines: [
+        { id: "1", value: "+44 7700 900123", flags: [] },
+        { id: "2", value: "jordan@example.com", flags: [] },
+      ],
+    }),
+    { sets: { line: { to: "jordanellis@example.com" } } },
+  );
+  assert.deepEqual(
+    state.lines.map((line) => line.value),
+    ["+44 7700 900123", "jordan@example.com", "jordanellis@example.com"],
+  );
+});
+
+test("a value of another kind does not overwrite the named line", () => {
+  const state = mergeContactDraft(
+    blank({
+      lines: [
+        { id: "1", value: "+44 7700 900123", flags: ["wa"] },
+        { id: "2", value: "jordan@example.com", flags: [] },
+      ],
+    }),
+    { sets: { line: { from: "+44 7700 900123", to: "other@example.com" } } },
+  );
   assert.equal(state.lines[0]?.value, "+44 7700 900123");
-  assert.equal(state.lines[1]?.value, "+33 612 345 678");
+  assert.deepEqual(state.lines[0]?.flags, ["wa"]);
+  assert.equal(state.lines[2]?.value, "other@example.com");
+});
+
+test("draftLineKind tells a phone, an email, a nick, a link, and plain text apart", () => {
+  assert.equal(draftLineKind("+44 7700 900123"), "phone");
+  assert.equal(draftLineKind("jordan@example.com"), "email");
+  assert.equal(draftLineKind("Telegram / @radiotest"), "telegram");
+  assert.equal(draftLineKind("Instagram / @radiotest"), "instagram");
+  assert.equal(draftLineKind("https://example.com/card"), "link");
+  assert.equal(draftLineKind("Met near the north gate"), "text");
 });
 
 test("repeat phone merges flags and does not duplicate", () => {

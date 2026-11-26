@@ -3,6 +3,9 @@ import type { ScannedContact } from "./scan-qr.ts";
 import type { LineFlag } from "./types.ts";
 
 const LINES_MAX = 30;
+const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
+const LINK = /^(?:https?:\/\/|(?:www\.)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:[/?#]|$))/i;
+const NICK = /^([a-z][a-z0-9]*)\s*\/\s*@/i;
 
 /** Same rule as messengerPhoneDigits: leading + and digits, punctuation ignored. */
 function phoneDigits(value: string): string | null {
@@ -48,7 +51,7 @@ export type ContactDraftPatch = {
     position?: string;
     company?: string;
     note?: string;
-    /** Replace one contact line. Without a clear target the op is skipped. */
+    /** Replace one contact line with a value of the same kind. Otherwise the value is added. */
     line?: { from?: string; to: string };
   };
   lineFlags?: { value: string; flags: LineFlag[] }[];
@@ -74,6 +77,17 @@ export function patchHasContent(patch: ContactDraftPatch): boolean {
 function phoneKey(value: string): string | null {
   const digits = phoneDigits(value);
   return digits ? `+${digits}` : null;
+}
+
+/** Phone, email, one messenger, a link, or plain text. A nick only matches its own network. */
+export function draftLineKind(value: string): string {
+  const trimmed = value.trim();
+  if (phoneKey(trimmed)) return "phone";
+  if (EMAIL.test(trimmed)) return "email";
+  const nick = trimmed.match(NICK);
+  if (nick?.[1]) return nick[1].toLowerCase();
+  if (LINK.test(trimmed)) return "link";
+  return "text";
 }
 
 /** Same international number in different punctuation shares one key. */
@@ -136,15 +150,29 @@ export function mergeContactDraft(state: ContactDraftState, patch: ContactDraftP
     if (sets.line && typeof sets.line.to === "string" && sets.line.to.trim()) {
       const to = sets.line.to.trim();
       const from = typeof sets.line.from === "string" ? sets.line.from.trim() : "";
+      const toKind = draftLineKind(to);
+      let replaced = false;
       if (!from) {
         const phones = lines.filter((line) => phoneKey(line.value));
-        if (phones.length === 1) phones[0]!.value = to;
+        if (phones.length === 1 && toKind === "phone") {
+          phones[0]!.value = to;
+          replaced = true;
+        }
       } else {
         const key = contactLineKey(from);
         const matches = lines.filter(
           (line) => contactLineKey(line.value) === key || line.value.trim() === from,
         );
-        if (matches.length === 1) matches[0]!.value = to;
+        if (matches.length === 1 && draftLineKind(matches[0]!.value) === toKind) {
+          matches[0]!.value = to;
+          replaced = true;
+        }
+      }
+      if (!replaced) {
+        const key = contactLineKey(to);
+        if (!lines.some((line) => contactLineKey(line.value) === key) && lines.length < LINES_MAX) {
+          lines.push({ id: crypto.randomUUID(), value: to, flags: [] });
+        }
       }
     }
   }
