@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { MarkPlus } from "@/shared/components/mark-plus";
 import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 
-/** Edit hint plus. Same box as the toolbar plus. Out of flow, so the hint line stays its height. */
+/** Hint plus. Same box as the toolbar plus, in ink. Out of flow, so the hint line stays its height. */
 const HINT_PLUS_PX = 23;
 const HINT_PLUS_GAP_PX = 6;
 
@@ -93,7 +93,7 @@ export function WrapField({
   placeholderClassName?: string;
   /** An empty-section hint may take a second line. Other placeholders stay one line. */
   wrapPlaceholder?: boolean;
-  /** Grey plus before a wrapping hint. The second line lines up with the text, not the plus. */
+  /** Black plus before a wrapping hint. The second line lines up with the text, not the plus. */
   placeholderMark?: boolean;
   onTextChange?: (text: string) => void;
   onDone: (text: string) => void;
@@ -191,7 +191,7 @@ export function WrapField({
                 placeholderClassName,
               )}
             >
-              <span className="absolute top-0 left-0 flex h-[1lh] items-center">
+              <span className="absolute top-0 left-0 flex h-[1lh] items-center text-[var(--ink)]">
                 <MarkPlus size={HINT_PLUS_PX} />
               </span>
               <span className="block break-words" style={{ paddingLeft: HINT_PLUS_PX + HINT_PLUS_GAP_PX }}>

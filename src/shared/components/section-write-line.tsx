@@ -20,7 +20,7 @@ export function SectionWriteLine({
   zoneId: string;
   hint: string;
   about?: boolean;
-  /** Edit only. A grey plus in front of the hint. It leaves with the hint. */
+  /** Black plus in front of the hint. It leaves with the hint. */
   hintPlus?: boolean;
   autoFocus?: boolean;
   initial?: string;

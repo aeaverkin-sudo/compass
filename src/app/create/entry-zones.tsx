@@ -762,6 +762,7 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                       <SectionWriteLine
                         zoneId={zone.id}
                         hint={hint}
+                        hintPlus
                         about={about}
                         initial={seedId === zone.id ? seedText : ""}
                         autoFocus={seedId === zone.id && titleId !== zone.id}
