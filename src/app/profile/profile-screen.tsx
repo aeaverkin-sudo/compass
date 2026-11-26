@@ -48,6 +48,38 @@ function AccountChapter({ number, title }: { number: string; title: string }) {
   );
 }
 
+/** Switch on the first line of the label. A wrapped second line does not move it. */
+function AccountSwitchRow({
+  label,
+  checked,
+  onCheckedChange,
+  labelId,
+  ariaLabel,
+}: {
+  label: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  labelId?: string;
+  ariaLabel?: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-3">
+      <span className="t-body flex h-[1lh] shrink-0 items-center">
+        <Switch
+          checked={checked}
+          onCheckedChange={onCheckedChange}
+          aria-label={ariaLabel}
+          aria-labelledby={labelId}
+          className="shrink-0"
+        />
+      </span>
+      <span id={labelId} className="min-w-0 t-body text-[var(--ink)]">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 /** On: a card shared back arrives pending. Off: share-back writes nothing. */
 function ShareBackSetting() {
   const [accept, setAccept] = useState(true);
@@ -82,18 +114,13 @@ function ShareBackSetting() {
 
   return (
     <>
-      <div className="flex min-w-0 items-center">
-        <span id="profile-share-back" className="min-w-0 t-body text-[var(--ink)]">
-          Cards shared back to you
-        </span>
-        <Switch
-          checked={accept}
-          onCheckedChange={(checked) => save(checked === true)}
-          aria-labelledby="profile-share-back"
-          className="ml-auto shrink-0"
-        />
-      </div>
-      <span className="col-start-2 mt-1 block t-meta text-[var(--grey)]">
+      <AccountSwitchRow
+        label="Cards shared back to you"
+        checked={accept}
+        onCheckedChange={(checked) => save(checked === true)}
+        labelId="profile-share-back"
+      />
+      <span className="col-start-2 mt-1 block pl-12 t-meta text-[var(--grey)]">
         <span className={accept ? "font-semibold text-[var(--ink)]" : undefined}>On</span>
         {" — arrive as pending, you say Yes/No. "}
         <span className={accept ? undefined : "font-semibold text-[var(--ink)]"}>Off</span>
@@ -508,23 +535,19 @@ export function ProfileScreen() {
       </section>
 
       <Zone label={COMPACT_DECK ? "Mode" : "Color"} rule>
-        <div className="flex items-center">
-          <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">Color on</span>
-          <Switch
-            checked={!monochrome}
-            onCheckedChange={(checked) => setMonochrome(checked !== true)}
-            aria-label="Color on"
-            className="ml-auto"
-          />
-        </div>
+        <AccountSwitchRow
+          label="Color on"
+          checked={!monochrome}
+          onCheckedChange={(checked) => setMonochrome(checked !== true)}
+          ariaLabel="Color on"
+        />
         {COMPACT_DECK ? (
-          <div className="mt-3 flex items-center">
-            <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">Card view</span>
-            <Switch
+          <div className="mt-3">
+            <AccountSwitchRow
+              label="Card view"
               checked={Boolean(compactView)}
               onCheckedChange={(checked) => setCompactView(checked === true)}
-              aria-label="Card view"
-              className="ml-auto"
+              ariaLabel="Card view"
             />
           </div>
         ) : null}
