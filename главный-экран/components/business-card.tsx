@@ -46,10 +46,10 @@ const HERO_PHOTO_PX = 128;
 /** Apple's registration arrives after the file opens. A few reads, then stop. */
 const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
-/** One white bar under the card. Same shadow as the photo square. */
+/** Two white buttons under the card. Same shadow as the photo square. The gap is 12px. */
 const CARD_BAR_SHADOW = "shadow-[0_2px_8px_rgba(17,17,17,0.16)]";
-const CARD_BAR_HALF =
-  "flex min-w-0 flex-1 items-center justify-center border-0 bg-transparent px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]";
+const CARD_BAR_BUTTON =
+  "press flex min-w-0 flex-1 items-center justify-center border-0 bg-white px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]";
 
 /** Apple Wallet is an iPhone row. Android does not get the button or the status. */
 function useAndroidDevice() {
@@ -145,40 +145,40 @@ function OwnerCardBar({
 }) {
   const { offer, watchRegistration } = useWalletOffer(cardId, showWallet);
   if (!arranging && !onEdit && !offer) return null;
+  const button = cn(CARD_BAR_BUTTON, CARD_BAR_SHADOW);
   return (
-    <div className="py-[18px]" data-card-content>
-      <div className={cn("flex w-full items-stretch bg-white", CARD_BAR_SHADOW)}>
-        {arranging ? (
-          <TapButton data-arrange-done="" data-no-swipe onTap={onDoneArrange} className={cn(CARD_BAR_HALF, "press w-full")}>
-            Done
-          </TapButton>
-        ) : (
-          <>
-            {offer === "in" ? (
-              <p className={cn(CARD_BAR_HALF, "m-0 text-[var(--grey)]")}>In Wallet</p>
-            ) : offer === "add" ? (
-              <TapButton
-                data-no-swipe
-                onTap={() => {
-                  void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
-                    if (!opened) return;
-                    watchRegistration();
-                  });
-                }}
-                className={cn(CARD_BAR_HALF, "press")}
-              >
-                Add to Wallet
-              </TapButton>
-            ) : null}
-            {offer && onEdit ? <span aria-hidden className="w-px shrink-0 self-stretch bg-[var(--rule)]" /> : null}
-            {onEdit ? (
-              <TapButton data-no-swipe onTap={onEdit} className={cn(CARD_BAR_HALF, "press")}>
-                Edit info
-              </TapButton>
-            ) : null}
-          </>
-        )}
-      </div>
+    <div className="flex w-full gap-3 py-[18px]" data-card-content>
+      {arranging ? (
+        <TapButton data-arrange-done="" data-no-swipe onTap={onDoneArrange} className={button}>
+          Done
+        </TapButton>
+      ) : (
+        <>
+          {offer === "in" ? (
+            <p className="m-0 flex min-w-0 flex-1 items-center justify-center px-[21.6px] py-[10.8px] t-caps text-[var(--grey)]">
+              In Wallet
+            </p>
+          ) : offer === "add" ? (
+            <TapButton
+              data-no-swipe
+              onTap={() => {
+                void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
+                  if (!opened) return;
+                  watchRegistration();
+                });
+              }}
+              className={button}
+            >
+              Add to Wallet
+            </TapButton>
+          ) : null}
+          {onEdit ? (
+            <TapButton data-no-swipe onTap={onEdit} className={button}>
+              Edit info
+            </TapButton>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
