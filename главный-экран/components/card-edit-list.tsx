@@ -843,7 +843,6 @@ export const CardEditList = memo(function CardEditList({
         const zoneHint = isExtraZoneId(section.id) ? "Skills, projects, experience, etc." : (ZONE_HINTS[section.id] ?? "");
         const promotable = section.id === "position" || section.id === "company";
         const custom = isExtraZoneId(section.id);
-        const files = section.id === "files" || isExtraZoneId(section.id);
         return (
           <section
             key={section.id}
@@ -991,14 +990,6 @@ export const CardEditList = memo(function CardEditList({
                   </div>
                 ) : (
                   <div className={section.rows.length > 0 ? "mt-[18px]" : undefined}>
-                    {files ? (
-                      <FileAddButton
-                        onPointerDown={() => {
-                          advanceSeedRef.current = true;
-                        }}
-                        onClick={() => addSeedFile(section.id)}
-                      />
-                    ) : null}
                     <SectionWriteLine
                       zoneId={section.id}
                       hint={zoneHint}

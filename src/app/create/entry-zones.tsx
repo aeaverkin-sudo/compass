@@ -561,7 +561,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
   const section = (zone: EntryZone, index: number) => {
         const hint = zone.custom ? NEW_HINT : HINTS[zone.id];
         const about = zone.id === "about";
-        const files = zone.id === "files" || zone.custom;
         const promotable = zone.id === "position" || zone.id === "company";
         const spareCount = opened
           ? (libraryGroups.find((group) => group.id === zone.id)?.rows.length ?? 0)
@@ -760,17 +759,6 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                     </div>
                   ) : (
                     <div className={above ? "mt-[18px]" : undefined}>
-                      {files ? (
-                        <button
-                          type="button"
-                          aria-label="Add file"
-                          className="mb-[10px] border-0 bg-transparent p-0 text-left text-[var(--ink)]"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => addFile(zone.id)}
-                        >
-                          <MarkPlus className="text-[var(--ink)]" />
-                        </button>
-                      ) : null}
                       <SectionWriteLine
                         zoneId={zone.id}
                         hint={hint}
