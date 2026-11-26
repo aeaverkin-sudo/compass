@@ -10,7 +10,7 @@ function Checkbox({
   variant = "default",
   ...props
 }: React.ComponentProps<typeof CheckboxPrimitive.Root> & {
-  /** Library row: sky fill, no tick. */
+  /** Library row: white or sky square, the photo shadow, no tick. */
   variant?: "default" | "library";
 }) {
   if (variant === "library") {
@@ -25,10 +25,8 @@ function Checkbox({
         )}
         {...props}
       >
-        <span className="flex size-[22px] items-center justify-center rounded-none border-[1.6px] border-[var(--placeholder)] bg-white">
-          <CheckboxPrimitive.Indicator className="flex items-center justify-center">
-            <span className="block size-[16px] rounded-none bg-sky" />
-          </CheckboxPrimitive.Indicator>
+        <span className="relative block size-[22px] rounded-none bg-white shadow-[0_2px_8px_rgba(17,17,17,0.16)]">
+          <CheckboxPrimitive.Indicator className="absolute inset-0 bg-sky" />
         </span>
       </CheckboxPrimitive.Root>
     );
