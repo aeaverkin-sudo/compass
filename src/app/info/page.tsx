@@ -50,6 +50,7 @@ const SECTIONS: Section[] = [
     lines: [
       "Several cards for different roles. Swipe to switch.",
       "Each has its own name, photo, sections, QR and link.",
+      "On your first portfolio, pull right and hold for a second to add a new contact.",
     ],
   },
   {

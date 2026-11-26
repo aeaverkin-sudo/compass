@@ -1,7 +1,14 @@
 "use client";
 
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useRouter } from "next/navigation";
 import { useAccountStatus } from "@/shared/hooks/use-account-status";
+import {
+  beginContactPull,
+  contactPullFires,
+  continueContactPull,
+  resetContactPull,
+} from "@/shared/lib/new-contact-pull";
 import { useAppStore } from "@/shared/store/app-store";
 import { uploadAttachment } from "@/shared/services/attachment-upload";
 import type { Card, ContactItem } from "@/shared/types";
@@ -15,6 +22,11 @@ import { AddPortfolioSlide } from "./add-portfolio-slide";
 import { BusinessCard } from "./business-card";
 
 const ADD_SLIDE_ID = "__add__";
+
+/** Off: the pull listeners are not attached, and the deck is unchanged. */
+const NEW_CONTACT_PULL = true;
+const NEW_CONTACT_HOLD_MS = 1000;
+const NEW_CONTACT_PULL_PX = 24;
 
 type CardCarouselProps = {
   cards: Card[];
@@ -87,6 +99,12 @@ export const CardCarousel = memo(function CardCarousel({
   const scrollResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRef = useRef(activeIndex);
+  const pullIndexRef = useRef(activeIndex);
+  pullIndexRef.current = activeIndex;
+  const pullCardsRef = useRef(cards.length);
+  pullCardsRef.current = cards.length;
+  const [pullLabel, setPullLabel] = useState(false);
+  const router = useRouter();
   const [containerWidth, setContainerWidth] = useState(0);
 
   const isBrowse = mode === "browse";
@@ -256,6 +274,140 @@ export const CardCarousel = memo(function CardCarousel({
     };
   }, [slideWidthPx]);
 
+  useEffect(() => {
+    if (!NEW_CONTACT_PULL || slideWidthPx === 0) return;
+    const node = scrollRef.current;
+    if (!node) return;
+
+    let alive = true;
+    let opened = false;
+    let pull = resetContactPull();
+    let startX = 0;
+    let startY = 0;
+    let heldAt = 0;
+    let timer = 0;
+    let lastDx = 0;
+    let lastDy = 0;
+
+    const clearTimer = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = 0;
+    };
+    const showLabel = (on: boolean) => {
+      if (!alive) return;
+      setPullLabel((current) => (current === on ? current : on));
+    };
+    const fieldFocused = () => {
+      const el = document.activeElement;
+      return el instanceof HTMLElement && (el.isContentEditable || el.matches("input, textarea, select"));
+    };
+    const scene = () => ({
+      index: pullIndexRef.current,
+      editing,
+      arranging: Boolean(node.querySelector("[data-reordering]")),
+      focused: fieldFocused(),
+    });
+    const watch = (dx: number, dy: number, heldMs: number) => {
+      if (!alive || opened) return;
+      lastDx = dx;
+      lastDy = dy;
+      const next = continueContactPull(
+        pull,
+        { dx, dy, heldMs, ...scene() },
+        NEW_CONTACT_PULL_PX,
+        NEW_CONTACT_HOLD_MS,
+      );
+      if (contactPullFires(next)) {
+        opened = true;
+        clearTimer();
+        pull = resetContactPull();
+        showLabel(false);
+        router.push("/network/new");
+        return;
+      }
+      if (!next.holding) {
+        clearTimer();
+        heldAt = 0;
+      } else if (!heldAt) {
+        heldAt = Date.now();
+        timer = window.setTimeout(() => {
+          timer = 0;
+          watch(lastDx, lastDy, NEW_CONTACT_HOLD_MS);
+        }, NEW_CONTACT_HOLD_MS);
+      }
+      pull = next;
+      showLabel(next.holding);
+    };
+    const drop = () => {
+      clearTimer();
+      heldAt = 0;
+      pull = resetContactPull();
+      showLabel(false);
+    };
+    const onStart = (event: TouchEvent) => {
+      if (opened) return;
+      drop();
+      if (event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const raw = event.target;
+      const element = raw instanceof Element ? raw : raw instanceof Node ? raw.parentElement : null;
+      const onControl = Boolean(
+        element?.closest("[data-no-swipe], button, input, textarea, select, [contenteditable]"),
+      );
+      startX = touch.clientX;
+      startY = touch.clientY;
+      lastDx = 0;
+      lastDy = 0;
+      const here = scene();
+      pull = beginContactPull(
+        {
+          ...here,
+          // A guest card is a different screen. This deck is never that screen.
+          guest: false,
+          addSlide: here.index >= pullCardsRef.current || pullCardsRef.current === 0,
+          browsing: isBrowse,
+          edgeX: touch.clientX,
+          onControl,
+        },
+        NEW_CONTACT_PULL_PX,
+      );
+    };
+    const onMove = (event: TouchEvent) => {
+      if (!pull.armed || opened) return;
+      if (event.touches.length !== 1) {
+        drop();
+        return;
+      }
+      const touch = event.touches[0];
+      if (!touch) return;
+      watch(touch.clientX - startX, touch.clientY - startY, heldAt ? Date.now() - heldAt : 0);
+    };
+    const onEnd = () => {
+      if (opened) return;
+      drop();
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") onEnd();
+    };
+
+    node.addEventListener("touchstart", onStart, { passive: true });
+    node.addEventListener("touchmove", onMove, { passive: true });
+    node.addEventListener("touchend", onEnd, { passive: true });
+    node.addEventListener("touchcancel", onEnd, { passive: true });
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      alive = false;
+      clearTimer();
+      setPullLabel((current) => (current ? false : current));
+      node.removeEventListener("touchstart", onStart);
+      node.removeEventListener("touchmove", onMove);
+      node.removeEventListener("touchend", onEnd);
+      node.removeEventListener("touchcancel", onEnd);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, [editing, isBrowse, router, slideWidthPx, activeIndex]);
+
   const markScrolled = () => {
     scrolledRecently.current = true;
     if (scrollResetTimer.current) clearTimeout(scrollResetTimer.current);
@@ -418,6 +570,11 @@ export const CardCarousel = memo(function CardCarousel({
 
   return (
     <div className="relative h-full overflow-hidden">
+      {pullLabel ? (
+        <p className="pointer-events-none absolute left-[var(--gutter)] top-1/2 z-[-1] -translate-y-1/2 t-caps text-[var(--grey)]">
+          New contact
+        </p>
+      ) : null}
       <div
         ref={scrollRef}
         className={cn(
@@ -425,6 +582,7 @@ export const CardCarousel = memo(function CardCarousel({
           cardLiftPx > 0 ? "bg-transparent" : "bg-background",
           isBrowse && "compass-carousel-editorial",
         )}
+        style={pullLabel ? { backgroundColor: "transparent" } : undefined}
         onScroll={handleScroll}
       >
         <div className="flex h-full" style={{ gap: slideGapPx }}>
