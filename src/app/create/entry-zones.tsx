@@ -24,7 +24,7 @@ const DELETE_RED = "#E23B2F";
 /** A value Create refused. Same red as the row delete mark. */
 export const ENTRY_MARK = DELETE_RED;
 const HOLD_MS = 900;
-const NEW_HINT = "Skills, projects, experience, etc.";
+const NEW_HINT = "Skills, projects, etc.";
 
 export type EntryRow = {
   key: string;

@@ -852,7 +852,7 @@ export const CardEditList = memo(function CardEditList({
     <div ref={listRef} data-card-chip-list={card.id} data-card-content>
       {sections.map((section, index) => {
         const seedingThis = seedZoneId === section.id;
-        const zoneHint = isExtraZoneId(section.id) ? "Skills, projects, experience, etc." : (ZONE_HINTS[section.id] ?? "");
+        const zoneHint = isExtraZoneId(section.id) ? "Skills, projects, etc." : (ZONE_HINTS[section.id] ?? "");
         const promotable = section.id === "position" || section.id === "company";
         const custom = isExtraZoneId(section.id);
         return (

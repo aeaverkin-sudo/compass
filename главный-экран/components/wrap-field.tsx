@@ -1,8 +1,7 @@
 "use client";
 
 import { CornerDownLeft } from "lucide-react";
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type FocusEvent, type PointerEvent as ReactPointerEvent, type Ref } from "react";
-import { flushSync } from "react-dom";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type FocusEvent, type Ref } from "react";
 import { cn } from "@/lib/utils";
 import { MarkPlus, plusInkInsetPx } from "@/shared/components/mark-plus";
 import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
@@ -108,8 +107,9 @@ export function WrapField({
   const caretRef = useRef<Range | null>(null);
   const openedAs = useRef(initial);
   const [empty, setEmpty] = useState(!initial.trim());
-  const [focused, setFocused] = useState(autoFocus);
+  const [focused, setFocused] = useState(false);
   const wrapHint = wrapPlaceholder && empty && Boolean(placeholder);
+  const pinHint = Boolean(placeholderMark && wrapHint);
   const hintInset = plusInkInsetPx(HINT_PLUS_PX);
 
   const rememberCaret = () => {
@@ -135,6 +135,7 @@ export function WrapField({
     const selection = window.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);
+    if (document.activeElement !== editor) setFocused(false);
   }, []);
 
   useImperativeHandle(
@@ -185,13 +186,12 @@ export function WrapField({
   return (
     <div className={cn("flex min-w-0 items-end gap-2", grow ? "flex-1" : "w-auto")}>
       <div className={cn("relative min-w-0", grow && "flex-1")}>
-        {empty && placeholder ? (
+        {empty && placeholder && !(pinHint && focused) ? (
           placeholderMark && wrapHint ? (
             <span
               aria-hidden
               className={cn(
                 "pointer-events-none relative block whitespace-normal break-words",
-                focused && "invisible",
                 placeholderClassName,
               )}
             >
@@ -253,23 +253,17 @@ export function WrapField({
             setFocused(true);
             onFocus?.();
           }}
-          onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
-            onPointerDown?.();
-            // iOS only opens the keyboard when focus happens in the tap itself.
-            // Hide the hint first, then place the caret, still inside this handler.
-            if (!placeholderMark || !wrapHint || focused) return;
-            if (event.button !== 0) return;
-            flushSync(() => setFocused(true));
-            focusEnd();
-          }}
+          onPointerDown={onPointerDown}
           onBlur={(event) => {
             setFocused(false);
             onBlur?.(read(), event);
           }}
+          style={pinHint && focused ? { minHeight: "1lh" } : undefined}
           className={cn(
             "compass-input min-w-0 break-words [overflow-wrap:anywhere] text-[#111] caret-[#111] outline-none select-text",
             "whitespace-pre-wrap",
-            wrapHint && "absolute inset-0",
+            wrapHint && !(pinHint && focused) && "absolute inset-0",
+            pinHint && focused && "min-h-0",
             className,
           )}
         >

@@ -90,7 +90,10 @@ export function bindKeyboardLift(anchor: HTMLElement): () => void {
       return;
     }
     void scroller.scrollHeight;
-    const covered = field.getBoundingClientRect().bottom - (next.height - KEYBOARD_GAP_PX);
+    const seed = field.closest("[data-entry-seed]");
+    const section = seed?.closest("section");
+    const bottom = (section ?? field).getBoundingClientRect().bottom;
+    const covered = bottom - (next.height - KEYBOARD_GAP_PX);
     if (covered <= 2) {
       retries = 0;
       return;
