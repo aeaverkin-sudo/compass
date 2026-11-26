@@ -3,7 +3,7 @@
 import { CornerDownLeft } from "lucide-react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type FocusEvent, type Ref } from "react";
 import { cn } from "@/lib/utils";
-import { MarkPlus } from "@/shared/components/mark-plus";
+import { MarkPlus, plusInkInsetPx } from "@/shared/components/mark-plus";
 import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
 
 /** Hint plus. Same box as the toolbar plus, in ink. Out of flow, so the hint line stays its height. */
@@ -107,7 +107,9 @@ export function WrapField({
   const caretRef = useRef<Range | null>(null);
   const openedAs = useRef(initial);
   const [empty, setEmpty] = useState(!initial.trim());
+  const [focused, setFocused] = useState(autoFocus);
   const wrapHint = wrapPlaceholder && empty && Boolean(placeholder);
+  const hintInset = plusInkInsetPx(HINT_PLUS_PX);
 
   const rememberCaret = () => {
     const editor = editorRef.current;
@@ -188,13 +190,17 @@ export function WrapField({
               aria-hidden
               className={cn(
                 "pointer-events-none relative block whitespace-normal break-words",
+                focused && "invisible",
                 placeholderClassName,
               )}
             >
-              <span className="absolute top-0 left-0 flex h-[1lh] items-center text-[var(--ink)]">
+              <span
+                className="absolute top-0 left-0 flex h-[1lh] items-center text-[var(--ink)]"
+                style={{ transform: `translateX(${-hintInset}px)` }}
+              >
                 <MarkPlus size={HINT_PLUS_PX} />
               </span>
-              <span className="block break-words" style={{ paddingLeft: HINT_PLUS_PX + HINT_PLUS_GAP_PX }}>
+              <span className="block break-words" style={{ paddingLeft: HINT_PLUS_PX + HINT_PLUS_GAP_PX - hintInset }}>
                 {placeholder}
               </span>
             </span>
@@ -242,9 +248,15 @@ export function WrapField({
             event.preventDefault();
             onDone(read());
           }}
-          onFocus={onFocus}
+          onFocus={() => {
+            setFocused(true);
+            onFocus?.();
+          }}
           onPointerDown={onPointerDown}
-          onBlur={(event) => onBlur?.(read(), event)}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(read(), event);
+          }}
           className={cn(
             "compass-input min-w-0 break-words [overflow-wrap:anywhere] text-[#111] caret-[#111] outline-none select-text",
             "whitespace-pre-wrap",

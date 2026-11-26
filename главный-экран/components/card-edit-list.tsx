@@ -37,7 +37,7 @@ import { WrapField, type WrapFieldHandle } from "./wrap-field";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import { lineAtEditStart } from "@/shared/services/edit-hold";
 import { customDisplayName } from "@/shared/services/link-display";
-import { MarkPlus } from "@/shared/components/mark-plus";
+import { MarkPlus, plusInkInsetPx } from "@/shared/components/mark-plus";
 import { SectionWriteLine } from "@/shared/components/section-write-line";
 import { SkyHint } from "@/shared/components/sky-hint";
 import { SkyToast } from "@/shared/components/sky-toast";
@@ -214,10 +214,16 @@ function unusedExtraId(card: Card, keepId?: string) {
 function FileAddButton({
   onClick,
   onPointerDown,
+  alignStroke = false,
 }: {
   onClick: () => void;
   onPointerDown?: () => void;
+  /** Section Files: the painted bar starts at the text column. The composer plus stays centered. */
+  alignStroke?: boolean;
 }) {
+  const plusPx = 23;
+  const buttonPx = 28;
+  const shift = alignStroke ? -((buttonPx - plusPx) / 2 + plusInkInsetPx(plusPx)) : 0;
   return (
     <button
       type="button"
@@ -228,7 +234,13 @@ function FileAddButton({
       onClick={onClick}
       className="flex h-[24.6px] w-7 shrink-0 items-center justify-center text-[var(--ink)]"
     >
-      <Plus size={23} className="shrink-0 text-[var(--ink)]" strokeWidth={1} aria-hidden />
+      <Plus
+        size={plusPx}
+        className="shrink-0 text-[var(--ink)]"
+        strokeWidth={1}
+        aria-hidden
+        style={shift ? { transform: `translateX(${shift}px)` } : undefined}
+      />
     </button>
   );
 }
@@ -986,7 +998,7 @@ export const CardEditList = memo(function CardEditList({
                         {zoneHint}
                       </p>
                     ) : null}
-                    <FileAddButton onClick={() => addSeedFile(section.id)} />
+                    <FileAddButton alignStroke onClick={() => addSeedFile(section.id)} />
                   </div>
                 ) : (
                   <div className={section.rows.length > 0 ? "mt-[18px]" : undefined}>

@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, us
 import { cn } from "@/lib/utils";
 import { nanoid } from "nanoid";
 import { ChevronDown, X } from "lucide-react";
-import { MarkPlus } from "@/shared/components/mark-plus";
+import { MarkPlus, plusInkInsetPx } from "@/shared/components/mark-plus";
 import { SectionNumber, sectionNumberLabel } from "@/shared/components/section-number";
 import { useLongPress } from "@/shared/hooks/use-long-press";
 import { openContactAttachmentPicker } from "@landing/components/photo-input-utils";
@@ -754,7 +754,9 @@ export const EntryZones = forwardRef<EntryZonesHandle, EntryZonesProps>(function
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => addFile(zone.id)}
                       >
-                        <MarkPlus size={23} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--ink)]" />
+                        <span className="absolute top-1/2 -translate-y-1/2" style={{ left: -plusInkInsetPx(23) }}>
+                          <MarkPlus size={23} className="text-[var(--ink)]" />
+                        </span>
                       </button>
                     </div>
                   ) : (

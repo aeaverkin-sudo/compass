@@ -11,6 +11,14 @@ export const MARK_PX = (MARK_VISIBLE_PX * 24) / 19;
 /** Screen stroke — matches the Light 1/3 stem (~0.9 px). */
 export const RAIL_STROKE_PX = 0.9;
 
+/**
+ * Painted left of the horizontal bar, inside a box of `size`.
+ * Lucide plus is a 24-box, the bar runs from 5 to 19, the cap is half a stroke.
+ */
+export function plusInkInsetPx(size: number) {
+  return ((5 - 0.5) / 24) * size;
+}
+
 /** The Edit row plus: 20 px, stroke 1, currentColor. `size` is the toolbar only. */
 export function MarkPlus({
   className,
