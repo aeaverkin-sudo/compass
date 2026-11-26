@@ -1,7 +1,6 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from "react";
-import { Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Card, ContactItem } from "@/shared/types";
 import type { DeliveredNote } from "@/shared/services/notes-types";
@@ -47,12 +46,10 @@ const HERO_PHOTO_PX = 128;
 /** Apple's registration arrives after the file opens. A few reads, then stop. */
 const WALLET_RECHECK_MS = [2000, 6000, 12000, 20000];
 
-/** Grey status under the Edit button. The tab bar stays below the card. */
-const WALLET_CAPTION =
-  "inline-flex items-center border-0 bg-transparent py-[10.8px] t-caps text-[var(--grey)]";
-
-const SKY_ACTION =
-  "press inline-flex items-center border-0 bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]";
+/** One white bar under the card. Same shadow as the photo square. */
+const CARD_BAR_SHADOW = "shadow-[0_2px_8px_rgba(17,17,17,0.16)]";
+const CARD_BAR_HALF =
+  "flex min-w-0 flex-1 items-center justify-center border-0 bg-transparent px-[21.6px] py-[10.8px] t-caps text-[var(--ink)]";
 
 /** Apple Wallet is an iPhone row. Android does not get the button or the status. */
 function useAndroidDevice() {
@@ -63,17 +60,7 @@ function useAndroidDevice() {
   return android;
 }
 
-function EditPortfolioButton({ onEdit }: { onEdit: () => void }) {
-  return (
-    <div className="flex justify-center py-[18px]">
-      <TapButton data-card-content data-no-swipe onTap={onEdit} className={SKY_ACTION}>
-        Edit portfolio
-      </TapButton>
-    </div>
-  );
-}
-
-function AddToWallet({ cardId }: { cardId: string }) {
+function useWalletOffer(cardId: string, enabled: boolean) {
   const android = useAndroidDevice();
   const [off, setOff] = useState(false);
   const [status, setStatus] = useState<"add" | "in">("add");
@@ -85,15 +72,17 @@ function AddToWallet({ cardId }: { cardId: string }) {
     else if (added === false) setStatus("add");
   }, []);
   useLayoutEffect(() => {
+    if (!enabled) return;
     const known = cachedWalletStatus(cardId);
     setStatus(known === true ? "in" : "add");
-  }, [cardId]);
+  }, [cardId, enabled]);
   const refresh = useCallback(() => {
+    if (!enabled) return;
     const ticket = ++read.current;
     void cardInWallet(cardId).then((added) => {
       if (ticket === read.current) apply(added);
     });
-  }, [apply, cardId]);
+  }, [apply, cardId, enabled]);
   const watchRegistration = useCallback(() => {
     polls.current.forEach((id) => window.clearTimeout(id));
     const generation = ++pollGen.current;
@@ -107,6 +96,7 @@ function AddToWallet({ cardId }: { cardId: string }) {
     );
   }, [apply, cardId]);
   useEffect(() => {
+    if (!enabled) return;
     let returnTimer = 0;
     const readConfigured = () => {
       void walletIsConfigured().then((ready) => {
@@ -135,28 +125,60 @@ function AddToWallet({ cardId }: { cardId: string }) {
       document.removeEventListener("visibilitychange", onReturn);
       window.removeEventListener("focus", onReturn);
     };
-  }, [refresh]);
-  if (android || (off && status !== "in")) return null;
+  }, [enabled, refresh]);
+  const offer = !enabled || android || (off && status !== "in") ? null : status;
+  return { offer, watchRegistration };
+}
+
+function OwnerCardBar({
+  cardId,
+  onEdit,
+  showWallet,
+  arranging,
+  onDoneArrange,
+}: {
+  cardId: string;
+  onEdit?: () => void;
+  showWallet: boolean;
+  arranging: boolean;
+  onDoneArrange: () => void;
+}) {
+  const { offer, watchRegistration } = useWalletOffer(cardId, showWallet);
+  if (!arranging && !onEdit && !offer) return null;
   return (
-    <div className="flex justify-center pb-[18px]">
-      {status === "in" ? (
-        <p className={WALLET_CAPTION}>IN WALLET</p>
-      ) : (
-        <TapButton
-          data-card-content
-          data-no-swipe
-          onTap={() => {
-            void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
-              if (!opened) return;
-              watchRegistration();
-            });
-          }}
-          className={`${SKY_ACTION} gap-2`}
-        >
-          <Wallet className="size-4" strokeWidth={1.5} aria-hidden />
-          Add to Wallet
-        </TapButton>
-      )}
+    <div className="py-[18px]" data-card-content>
+      <div className={cn("flex w-full items-stretch bg-white", CARD_BAR_SHADOW)}>
+        {arranging ? (
+          <TapButton data-arrange-done="" data-no-swipe onTap={onDoneArrange} className={cn(CARD_BAR_HALF, "press w-full")}>
+            Done
+          </TapButton>
+        ) : (
+          <>
+            {offer === "in" ? (
+              <p className={cn(CARD_BAR_HALF, "m-0 text-[var(--grey)]")}>In Wallet</p>
+            ) : offer === "add" ? (
+              <TapButton
+                data-no-swipe
+                onTap={() => {
+                  void openWalletPass(`/api/cards/${encodeURIComponent(cardId)}/pass`).then((opened) => {
+                    if (!opened) return;
+                    watchRegistration();
+                  });
+                }}
+                className={cn(CARD_BAR_HALF, "press")}
+              >
+                Add to Wallet
+              </TapButton>
+            ) : null}
+            {offer && onEdit ? <span aria-hidden className="w-px shrink-0 self-stretch bg-[var(--rule)]" /> : null}
+            {onEdit ? (
+              <TapButton data-no-swipe onTap={onEdit} className={cn(CARD_BAR_HALF, "press")}>
+                Edit info
+              </TapButton>
+            ) : null}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -460,7 +482,7 @@ type BusinessCardProps = {
   deliveredNotes?: DeliveredNote[];
   /** Trial add slide: same empty start, taps ask to register. */
   onPortfolioStartBlocked?: () => void;
-  /** Owner card only. The Edit portfolio button. Absent on a public card. */
+  /** Owner card only. The Edit info half. Absent on a public card. */
   onEdit?: () => void;
   /** Print sheets of this same card. No QR, no share, no fixed screen height. */
   pdf?: boolean;
@@ -526,6 +548,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
   const showShareFooter =
     !readOnly && !compact && !editing && ready && (items.length > 0 || Boolean(card.publicToken));
   const bare = !compact && ready && items.length === 0 && !editing;
+  const [arranging, setArranging] = useState(false);
+  const leaveArrangeRef = useRef<(() => void) | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const previewScrollRef = useRef<HTMLDivElement | null>(null);
   const [previewPull, setPreviewPull] = useState(0);
@@ -701,7 +725,15 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           <div>
             <EmptyCardZones onOpenZone={!readOnly && onFill ? (zoneId) => onFill(zoneId) : undefined} />
             <NotesRubric ownerNotes={nextScanAddons} />
-            {onEdit ? <EditPortfolioButton onEdit={onEdit} /> : null}
+            {onEdit ? (
+              <OwnerCardBar
+                cardId={card.id}
+                onEdit={onEdit}
+                showWallet={false}
+                arranging={false}
+                onDoneArrange={() => {}}
+              />
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -801,6 +833,8 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
         onRetryFile={!compact && !readOnly && onCardUpdate ? retryFile : undefined}
         onAddNext={!compact && !readOnly ? onAddNext : undefined}
         onOpenLine={!compact && !readOnly && !editing && onFill ? (zoneId, itemId) => onFill(zoneId, itemId) : undefined}
+        onArrangeChange={!compact && !readOnly ? setArranging : undefined}
+        leaveArrangeRef={!compact && !readOnly ? leaveArrangeRef : undefined}
       />
       </div>
       )}
@@ -811,8 +845,15 @@ export const BusinessCard = forwardRef<HTMLElement, BusinessCardProps>(function 
           deliveredNotes={readOnly ? deliveredNotes : undefined}
         />
       ) : null}
-      {!bare && !compact && !editing && !readOnly && onEdit ? <EditPortfolioButton onEdit={onEdit} /> : null}
-      {!compact && !editing && !readOnly && items.length > 0 ? <AddToWallet cardId={card.id} /> : null}
+      {!bare && !compact && !editing && !readOnly ? (
+        <OwnerCardBar
+          cardId={card.id}
+          onEdit={onEdit}
+          showWallet={items.length > 0}
+          arranging={arranging}
+          onDoneArrange={() => leaveArrangeRef.current?.()}
+        />
+      ) : null}
       {!compact && !editing && (showShareFooter || shareFootnote) ? (
         <div
           className="mt-auto shrink-0 t-meta"

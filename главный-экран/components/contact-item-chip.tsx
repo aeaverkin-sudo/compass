@@ -433,6 +433,8 @@ export function ContactItemChipList({
   onRetryFile,
   onAddNext,
   onOpenLine,
+  onArrangeChange,
+  leaveArrangeRef,
 }: {
   items: ContactItem[];
   size: ContactItemChipSize;
@@ -462,6 +464,9 @@ export function ContactItemChipList({
   onAddNext?: () => void;
   /** Owner showcase: a double tap opens this row, or this section when the tap was not on a row. */
   onOpenLine?: (zoneId: string, itemId?: string) => void;
+  /** The card bar shows Done while this is on. The floating button is gone. */
+  onArrangeChange?: (active: boolean) => void;
+  leaveArrangeRef?: { current: (() => void) | null };
 }) {
   const compact = size === "compact";
   const listRef = useRef<HTMLDivElement>(null);
@@ -482,6 +487,8 @@ export function ContactItemChipList({
   const [hold, setHold] = useState<ArrangeDrag | null>(null);
   const [arranging, setArranging] = useState(false);
   const arrangingRef = useRef(false);
+  const onArrangeChangeRef = useRef(onArrangeChange);
+  onArrangeChangeRef.current = onArrangeChange;
   const pointerDownRef = useRef(false);
   const arrangeMarker = useRef(false);
   const lastMoveRef = useRef(0);
@@ -841,10 +848,15 @@ export function ContactItemChipList({
     idleTimer.current = window.setTimeout(tick, GRAB_IDLE_MS);
   };
 
+  const setArrange = (active: boolean) => {
+    arrangingRef.current = active;
+    setArranging(active);
+    onArrangeChangeRef.current?.(active);
+  };
+
   const enterArrange = () => {
     if (arrangingRef.current) return;
-    arrangingRef.current = true;
-    setArranging(true);
+    setArrange(true);
     if (!arrangeMarker.current) {
       history.pushState({ compassArrange: 1 }, "");
       arrangeMarker.current = true;
@@ -853,13 +865,13 @@ export function ContactItemChipList({
   };
 
   const leaveArrange = () => {
-    arrangingRef.current = false;
-    setArranging(false);
+    setArrange(false);
     finishHold(false);
     if (!arrangeMarker.current) return;
     arrangeMarker.current = false;
     if (history.state?.compassArrange) history.back();
   };
+  if (leaveArrangeRef) leaveArrangeRef.current = leaveArrange;
 
   cancelGrabRef.current = () => {
     clearEntry();
@@ -1048,14 +1060,19 @@ export function ContactItemChipList({
     host.addEventListener("lostpointercapture", lost);
   };
   const swallowReorderClick = (event: MouseEvent<HTMLDivElement>) => {
-    // While arranging, an accidental tap on a link or value must not open it. Done lives outside this list.
+    // While arranging, an accidental tap on a link or value must not open it. Done is the card bar.
     if (!suppressClick.current && !arrangingRef.current) return;
     suppressClick.current = false;
     event.preventDefault();
     event.stopPropagation();
   };
 
-  const [chromeHost, setChromeHost] = useState<HTMLElement | null>(null);
+  useEffect(
+    () => () => {
+      onArrangeChangeRef.current?.(false);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!canReorder || compact) return;
@@ -1085,8 +1102,7 @@ export function ContactItemChipList({
     if (!arranging) return;
     const onPop = () => {
       arrangeMarker.current = false;
-      arrangingRef.current = false;
-      setArranging(false);
+      setArrange(false);
       cancelGrabRef.current();
     };
     window.addEventListener("popstate", onPop);
@@ -1103,16 +1119,9 @@ export function ContactItemChipList({
   );
 
   useLayoutEffect(() => {
-    if (!arranging) {
-      setChromeHost(null);
-      return;
-    }
+    if (!arranging) return;
     const list = listRef.current;
     if (!list) return;
-    const scroll = list.closest(".compass-card-scroll");
-    // The non-scrolling card frame. Done floats here, so the scroller cannot eat the first tap.
-    const frame = scroll?.parentElement ?? null;
-    setChromeHost(frame instanceof HTMLElement ? frame : null);
     const header = cardHeader(list);
     const column = list.parentElement;
     const nodes: HTMLElement[] = [];
@@ -1170,7 +1179,7 @@ export function ContactItemChipList({
     return (
       <div
         ref={listRef}
-        className={cn("relative w-full min-w-0", hold?.active && "touch-none", arranging && "pb-16", className)}
+        className={cn("relative w-full min-w-0", hold?.active && "touch-none", className)}
         data-card-chip-list={listId}
         data-card-content
         data-arranging={arranging ? "" : undefined}
@@ -1323,25 +1332,6 @@ export function ContactItemChipList({
         {onAddNext && !arranging && !hold?.active ? (
           <NextSection number={sectionNumberLabel(zones.length)} onAdd={onAddNext} />
         ) : null}
-        {arranging && chromeHost
-          ? createPortal(
-              <div data-arrange-chrome="" className="pointer-events-none absolute inset-x-0 bottom-3 z-30 flex justify-center">
-                <button
-                  type="button"
-                  data-arrange-done=""
-                  className="pointer-events-auto t-body bg-sky px-5 py-2 text-[var(--ink)]"
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onPointerUp={(event) => {
-                    event.stopPropagation();
-                    leaveArrange();
-                  }}
-                >
-                  Done
-                </button>
-              </div>,
-              chromeHost,
-            )
-          : null}
       </div>
     );
   }
