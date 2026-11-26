@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
+import { register } from "node:module";
 import test from "node:test";
-import { contactDraftSetsOf, contactLineFlagsOf, readingExtras } from "./contact-reading.ts";
+import { pathToFileURL } from "node:url";
+
+register(new URL("./voice-reading.alias-hook.mjs", import.meta.url), pathToFileURL("./"));
+
+const { contactDraftSetsOf, contactLineFlagsOf, readingExtras } = await import("./contact-reading.ts");
 import {
   mergeContactDraft,
   patchFromContactDraft,

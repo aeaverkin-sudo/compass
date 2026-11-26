@@ -520,6 +520,18 @@ export function normalizeVoiceReading(value: unknown): unknown {
     record.sets = sets;
   }
 
+  if (Array.isArray(record.lineOps)) {
+    record.lineOps = record.lineOps.map((item) => {
+      if (!item || typeof item !== "object") return item;
+      const op = { ...(item as Record<string, unknown>) };
+      if (typeof op.value !== "string") return op;
+      const spoken = speakLine(op.value);
+      if (spoken?.kind === "line") op.value = spoken.line;
+      else if (spoken?.kind === "drop") delete op.value;
+      return op;
+    });
+  }
+
   record.lines = lines;
   if (flags.length) record.lineFlags = flags;
   return record;

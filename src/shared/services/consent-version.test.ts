@@ -5,7 +5,7 @@ import { CONSENT_VERSION, PRIVACY_VERSION, TERMS_VERSION, isOlderConsent } from 
 
 test("a first registration, an accepted 1.5, and an accepted 1.6 each get the right plaque", () => {
   assert.equal(TERMS_VERSION, "1.6");
-  assert.equal(PRIVACY_VERSION, "1.7");
+  assert.equal(PRIVACY_VERSION, "1.8");
   assert.equal(CONSENT_VERSION, "1.6");
   assert.equal(isOlderConsent(null, CONSENT_VERSION), false);
   assert.equal(isOlderConsent("", CONSENT_VERSION), false);

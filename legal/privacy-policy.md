@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective 26 November 2026 · Version 1.7
+Effective 26 November 2026 · Version 1.8
 
 ## 1. Accounts and sign-in
 
@@ -32,7 +32,7 @@ To ask whether we hold information about you, request access or correction, ask 
 
 ## 4. Scan, Voice and text recognition
 
-When you choose to use recognition, we may send the photo, audio or text you submit to the OpenAI API so that it can suggest contact fields. For Voice, the audio is transcribed and the transcript may be sent to a separate model to extract contact fields. You can review the suggestions before you decide what to save.
+When you choose to use recognition, we may send the photo, audio or text you submit to the OpenAI API so that it can suggest contact fields. For Voice, the audio is transcribed and the transcript may be sent to a separate model to extract contact fields. For Voice, the fields already on the contact form are sent together with each voice note, so that a correction is applied to the right field. You can review the suggestions before you decide what to save.
 
 Under OpenAI’s standard API settings, API content is not used for model training unless the API customer opts in. Under its published defaults, the audio transcription endpoint has no standard abuse-monitoring retention. A separate extraction request containing an image, text or transcript may be retained by OpenAI for abuse monitoring for up to 30 days under standard settings, subject to its applicable safety and legal exceptions. A result or file that you choose to save in ADED ME is kept as part of the corresponding record under the retention rules below.
 

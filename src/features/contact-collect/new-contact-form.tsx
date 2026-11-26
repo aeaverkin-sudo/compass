@@ -38,11 +38,13 @@ import { QrScanner } from "@/features/contact-collect/qr-scanner";
 import { isIntlPhone, polishContactLine, telegramNickOf } from "@/features/contact-collect/view-lines";
 import { detectContactType } from "@/shared/services/contact-item";
 import {
+  draftLineKind,
   mergeContactDraft,
   patchFromContactDraft,
   patchFromScan,
   patchHasContent,
   type ContactDraftPatch,
+  type VoiceCursor,
 } from "@/features/contact-collect/merge-contact-draft";
 import type { ContactReading } from "@/features/contact-collect/parse-contact";
 import { scanTextNeedsEnglish, type ScannedContact } from "@/features/contact-collect/scan-qr";
@@ -321,6 +323,7 @@ export function NewContactForm({
   const [draftReady, setDraftReady] = useState(false);
   const draftRef = useRef({ name, position, company, note, lines });
   draftRef.current = { name, position, company, note, lines };
+  const voiceCursorRef = useRef<VoiceCursor>({ line: null, field: null });
   const draftRecord = useMemo<ContactDraftRecord>(() => {
     const linesKept = lines
       .filter((line) => line.value.trim())
@@ -498,7 +501,7 @@ export function NewContactForm({
     if (andNext && polished) window.setTimeout(() => lastLine.current?.focus(), 0);
   };
 
-  const applyPatch = (patch: ContactDraftPatch) => {
+  const applyPatch = (patch: ContactDraftPatch, cursor?: VoiceCursor) => {
     const current = draftRef.current;
     const merged = mergeContactDraft(
       {
@@ -511,6 +514,7 @@ export function NewContactForm({
           .map((line) => ({ id: line.id, value: line.value, flags: line.flags })),
       },
       patch,
+      cursor,
     );
     const displayName = clampNameLines(merged.displayName);
     setName(displayName);
@@ -599,7 +603,7 @@ export function NewContactForm({
     }
     setError(null);
     if (!initial) setSource(kind);
-    applyPatch(patch);
+    applyPatch(patch, kind === "voice" ? voiceCursorRef.current : undefined);
   };
 
   const readFile = async (field: "image" | "audio", file: Blob, filename: string) => {
@@ -608,6 +612,27 @@ export function NewContactForm({
     try {
       const body = new FormData();
       body.set(field, file, filename);
+      if (field === "audio") {
+        const current = draftRef.current;
+        const cursor = voiceCursorRef.current;
+        const filled = current.lines.filter((line) => line.value.trim());
+        body.set(
+          "form",
+          JSON.stringify({
+            displayName: current.name,
+            position: current.position,
+            company: current.company,
+            note: current.note,
+            lines: filled.map((line, index) => ({
+              n: index + 1,
+              kind: draftLineKind(line.value),
+              value: line.value,
+            })),
+            lastVoiceLine: cursor.line,
+            lastVoiceField: cursor.field,
+          }),
+        );
+      }
       const response = await fetch("/api/external-contacts/parse", { method: "POST", body });
       const payload = (await response.json().catch(() => null)) as { error?: string; draft?: ContactReading } | null;
       if (!response.ok || !payload?.draft) {
@@ -875,6 +900,7 @@ export function NewContactForm({
     setPhotoId(null);
     setDraftPhoto(null);
     setError(null);
+    voiceCursorRef.current = { line: null, field: null };
     if (ownerId) clearContactDraft(ownerId);
   };
 

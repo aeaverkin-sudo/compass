@@ -1,6 +1,7 @@
 import type { ContactDraft, ContactReading } from "./parse-contact.ts";
 import type { ScannedContact } from "./scan-qr.ts";
 import type { LineFlag } from "./types.ts";
+import type { VoiceField, VoiceLineOp } from "./voice-dialog.ts";
 
 const LINES_MAX = 30;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
@@ -55,6 +56,14 @@ export type ContactDraftPatch = {
     line?: { from?: string; to: string };
   };
   lineFlags?: { value: string; flags: LineFlag[] }[];
+  /** Voice only. Checked here: a replace must match the line's kind. */
+  lineOps?: VoiceLineOp[];
+};
+
+/** Which voice edit this utterance landed on. Not written to the draft. */
+export type VoiceCursor = {
+  line: number | null;
+  field: VoiceField | null;
 };
 
 export function patchHasContent(patch: ContactDraftPatch): boolean {
@@ -71,6 +80,7 @@ export function patchHasContent(patch: ContactDraftPatch): boolean {
   }
   if (patch.sets && Object.keys(patch.sets).length > 0) return true;
   if (patch.lineFlags && patch.lineFlags.length > 0) return true;
+  if (patch.lineOps && patch.lineOps.length > 0) return true;
   return false;
 }
 
@@ -121,8 +131,69 @@ function cleanFlags(value: unknown): LineFlag[] {
   return mergeFlags([], value as LineFlag[]);
 }
 
+function rememberField(cursor: VoiceCursor | undefined, field: VoiceField) {
+  if (cursor) cursor.field = field;
+}
+
+function appendLine(lines: DraftLine[], value: string) {
+  const key = contactLineKey(value);
+  if (lines.some((line) => contactLineKey(line.value) === key)) return false;
+  if (lines.length >= LINES_MAX) return false;
+  lines.push({ id: crypto.randomUUID(), value, flags: [] });
+  return true;
+}
+
+/** One line of this kind, or the last voice line when it matches. Otherwise no target. */
+function replaceIndex(lines: DraftLine[], op: Extract<VoiceLineOp, { op: "replace" }>, lastVoiceLine: number | null) {
+  const kind = draftLineKind(op.value);
+  if (op.n != null) {
+    const index = op.n - 1;
+    if (index < 0 || index >= lines.length) return null;
+    if (draftLineKind(lines[index]!.value) !== kind) return null;
+    return index;
+  }
+  const matches = lines.flatMap((line, index) => (draftLineKind(line.value) === kind ? [index] : []));
+  if (matches.length === 1) return matches[0]!;
+  if (matches.length > 1 && lastVoiceLine != null && matches.includes(lastVoiceLine - 1)) return lastVoiceLine - 1;
+  return null;
+}
+
+function applyLineOps(lines: DraftLine[], ops: VoiceLineOp[], cursor: VoiceCursor | undefined) {
+  let removed = false;
+  for (const op of ops) {
+    if (op.op === "remove") {
+      if (removed) continue;
+      const index = op.n - 1;
+      if (index < 0 || index >= lines.length) continue;
+      removed = true;
+      lines.splice(index, 1);
+      if (!cursor || cursor.line == null) continue;
+      if (cursor.line === op.n) cursor.line = null;
+      else if (cursor.line > op.n) cursor.line -= 1;
+      continue;
+    }
+    const value = op.value.trim();
+    if (!value) continue;
+    if (op.op === "add") {
+      if (appendLine(lines, value) && cursor) cursor.line = lines.length;
+      continue;
+    }
+    const index = replaceIndex(lines, op, cursor?.line ?? null);
+    if (index == null) {
+      if (appendLine(lines, value) && cursor) cursor.line = lines.length;
+      continue;
+    }
+    lines[index]!.value = value;
+    if (cursor) cursor.line = index + 1;
+  }
+}
+
 /** Apply a recognition patch to the current draft. Does not touch Save. */
-export function mergeContactDraft(state: ContactDraftState, patch: ContactDraftPatch): ContactDraftState {
+export function mergeContactDraft(
+  state: ContactDraftState,
+  patch: ContactDraftPatch,
+  cursor?: VoiceCursor,
+): ContactDraftState {
   let displayName = state.displayName;
   let position = state.position;
   let company = state.company;
@@ -137,15 +208,19 @@ export function mergeContactDraft(state: ContactDraftState, patch: ContactDraftP
   if (sets) {
     if (typeof sets.displayName === "string" && sets.displayName.trim()) {
       displayName = sets.displayName.trim();
+      rememberField(cursor, "displayName");
     }
     if (typeof sets.position === "string" && sets.position.trim()) {
       position = sets.position.trim();
+      rememberField(cursor, "position");
     }
     if (typeof sets.company === "string" && sets.company.trim()) {
       company = sets.company.trim();
+      rememberField(cursor, "company");
     }
     if (typeof sets.note === "string" && sets.note.trim()) {
       note = sets.note.trim();
+      rememberField(cursor, "note");
     }
     if (sets.line && typeof sets.line.to === "string" && sets.line.to.trim()) {
       const to = sets.line.to.trim();
@@ -157,6 +232,7 @@ export function mergeContactDraft(state: ContactDraftState, patch: ContactDraftP
         if (phones.length === 1 && toKind === "phone") {
           phones[0]!.value = to;
           replaced = true;
+          if (cursor) cursor.line = lines.indexOf(phones[0]!) + 1;
         }
       } else {
         const key = contactLineKey(from);
@@ -166,14 +242,10 @@ export function mergeContactDraft(state: ContactDraftState, patch: ContactDraftP
         if (matches.length === 1 && draftLineKind(matches[0]!.value) === toKind) {
           matches[0]!.value = to;
           replaced = true;
+          if (cursor) cursor.line = lines.indexOf(matches[0]!) + 1;
         }
       }
-      if (!replaced) {
-        const key = contactLineKey(to);
-        if (!lines.some((line) => contactLineKey(line.value) === key) && lines.length < LINES_MAX) {
-          lines.push({ id: crypto.randomUUID(), value: to, flags: [] });
-        }
-      }
+      if (!replaced && appendLine(lines, to) && cursor) cursor.line = lines.length;
     }
   }
 
@@ -207,6 +279,10 @@ export function mergeContactDraft(state: ContactDraftState, patch: ContactDraftP
     lines.push({ id: crypto.randomUUID(), value, flags });
   }
 
+  if (patch.lineOps && patch.lineOps.length > 0) {
+    applyLineOps(lines, patch.lineOps, cursor);
+  }
+
   return { displayName, position, company, note, lines };
 }
 
@@ -233,6 +309,9 @@ export function patchFromContactDraft(
   }
   if (reading.lineFlags && reading.lineFlags.length > 0) {
     patch.lineFlags = reading.lineFlags;
+  }
+  if (reading.lineOps && reading.lineOps.length > 0) {
+    patch.lineOps = reading.lineOps;
   }
   return patch;
 }

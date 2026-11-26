@@ -1,4 +1,5 @@
 import type { LineFlag } from "./types.ts";
+import { voiceLineOpsOf, type VoiceLineOp } from "./voice-dialog";
 
 const NAME_MAX = 120;
 const POSITION_MAX = 160;
@@ -89,12 +90,14 @@ export function contactLineFlagsOf(value: unknown): ContactDraftLineFlag[] | und
 export function readingExtras(
   value: unknown,
   options?: { allowSets?: boolean },
-): { sets?: ContactDraftSets; lineFlags?: ContactDraftLineFlag[] } {
+): { sets?: ContactDraftSets; lineFlags?: ContactDraftLineFlag[]; lineOps?: VoiceLineOp[] } {
   const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
   const lineFlags = contactLineFlagsOf(record.lineFlags);
   const sets = options?.allowSets === false ? undefined : contactDraftSetsOf(record.sets);
+  const lineOps = options?.allowSets === false ? undefined : voiceLineOpsOf(record.lineOps);
   return {
     ...(sets ? { sets } : {}),
     ...(lineFlags ? { lineFlags } : {}),
+    ...(lineOps ? { lineOps } : {}),
   };
 }

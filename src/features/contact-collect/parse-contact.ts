@@ -5,6 +5,7 @@ import {
   type ContactDraftLineFlag,
   type ContactDraftSets,
 } from "@/features/contact-collect/contact-reading";
+import { voiceNoteText, type VoiceLineOp } from "@/features/contact-collect/voice-dialog";
 
 /** Fields a reading may fill. The client still does not choose line types. */
 export type ContactDraft = {
@@ -24,6 +25,7 @@ export type { ContactDraftLineFlag, ContactDraftSets };
 export type ContactReading = ContactDraft & {
   sets?: ContactDraftSets;
   lineFlags?: ContactDraftLineFlag[];
+  lineOps?: VoiceLineOp[];
 };
 
 const NAME_MAX = 120;
@@ -65,10 +67,25 @@ export function contactDraft(value: unknown): ContactDraft {
 export function contactReading(value: unknown, options?: { allowSets?: boolean }): ContactReading {
   const extras = readingExtras(value, options);
   const lineFlags = extras.lineFlags?.filter((row) => !externalLineIsRed(row.value));
+  const lineOps = extras.lineOps?.filter((op) => op.op === "remove" || !externalLineIsRed(op.value));
+  const draft = contactDraft(value);
+  const spoken = options?.allowSets === false ? null : voiceNoteText(
+    value && typeof value === "object" ? (value as { note?: unknown }).note : null,
+  );
+  let sets = extras.sets;
+  let note = draft.note;
+  if (spoken?.replace) {
+    sets = { ...(sets ?? {}), note: spoken.text };
+    note = "";
+  } else if (spoken) {
+    note = spoken.text;
+  }
   return {
-    ...contactDraft(value),
-    ...(extras.sets ? { sets: extras.sets } : {}),
+    ...draft,
+    note,
+    ...(sets && Object.keys(sets).length > 0 ? { sets } : {}),
     ...(lineFlags && lineFlags.length > 0 ? { lineFlags } : {}),
+    ...(lineOps && lineOps.length > 0 ? { lineOps } : {}),
   };
 }
 
@@ -78,6 +95,7 @@ export function contactReadingHasContent(reading: ContactReading): boolean {
   }
   if (reading.sets && Object.keys(reading.sets).length > 0) return true;
   if (reading.lineFlags && reading.lineFlags.length > 0) return true;
+  if (reading.lineOps && reading.lineOps.length > 0) return true;
   return false;
 }
 

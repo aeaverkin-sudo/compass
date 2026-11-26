@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { gptConfigured, parseContactInput } from "@/features/contact-collect/gpt-parse";
+import { parseVoiceForm } from "@/features/contact-collect/voice-dialog";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 
 export const runtime = "nodejs";
@@ -34,10 +35,14 @@ export async function POST(request: Request) {
       const form = await request.formData();
       const image = await bytesOf(form.get("image"));
       const audio = await bytesOf(form.get("audio"));
+      const formField = form.get("form");
+      const voiceForm =
+        audio && typeof formField === "string" && formField.length <= 20_000 ? parseVoiceForm(formField) : null;
       const result = await parseContactInput({
         openai: true,
         image: image ? { mime: image.mime, bytes: image.bytes } : undefined,
         audio: audio ? { mime: audio.mime, name: audio.name, bytes: audio.bytes } : undefined,
+        voiceForm,
       });
       if (!result.ok) {
         return noStore(
