@@ -31,6 +31,7 @@ import { clearNewContact } from "@/shared/lib/new-contact";
 import { markIncomingSeen } from "@/shared/lib/network-dot";
 import { foldSearch } from "@/shared/lib/search-fold";
 import { photoLookValue, photoSlotLookClass, shownPhotoLook, type StoredPhotoLook } from "@/shared/lib/photo-look";
+import { contactInitials } from "@/app/network/initials";
 import { cn } from "@/lib/utils";
 import { MARK_PX, MarkPlus, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { RAIL_ICON_SCALE } from "@main/components/side-rail";
@@ -773,7 +774,11 @@ function ContactRow({
   };
   const body = (
     <>
-      <Face photoUrl={contact.photoUrl} photoLook={contact.collected ? "shadow" : contact.photoLook} />
+      <Face
+        name={contact.displayName}
+        photoUrl={contact.photoUrl}
+        photoLook={contact.collected ? "shadow" : contact.photoLook}
+      />
       <div className="min-w-0 flex-1">
         <p className="m-0 truncate t-body text-[var(--ink)]">{contact.displayName.trim() || "Untitled"}</p>
         {line ? <p className="m-0 mt-0.5 truncate t-meta text-[var(--grey)]">{line}</p> : null}
@@ -795,12 +800,30 @@ function ContactRow({
   );
 }
 
-function Face({ photoUrl, photoLook }: { photoUrl: string | null; photoLook?: StoredPhotoLook }) {
-  // Empty slots and unset looks use Profile’s default shadow. Plain stays flat.
-  const look = photoUrl ? shownPhotoLook(photoLook) : "shadow";
+function Face({
+  name,
+  photoUrl,
+  photoLook,
+}: {
+  name: string;
+  photoUrl: string | null;
+  photoLook?: StoredPhotoLook;
+}) {
+  if (photoUrl) {
+    return (
+      <span className={cn("size-11 shrink-0 overflow-visible bg-white", photoSlotLookClass(shownPhotoLook(photoLook)))}>
+        <img src={photoUrl} alt="" className="size-full object-cover" />
+      </span>
+    );
+  }
+  const letters = contactInitials(name);
   return (
-    <span className={cn("size-11 shrink-0 overflow-visible bg-white", photoSlotLookClass(look))}>
-      {photoUrl ? <img src={photoUrl} alt="" className="size-full object-cover" /> : null}
+    <span className="flex size-11 shrink-0 items-center justify-center bg-[#EAF1F5]">
+      {letters ? (
+        <span className="t-body uppercase text-[#5B7785]" style={{ letterSpacing: "0.04em", marginRight: "-0.04em" }}>
+          {letters}
+        </span>
+      ) : null}
     </span>
   );
 }
