@@ -1,3 +1,5 @@
+import { draftLineKind } from "./merge-contact-draft";
+
 /** One open New contact or Edit contact form, sent with a voice note. Not stored. */
 export type VoiceField = "displayName" | "position" | "company" | "note";
 
@@ -19,10 +21,22 @@ export type VoiceLineOp =
 const ONE_WORD =
   /(?:в одно слово|слитно|без пробелов|без дефиса|без дефисов|one word|no spaces|no hyphens|without spaces|without hyphens)/i;
 
-/** «В одно слово» drops spaces and hyphens. A dot or @ stays unless it was a space. */
+function squeeze(value: string) {
+  return value.replace(/[\s-]+/g, "");
+}
+
+/**
+ * «В одно слово» only on an email, or on the nick after @.
+ * The kind is draftLineKind. A phone, a link, and plain text stay as written.
+ */
 export function applySpokenTightening(transcript: string, value: string): string {
   if (!ONE_WORD.test(transcript)) return value;
-  return value.replace(/[\s-]+/g, "");
+  const kind = draftLineKind(value);
+  if (kind === "email") return squeeze(value);
+  if (kind === "phone" || kind === "link" || kind === "text") return value;
+  const at = value.indexOf("@");
+  if (at < 0) return value;
+  return `${value.slice(0, at + 1)}${squeeze(value.slice(at + 1))}`;
 }
 
 /**
