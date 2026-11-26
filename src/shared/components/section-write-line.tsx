@@ -8,6 +8,7 @@ export function SectionWriteLine({
   zoneId,
   hint,
   about = false,
+  hintPlus = false,
   autoFocus = false,
   initial = "",
   inputRef,
@@ -19,6 +20,8 @@ export function SectionWriteLine({
   zoneId: string;
   hint: string;
   about?: boolean;
+  /** Edit only. A grey plus in front of the hint. It leaves with the hint. */
+  hintPlus?: boolean;
   autoFocus?: boolean;
   initial?: string;
   inputRef?: (handle: WrapFieldHandle | null) => void;
@@ -37,6 +40,7 @@ export function SectionWriteLine({
         multiline={about}
         breakButton={false}
         wrapPlaceholder
+        placeholderMark={hintPlus}
         autoFocus={autoFocus}
         placeholderClassName="t-body text-[var(--placeholder)]"
         onFocus={() => onFocus?.(initial)}

@@ -993,6 +993,7 @@ export const CardEditList = memo(function CardEditList({
                     <SectionWriteLine
                       zoneId={section.id}
                       hint={zoneHint}
+                      hintPlus
                       about={section.id === "about"}
                       autoFocus={seedZoneId === section.id}
                       initial={seedingThis ? seedText : ""}

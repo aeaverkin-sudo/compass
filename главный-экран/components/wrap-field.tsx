@@ -3,7 +3,12 @@
 import { CornerDownLeft } from "lucide-react";
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type FocusEvent, type Ref } from "react";
 import { cn } from "@/lib/utils";
+import { MarkPlus } from "@/shared/components/mark-plus";
 import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
+
+/** Edit hint plus. Same box as the toolbar plus. Out of flow, so the hint line stays its height. */
+const HINT_PLUS_PX = 23;
+const HINT_PLUS_GAP_PX = 6;
 
 export type WrapFieldHandle = {
   focusEnd: () => void;
@@ -63,6 +68,7 @@ export function WrapField({
   className,
   placeholderClassName,
   wrapPlaceholder = false,
+  placeholderMark = false,
   multiline = false,
   breakButton = true,
   onTextChange,
@@ -87,6 +93,8 @@ export function WrapField({
   placeholderClassName?: string;
   /** An empty-section hint may take a second line. Other placeholders stay one line. */
   wrapPlaceholder?: boolean;
+  /** Grey plus before a wrapping hint. The second line lines up with the text, not the plus. */
+  placeholderMark?: boolean;
   onTextChange?: (text: string) => void;
   onDone: (text: string) => void;
   /** Backspace on an empty field. New-zone Title… and an empty add line use this. */
@@ -175,16 +183,33 @@ export function WrapField({
     <div className={cn("flex min-w-0 items-end gap-2", grow ? "flex-1" : "w-auto")}>
       <div className={cn("relative min-w-0", grow && "flex-1")}>
         {empty && placeholder ? (
-          <span
-            aria-hidden
-            className={cn(
-              "pointer-events-none",
-              wrapHint ? "block whitespace-normal break-words" : "absolute inset-x-0 top-0 truncate",
-              placeholderClassName,
-            )}
-          >
-            {placeholder}
-          </span>
+          placeholderMark && wrapHint ? (
+            <span
+              aria-hidden
+              className={cn(
+                "pointer-events-none relative block whitespace-normal break-words",
+                placeholderClassName,
+              )}
+            >
+              <span className="absolute top-0 left-0 flex h-[1lh] items-center">
+                <MarkPlus size={HINT_PLUS_PX} />
+              </span>
+              <span className="block break-words" style={{ paddingLeft: HINT_PLUS_PX + HINT_PLUS_GAP_PX }}>
+                {placeholder}
+              </span>
+            </span>
+          ) : (
+            <span
+              aria-hidden
+              className={cn(
+                "pointer-events-none",
+                wrapHint ? "block whitespace-normal break-words" : "absolute inset-x-0 top-0 truncate",
+                placeholderClassName,
+              )}
+            >
+              {placeholder}
+            </span>
+          )
         ) : null}
         <div
           ref={editorRef}
