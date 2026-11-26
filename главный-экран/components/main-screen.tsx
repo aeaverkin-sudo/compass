@@ -418,6 +418,7 @@ export function MainScreen() {
       const el = node instanceof Element ? node : node instanceof Node ? node.parentElement : null;
       if (!el?.closest(".compass-main")) return;
       if (el.closest("input, textarea, [contenteditable='true']")) return;
+      if (event.type === "selectstart" && el.closest("[contenteditable='plaintext-only']")) return;
       event.preventDefault();
       window.getSelection()?.removeAllRanges();
     };

@@ -1,7 +1,8 @@
 "use client";
 
 import { CornerDownLeft } from "lucide-react";
-import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type FocusEvent, type Ref } from "react";
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type FocusEvent, type PointerEvent as ReactPointerEvent, type Ref } from "react";
+import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { MarkPlus, plusInkInsetPx } from "@/shared/components/mark-plus";
 import { useKeyboardVisible } from "../hooks/use-keyboard-dock";
@@ -252,7 +253,15 @@ export function WrapField({
             setFocused(true);
             onFocus?.();
           }}
-          onPointerDown={onPointerDown}
+          onPointerDown={(event: ReactPointerEvent<HTMLDivElement>) => {
+            onPointerDown?.();
+            // iOS only opens the keyboard when focus happens in the tap itself.
+            // Hide the hint first, then place the caret, still inside this handler.
+            if (!placeholderMark || !wrapHint || focused) return;
+            if (event.button !== 0) return;
+            flushSync(() => setFocused(true));
+            focusEnd();
+          }}
           onBlur={(event) => {
             setFocused(false);
             onBlur?.(read(), event);
