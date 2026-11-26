@@ -1105,7 +1105,7 @@ export function EntryPage({
             type="submit"
             onTap={() => void submit()}
             disabled={!ready || busy}
-            className="inline-flex items-center bg-sky px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] disabled:text-[var(--grey)]"
+            className="press inline-flex items-center border-0 bg-white px-[21.6px] py-[10.8px] t-caps text-[var(--ink)] shadow-[0_2px_8px_rgba(17,17,17,0.16)] disabled:text-[var(--grey)]"
           >
             {busy ? "Creating…" : "Create portfolio"}
           </TapButton>
