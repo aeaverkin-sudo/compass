@@ -107,6 +107,7 @@ export function NotesRubric({ ownerNotes, deliveredNotes, className, pdfBlock = 
           </li>
         ))}
       </ul>
+      <Rule className="mt-[18px]" />
     </section>
   );
 }
