@@ -50,7 +50,9 @@ export async function POST(request: Request) {
           result.status,
         );
       }
-      return noStore({ draft: result.draft });
+      return noStore(
+        typeof result.words === "number" ? { draft: result.draft, words: result.words } : { draft: result.draft },
+      );
     }
 
     const body = (await request.json().catch(() => null)) as { text?: unknown } | null;

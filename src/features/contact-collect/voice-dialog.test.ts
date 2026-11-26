@@ -10,8 +10,16 @@ import {
 
 register(new URL("./voice-reading.alias-hook.mjs", import.meta.url), pathToFileURL("./"));
 
-const { applySpokenTightening, spokenMeetingNote, tightenVoicePayload, voiceLineOpsOf, voiceNoteText } =
-  await import("./voice-dialog.ts");
+const {
+  addVoiceWords,
+  applySpokenTightening,
+  spokenMeetingNote,
+  spokenWordCount,
+  tightenVoicePayload,
+  VOICE_WORD_LIMIT,
+  voiceLineOpsOf,
+  voiceNoteText,
+} = await import("./voice-dialog.ts");
 
 function blank(over: Partial<ContactDraftState> = {}): ContactDraftState {
   return { displayName: "", position: "", company: "", note: "", lines: [], ...over };
@@ -125,6 +133,21 @@ test("a line is removed only by an explicit remove, and only the first one", () 
     ["+447700900123", "Telegram / @radiotest"],
   );
   assert.equal(voiceLineOpsOf([{ op: "replace", value: "jordan@example.com" }, { n: 1 }])?.length, 1);
+});
+
+test("words add up for the session, and the recording that crosses 200 is kept whole", () => {
+  assert.equal(spokenWordCount("  Met   Mira\nChen at the hall. "), 6);
+  assert.equal(spokenWordCount(""), 0);
+  assert.equal(VOICE_WORD_LIMIT, 200);
+  const early = addVoiceWords(0, spokenWordCount("one two three"));
+  assert.deepEqual(early, { total: 3, reached: false });
+  const near = addVoiceWords(190, 0);
+  assert.equal(near.reached, false);
+  const crossed = addVoiceWords(190, spokenWordCount("alpha beta gamma delta epsilon"));
+  assert.equal(crossed.total, 195);
+  const over = addVoiceWords(190, 15);
+  assert.deepEqual(over, { total: 205, reached: true });
+  assert.equal(addVoiceWords(200, 0).reached, true);
 });
 
 test("an event or a place becomes the note, then the context", () => {

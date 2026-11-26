@@ -6,7 +6,7 @@ import {
   type ContactReading,
 } from "@/features/contact-collect/parse-contact";
 import { normalizeVoiceReading } from "@/features/contact-collect/voice-reading";
-import { tightenVoicePayload, type VoiceForm } from "@/features/contact-collect/voice-dialog";
+import { spokenWordCount, tightenVoicePayload, type VoiceForm } from "@/features/contact-collect/voice-dialog";
 
 /**
  * Photo, voice, and messy text. The key stays in the host environment.
@@ -78,7 +78,7 @@ export type ParseInput = {
 };
 
 export type ParseResult =
-  | { ok: true; draft: ContactReading }
+  | { ok: true; draft: ContactReading; words?: number }
   | { ok: false; status: number; error: string; available?: false };
 
 export function gptConfigured() {
@@ -194,7 +194,9 @@ export async function parseContactInput(input: ParseInput): Promise<ParseResult>
     const heard = await transcribe(input.audio);
     if (typeof heard !== "string") return heard;
     if (!heard) return { ok: false, status: 422, error: "Could not hear that." };
-    return chat(input.voiceForm ?? null, true, heard);
+    const result = await chat(input.voiceForm ?? null, true, heard);
+    if (!result.ok) return result;
+    return { ...result, words: spokenWordCount(heard) };
   }
   if (input.image) {
     const base64 = Buffer.from(input.image.bytes).toString("base64");

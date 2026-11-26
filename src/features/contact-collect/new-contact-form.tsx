@@ -13,6 +13,7 @@ import { clampNameLines } from "@/shared/components/name-or-title-field";
 import { PromoteArrow } from "@/shared/components/promote-arrow";
 import { ScreenHeader } from "@/shared/components/screen-header";
 import { SectionNumber } from "@/shared/components/section-number";
+import { SkyToast } from "@/shared/components/sky-toast";
 import { useKeyboardLift } from "@/shared/hooks/use-keyboard-lift";
 import { photoFileFromDraft } from "@/shared/lib/fill-place";
 import { prepareCardPhotoForStorage } from "@/shared/services/attachment-storage";
@@ -47,6 +48,7 @@ import {
   type VoiceCursor,
 } from "@/features/contact-collect/merge-contact-draft";
 import type { ContactReading } from "@/features/contact-collect/parse-contact";
+import { addVoiceWords, VOICE_WORD_LIMIT } from "@/features/contact-collect/voice-dialog";
 import { scanTextNeedsEnglish, type ScannedContact } from "@/features/contact-collect/scan-qr";
 import type { ContactFileRef, ContactLink, ContactSource, ExternalContact, HeaderField, LineFlag } from "@/features/contact-collect/types";
 
@@ -324,6 +326,11 @@ export function NewContactForm({
   const draftRef = useRef({ name, position, company, note, lines });
   draftRef.current = { name, position, company, note, lines };
   const voiceCursorRef = useRef<VoiceCursor>({ line: null, field: null });
+  const voiceWordsRef = useRef(0);
+  const [voiceWords, setVoiceWords] = useState(0);
+  const [voiceLimitToast, setVoiceLimitToast] = useState(0);
+  const voiceLimited = voiceWords >= VOICE_WORD_LIMIT;
+  const showVoiceLimit = () => setVoiceLimitToast((tick) => tick + 1);
   const draftRecord = useMemo<ContactDraftRecord>(() => {
     const linesKept = lines
       .filter((line) => line.value.trim())
@@ -634,13 +641,23 @@ export function NewContactForm({
         );
       }
       const response = await fetch("/api/external-contacts/parse", { method: "POST", body });
-      const payload = (await response.json().catch(() => null)) as { error?: string; draft?: ContactReading } | null;
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        draft?: ContactReading;
+        words?: number;
+      } | null;
       if (!response.ok || !payload?.draft) {
         if (field === "audio" && !payload?.error) missHeard();
         else setError(payload?.error || "Could not read that.");
         return;
       }
       applyDraft(payload.draft, field === "audio" ? "voice" : "photo");
+      if (field === "audio" && typeof payload.words === "number") {
+        const next = addVoiceWords(voiceWordsRef.current, payload.words);
+        voiceWordsRef.current = next.total;
+        setVoiceWords(next.total);
+        if (next.reached) showVoiceLimit();
+      }
     } catch {
       if (field === "audio") missHeard();
       else setError("Could not read that.");
@@ -652,6 +669,11 @@ export function NewContactForm({
 
   const beginVoice = (event: PointerEvent<HTMLButtonElement>) => {
     if (!canReadRef.current) return;
+    if (voiceWordsRef.current >= VOICE_WORD_LIMIT) {
+      event.preventDefault();
+      showVoiceLimit();
+      return;
+    }
     if (readingRef.current || voicePhaseRef.current !== "idle") {
       event.preventDefault();
       return;
@@ -901,6 +923,8 @@ export function NewContactForm({
     setDraftPhoto(null);
     setError(null);
     voiceCursorRef.current = { line: null, field: null };
+    voiceWordsRef.current = 0;
+    setVoiceWords(0);
     if (ownerId) clearContactDraft(ownerId);
   };
 
@@ -1226,10 +1250,12 @@ export function NewContactForm({
           </button>
           <button
             type="button"
-            className={cn(GHOST_CREATE, voicePhase === "recording" && "bg-sky")}
+            className={cn(GHOST_CREATE, voicePhase === "recording" && "bg-sky", voiceLimited && "text-[var(--grey)]")}
             aria-pressed={voicePhase === "recording"}
+            aria-disabled={voiceLimited}
             onPointerDown={beginVoice}
             onClick={() => {
+              if (voiceLimited) return;
               if (!canRead) lastLine.current?.focus();
             }}
             onContextMenu={(event) => event.preventDefault()}
@@ -1247,6 +1273,13 @@ export function NewContactForm({
           </button>
         </div>
       )}
+      {voiceLimitToast > 0 ? (
+        <SkyToast
+          key={voiceLimitToast}
+          text="Voice limit reached. Please type the rest."
+          onDone={() => setVoiceLimitToast(0)}
+        />
+      ) : null}
       {error ? (
         <p className={cn("mt-3 text-[#E23B2F]", error === "Try again" ? "t-caps" : "t-meta")}>{error}</p>
       ) : null}

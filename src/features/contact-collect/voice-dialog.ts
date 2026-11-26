@@ -21,6 +21,21 @@ export type VoiceLineOp =
 const ONE_WORD =
   /(?:в одно слово|слитно|без пробелов|без дефиса|без дефисов|one word|no spaces|no hyphens|without spaces|without hyphens)/i;
 
+/** Words in one transcription. The form session adds these up. The text itself is not stored. */
+export const VOICE_WORD_LIMIT = 200;
+
+export function spokenWordCount(transcript: string): number {
+  const words = transcript.trim().split(/\s+/).filter(Boolean);
+  return words.length;
+}
+
+/** The recording that crosses the limit is kept whole. The next one does not start. */
+export function addVoiceWords(current: number, added: number): { total: number; reached: boolean } {
+  const extra = Number.isFinite(added) && added > 0 ? Math.floor(added) : 0;
+  const total = (Number.isFinite(current) && current > 0 ? Math.floor(current) : 0) + extra;
+  return { total, reached: total >= VOICE_WORD_LIMIT };
+}
+
 function squeeze(value: string) {
   return value.replace(/[\s-]+/g, "");
 }
