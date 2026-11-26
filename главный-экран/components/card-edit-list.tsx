@@ -34,6 +34,7 @@ import {
   normalizeContactItem,
 } from "@/shared/services/contact-item";
 import { WrapField, type WrapFieldHandle } from "./wrap-field";
+import { editRowsInLibraryOrder } from "@/shared/services/edit-section-rows";
 import { entryLineIsRed } from "@/shared/services/entry-line";
 import { lineAtEditStart } from "@/shared/services/edit-hold";
 import { customDisplayName } from "@/shared/services/link-display";
@@ -134,24 +135,15 @@ function enterFinishes(value: string, zoneId?: CardZoneId | null) {
 
 function buildSections(card: Card, items: ContactItem[], cards: Card[]): EditSection[] {
   const onCard = new Set(card.contactItemIds);
-  const order = new Map(card.contactItemIds.map((id, index) => [id, index]));
   const grouped = groupEditSections(items.filter(isContactFilled), card, cards);
 
   return grouped.map((zone) => {
-    const chosen = zone.rows
-      .filter((row) => row.item && onCard.has(row.item.id))
-      .sort((a, b) => (order.get(a.item!.id) ?? 0) - (order.get(b.item!.id) ?? 0));
-    const spare = zone.rows
-      .filter((row) => row.item && !onCard.has(row.item.id))
-      .sort((a, b) => (a.item!.order ?? 0) - (b.item!.order ?? 0));
+    const rows = editRowsInLibraryOrder(zone.rows, onCard);
     return {
       id: zone.id,
       title: zone.title,
-      included: chosen.length > 0,
-      rows: [
-        ...chosen.map((row) => ({ row, onCard: true })),
-        ...spare.map((row) => ({ row, onCard: false })),
-      ],
+      included: rows.some((entry) => entry.onCard),
+      rows,
     };
   });
 }
