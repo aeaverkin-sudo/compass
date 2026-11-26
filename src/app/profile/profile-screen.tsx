@@ -26,7 +26,7 @@ import { dropPendingCardUpsert, dropPendingCardUpserts, forgetLibraryOwner, upse
 import { handleWithNewCode } from "@/shared/services/card-handle";
 import { NewLinkDialog } from "./new-link-dialog";
 import { dropPendingNotes } from "@/shared/services/notes-sync";
-import { canAddMoreCards, isCardReady, useAppStore } from "@/shared/store/app-store";
+import { COMPACT_DECK, canAddMoreCards, isCardReady, useAppStore } from "@/shared/store/app-store";
 import { COLUMN_GAP_PX, LABEL_COLUMN_PX } from "@/shared/layout/axes";
 import { cn } from "@/lib/utils";
 
@@ -124,6 +124,8 @@ export function ProfileScreen() {
   const cards = useAppStore((state) => state.cards);
   const setMonochrome = useAppStore((state) => state.setMonochrome);
   const monochrome = useAppStore((state) => state.user.monochrome);
+  const setCompactView = useAppStore((state) => state.setCompactView);
+  const compactView = useAppStore((state) => state.user.compactView);
   const updateSecondCardDraft = useAppStore((state) => state.updateSecondCardDraft);
   const updateCard = useAppStore((state) => state.updateCard);
   const portfolioLimit = account?.portfolioLimit ?? null;
@@ -505,7 +507,7 @@ export function ProfileScreen() {
         ) : null}
       </section>
 
-      <Zone label="Color" rule>
+      <Zone label={COMPACT_DECK ? "Mode" : "Color"} rule>
         <div className="flex items-center gap-3">
           <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">C mode</span>
           <Switch
@@ -515,6 +517,16 @@ export function ProfileScreen() {
           />
           <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">BW mode</span>
         </div>
+        {COMPACT_DECK ? (
+          <div className="mt-3 flex items-center gap-3">
+            <span className="text-[13px] font-normal leading-[1.45] text-[var(--ink)]">Compact view</span>
+            <Switch
+              checked={Boolean(compactView)}
+              onCheckedChange={(checked) => setCompactView(checked === true)}
+              aria-label="Compact view"
+            />
+          </div>
+        ) : null}
       </Zone>
 
       <section className="min-w-0 border-b border-[var(--rule)] py-[18px]">

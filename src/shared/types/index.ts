@@ -154,5 +154,7 @@ export interface User {
   railLook?: "shadow";
   /** Gray interface. Photos stay in color. */
   monochrome?: boolean;
+  /** Owner's cards open folded. Off until turned on in Account. */
+  compactView?: boolean;
   shareToken: string;
 }

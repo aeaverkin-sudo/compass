@@ -63,6 +63,7 @@ interface AppState {
   setRailDock: (dock: "qr" | "photo") => void;
   setRailLook: (look: "shadow" | null) => void;
   setMonochrome: (value: boolean) => void;
+  setCompactView: (value: boolean) => void;
   setCurrentCardIndex: (index: number) => void;
   updateCard: (id: string, data: Partial<Card>) => void;
   /** Any other portfolio, once the server has deleted it. The library stays. */
@@ -109,12 +110,16 @@ export type ContactItemSnapshot = {
   placements: { cardId: string; index: number; zoneId?: string; header?: boolean }[];
 };
 
+/** Off: Account keeps the Color block, and the deck does not fold. */
+export const COMPACT_DECK = true;
+
 function createInitialUser(): User {
   return {
     id: nanoid(),
     onboarded: false,
     mainIntroSeen: false,
     monochrome: false,
+    compactView: false,
     shareToken: nanoid(12),
   };
 }
@@ -291,6 +296,8 @@ export const useAppStore = create<AppState>()(
       setRailLook: (look) => set({ user: { ...get().user, railLook: look ?? undefined } }),
 
       setMonochrome: (value) => set({ user: { ...get().user, monochrome: value } }),
+
+      setCompactView: (value) => set({ user: { ...get().user, compactView: value } }),
 
       setCurrentCardIndex: (index) => {
         const { cards } = get();
