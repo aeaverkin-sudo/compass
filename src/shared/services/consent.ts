@@ -1,6 +1,6 @@
 /** Terms and Privacy are accepted together, so they share one stored version. */
 export const TERMS_VERSION = "1.6";
-export const PRIVACY_VERSION = "1.6";
+export const PRIVACY_VERSION = "1.7";
 
 /** Bump this when the legal text changes. A new version asks for consent again. */
 export const CONSENT_VERSION = TERMS_VERSION;

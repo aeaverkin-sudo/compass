@@ -1,5 +1,5 @@
 import { handlePushback } from "@/features/contact-collect/pushback-request";
-import { readExternalContact, readOwnedPortfolio } from "@/features/contact-collect/store";
+import { markExternalPushback, readExternalContact, readOwnedPortfolio } from "@/features/contact-collect/store";
 import { publicOrigin } from "@/shared/lib/public-origin";
 import { requireOwnerId } from "@/shared/services/attachment-api";
 import { publicCardPath } from "@/shared/services/public-card-url";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 type RouteProps = { params: Promise<{ id: string }> };
 
-/** Prepare a Swap draft. The server does not send mail and does not record a send. */
+/** Prepare a Swap draft, or record that its link was opened. The server does not send the message. */
 export async function POST(request: Request, context: RouteProps) {
   const { id } = await context.params;
   const origin = publicOrigin(request);
@@ -18,7 +18,7 @@ export async function POST(request: Request, context: RouteProps) {
     contact: async (ownerId, contactId) => {
       const loaded = await readExternalContact(ownerId, contactId);
       if (!loaded.ok) return loaded;
-      return { ok: true, lines: loaded.contact.lines };
+      return { ok: true, lines: loaded.contact.lines, marked: Boolean(loaded.contact.pushbackAt) };
     },
     portfolio: async (ownerId, cardId) => {
       const portfolio = await readOwnedPortfolio(ownerId, cardId);
@@ -26,5 +26,6 @@ export async function POST(request: Request, context: RouteProps) {
       const url = `${origin}${publicCardPath({ publicToken: portfolio.publicToken, handle: portfolio.handle ?? undefined })}`;
       return { ok: true, url, name: portfolio.name };
     },
+    mark: (ownerId, contactId, channel, cardId) => markExternalPushback(ownerId, contactId, channel, cardId),
   });
 }

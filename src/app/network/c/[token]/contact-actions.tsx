@@ -8,7 +8,7 @@ import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/comp
 import { SkyToast } from "@/shared/components/sky-toast";
 import { useCardsHydrated } from "@/shared/hooks/use-cards-hydrated";
 import { shareBackOffer } from "@/shared/lib/share-back-offer";
-import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
+import { forgetShareBack, sendShareBack, SWAP_CLOSED, SWAP_CLOSED_HOLD_MS, useShareBack } from "@/shared/lib/share-back-send";
 import { deleteConnectionRemote } from "@/shared/lib/delete-connection";
 const ITEM =
   "press touch-manipulation flex h-full min-h-11 w-full items-center whitespace-nowrap border-0 bg-transparent p-0 font-[inherit] text-inherit uppercase [-webkit-tap-highlight-color:transparent]";
@@ -19,11 +19,13 @@ export function ContactActions({
   token,
   theyHaveMe = false,
   shareBackPending = false,
+  shareBackAt = null,
 }: {
   id: string;
   token: string;
   theyHaveMe?: boolean;
   shareBackPending?: boolean;
+  shareBackAt?: string | null;
 }) {
   const router = useRouter();
   const phase = useShareBack(token);
@@ -101,9 +103,10 @@ export function ContactActions({
     router.push("/network");
   };
 
+  const spent = Boolean(shareBackAt) || theyHaveMe || shareBackPending || phase !== "idle";
   const offer = shareBackOffer(
     shareCards.length,
-    !theyHaveMe && !shareBackPending && phase === "idle",
+    !spent && phase === "idle",
     cardsReady,
   );
   const canSwap = offer === "send";
@@ -116,7 +119,8 @@ export function ContactActions({
       return;
     }
     setPicking(false);
-    setNotice(sent === "declined" ? "Not accepting swaps." : `${card.name} shared back`);
+    if (sent === "already") return;
+    setNotice(sent === "declined" ? SWAP_CLOSED : `${card.name} shared back`);
   };
 
   return (
@@ -134,7 +138,14 @@ export function ContactActions({
           <SharePick cards={shareCards} size="plaque" onPick={(card) => void shareCard(card)} />
         </div>
       ) : null}
-      {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
+      {notice ? (
+        <SkyToast
+          key={notice}
+          text={notice}
+          holdMs={notice === SWAP_CLOSED ? SWAP_CLOSED_HOLD_MS : undefined}
+          onDone={() => setNotice(null)}
+        />
+      ) : null}
       <div ref={bandRef}>
         <TabBand
           label="Contact"
@@ -169,7 +180,11 @@ export function ContactActions({
             </TapButton>
           }
           right={
-            canSwap ? (
+            spent ? (
+              <TapButton className={`${ITEM} justify-end text-[var(--grey)]`} disabled onTap={() => undefined}>
+                Swap
+              </TapButton>
+            ) : canSwap ? (
               <TapButton
                 className={`${ITEM} justify-end`}
                 onTap={() => {

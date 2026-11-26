@@ -589,6 +589,31 @@ export async function readOwnedPortfolio(
   return { ok: true, name, publicToken, handle: handle || null };
 }
 
+/** The draft link was opened. A mark already stored is left as it is. */
+export async function markExternalPushback(
+  ownerId: string,
+  id: string,
+  channel: PushbackChannel,
+  cardId: string,
+): Promise<{ ok: true } | StoreError> {
+  const current = await readExternalContact(ownerId, id);
+  if (!current.ok) return current;
+  if (current.contact.pushbackAt) return { ok: true };
+  const admin = createAdminSupabaseClient();
+  const updated = await admin
+    .from("external_contacts")
+    .update({
+      pushback_at: new Date().toISOString(),
+      pushback_channel: channel,
+      pushback_card_id: cardId,
+    })
+    .eq("owner_id", ownerId)
+    .eq("id", id)
+    .is("pushback_at", null);
+  if (updated.error) return failed(updated.error, "Could not save the contact.");
+  return { ok: true };
+}
+
 export async function deleteExternalContact(ownerId: string, id: string): Promise<{ ok: true } | StoreError> {
   const current = await readExternalContact(ownerId, id);
   if (!current.ok) return current;

@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { MARK_PX, MarkPlus, RAIL_STROKE_PX } from "@/shared/components/mark-plus";
 import { RAIL_ICON_SCALE } from "@main/components/side-rail";
 import { shareBackOffer } from "@/shared/lib/share-back-offer";
-import { forgetShareBack, sendShareBack, useShareBack } from "@/shared/lib/share-back-send";
+import { forgetShareBack, sendShareBack, SWAP_CLOSED, SWAP_CLOSED_HOLD_MS, useShareBack } from "@/shared/lib/share-back-send";
 import { SharePick, useNamedShareCards, type SharePickCard } from "@/shared/components/share-pick";
 import { MainTabs } from "@main/components/main-tabs";
 
@@ -58,6 +58,8 @@ type Contact = {
   theyHaveMe?: boolean;
   /** My share back is still a request in their book. */
   shareBackPending?: boolean;
+  /** This saved card was already offered with Swap. */
+  shareBackAt?: string | null;
   /** Saved by hand, scan, voice, or photo. Not an ADED card. */
   collected?: boolean;
   /** A collected contact already sent a portfolio back. */
@@ -173,6 +175,7 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
         state: contact.state === "pending" ? "pending" : "active",
         photoLook: photoLookValue(contact.photoLook),
         searchText: foldSearch(contact.searchText || `${contact.displayName} ${contact.role}`),
+        shareBackAt: typeof contact.shareBackAt === "string" && contact.shareBackAt ? contact.shareBackAt : null,
       }));
       let collected: Contact[] | null = null;
       try {
@@ -294,13 +297,12 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
   const people = shown.filter((contact) => !isRequest(contact, decisions.accepting));
   const menuContact = menu ? book.find((contact) => contact.id === menu.id) ?? null : null;
   const sharePhase = useShareBack(menuContact?.savedCardToken ?? "");
-  const exchangeOpen = Boolean(
+  const shareSpent = Boolean(
     menuContact &&
       !menuContact.collected &&
-      !menuContact.theyHaveMe &&
-      !menuContact.shareBackPending &&
-      sharePhase === "idle",
+      (menuContact.shareBackAt || menuContact.theyHaveMe || menuContact.shareBackPending || sharePhase !== "idle"),
   );
+  const exchangeOpen = Boolean(menuContact && !menuContact.collected && !shareSpent);
   const offer = shareBackOffer(shareCards.length, exchangeOpen, cardsReady);
   const canSwap = offer === "send";
   const swapLocked = offer === "create";
@@ -399,7 +401,8 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     }
     setPickUp(false);
     setMenu(null);
-    setNotice(sent === "declined" ? "Not accepting swaps." : `${card.name} shared back`);
+    if (sent === "already") return;
+    setNotice(sent === "declined" ? SWAP_CLOSED : `${card.name} shared back`);
   };
 
   const pressMenu = (run: () => void) => {
@@ -413,7 +416,14 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
     <main
       className="compass-main relative flex flex-col overflow-hidden bg-white text-[#111]"
     >
-      {notice ? <SkyToast key={notice} text={notice} onDone={() => setNotice(null)} /> : null}
+      {notice ? (
+        <SkyToast
+          key={notice}
+          text={notice}
+          holdMs={notice === SWAP_CLOSED ? SWAP_CLOSED_HOLD_MS : undefined}
+          onDone={() => setNotice(null)}
+        />
+      ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto px-[var(--gutter)]">
         <div className="network-scroll-spring">
           <ScreenHeader
@@ -542,9 +552,11 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                 },
                 {
                   label: "Swap",
-                  tone: "ink",
+                  tone: menuContact.pushed ? "grey" : "ink",
+                  disabled: Boolean(menuContact.pushed),
                   onPress: () => {
                     pressMenu(() => {
+                      if (menuContact.pushed) return;
                       if (menu.confirmDelete) {
                         setMenu({ ...menu, confirmDelete: false });
                         return;
@@ -609,7 +621,16 @@ export function NetworkScreen({ addedName = null }: { addedName?: string | null 
                         });
                       },
                     },
-                    ...(canSwap
+                    ...(shareSpent
+                      ? [
+                          {
+                            label: "Swap",
+                            tone: "grey" as const,
+                            disabled: true,
+                            onPress: () => undefined,
+                          },
+                        ]
+                      : canSwap
                       ? [
                           {
                             label: "Swap",

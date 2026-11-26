@@ -130,7 +130,7 @@ test("the write asks Postgres to increment once and to honour an objection", () 
   const route = readFileSync(new URL("../../app/api/account/product-count-objection/route.ts", import.meta.url), "utf8");
   assert.match(route, /objectionGet\(\{ signedIn: true, failed: true \}\)/);
   assert.match(privacy, /Collection of daily totals is off\./);
-  assert.match(privacy, /^Effective 25 November 2026 · Version 1\.6$/m);
+  assert.match(privacy, /^Effective 26 November 2026 · Version 1\.7$/m);
   assert.equal(privacy.split("You can also object to statistics linked to your account.").length - 1, 1);
   const contacts = privacy.slice(privacy.indexOf("## 3. Saved contacts"), privacy.indexOf("## 4."));
   assert.match(contacts, /legitimate interest/);

@@ -27,17 +27,35 @@ const lines: ExternalLine[] = [
 ];
 const STORED_NAME = "Ada Lovelace";
 
-function deps(): PushbackDeps & { reads: number } {
-  const state = { reads: 0 };
+function deps(): PushbackDeps & { reads: number; writes: number; marked: boolean } {
+  const state = { reads: 0, writes: 0, marked: false };
   return {
     get reads() {
       return state.reads;
+    },
+    get writes() {
+      return state.writes;
+    },
+    get marked() {
+      return state.marked;
+    },
+    set marked(value: boolean) {
+      state.marked = value;
     },
     owner: async () => ({ ok: true, id: OWNER }),
     contact: async (ownerId, id) => {
       state.reads += 1;
       if (ownerId !== OWNER || id !== CONTACT) return { ok: false, status: 404, error: "Contact not found." };
-      return { ok: true, lines };
+      return { ok: true, lines, marked: state.marked };
+    },
+    mark: async (ownerId, id, _channel, cardId) => {
+      if (ownerId !== OWNER || id !== CONTACT) return { ok: false, status: 404, error: "Contact not found." };
+      if (cardId !== CARD) return { ok: false, status: 404, error: "Portfolio not found." };
+      if (!state.marked) {
+        state.marked = true;
+        state.writes += 1;
+      }
+      return { ok: true };
     },
     portfolio: async (_ownerId, cardId) => {
       const row =
@@ -53,6 +71,7 @@ function deps(): PushbackDeps & { reads: number } {
 }
 
 test("the draft route refuses an old request, prepares a mailto, and rejects a foreign or private card", async () => {
+  const shared = deps();
   const server = createServer(async (request: IncomingMessage, response: ServerResponse) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const chunks: Buffer[] = [];
@@ -63,7 +82,7 @@ test("the draft route refuses an old request, prepares a mailto, and rejects a f
       headers: { "Content-Type": "application/json" },
       body,
     });
-    const handled = await handlePushback(incoming, url.searchParams.get("id") ?? "", deps());
+    const handled = await handlePushback(incoming, url.searchParams.get("id") ?? "", shared);
     const text = await handled.text();
     response.writeHead(handled.status, { "Content-Type": "application/json", "Cache-Control": handled.headers.get("cache-control") ?? "" });
     response.end(text);
@@ -108,7 +127,7 @@ test("the draft route refuses an old request, prepares a mailto, and rejects a f
     assert.equal(draft.mailto?.includes("other@example.com"), false);
     assert.equal(draft.text.includes(STORED_NAME), false);
     const params = new URLSearchParams(draft.mailto?.slice(draft.mailto.indexOf("?") + 1));
-    assert.equal(params.get("subject"), "We've just met. Ada Lovelace's portfolio");
+    assert.equal(params.get("subject"), "Portfolio — Ada Lovelace");
     assert.equal(params.get("body")?.replace(/\r\n/g, "\n"), draft.text);
     assert.equal(params.get("cc"), null);
     assert.equal(params.get("bcc"), null);
@@ -143,6 +162,31 @@ test("the draft route refuses an old request, prepares a mailto, and rejects a f
     assert.equal(hidden.status, 404);
     const hiddenBody = (await hidden.json()) as { error?: string };
     assert.equal(hiddenBody.error, "Portfolio not found.");
+    assert.equal(shared.writes, 0);
+
+    shared.marked = true;
+    const used = await post(CONTACT, { cardId: CARD, channel: "email", prepare: true });
+    assert.equal(used.status, 409);
+    const usedBody = (await used.json()) as { mailto?: string; open?: string; text?: string };
+    assert.equal(usedBody.mailto, undefined);
+    assert.equal(usedBody.open, undefined);
+    assert.equal(usedBody.text, undefined);
+    assert.equal(shared.writes, 0);
+
+    shared.marked = false;
+    const opened = await post(CONTACT, { cardId: CARD, channel: "email", mark: true });
+    assert.equal(opened.status, 200);
+    const openedBody = (await opened.json()) as { ok?: boolean; mailto?: string };
+    assert.equal(openedBody.ok, true);
+    assert.equal(openedBody.mailto, undefined);
+    assert.equal(shared.writes, 1);
+    const openedAgain = await post(CONTACT, { cardId: CARD, channel: "whatsapp", mark: true });
+    assert.equal(openedAgain.status, 200);
+    assert.equal(shared.writes, 1);
+
+    const hiddenMark = await post(CONTACT, { cardId: PRIVATE, channel: "email", mark: true });
+    assert.equal(hiddenMark.status, 404);
+    assert.equal(shared.writes, 1);
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }

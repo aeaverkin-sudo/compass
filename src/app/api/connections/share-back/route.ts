@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fail, isUuid, requireOwnerId } from "@/shared/services/attachment-api";
 import { createAdminSupabaseClient } from "@/shared/lib/supabase/admin";
+import { shareAttempt } from "@/shared/lib/share-back-offer";
 import { saveConnection } from "@/shared/services/save-connection";
 
 export const runtime = "nodejs";
@@ -14,8 +15,9 @@ function noStore(body: unknown, status = 200) {
 
 /**
  * Share back: my card is offered to the other person's book.
- * It arrives pending. If they turned shared-back cards off, nothing is written and the answer says declined.
- * The browser cannot write it: that row's owner_id is not the viewer. A row already there stays.
+ * It arrives pending. If they turned shared-back cards off, nothing is written on their side.
+ * Either way the attempt is stored on the viewer's own saved card, and a second attempt does nothing.
+ * The browser cannot write the other person's row. The server writes it with the service role.
  */
 export async function POST(request: Request) {
   const owner = await requireOwnerId();
@@ -56,6 +58,25 @@ export async function POST(request: Request) {
     }
     if (to.data.owner_id === owner.id) return noStore({ error: "That card is yours" }, 400);
 
+    const mine = await admin
+      .from("connections")
+      .select("id, share_back_at")
+      .eq("owner_id", owner.id)
+      .eq("saved_card_id", to.data.id)
+      .maybeSingle();
+    if (mine.error) throw new Error(mine.error.message);
+    const marked = Boolean(mine.data?.share_back_at);
+    const stamp = async () => {
+      if (!mine.data || marked) return;
+      const saved = await admin
+        .from("connections")
+        .update({ share_back_at: new Date().toISOString() })
+        .eq("id", mine.data.id)
+        .eq("owner_id", owner.id)
+        .is("share_back_at", null);
+      if (saved.error) throw new Error(saved.error.message);
+    };
+
     const prior = await admin
       .from("connections")
       .select("id, state")
@@ -63,12 +84,24 @@ export async function POST(request: Request) {
       .eq("saved_card_id", from.data.id)
       .maybeSingle();
     if (prior.error) throw new Error(prior.error.message);
-    if (prior.data) return noStore({ ok: true, pendingId: null });
 
-    const profile = await admin.from("profiles").select("accept_share_back").eq("id", to.data.owner_id).maybeSingle();
-    if (profile.error) {
-      if (!/accept_share_back/i.test(profile.error.message)) throw new Error(profile.error.message);
-    } else if (profile.data?.accept_share_back === false) {
+    let accepting = true;
+    if (!prior.data) {
+      const profile = await admin.from("profiles").select("accept_share_back").eq("id", to.data.owner_id).maybeSingle();
+      if (profile.error) {
+        if (!/accept_share_back/i.test(profile.error.message)) throw new Error(profile.error.message);
+      } else if (profile.data?.accept_share_back === false) {
+        accepting = false;
+      }
+    }
+
+    const attempt = shareAttempt({ marked, linked: Boolean(prior.data), accepting });
+    if (attempt === "already") {
+      await stamp();
+      return noStore({ ok: true, already: true });
+    }
+    if (attempt === "declined") {
+      await stamp();
       return noStore({ ok: true, pendingId: null, declined: true });
     }
 
@@ -78,6 +111,7 @@ export async function POST(request: Request) {
       state: "pending",
     });
     if (!inserted.ok) throw new Error(inserted.message);
+    await stamp();
 
     const created = await admin
       .from("connections")

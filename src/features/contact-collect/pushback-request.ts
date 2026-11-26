@@ -15,7 +15,7 @@ export const UPDATE_APP = "Update ADED ME to open the draft.";
 export type PushbackOwner = { ok: true; id: string } | { ok: false; status: number; error: string };
 
 export type PushbackContact =
-  | { ok: true; lines: ExternalLine[] }
+  | { ok: true; lines: ExternalLine[]; marked: boolean }
   | { ok: false; status: number; error: string; available?: false };
 
 export type PushbackPortfolio =
@@ -26,6 +26,8 @@ export type PushbackDeps = {
   owner: () => Promise<PushbackOwner>;
   contact: (ownerId: string, id: string) => Promise<PushbackContact>;
   portfolio: (ownerId: string, cardId: string) => Promise<PushbackPortfolio>;
+  /** Writes the mark once. A second call leaves the first date, channel, and portfolio. */
+  mark: (ownerId: string, id: string, channel: PushbackChannel, cardId: string) => Promise<{ ok: true } | { ok: false; status: number; error: string }>;
 };
 
 function noStore(body: unknown, status = 200) {
@@ -38,8 +40,9 @@ function channelOf(value: unknown): PushbackChannel | null {
 }
 
 /**
- * Prepare a draft. Mail is not sent and no send mark is written.
- * A request without `prepare` is an old client: it gets an update error, never 200 or 409.
+ * Prepare a draft, or record that the draft link was opened.
+ * Mail is not sent. The server does not know whether the message left the device.
+ * A request without `prepare` or `mark` is an old client: it gets an update error, never 200 or 409.
  */
 export async function handlePushback(request: Request, id: string, deps: PushbackDeps): Promise<Response> {
   const owner = await deps.owner();
@@ -49,15 +52,19 @@ export async function handlePushback(request: Request, id: string, deps: Pushbac
   let cardId = "";
   let channel: PushbackChannel | null = null;
   let prepare = false;
+  let mark = false;
   try {
-    const body = (await request.json()) as { cardId?: unknown; channel?: unknown; prepare?: unknown };
+    const body = (await request.json()) as { cardId?: unknown; channel?: unknown; prepare?: unknown; mark?: unknown };
     cardId = typeof body.cardId === "string" ? body.cardId : "";
     channel = channelOf(body.channel);
     prepare = body.prepare === true;
+    mark = body.mark === true;
   } catch {
     prepare = false;
+    mark = false;
   }
-  if (!prepare) return noStore({ error: UPDATE_APP }, 400);
+  if (!prepare && !mark) return noStore({ error: UPDATE_APP }, 400);
+  if (prepare && mark) return noStore({ error: "Choose a portfolio and where to send it." }, 400);
   if (!UUID_RE.test(cardId) || !channel) return noStore({ error: "Choose a portfolio and where to send it." }, 400);
 
   try {
@@ -68,11 +75,18 @@ export async function handlePushback(request: Request, id: string, deps: Pushbac
         contact.status,
       );
     }
+    if (prepare && contact.marked) return noStore({ error: "Swap was already used." }, 409);
     const address = pushAddress(contact.lines, channel);
     if (!address) return noStore({ error: "No address for that." }, 400);
 
     const portfolio = await deps.portfolio(owner.id, cardId);
     if (!portfolio.ok) return noStore({ error: portfolio.error }, portfolio.status);
+
+    if (mark) {
+      const saved = await deps.mark(owner.id, id, channel, cardId);
+      if (!saved.ok) return noStore({ error: saved.error }, saved.status);
+      return noStore({ ok: true });
+    }
 
     if (channel === "email") {
       const mail = emailDraft(portfolio.url, portfolio.name);

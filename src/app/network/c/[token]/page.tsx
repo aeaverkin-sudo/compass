@@ -61,6 +61,7 @@ export default async function NetworkCardPage({ params }: PageProps) {
           token={loaded.card.publicToken}
           theyHaveMe={reverse === "active"}
           shareBackPending={reverse === "pending"}
+          shareBackAt={link.shareBackAt}
         />
       ) : null}
     </main>
@@ -70,13 +71,24 @@ export default async function NetworkCardPage({ params }: PageProps) {
 async function ownConnection(token: string) {
   const user = await sessionUser();
   if (!user) return null;
-  const row = await createAdminSupabaseClient()
+  const admin = createAdminSupabaseClient();
+  const withMark = await admin
     .from("connections")
-    .select("id, state")
+    .select("id, state, share_back_at")
     .eq("owner_id", user.id)
     .eq("saved_card_token", token)
     .maybeSingle();
+  const row =
+    withMark.error && /share_back_at/i.test(withMark.error.message)
+      ? await admin.from("connections").select("id, state").eq("owner_id", user.id).eq("saved_card_token", token).maybeSingle()
+      : withMark;
   if (row.error || !row.data) return null;
-  return { id: String(row.data.id), userId: user.id, state: row.data.state === "pending" ? "pending" : "active" };
+  const shareBackAt = "share_back_at" in row.data && typeof row.data.share_back_at === "string" ? row.data.share_back_at : null;
+  return {
+    id: String(row.data.id),
+    userId: user.id,
+    state: row.data.state === "pending" ? "pending" : "active",
+    shareBackAt,
+  };
 }
 

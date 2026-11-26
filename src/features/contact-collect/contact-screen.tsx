@@ -246,7 +246,9 @@ export function ContactScreen({ contact }: { contact: ExternalContact }) {
         right={
           <button
             type="button"
+            disabled={Boolean(contact.pushbackAt)}
             onClick={() => {
+              if (contact.pushbackAt) return;
               if (armed) {
                 setArmed(false);
                 return;

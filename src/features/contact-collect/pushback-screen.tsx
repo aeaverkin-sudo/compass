@@ -57,6 +57,9 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const [retry, setRetry] = useState(0);
   const handoff = useRef<SwapReturn>({ armed: false, left: false, blurredAt: null, armedAt: 0 });
   const attempt = useRef<string | null>(null);
+  const markChoice = useRef<{ cardId: string; channel: PushbackChannel } | null>(null);
+  const markConfirmed = useRef(false);
+  const markRetried = useRef(false);
   const contactId = useRef(contact.id);
   contactId.current = contact.id;
   const offeredIds = cards.map((card) => card.id);
@@ -80,6 +83,23 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
   const selection = useRef(current);
   selection.current = current;
   const live = visibleDraft(draft, current);
+  const sendMark = () => {
+    const choice = markChoice.current;
+    if (!choice) return;
+    void fetch(`/api/external-contacts/${contact.id}/pushback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      keepalive: true,
+      body: JSON.stringify({ cardId: choice.cardId, channel: choice.channel, mark: true }),
+    })
+      .then((response) => {
+        if (response.ok) markConfirmed.current = true;
+      })
+      .catch(() => undefined);
+  };
+  const sendMarkRef = useRef(sendMark);
+  sendMarkRef.current = sendMark;
 
   const dropMark = () => {
     if (swapHandoffMatches(readSwapHandoff(), contactId.current, attempt.current)) forgetSwapHandoff();
@@ -115,6 +135,10 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
       if (!stillHere()) return;
       const step = finishSwapReturn(handoff.current, Date.now());
       handoff.current = step.state;
+      if (step.openNetwork && markChoice.current && !markConfirmed.current && !markRetried.current) {
+        markRetried.current = true;
+        sendMarkRef.current();
+      }
       if (swapWake({
         mark: readSwapHandoff(),
         contactId: contact.id,
@@ -212,6 +236,10 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
         });
         const body = (await response.json().catch(() => null)) as { mailto?: string; open?: string; text?: string; error?: string } | null;
         if (cancel || !draftStillCurrent(started, selection.current)) return;
+        if (response.status === 409) {
+          router.replace(`/network/x/${contact.id}`);
+          return;
+        }
         const mailto = body?.mailto;
         const open = body?.open;
         if (!response.ok || (channel === "email" ? !mailto : !open)) {
@@ -229,7 +257,7 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     return () => {
       cancel = true;
     };
-  }, [activeCardId, channel, contact.id, retry]);
+  }, [activeCardId, channel, contact.id, retry, router]);
 
   const mailHref = live?.channel === "email" ? live.mailto : undefined;
   const openHref = live && live.channel !== "email" ? live.open : undefined;
@@ -239,6 +267,10 @@ export function PushbackScreen({ contact, fresh }: { contact: ExternalContact; f
     attempt.current = id;
     handoff.current = armSwapReturn(Date.now());
     rememberSwapHandoff({ contactId: contact.id, attempt: id, left: false });
+    if (activeCardId && channel) {
+      markChoice.current = { cardId: activeCardId, channel };
+      sendMark();
+    }
   };
   const changing = shownKey !== selectionKey;
   const shownError = changing ? null : error;

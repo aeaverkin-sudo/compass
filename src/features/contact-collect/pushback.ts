@@ -77,7 +77,7 @@ export function pushAddress(lines: ExternalLine[], channel: PushbackChannel): st
 }
 
 export function portfolioText(url: string) {
-  return `We've just met. Here's my portfolio:\n${url}`;
+  return `It was a pleasure meeting you. Here's my portfolio.\n${url}`;
 }
 
 /** The guest can open this card. `listed` is not what makes it public. */
@@ -98,13 +98,13 @@ export function subjectName(storedName: string): string {
 
 export function meetingSubject(storedName: string): string {
   const name = subjectName(storedName);
-  if (!name) return "We've just met. My portfolio.";
-  return `We've just met. ${name}'s portfolio`;
+  if (!name) return "Portfolio";
+  return `Portfolio — ${name}`;
 }
 
 /** The body never carries the name. The subject does, from the server's display name. */
 export function portfolioBody(url: string) {
-  return `Here's my portfolio:\n${url}`;
+  return `Hello,\n\nIt was a pleasure meeting you. Here's my portfolio.\n${url}`;
 }
 
 export function emailDraft(url: string, storedName: string): { subject: string; text: string } {

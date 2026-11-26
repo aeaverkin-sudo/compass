@@ -20,6 +20,7 @@ type ConnectionRow = {
   created_at: string;
   state?: string | null;
   snapshot?: { title?: unknown } | null;
+  share_back_at?: string | null;
 };
 
 type CardFace = {
@@ -59,8 +60,11 @@ export async function GET() {
     const read = (columns: string) =>
       admin.from("connections").select(columns).eq("owner_id", owner.id).order("created_at", { ascending: true });
     const base = "id, display_name, saved_card_id, saved_card_token, source_event_id, created_at, state";
-    const withSnapshot = await read(`${base}, snapshot`);
-    const loaded = withSnapshot.error && /snapshot/i.test(withSnapshot.error.message) ? await read(base) : withSnapshot;
+    const attempts = [`${base}, snapshot, share_back_at`, `${base}, snapshot`, `${base}, share_back_at`, base];
+    let loaded = await read(attempts[0] ?? base);
+    for (let index = 1; index < attempts.length && loaded.error && /snapshot|share_back_at/i.test(loaded.error.message); index += 1) {
+      loaded = await read(attempts[index] ?? base);
+    }
     if (loaded.error) throw new Error(loaded.error.message);
 
     const rows = (loaded.data ?? []) as unknown as ConnectionRow[];
@@ -167,6 +171,7 @@ export async function GET() {
           searchText: joinSearch(row.display_name, role, deep ? face.display_name : "", deep ? lines.get(row.saved_card_id) : ""),
           theyHaveMe: held === "active",
           shareBackPending: held === "pending",
+          shareBackAt: typeof row.share_back_at === "string" && row.share_back_at ? row.share_back_at : null,
         }];
       }),
     });

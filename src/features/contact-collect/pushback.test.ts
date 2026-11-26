@@ -94,9 +94,9 @@ test("the email draft is one encoded mailto and does not use an unconfirmed name
   const cut = href.indexOf("?");
   assert.equal(href.slice("mailto:".length, cut), "ada@example.com");
   const params = new URLSearchParams(href.slice(cut + 1));
-  assert.equal(params.get("subject"), "We've just met. Anton Averkin's portfolio");
+  assert.equal(params.get("subject"), "Portfolio — Anton Averkin");
   assert.equal(params.get("body")?.replace(/\r\n/g, "\n"), text);
-  assert.equal(text, "Here's my portfolio:\nhttps://example.com/c/token");
+  assert.equal(text, "Hello,\n\nIt was a pleasure meeting you. Here's my portfolio.\nhttps://example.com/c/token");
   assert.equal(href.includes("%0D%0A"), true);
   assert.equal(params.get("body")?.includes("Anton"), false);
   assert.equal(params.get("cc"), null);
@@ -152,12 +152,12 @@ test("the subject uses the server name, and an empty name stays generic", () => 
   const url = "https://example.com/c/token";
   const named = emailDraft(url, "Anton Averkin.");
   const plain = emailDraft(url, " . ");
-  assert.equal(named.subject, "We've just met. Anton Averkin's portfolio");
+  assert.equal(named.subject, "Portfolio — Anton Averkin");
   assert.equal(named.text, portfolioBody(url));
   assert.equal(named.text.includes("Anton"), false);
-  assert.equal(plain.subject, "We've just met. My portfolio.");
+  assert.equal(plain.subject, "Portfolio");
   assert.equal(plain.text, portfolioBody(url));
-  assert.equal(portfolioText(url), "We've just met. Here's my portfolio:\nhttps://example.com/c/token");
+  assert.equal(portfolioText(url), "It was a pleasure meeting you. Here's my portfolio.\nhttps://example.com/c/token");
   for (const mail of [named, plain]) {
     const href = mailtoHref("ada@example.com", mail.subject, mail.text);
     assert.ok(href);
@@ -279,21 +279,26 @@ test("the bottom of Swap is one action, and OK stays only until a channel is cho
   assert.equal(swapFooter({ cardSelected: true, channel: "whatsapp", ready: false, failed: true }), "retry");
 });
 
-test("the route prepares a draft and does not send mail or mark a send", () => {
+test("the route prepares a draft, records the opened link once, and does not send mail", () => {
   const route = readFileSync(new URL("../../app/api/external-contacts/[id]/pushback/route.ts", import.meta.url), "utf8");
   const handler = readFileSync(new URL("./pushback-request.ts", import.meta.url), "utf8");
   const screen = readFileSync(new URL("./pushback-screen.tsx", import.meta.url), "utf8");
   const store = readFileSync(new URL("./store.ts", import.meta.url), "utf8");
   const card = readFileSync(new URL("./contact-screen.tsx", import.meta.url), "utf8");
   const network = readFileSync(new URL("../../app/network/network-screen.tsx", import.meta.url), "utf8");
+  const pushPage = readFileSync(new URL("../../app/network/x/[id]/push/page.tsx", import.meta.url), "utf8");
   assert.equal(route.includes("sendHtmlMail"), false);
-  assert.equal(route.includes("markPushback"), false);
   assert.equal(handler.includes("sendHtmlMail"), false);
-  assert.equal(handler.includes("pushback_at"), false);
-  assert.equal(/status:\s*409|,\s*409\b/.test(handler), false);
+  assert.match(handler, /, 409\)/);
   assert.match(handler, /Update ADED ME to open the draft/);
-  assert.equal(store.includes("markPushback"), false);
+  assert.match(store, /markExternalPushback/);
+  assert.match(store, /\.is\("pushback_at", null\)/);
   assert.equal(store.includes("clearPushback"), false);
+  assert.match(screen, /keepalive:\s*true/);
+  assert.match(screen, /mark:\s*true/);
+  assert.match(card, /disabled=\{Boolean\(contact\.pushbackAt\)\}/);
+  assert.match(network, /disabled: Boolean\(menuContact\.pushed\)/);
+  assert.match(pushPage, /if \(loaded\.contact\.pushbackAt\) redirect/);
   assert.match(store, /pushCardIsServed/);
   assert.match(screen, /<a href=\{mailHref\}/);
   assert.equal(screen.includes("Copy message"), false);
@@ -325,6 +330,6 @@ test("the route prepares a draft and does not send mail or mark a send", () => {
   assert.match(deck, /deviceWasRegistered\(\)/);
   assert.match(card, /ContactIdentityRow/);
   assert.equal(card.includes("size-[128px]"), false);
-  assert.equal(card.includes("disabled={swapped}"), false);
-  assert.equal(network.includes("menuContact.pushed"), false);
+  assert.match(card, />\s*Swap\s*</);
+  assert.match(network, /label: "Swap"/);
 });

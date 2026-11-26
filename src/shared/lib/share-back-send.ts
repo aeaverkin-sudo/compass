@@ -4,7 +4,11 @@ import { useSyncExternalStore } from "react";
 
 const DONE_KEY = "aded:share-back-done";
 
-type Phase = "idle" | "sent";
+export const SWAP_CLOSED = "This account is not accepting swaps.";
+/** Fully visible for 2.2s. The plaque's own fade-in and fade-out make the whole toast 4s. */
+export const SWAP_CLOSED_HOLD_MS = 2200;
+
+type Phase = "idle" | "sent" | "declined";
 
 type Live = { phase: Phase };
 
@@ -55,7 +59,7 @@ export function forgetShareBack(token: string) {
 const inflight = new Set<string>();
 const AGAIN_MS = 1500;
 
-export type ShareResult = "sent" | "declined" | "failed";
+export type ShareResult = "sent" | "declined" | "already" | "failed";
 
 async function postShare(token: string, cardId?: string): Promise<ShareResult> {
   let fromCardId = cardId?.trim() ?? "";
@@ -72,13 +76,14 @@ async function postShare(token: string, cardId?: string): Promise<ShareResult> {
     body: JSON.stringify({ fromCardId, toCardToken: token }),
   });
   if (!response.ok) return "failed";
-  const body = (await response.json().catch(() => null)) as { declined?: unknown } | null;
+  const body = (await response.json().catch(() => null)) as { declined?: unknown; already?: unknown } | null;
+  if (body?.already === true) return "already";
   return body?.declined === true ? "declined" : "sent";
 }
 
 /**
  * Send one of my cards. `cardId` is the one they picked; without it, the primary card goes.
- * Sent marks the button. Declined does not: they are not taking cards. A failure can be tried once more.
+ * Sent, declined, and a repeated attempt all leave Swap grey. A failure can be tried once more.
  */
 export async function sendShareBack(token: string, cardId?: string): Promise<ShareResult> {
   if (!token || shareBackPhase(token) !== "idle" || inflight.has(token)) return "failed";
@@ -98,10 +103,10 @@ export async function sendShareBack(token: string, cardId?: string): Promise<Sha
         result = "failed";
       }
     }
-    if (result !== "sent") return result;
-    live.set(token, { phase: "sent" });
+    if (result === "failed") return result;
+    live.set(token, { phase: result === "sent" ? "sent" : "declined" });
     publish();
-    return "sent";
+    return result;
   } finally {
     inflight.delete(token);
   }
