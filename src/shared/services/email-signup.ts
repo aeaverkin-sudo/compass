@@ -10,7 +10,7 @@ import {
   judgeSignupCode,
 } from "@/shared/services/signup-code";
 import { signupCodeMail, signupTakenMail } from "@/shared/mail/welcome-mail";
-import { mailLimitKey } from "@/shared/services/mail-limit";
+import { mailIpHash, mailLimitKey } from "@/shared/services/mail-limit";
 
 export const MAIL_NOT_CONNECTED = "Email isn't set up yet";
 
@@ -253,6 +253,7 @@ async function countSends(
   sentOnly: boolean,
   kind?: "signup" | "reset",
 ) {
+  if (column === "ip_hash" && !value) return 0;
   const since = new Date(Date.now() - MAIL_HOUR_MS).toISOString();
   let query = admin
     .from("auth_mail_sends")
@@ -312,7 +313,7 @@ export async function prepareResetMail(rawEmail: string, ip: string): Promise<Ma
   const admin = createAdminSupabaseClient();
   await sweepMail(admin);
   const emailHash = mailLimitKey("email", email);
-  const ipHash = mailLimitKey("ip", ip);
+  const ipHash = mailIpHash(ip);
   if ((await countSends(admin, "ip_hash", ipHash, false)) >= MAIL_PER_IP) {
     return { ok: false, status: 429, error: TRY_LATER };
   }
@@ -338,7 +339,7 @@ export async function beginSignupCode(
   const admin = createAdminSupabaseClient();
   await sweepMail(admin);
   const emailHash = mailLimitKey("email", email);
-  const ipHash = mailLimitKey("ip", ip);
+  const ipHash = mailIpHash(ip);
   const requests = await countSends(admin, "ip_hash", ipHash, false);
   const letters = await countSends(admin, "email_hash", emailHash, true, "signup");
   const lastLetterAt = await lastSignupLetter(admin, emailHash);

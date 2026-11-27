@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { mailLimitKey, renderClientIp } from "./mail-limit.ts";
+import { mailIpHash, mailLimitKey, renderClientIp } from "./mail-limit.ts";
 
 const SECRET = "test-mail-secret";
 
@@ -49,8 +49,8 @@ test("the limit uses the edge address, not the first forwarded value", () => {
     renderClientIp(headers({ "cf-connecting-ip": "203.0.113.8", "x-forwarded-for": "198.51.100.9, 203.0.113.8" })),
     "203.0.113.8",
   );
-  assert.equal(renderClientIp(headers({ "x-forwarded-for": "198.51.100.9" })), "unknown");
-  assert.equal(renderClientIp(headers({ "cf-connecting-ip": "198.51.100.9, 203.0.113.8" })), "unknown");
+  assert.equal(renderClientIp(headers({ "x-forwarded-for": "198.51.100.9" })), "");
+  assert.equal(renderClientIp(headers({ "cf-connecting-ip": "198.51.100.9, 203.0.113.8" })), "");
   assert.equal(renderClientIp(headers({ "cf-connecting-ip": "2001:db8::8" })), "2001:db8::8");
 
   const ask = readFileSync(new URL("../../app/api/signup/code/route.ts", import.meta.url), "utf8");
@@ -65,4 +65,25 @@ test("the limit uses the edge address, not the first forwarded value", () => {
   assert.equal(store.includes("hashCode(email)"), false);
   assert.equal(store.includes("hashCode(ip)"), false);
   assert.equal(store.includes("mailLimitKey"), true);
+});
+
+test("a missing address is not an IP limit", () => {
+  const headers = (map: Record<string, string>) => ({
+    headers: { get: (name: string) => map[name.toLowerCase()] ?? null },
+  });
+  const previous = process.env.MAIL_HASH_SECRET;
+  delete process.env.MAIL_HASH_SECRET;
+  try {
+    assert.equal(renderClientIp(headers({})), "");
+    assert.equal(renderClientIp(headers({ "cf-connecting-ip": "198.51.100.9, 203.0.113.8" })), "");
+    assert.equal(mailIpHash(""), "");
+    assert.equal(mailIpHash(renderClientIp(headers({}))), "");
+  } finally {
+    if (previous === undefined) delete process.env.MAIL_HASH_SECRET;
+    else process.env.MAIL_HASH_SECRET = previous;
+  }
+  const store = readFileSync(new URL("./email-signup.ts", import.meta.url), "utf8");
+  assert.match(store, /if \(column === "ip_hash" && !value\) return 0;/);
+  assert.equal(store.includes('mailLimitKey("ip"'), false);
+  assert.equal(store.includes("mailIpHash(ip)"), true);
 });

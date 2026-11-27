@@ -6,6 +6,7 @@
 -- The password is not stored. The code is only a sha256 hash.
 -- email_hash and ip_hash are HMAC-SHA256 with MAIL_HASH_SECRET.
 -- The address and the IP are not stored.
+-- No edge address stores an empty ip_hash and is not counted by IP.
 -- A signup letter is counted for the address. A request is
 -- counted for the IP. Reset requests count even when no
 -- letter goes out, so the answer stays the same.

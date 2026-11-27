@@ -14,9 +14,16 @@ export function mailLimitKey(kind: "email" | "ip", value: string): string {
 /**
  * The client address Cloudflare gives Render, in CF-Connecting-IP.
  * One address, set at the edge. The first X-Forwarded-For value is not read:
- * a client can send that one itself.
+ * a client can send that one itself. No address is an empty string, and that
+ * request is not counted toward any IP.
  */
 export function renderClientIp(request: { headers: { get(name: string): string | null } }): string {
   const raw = request.headers.get("cf-connecting-ip")?.trim() ?? "";
-  return isIP(raw) ? raw : "unknown";
+  return isIP(raw) ? raw : "";
+}
+
+/** Empty when there is no address. An empty hash is not an IP bucket. */
+export function mailIpHash(ip: string): string {
+  if (!ip) return "";
+  return mailLimitKey("ip", ip);
 }
