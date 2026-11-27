@@ -177,6 +177,9 @@ export function EntryPage({
   const [agreed, setAgreed] = useState(account && !needsConsent);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [codeStep, setCodeStep] = useState(false);
+  const [code, setCode] = useState("");
+  const [sentNote, setSentNote] = useState<string | null>(null);
   const [emailMarked, setEmailMarked] = useState(false);
   const formFirst = account || !SOCIAL_SIGNIN;
   const [formChoice, setFormChoice] = useState<boolean | null>(null);
@@ -189,6 +192,7 @@ export function EntryPage({
   const formPushed = useRef(false);
   const mainRef = useRef<HTMLElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
   const zonesRef = useRef<EntryZonesHandle>(null);
   const keepPlace = useRef(false);
   const submitLock = useRef(false);
@@ -197,7 +201,12 @@ export function EntryPage({
   const passwordShown = passwordValue ?? "";
   const ready = account
     ? Boolean(name.trim() && (!needsConsent || agreed))
-    : Boolean(agreed && isAccountEmail(email) && passwordShown.length >= PASSWORD_MIN);
+    : Boolean(
+        agreed &&
+          isAccountEmail(email) &&
+          passwordShown.length >= PASSWORD_MIN &&
+          (!codeStep || /^\d{6}$/.test(code)),
+      );
   const fields = useRef({ name, email, password: passwordShown, agreed });
   fields.current = { name, email, password: passwordShown, agreed };
   const photoRef = useRef(photo);
@@ -361,6 +370,34 @@ export function EntryPage({
 
   useKeyboardLift(mainRef);
 
+  const resendCode = async () => {
+    if (busy || submitLock.current) return;
+    const emailValue = email.trim().toLowerCase();
+    if (!isAccountEmail(emailValue)) return;
+    submitLock.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/signup/code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(20000),
+        body: JSON.stringify({ email: emailValue, resend: true }),
+      });
+      const reply = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        setError(reply.error || "Could not send the code.");
+        return;
+      }
+      setSentNote(`We sent a code to ${emailValue}`);
+    } catch {
+      setError("Could not send the code.");
+    } finally {
+      submitLock.current = false;
+      setBusy(false);
+    }
+  };
+
   const submit = async () => {
     if (busy || !ready || submitLock.current) return;
     zonesRef.current?.commitOpen();
@@ -396,6 +433,27 @@ export function EntryPage({
       setError(null);
       let created = false;
       try {
+        if (!codeStep) {
+          const response = await fetch("/api/signup/code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: AbortSignal.timeout(20000),
+            body: JSON.stringify({ email: emailValue }),
+          });
+          const reply = (await response.json().catch(() => ({}))) as { error?: string };
+          if (!response.ok) {
+            setError(reply.error || "Could not send the code.");
+            submitLock.current = false;
+            setBusy(false);
+            return;
+          }
+          setCodeStep(true);
+          setSentNote(`We sent a code to ${emailValue}`);
+          window.setTimeout(() => codeRef.current?.focus(), 0);
+          submitLock.current = false;
+          setBusy(false);
+          return;
+        }
         const response = await fetch("/api/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -403,6 +461,7 @@ export function EntryPage({
           body: JSON.stringify({
             email: emailValue,
             password: secret,
+            code,
             ...(input.sourceToken ? { sourceToken: input.sourceToken } : {}),
             ...(input.event
               ? { event: { lookup: input.event.lookup, ...(input.event.guestToken ? { guestToken: input.event.guestToken } : {}) } }
@@ -410,19 +469,13 @@ export function EntryPage({
           }),
         });
         const reply = (await response.json().catch(() => ({}))) as {
+          error?: string;
           kind?: string;
           saved?: boolean;
           warning?: string;
         };
-        if (response.status === 409 || reply.kind === "login") {
-          setError("This email already has an account.");
-          track("signup_fail", reply.kind);
-          submitLock.current = false;
-          setBusy(false);
-          return;
-        }
         if (!response.ok) {
-          setError("Could not create the account.");
+          setError(reply.error || "Could not create the account.");
           track("signup_fail", reply.kind);
           submitLock.current = false;
           setBusy(false);
@@ -797,6 +850,9 @@ export function EntryPage({
                     onChange={(event) => {
                       setEmailLive(true);
                       setEmail(event.target.value);
+                      setCodeStep(false);
+                      setCode("");
+                      setSentNote(null);
                     }}
                     className="t-body m-0 w-full border-0 border-b border-[var(--rule)] bg-transparent p-0 outline-none placeholder:text-[var(--placeholder)]"
                     style={{ color: emailMarked ? ENTRY_MARK : emailLive ? "var(--ink)" : "var(--placeholder)" }}
@@ -827,7 +883,21 @@ export function EntryPage({
                   {passwordShown.length > 0 && passwordShown.length < PASSWORD_MIN ? (
                     <p className="m-0 t-meta text-[var(--ink)]">At least 8 characters.</p>
                   ) : null}
+                  {codeStep ? (
+                    <input
+                      ref={codeRef}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      name="one-time-code"
+                      aria-label="Code"
+                      placeholder="Code"
+                      value={code}
+                      onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                      className="t-body m-0 w-full border-0 border-b border-[var(--rule)] bg-transparent p-0 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
+                    />
+                  ) : null}
                   <p className="m-0 t-meta text-[var(--ink)]">You can change it anytime in Profile.</p>
+                  {sentNote ? <p className="m-0 t-meta text-[var(--ink)]">{sentNote}</p> : null}
                   <span className="flex min-w-0 items-center gap-2">
                     <label htmlFor="create-terms" className="t-meta min-w-0 text-[var(--ink)]">
                       I agree with{" "}
@@ -855,6 +925,16 @@ export function EntryPage({
                   >
                     Sign up
                   </button>
+                  {codeStep ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void resendCode()}
+                      className="press mt-[14px] border-0 bg-transparent p-0 text-left t-meta text-[var(--ink)] underline decoration-[0.5px] underline-offset-[3px] disabled:text-[var(--grey)]"
+                    >
+                      Resend code
+                    </button>
+                  ) : null}
                 </div>
               </section>
             </div>

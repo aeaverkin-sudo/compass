@@ -16,6 +16,8 @@ services:
         value: 0.0.0.0
       - key: CRON_SECRET
         sync: false
+      - key: MAIL_HASH_SECRET
+        sync: false
   - type: cron
     name: compass-purge
     runtime: node

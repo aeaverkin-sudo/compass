@@ -12,7 +12,6 @@ import { CONSENT_VERSION } from "@/shared/services/consent";
 import { ATTACHMENT_TYPES, type AttachmentContactType } from "@/shared/services/portfolio-limits";
 import { bindSessionReceipts } from "@/shared/services/bind-note-receipts";
 import { saveConnection } from "@/shared/services/save-connection";
-import { sendWelcomeMail } from "@/shared/services/cold-entry";
 import { noteProductCount } from "@/shared/services/product-stats-record";
 import { isProseValue } from "@/shared/services/card-zones";
 import { libraryZonesBeforeCard } from "@/shared/services/signup-library";
@@ -343,8 +342,8 @@ export async function writeFirstPortfolio(
   };
 }
 
-/** Create the account only. The first portfolio is a later screen. A failed write deletes the user. */
-export async function createSignup(body: SignupBody, origin = ""): Promise<SignupResult> {
+/** Create the account only. The code was already checked. A failed write deletes the user. */
+export async function createSignup(body: SignupBody): Promise<SignupResult> {
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
   if (!email || email.length > 254 || !isEmail(email)) return { ok: false, status: 400, error: "Add your email." };
@@ -354,7 +353,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
 
   const admin = createAdminSupabaseClient();
   if (await userIdForEmail(email)) {
-    return { ok: false, status: 409, error: "This email already has an account.", kind: "login" };
+    return { ok: false, status: 500, error: "Could not create the account." };
   }
   const made = await admin.auth.admin.createUser({
     email,
@@ -363,7 +362,7 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
     app_metadata: { [PASSWORD_SET]: new Date().toISOString() },
   });
   if (made.error || !made.data.user) {
-    if (emailTaken(made.error)) return { ok: false, status: 409, error: "This email already has an account.", kind: "login" };
+    if (emailTaken(made.error)) return { ok: false, status: 500, error: "Could not create the account." };
     return { ok: false, status: 500, error: "Could not create the account." };
   }
 
@@ -380,16 +379,11 @@ export async function createSignup(body: SignupBody, origin = ""): Promise<Signu
     if (consent.error) throw new Error(consent.error.message);
     const door = await keepSourceCard(admin, userId, body.sourceToken);
     await bindSessionReceipts(userId);
-    if (origin) {
-      void sendWelcomeMail(userId, origin, "password", false).catch((error) => {
-        console.error("[mail] welcome", error instanceof Error ? error.message : "send failed");
-      });
-    }
     await noteProductCount({ action: "registration_email" });
     return { ok: true, status: 201, ...door };
   } catch (error) {
     await admin.auth.admin.deleteUser(userId);
-    console.error("[signup]", error instanceof Error ? error.message : error);
+    console.error("[signup]", error instanceof Error ? error.name : "write");
     return { ok: false, status: 500, error: "Could not create the account." };
   }
 }

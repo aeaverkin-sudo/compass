@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { mailOrigin } from "@/shared/lib/public-origin";
+import { isEmail, verifySignupCode } from "@/shared/services/email-signup";
 import { createSignup, type SignupBody } from "@/shared/services/signup";
 
 export const runtime = "nodejs";
@@ -10,14 +10,27 @@ function noStore(body: unknown, status: number) {
 }
 
 export async function POST(request: Request) {
-  let body: SignupBody;
+  let body: SignupBody & { code?: unknown };
   try {
-    body = (await request.json()) as SignupBody;
+    body = (await request.json()) as SignupBody & { code?: unknown };
   } catch {
     return noStore({ error: "Could not create your profile." }, 400);
   }
-  const result = await createSignup(body ?? {}, mailOrigin(request));
-  if (!result.ok) return noStore({ error: result.error, kind: result.kind }, result.status);
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const code = typeof body.code === "string" ? body.code.trim() : "";
+  if (!isEmail(email)) return noStore({ error: "Add your email." }, 400);
+  if (!/^\d{6}$/.test(code)) return noStore({ error: "Enter the code" }, 400);
+  try {
+    const verdict = await verifySignupCode(email, code);
+    if (verdict === "limited") return noStore({ error: "Too many attempts" }, 429);
+    if (verdict === "expired") return noStore({ error: "That code has expired" }, 400);
+    if (verdict !== "ok") return noStore({ error: "Wrong code" }, 400);
+  } catch (error) {
+    console.error("[signup] code", error instanceof Error ? error.name : "check");
+    return noStore({ error: "Could not create the account." }, 500);
+  }
+  const result = await createSignup(body);
+  if (!result.ok) return noStore({ error: result.error }, result.status);
   return noStore(
     {
       ...(result.saved ? { saved: true, savedName: result.savedName } : {}),

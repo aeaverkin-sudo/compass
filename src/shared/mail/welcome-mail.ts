@@ -88,3 +88,52 @@ ${body}
 
   return { subject: WELCOME_SUBJECT, html, text };
 }
+
+const CODE_FOOTER = "If you did not ask for this, ignore this email. No account is created until the code is entered.";
+const TAKEN_FOOTER = "If you did not ask for this, ignore this email.";
+
+function letterShell(logoSrc: string, heading: string, body: string, footer: string) {
+  return `<!doctype html>
+<html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><meta name="color-scheme" content="light" /></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="background:#ffffff;"><tr><td align="center" style="padding:20px 16px 32px;">
+<table role="presentation" width="${WIDTH}" cellpadding="0" cellspacing="0" border="0" style="width:${WIDTH}px;max-width:100%;">
+<tr><td style="padding:0 0 16px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="${TILE}" height="${TILE}" align="center" valign="middle" bgcolor="#ffffff" style="width:${TILE}px;height:${TILE}px;background:#ffffff;box-shadow:0 4px 18px rgba(0,0,0,.14);"><img src="${escape(logoSrc)}" width="${LOGO_W}" height="${LOGO_H}" alt="ADED" style="display:block;width:${LOGO_W}px;height:${LOGO_H}px;border:0;outline:none;" /></td>
+<td valign="middle" style="padding-left:20px;font-family:${FONT};font-size:21px;line-height:1.15;font-weight:600;letter-spacing:-0.5px;color:${INK};">${escape(heading)}</td>
+</tr></table>
+</td></tr>
+<tr><td style="border-top:1px solid ${RULE};padding:16px 0 0;font-family:${FONT};font-size:15.5px;line-height:1.45;color:${INK};">${body}</td></tr>
+<tr><td style="border-top:1px solid ${RULE};padding:12px 0 0;font-family:${FONT};font-size:12px;line-height:1.45;color:${GREY};">${escape(footer)}</td></tr>
+</table></td></tr></table>
+</body></html>`;
+}
+
+/** The only signup letter. The code is the subject, and there is no link. */
+export function signupCodeMail(input: { logoSrc: string; code: string }): { subject: string; html: string; text: string } {
+  const code = input.code.trim();
+  const subject = `${code} is your ADED ME code`;
+  const text = [
+    "Welcome. Confirm your email.",
+    "",
+    "Enter this code in ADED ME to finish creating your account.",
+    "",
+    code,
+    "",
+    "This code expires in 30 minutes.",
+    "",
+    CODE_FOOTER,
+  ].join("\n");
+  const body = `Enter this code in ADED ME to finish creating your account.<br /><br />
+<span style="font-family:${FONT};font-size:32px;line-height:1.2;font-weight:600;letter-spacing:0.12em;color:${INK};">${escape(code)}</span><br /><br />This code expires in 30 minutes.`;
+  return { subject, text, html: letterShell(input.logoSrc, "Welcome. Confirm your email.", body, CODE_FOOTER) };
+}
+
+/** A taken address. No code and no link, so it cannot confirm anything. */
+export function signupTakenMail(input: { logoSrc: string }): { subject: string; html: string; text: string } {
+  const subject = "You already have an ADED ME account";
+  const text = ["You already have an account.", "", "Sign in, or reset the password.", "", TAKEN_FOOTER].join("\n");
+  const body = "Sign in, or reset the password.";
+  return { subject, text, html: letterShell(input.logoSrc, "You already have an account.", body, TAKEN_FOOTER) };
+}

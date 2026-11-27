@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { WELCOME_FOOTER, WELCOME_SUBJECT, welcomeHeading, welcomeLines, welcomeMail } from "./welcome-mail.ts";
+import {
+  WELCOME_FOOTER,
+  WELCOME_SUBJECT,
+  signupCodeMail,
+  signupTakenMail,
+  welcomeHeading,
+  welcomeLines,
+  welcomeMail,
+} from "./welcome-mail.ts";
 
 const SECRET = "ABCD-2345";
 
@@ -45,6 +53,23 @@ test("the welcome has no password, code, or another person's card", () => {
     assert.equal(mail.text.includes("QR code"), true);
     assert.equal(mail.text.includes("privaterelay"), false);
   }
+});
+
+test("the signup code letter has the code, no link, and no password", () => {
+  const mail = signupCodeMail({ logoSrc: "https://adedme.com/brand/aded-grid-mail.png", code: "100003" });
+  assert.equal(mail.subject, "100003 is your ADED ME code");
+  assert.equal(mail.text.startsWith("Welcome. Confirm your email."), true);
+  assert.equal(mail.text.includes("Enter this code in ADED ME to finish creating your account."), true);
+  assert.equal(mail.text.includes("This code expires in 30 minutes."), true);
+  assert.equal(mail.text.includes("No account is created until the code is entered."), true);
+  assert.equal(mail.html.includes("100003"), true);
+  assert.equal(mail.html.includes("<a "), false);
+  assert.equal(/password/i.test(mail.text), false);
+  assert.equal(mail.html.includes("Confirm in browser"), false);
+  const taken = signupTakenMail({ logoSrc: "https://adedme.com/brand/aded-grid-mail.png" });
+  assert.equal(taken.subject, "You already have an ADED ME account");
+  assert.equal(taken.html.includes("<a "), false);
+  assert.equal(/\d{6}/.test(taken.text), false);
 });
 
 test("welcome is delivered once, and the mark is not written before acceptance", () => {
